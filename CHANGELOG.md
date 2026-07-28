@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-28 — Style guide compliance fixes
+
+- Synced Contents with missing Appendix D.1 and G.1–G.13 subsection entries.
+- Renumbered "Illustrative exchanges" heading to D.1.
+- Added failure-mode tags (`_(F1)_`, `_(F3)_`, `_(F5)_`, `_(F6)_`) to 12 REQ
+  headers that lacked them.
+- Added T4 to REQ-012's `_Check:_` trailer, resolving an orphan-test warning.
+
 ## 2026-07-28 — Add character-sheet-from-pdf skill
 
 - Added `skills/character-sheet-from-pdf/SKILL.md`: opencode skill for building
