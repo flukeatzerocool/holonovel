@@ -33,16 +33,13 @@ with full access across all source materials.
   parsing heuristics, classification, verification, and adversarial review —
   and Deepseek's performance on complex instruction-following makes it a
   strong fit. I personally use Opencode Go for access to Deepseek models. On my computer, Deepseek v4 Pro built an MCP server for D&D 2024 for just under US $2.
-
-## Character sheet from PDF skill
-
-`skills/character-sheet-from-pdf/SKILL.md` is a skill that guides
-building a character-sheet rendering MCP tool from a PDF. The process
-covers: field-by-field study of the PDF layout, translating the field
-inventory to a typed data model, building a format-agnostic derivation layer
-(modifier math, proficiency checks, equipment resolution), and wiring up
-dual renderers (ASCII plain-text and Markdown). Ruleset-agnostic and
-MCP-server-agnostic — works with any holonovel-built server.
+- **`character-sheet-from-pdf.md`** is a prompt that guides building
+  a character-sheet rendering MCP tool from a PDF. The process covers
+  field-by-field study of the PDF layout, translating the field inventory
+  to a typed data model, building a format-agnostic derivation layer (modifier
+  math, proficiency checks, equipment resolution), and wiring up dual
+  renderers (ASCII plain-text and Markdown). Ruleset-agnostic and
+  MCP-server-agnostic — works with any holonovel-built server.
 
 ## Validating
 
@@ -66,10 +63,9 @@ Holonovel/
 ├── holonovel.md                ← the specification (standalone, copy-pasteable)
 ├── holonovel-ruleset-prep.md   ← prompt: format a raw ruleset for holonovel
 │                                 ingestion
-├── skills/
-│   └── character-sheet-from-pdf/
-│       └── SKILL.md       ← skill: build character sheet rendering
-│                             on top of a holonovel-built server
+├── character-sheet-from-pdf.md  ← prompt: build character sheet
+│                                    rendering on top of a holonovel-built
+│                                    server
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, check)
 ├── scripts/

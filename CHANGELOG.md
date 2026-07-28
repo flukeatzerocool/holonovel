@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-28 — Convert character-sheet-from-pdf from skill to prompt
+
+- Created `character-sheet-from-pdf.md`: converted the
+  `character-sheet-from-pdf` opencode skill into a standalone build prompt
+  document in the project root (same style as `holonovel.md`).
+- Deleted `skills/character-sheet-from-pdf/SKILL.md` (and the `skills/`
+  directory).
+- Updated `README.md`: merged the character sheet section into the last
+  bullet under "Implementation recommendations" and updated the project
+  structure tree to reference the new prompt path.
+- Updated `AGENTS.md` layer map to point to the new prompt file.
+
 ## 2026-07-28 — Add holonovel-ruleset-prep.md
 
 - Added `holonovel-ruleset-prep.md`: a self-contained prompt for formatting

@@ -1,8 +1,3 @@
----
-name: character-sheet-from-pdf
-description: Use ONLY when the user asks to build, create, or add a character sheet rendering tool to an MCP server, starting from a character sheet PDF. Guides the full process from PDF study through data model, renderers, and tool wiring. Ruleset-agnostic and MCP-server-agnostic.
----
-
 # Character Sheet from PDF → MCP Tool
 
 Build a character-sheet rendering tool for a TTRPG MCP server, starting from a PDF.
