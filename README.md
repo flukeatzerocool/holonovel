@@ -13,18 +13,18 @@ directly from the source books. Servers support two personas: a player persona
 with access limited to the player-facing rulebook, and a game master persona
 with full access across all source materials.
 
-## Using the prompt
-
-Download `holonovel.md`, place it alongside your Markdown-format ruleset
-files, and feed them into an AI agent with a prompt such as:
-
-> Use holonovel.md to build a server using `players-handbook.md`.
-
-The agent will follow the spec to parse, model, verify, and package the
-ruleset into a working MCP server — no manual preprocessing required.
-
 ## Implementation recommendations
 
+- **Using the prompt.** Download `holonovel.md`, place it alongside your
+  Markdown-format ruleset files, and feed them into an AI agent with a prompt
+  such as: *Use holonovel.md to build a server using `players-handbook.md`.*
+  The agent will follow the spec to parse, model, verify, and package the
+  ruleset into a working MCP server.
+- **`holonovel-ruleset-prep.md`** for rulesets that aren't already clean
+  Markdown. Feed the prompt to an AI alongside the raw ruleset; it will format
+  headings, tables, role scoping, dice notation, conditions, and
+  guidance/mechanics separation into the structure `holonovel.md` expects
+  before starting the server build.
 - **TypeScript** for the MCP server. Strong typing catches ruleset schema
   mismatches at build time, and the spec's entity model (typed carriers with
   derivation layers) maps naturally to TS interfaces.
@@ -62,8 +62,10 @@ validator).
 ## Project structure
 
 ```
-holonovel-spec/
-├── holonovel.md           ← the specification (standalone, copy-pasteable)
+Holonovel/
+├── holonovel.md                ← the specification (standalone, copy-pasteable)
+├── holonovel-ruleset-prep.md   ← prompt: format a raw ruleset for holonovel
+│                                 ingestion
 ├── skills/
 │   └── character-sheet-from-pdf/
 │       └── SKILL.md       ← opencode skill: build character sheet rendering

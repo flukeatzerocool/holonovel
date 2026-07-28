@@ -8,6 +8,9 @@
   tables, bold-labeled fields, procedures, dice and resolution, conditions,
   guidance vs. mechanics, special elements, output conventions, and a
   verification checklist.
+- Updated `README.md`: folded the "Using the prompt" section into the first
+  "Implementation recommendations" bullet and added a second bullet for
+  `holonovel-ruleset-prep.md` for rulesets not yet in clean Markdown.
 
 ## 2026-07-28 — Clarify role-scoping marker convention in Appendix A
 
