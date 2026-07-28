@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-28 — Clarify role-scoping marker convention in Appendix A
+
+- Reworded the role-scoping paragraph: `<name>` is now defined as the ruleset's
+  own adjudicator term, and the parenthetical example is explicitly attributed to
+  the Tin Lanterns fixture to avoid implying "Keeper" is a universal token.
+
 ## 2026-07-28 — Confidence threshold and handoff-gate clarifications
 
 - R1: validate.py now reports the Appendix E manifest row count automatically;

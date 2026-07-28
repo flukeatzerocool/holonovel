@@ -1612,9 +1612,11 @@ names, and output. An undecodable file is a structural defect: log it and block 
 Generate deterministic anchors per Section 6.1 — explicit IDs (a trailing `{#id}` marker) where present,
 otherwise slugged heading text with occurrence suffixes.
 
-**Role scoping.** A trailing italic heading marker of the form `*<name> only*` scopes the section to that
-role: match case-insensitively against discovered role terms or their final word (`Keeper only` matches
-`Lantern Keeper`). A section scoped to the referee role is referee-only and subject to REQ-032 filtering;
+**Role scoping.** A trailing italic heading marker of the form `*<name> only*` scopes the section to the
+referee role: `<name>` is the ruleset's own term for its adjudicator. Match the marker case-insensitively
+against discovered role terms or their final word (in the Tin Lanterns fixture the role term is
+`Lantern Keeper`, so `Keeper only` matches). A section scoped to the referee role is referee-only and
+subject to REQ-032 filtering;
 referee-scoped markers are the primary source of referee-only ruleset content; where a ruleset instead
 declares scoping by another discoverable convention — a referee-only book, part, or section — that
 convention is identified at intake (Section 5.1), recorded as a normalization (Section 8, item (4)), and
