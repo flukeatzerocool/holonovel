@@ -983,8 +983,11 @@ and canonical name, so a hyphenated display anchor such as `black-bear` resolves
 **Canonical alias resolution.** External slugs or client-generated names may differ in case,
 hyphenation, spacing, or trailing category suffix (`NobleBackground`, `FireballSpell`,
 `FighterClass`). Rules-section resources and bounded-domain tool parameters resolve aliases by
-normalizing the input to the bounded-domain lookup token (NFKC; lowercase; drop apostrophes;
-remove all non-alphanumeric characters, including hyphens) and matching that token against the same
+normalizing the input to the bounded-domain lookup token: NFKC; lowercase; replace opening and
+closing quotation marks (U+2018, U+2019, U+201C, U+201D), and the double-prime character
+(U+2033), with ASCII quote (U+0027) or double-quote (U+0022) respectively; replace en dash
+(U+2013) and em dash (U+2014) with hyphen-minus (U+002D); drop apostrophes; remove all
+remaining non-alphanumeric characters, including hyphens and matching that token against the same
 lookup token computed for each anchor and canonical name. If the lookup token ends with a known
 category suffix (`Background`, `Class`, `Species`, `Spell`, `Monster`, `Equipment`, `Feat`,
 `Condition`), the suffix is stripped and the remaining token is matched. Bounded-domain tool
@@ -1592,8 +1595,24 @@ stripped before anchor generation (Section 6.1); the strip also consumes precedi
 dash characters (hyphen, en dash, em dash), so 'Undermarsh Encounters — _Keeper only_' derives from
 'Undermarsh Encounters'.
 
+**Ambiguous markers.** When a trailing italic marker's text matches two or more discovered role terms
+by the final-word heuristic, the section is marked shared — not role-scoped — and the ambiguity is
+recorded as a normalization in `DECISIONS.md`. When the operator is available at intake, the
+ambiguous marker is resolved against the full role term instead of only the final word and the section
+is scoped accordingly. In a non-interactive run, the conservative default — shared — applies per
+Section 5.1. A section defaulted to shared under this rule is never referee-only and therefore never
+gated under REQ-032.
+
 **Bold labels.** Accept `**Label**: Value`, `Label: **Value**`, and `**Label: Value**`; normalize internally
 to one canonical form.
+
+**Definition lists.** A section containing at least two consecutive bold-label paragraphs with no
+intervening prose, empty lines, or other block elements is classified as a definition list. Each entry
+is extracted as a named item: the bold span is the canonical name, and the remainder is the value.
+When an entry's canonical name duplicates an existing section heading, the heading takes precedence
+and the entry is treated as supplemental detail. The minimum-consecutive threshold is two; the
+classification is recorded as a normalization in `DECISIONS.md`. Items from definition lists are
+labeled with the containing section's confidence and do not themselves lower it.
 
 **Tables.** Take the column count from the widest row. Pad short rows with empty cells. Merge overflow cells
 into the last column. Log malformed tables; never fail silently and never repair the source. A first-column
@@ -1601,11 +1620,32 @@ cell of the form `a–b` (en dash, em dash, or hyphen) denotes the inclusive int
 generation matching; a single integer matches itself; a malformed range is a parse defect. A body cell of the
 form `Name: detail` splits at the first colon into name and detail; a colon-less cell in a table whose other
 rows carry details is a name with empty detail — a content finding, below.
+**Table header detection.** A multi-row table's first row is a header and is excluded from data
+extraction. A single-row table has no header; every row is data. When a header row's cell count
+equals the column count and its contents read as labels rather than data (the row contains at least
+one cell of three or more words, or every cell is a single word with no numeric prefix) and a
+subsequent row contains numeric-range or roll-range cells, the classification is recorded as a
+normalization in `DECISIONS.md`. The classification is deterministic per table; a re-index reproduces
+the same header assignment.
+**Inline formatting.** Bold, italic, links (`[text](url)`), and code spans within table cells are
+preserved in the Markdown representation. A cell whose content begins with a bold span and contains
+no colon may use the bold span as the name and the remainder as detail. Inline formatting is
+preserved, not interpreted — a bold span is a formatting signal, not a concept declaration
+(REQ-013). Cells retain their raw Markdown for REQ-018 quote validation.
+**Table captions.** A prose paragraph that immediately precedes a table — with no intervening blank
+line, heading, horizontal rule, or other block element — and ends in a colon or contains the phrase
+"following table" is treated as the table's caption. The caption is stored as the table's description
+in extraction output and is included in search results alongside the table title. The association is
+deterministic; re-indexing reproduces an identical caption assignment. A paragraph that meets the
+position condition but not the text condition is not a caption and is extracted separately.
 
 **Counted defect classes.** Three classes are recorded in `RULESET_MODEL.md`'s defect log and counted in
 `spec_health`'s defect count: **parse defects** (malformed structure — short or overflow rows, broken links,
-undecodable bytes, malformed ranges); **content findings** (well-formed but thin content — e.g., table rows
-that are complete yet lack descriptions; parse them normally, log them, and never pad or rewrite them);
+undecodable bytes, malformed ranges); **content findings** (well-formed but thin or unextractable
+content — e.g., table rows
+that are complete yet lack descriptions; sections whose mechanical content is nested in list
+structures and could not be automatically extracted; sections containing struck-through content;
+parse them normally, log them, and never pad or rewrite them);
 **contradictions** (two Markdown statements in direct conflict — the most authoritative section is canonical,
 the loser LOW, Section 5.3). Findings are recorded one per (file, anchor, defect class); multiple instances
 are enumerated within the finding.
@@ -1618,9 +1658,47 @@ Section 5.6 checkpoint findings (→ `DECISIONS.md`); REQ-017 story findings (�
 paths against the ruleset directory; resolve to index anchors where possible; report broken links in the
 defect log.
 
-**Other elements.** HTML comments (`<!-- -->`) are ignored entirely. Blockquotes and nested lists: preserve
-text, infer no extra structure. Code blocks: literal text; do not execute or parse as rules. Images: ignore
-the file, keep captions; if an image appears to convey a rule, mark the section LOW confidence.
+**Other elements.** HTML comments (`<!-- -->`) are ignored entirely.
+**Blockquotes and nested lists.** Preserve text, infer no extra structure. When a section's primary
+mechanical content appears only in nested lists and the flat-text extraction yields no modeled items
+from the section, the section is unmapped but searchable per REQ-012. Log a content finding noting
+the section could not be automatically extracted from its nested structure; the raw text remains
+retrievable through `search_rules` and the section's `ruleset://` resource.
+**Code blocks.** Literal text; do not execute or parse as rules (REQ-013). The info string — the
+word following the opening fence, where present — is preserved as a classifier tag for search and
+retrieval; it never changes extraction behavior. Content within code blocks remains searchable per
+REQ-012. A code block whose info string matches a recognized category such as `statblock` or
+`example` is indexed under a derived anchor of the form `<parent-anchor>-codeblock-N` (dedupe
+suffixes apply) and returns the block text with its info string as a source header. The
+recognized-category list is recorded as a normalization in `DECISIONS.md`.
+Images: ignore the file, keep captions; if an image appears to convey a rule, mark the section LOW
+confidence.
+**Strikethrough.** Strikethrough text (`~~text~~`) is preserved in the Markdown representation.
+Sections containing strikethrough are flagged with a content finding noting the presence of
+struck-through content — potentially deprecated or errata'd material. The flag does not change
+extraction behavior; struck-through text is extracted normally, and the finding serves as a reviewer
+signal. The content finding is one per file listing the affected sections; it does not count multiple
+strikethrough spans within one section as separate findings.
+
+**Callouts.** A blockquote whose first line matches a bold-label pattern (`**Label**: Value`) is
+classified as a callout. The label names the callout type; the body — the blockquote's remaining
+lines — is its content. Callouts are indexed as subsections of their containing section with a
+derived anchor of the form `<parent-anchor>-callout-N` (dedupe suffixes apply) and a title of the
+form `<parent-title> — <callout-type>`. A callout whose type is recognized as signaling
+non-normative content (default list: "Example," "Variant," "Optional," "Sidebar," "Design Note,"
+"Playtest") is labeled MEDIUM confidence by default; the type list is configurable per ruleset at
+intake and recorded as a normalization in `DECISIONS.md`. A callout whose type is unrecognized is
+labeled with its parent section's confidence and the unrecognized type is logged as a content
+finding. Callout classification produces no mechanics, no tools, and no state (REQ-013).
+
+**Horizontal rules.** A horizontal rule (`---`, `***`, `___`) within a section defines an implicit
+content boundary. Content between two horizontal rules, or between a heading and the first horizontal
+rule, or between the last horizontal rule and the next heading, forms a separately retrievable block
+with a derived anchor of the form `<parent-anchor>-sub-N` (dedupe suffixes apply). The block inherits
+the parent section's title with an ordinal suffix in resource listings. Horizontal rules carry no
+heading text; the derived anchors are deterministic and re-indexing reproduces identical anchor lists.
+Blocks separated by horizontal rules remain part of the parent section for confidence labeling,
+extraction, and role scoping; only retrieval granularity changes.
 
 **Procedures.** Signals: imperative verbs, numbered steps, "To X, do Y", "When X happens, Y", "On your turn,
 you may Z".
