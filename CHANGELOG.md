@@ -11,6 +11,9 @@
 - Updated `README.md`: folded the "Using the prompt" section into the first
   "Implementation recommendations" bullet and added a second bullet for
   `holonovel-ruleset-prep.md` for rulesets not yet in clean Markdown.
+- Refined README.md language: tightened the `holonovel-ruleset-prep.md` bullet,
+  added "Use" to the TypeScript and Deepseek Pro bullets, added a $2 cost
+  note on the Deepseek Pro bullet, and shortened "opencode skill" to "skill."
 
 ## 2026-07-28 — Clarify role-scoping marker convention in Appendix A
 

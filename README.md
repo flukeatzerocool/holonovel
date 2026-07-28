@@ -21,22 +21,22 @@ with full access across all source materials.
   The agent will follow the spec to parse, model, verify, and package the
   ruleset into a working MCP server.
 - **`holonovel-ruleset-prep.md`** for rulesets that aren't already clean
-  Markdown. Feed the prompt to an AI alongside the raw ruleset; it will format
+  Markdown. Feed this prompt to an AI alongside the raw ruleset before running `holonovel.md`; it will format
   headings, tables, role scoping, dice notation, conditions, and
   guidance/mechanics separation into the structure `holonovel.md` expects
   before starting the server build.
-- **TypeScript** for the MCP server. Strong typing catches ruleset schema
+- Use **TypeScript** for the MCP server. Strong typing catches ruleset schema
   mismatches at build time, and the spec's entity model (typed carriers with
   derivation layers) maps naturally to TS interfaces.
-- **Deepseek Pro** (or an equivalent strong reasoning model) as the AI agent
+- Use **Deepseek Pro** (or an equivalent strong reasoning model) as the AI agent
   running the prompt. The spec requires sustained multi-step reasoning —
   parsing heuristics, classification, verification, and adversarial review —
   and Deepseek's performance on complex instruction-following makes it a
-  strong fit.
+  strong fit. I personally use Opencode Go for access to Deepseek models. On my computer, Deepseek v4 Pro built an MCP server for D&D 2024 for just under US $2.
 
 ## Character sheet from PDF skill
 
-`skills/character-sheet-from-pdf/SKILL.md` is an opencode skill that guides
+`skills/character-sheet-from-pdf/SKILL.md` is a skill that guides
 building a character-sheet rendering MCP tool from a PDF. The process
 covers: field-by-field study of the PDF layout, translating the field
 inventory to a typed data model, building a format-agnostic derivation layer
@@ -68,7 +68,7 @@ Holonovel/
 │                                 ingestion
 ├── skills/
 │   └── character-sheet-from-pdf/
-│       └── SKILL.md       ← opencode skill: build character sheet rendering
+│       └── SKILL.md       ← skill: build character sheet rendering
 │                             on top of a holonovel-built server
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, check)
