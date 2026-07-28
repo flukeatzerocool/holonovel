@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-28 — Add holonovel-ruleset-prep.md
+
+- Added `holonovel-ruleset-prep.md`: a self-contained prompt for formatting
+  TTRPG ruleset documents into Markdown structured for optimal ingestion by
+  `holonovel.md`. Covers source intake, document structure, role scoping,
+  tables, bold-labeled fields, procedures, dice and resolution, conditions,
+  guidance vs. mechanics, special elements, output conventions, and a
+  verification checklist.
+
 ## 2026-07-28 — Clarify role-scoping marker convention in Appendix A
 
 - Reworded the role-scoping paragraph: `<name>` is now defined as the ruleset's
