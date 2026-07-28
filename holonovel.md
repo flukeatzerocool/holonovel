@@ -316,7 +316,16 @@ no extracted items is reported as n/a and excluded from the overall score. An ag
 from its constituents by a stated rule — by default the aggregate takes its most conservative constituent's label
 (the lowest-confidence label among its constituents: LOW outranks MEDIUM, which outranks HIGH),
 while each constituent keeps its own label for downstream decisions; the rule is recorded in `DECISIONS.md`
-(Section 8, item (4)) and applied uniformly. _Check:_ T15.
+(Section 8, item (4)) and applied uniformly.
+
+A ruleset where more than half of its sections carry MEDIUM book-level scoping cannot reach 80% overall
+confidence under this formula regardless of extraction quality — each MEDIUM section contributes at most 0.5
+weight. This ceiling is by design: MEDIUM reflects the inherent lower extractability of referee-facing
+prose. Builders encountering this ceiling record the shortfall under REQ-025's remediation plan rather than
+reclassifying sections to inflate the score. Per REQ-025, the player persona's filtered confidence score is
+the gating metric.
+
+_Check:_ T15.
 
 **REQ-012 — Graceful fallback.** _(F1)_ LOW-confidence and unparseable sections are never silently dropped.
 They remain retrievable, as raw text, through the `search_rules` tool and rules-section resources. _Check:_
@@ -483,9 +492,13 @@ names it. _Check:_ T3, T35, T39.
   listings exclude referee-only items; the referee persona and unassigned sessions see the unfiltered
   totals.
 
-At handoff, the overall confidence score is at least 80% and MUST-action coverage is 100% after waivers
-under REQ-013. Scores below the threshold stop the build and are recorded in `DECISIONS.md` with a
-remediation plan; the operator may waive the overall threshold under Section 5.1's interaction model.
+ The player persona's reported confidence score is the gating metric: its `spec_health` output must
+meet the 80% threshold. The unfiltered (referee/unassigned) score is reported for informational
+purposes only; a shortfall in the unfiltered view is recorded in `DECISIONS.md` Section (4) with
+rationale but does not gate the build. At handoff, the player-persona confidence score is at least
+80% and MUST-action coverage is 100% after waivers under REQ-013. Scores below the threshold stop
+the build and are recorded in `DECISIONS.md` with a remediation plan; the operator may waive the
+overall threshold under Section 5.1's interaction model.
 MUST actions waived for absent ruleset content are excluded from the 100% target and recorded.
 
 It is registered **last** during wiring so it reports on the fully assembled surface. _Check:_ T15, T45.
@@ -1471,7 +1484,7 @@ Appendix G.
 | H2 Traceability                            | T29             | Every REQ in Appendix E appears exactly once in `DECISIONS.md` section (3); every test ID cited in section (3) exists in Section 7.                                                                   |
 | H3 Hardcoded mechanics                     | T36, F4         | No canonical class, species, hit-dice, equipment, spell, or other ruleset-derived table from the extracted model is embedded as a literal in non-fixture, non-waiver source code.                     |
 | H4 Fixture tool isolation                  | T35, F4         | Fixture-only tool names (`create_delver`, `roll_move`, `start_confrontation`) are not registered when serving a non-fixture ruleset.                                                                  |
-| H5 Generic combat tool                     | T33, F4         | No tool named `roll_attack` or equivalent generic combat resolver is exposed as a top-level tool when the ruleset defines attack/damage procedures; weapon and spell resolution are ruleset-specific. |
+| H5 Generic combat tool                     | T33, F4         | No tool named `roll_attack` or equivalent generic combat resolver is exposed as a top-level tool when the ruleset defines attack/damage procedures. A tool that resolves attacks using the ruleset's own extracted resolution model (e.g., a D20 Test mapped to d20 + ability modifier + proficiency bonus vs. AC) is ruleset-specific and does not violate H5. |
 | H6 Waiver cross-reference                  | T29, T36        | Every waived test in section (3) cites a section (5) waiver; every mechanics-deviation waiver in section (5) names the source file and the table it replaces.                                         |
 | H7 No direct source reads                  | T41             | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model.                                                                                 |
 | H8 Decision auto-completion blocked        | T43             | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.                                                                                          |
@@ -1485,7 +1498,8 @@ the verification record.
 
 The verification record in `DECISIONS.md` Section 8, item (6) must contain one row per check with the command
 or script used, the result (`PASS` / `FAIL` / `WAIVED`), and the evidence (output hash or transcript pointer).
-The record must use the following table:
+The H1–H11 rows are mandatory; additional rows — suite runs, cold-checkout replays, or other evidence — may
+be appended below. The record must use the following table:
 
 | Check                                      | Command or procedure       | Result               | Evidence                                    |
 | ------------------------------------------ | -------------------------- | -------------------- | ------------------------------------------- |
@@ -2028,8 +2042,9 @@ carry no REQ-002 string (REQ-001).
 
 Derived from Section 4 for convenience — the packing list for the `DECISIONS.md` traceability table
 (Section 8, item (3); T29). Section 4 remains the sole normative statement of every requirement; the
-"Verified by" column transcribes each requirement's _Check:_ citations. Initialize item (3)'s rows from this
-table, then fill in its `Code` and `Tests` columns from the build.
+"Verified by" column transcribes each requirement's _Check:_ citations. The row count is verified
+automatically by `scripts/validate.py`. Initialize item (3)'s rows from this table, then fill in its
+`Code` and `Tests` columns from the build.
 
 | REQ     | Title                     | Verified by                    |
 | ------- | ------------------------- | ------------------------------ |

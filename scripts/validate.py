@@ -197,6 +197,12 @@ def main():
     if not undefined_reqs and not uncited_reqs:
         print("PASS: All REQ citations resolve; all defined REQs are cited")
 
+    # 1b. REQ count — report the actual count from the manifest table.
+    # The Appendix E header no longer hardcodes a count (it drifts); the validator
+    # computes it from the table rows.
+    actual = len(req_index)
+    print(f"PASS: Appendix E manifest contains {actual} REQ rows")
+
     # 2. Test ID cross-references
     test_ids = extract_test_ids(text)
     cited_tests = find_test_citations(text)

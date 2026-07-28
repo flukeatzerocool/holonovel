@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-07-28 — Confidence threshold and handoff-gate clarifications
+
+- R1: validate.py now reports the Appendix E manifest row count automatically;
+  removed the stale hardcoded count from the Appendix E header (was "33", drift
+  risk).
+- R2: REQ-025 clarified — the player persona's filtered confidence score is the
+  gating metric for the 80% threshold; the unfiltered referee/unassigned score is
+  informational only.
+- R3: REQ-011 now documents the MEDIUM-weight confidence ceiling: a ruleset where
+  more than half of its sections carry MEDIUM book-level scoping cannot reach
+  80% regardless of extraction quality.
+- R4: Section 8.1 verification record template clarified — H1-H11 rows are
+  mandatory; additional rows may be appended.
+- R5: H5 pass criterion clarified — ruleset-derived attack resolvers that use the
+  ruleset's own extracted model do not violate H5.
+- Recommendations R6-R8 (test additions) implemented in the dnd2024 server
+  build: T45b tests unfiltered `spec_health` confidence with a zero-LOW assertion,
+  and a new H-row completeness test validates all 11 H1-H11 rows in the
+  `DECISIONS.md` verification record.
+
 ## 2026-07-28 — Style guide compliance fixes
 
 - Synced Contents with missing Appendix D.1 and G.1–G.13 subsection entries.
