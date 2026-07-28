@@ -1,0 +1,18 @@
+{
+  "name": "holonovel-spec",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "markdownlint holonovel.md",
+    "validate": "python3 scripts/validate.py",
+    "check": "npm run lint && npm run validate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "markdownlint-cli": "^0.49.1"
+  }
+}
