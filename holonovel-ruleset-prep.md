@@ -2,9 +2,8 @@
 
 > **This is a prompt.** Feed this document, followed by a tabletop RPG ruleset in raw form, to an AI
 > assistant. The assistant will format the ruleset into Markdown structured for optimal ingestion by
-> `holonovel.md` (see `holonovel.md` Appendix A — Markdown Parsing Heuristics and
-> Appendix F — Source Conversion for the parsing heuristics this prompt
-> targets).
+> `holonovel.md` (see `holonovel.md` Appendix A — Markdown Parsing Heuristics, for the
+> parsing heuristics this prompt targets, and Appendix F — Source Conversion).
 
 ## Contents
 
@@ -29,7 +28,7 @@
 Your task is to format a tabletop RPG ruleset into Markdown that `holonovel.md` can ingest and model
 reliably. `holonovel.md` builds an MCP server from Markdown sources by parsing headings, tables,
 bold-labeled fields, procedures, guidance text, and role-scoping markers. Every formatting
-convention below targets one of those parsers. Apply them faithfully; do not improvise structure the
+convention below targets one of those parsers. Apply them faithfully; do not improvise a structure the
 ruleset does not contain.
 
 Input: one or more ruleset documents in any format — PDF, HTML, plain text, or existing Markdown.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-28 — Refine holonovel-ruleset-prep.md integration
+
+- Added `holonovel-ruleset-prep.md` to the lint script in `package.json`.
+- Refined `holonovel-ruleset-prep.md`: rewrote the blockquote cross-reference
+  to Appendix A/F and fixed a typo ("improvise structure" →
+  "improvise a structure").
+- Tweaked `README.md` wording: "for rulesets" → "Run on rulesets" in the
+  `holonovel-ruleset-prep.md` bullet, and "just under US $2" → "around US $2".
+
 ## 2026-07-28 — Convert character-sheet-from-pdf from skill to prompt
 
 - Created `character-sheet-from-pdf.md`: converted the

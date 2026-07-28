@@ -20,7 +20,7 @@ with full access across all source materials.
   such as: *Use holonovel.md to build a server using `players-handbook.md`.*
   The agent will follow the spec to parse, model, verify, and package the
   ruleset into a working MCP server.
-- **`holonovel-ruleset-prep.md`** for rulesets that aren't already clean
+- Run**`holonovel-ruleset-prep.md`** on rulesets that aren't already clean
   Markdown. Feed this prompt to an AI alongside the raw ruleset before running `holonovel.md`; it will format
   headings, tables, role scoping, dice notation, conditions, and
   guidance/mechanics separation into the structure `holonovel.md` expects
@@ -32,7 +32,7 @@ with full access across all source materials.
   running the prompt. The spec requires sustained multi-step reasoning —
   parsing heuristics, classification, verification, and adversarial review —
   and Deepseek's performance on complex instruction-following makes it a
-  strong fit. I personally use Opencode Go for access to Deepseek models. On my computer, Deepseek v4 Pro built an MCP server for D&D 2024 for just under US $2.
+  strong fit. I personally use Opencode Go for access to Deepseek models. On my computer, Deepseek v4 Pro built an MCP server for D&D 2024 for around US $2.
 - **`character-sheet-from-pdf.md`** is a prompt that guides building
   a character-sheet rendering MCP tool from a PDF. The process covers
   field-by-field study of the PDF layout, translating the field inventory

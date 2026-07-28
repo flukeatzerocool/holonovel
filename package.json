@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "markdownlint holonovel.md",
+    "lint": "markdownlint holonovel.md holonovel-ruleset-prep.md",
     "validate": "python3 scripts/validate.py",
     "check": "npm run lint && npm run validate"
   },
