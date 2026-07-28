@@ -32,6 +32,8 @@ scripts/validate.py     Cross-reference checker (REQ citations, test IDs,
 Commit messages follow the CHANGELOG.md style: a date-stamped heading with
 bulleted entries. Each bullet describes a coherent change group.
 
+Push to Codeberg: `git push origin main`.
+
 ### Prose
 
 - Wrapped near 110 columns (markdownlint enforces a 120-char limit, tables
