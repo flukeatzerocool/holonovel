@@ -19,6 +19,10 @@ holonovel.md            The specification (standalone, copy-pasteable)
 README.md               Project orientation
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
+skills/
+  character-sheet-from-pdf/
+    SKILL.md            opencode skill: build character sheet rendering
+                          on top of a holonovel-built server
 package.json            Task runner (lint, validate)
 .markdownlint.json      Lint rules (120-char prose, ATX headings)
 scripts/validate.py     Cross-reference checker (REQ citations, test IDs,

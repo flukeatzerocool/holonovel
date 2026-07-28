@@ -30,6 +30,10 @@ validator).
 ```
 holonovel-spec/
 ├── holonovel.md           ← the specification (standalone, copy-pasteable)
+├── skills/
+│   └── character-sheet-from-pdf/
+│       └── SKILL.md       ← opencode skill: build character sheet rendering
+│                             on top of a holonovel-built server
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, check)
 ├── scripts/

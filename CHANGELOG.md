@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-28 — Add character-sheet-from-pdf skill
+
+- Added `skills/character-sheet-from-pdf/SKILL.md`: opencode skill for building
+  character sheet rendering on top of a holonovel-built server.
+- Updated `README.md` project structure and `AGENTS.md` layer map to reference
+  the new skill.
+
 ## 2026-07-28 — Parsing heuristics expansion
 
 - Appendix A: added table header detection (gap 1).
