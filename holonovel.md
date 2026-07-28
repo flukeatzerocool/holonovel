@@ -66,9 +66,23 @@
     - [C.1 Fixture (weather.md)](#c1-fixture-weathermd)
     - [C.2 Expected behavior](#c2-expected-behavior)
   - [Appendix D: MCP Conformance Checklist](#appendix-d-mcp-conformance-checklist)
+    - [D.1 Illustrative exchanges](#d1-illustrative-exchanges)
   - [Appendix E: Requirements Manifest](#appendix-e-requirements-manifest)
   - [Appendix F: Source Conversion](#appendix-f-source-conversion)
   - [Appendix G: Automated Handoff Gate Checks](#appendix-g-automated-handoff-gate-checks)
+    - [G.1 Check H1 — Edition/title match](#g1-check-h1--editiontitle-match)
+    - [G.2 Check H2 — Traceability completeness](#g2-check-h2--traceability-completeness)
+    - [G.3 Check H3 — Hardcoded mechanics scan](#g3-check-h3--hardcoded-mechanics-scan)
+    - [G.4 Check H4 — Fixture tool isolation](#g4-check-h4--fixture-tool-isolation)
+    - [G.5 Check H5 — Generic combat tool](#g5-check-h5--generic-combat-tool)
+    - [G.6 Check H6 — Waiver cross-reference](#g6-check-h6--waiver-cross-reference)
+    - [G.7 Recording and versioning](#g7-recording-and-versioning)
+    - [G.8 Triage and false positives](#g8-triage-and-false-positives)
+    - [G.9 Check H7 — No direct source reads](#g9-check-h7--no-direct-source-reads)
+    - [G.10 Check H8 — Decision auto-completion blocked](#g10-check-h8--decision-auto-completion-blocked)
+    - [G.11 Check H9 — Player persona content boundary](#g11-check-h9--player-persona-content-boundary)
+    - [G.12 Check H10 — Confidence and MUST coverage threshold](#g12-check-h10--confidence-and-must-coverage-threshold)
+    - [G.13 Check H11 — Client configuration launch](#g13-check-h11--client-configuration-launch)
 
 ---
 
@@ -306,7 +320,7 @@ while each constituent keeps its own label for downstream decisions; the rule is
 
 **REQ-012 — Graceful fallback.** _(F1)_ LOW-confidence and unparseable sections are never silently dropped.
 They remain retrievable, as raw text, through the `search_rules` tool and rules-section resources. _Check:_
-Gate 2, T37.
+Gate 2, T4, T37.
 
 **REQ-013 — No assumed mechanics.** _(F1, F4)_ Capabilities are built only from discovered content. Do not assume
 the ruleset has dice, a turn-based conflict procedure, conditions, or exactly two roles. If such a feature is
@@ -326,7 +340,7 @@ _Check:_ T21.
 table or procedure) — and prioritized: **MUST** (the server is not useful without it), **SHOULD** (important;
 after MUST), **NICE** (polish). Every MUST action has a registered tool at handoff. _Check:_ T15.
 
-**REQ-016 — Guidance extraction.**
+**REQ-016 — Guidance extraction.** _(F1)_
 
 - Extract guidance (Section 3) as **guidance items**, each with a citation (REQ-010), a confidence label
   (REQ-011), and a role attribution (Section 6.9).
@@ -506,7 +520,7 @@ index, lookup tools, or schemas rather than bypass the surface. _Check:_ T37, T4
 transports. A session's persona — if any — is set at startup (Section 6.6); a session with no persona is
 **unassigned** and has full access. _Check:_ Appendix D.
 
-**REQ-031 — Persona immutability.** A session either carries a persona (player or referee, named with the
+**REQ-031 — Persona immutability.** _(F3)_ A session either carries a persona (player or referee, named with the
 ruleset's own role terms) or is unassigned. The persona — or the unassigned state — is stored in session
 state, fixed for the session's lifetime, and resumes with the session (REQ-055); adopting or changing a
 persona means starting a new session. A persona is meaningful only in the context of a game session: it
@@ -517,7 +531,7 @@ than two roles yields one persona per role term; gating (REQ-032) distinguishes 
 adjudicator (Section 3) — from all player-side roles. Each role keeps its own guidance index (Section 6.9).
 _Check:_ T9.
 
-**REQ-032 — Server-side gating.**
+**REQ-032 — Server-side gating.** _(F5)_
 
 - **Scope.** Gating binds the player persona only. Referee personas and unassigned sessions may invoke every
   registered tool and read every resource; _referee-only_ throughout this document means denied to the
@@ -552,12 +566,12 @@ _Check:_ T9, T13, T15, T18, T26, T44.
 
 ### 4.5 State
 
-**REQ-040 — Audit log.** Every roll and every mutating action is logged, append-only, with: ISO 8601 timestamp
+**REQ-040 — Audit log.** _(F5)_ Every roll and every mutating action is logged, append-only, with: ISO 8601 timestamp
 with timezone; session ID; entity ID if applicable; action or notation; result or outcome; and all modifiers
 with labels. The log is exposed as a referee-only resource; undo entries are appended, never rewritten
 (REQ-041). _Check:_ T8, T34.
 
-**REQ-041 — Snapshots and undo.**
+**REQ-041 — Snapshots and undo.** _(F5)_
 
 - Before every mutating tool call, snapshot all mutable state **except** the roster (Section 6.7), the
   append-only audit log (REQ-040), the entity ID counters (Section 6.2), and the RNG state (REQ-050).
@@ -579,7 +593,7 @@ with labels. The log is exposed as a referee-only resource; undo entries are app
 
   _Check:_ T10, T34.
 
-**REQ-042 — Workflow decisions.**
+**REQ-042 — Workflow decisions.** _(F5)_
 
 - A workflow that cannot proceed returns `[NEED_INPUT]` containing the question, a decision identifier, and
   labeled options including `cancel` (option generation: Section 6.5).
@@ -651,7 +665,7 @@ _Check:_ T19, T32; Gate 2.
 
 _Check:_ T11, T25, T33, T34; Gate 2; waived with a logged reason if the ruleset has no conflict procedure.
 
-**REQ-044 — Ruleset versioning.**
+**REQ-044 — Ruleset versioning.** _(F6)_
 
 - Intake records a version hash of the ruleset files.
 - On startup, a mismatch triggers a stderr warning and a `spec_health` flag until the index is rebuilt.
@@ -667,7 +681,7 @@ _Check:_ T17.
 
 ### 4.6 Non-functional
 
-**REQ-050 — Determinism.** Randomness is part of the output contract, like REQ-001. All randomness uses the
+**REQ-050 — Determinism.** _(F1)_ Randomness is part of the output contract, like REQ-001. All randomness uses the
 **reference randomizer**:
 
 ```
@@ -690,12 +704,12 @@ Face:    face(s) = 1 + ⌊draw · s / 2³²⌋                     64-bit interm
 
 _Check:_ Gate 2, T27.
 
-**REQ-051 — No runtime network access.** All ruleset data comes from local Markdown; the server makes no
+**REQ-051 — No runtime network access.** _(F1)_ All ruleset data comes from local Markdown; the server makes no
 network calls at runtime. Build-time steps — dependency installation, pinning the specification version
 (Gate 1) — may use the network; the restriction binds the server and its test suite. _Check:_ Appendix D;
 Gate 4 environment.
 
-**REQ-052 — Path containment.** Resource URIs and tool parameters resolve within the configured ruleset and
+**REQ-052 — Path containment.** _(F1)_ Resource URIs and tool parameters resolve within the configured ruleset and
 state directories; traversal attempts return `[ERROR] [INVALID_INPUT]`. _Check:_ T20.
 
 **REQ-053 — Performance.** Cold start within a few seconds; simple queries answer in under one second on
@@ -704,10 +718,10 @@ ruleset — fixture-scale up to a few hundred kilobytes; for substantially large
 expectations and justify in `DECISIONS.md`. Record the measurement environment (hardware, OS, ruleset
 size) with the test evidence in `DECISIONS.md` (Section 8, item (6)). _Check:_ T23.
 
-**REQ-054 — Input safety.** Invalid input is rejected with an `[ERROR]` and mutates nothing. Valid free-text
+**REQ-054 — Input safety.** _(F1)_ Invalid input is rejected with an `[ERROR]` and mutates nothing. Valid free-text
 input is stored and echoed verbatim as inert data (Section 3, rule 5). _Check:_ T20, T37.
 
-**REQ-055 — Durability and resume.**
+**REQ-055 — Durability and resume.** _(F5)_
 
 - The server starts cleanly when no prior session exists.
 - The roster persists permanently in the state directory; gameplay never mutates it (Section 6.7).
@@ -1977,7 +1991,7 @@ equivalent):
 - Persona is supplied via `TTRPG_PERSONA` (Section 6.6); conformance runs exercise both personas and an
   unassigned session (`TTRPG_PERSONA` unset).
 
-### Illustrative exchanges
+### D.1 Illustrative exchanges
 
 The skeletons below are illustrative: assert field presence and content, never byte equality (Section 6;
 Gate 2). `→` is the client message, `←` the server response.
