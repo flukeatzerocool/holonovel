@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-07-30 — Consolidate ruleset-prep appendix, migrate validator to TypeScript
+
+- Consolidated `holonovel-ruleset-prep.md` into Appendix H of `holonovel.md`:
+  converted the cross-reference to full inline content, making the spec
+  fully standalone. Deleted the now-redundant `holonovel-ruleset-prep.md`.
+  Updated `README.md` project structure, recommendations, and project
+  structure diagram to match.
+- Migrated `scripts/validate.py` to `scripts/validate.ts`. Added
+  TypeScript tooling (`tsx`, `typescript` ^7.0.2, `@types/node`) to
+  `package.json`, introduced `tsconfig.json`, and added a `typecheck`
+  script. Updated `package.json` validate and lint scripts, and removed
+  the Python prerequisite from `.githooks/pre-commit` and `README.md`.
+- Expanded `character-sheet-from-pdf.md`: added a server pre-check
+  section (§0) for auditing existing infrastructure before building,
+  specified output resource template registration with per-tool
+  counters, added REQ-002 compliance to error handling, restructured
+  sections for clarity, and expanded the test documentation table.
+- Added `session-*.md` to `.gitignore`.
+
 ## 2026-07-28 — Refine holonovel-ruleset-prep.md integration
 
 - Added `holonovel-ruleset-prep.md` to the lint script in `package.json`.

@@ -20,19 +20,16 @@ with full access across all source materials.
   such as: *Use holonovel.md to build a server using `players-handbook.md`.*
   The agent will follow the spec to parse, model, verify, and package the
   ruleset into a working MCP server.
-- Run**`holonovel-ruleset-prep.md`** on rulesets that aren't already clean
-  Markdown. Feed this prompt to an AI alongside the raw ruleset before running `holonovel.md`; it will format
-  headings, tables, role scoping, dice notation, conditions, and
-  guidance/mechanics separation into the structure `holonovel.md` expects
-  before starting the server build.
-- Use **TypeScript** for the MCP server. Strong typing catches ruleset schema
-  mismatches at build time, and the spec's entity model (typed carriers with
-  derivation layers) maps naturally to TS interfaces.
-- Use **Deepseek Pro** (or an equivalent strong reasoning model) as the AI agent
-  running the prompt. The spec requires sustained multi-step reasoning —
-  parsing heuristics, classification, verification, and adversarial review —
-  and Deepseek's performance on complex instruction-following makes it a
-  strong fit. I personally use Opencode Go for access to Deepseek models. On my computer, Deepseek v4 Pro built an MCP server for D&D 2024 for around US $2.
+- **Preparing the ruleset files.** If the §5 pre-check (Appendix H of `holonovel.md`) finds the ruleset deficient
+  in Markdown formatting, the builder applies Appendix H's formatting rules to the
+  source material before chunked reading begins.
+- **Builds in TypeScript** — For the MCP server it produces, TypeScript is the mandated
+  implementation language (Section 3 of the spec): strong typing catches ruleset
+  schema mismatches at build time, and the spec's entity model maps naturally to
+  TS interfaces.
+- **DeepSeek Pro** is my primary AI for both building this project and running the
+  prompt. I use Opencode Go for access to DeepSeek models. On my computer,
+  Deepseek v4 Pro built an MCP server for D&D 2024 (Players Handbook, Dungeon Master's Guide, and Monster Manual) for US $2.
 - **`character-sheet-from-pdf.md`** is a prompt that guides building
   a character-sheet rendering MCP tool from a PDF. The process covers
   field-by-field study of the PDF layout, translating the field inventory
@@ -53,23 +50,29 @@ This runs:
 - `npm run validate` — cross-reference checker (REQ citations, test IDs, TOC sync,
   heading separators, requirement block shape)
 
-Prerequisites: Node.js (for `markdownlint-cli`) and Python 3 (for the
-validator).
+Also available separately:
+
+- `npm run typecheck` — TypeScript type checking (`tsc --noEmit`)
+
+Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).
 
 ## Project structure
 
 ```
 Holonovel/
-├── holonovel.md                ← the specification (standalone, copy-pasteable)
-├── holonovel-ruleset-prep.md   ← prompt: format a raw ruleset for holonovel
-│                                 ingestion
+├── holonovel.md                ← the complete build specification
+│                                 (includes the ruleset preparation
+│                                 prompt as Appendix H)
 ├── character-sheet-from-pdf.md  ← prompt: build character sheet
 │                                    rendering on top of a holonovel-built
 │                                    server
 ├── .markdownlint.json     ← lint rules
-├── package.json           ← npm scripts (lint, validate, check)
+├── package.json           ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/
-│   └── validate.py        ← cross-reference checker
+│   └── validate.ts        ← cross-reference checker
+├── tsconfig.json           ← TypeScript configuration
+├── .githooks/
+│   └── pre-commit          ← pre-commit hook
 ├── .gitignore
 ├── CHANGELOG.md
 └── README.md              ← this file

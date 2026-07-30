@@ -4,15 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "markdownlint holonovel.md holonovel-ruleset-prep.md",
-    "validate": "python3 scripts/validate.py",
+    "lint": "markdownlint holonovel.md character-sheet-from-pdf.md",
+    "validate": "npx tsx scripts/validate.ts",
+    "typecheck": "npx tsc --noEmit",
     "check": "npm run lint && npm run validate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
-    "markdownlint-cli": "^0.49.1"
+    "markdownlint-cli": "^0.49.1",
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": ">=6"
   }
 }

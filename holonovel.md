@@ -42,6 +42,7 @@
   - [5.4 Output](#54-output)
   - [5.5 Build](#55-build)
   - [5.6 Continuous verification](#56-continuous-verification)
+  - [5.7 Reconciliation](#57-reconciliation)
 - [6. Conventions and Runtime Model](#6-conventions-and-runtime-model)
   - [6.1 Anchors and slugs](#61-anchors-and-slugs)
   - [6.2 Entity IDs](#62-entity-ids)
@@ -83,6 +84,20 @@
     - [G.11 Check H9 — Player persona content boundary](#g11-check-h9--player-persona-content-boundary)
     - [G.12 Check H10 — Confidence and MUST coverage threshold](#g12-check-h10--confidence-and-must-coverage-threshold)
     - [G.13 Check H11 — Client configuration launch](#g13-check-h11--client-configuration-launch)
+  - [Appendix H: Ruleset Preparation Prompt](#appendix-h-ruleset-preparation-prompt)
+    - [H.1 Mission](#h1-mission)
+    - [H.2 Source intake](#h2-source-intake)
+    - [H.3 Document structure](#h3-document-structure)
+    - [H.4 Role scoping](#h4-role-scoping)
+    - [H.5 Tables](#h5-tables)
+    - [H.6 Bold-labeled fields and definition lists](#h6-bold-labeled-fields-and-definition-lists)
+    - [H.7 Procedures](#h7-procedures)
+    - [H.8 Dice and resolution mechanics](#h8-dice-and-resolution-mechanics)
+    - [H.9 Conditions, states, and effects](#h9-conditions-states-and-effects)
+    - [H.10 Guidance vs. mechanics](#h10-guidance-vs-mechanics)
+    - [H.11 Special elements](#h11-special-elements)
+    - [H.12 Output conventions](#h12-output-conventions)
+    - [H.13 Verification checklist](#h13-verification-checklist)
 
 ---
 
@@ -147,10 +162,15 @@ not done.
 
 ### 1.3 How to use this document
 
-Do not hold this whole file in context. Discovery: Section 5 and Appendix A; non-Markdown sources add
-Appendix F. Each build layer (Section 5.5): the requirements and Section 6 conventions it cites.
-Verification: Section 7 and Appendix D. Handoff: Section 8. Independent verification: Section 9
-(operator-run). The fixtures (Appendices B and C) matter only at Gates 2–3 and the tests that cite them.
+Before beginning work, read the Contents and identify which sections the current task needs.
+Read only those sections; drop them from context when done. Before re-reading a section, confirm
+the prior read no longer applies. For greenfield builds the sequence is: ruleset preparation
+(Section 5 pre-check and Appendix H; non-Markdown sources add Appendix F), discovery (Section 5
+and Appendix A), each build layer (Section 5.5 with the requirements and Section 6 conventions it
+cites), verification (Section 7 and Appendix D), handoff (Section 8), and — operator-run —
+independent verification (Section 9). For re-verification of an existing server against a newer
+edition of this specification, use the reconciliation procedure (Section 5.7) instead. The
+fixtures (Appendices B and C) matter only at Gates 2–3 and the tests that cite them.
 
 ---
 
@@ -204,7 +224,13 @@ text that advises without mechanizing — expectations, principles, tone, exampl
 extracted and attributed per REQ-016, never modeled (REQ-013). **Unassigned session**: a session with no
 persona; it has full, ungated access (REQ-030, REQ-032).
 
-The implementation may use any language, framework, and storage that satisfy the requirements.
+The implementation uses TypeScript, targeting Node.js 20 or later, with the
+`@modelcontextprotocol/server` v2 SDK (`@modelcontextprotocol/server` and `@modelcontextprotocol/server/stdio`),
+Zod v4 for input validation, and ES modules (`"type": "module"` in `package.json`). The transport is stdio.
+Storage uses the filesystem within the configured state directory. Dependencies are project-local
+(`npm install`) and never require system-level package managers. The standard MCP client configuration
+entry (Section 6.6) points at the compiled server (`dist/index.js`), not at TypeScript source files or
+a `tsx` runtime invocation.
 
 ---
 
@@ -262,8 +288,8 @@ operator instead of resolving it silently.
   `isError` false), `[NEED_INPUT]` (blocked on a user decision; `isError` false).
 - Output must remain readable in a chat interface; structured data may be embedded but never replaces the
   readable form. The readable string is the sole output contract: tools declare no `outputSchema` and
-  return no `structuredContent`, even where the pinned specification version defines them. The disposition
-  is recorded per Section 8, item (5).
+  return no `structuredContent`, even where the pinned specification version defines them. Recorded per
+  Section 8, item (5).
 - Output conventions: Section 6.3. Verification asserts the presence and content of required fields, never
   exact wording.
 - `isError` applies to tool results only: failures of `resources/read` and `prompts/get` return a JSON-RPC
@@ -324,6 +350,14 @@ weight. This ceiling is by design: MEDIUM reflects the inherent lower extractabi
 prose. Builders encountering this ceiling record the shortfall under REQ-025's remediation plan rather than
 reclassifying sections to inflate the score. Per REQ-025, the player persona's filtered confidence score is
 the gating metric.
+
+**Structured content within referee-scoped books.** Within a file tagged referee-scoped at the book level
+(DMG, MM, or equivalent), individual sections whose content is extracted by a targeted parser — spells,
+monsters, equipment tables, stat blocks, reference tables — may be elevated from MEDIUM to HIGH when the
+parser verifiably captures every mechanical field without interpretation. Each elevation is logged in
+`DECISIONS.md` (Section 8, item (4)) with the parser identifying the elevated sections and the count
+of sections elevated. Elevation applies to structured mechanical content at the section level only;
+prose sections keep their book-level scoping label.
 
 _Check:_ T15.
 
@@ -433,7 +467,7 @@ MUST-level items where they clearly improve usability. Every registered tool get
   accordingly.
 - **Subscriptions declined.** The server implements no `resources/subscribe` and sends no
   `notifications/resources/updated`; sessions observe one another's state by reading current resources
-  against shared game state (Section 6.7). The disposition is recorded per Section 8, item (5).
+  against shared game state (Section 6.7). Recorded per (5).
 
 URIs are deterministic and stable across re-indexing unless the Markdown itself changes (entity URIs are state
 and survive re-indexing regardless). _Check:_ T16.
@@ -454,8 +488,7 @@ and survive re-indexing regardless). _Check:_ T16.
   tool-search step. `persona_briefing` is the default orientation prompt, not the only entry point.
 - **Arguments.** Every argument carries a description; the `intent` description states what a well-formed
   intent looks like for that prompt and points to the visible registry. Argument completion is not
-  implemented, even where the pinned specification version defines it; the disposition is recorded per
-  Section 8, item (5).
+  implemented, even where the pinned specification version defines it; recorded per (5).
 - **Titles.** Where the pinned specification version defines the `title` field, each prompt carries a fixed
   one: "Use Tool", "Lookup Rule", "Run Workflow", "Persona Briefing".
 
@@ -498,7 +531,7 @@ purposes only; a shortfall in the unfiltered view is recorded in `DECISIONS.md` 
 rationale but does not gate the build. At handoff, the player-persona confidence score is at least
 80% and MUST-action coverage is 100% after waivers under REQ-013. Scores below the threshold stop
 the build and are recorded in `DECISIONS.md` with a remediation plan; the operator may waive the
-overall threshold under Section 5.1's interaction model.
+overall threshold.
 MUST actions waived for absent ruleset content are excluded from the 100% target and recorded.
 
 It is registered **last** during wiring so it reports on the fully assembled surface. _Check:_ T15, T45.
@@ -610,24 +643,13 @@ with labels. The log is exposed as a referee-only resource; undo entries are app
 
 - A workflow that cannot proceed returns `[NEED_INPUT]` containing the question, a decision identifier, and
   labeled options including `cancel` (option generation: Section 6.5).
-- At most one decision is pending at a time; the pending decision is answered via `respond` in the same
-  session, which resumes the workflow from stored state. While a decision is pending, other mutating calls
-  fail `[ERROR] [STATE_CONFLICT]`; queries and non-mutating rolls proceed.
-- A `respond` that fails validation — unknown decision identifier or unknown option — fails
-  `[ERROR] [NOT_FOUND]` and leaves the pending decision unchanged; it may be answered again.
-- A workflow that errors after resuming behaves as `cancel` for state purposes: the workflow-start
-  snapshot is restored and discarded, along with any per-call snapshots the workflow pushed onto the
-  undo stack since it started (REQ-041), and the pending decision is cleared. The failed call's result
-  is `[ERROR]` with the failure's REQ-002 category, not `[OK] Cancelled`.
-- Starting a workflow takes a snapshot, held **with the pending decision** (not on the undo stack); `cancel`
-  restores it and discards it, along with any per-call snapshots the workflow pushed onto the undo stack
-  since it started (REQ-041); on completion it is discarded.
-- After completion, the workflow's individual mutating calls undo per REQ-041 in reverse order.
+- At most one decision is pending at a time. A `respond` that fails validation — unknown decision identifier
+  or unknown option — fails `[NOT_FOUND]` and leaves the pending decision unchanged. The interaction of
+  requests with a pending decision is governed by the table below (and REQ-002's taxonomy).
 - Pending decisions are session-local (REQ-055).
 - The decision protocol uses tool calls only. The specification's elicitation capability, where the pinned
   version defines it, is not used: it requires client support the play model cannot assume (REQ-030), and
-  the `[NEED_INPUT]`/`respond` round-trip works with any client. The disposition is recorded per Section 8,
-  item (5).
+  the `[NEED_INPUT]`/`respond` round-trip works with any client. Recorded per (5).
 
 Summary of the REQ-041/REQ-042 interaction (derived; the prose above and REQ-002's taxonomy govern):
 
@@ -756,6 +778,14 @@ input is stored and echoed verbatim as inert data (Section 3, rule 5). _Check:_ 
 
 ## 5. Discovery
 
+Before reading the ruleset, validate its Markdown against the format conventions required for reliable
+parsing. The pre-check uses the verification checklist in Appendix H (H.13) as criteria: headings (ATX,
+unique), tables (header rows, consistent column counts), bold-labeled fields, procedures, role markers, and
+output conventions. If any criterion fails, apply the formatting rules in Appendix H to the ruleset source
+material directly; the formatted output (not the original) becomes the ruleset for every subsequent step.
+Non-Markdown sources are converted first (Appendix F), and the resulting Markdown is then validated with the
+same pre-check. Record the pre-check outcome and any formatting session transcript in `DECISIONS.md`.
+
 Do not skip discovery because the ruleset looks simple. The server is the deliverable: playing the ruleset
 or preparing play materials is out of scope unless the operator directs it.
 
@@ -763,7 +793,7 @@ or preparing play materials is out of scope unless the operator directs it.
 
 Record in `DECISIONS.md`: the exact ruleset file list; the version hash (REQ-044); the **ruleset edition or
 title** as it appears in the source header or metadata; the output directory; the state directory; the
-chosen language and stack. **Interaction model:** if the operator is unavailable
+SDK and tool version pins. **Interaction model:** if the operator is unavailable
 (non-interactive run), proceed with the most conservative assumption, log it in `DECISIONS.md`, and
 surface it in `spec_health`. Block only when ruleset files are missing, unreadable, or not decodable as UTF-8
 (Appendix A), or when the state directory is missing (the server does not create it) or unwritable; blocking
@@ -779,15 +809,16 @@ available, or normalize and log it per the interaction model above; record every
 disposition in `DECISIONS.md` (Section 8, item (4)).
 
 **Environment capability check.** Enumerate the external tools the stack depends on — the converter
-(Appendix F), the language runtime, the SDK, the test runner — and verify each is present before relying on
-it. A system-level install is proposed and waits for operator approval; in a non-interactive run, take the
-most conservative documented fallback and log it. Verify the build environment is contained: dependencies
-project-local, the system environment untouched. Record the results in `DECISIONS.md` (Section 8, item (1)).
+(Appendix F), Node.js 20+, the `@modelcontextprotocol/server` SDK, the TypeScript compiler (`tsc`), the
+test runner — and verify each is present before relying on it. A system-level install is proposed and
+waits for operator approval; in a non-interactive run, take the most conservative documented fallback
+and log it. Verify the build environment is contained: dependencies project-local via `npm install`,
+the system environment untouched. Record the results in `DECISIONS.md` (Section 8, item (1)).
 
 **MCP client configuration check.** Before the server is registered under a new MCP client key, verify the
 actual client configuration entry that the end user will use. The entry must:
 
-- include the absolute path to the language runtime if the client process does not inherit the builder's
+- include the absolute path to `node` if the client process does not inherit the builder's
   `PATH`;
 - include every required environment variable from Section 6.6 (`TTRPG_RULESET`, `TTRPG_STATE_DIR`, etc.);
 - use absolute paths for the server entry point and the directories in those variables when the client's
@@ -808,7 +839,7 @@ above.
 | Q1  | Ruleset file(s) location                            | Operator-supplied path(s) for `TTRPG_RULESET`, comma-separated in intake order — order determines file-stem collision suffixes (Section 6.1); or the Appendix B fixture extracted byte-exactly (before the REQ-014 intake hash) | None — block per the rule above                                         |
 | Q2  | State directory location                            | Any existing, writable path for `TTRPG_STATE_DIR`; an existing, empty directory is initialized on first run (REQ-055)                                                                                                           | A `state/` directory under the output directory, created by the builder |
 | Q3  | Project (output) directory                          | Any writable path                                                                                                                                                                                                               | A new `holonovel/` directory under the working directory                |
-| Q4  | Programming language and stack                      | Any satisfying the requirements (Section 3); the official MCP SDK for the chosen language (F3 mitigation), or hand-rolled stdio JSON-RPC                                                                                        | Python 3 with the official MCP SDK                                      |
+| Q4  | SDK and tool version pins                            | Operator-supplied pins for `@modelcontextprotocol/server`, `zod`, TypeScript, and Node.js; or latest stable at build time (recorded in `DECISIONS.md`). The stack itself is fixed per Section 3 — this question pins versions only. | Latest stable, recorded in `DECISIONS.md` at install time               |
 | Q5  | Operator availability during the build              | Available for mid-build questions / unavailable — proceed with the most conservative assumption, logged per the interaction model above                                                                                         | Unavailable                                                             |
 | Q6  | Gate 1 verification harness and specification pin   | Official MCP Inspector, or a documented equivalent harness (Section 7, Gate 1); the pinned specification version (current stable unless specified)                                                                              | Documented equivalent and current stable, recorded in `DECISIONS.md`    |
 | Q7  | Smoke-session client                                | A real MCP client (which one), or a scripted equivalent (Section 1.2)                                                                                                                                                           | Scripted equivalent, recorded in `DECISIONS.md`                         |
@@ -921,6 +952,16 @@ Verify work at each checkpoint — after conversion (Appendix F; non-Markdown so
 discovery output (Section 5.4), after layers 1–2, after layers 3–4, and after layers 5 and 6 in Section 5.5
 (per-layer requirements: the map in Section 5.5) — before starting the next stage:
 
+**Pre-flight review.** Before every mutating build step — code changes, configuration edits, test
+registration — the builder states a visible pre-flight review covering: (a) what changed since the
+last step; (b) preconditions confirmed (files exist, content matches expectation); (c) each tool
+call audited for correct names and parameters; (d) no destructive operations outside scope; (e) the
+post-step verification method. State the outcome as a single line per item — e.g.,
+`Pre-flight: (a) clean, (b) confirmed, (c) correct, (d) safe, (e) npm run check`. A step whose
+pre-flight is not surfaced is itself a finding; the checkpoint reviewer treats it as a blocker
+irrespective of task outcome. A step with no mutating action — querying a running server, reading a
+file, executing a read-only test — is exempt.
+
 1. **Spawn a verification subagent** with fresh context. Give it this prompt (the specification), the
    requirements and conventions relevant to the stage just completed, and the code and artifacts produced
    since the last checkpoint. Its job is adversarial review, not agreement: verify that cited requirements
@@ -929,15 +970,41 @@ discovery output (Section 5.4), after layers 1–2, after layers 3–4, and afte
    checkpoint.
 2. **Checkpoint focus.**
 
-   | Checkpoint                                         | What to verify                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-   | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-   | Conversion (Appendix F; non-Markdown sources only) | The frozen converted Markdown: document order preserved across page breaks and columns; grids reassembled, merged cells handled; page furniture stripped; artifact anchors flagged; the Section 5.3 ground-truth reconciliation rate recorded; the REQ-014 freeze verified for sources and converted Markdown                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-   | Discovery                                          | `RULESET_MODEL.md`: citations, confidence labels, action classification, guidance attribution, and defect log (REQ-010, REQ-011, REQ-015, REQ-016, REQ-018); role stories grounded, MUST actions covered (REQ-017); the REQ-018 validator passes with both controls; consistency — every logged contradiction has a LOW loser (Appendix A), no LOW item carries a MUST priority (REQ-011, REQ-015), and the REQ-011 aggregate-label rule is applied uniformly; shadow re-extraction — independently re-extract a recorded sample of three to eight sections (at least one referee-scoped, at least one table-bearing) from the raw Markdown and diff against the model, with the shadow agent given the same cross-file context the original extractor had, so cross-file references are not mistaken for inventions; citation mismatches and invented or omitted items are blockers, confidence-label disagreements are majors unless the label flips a modeling decision (REQ-010, REQ-011, REQ-013) |
-   | Layers 1–2                                         | Configuration surface (Section 6.6), input validation (REQ-054), capability advertisement (Appendix D); anchor derivation (Section 6.1), parsing heuristics (Appendix A), config-driven parsing, search and retrieval (REQ-022)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-   | Layers 3–4                                         | The witness values (Appendix B.4; Gate 2 step 0) and roll transparency (REQ-003); audit, snapshots, durability (REQ-040, REQ-041, REQ-055)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-   | Layer 5                                            | Lookup, entity CRUD, resolution, generation, workflows — including resume-failure semantics (REQ-042) — conflict (REQ-020, REQ-021, REQ-042, REQ-043)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-   | Layer 6                                            | The full registry (REQ-020–REQ-024), dispatcher gating and guidance filtering (REQ-032), `spec_health` registered last (REQ-025); role stories walked through the live registry and the intent prompts (REQ-017, REQ-023); dry-run the Gate 2 transcript replay against the Appendix B fixture (`TTRPG_RULESET` pointed at the fixture, dedicated state directory) — build the scripted replay harness here and reuse it at Gate 2; a dry-run failure is a blocker. If a real MCP client configuration entry was recorded in Section 5.1 (Q13), restart the client process against the server under that entry and confirm the server initializes and `tools/list` returns the expected registry; a `server unavailable` or equivalent error is a blocker. If the Q7 smoke-session client is the scripted equivalent, this check may be satisfied by the Gate 2 dry-run replay, but the recorded client entry must still be validated before handoff if it will be used by the end user.               |
-   | DECISIONS.md audit                                 | Adversarial review of `DECISIONS.md` against the source and the ruleset: the title and edition in section (1) match the ruleset and the intake record (Q12); every hardcoded mechanical table in the source appears as a waiver in section (5) with justification, impact, and remediation; the traceability table (3) cites real tests, not just placeholders; the smoke-session evidence (6) demonstrates player-stall/referee resolution (Section 1.2); findings are logged as Section 5.6 findings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+   **Conversion** (Appendix F; non-Markdown only). The frozen converted Markdown: document order
+   preserved across page breaks and columns; grids reassembled, merged cells handled; page furniture
+   stripped; artifact anchors flagged; Section 5.3 ground-truth reconciliation rate recorded; REQ-014
+   freeze verified for sources and converted Markdown.
+
+   **Discovery.** `RULESET_MODEL.md`: citations, confidence labels, action classification, guidance
+   attribution, and defect log (REQ-010/011/015/016/018); role stories grounded, MUST actions covered
+   (REQ-017); REQ-018 validator passes with both controls; consistency — every contradiction has a LOW
+   loser, no LOW item carries a MUST priority (REQ-011/015), aggregate-label rule applied uniformly;
+   shadow re-extraction — independently re-extract a recorded sample of three to eight sections (at least
+   one referee-scoped, at least one table-bearing) from the raw Markdown and diff against the model,
+   with the shadow agent given the same cross-file context the original extractor had; citation
+   mismatches and invented or omitted items are blockers, confidence-label disagreements are majors
+   unless the label flips a modeling decision (REQ-010/011/013).
+
+   **Layers 1–2.** Configuration surface (Section 6.6), input validation (REQ-054), capability
+   advertisement (Appendix D); anchor derivation (Section 6.1), parsing heuristics (Appendix A),
+   config-driven parsing, search and retrieval (REQ-022).
+
+   **Layers 3–4.** Witness values (Appendix B.4; Gate 2 step 0) and roll transparency (REQ-003);
+   audit, snapshots, durability (REQ-040/041/055).
+
+   **Layer 5.** Lookup, entity CRUD, resolution, generation, workflows — including resume-failure
+   semantics (REQ-042) — conflict (REQ-020/021/042/043).
+
+   **Layer 6.** Full registry (REQ-020–024), dispatcher gating and guidance filtering (REQ-032),
+   `spec_health` last (REQ-025); role stories through live registry and intent prompts (REQ-017/023);
+   dry-run Gate 2 transcript replay against Appendix B fixture — failure is a blocker. If a real MCP
+   client configuration entry was recorded (Q13), restart and confirm `tools/list`; `server unavailable`
+   is a blocker.
+
+   **DECISIONS.md audit.** Adversarial review: title/edition in (1) match ruleset and intake record
+   (Q12); every hardcoded mechanical table in the source appears as a waiver in (5) with justification,
+   impact, and remediation; traceability table (3) cites real tests; smoke-session evidence (6)
+   demonstrates player-stall/referee resolution (Section 1.2); findings logged as Section 5.6 findings.
 
 3. **Act on findings.** Record each finding in `DECISIONS.md` as
    `- <id> [<severity>] [<REQ or section cited>] <description> → <resolution>`. Severities: **blocker** —
@@ -974,6 +1041,37 @@ major finding. Record every such gap in `DECISIONS.md` under the checkpoint find
 
 These checkpoints complement, and never replace, the Section 7 gates.
 
+### 5.7 Reconciliation
+
+This section defines the procedure for updating an existing server to match a newer edition of this
+specification — re-verification that avoids a full greenfield rebuild. Apply it when the build prompt has
+changed since the server's last recorded verification date (Section 8, item (6)).
+
+1. **Changelog diff.** Compare the specification's changelog entries against the `DECISIONS.md` verification
+   record (Section 8, item (6)): identify every entry dated after the last recorded verification. For each,
+   determine whether it modifies a normative requirement or is editorial only. The Appendix E manifest
+   carries a "Spec version" column recording the last specification version in which each requirement was
+   substantively changed; requirements whose spec version postdates the last verification are stale.
+2. **Affected-REQ mapping.** Map each stale requirement to its associated tests (Appendix E "Verified by"
+   column) and to the code layers that implement it (Section 5.5 layer map). The builder decides whether
+   each stale REQ warrants a code change, a documentation update, or an accepted limitation in
+   `DECISIONS.md` (Section 8, item (5)).
+3. **Selective gate re-run.** Re-run only the gates and derived tests that depend on the stale requirements:
+   the Appendix E "Verified by" column enumerates them. A requirement whose cited tests all pass after the
+   update is reconciled. A requirement that failed any cited test requires a fix or waiver under REQ-013.
+4. **Confidence and coverage re-check.** Re-run `spec_health` (REQ-025) and T45 to confirm the player-persona
+   confidence score and MUST-action coverage still meet threshold after the update.
+5. **Evidence record.** Append a reconciliation evidence entry to `DECISIONS.md` (Section 8, item (6))
+   recording: the specification version range applied (from → to), the stale-REQ list, the re-run gates
+   with exit statuses, and any new waivers. The entry follows the Section 7 evidence format.
+6. **Reversion.** If the reconciliation introduces regressions — a previously passing gate now fails — revert
+   the change and record it as an accepted limitation with a threshold exception until the server is rebuilt.
+   A reconciliation never forces a full rebuild; the exception gates the limitation.
+
+A server updated through reconciliation carries its original build date; the reconciliation entry records
+the delta. A subsequent reconciliation starts from the same changelog-diff procedure against the combined
+evidence record.
+
 ---
 
 ## 6. Conventions and Runtime Model
@@ -1008,21 +1106,15 @@ and canonical name, so a hyphenated display anchor such as `black-bear` resolves
 `blackbear`. Resource URIs themselves always use the hyphenated display anchor.
 
 **Canonical alias resolution.** External slugs or client-generated names may differ in case,
-hyphenation, spacing, or trailing category suffix (`NobleBackground`, `FireballSpell`,
-`FighterClass`). Rules-section resources and bounded-domain tool parameters resolve aliases by
-normalizing the input to the bounded-domain lookup token: NFKC; lowercase; replace opening and
-closing quotation marks (U+2018, U+2019, U+201C, U+201D), and the double-prime character
-(U+2033), with ASCII quote (U+0027) or double-quote (U+0022) respectively; replace en dash
-(U+2013) and em dash (U+2014) with hyphen-minus (U+002D); drop apostrophes; remove all
-remaining non-alphanumeric characters, including hyphens and matching that token against the same
-lookup token computed for each anchor and canonical name. If the lookup token ends with a known
-category suffix (`Background`, `Class`, `Species`, `Spell`, `Monster`, `Equipment`, `Feat`,
-`Condition`), the suffix is stripped and the remaining token is matched. Bounded-domain tool
-parameters may also accept ruleset-specific suffixes such as `Save` when the tool registers that
-category. For tool parameters, an unknown bounded-domain name returns `[ERROR] [NOT_FOUND]` with the
-session-visible valid values enumerated (REQ-002). For `ruleset://` resource URIs, an invalid URI
-returns a protocol-level `resource_not_found` JSON-RPC error (Gate 1, Appendix D), not a tool-style
-`[ERROR]` message.
+hyphenation, spacing, or trailing category suffix. Aliases normalize: NFKC; lowercase; replace
+Unicode quotes (U+2018/2019/201C/201D) and double-prime (U+2033) with ASCII equivalents; replace
+en dash (U+2013) and em dash (U+2014) with hyphen-minus (U+002D); drop apostrophes; remove remaining
+non-alphanumeric characters; match the resulting token against each anchor's and canonical name's
+lookup token. Known category suffixes (`Background`, `Class`, `Species`, `Spell`, `Monster`,
+`Equipment`, `Feat`, `Condition`) are stripped before matching; tools may also accept
+ruleset-specific suffixes (`Save`). Unknown bounded-domain names return `[NOT_FOUND]` with
+session-visible valid values (REQ-002); invalid `ruleset://` URIs return a protocol-level
+`resource_not_found` JSON-RPC error (Gate 1, Appendix D).
 
 ### 6.2 Entity IDs
 
@@ -1062,10 +1154,8 @@ content, never exact wording.
   step, quoted verbatim.
 
 - **Entity creation**: `[OK] <Type> created: <name> (entity://<id>). <field summary>.`
-  - The field summary lists the entity's declared fields in the Markdown's declaration order, omitting the
-    name (carried in the created slot) and empty collections; procedure-assigned selections follow.
-  - Signed modifiers always show their sign (`+0`), pools render as `current/max`, and selections render as
-    `Label: Value`.
+  Fields in declaration order (name and empty collections omitted); signed modifiers show sign (`+0`),
+  pools render `current/max`, selections render `Label: Value`.
 - **Skill or tier training**: `[OK] <Name> trains <selection>. <field>: <value-list>.` When the ruleset
   models skills as tier bonuses rather than named abilities, the tier is rendered distinctly from named
   skills (e.g., `Skills: Military Training, Athletics, Expert (Firearms)`), and the chosen specialty is
@@ -1074,45 +1164,32 @@ content, never exact wording.
 <field summary>.` — the field summary follows the entity-creation convention above.
 - **Game end** (Section 6.7): `[OK] Game <id> ended. Roster unchanged.`
 - **Undo** (REQ-041): `[OK] Reverted: <tool-name>. <Name> <Field> <from> → <to>[, …]. Audit entry appended.`
-  - `<from>` is the value before undo, `<to>` the restored value.
-  - Undoing a creation renders `<Name> removed.`, undoing a deletion renders `<Name> restored.`.
-  - When no field summary applies, the segment is omitted.
+  `<from>` is the value before undo, `<to>` the restored value; undoing a creation renders `<Name> removed.`,
+  undoing a deletion renders `<Name> restored.`; when no field summary applies the segment is omitted.
 - **Conflict lifecycle** (REQ-043; `<Term>` is the ruleset's conflict term, capitalized as in the Markdown):
-  - Start → `[OK] <Term> active. Round 1. Turn order: <name>, <name>, …` (entity participants in supplied
-    order, then non-entity participants in supplied order).
-  - Advance → `[OK] <name> acts. (<Move>: <band> — <total>.)`, plus a consequence sentence only where the
-    Markdown attaches one (the fixture's Keeper-move rule fires on failure), plus `Round <n>.` only when the
-    round completes; turns with no mechanical effect produce no line.
-  - When an end condition is met, the output ends `<end condition restated>. <Term> ended.` (e.g., `Every
-participant on one side is Down, fled, or surrendered. Confrontation ended.`).
-  - End → `[OK] <Term> ended. Outcome recorded in audit log.`
-- **Attack and damage resolution** (REQ-020, REQ-043): when the ruleset defines attack and damage procedures,
-  the server resolves them from the ruleset, not from a generic fallback.
-  - Attack roll → `[OK] <attacker> attacks <target> with <weapon/spell>. Attack roll: <total> — <hit|miss>`
-    plus the REQ-003 transparency block (notation, faces, modifiers).
-  - Damage on a hit → `[OK] <target> takes <n> <type> damage. HP <before> → <after>.` The damage dice and
-    type come from the weapon, spell, or monster entry in the ruleset; a weapon parameter must be honored.
-  - Conditions, temporary effects, and limited-use features (spell slots, once-per-rest abilities) are applied
-    server-side; the output names the effect and the new state.
-  - Miss, save, resistance, immunity, and vulnerability are interpreted per the ruleset and stated in the
-    output.
+  start → `[OK] <Term> active. Round 1. Turn order: <name>, <name>, …` (entity participants in supplied
+  order, then non-entities); advance → `[OK] <name> acts. (<Move>: <band> — <total>.)` plus consequence
+  sentence where the Markdown attaches one, plus `Round <n>.` on round completion; turns with no mechanical
+  effect produce no line; end → `[OK] <Term> ended. Outcome recorded in audit log.` When an end condition is
+  met the output ends `<end condition restated>. <Term> ended.`
+- **Attack and damage resolution** (REQ-020, REQ-043): the server resolves from the ruleset, not a generic
+  fallback. Attack roll → `[OK] <attacker> attacks <target> with <weapon/spell>. Attack roll: <total> —
+  <hit|miss>` plus the REQ-003 transparency block. Damage on a hit → `[OK] <target> takes <n> <type>
+  damage. HP <before> → <after>.` (dice and type from the weapon, spell, or monster entry). Conditions,
+  limited-use features applied server-side; miss, save, resistance, immunity, vulnerability interpreted per
+  the ruleset.
 - **Search results** (REQ-012): `[OK] <n> result` (or `<n> results`); one line per hit.
-  - Modeled sections: `- <file>#<anchor> [confidence: <LEVEL>] — <section title>`.
-  - Unmodeled LOW sections: `- <file>#<anchor> [confidence: LOW] — raw text available; unmodeled`, followed —
-    when the defect log references the section — by an indented note `(<defect with citations>)`.
+  Modeled: `- <file>#<anchor> [confidence: <LEVEL>] — <section title>`. Unmodeled LOW: `- <file>#<anchor>
+  [confidence: LOW] — raw text available; unmodeled`, with an indented `(<defect with citations>)` note
+  when the defect log references the section.
 - **Cancellation** (REQ-042): `[OK] Cancelled: <decision-id>. Snapshot restored.` (e.g., `[OK] Cancelled:
 stat-array. Snapshot restored.`).
 - **Errors** (REQ-002): `[ERROR] [<CATEGORY>] <explanation>` followed by a `Corrective action: <action>` line.
 - **Truncation** (REQ-004): output cut at the configured limit ends with
-  `… [truncated — full content: output://<tool>/<counter>]` — e.g.,
-  `… [truncated — full content: output://search_rules/1]`.
-  - The `output://` scheme is served through a resource template; payloads live at most for the session's
-    lifetime and obey REQ-032 persona filtering.
-  - The counter is per-session and per-tool, starting at 1.
-  - Retained payloads per session are bounded by `TTRPG_PAYLOADS` (Section 6.6); minting beyond the bound
-    evicts the oldest payload, and an evicted URI is expired.
-  - Payloads are session-local: a payload URI resolves only in the session that created it; foreign or
-    expired payload URIs fail as unknown identifiers (`[ERROR] [NOT_FOUND]`, REQ-002).
+  `… [truncated — full content: output://<tool>/<counter>]`. The `output://` scheme is served through a
+  resource template; payloads are session-local, bounded by `TTRPG_PAYLOADS` (Section 6.6), and
+  persona-filtered (REQ-032). The counter is per-session and per-tool, starting at 1. Minting beyond the
+  bound evicts the oldest; an evicted or foreign URI fails `[NOT_FOUND]` (REQ-002).
 
 ### 6.4 Tool-name conventions
 
@@ -1301,13 +1378,25 @@ records: the player and referee session personas, the referee-only gate that sta
 the tool or resource used in the referee session to resolve it (Section 1.2).
 
 **Gate 0 — Startup smoke check (F6).** Before any protocol-conformance tests, build the project
-using the build command documented in `README.md` or `AGENTS.md` (e.g., `npm run build` for a
-TypeScript project), then start the compiled server entry point (e.g., `dist/index.js`) with the
+using the build command documented in `README.md` or `AGENTS.md` (`npm run build`), then start the
+compiled server entry point (`dist/index.js`) with the
 `README.md` copy-paste client configuration (or its scripted equivalent). Verify the process
 initializes without `server unavailable`, the `initialize` handshake returns `serverInfo.name`
 matching the key in the `README.md` `mcpServers` entry, and `tools/list` returns a non-empty registry.
 Record the command, environment, and result in `DECISIONS.md` (Section 8). A Gate 0 failure stops
-the line before Gate 1.
+the line before Gate 0.5.
+
+**Gate 0.5 — Spec drift check (F1, F2).** When an existing server is being re-verified under a later
+edition of this specification (Section 5.7), diff the specification's changelog against the server's
+`DECISIONS.md` verification record (Section 8, item (6)) before executing Gates 1–4. Identify every
+changelog entry dated after the last recorded verification date; consult the Appendix E "Spec version"
+column for each requirement cited by those entries. If no changelog entry modifies a normative
+requirement — every entry is editorial — Gates 1–4 are satisfied by the prior evidence and the
+re-verification stops here, recording a single Gate 0.5 evidence entry that lists the stale
+changelog entries and their classification. If any changelog entry modifies a normative requirement,
+proceed to Gate 1, re-running only the gates and tests cited by the stale requirements per
+Section 5.7. A greenfield build skips this gate; its builder records `(greenfield)` as the evidence
+entry.
 
 **Gate 1 — Conformance (F3, F6).** Pin the current stable MCP specification version at build time and record it in
 `DECISIONS.md`. Validate the server with the official MCP Inspector or a documented equivalent — any harness
@@ -1358,43 +1447,43 @@ harness.
 
 | #   | Test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Requirements                                |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| T3  | Tool documentation complete; the `DECISIONS.md` justification list matches the registry; tool annotations match the REQ-015 typing, and each tool carries its REQ-024 title. Name uniqueness and schema validity are verified by Gate 1 (Appendix D)                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-024, REQ-021                            |
+| T3  | Tool documentation complete; justification list matches registry; annotations match REQ-015 typing; each tool carries REQ-024 title; name uniqueness and schema validity per Gate 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-024, REQ-021                            |
 | T4  | Search returns the expected section in the top 3 results for exact, prefix, and substring queries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-012                                     |
 | T5  | Entity lifecycle end to end: create, field mutation, and deletion where the ruleset defines it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-020                                     |
 | T8  | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-040                                     |
-| T9  | Persona gating: players blocked from referee tools; content and metadata hidden; referee and unassigned sessions access all tools and content; kill/restart restores persona (or the recorded unassigned state) and game state; the undo stack is empty after restart and `undo` fails cleanly                                                                                                                                                                                                                                                                                                                                                                | REQ-031, REQ-032, REQ-055                   |
+| T9  | Player blocked from referee tools/content; referee/unassigned full access; persona and game state survive restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-031, REQ-032, REQ-055                   |
 | T10 | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-041                                     |
 | T11 | Conflict starts, advances, snapshots, ends; explicit load works within one session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-043                                     |
 | T12 | Conditions or temporary effects apply and expire per the ruleset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-013, REQ-020                            |
-| T13 | Output beyond `TTRPG_TRUNCATE` (set low for this test) truncates with a pointer to the full `output://` resource; the payload obeys REQ-032 filtering — a player-persona payload contains no referee-only titles; a payload URI minted in another session fails `[ERROR] [NOT_FOUND]`; payloads beyond `TTRPG_PAYLOADS` evict oldest-first, and an evicted URI fails `[ERROR] [NOT_FOUND]`                                                                                                                                                                                                                                                                    | REQ-004, REQ-032                            |
-| T15 | `spec_health` reports confidence, counts, coverage, defects, and version status; run as player, referee, and unassigned against the fixture — the player persona's counts, coverage, and defect listings exclude referee-only items (the encounters table, guidance from referee-scoped sections, referee-only MUST actions), while referee and unassigned sessions report the unfiltered totals, expected values derived from Appendix B.2                                                                                                                                                                                                                   | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
-| T16 | Rules index loads; anchor count matches the structural pass; resource retrieval returns the expected Markdown text for major anchors; re-index twice and diff the URI lists; `resources/list` is identical before and after entity creation, and the entity, roster-record, and `output://` templates appear in `resources/templates/list`; retrieved resources declare the REQ-022 media type; listed resources and templates declare the REQ-022 title                                                                                                                                                                                                      | REQ-022                                     |
+| T13 | Truncation at limit with `output://` pointer; payload persona filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-004, REQ-032                            |
+| T15 | `spec_health` reports confidence, counts, coverage, defects, version; player filters referee-only items; referee/unassigned report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
+| T16 | Rules index loads; anchor count matches structural pass; resource retrieval returns expected Markdown for major anchors; re-index twice and diff URI lists; `resources/list` stable across entity creation; entity, roster-record, and `output://` templates appear in `resources/templates/list`; resources declare REQ-022 media type and title                                                                                                                                                                                                                                                                                                            | REQ-022                                     |
 | T17 | Ruleset drift after intake — simulated on a copy of the ruleset so T21's byte-identity holds — → stderr warning + `spec_health` flag                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-044                                     |
 | T18 | Anti-persona scenarios (below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-002, REQ-032                            |
 | T19 | Workflow round-trip: `[NEED_INPUT]` → `respond` resumes; `cancel` restores snapshot; `undo` while a decision is pending fails `[ERROR] [STATE_CONFLICT]`; an invalid `respond` (unknown decision or option) fails `[ERROR] [NOT_FOUND]` with the decision still pending, and a valid `respond` then succeeds                                                                                                                                                                                                                                                                                                                                                  | REQ-042, REQ-041                            |
-| T20 | Path traversal and malformed input rejected without state mutation; adversarial free text (an entity name embedding directive-like instructions) is stored and echoed verbatim as inert data in tool results, entity resources, the audit log, and search results, with no change to behavior or registry                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
+| T20 | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-052, REQ-054                            |
 | T21 | Original Markdown — and, where conversion applied (Appendix F), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-014                                     |
 | T22 | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-023                                     |
 | T23 | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-053                                     |
 | T25 | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, T11 waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                                 | REQ-013, REQ-043                            |
-| T26 | Guidance items cited, confidence-labeled, and attributed; items from referee-scoped sections hidden from the player persona while inferred-attribution items remain visible; `persona_briefing` differs across player, referee, and unassigned sessions and composes only visible guidance; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                        | REQ-016, REQ-023, REQ-032                   |
-| T27 | Game-RNG continuity: pin `TTRPG_SEED=7`; session 1 makes an unseeded 2d6 roll → faces 2,6 (B.4 draws 1–2); restart with a new session against the same game and roll unseeded → faces 4,6 (draws 3–4); restart with `TTRPG_SEED=99` → a stderr warning fires and the next unseeded roll continues the persisted sequence → faces 1,6 (draws 5–6); a different game seeded with `TTRPG_SEED=7` starts a fresh sequence → faces 2,6 (draws 1–2)                                                                                                                                                                                                                 | REQ-050, REQ-055                            |
-| T28 | Role stories: the MUST-covering story set and each player story targeting referee-only content map through the intent prompts to the expected tool, resource, or workflow; the referee-targeting stories fail `[ERROR] [FORBIDDEN]`; each persona's stories are achievable from its visible registry. Grounding and MUST coverage are verified at the Discovery checkpoint (Section 5.6)                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
-| T29 | The `DECISIONS.md` traceability table (Section 8, item (3)) parses; every REQ in Section 4's index appears exactly once; every cited test identifier exists; waived tests cross-reference a (5) waiver; every (5) waiver names its defect and re-activation condition (REQ-013); re-run if (3) or (5) changes after Gate 4                                                                                                                                                                                                                                                                                                                                    | Section 8                                   |
-| T31 | Game isolation and roster reuse: game 1 creates a delver and takes Harm 2; a second game (new `TTRPG_GAME_ID`) lists none of game 1's entities; the roster holds the pristine baseline; `import_character` instantiates it fresh (Harm 0/6); mutation in game 2 changes neither the roster record nor game 1; `end_game` discards game 1's state and ends the session; the roster survives; resuming a session of an ended game fails per REQ-055                                                                                                                                                                                                             | REQ-055                                     |
-| T32 | Character creation matches the ruleset: create a starting character and verify its class, species, ability scores, HP, save proficiencies, skill proficiencies, and starting equipment against the ruleset entry; if the ruleset defines leveling, level up using the REQ-056 workflow and verify class-table progression (HP, features, feats, spell slots, known/prepared spells); otherwise this step is waived under REQ-013 with the missing leveling procedure logged as a defect                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056          |
-| T33 | Combat resolution uses the ruleset: where the ruleset defines attack and damage procedures, start a conflict and resolve an attack with a named weapon or spell using the ruleset-specific tool and any canonical lookup tool (REQ-057); assert that damage dice, damage type, and any properties (versatile, finesse, mastery, saving throw, half damage on save) match the ruleset entry; assert that a miss or a successful save produces the ruleset outcome and updates no HP; the H5 handoff-gate check automates this live invocation against a witness weapon and spell; waived with a logged reason if the ruleset has no attack or damage procedure | REQ-013, REQ-020, REQ-043, REQ-057          |
-| T34 | Server-side combat state: where the ruleset defines a turn-based conflict procedure, start a conflict, apply damage, conditions, and expend a limited-use feature (e.g., a spell slot); disconnect and reconnect to the same game with a new session; assert HP, conditions, slots, and turn order are restored; assert the LLM is not required to remember them; waived with a logged reason if the ruleset has no conflict procedure                                                                                                                                                                                                                        | REQ-040, REQ-041, REQ-043, REQ-055          |
+| T26 | Guidance items cited, confidence-labeled, attributed; referee-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-016, REQ-023, REQ-032                   |
+| T27 | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; witness values from Appendix B.4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-050, REQ-055                            |
+| T28 | Role stories: MUST-covering set maps intent prompts to expected tools/resources; referee-targeting stories fail FORBIDDEN; each persona's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-017, REQ-023, REQ-032                   |
+| T29 | DECISIONS.md traceability table (Section 8, item (3)) parses; every REQ in Section 4 appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                                   | Section 8                                   |
+| T31 | Game isolation: entities invisible across games; roster baselines immutable; `import_character` creates fresh copy; `end_game` discards game; roster survives; resuming ended game fails                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-055                                     |
+| T32 | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment; if leveling defined, verify class-table progression via REQ-056; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-013, REQ-020, REQ-042, REQ-056          |
+| T33 | Combat resolution uses ruleset: attack with named weapon/spell via ruleset-specific and canonical lookup tools; damage dice, type, and properties match ruleset entry; miss/save produces ruleset outcome, no HP change; H5 automates live invocation; waived if no attack procedure                                                                                                                                                                                                                                                                                                                                                                         | REQ-013, REQ-020, REQ-043, REQ-057          |
+| T34 | Server-side combat state survives disconnect: HP, conditions, slots, turn order restored on reconnect; LLM not required to track them; waived if no conflict procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-040, REQ-041, REQ-043, REQ-055          |
 | T35 | Fixture isolation: with the target ruleset (not the Appendix B fixture), verify that fixture-only tool names (`create_delver`, `roll_move`, `start_confrontation`) are absent from `tools/list`; when serving the fixture itself, verify they are present                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-021, REQ-024                            |
-| T36 | DECISIONS.md review: parse section (1) and confirm the ruleset edition/title matches the source header and the document title; parse section (5) and confirm every hardcoded class, species, hit-dice, equipment, or spell table in the source has a corresponding waiver with justification, impact, and remediation; the absence of such a waiver is a failure                                                                                                                                                                                                                                                                                              | REQ-013, Section 8                          |
-| T37 | Tool-result fidelity: when any search or lookup tool returns no results for a known-ruleset term, the server reports `[ERROR] [NOT_FOUND]` or `[PARTIAL]` with a corrective action; the builder must not patch around a missing result by reading ruleset files directly or inventing mechanics instead of fixing the server surface                                                                                                                                                                                                                                                                                                                          | REQ-012, REQ-020, REQ-054, REQ-058          |
-| T38 | Ruleset-derived advancement workflow: where the ruleset defines advancement, start the workflow and assert the tool name derives from the ruleset's own term (REQ-056); verify it raises `[NEED_INPUT]` for open choices, applies class-table or equivalent progression server-side, and updates the entity; waived under REQ-013 if the ruleset has no advancement procedure                                                                                                                                                                                                                                                                                 | REQ-056, REQ-013, REQ-042                   |
+| T36 | DECISIONS.md review: section (1) edition/title matches source; section (5) covers every hardcoded class, species, hit-dice, equipment, or spell table with waiver; missing waiver is failure                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-013, Section 8                          |
+| T37 | Tool-result fidelity: search/lookup returning no results for known term reports `[NOT_FOUND]` or `[PARTIAL]` with corrective action; builder must not patch around missing results                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-012, REQ-020, REQ-054, REQ-058          |
+| T38 | Advancement workflow derives tool name from ruleset term; raises `[NEED_INPUT]` for open choices; applies progression server-side; waived if no advancement procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-056, REQ-013, REQ-042                   |
 | T39 | Canonical lookup tools registered: for each required category (equipment, spells, monsters, conditions, feats, class features, species, backgrounds as the ruleset requires), assert a `lookup_<category>` tool is in `tools/list`, accepts the canonical name and documented aliases, and returns the ruleset entry                                                                                                                                                                                                                                                                                                                                          | REQ-057, REQ-024                            |
 | T40 | Lookup tool rejects unknown names: request a non-existent item and assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; assert no fabricated entry is returned                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-057, REQ-002                            |
 | T41 | No direct source reads: instrument the server or inspect handlers; run a tool call that resolves a canonical name and assert no ruleset Markdown file is read after startup indexing; the lookup tool must use the loaded index or model                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-058, REQ-051                            |
 | T42 | No tool-result fabrication: request a canonical item at the edge of the ruleset (last table row, ambiguous alias) and assert the result either resolves correctly or returns `[ERROR]`/`[PARTIAL]`; assert no invented mechanics, damage values, or properties appear                                                                                                                                                                                                                                                                                                                                                                                         | REQ-058, REQ-054                            |
 | T43 | Decision auto-completion blocked: start a workflow that raises `[NEED_INPUT]` and verify the server does not emit a chosen option or complete the workflow without a `respond` call; a client or LLM must not supply a default                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-042, REQ-058                            |
-| T44 | Player persona boundary: under the player persona, request narration of a referee-only table result or invoke a tool that would return referee-only content; assert the response does not reveal the hidden row and instead directs the user to a referee session or returns `[ERROR] [FORBIDDEN]`                                                                                                                                                                                                                                                                                                                                                            | REQ-032, REQ-058                            |
+| T44 | Player persona boundary: player request for referee-only content returns `[ERROR] [FORBIDDEN]` or stripped response directing to referee session; no hidden row revealed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-032, REQ-058                            |
 | T45 | spec_health threshold: assert overall confidence is at least 80% and MUST-action coverage is 100% after waivers; if the score is below threshold, assert the build stops and `DECISIONS.md` records a remediation plan                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-025, REQ-011                            |
 
 **T18 anti-persona scenarios:**
@@ -2044,48 +2133,49 @@ carry no REQ-002 string (REQ-001).
 
 Derived from Section 4 for convenience — the packing list for the `DECISIONS.md` traceability table
 (Section 8, item (3); T29). Section 4 remains the sole normative statement of every requirement; the
-"Verified by" column transcribes each requirement's _Check:_ citations. The row count is verified
-automatically by `scripts/validate.py`. Initialize item (3)'s rows from this table, then fill in its
-`Code` and `Tests` columns from the build.
+"Verified by" column transcribes each requirement's _Check:_ citations; the "Spec version" column
+records the specification version pin at which each requirement was last substantively changed. The row
+count is verified automatically by `scripts/validate.ts`. Initialize item (3)'s rows from this table,
+then fill in its `Code` and `Tests` columns from the build.
 
-| REQ     | Title                     | Verified by                    |
-| ------- | ------------------------- | ------------------------------ |
-| REQ-001 | Response contract         | Gate 2; Appendix D             |
-| REQ-002 | Error taxonomy            | T18                            |
-| REQ-003 | Roll transparency         | Gate 2                         |
-| REQ-004 | Truncation                | T13                            |
-| REQ-010 | Traceability              | T15                            |
-| REQ-011 | Confidence                | T15                            |
-| REQ-012 | Graceful fallback         | Gate 2, T37                    |
-| REQ-013 | No assumed mechanics      | T25, T32, T33, T36             |
-| REQ-014 | Source immutability       | T21                            |
-| REQ-015 | Action classification     | T15                            |
-| REQ-016 | Guidance extraction       | T26                            |
-| REQ-017 | Role stories              | T28                            |
-| REQ-018 | Extraction evidence       | T15; Discovery checkpoint      |
-| REQ-020 | Tools                     | T3, T5, T32, T33, T37; Gate 2  |
-| REQ-021 | Tool-surface economy      | T3, T35                        |
-| REQ-022 | Resources                 | T16                            |
-| REQ-023 | Prompts                   | T22                            |
-| REQ-024 | Tool documentation        | T3, T35, T39                   |
-| REQ-025 | spec_health               | T15, T45                       |
-| REQ-056 | Advancement workflow      | T38; T32 where applicable      |
-| REQ-057 | Canonical lookup tools    | T39, T40                       |
-| REQ-058 | Tool-result fidelity      | T37, T41, T42                  |
-| REQ-030 | Single user               | Appendix D                     |
-| REQ-031 | Persona immutability      | T9                             |
-| REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    |
-| REQ-040 | Audit log                 | T8, T34                        |
-| REQ-041 | Snapshots and undo        | T10, T34                       |
-| REQ-042 | Workflow decisions        | T19, T32; Gate 2               |
-| REQ-043 | Conflict lifecycle        | T11, T25, T33, T34; Gate 2     |
-| REQ-044 | Ruleset versioning        | T17                            |
-| REQ-050 | Determinism               | Gate 2, T27                    |
-| REQ-051 | No runtime network access | Appendix D; Gate 4 environment |
-| REQ-052 | Path containment          | T20                            |
-| REQ-053 | Performance               | T23                            |
-| REQ-054 | Input safety              | T20, T37, T42                  |
-| REQ-055 | Durability and resume     | T9, T31, T34                   |
+| REQ     | Title                     | Verified by                    | Spec version |
+| ------- | ------------------------- | ------------------------------ | ------------ |
+| REQ-001 | Response contract         | Gate 2; Appendix D             | —            |
+| REQ-002 | Error taxonomy            | T18                            | —            |
+| REQ-003 | Roll transparency         | Gate 2                         | —            |
+| REQ-004 | Truncation                | T13                            | —            |
+| REQ-010 | Traceability              | T15                            | —            |
+| REQ-011 | Confidence                | T15                            | —            |
+| REQ-012 | Graceful fallback         | Gate 2, T37                    | —            |
+| REQ-013 | No assumed mechanics      | T25, T32, T33, T36             | —            |
+| REQ-014 | Source immutability       | T21                            | —            |
+| REQ-015 | Action classification     | T15                            | —            |
+| REQ-016 | Guidance extraction       | T26                            | —            |
+| REQ-017 | Role stories              | T28                            | —            |
+| REQ-018 | Extraction evidence       | T15; Discovery checkpoint      | —            |
+| REQ-020 | Tools                     | T3, T5, T32, T33, T37; Gate 2  | —            |
+| REQ-021 | Tool-surface economy      | T3, T35                        | —            |
+| REQ-022 | Resources                 | T16                            | —            |
+| REQ-023 | Prompts                   | T22                            | —            |
+| REQ-024 | Tool documentation        | T3, T35, T39                   | —            |
+| REQ-025 | spec_health               | T15, T45                       | —            |
+| REQ-056 | Advancement workflow      | T38; T32 where applicable      | —            |
+| REQ-057 | Canonical lookup tools    | T39, T40                       | —            |
+| REQ-058 | Tool-result fidelity      | T37, T41, T42                  | —            |
+| REQ-030 | Single user               | Appendix D                     | —            |
+| REQ-031 | Persona immutability      | T9                             | —            |
+| REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    | —            |
+| REQ-040 | Audit log                 | T8, T34                        | —            |
+| REQ-041 | Snapshots and undo        | T10, T34                       | —            |
+| REQ-042 | Workflow decisions        | T19, T32; Gate 2               | —            |
+| REQ-043 | Conflict lifecycle        | T11, T25, T33, T34; Gate 2     | —            |
+| REQ-044 | Ruleset versioning        | T17                            | —            |
+| REQ-050 | Determinism               | Gate 2, T27                    | —            |
+| REQ-051 | No runtime network access | Appendix D; Gate 4 environment | —            |
+| REQ-052 | Path containment          | T20                            | —            |
+| REQ-053 | Performance               | T23                            | —            |
+| REQ-054 | Input safety              | T20, T37, T42                  | —            |
+| REQ-055 | Durability and resume     | T9, T31, T34                   | —            |
 
 ## Appendix F: Source Conversion
 
@@ -2109,6 +2199,8 @@ stage's checkpoint (Section 5.6). Conversion never modifies the sources.
 
 **Pin.** The converter and its version are recorded in `DECISIONS.md` (Section 8, item (2)); the same
 converter produces the frozen Markdown and any later diagnostic re-run.
+
+**Prompt.** See Appendix H for the concrete formatting rules that implement the conversion pipeline above.
 
 **Verification.** Load-bearing tables are ground-truthed per Section 5.3, and the reconciliation rate is
 recorded (Section 8, item (6)). An ambiguity the text layer cannot settle — reading order, a merged
@@ -2164,16 +2256,19 @@ implementation, script, or manual review must satisfy.
   3. Exclude from the scan: the ruleset Markdown, `RULESET_MODEL.md`, `DECISIONS.md`, `README.md`,
      `AGENTS.md`, all test files, the fixture directory, and any file explicitly listed as exempt in a
      section (5) waiver.
-  4. Flag an occurrence if the term appears in any of these contexts (the syntax depends on the
-     implementation language):
-     - An array or list literal whose elements include canonical terms.
-     - An enum, union type, or sum-type definition whose members include canonical terms.
-     - An object, dictionary, or map key that maps a canonical term to derived mechanics (HP, hit dice,
-       damage, saves, spell slots, features).
-     - A switch, match, or if-else chain branching on the canonical term value.
-     - A SQL DDL or INSERT statement containing canonical terms as column values.
+  4. Flag an occurrence if the term appears in any of these contexts (the syntax is TypeScript;
+     the scan also covers non-TS project artifacts):
+     - A TypeScript array literal whose elements include canonical terms.
+     - A TypeScript enum or union type whose members include canonical terms.
+     - A TypeScript object, `Record`, or `Map` whose keys map canonical terms to derived mechanics
+       (HP, hit dice, damage, saves, spell slots, features).
+     - A TypeScript `switch`, `if`/`else` chain, or conditional sequence branching on the canonical
+       term value.
+     - A SQL DDL or INSERT statement containing canonical terms as column values (if the build uses
+       SQLite or another embedded database).
      - A JSON, YAML, or TOML file where canonical terms are keys mapping to mechanics.
-     - A function that returns a ruleset-derived value using a canonical term as a hardcoded lookup key.
+     - A TypeScript function that returns a ruleset-derived value using a canonical term as a
+       hardcoded lookup key.
   5. Do not flag occurrences in:
      - Comments, documentation strings, or log messages.
      - Test fixtures or expected test output.
@@ -2344,4 +2439,290 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Positive control:** A `README.md` with a complete, absolute-path config entry that starts the compiled
   server (`dist/index.js`) and matches the advertised `serverInfo.name`.
 - **Negative control:** A `README.md` with a config entry that uses a bare runtime command or a source file
-  when the client process lacks it on `PATH`, producing `server unavailable`.
+   when the client process lacks it on `PATH`, producing `server unavailable`.
+
+---
+
+## Appendix H: Ruleset Preparation Prompt
+
+> **Format requirements.** This appendix specifies the Markdown format conventions required by the
+> parsers (Appendix A). When the §5 pre-check finds the ruleset deficient, apply the conventions below
+> to reformat the ruleset source material — no separate invocation is required. The formatted output
+> becomes the ruleset for all subsequent build steps. The verification checklist (H.13) is the pre-check
+> criteria.
+
+### H.1 Mission
+
+Your task is to format a tabletop RPG ruleset into Markdown that the parsers (Appendix A) can ingest and
+model reliably. The parsers extract headings, tables, bold-labeled fields, procedures, guidance text, and
+role-scoping markers. Every formatting convention below targets one of those parsers. Apply them faithfully;
+do not improvise a structure the ruleset does not contain.
+
+Input: one or more ruleset documents in any format — PDF, HTML, plain text, or existing Markdown.
+Output: one or more Markdown files following the conventions below.
+
+### H.2 Source intake
+
+**Encoding.** Output UTF-8 exclusively. Preserve Unicode characters — quotation marks, dashes, accented
+letters — exactly as they appear in the source. The parsers normalize Unicode for alias resolution, but
+the ruleset text must be byte-accurate to the source.
+
+**Frontmatter.** If the source carries YAML frontmatter (a leading `---`…`---` block), preserve it
+verbatim. The parsers treat frontmatter as metadata, not as headings or tables.
+
+**Non-Markdown sources.** Convert layout-bearing formats (PDF, HTML) to Markdown before applying these
+conventions. Preserve document order; reassemble tables that span page breaks or column layouts; strip
+page furniture — running heads, page numbers, boilerplate. Flag any table region whose reading order is
+ambiguous rather than guessing. Record the converter and its version alongside the output.
+
+### H.3 Document structure
+
+**Headings.** Use ATX headings (`##`, `###`, `####`) — never setext (`===`, `---`). The ruleset title is
+a level-1 heading (`#`). Subordinate sections descend in order; gaps in the hierarchy (e.g., `####`
+directly under `##`) are tolerated, but prefer consistency. Every heading text must be unique within its
+file; disambiguate with parenthetical suffixes where necessary.
+
+**Anchors.** The parsers generate anchors from heading text. You may supply explicit anchors with `{#id}`
+markers where precise linking is needed (e.g., `## Combat {#combat}`). The marker is trailing,
+lowercase-hyphenated, and stripped from the visible heading text.
+
+**Section separators.** Place a `---` horizontal rule between top-level sections (headings at level `##`
+and above). Do not insert horizontal rules within a section unless the source itself uses them as content
+boundaries.
+
+### H.4 Role scoping
+
+**Identify roles.** Every ruleset has at least one player-facing role and typically one adjudicator role
+(GM, DM, Warden, Narrator, Keeper, Referee, or whatever term the ruleset uses). Find both. State the
+adjudicator role's exact term early in the document — ordinarily in a "Roles" section or the opening
+paragraph.
+
+**Marker convention.** Sections that are visible only to the adjudicator must carry a trailing italic
+marker on the heading: `*<adjudicator term> only*`. The marker text is the ruleset's own term for its
+adjudicator — never a generic placeholder. For example, if the ruleset's adjudicator is "Lantern Keeper,"
+the marker is `*Keeper only*` (the final word matches). If the adjudicator is "Game Master," the marker
+is `*Master only*`.
+
+**Form:**
+
+```markdown
+## Encounter Tables — _Master only_
+```
+
+The marker is stripped before anchor generation: the heading above produces the section "Encounter
+Tables," not "Encounter Tables — _Master only_." A preceding dash (hyphen, en dash, or em dash) is also
+stripped, so both `Encounter Tables — _Master only_` and `Encounter Tables _Master only_` work.
+
+**No referee.** If the ruleset has no adjudicator role (GM-less play), omit all role markers. Sections
+are shared by default.
+
+### H.5 Tables
+
+**Structure.** Every table must have a header row. Multi-column tables that lack headers in the source
+should have a header row inferred from labels or column descriptions. Wide rows: pad shorter rows with
+empty cells to match the widest row's column count. Merge overflow cells into the last column; never drop
+data.
+
+**Numeric and dice ranges.** Use an en dash (`–`) or hyphen (`-`) for inclusive ranges (`3–5`). A single
+integer is exact (`12`). Roll-column headers use `d6`, `2d6`, `1d20`, or the ruleset's dice notation —
+never free-text descriptions. Example:
+
+```markdown
+| 2d6  | Encounter                            |
+| ---- | ------------------------------------ |
+| 2    | A hollow figure, hostile             |
+| 3–5  | Strange lights (harmless)            |
+| 6–8  | Sinkhole! Agility check to avoid     |
+| 9–11 | A trader, willing to bargain         |
+| 12   | An abandoned shrine                  |
+```
+
+**Captions.** A prose sentence that immediately precedes a table — with no blank line, heading, or
+horizontal rule between them — and ends in a colon or contains the phrase "following table" is treated as
+the table's caption. Precede every table that warrants a description with such a sentence.
+
+**Cell formatting.** Preserve inline formatting — bold, italic, links, code spans — inside table cells. A
+cell whose content begins with a bold span and contains no colon may use the bold span as the entry name
+and the remainder as detail (`**Fireball**: 8d6 Fire, Dex save for half`).
+
+### H.6 Bold-labeled fields and definition lists
+
+**Fields.** Model named attributes with bold-labeled fields: `**Name**: value`. Acceptable variants
+include `Name: **value**` and `**Name: value**`; pick one form and use it consistently throughout the
+ruleset.
+
+**Definition lists.** When two or more bold-labeled paragraphs appear consecutively — with no intervening
+prose, blank lines, or other block elements — they are classified as a definition list and each entry is
+extracted as a named item. Prefer this pattern for entity stat blocks, condition lists, and equipment
+tables rendered as prose:
+
+```markdown
+**Grit**: brawn and endurance.
+**Nerve**: steadiness under fear.
+**Wits**: sharpness of eye and mind.
+```
+
+A lone bold-labeled paragraph separated from others is extracted as a regular field, not a list item.
+Ensure lists have at least two consecutive entries.
+
+### H.7 Procedures
+
+**Signals.** The parsers identify procedures by: imperative verbs ("Roll 2d6 and add your Grit"),
+numbered steps, "To X, do Y" formulations, and "When X happens, Y" triggers. Write procedural rules
+using these patterns.
+
+**Numbered steps.** Use a Markdown ordered list for multi-step procedures. Each step is a discrete
+action. Example:
+
+```markdown
+Creating a character:
+1. Choose a name.
+2. Assign +2, +1, and 0 to Grit, Nerve, and Wits in any order.
+3. Choose one knack from the Knacks table.
+4. Set Harm to 0.
+```
+
+**Trigger–action–outcome.** State the trigger first, then the resolution, then the result bands. A
+reader (or parser) should be able to trace the chain without inference. Example:
+
+```markdown
+When a character takes a risky action, the referee names the relevant stat. The player rolls 2d6 and
+adds the stat:
+- **10+**: clean success.
+- **7–9**: partial success — it works, with a complication.
+- **6 or less**: failure, and the referee makes a move.
+```
+
+### H.8 Dice and resolution mechanics
+
+**Notation.** Use `NdS` notation exclusively (`2d6`, `1d20`, `3d8+4`). Spell out "keep highest" and
+"drop lowest" in prose where the ruleset uses non-standard dice conventions; do not invent notation.
+Modifiers are a flat number: `+2`, `–1`. The modifier always follows the dice expression
+(`2d6 + Grit`, `1d20 + Strength modifier + proficiency bonus`).
+
+**Result bands.** Every resolution mechanic must state its result bands explicitly. A band is a range, a
+comparison operator, or both. A player (or parser) should never have to infer what constitutes a
+success. Use a list or table:
+
+```markdown
+| Total | Outcome                            |
+| ----- | ---------------------------------- |
+| 10+   | Success                            |
+| 7–9   | Partial success (complication)     |
+| 2–6   | Failure                            |
+```
+
+**Critical rules.** If the ruleset defines critical success or failure (natural 20, natural 2), state the
+rule in the resolution section, not in a separate sidebar.
+
+### H.9 Conditions, states, and effects
+
+**Format.** Each condition is a named entity with a mechanical effect and an expiry trigger. Prefer the
+bold-label or definition-list pattern:
+
+```markdown
+**Shaken**: −1 to Steady rolls. Expires after one scene of rest.
+**Bleeding**: +1 Harm at the end of each round. Expires when the wound is bound (one action).
+```
+
+If the ruleset defines conditions in a table, use a table with columns for name, effect, and expiry.
+
+**Pools and tracks.** A numeric pool (HP, Harm, Sanity, Stress) must define its range. State the
+starting value, the maximum (or threshold at which the character is incapacitated), and how the pool
+changes. Example: `Harm starts at 0. At 6 Harm the character is Down and cannot act.`
+
+**No mechanic, no tool.** If a condition uses a trigger the ruleset never mechanizes — "one scene of
+rest" in a ruleset with no scene mechanic — state the trigger in prose anyway. The build will log the
+gap; your job is to preserve the source text, not to invent missing mechanics.
+
+### H.10 Guidance vs. mechanics
+
+**Guidance** is role-addressed prose: setting tone, examples of play, statements of responsibility
+("portrays," "your job is to," "should"), and advice. It is extracted verbatim as quoted data and never
+modeled as tools or state.
+
+**Mechanics** are rules that produce dice rolls, state changes, or tool registrations: resolution
+systems, conditions with modifiers, character creation procedures, combat turn order, equipment tables.
+Each mechanic becomes a tool, an entity field, or a table in the server model.
+
+**Separation.** Keep guidance and mechanics in separate sections wherever the ruleset allows. A section
+that mixes both (e.g., "The referee portrays the marsh. When a delver fails a roll, the referee deals 1
+Harm.") is legal but harder to extract cleanly. Prefer to model the Harm-dealing rule in a "Dangers" or
+"Consequences" section and the portrayal instruction in a "Referee Principles" section.
+
+**Do not reclassify.** If the source presents a rule as guidance ("the referee may choose to…"), keep it
+as guidance. If the source presents a rule as a procedure, keep it as a procedure. Never promote
+guidance to a mechanic or demote a mechanic to advice. The build process draws this boundary; your job
+is to preserve it accurately.
+
+### H.11 Special elements
+
+**Internal cross-references.** Link to other sections with `[text](#anchor)` (same file) or
+`[text](file.md#anchor)` (cross-file). Ensure every link resolves: the anchor must exist in the target
+file, and cross-file links must use the correct relative path.
+
+**Fenced code blocks.** Use triple-backtick fences with an info string that classifies the content:
+`statblock` for monster or NPC stat blocks, `example` for play examples, `json` for data. The info
+string is preserved as a classifier tag for search and retrieval; it never changes extraction behavior.
+Content within code blocks is searchable but is not parsed as mechanics.
+
+```statblock
+Goblin: AC 15, HP 7 (2d6), Speed 30 ft.
+STR 8 (-1) DEX 14 (+2) CON 10 (+0)
+```
+
+**Callouts.** A blockquote whose first line matches a bold-label pattern is classified as a callout. Use
+this pattern for variants, optional rules, examples, and sidebars:
+
+```markdown
+> **Example**: Moss attempts to Delve into the marsh. The Keeper calls for a Grit
+> roll. Moss rolls 2d6 + 2 (Grit) = 8 — a partial success.
+```
+
+The callout type (the bold span before the colon) should be one of: Example, Variant, Optional, Sidebar,
+Design Note, Playtest. The parsers label callouts with these types at MEDIUM confidence.
+
+**Strikethrough.** Preserve struck-through text (`~~text~~`) as-is. Strikethrough signals errata or
+deprecated content; the builders flag affected sections for reviewer attention.
+
+**HTML comments.** Preserve `<!-- -->` comments if they carry source annotations. HTML comments are
+ignored entirely during parsing; do not use them for rules text.
+
+### H.12 Output conventions
+
+**File naming.** Name the output file `<ruleset_slug>.md` — lowercase, hyphenated, no spaces
+(`dungeon-horizons.md`, `star-drift.md`). If the ruleset splits naturally across multiple files (core
+rules, equipment, spells), use multiple files with descriptive suffixes
+(`dungeon-horizons-spells.md`). Cross-reference between them with `[text](file.md#anchor)` links.
+
+**Placement.** Place the formatted file(s) in a directory referenceable via the `TTRPG_RULESET`
+configuration key (comma-separated paths). The README of any built server documents this key.
+
+**Single-pass output.** Produce the formatted ruleset in one pass. Do not intersperse commentary or
+notes in the output. If you need to flag an ambiguity the source text cannot resolve, record it in a
+separate notes file, not in the ruleset Markdown itself.
+
+### H.13 Verification checklist
+
+Before declaring the ruleset ready, confirm:
+
+- [ ] All headings are ATX (`##`, `###`, `####`); no setext headings.
+- [ ] Every heading is unique within its file.
+- [ ] Top-level sections (`##`) are separated by `---` horizontal rules.
+- [ ] All adjudicator-only sections carry a `*<adjudicator term> only*` marker on the heading.
+- [ ] The adjudicator term in the marker matches the ruleset's own term.
+- [ ] Every table has a header row; all rows have equal column counts (padded where needed).
+- [ ] Numeric ranges use en dash or hyphen; dice-roll columns use `NdS` notation.
+- [ ] Bold-labeled fields use consistent format throughout.
+- [ ] Consecutive bold-labeled fields (definition lists) have at least two entries.
+- [ ] Every procedure uses imperative verbs, numbered steps, or trigger–action–outcome patterns.
+- [ ] Every resolution mechanic states result bands explicitly.
+- [ ] Every condition has a mechanical effect and an expiry trigger.
+- [ ] Guidance text and mechanics text appear in separate sections where possible; neither is
+  reclassified.
+- [ ] All internal cross-references resolve to existing anchors.
+- [ ] Code blocks carry descriptive info strings.
+- [ ] Strikethrough and HTML comments are preserved where the source carries them.
+- [ ] The output file is valid UTF-8 with no BOM.
+- [ ] Output file(s) are named `<ruleset_slug>.md` (lowercase-hyphenated).
+- [ ] No commentary or meta-notes appear in the ruleset Markdown output.
