@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-30 — Expand character-sheet-generator with MCP App support
+
+- Expanded `character-sheet-generator.md` with §6a MCP App support: HTML
+  character sheet display with stdio-first architecture, HTTP fallback path,
+  client-side Markdown parser, and host compatibility checks. Extended §0
+  pre-check with MCP App readiness audit steps and `registerAppTool` persona
+  gating notes.
+- Renamed `character-sheet-from-pdf.md` → `character-sheet-generator.md` and
+  updated all filename references in `README.md`, `package.json`, and
+  `CHANGELOG.md` historical entries.
+- Updated `README.md` implementation recommendations: reordered bullets,
+  corrected the character-sheet description ("dual renderers" → two renderers
+  plus optional MCP App HTML display), and refined Builds section wording.
+- Added `opencode-raw-*.log` to `.gitignore`.
+
 ## 2026-07-30 — Rewrite README opening and Purpose section
 
 - Rewrote `README.md` opening line and Purpose section as a three-paragraph
@@ -19,7 +34,7 @@
   `package.json`, introduced `tsconfig.json`, and added a `typecheck`
   script. Updated `package.json` validate and lint scripts, and removed
   the Python prerequisite from `.githooks/pre-commit` and `README.md`.
-- Expanded `character-sheet-from-pdf.md`: added a server pre-check
+- Expanded `character-sheet-generator.md`: added a server pre-check
   section (§0) for auditing existing infrastructure before building,
   specified output resource template registration with per-tool
   counters, added REQ-002 compliance to error handling, restructured
@@ -35,9 +50,9 @@
 - Tweaked `README.md` wording: "for rulesets" → "Run on rulesets" in the
   `holonovel-ruleset-prep.md` bullet, and "just under US $2" → "around US $2".
 
-## 2026-07-28 — Convert character-sheet-from-pdf from skill to prompt
+## 2026-07-28 — Convert character-sheet-generator from skill to prompt
 
-- Created `character-sheet-from-pdf.md`: converted the
+- Created `character-sheet-generator.md`: converted the
   `character-sheet-from-pdf` opencode skill into a standalone build prompt
   document in the project root (same style as `holonovel.md`).
 - Deleted `skills/character-sheet-from-pdf/SKILL.md` (and the `skills/`

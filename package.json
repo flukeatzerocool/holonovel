@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "markdownlint holonovel.md character-sheet-from-pdf.md",
+    "lint": "markdownlint holonovel.md character-sheet-generator.md",
     "validate": "npx tsx scripts/validate.ts",
     "typecheck": "npx tsc --noEmit",
     "check": "npm run lint && npm run validate"

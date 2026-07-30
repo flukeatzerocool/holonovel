@@ -27,6 +27,9 @@ master persona gives you full access and adjudication powers.
 
 ## Implementation recommendations
 
+- **DeepSeek Pro** is my primary AI for both building this project and running the
+  prompt. I use Opencode Go for access to DeepSeek models. On my computer,
+  Deepseek v4 Pro built an MCP server for D&D 2024 (Players Handbook, Dungeon Master's Guide, and Monster Manual) for US $2.
 - **Using the prompt.** Download `holonovel.md`, place it alongside your
   Markdown-format ruleset files, and feed them into an AI agent with a prompt
   such as: *Use holonovel.md to build a server using `players-handbook.md`.*
@@ -35,17 +38,14 @@ master persona gives you full access and adjudication powers.
 - **Preparing the ruleset files.** If the pre-check finds the ruleset deficient
   in Markdown formatting, the builder applies formatting rules to the
   source material before chunked reading begins.
-- **Builds in TypeScript** — For the MCP server it produces, TypeScript is the mandated
-  implementation language.
-- **DeepSeek Pro** is my primary AI for both building this project and running the
-  prompt. I use Opencode Go for access to DeepSeek models. On my computer,
-  Deepseek v4 Pro built an MCP server for D&D 2024 (Players Handbook, Dungeon Master's Guide, and Monster Manual) for US $2.
-- **`character-sheet-from-pdf.md`** is a prompt that guides building
-  a character-sheet rendering MCP tool from a PDF. The process covers
+- **Builds in TypeScript** — TypeScript is the mandated
+  implementation language for the server and the game code.
+- **`character-sheet-generator.md`** is a prompt that guides building
+  a character-sheet rendering MCP app from a character sheet PDF. The process covers
   field-by-field study of the PDF layout, translating the field inventory
   to a typed data model, building a format-agnostic derivation layer (modifier
-  math, proficiency checks, equipment resolution), and wiring up dual
-  renderers (ASCII plain-text and Markdown). Ruleset-agnostic and
+  math, proficiency checks, equipment resolution), wiring up Markdown and
+  ASCII renderers, and optional MCP App HTML display. Ruleset-agnostic and
   MCP-server-agnostic — works with any holonovel-built server.
 
 ## Validating
@@ -73,7 +73,7 @@ Holonovel/
 ├── holonovel.md                ← the complete build specification
 │                                 (includes the ruleset preparation
 │                                 prompt as Appendix H)
-├── character-sheet-from-pdf.md  ← prompt: build character sheet
+├── character-sheet-generator.md  ← prompt: build character sheet
 │                                    rendering on top of a holonovel-built
 │                                    server
 ├── .markdownlint.json     ← lint rules
