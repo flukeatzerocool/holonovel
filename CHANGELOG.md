@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-30 — Rewrite README opening and Purpose section
+
+- Rewrote `README.md` opening line and Purpose section as a three-paragraph
+  elevator pitch: what problem Holonovel solves, how `holonovel.md` does it,
+  and what features the resulting server provides. Trimmed verbosity in the
+  Implementation recommendations section.
+
 ## 2026-07-30 — Consolidate ruleset-prep appendix, migrate validator to TypeScript
 
 - Consolidated `holonovel-ruleset-prep.md` into Appendix H of `holonovel.md`:

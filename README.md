@@ -1,17 +1,29 @@
 # Holonovel
 
-A build specification for an MCP server that serves tabletop RPG rulesets from
-Markdown sources. This is the specification document, not an implementation.
+Holonovel is a build prompt that instructs an AI agent how to turn Markdown
+tabletop RPG rulebooks into an interactive MCP server.
 
 ## Purpose
 
-`holonovel.md` is a self-contained specification and build prompt. Point an AI
-agent at it along with a Markdown-format TTRPG ruleset and it will construct a
-working MCP server — a tool bridge that lets you look up rules, roll dice,
-track combat, manage characters, and reference monsters, spells, and equipment
-directly from the source books. Servers support two personas: a player persona
-with access limited to the player-facing rulebook, and a game master persona
-with full access across all source materials.
+Tabletop RPG players and game masters want their rulebooks at their fingertips —
+searchable rules, automated dice rolls, combat tracking — but wiring up a tool
+bridge for every game system is tedious, error-prone manual work. Holonovel
+eliminates that work. Drop in your rulebooks as Markdown, run one AI agent, and
+you get a fully functional MCP server.
+
+`holonovel.md` is a self-contained build specification. An AI agent reads it
+alongside your Markdown ruleset, then follows the spec to parse the source
+material, model every rule as structured data, verify internal consistency, and
+package the result into a working MCP server. No glue code, no hand-written
+integrations — the spec drives the entire build.
+
+The finished server gives you rules-aware dice rolls, initiative and combat
+management, monster and spell lookups, equipment catalogs, character sheets with
+leveling, rollable random tables, and encounter-building tools for the game
+master — all sourced directly from your books. To run adventures, you pick a
+persona: the player persona lets the AI act as game master, calling tools for
+mechanics and narration while gating content the player shouldn't see; the game
+master persona gives you full access and adjudication powers.
 
 ## Implementation recommendations
 
@@ -20,13 +32,11 @@ with full access across all source materials.
   such as: *Use holonovel.md to build a server using `players-handbook.md`.*
   The agent will follow the spec to parse, model, verify, and package the
   ruleset into a working MCP server.
-- **Preparing the ruleset files.** If the §5 pre-check (Appendix H of `holonovel.md`) finds the ruleset deficient
-  in Markdown formatting, the builder applies Appendix H's formatting rules to the
+- **Preparing the ruleset files.** If the pre-check finds the ruleset deficient
+  in Markdown formatting, the builder applies formatting rules to the
   source material before chunked reading begins.
 - **Builds in TypeScript** — For the MCP server it produces, TypeScript is the mandated
-  implementation language (Section 3 of the spec): strong typing catches ruleset
-  schema mismatches at build time, and the spec's entity model maps naturally to
-  TS interfaces.
+  implementation language.
 - **DeepSeek Pro** is my primary AI for both building this project and running the
   prompt. I use Opencode Go for access to DeepSeek models. On my computer,
   Deepseek v4 Pro built an MCP server for D&D 2024 (Players Handbook, Dungeon Master's Guide, and Monster Manual) for US $2.
