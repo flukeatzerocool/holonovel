@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-01 — MCP client config schema verification
+
+- Added Q14 intake question capturing the target MCP client's config schema documentation
+  (field names, value formats, required fields, timeout).
+- Strengthened Section 5.1 MCP client configuration check: replaced generic "syntactically
+  valid" with a requirement to consult and conform to the Q14 client's documented schema.
+- Strengthened Section 8 README config-entry requirement with a Q14 schema verification clause.
+- Extended H11 handoff check to two-part pass criteria: launch succeeds (a), and config entry
+  matches the Q14 documented schema (b). Added positive/negative control pairs for both.
+
 ## 2026-08-01 — Live-index, alias resolution, content-type detection, and audit type safety
 
 - Added live-registry requirement to REQ-023: prompt handlers read tool/resource/prompt

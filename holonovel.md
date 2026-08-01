@@ -857,7 +857,11 @@ actual client configuration entry that the end user will use. The entry must:
 - include every required environment variable from Section 6.6 (`TTRPG_RULESET`, `TTRPG_STATE_DIR`, etc.);
 - use absolute paths for the server entry point and the directories in those variables when the client's
   working directory differs from the project directory;
-- be syntactically valid for the chosen MCP client.
+- conform to the Q14 client's documented config schema: field names (`command`, `args`, `env`,
+  `environment`, `type`, `enabled`, `timeout`, or their equivalents), value formats (array vs. string,
+  flat vs. nested), and required fields match exactly. Consult the Q14 documentation before writing the
+  entry. An entry that passes a generic MCP config validator but fails the client's actual schema is a
+  defect.
 
 Record the entry's command and environment in `DECISIONS.md` (Section 8, item (1)). If the operator cannot
 supply the real client entry during intake, record the assumption and re-run this check before Gate 1.
@@ -883,6 +887,7 @@ above.
 | Q11 | Source format                                       | Markdown, or another format (PDF, …) — non-Markdown triggers Appendix F conversion                                                                                                                                              | Markdown                                                                |
 | Q12 | Ruleset edition or title                            | The canonical edition or title as stated in the ruleset header/metadata; `DECISIONS.md` section (1) must record it, and the `DECISIONS.md` title must match it                                                                  | Extracted from the ruleset header; if ambiguous, ask the operator       |
 | Q13 | MCP client configuration entry                      | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                                                                       | unknown — validate later, logged in `DECISIONS.md`                      |
+| Q14 | Client config schema location                       | URL or reference to the chosen client's MCP server configuration documentation, covering field names, value formats, required fields, and client-side connection timeout; if the client supports a configurable timeout, set it to accommodate the server's full-ruleset indexing time                  | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
 
 ### 5.2 Chunked reading (F2)
 
@@ -1603,9 +1608,11 @@ never stored as separate files.
 - **`README.md`** — setup, usage, the Section 1.1 play model and persona model (REQ-031), the game and
   roster model including `import_character` and `end_game` (Section 6.7), guidance and the
   `persona_briefing` prompt (REQ-016, REQ-023), RNG continuity (REQ-050), durability expectations
-  (REQ-055), and a copy-paste MCP client configuration entry for the chosen Q7 client that uses the absolute
-  runtime path, points at the compiled server entry point (`dist/index.js`), matches the server's advertised
-  `serverInfo.name`, and includes every required environment variable from Section 6.6, written for the end user.
+  (REQ-055), and a copy-paste MCP client configuration entry for the chosen Q7 client — verified against the Q14
+  client's documented config schema (field names, value formats, required fields, timeout) — that uses the
+  absolute runtime path, points at the compiled server entry point (`dist/index.js`), matches the server's
+  advertised `serverInfo.name`, and includes every required environment variable from Section 6.6, written
+  for the end user.
 - **`AGENTS.md`** — orientation for future AI maintainers: the layer map, where each REQ lives in the code,
   and how to run the gates.
 
@@ -2536,11 +2543,18 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Procedure:** Copy the `README.md` snippet into the client configuration verbatim. Restart the client.
   Verify the server process starts, the `initialize` handshake succeeds with the expected
   `serverInfo.name`, and `tools/list` returns the expected tools.
-- **Pass:** No `server unavailable` or equivalent error; the registry is visible.
-- **Positive control:** A `README.md` with a complete, absolute-path config entry that starts the compiled
-  server (`dist/index.js`) and matches the advertised `serverInfo.name`.
-- **Negative control:** A `README.md` with a config entry that uses a bare runtime command or a source file
-   when the client process lacks it on `PATH`, producing `server unavailable`.
+- **Pass:** (a) No `server unavailable` or equivalent error; the registry is visible.
+  (b) The README entry's field names, value formats, required fields, and timeout match the Q14 client's
+  documented schema.
+- **Positive control 1 (launch):** A `README.md` with a complete, absolute-path config entry that starts the
+  compiled server (`dist/index.js`) and matches the advertised `serverInfo.name`.
+- **Positive control 2 (schema):** A `README.md` entry that matches the Q14 documented schema — verified
+  before Gate 0 by the Section 5.1 check.
+- **Negative control 1 (path):** A `README.md` with a bare runtime command or source file when the client
+  process lacks it on `PATH`, producing `server unavailable`.
+- **Negative control 2 (schema):** A `README.md` entry whose field names or value formats differ from the
+  Q14 documented schema (e.g., `env` where `environment` is required, `command` as a string where an array
+  is required), caught by the Section 5.1 check before Gate 0.
 
 ---
 
