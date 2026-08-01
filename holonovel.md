@@ -58,6 +58,7 @@
 - [9. Independent Verification](#9-independent-verification)
 - [Appendices](#appendices)
   - [Appendix A: Markdown Parsing Heuristics](#appendix-a-markdown-parsing-heuristics)
+    - [A.4 Content-type detection heuristics](#a4-content-type-detection-heuristics)
   - [Appendix B: Golden Fixture](#appendix-b-golden-fixture)
     - [B.1 Fixture ruleset (tin_lanterns.md)](#b1-fixture-ruleset-tin_lanternsmd)
     - [B.2 Expected model excerpt](#b2-expected-model-excerpt)
@@ -317,6 +318,12 @@ names, condition terms, and entity types — enumerates the valid values visible
 when the domain is too long to read comfortably, it names the resource that lists them. Unbounded domains
 (entity IDs, free text) name the listing resource instead.
 
+The enumerated valid values for a bounded-domain parameter derive from the index at error time —
+the canonical names of all anchors matching the parameter's entity type, filtered by persona
+(REQ-032). Unlike `[NEED_INPUT]` option lists, error-message enumerations are not capped: every
+session-visible value is listed, up to a 500-character budget, with a truncation pointer to the
+relevant `ruleset://` or `entities://` resource when the budget is exceeded.
+
 _Check:_ T18.
 
 **REQ-003 — Roll transparency.** _(F1)_ Every randomized result shows: the notation used; the individual
@@ -495,7 +502,16 @@ and survive re-indexing regardless). _Check:_ T16.
 The three intent-mapping prompts each take a required `intent` string argument; `persona_briefing` takes
 none. All four compose from the server's **live** tool, resource, and prompt registry — never hardcoded
 text — and only from the session's visible registry (REQ-032): filtered for player personas, unfiltered
-for referee and unassigned sessions. Composition order for `persona_briefing`: Section 6.9. _Check:_ T22.
+for referee and unassigned sessions.
+
+This means every prompt handler reads the tool, resource, and prompt registries at
+invocation time — by capturing the registered names into a module-level structure at registration
+time and reading that structure in the handler — rather than embedding a static string. When a tool
+is registered or removed and the server restarted, the next `prompts/get` reflects it without a code
+change. A builder who cannot enumerate the SDK's internal registry captures the names at
+`registerTool`/`registerResource`/`registerPrompt` call sites instead.
+
+Composition order for `persona_briefing`: Section 6.9. _Check:_ T22, T22a.
 
 **REQ-024 — Tool documentation.** _(F3)_ Each tool has: a `snake_case` name using the ruleset's own
 terminology (conventions: Section 6.4), a one-sentence description, a persona declaration (referee / both;
@@ -525,7 +541,15 @@ names it. _Check:_ T3, T35, T39.
   listings exclude referee-only items; the referee persona and unassigned sessions see the unfiltered
   totals.
 
- The player persona's reported confidence score is the gating metric: its `spec_health` output must
+ The player persona's reported confidence score is the gating metric.
+
+The confidence score is computed from the actual extracted item counts (Section 5.3,
+Appendix A.4), not a literal string. The `spec_health` output includes the formula
+expansion — `HIGH=⟨n⟩, MEDIUM=⟨m⟩, LOW=⟨k⟩ → ⟨score⟩%` — computed at call time from
+the rules index and the content-type classifications. A `spec_health` that reports a
+constant rather than a computed value fails T45.
+
+The `spec_health` output must
 meet the 80% threshold. The unfiltered (referee/unassigned) score is reported for informational
 purposes only; a shortfall in the unfiltered view is recorded in `DECISIONS.md` Section (4) with
 rationale but does not gate the build. At handoff, the player-persona confidence score is at least
@@ -896,6 +920,12 @@ Cross-check the finished extraction with role stories (REQ-017).
 Measure and log structural defects; do not repair them in the source (REQ-014). Parsing heuristics are in
 Appendix A.
 
+The `RULESET_MODEL.md` output includes a summary table: per content type
+(Appendix A.4), the count of sections, the confidence distribution
+(HIGH/MEDIUM/LOW), and any structural defects (a field present in some entries
+but absent in others, with the count of each). This table is the data source for
+`spec_health`'s confidence computation and category counts.
+
 ### 5.4 Output
 
 Produce `RULESET_MODEL.md` (contents: Section 8). Appendix B.2 shows a minimal example from the fixture.
@@ -934,7 +964,7 @@ source of truth:
 | 1 Configuration and protocol adapter | The server launches from the exact MCP client configuration entry recorded in Section 5.1 (or from an equivalent process with the same environment and working directory), and a JSON-RPC `initialize` handshake succeeds. A `server unavailable` or equivalent error is a Layer 1 blocker.                                                                          |
 | 2 Rules index                        | No ruleset-derived table, term, or anchor is hardcoded in the parser; parsing is config-driven only.                                                                                                                                                                                                                                                                 |
 | 5 Domain handlers                    | Every mechanical resolution derives from the extracted model. Where the ruleset defines weapons, spells, or damage, a weapon or spell entry resolves to its own damage dice, type, and properties; generic fallback damage values are prohibited. Where the ruleset defines a turn-based conflict procedure, conflict tools model it and maintain server-side state. |
-| 6 Wiring                             | Fixture-specific tools (Appendix B) are registered only when serving that fixture; a core ruleset server does not expose fixture-only move, delver, or condition names.                                                                                                                                                                                              |
+| 6 Wiring                             | (a) Fixture-specific tools (Appendix B) are absent when serving the target ruleset; (b) stub-tool prompt freshness — add a stub tool, restart, call `prompts/get` for all four prompts, assert the stub appears in each; remove the stub, restart, assert absence — failure is a blocker; (c) a dry-run Gate 2 transcript replay against the Appendix B fixture — failure is a blocker. |
 
 A layer whose acceptance check fails is treated as a failed checkpoint (Section 5.6): fix blockers before the
 next layer begins, and record every deviation in `DECISIONS.md`.
@@ -1231,6 +1261,13 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   sheet label reads `Fear Save` is callable as `fear`, `Fear`, `FearSave`, or `Fear Save`. A
   parameter's schema, documentation, or enum must advertise the same canonical values the tool
   accepts; advertising `Sanity` when the tool only recognizes `Sanity Save` is a defect (REQ-057).
+- **Alias resolution at lookup boundaries.** Every Query tool that accepts a name parameter —
+  `lookup_species`, `lookup_class`, `lookup_equipment`, `lookup_feat`, `lookup_force_power`,
+  `lookup_condition`, `lookup_talent`, `lookup_skill` — and any tool that accepts a table anchor
+  (`roll_on_table`) applies the Section 6.1 alias normalization before lookup. The index is built
+  with normalized lookup tokens for every anchor, so a single exact-match token lookup at
+  runtime is sufficient; no fuzzy or substring search is required at lookup time. `search_rules`
+  is the fallback for unresolved names and performs its own word-based search (REQ-012).
 - **Advantage and disadvantage.** Where a tool supports advantage or disadvantage, the parameter is
   structured — a boolean or an enum such as `{"advantage" | "disadvantage"}` — not a free-text sigil such
   as `[+]` or `[-]`. The output states which modifier was applied (Section 6.3).
@@ -1251,6 +1288,14 @@ labels are short and readable (kebab-case recommended, e.g., `grit-forward`); `c
 Decision IDs are named for the blocking step (e.g., `stat-array`). Every such collapse of the source text's
 freedom (six permutations into three named options) is a normalization and is logged in `DECISIONS.md`
 (REQ-010).
+
+**Source of truth for option lists.** When a `[NEED_INPUT]` decision offers a choice from a
+bounded discovered domain — species, classes, skills, conditions, table anchors — the option
+list is derived from the rules index at call time, filtered by session persona (REQ-032).
+Hardcoded literal arrays are permitted only for the ability abbreviations (6 values) and persona
+roles (2 values). The option list is capped at 25 entries with a trailing
+`… and ⟨N⟩ more. Use search_rules to find others.` suffix when the domain exceeds 25. The cap
+is a presentation limit, not a data limit; the full domain remains retrievable through search.
 
 ### 6.6 Configuration surface
 
@@ -1312,6 +1357,12 @@ any other game.
 
 One server process hosts one session. Sessions over one game are sequential, single-writer; concurrent
 access is out of scope, and `README.md` says so.
+
+**Audit entry point.** The `addAudit` entry point derives the timestamp internally and takes
+`sessionId`, `action`, and `result` as required parameters, plus an optional `entityId`. The
+signature accepts no partial object — every call site provides `sessionId` from the calling
+session. A builder who wraps `addAudit` in a convenience function that infers `sessionId` must
+verify that every call site explicitly passes it and the type system catches omissions.
 
 ### 6.8 Time and expiry events
 
@@ -1464,6 +1515,7 @@ harness.
 | T20 | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-052, REQ-054                            |
 | T21 | Original Markdown — and, where conversion applied (Appendix F), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-014                                     |
 | T22 | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-023                                     |
+| T22a | Add a stub tool, restart, call all four prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-023                                     |
 | T23 | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-053                                     |
 | T25 | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, T11 waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                                 | REQ-013, REQ-043                            |
 | T26 | Guidance items cited, confidence-labeled, attributed; referee-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-016, REQ-023, REQ-032                   |
@@ -1714,6 +1766,14 @@ stripped before anchor generation (Section 6.1); the strip also consumes precedi
 dash characters (hyphen, en dash, em dash), so 'Undermarsh Encounters — _Keeper only_' derives from
 'Undermarsh Encounters'.
 
+**Book-level `#` heading scoping.** A `#` heading (the file title) carrying the
+`-- _<referee-term> only_` marker at the end of its text scopes every `##` section in that
+file as referee-only. The marker is stripped before slug derivation for the file-stem. An
+individual `##` section within a referee-scoped file may override by carrying its own
+player-visible marker (no referee marker on its own heading); the override is recorded in the
+defect log. Sections without an override inherit the file-level scope. The file-level scope
+is a default, not a lock.
+
 **Ambiguous markers.** When a trailing italic marker's text matches two or more discovered role terms
 by the final-word heuristic, the section is marked shared — not role-scoped — and the ambiguity is
 recorded as a normalization in `DECISIONS.md`. When the operator is available at intake, the
@@ -1825,6 +1885,37 @@ you may Z".
 **Guidance signals.** Imperatives addressed to a role; statements of responsibility or conduct ("portrays",
 "your job", "should"); advice; tone and setting text addressed to a role; examples of play. Extract verbatim;
 never finish the author's sentences. Attribution follows Section 6.9.
+
+### A.4 Content-type detection heuristics
+
+The classification is heuristic, not normative — it feeds `RULESET_MODEL.md`
+generation, `spec_health` category counts, lookup-tool valid-value derivation
+(Section 6.5), and confidence scoring (REQ-011). Classification rules:
+
+- **Stat block (NPC/monster/droid):** heading matches `(CL \d+)$` and section contains
+  `**Initiative:**` and `### Defenses`. Entity line after heading contains `Nonheroic`
+  or class/level notation.
+- **Stat block (starship):** heading matches `Statistics \(CL \d+\)$` and section
+  contains `### Ship Statistics` or `### Abilities`.
+- **Feat:** contains `**Prerequisite` and `**Effect:**`.
+- **Force power:** contains `**Time:**`, `**Targets:**`, and a DC result table.
+- **Starship maneuver:** contains `**Time:**`, `**Targets:**`, and a
+  `**[Descriptor]**` line.
+- **Equipment:** contains `**Cost:**` with a numeric value and `**Availability:**`.
+- **Species:** contains `**Ability Modifiers:**` or heading ends with
+  `Characteristics` or `Species Traits`.
+- **Talent tree:** parent heading ends with `Talent Tree`.
+- **Skill:** heading matches one of the twenty-plus skill names and contains
+  `**Special:**`.
+- **Prestige class:** contains `**Prerequisites:**` with bulleted requirements and
+  no `**Initiative:**` field.
+- **Destiny:** contains `**Destiny Bonus:**`.
+- **Guidance/prose:** none of the above.
+
+A section matching multiple types (e.g., a prestige class with a stat block) carries
+all matching type tags. The classification runs at index-build time and its results
+are stored in `RULESET_MODEL.md`. A section with no mechanical pattern is
+guidance/prose (confidence MEDIUM).
 
 ## Appendix B: Golden Fixture
 
@@ -2156,7 +2247,7 @@ then fill in its `Code` and `Tests` columns from the build.
 | REQ-020 | Tools                     | T3, T5, T32, T33, T37; Gate 2  | —            |
 | REQ-021 | Tool-surface economy      | T3, T35                        | —            |
 | REQ-022 | Resources                 | T16                            | —            |
-| REQ-023 | Prompts                   | T22                            | —            |
+| REQ-023 | Prompts                   | T22, T22a                      | —            |
 | REQ-024 | Tool documentation        | T3, T35, T39                   | —            |
 | REQ-025 | spec_health               | T15, T45                       | —            |
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | —            |

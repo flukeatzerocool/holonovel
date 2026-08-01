@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-08-01 — Live-index, alias resolution, content-type detection, and audit type safety
+
+- Added live-registry requirement to REQ-023: prompt handlers read tool/resource/prompt
+  registries at invocation time via module-level capture arrays, never static strings.
+  Added T22a test (add stub tool, assert all four prompts reflect it; remove, assert
+  absence).
+- Added book-level `#` heading referee scoping to Appendix A: a `-- _<role> only_`
+  marker on the file title scopes all `##` sections, overridable per-section.
+- Added computed-confidence requirement to REQ-025: `spec_health` confidence is
+  computed from extracted item counts at call time, not a literal string; includes
+  formula expansion `HIGH=⟨n⟩, MEDIUM=⟨m⟩, LOW=⟨k⟩ → ⟨score⟩%`.
+- Added live-index-derived option lists to Section 6.5: `[NEED_INPUT]` option lists
+  for bounded domains (species, classes, etc.) derive from the rules index at call
+  time, capped at 25 entries. Hardcoded arrays permitted only for ability
+  abbreviations and persona roles.
+- Added NOT_FOUND enumeration budget to REQ-002: error-message enumerations derive
+  from the index at error time, up to a 500-character budget with truncation pointer.
+- Added alias resolution at lookup boundaries to Section 6.4: every Query tool and
+  `roll_on_table` applies Section 6.1 alias normalization before lookup; index is
+  built with normalized tokens for exact-match lookup.
+- Added audit entry point type-safety to Section 6.7: `addAudit` derives timestamp
+  internally, requires `sessionId`/`action`/`result` with optional `entityId`, and
+  accepts no partial object.
+- Expanded Layer 6 acceptance check: fixture-specific tool absence, stub-tool prompt
+  freshness check, and Gate 2 transcript dry-run.
+- Added Appendix A.4 content-type detection heuristics (stat blocks, feats, force
+  powers, equipment, species, skills, talent trees, prestige classes, destinies,
+  starship maneuvers, guidance/prose) with classification rules.
+- Added per-type extraction counts to Section 5.3: `RULESET_MODEL.md` includes a
+  summary table per content type with section count, confidence distribution, and
+  structural defects.
+- Updated TOC, Appendix E manifest, and testtable for T22a.
+
 ## 2026-07-30 — Expand character-sheet-generator with MCP App support
 
 - Expanded `character-sheet-generator.md` with §6a MCP App support: HTML
