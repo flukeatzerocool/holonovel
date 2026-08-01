@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-01 — Reconciliation restart and lifecycle improvements
+
+- Added rebuild, quality-check, and restart-verification step to §5.7 reconciliation: before re-running
+  gates, rebuild and pass the server's own quality checks; restart the MCP client and verify the updated
+  server is serving via a witness tool; record the restart and witness output as evidence.
+- Added MCP process lifecycle note to §5.6 after the Layer 6 checkpoint: the server is a child process
+  over stdio pipes; killing from outside forces the client to respawn; verify the respawned binary after
+  any rebuild.
+- Extended §7 evidence record format to reconciliation operational steps (rebuild, restart, witness
+  verification).
+
 ## 2026-08-01 — Build-hardening amendments from the SWSE build retrospective
 
 - Added handoff figure-report requirement to Section 8: headline figures (section counts,

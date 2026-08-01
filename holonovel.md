@@ -1064,6 +1064,12 @@ mutating action — querying a running server, reading a file, executing a read-
    client configuration entry was recorded (Q13), restart and confirm `tools/list`; `server unavailable`
    is a blocker.
 
+   **MCP process lifecycle.** The server is a child process of the MCP client over stdio pipes.
+   Restarting requires client cooperation: killing the process from outside forces the client to respawn.
+   After any rebuild — during initial construction or reconciliation (§5.7) — verify the respawned process
+   is the rebuilt binary by calling a witness tool whose output shape changed; the existing `tools/list`
+   count is not a witness when the registry is unchanged.
+
    **DECISIONS.md audit.** Adversarial review: title/edition in (1) match ruleset and intake record
    (Q12); every hardcoded mechanical table in the source appears as a waiver in (5) with justification,
    impact, and remediation; traceability table (3) cites real tests; smoke-session evidence (6)
@@ -1120,15 +1126,24 @@ changed since the server's last recorded verification date (Section 8, item (6))
    column) and to the code layers that implement it (Section 5.5 layer map). The builder decides whether
    each stale REQ warrants a code change, a documentation update, or an accepted limitation in
    `DECISIONS.md` (Section 8, item (5)).
-3. **Selective gate re-run.** Re-run only the gates and derived tests that depend on the stale requirements:
+3. **Rebuild, quality check, and restart verification.** Where step 2 produces code changes, rebuild the
+   server from source (`npm run build` or the build command documented in `README.md` or `AGENTS.md`) and
+   run the server repository's own quality checks — compile, typecheck, lint as configured. A check that
+   fails before any gate re-run is a blocker. Restart the MCP client and verify the updated server is
+   serving by calling a witness tool whose output differs from the pre-change server — e.g., the help tool
+   with a dynamic registry, `spec_health` with expected counts, or a newly registered tool. A server that
+   fails to start or serves stale output is a blocker. Record the restart and witness output in the
+   reconciliation evidence entry (step 6).
+4. **Selective gate re-run.** Re-run only the gates and derived tests that depend on the stale requirements:
    the Appendix E "Verified by" column enumerates them. A requirement whose cited tests all pass after the
    update is reconciled. A requirement that failed any cited test requires a fix or waiver under REQ-013.
-4. **Confidence and coverage re-check.** Re-run `spec_health` (REQ-025) and T45 to confirm the player-persona
+5. **Confidence and coverage re-check.** Re-run `spec_health` (REQ-025) and T45 to confirm the player-persona
    confidence score and MUST-action coverage still meet threshold after the update.
-5. **Evidence record.** Append a reconciliation evidence entry to `DECISIONS.md` (Section 8, item (6))
+6. **Evidence record.** Append a reconciliation evidence entry to `DECISIONS.md` (Section 8, item (6))
    recording: the specification version range applied (from → to), the stale-REQ list, the re-run gates
-   with exit statuses, and any new waivers. The entry follows the Section 7 evidence format.
-6. **Reversion.** If the reconciliation introduces regressions — a previously passing gate now fails — revert
+   with exit statuses, the restart witness output, and any new waivers. The entry follows the Section 7
+   evidence format.
+7. **Reversion.** If the reconciliation introduces regressions — a previously passing gate now fails — revert
    the change and record it as an accepted limitation with a threshold exception until the server is rebuilt.
    A reconciliation never forces a full rebuild; the exception gates the limitation.
 
@@ -1458,10 +1473,13 @@ Run the gates in order; a failed gate stops the line.
 (6)) — Gate 4's entry covers the full derived-test run — as does the smoke session. Each entry records: the
 command(s) run; the environment pins (the Q6 harness and pinned specification version, fixture identifier,
 and seeds); the exit status; and the salient output — diff summaries and determinate counts, not full logs.
-Exact wording, timestamps, and session IDs are not salient (Gate 2). An artifact's existence is never
-evidence, and a gate without execution evidence — an entry of "not executed" or no entry at all — is FAIL
-for Definition of Done purposes (Section 1.2). Reporting the gates complete requires every gate PASS or
-WAIVED under REQ-013. The smoke-session record additionally
+Exact wording, timestamps, and session IDs are not salient (Gate 2). Reconciliation operational steps —
+rebuild, restart, and witness verification (§5.7 step 3) — follow the same record format in the
+reconciliation evidence entry: command run, environment, exit status, and salient output (the witness
+tool's response). An artifact's existence is never evidence, and a gate without execution evidence — an
+entry of "not executed" or no entry at all — is FAIL for Definition of Done purposes (Section 1.2).
+Reporting the gates complete requires every gate PASS or WAIVED under REQ-013. The smoke-session record
+additionally
 records: the player and referee session personas, the referee-only gate that stalled the player session, and
 the tool or resource used in the referee session to resolve it (Section 1.2).
 
