@@ -371,6 +371,11 @@ parser verifiably captures every mechanical field without interpretation. Each e
 of sections elevated. Elevation applies to structured mechanical content at the section level only;
 prose sections keep their book-level scoping label.
 
+Confidence tuning closes a shortfall one rule family at a time: each index rebuild changes a single rule
+family, and the checkpoint findings log (Section 5.6) records each change with its measured delta — the rule
+changed and the HIGH/MEDIUM counts before and after. A confidence delta that no recorded change explains is
+itself a finding.
+
 _Check:_ T15.
 
 **REQ-012 — Graceful fallback.** _(F1)_ LOW-confidence and unparseable sections are never silently dropped.
@@ -383,7 +388,9 @@ absent, record a structural defect, keep the relevant text searchable, and conti
 deterministic, narrative, or borrowed resolution model. Every waiver of a test records: the defect-log
 entry for the absent content; the dependent capabilities and tests; and the re-activation condition — the
 ruleset addition that lifts it. Waivers exist only for absent ruleset content, never for implementation
-difficulty. _Check:_ T25, T32, T33, T36.
+difficulty. Waiver grounds citing testing or implementation status — "tested manually", "not tested", "not
+yet modeled", or similar — are invalid. A feature present in the corpus but not implemented is a defect with
+a remediation plan, not a waiver candidate. _Check:_ T25, T32, T33, T36.
 
 **REQ-014 — Source immutability.** _(F1)_ Intake records a hash of the ruleset files; at handoff the files are
 byte-identical to that snapshot. Where the ruleset was converted (Appendix F), intake hashes the original
@@ -880,7 +887,7 @@ above.
 | Q4  | SDK and tool version pins                            | Operator-supplied pins for `@modelcontextprotocol/server`, `zod`, TypeScript, and Node.js; or latest stable at build time (recorded in `DECISIONS.md`). The stack itself is fixed per Section 3 — this question pins versions only. | Latest stable, recorded in `DECISIONS.md` at install time               |
 | Q5  | Operator availability during the build              | Available for mid-build questions / unavailable — proceed with the most conservative assumption, logged per the interaction model above                                                                                         | Unavailable                                                             |
 | Q6  | Gate 1 verification harness and specification pin   | Official MCP Inspector, or a documented equivalent harness (Section 7, Gate 1); the pinned specification version (current stable unless specified)                                                                              | Documented equivalent and current stable, recorded in `DECISIONS.md`    |
-| Q7  | Smoke-session client                                | A real MCP client (which one), or a scripted equivalent (Section 1.2)                                                                                                                                                           | Scripted equivalent, recorded in `DECISIONS.md`                         |
+| Q7  | Smoke-session client                                | A real MCP client (which one), or a scripted equivalent (Section 1.2) built as a required deliverable (Gate 4)                                                                                                                  | Scripted equivalent, recorded in `DECISIONS.md`                         |
 | Q8  | Build-time network access                           | yes (dependency installation and Gate 1 specification pinning only, REQ-051) / no                                                                                                                                               | yes                                                                     |
 | Q9  | Initialize a git repository in the output directory | yes / no                                                                                                                                                                                                                        | no                                                                      |
 | Q10 | Docker packaging (Dockerfile)                       | yes / no                                                                                                                                                                                                                        | no                                                                      |
@@ -894,12 +901,22 @@ above.
 Never assume the ruleset fits in context.
 
 1. **Structural pass over every file**: heading hierarchy, anchors, tables, bold-labeled fields, and line
-   counts. Produce a skeleton index before reading any section in depth.
+   counts. Produce a skeleton index before reading any section in depth. The pass also produces the
+   **classification inventory** — the distinct heading forms and levels, bold-label forms, and table shapes
+   present in the corpus, each with occurrence counts — and the **referee-scoping inventory**: the count and
+   list of book-level scoped files and marker-scoped sections. Record both inventories in `DECISIONS.md`
+   (Section 8, item (4)).
 2. **Targeted reads on demand**, guided by the skeleton. Maintain `RULESET_MODEL.md` incrementally as you
    read.
 3. **Never model an unread section.** Mark it pending in the model.
 
 ### 5.3 Extraction
+
+Content-type detection rules (Appendix A.4) are written against the classification inventory from the
+structural pass (Section 5.2) before the first index build; the inventory and the resulting per-ruleset
+classification profile are recorded in `RULESET_MODEL.md` and `DECISIONS.md` (Section 8, item (4)). After
+the first index build, the false-positive audit (Appendix A.4) verifies the classification before further
+tuning.
 
 Extract each of the following with a Markdown citation (REQ-010), a verbatim quote (REQ-018), and a
 confidence label (REQ-011):
@@ -1001,11 +1018,12 @@ discovery output (Section 5.4), after layers 1–2, after layers 3–4, and afte
 registration — the builder states a visible pre-flight review covering: (a) what changed since the
 last step; (b) preconditions confirmed (files exist, content matches expectation); (c) each tool
 call audited for correct names and parameters; (d) no destructive operations outside scope; (e) the
-post-step verification method. State the outcome as a single line per item — e.g.,
-`Pre-flight: (a) clean, (b) confirmed, (c) correct, (d) safe, (e) npm run check`. A step whose
+post-step verification method; (f) every edit reconciled by re-reading the edited region, never assumed
+applied. State the outcome as a single line per item — e.g.,
+`Pre-flight: (a) clean, (b) confirmed, (c) correct, (d) safe, (e) npm run check, (f) re-read`. A step whose
 pre-flight is not surfaced is itself a finding; the checkpoint reviewer treats it as a blocker
-irrespective of task outcome. A step with no mutating action — querying a running server, reading a
-file, executing a read-only test — is exempt.
+irrespective of task outcome. A failed edit assumed applied is likewise a blocker. A step with no
+mutating action — querying a running server, reading a file, executing a read-only test — is exempt.
 
 1. **Spawn a verification subagent** with fresh context. Give it this prompt (the specification), the
    requirements and conventions relevant to the stage just completed, and the code and artifacts produced
@@ -1052,7 +1070,8 @@ file, executing a read-only test — is exempt.
    demonstrates player-stall/referee resolution (Section 1.2); findings logged as Section 5.6 findings.
 
 3. **Act on findings.** Record each finding in `DECISIONS.md` as
-   `- <id> [<severity>] [<REQ or section cited>] <description> → <resolution>`. Severities: **blocker** —
+   `- <id> [<severity>] [<REQ or section cited>] <description> → <resolution>`; a confidence-tuning
+   finding's record includes the measured delta (REQ-011). Severities: **blocker** —
    a cited requirement or convention is violated or unverifiable; **major** — a deviation with a
    workaround; **minor** — cosmetic or documentary. Fix blockers before the next stage begins, majors
    before the next gate, minors by handoff. Verify a fix with the same rigor as the original work: re-run
@@ -1439,7 +1458,10 @@ Run the gates in order; a failed gate stops the line.
 (6)) — Gate 4's entry covers the full derived-test run — as does the smoke session. Each entry records: the
 command(s) run; the environment pins (the Q6 harness and pinned specification version, fixture identifier,
 and seeds); the exit status; and the salient output — diff summaries and determinate counts, not full logs.
-Exact wording, timestamps, and session IDs are not salient (Gate 2). The smoke-session record additionally
+Exact wording, timestamps, and session IDs are not salient (Gate 2). An artifact's existence is never
+evidence, and a gate without execution evidence — an entry of "not executed" or no entry at all — is FAIL
+for Definition of Done purposes (Section 1.2). Reporting the gates complete requires every gate PASS or
+WAIVED under REQ-013. The smoke-session record additionally
 records: the player and referee session personas, the referee-only gate that stalled the player session, and
 the tool or resource used in the referee session to resolve it (Section 1.2).
 
@@ -1504,7 +1526,10 @@ reproduction failure stops the line like any gate failure.
 C.2.
 
 **Gate 4 — Derived tests.** Each test cites its requirements; T29 verifies the Section 8 traceability
-mandate. Waivers are allowed only under REQ-013; log each with its reason in `DECISIONS.md`. The tests
+mandate. Waivers are allowed only under REQ-013; log each with its reason in `DECISIONS.md`, and H6 fails
+on invalid waiver grounds (Appendix G.6). When Q7 selects a scripted equivalent, the scripted harness is a
+required build deliverable covering every derived test whose requirements are implemented; it is project
+code, not one of the four handoff artifacts, and is exempt from the artifact diet (Section 8). The tests
 keep their original numbering; identifiers T2, T6, T7, T14, T24, and T30 are retired and never reused: T2
 folds into T16; T6, T7, T14, and T30 fold into Gate 2; T24 folds into the networking-disabled environment
 below. The handshake capability advertisement is exercised by Gate 1 (Appendix D) and is not repeated as a
@@ -1623,11 +1648,16 @@ check passed and that the `README.md` `mcpServers` key matches the `serverInfo.n
 format; confirm the traceability table has one row per Appendix E entry; confirm `DECISIONS.md` sections
 (1)–(6) appear in order and contain the verification record; confirm the four-artifact diet — no stray
 files; re-run T29 and T36 after the final edit to `DECISIONS.md` sections (3) or (5); re-verify the
-intake hashes last (T21).
+intake hashes last (T21). Regenerate the headline figures — section counts, HIGH/MEDIUM/LOW distributions,
+confidence scores, and registry counts — with a single report command, and source every artifact's figures
+from that output.
 
 Any handoff or resume document states only claims verified against the artifacts at write time, with derived
 numbers recomputed; a resume re-derives the headline numbers — counts, confidence, coverage — and diffs them
-against the handoff, and a discrepancy is a finding (Section 5.6). A finding's `DECISIONS.md` record commits
+against the handoff, and a discrepancy is a finding (Section 5.6). The same rule binds the builder: the
+report command re-runs after any detection or extraction change, and `DECISIONS.md`, `RULESET_MODEL.md`,
+`AGENTS.md`, and `README.md` update in the same step as the change; a difference between any artifact's
+figures and a fresh report run is a finding (Section 5.6). A finding's `DECISIONS.md` record commits
 with its fix.
 
 ### 8.1 Automated handoff gate
@@ -1907,7 +1937,16 @@ never finish the author's sentences. Attribution follows Section 6.9.
 
 The classification is heuristic, not normative — it feeds `RULESET_MODEL.md`
 generation, `spec_health` category counts, lookup-tool valid-value derivation
-(Section 6.5), and confidence scoring (REQ-011). Classification rules:
+(Section 6.5), and confidence scoring (REQ-011). The framework is
+ruleset-independent; the concrete signals form a per-ruleset **classification
+profile**, written against the classification inventory (Section 5.2) before the
+first index build and recorded in `RULESET_MODEL.md` and `DECISIONS.md` (Section 8,
+item (4)). The list below is the profile a build under this document derived for a
+d20-style ruleset; it illustrates the framework and is not universal — each build
+derives its own profile from its own inventory. Classification runs at
+every heading level: a sub-section matching no signal is evaluated against its
+parent chain's assigned types before falling back to guidance/prose. Classification
+rules:
 
 - **Stat block (NPC/monster/droid):** heading matches `(CL \d+)$` and section contains
   `**Initiative:**` and `### Defenses`. Entity line after heading contains `Nonheroic`
@@ -1932,7 +1971,11 @@ generation, `spec_health` category counts, lookup-tool valid-value derivation
 A section matching multiple types (e.g., a prestige class with a stat block) carries
 all matching type tags. The classification runs at index-build time and its results
 are stored in `RULESET_MODEL.md`. A section with no mechanical pattern is
-guidance/prose (confidence MEDIUM).
+guidance/prose (confidence MEDIUM). After the first index build, the builder samples
+at least ten sections per assigned type and verifies the classifications by
+inspection — the **false-positive audit**; a sampled misclassification rate above ten
+percent for a type is a checkpoint finding (Section 5.6), and the rule is narrowed
+before further tuning.
 
 ## Appendix B: Golden Fixture
 
@@ -2450,15 +2493,19 @@ implementation, script, or manual review must satisfy.
 - **Input:** `DECISIONS.md` sections (3) and (5).
 - **Procedure:** For every test marked `waived` or with a `waiver` citation in section (3), verify a section (5)
   waiver exists and names the test. For every mechanics-deviation waiver in section (5), verify it names the
-  source file and the ruleset table it replaces.
-- **Pass:** All cross-references resolve.
+  source file and the ruleset table it replaces. For every section (5) waiver, verify it names the absent
+  content's defect-log entry and a re-activation condition, and that its grounds cite absent ruleset
+  content — grounds citing testing or implementation status ("tested manually", "not tested", "not yet
+  modeled", or similar) are invalid (REQ-013).
+- **Pass:** All cross-references resolve, and every waiver's grounds are valid.
 - **Positive control:** A `DECISIONS.md` with valid waiver cross-references.
-- **Negative control:** A `DECISIONS.md` with a waived test but no matching waiver, or a mechanics-deviation
-  waiver lacking the source file or table name.
+- **Negative control:** A `DECISIONS.md` with a waived test but no matching waiver, a mechanics-deviation
+  waiver lacking the source file or table name, or a waiver whose grounds cite testing or implementation
+  status.
 
 ### G.7 Recording and versioning
 
-Record the commands or scripts used for H1–H10 in the `DECISIONS.md` verification record (Section 8, item (6)).
+Record the commands or scripts used for H1–H11 in the `DECISIONS.md` verification record (Section 8, item (6)).
 Pin the script version in `DECISIONS.md` Section 8, item (2). A handoff gate whose controls cannot both pass
 and fail is itself a finding (Section 5.6, _Verification instruments_).
 
@@ -2542,7 +2589,9 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Input:** `README.md` client configuration entry; the chosen MCP client.
 - **Procedure:** Copy the `README.md` snippet into the client configuration verbatim. Restart the client.
   Verify the server process starts, the `initialize` handshake succeeds with the expected
-  `serverInfo.name`, and `tools/list` returns the expected tools.
+  `serverInfo.name`, and `tools/list` returns the expected tools. Record the captured launch transcript
+  (or its hash) and the Q14 schema-conformance result in the verification record's evidence field; the
+  README entry's existence is not evidence.
 - **Pass:** (a) No `server unavailable` or equivalent error; the registry is visible.
   (b) The README entry's field names, value formats, required fields, and timeout match the Q14 client's
   documented schema.
