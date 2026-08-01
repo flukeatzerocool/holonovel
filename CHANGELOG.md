@@ -32,6 +32,9 @@
   summary table per content type with section count, confidence distribution, and
   structural defects.
 - Updated TOC, Appendix E manifest, and testtable for T22a.
+- Added explicit one-server-per-ruleset constraint to Section 1 and Section 5:
+  a second ruleset triggers a fresh server in a separate output directory, never
+  merged into an existing server.
 
 ## 2026-07-30 — Expand character-sheet-generator with MCP App support
 

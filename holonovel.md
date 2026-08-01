@@ -110,6 +110,11 @@ statement. Where the sources are not Markdown, they are converted to Markdown at
 the converted Markdown is the ruleset for everything that follows. Produce a working MCP server that lets
 a single human interact with that ruleset through natural language.
 
+A server serves exactly one ruleset. Running a second ruleset through this document produces a separate
+server instance in a separate output directory — never merged into an existing server. Each server is
+scoped to its ruleset's intake, extraction, model, and state directory; no registries, tools, or
+configurations are shared across servers.
+
 ### 1.1 The play model
 
 One human, one MCP session at a time. A session carries at most one persona — or none.
@@ -809,6 +814,11 @@ output conventions. If any criterion fails, apply the formatting rules in Append
 material directly; the formatted output (not the original) becomes the ruleset for every subsequent step.
 Non-Markdown sources are converted first (Appendix F), and the resulting Markdown is then validated with the
 same pre-check. Record the pre-check outcome and any formatting session transcript in `DECISIONS.md`.
+
+Each ruleset is served by its own server instance. A second ruleset triggers a fresh build in a separate
+output directory; run the full pipeline — intake through handoff — independently. Do not register tools
+from a second ruleset in an existing server, merge its index into an existing model, or share its state
+directory. Two rulesets require two servers.
 
 Do not skip discovery because the ruleset looks simple. The server is the deliverable: playing the ruleset
 or preparing play materials is out of scope unless the operator directs it.
