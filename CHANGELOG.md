@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-02 — Spec improvements from first-principles analysis
+
+- Added reading map (§1.3) mapping build stages to required sections.
+- Added "See also" cross-references to 16 REQs in §4 linking to §6 refinements.
+- Added ruleset complexity classification (§5.2a) after structural pass — minimal,
+  moderate, large — adjusting checkpoint depth and shadow re-extraction scope.
+- Added capabilities self-assessment (§5.2b) enumerating recognized and unfamiliar
+  mechanics before extraction.
+- Added decision trail for ambiguous content-type classifications (§5.3): record
+  matched signals, rejected alternatives, and classification basis.
+- Added crash-recovery instruction (§5.6): resume from last complete stage in the
+  structured task list.
+- Added confidence calibration report at Discovery checkpoint (§5.6): builder
+  surfaces the 10 most uncertain classifications for operator review.
+- Added HTML comment markers (`<!-- @section ... -->`) to DECISIONS.md section
+  template (§8) for mechanical verification.
+- Added H12 cold-checkout replay evidence check to automated handoff gate (§8.1,
+  Appendix G.13).
+- Added Type column to derived test table (§7) classifying each test as Automated
+  or Manual, with a requirement that automated tests ship runnable scripts.
+- Populated Spec version column in Appendix E with date-stamped versions
+  (2026-08-02) and added version-change conventions.
+- Added cross-file fixture supplement (Appendix B.5, `tin_lanterns_gear.md`) and
+  derived test T46 for cross-file dedup and inline mechanical extraction.
+- Updated `scripts/validate.ts` for test-table header compatibility (Type column)
+  and spec-version format validation.
+
 ## 2026-08-01 — Spec amendments from SWSE MCP server testing
 
 - Added search-result confidence rule to REQ-011: `search_rules` confidence reflects query-term match

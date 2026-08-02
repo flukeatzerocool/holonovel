@@ -50,7 +50,7 @@ function extractTestIds(text: string): Set<string> {
   const tests = new Set<string>();
   let inTable = false;
   for (const line of text.split("\n")) {
-    if (line.trim().startsWith("| #   | Test")) {
+    if (line.trim().startsWith("| #   | Test") || line.trim().startsWith("| #     | Type")) {
       inTable = true;
       continue;
     }
@@ -187,6 +187,32 @@ function checkSeparators(text: string): string[] {
   return issues;
 }
 
+// NOTE: depends on fixed column order (REQ | Title | Verified by | Spec version).
+// Column reordering breaks this parser — the same risk as extractReqIndex above.
+function checkSpecVersionFormat(text: string): string[] {
+  const issues: string[] = [];
+  let inTable = false;
+  for (const line of text.split("\n")) {
+    if (line.trim().startsWith("| REQ     | Title")) {
+      inTable = true;
+      continue;
+    }
+    if (inTable) {
+      if (line.trim().startsWith("| -------")) continue;
+      const m = line.match(/^\|\s*(REQ-\d{3})\s*\|.+\|.+\|\s*(.+?)\s*\|$/);
+      if (m) {
+        const version = m[2].trim();
+        if (version === "—") {
+          issues.push(`${m[1]}: Spec version not populated (—)`);
+        }
+      } else if (!line.trim().startsWith("|")) {
+        break;
+      }
+    }
+  }
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -270,6 +296,16 @@ function main(): void {
     warnings += sepIssues.length;
   } else {
     console.log("PASS: All sections separated by ---");
+  }
+
+  const versionIssues = checkSpecVersionFormat(text);
+  if (versionIssues.length > 0) {
+    for (const issue of versionIssues) {
+      console.log(`ERROR: ${issue}`);
+    }
+    errors += versionIssues.length;
+  } else {
+    console.log("PASS: All REQ spec versions populated");
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);
