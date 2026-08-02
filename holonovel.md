@@ -378,6 +378,13 @@ itself a finding.
 
 _Check:_ T15.
 
+**Search-result confidence.** `search_rules` results carry a per-result confidence that reflects
+query-term match strength, not section extraction confidence. A result is labeled HIGH only when at
+least one content-significant non-stop query token (a token that is not a ruleset-index stop-word)
+appears in the section title or a bold-leading term; MEDIUM when tokens appear only in body text;
+LOW or NOT_FOUND when no meaningful token overlap exists. A search for terms with no match to any
+section returns `[NOT_FOUND]` with corrective action (Section 6.3).
+
 **REQ-012 — Graceful fallback.** _(F1)_ LOW-confidence and unparseable sections are never silently dropped.
 They remain retrievable, as raw text, through the `search_rules` tool and rules-section resources. _Check:_
 Gate 2, T4, T37.
@@ -539,7 +546,13 @@ words ("Creating a Delver" for `create_delver`); utility tools use fixed titles 
 names, save or condition names, entity types — must document their canonical values and any accepted
 aliases (Section 6.4); a `NOT_FOUND` result for such a parameter enumerates the valid values visible to the
 session persona (REQ-002). Where the ruleset provides a canonical lookup tool (REQ-057), the documentation
-names it. _Check:_ T3, T35, T39.
+names it. When the ruleset contains zero rollable generation tables, `roll_on_table` is either
+unregistered (per REQ-013, recorded in `DECISIONS.md`) or returns `[NOT_FOUND]` with the message
+"No rollable tables in this ruleset" — never with a message that implies the caller chose an
+invalid name. The tool description must not advertise canonical anchor values that resolve to
+nothing.
+
+_Check:_ T3, T35, T39.
 
 **REQ-025 — spec_health.** _(F1)_ `spec_health` takes no required arguments and returns:
 
@@ -587,7 +600,12 @@ tool resolves the canonical name and any documented alias to the ruleset entry, 
 [NOT_FOUND]` with the session-visible valid values enumerated for unknown names (REQ-002), and does not
 fabricate mechanics. A bounded-domain parameter's documented enum, examples, or accepted-values list must
 match exactly the values the lookup tool recognizes; advertising a value the tool rejects is a defect. These
-tools are complements to, not replacements for, `search_rules`. _Check:_ T39, T40.
+tools are complements to, not replacements for, `search_rules`. A talent tree's member talents are each a
+distinct extracted item storing prerequisites, effect, and any special rules from the ruleset text.
+`lookup_talent` returns the
+full entry when queried by either the tree name or any individual talent name.
+
+_Check:_ T39, T40.
 
 **REQ-058 — Tool-result fidelity.** _(F1)_ A tool returns `[ERROR] [NOT_FOUND]` or `[PARTIAL]` when it
 cannot resolve a request from the ruleset model; it must not fabricate a result, silently substitute a
@@ -1258,9 +1276,18 @@ content, never exact wording.
   limited-use features applied server-side; miss, save, resistance, immunity, vulnerability interpreted per
   the ruleset.
 - **Search results** (REQ-012): `[OK] <n> result` (or `<n> results`); one line per hit.
-  Modeled: `- <file>#<anchor> [confidence: <LEVEL>] — <section title>`. Unmodeled LOW: `- <file>#<anchor>
+  Modeled: `- <file>#<anchor> [confidence: <LEVEL>] — <section title>` where `<LEVEL>` is
+  query-match relevance (HIGH: title or bold-leading term match; MEDIUM: body match only; LOW: no
+  meaningful token overlap — returns `[NOT_FOUND]`). Unmodeled LOW: `- <file>#<anchor>
   [confidence: LOW] — raw text available; unmodeled`, with an indented `(<defect with citations>)` note
   when the defect log references the section.
+- **Lookup-dedup convention.** When identical content appears under the same canonical name in
+  multiple source files, lookup tools return the primary-source entry (first in intake order) with a
+  trailing `Also in:` line listing other sources. Content is never repeated verbatim. When content
+  differs meaningfully across sources (e.g., different mechanical fields, different prerequisites),
+  each variant is returned under a distinct canonical name with the source as a disambiguating
+  suffix. NPC stat blocks default to baseline condition; condition-track variants are computed
+  adjustments, not separate lookup entries.
 - **Cancellation** (REQ-042): `[OK] Cancelled: <decision-id>. Snapshot restored.` (e.g., `[OK] Cancelled:
 stat-array. Snapshot restored.`).
 - **Errors** (REQ-002): `[ERROR] [<CATEGORY>] <explanation>` followed by a `Corrective action: <action>` line.
@@ -1994,6 +2021,13 @@ at least ten sections per assigned type and verifies the classifications by
 inspection — the **false-positive audit**; a sampled misclassification rate above ten
 percent for a type is a checkpoint finding (Section 5.6), and the rule is narrowed
 before further tuning.
+
+**Cross-file dedup.** After extraction, entries sharing the same canonical alias-normalized name
+across files are compared. Identical content is collapsed to the first file in intake order; other
+files record a cross-reference. Content differing in mechanical fields (damage dice, prerequisites,
+cost, effect text) is flagged as a content finding and surfaced in `spec_health`. Individual talent
+entries within talent-tree sections are each extracted as a distinct item with their full mechanical
+text; the tree heading alone does not satisfy extraction for its member talents.
 
 ## Appendix B: Golden Fixture
 

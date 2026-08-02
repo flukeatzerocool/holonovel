@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-01 — Spec amendments from SWSE MCP server testing
+
+- Added search-result confidence rule to REQ-011: `search_rules` confidence reflects query-term match
+  strength, not section extraction confidence. HIGH requires a non-stop query token in the title or a
+  bold-leading term; MEDIUM when tokens appear only in body text; no match returns `[NOT_FOUND]`.
+- Added empty-table handling to REQ-024: when the ruleset contains zero rollable generation tables,
+  `roll_on_table` is unregistered or returns a clear "no tables" message — the tool description must
+  not advertise canonical values that resolve to nothing.
+- Clarified talent extraction in REQ-057: a talent tree's member talents are each a distinct extracted
+  item. `lookup_talent` returns the full entry by tree name or individual talent name.
+- Updated Section 6.3 search-results output convention to document query-match confidence levels
+  (HIGH/MEDIUM/LOW with `[NOT_FOUND]` for no match).
+- Added lookup-dedup convention to Section 6.3: duplicate content across source files is collapsed to
+  the first file in intake order with an `Also in:` line. NPC stat blocks default to baseline
+  condition; condition-track variants are computed, not stored as separate lookup entries.
+- Added cross-file dedup rule to Appendix A.4: identical entries are collapsed to the first source;
+  content differences in mechanical fields are flagged as findings and surfaced in `spec_health`.
+  Individual talent entries within trees are each extracted as distinct items.
+
 ## 2026-08-01 — Reconciliation restart and lifecycle improvements
 
 - Added rebuild, quality-check, and restart-verification step to §5.7 reconciliation: before re-running
