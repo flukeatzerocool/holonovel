@@ -1429,8 +1429,8 @@ State has three tiers:
   entities a player session created and why the server, not the LLM, tracks HP, conditions, spell slots, and
   turn order. Games over one state directory coexist and are mutually invisible. `end_game` discards the
   calling session's game in full — entities, audit log, ID counters, RNG state, and active conflict state —
-  leaves the roster untouched, and ends the session; starting later under the same game ID creates a fresh
-  game.
+  leaves the roster untouched, and the session continues. A new game is created lazily on the next game-state
+  operation; starting later under the same game ID creates a fresh game.
 - **Session state** — persona (or the recorded unassigned state), undo stack, pending decisions, conflict
   snapshots, truncation payloads (REQ-004). Scoped to one session ID.
   The persona or unassigned state persists and resumes with the session (REQ-031); everything else is
@@ -1441,10 +1441,9 @@ into the calling session's game as a fresh copy at its baseline values, with a n
 (Section 6.2). The copy is independent: nothing that happens to it in the game touches the roster record or
 any other game.
 
-Game-dependent tools (skill checks, attacks, Force powers, table rolls, character import) must check for an
-active game before executing and return `[NO_ACTIVE_GAME]` with corrective action text when no game is active.
-This guard applies regardless of whether the tool's mechanics could operate without game state; a missing
-game is always surfaced to the caller rather than relying on an unhandled downstream error.
+**Game independence.** Tools operate whether or not a game exists. The game is an optional
+encounter-management layer (Section 6.7). When a tool requires game state and none exists, a new game is
+created lazily. `end_game` discards the current game; the next game-state operation creates a fresh one.
 
 One server process hosts one session. Sessions over one game are sequential, single-writer; concurrent
 access is out of scope, and `README.md` says so.
@@ -2036,6 +2035,10 @@ rules:
   `**Special:**`.
 - **Prestige class:** contains `**Prerequisites:**` with bulleted requirements and
   no `**Initiative:**` field.
+- **Heroic class:** heading starts with `Game Rule Information`; or heading matches a single-word
+  class name from the ruleset's heroic class overview (e.g., `Jedi`, `Noble`, `Scoundrel`, `Scout`,
+  `Soldier`, heading followed by `---`-separated sub-sections like Bonus Feats and Talent Trees);
+  or section body contains both `Class Skills` and `Bonus Feats`.
 - **Destiny:** contains `**Destiny Bonus:**`.
 - **Guidance/prose:** none of the above.
 
