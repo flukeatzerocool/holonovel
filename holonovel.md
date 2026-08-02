@@ -590,8 +590,12 @@ ranking up, or otherwise advancing an entity, model it as a server-side workflow
 derives from the ruleset's own heading or procedure term (Section 6.4). Do not hardcode a generic tool name
 such as `level_up`; record the chosen name and its citation in `RULESET_MODEL.md` and `DECISIONS.md`. The
 workflow must apply class-table, feature, spell-slot, known-spell, or equivalent progression from the
-ruleset entry server-side, raising `[NEED_INPUT]` for any open choice. If the ruleset lacks such a
-procedure, record a defect and waive this requirement under REQ-013. _Check:_ T38; T32 where applicable.
+ruleset entry server-side, raising `[NEED_INPUT]` for any open choice. When the ruleset defines a
+multiclassing procedure, model a server-side workflow that accepts a class name parameter validated against
+the class index and applies the multiclass rules from the ruleset — starting feats, skill access, base
+attack bonus, defense bonuses, and hit points per the ruleset's multiclass table. If the ruleset lacks
+an advancement procedure, record a defect and waive this requirement under REQ-013. _Check:_ T38; T32
+where applicable.
 
 **REQ-057 — Canonical lookup tools.** _(F1)_ For every table whose rows are canonical mechanical entries
 that other tool parameters resolve by name, register a Query tool named from the ruleset's collective term —
@@ -1266,6 +1270,11 @@ content, never exact wording.
 - **Entity creation**: `[OK] <Type> created: <name> (entity://<id>). <field summary>.`
   Fields in declaration order (name and empty collections omitted); signed modifiers show sign (`+0`),
   pools render `current/max`, selections render `Label: Value`.
+- **Character creation output**: `[OK] Character created: <name> (roster://<id>). Level <n>. Species:
+  <species>. Class: <class>.` When ability scores are assigned during creation, the output appends
+  `Abilities: <Str>/<Dex>/<Con>/<Int>/<Wis>/<Cha>.` When the class table is extractable from the
+  ruleset, the output includes derived statistics: `HP`, `Reflex Defense`, `Fortitude Defense`,
+  `Will Defense`, `Base Attack Bonus`, and `Skills` with trained-skill list.
 - **Skill or tier training**: `[OK] <Name> trains <selection>. <field>: <value-list>.` When the ruleset
   models skills as tier bonuses rather than named abilities, the tier is rendered distinctly from named
   skills (e.g., `Skills: Military Training, Athletics, Expert (Firearms)`), and the chosen specialty is
@@ -1350,14 +1359,29 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   sheet label reads `Fear Save` is callable as `fear`, `Fear`, `FearSave`, or `Fear Save`. A
   parameter's schema, documentation, or enum must advertise the same canonical values the tool
   accepts; advertising `Sanity` when the tool only recognizes `Sanity Save` is a defect (REQ-057).
-- **Character creation parameters.** A `create_character` tool that accepts `species` and
-  `heroic_class` parameters must validate them against the extracted index before creating the
-  character: unknown species or class values return `[ERROR] [NOT_FOUND]` with the session-visible
-  valid values enumerated, using the same bounded-domain checking as alias resolution
-  (REQ-002). The check runs before any snapshot, so a failed validation does not populate the undo
-  stack. A `create_character` tool writes to the roster directly and does not create a game entity
-  or snapshot. The character enters game state only through an explicit `import_character` call
-  (Section 6.7).
+- **Character creation parameters.** A `create_character` tool requires `species` and
+  `heroic_class` parameters, both non-empty strings. The `heroic_class` parameter validates
+  against entries of content-type `heroic-class` only (Appendix A.4); prestige-class, NPC, and
+  other non-heroic-class entries are rejected with `[ERROR] [INVALID_INPUT]` explaining that
+  prestige classes require level 7+ and prerequisites per the ruleset. Unknown species or class
+  values return `[ERROR] [NOT_FOUND]` with the session-visible valid values enumerated, using
+  the same bounded-domain checking as alias resolution (REQ-002). The `name` parameter rejects
+  empty and whitespace-only strings with `[ERROR] [INVALID_INPUT]`, and names exceeding 100
+  Unicode code points. The check runs before any snapshot, so a failed validation does not
+  populate the undo stack. A `create_character` tool writes to the roster directly and does
+  not create a game entity or snapshot. The character enters game state only through an
+  explicit `import_character` call (Section 6.7).
+- **Droid characters.** When the `species` parameter resolves to a droid and the ruleset defines
+  droid degree sub-types, `create_character` must raise a `[NEED_INPUT]` decision offering the
+  degree options with their trait summaries from the ruleset. A droid species combined with a
+  class that requires Force Sensitivity (e.g., Jedi) is rejected with `[ERROR] [RULE_VIOLATION]`
+  unless the ruleset provides a specific exception.
+- **Destiny, background, and organization steps.** When the ruleset contains destiny, background,
+  or organization content types (Appendix A.4), `create_character` includes optional `[NEED_INPUT]`
+  steps for each: a destiny step following the ruleset's own destiny selection procedure, a
+  background step from the ruleset's background options, and an organization step when the
+  ruleset defines affiliation criteria. Each step must be skippable; skipping records an empty or
+  default value in the roster fields.
 - **Alias resolution at lookup boundaries.** Every Query tool that accepts a name parameter —
   `lookup_species`, `lookup_class`, `lookup_equipment`, `lookup_feat`, `lookup_force_power`,
   `lookup_condition`, `lookup_talent`, `lookup_skill` — and any tool that accepts a table anchor

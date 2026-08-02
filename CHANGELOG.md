@@ -31,6 +31,25 @@
 - Added §6.5 bounded-domain validation note: `create_character` must validate `species`
   and `heroic_class` parameters against the extracted index before creating.
 
+## 2026-08-02 — Character creation validation, prestige class gating, and workflow expansions
+
+- Tightened §6.4 character creation parameters: `species` and `heroic_class` are required
+  non-empty strings; `heroic_class` validates against `heroic-class` content type only; prestige-class
+  entries are rejected with `[INVALID_INPUT]` explaining the level 7+ and prerequisite requirement.
+- Added name parameter constraints in §6.4: empty/whitespace strings rejected with
+  `[INVALID_INPUT]`; maximum 100 Unicode code points.
+- Added character creation output convention to §6.3: when ability scores are assigned, output
+  appends ability scores; when class table is extractable, output includes derived statistics
+  (HP, defenses, BAB, trained skills).
+- Added droid-character bullet to §6.4: when species resolves to a droid and degree sub-types
+  exist, `create_character` raises `[NEED_INPUT]` for degree selection; Force-Sensitivity
+  classes rejected with `[RULE_VIOLATION]` unless the ruleset provides an exception.
+- Added destiny, background, and organization steps to §6.4: when the ruleset contains these
+  content types, `create_character` includes optional skippable `[NEED_INPUT]` steps.
+- Expanded REQ-056 (Advancement workflow) with multiclassing: when the ruleset defines a
+  multiclassing procedure, model a server-side workflow accepting class name and applying
+  multiclass rules (starting feats, skill access, BAB, defenses, HP).
+
 ## 2026-08-01 — Reconciliation restart and lifecycle improvements
 
 - Added rebuild, quality-check, and restart-verification step to §5.7 reconciliation: before re-running
