@@ -308,14 +308,14 @@ _Check:_ Gate 2; Appendix D.
 
 **REQ-002 — Error taxonomy.** _(F3)_ `[ERROR]` results include one category label — `INVALID_INPUT`,
 `NOT_FOUND`, `FORBIDDEN`, `RULE_VIOLATION`, or `STATE_CONFLICT` — plus an explanation and a corrective action.
-Assign categories by this table:
+The category is selected as follows:
 
-| Category         | Assign when                                                                                                                                                                                                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Category         | Trigger                                                                                                                                                                                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `INVALID_INPUT`  | Malformed, missing, or out-of-range parameters                                                                                                                                                                                                                                  |
 | `NOT_FOUND`      | Unknown identifier, anchor, or option                                                                                                                                                                                                                                           |
-| `FORBIDDEN`      | Persona denial, including direct reads of referee-only URIs (REQ-032)                                                                                                                                                                                                           |
-| `RULE_VIOLATION` | The request breaches a modeled rule                                                                                                                                                                                                                                             |
+| `FORBIDDEN`      | Persona-restricted access                                                                                                                                                                                                                                                       |
+| `RULE_VIOLATION` | The request breaches a modeled rule (prestige class prerequisites, droid species restrictions, level cap)                                                                                                                                                                       |
 | `STATE_CONFLICT` | A precondition of the operation fails (no pending decision to answer, a decision already pending, a mutating call while a decision is pending (REQ-042), a decision pending when `undo` is called (REQ-041), empty undo history, no active conflict, a conflict already active) |
 
 A `NOT_FOUND` corrective action against a parameter with a bounded discovered domain — table anchors, move
@@ -588,14 +588,31 @@ It is registered **last** during wiring so it reports on the fully assembled sur
 **REQ-056 — Advancement workflow.** _(F1)_ When the ruleset defines a procedure for improving, leveling,
 ranking up, or otherwise advancing an entity, model it as a server-side workflow (REQ-042) whose tool name
 derives from the ruleset's own heading or procedure term (Section 6.4). Do not hardcode a generic tool name
-such as `level_up`; record the chosen name and its citation in `RULESET_MODEL.md` and `DECISIONS.md`. The
-workflow must apply class-table, feature, spell-slot, known-spell, or equivalent progression from the
-ruleset entry server-side, raising `[NEED_INPUT]` for any open choice. When the ruleset defines a
-multiclassing procedure, model a server-side workflow that accepts a class name parameter validated against
-the class index and applies the multiclass rules from the ruleset — starting feats, skill access, base
-attack bonus, defense bonuses, and hit points per the ruleset's multiclass table. If the ruleset lacks
-an advancement procedure, record a defect and waive this requirement under REQ-013. _Check:_ T38; T32
-where applicable.
+such as `level_up`; record the chosen name and its citation in `DECISIONS.md`. The workflow must accept a
+character identifier and a class name (validated against the ruleset's heroic and prestige class entries),
+validate any prestige class prerequisites against the character's current state before any state change
+(`[ERROR] [RULE_VIOLATION]` listing each unmet requirement with current values), enforce the ruleset's
+maximum level, and then apply class-table, feature, spell-slot, known-spell, or equivalent progression from
+the ruleset entry server-side, raising `[NEED_INPUT]` for any open choice.
+
+When the ruleset defines a multiclassing procedure, model a server-side workflow that applies the
+ruleset's multiclass rules — starting feats (one from the new class at its first level), skill access
+(class skills union), base attack bonus (summed across all class levels), defense bonuses (non-stacking
+per-class with heroic level bonus), and hit points per the ruleset's multiclass table. For each level
+gained, build a sequential queue of decisions: `hd-choice` (die roll versus average), `starting-feat`
+(if first level in the class), `talent` (odd class levels — enumerated from class-available talent trees
+and, when the character has the appropriate qualification, Force talent trees), `bonus-feat` (even class
+levels where the class defines a bonus feat list), `heroic-feat` (character levels at the ruleset's feat
+milestones), `ability-boost` (character levels at the ruleset's ability score milestones — pick two of
+six), `force-technique` (class levels granting Force techniques per the ruleset), `force-secret` (class
+levels granting Force secrets per the ruleset). Each decision drains on `respond`; when the queue empties,
+finalize the character and persist to the roster.
+
+When a character is created at an initial level greater than 1, the character's automatic stats (BAB,
+defenses, HP) are pre-computed at the target level and the character is recorded in the roster. The
+advancement workflow may be invoked retroactively to fill intermediate milestone choices. If the ruleset
+lacks an advancement procedure, record a defect and waive this requirement under REQ-013. _Check:_ T38;
+T32 where applicable.
 
 **REQ-057 — Canonical lookup tools.** _(F1)_ For every table whose rows are canonical mechanical entries
 that other tool parameters resolve by name, register a Query tool named from the ruleset's collective term —
@@ -1282,6 +1299,17 @@ content, never exact wording.
 - **Character import** (Section 6.7): `[OK] <Type> imported: <name> (entity://<id>) from roster://<id>.
 <field summary>.` — the field summary follows the entity-creation convention above.
 - **Game end** (Section 6.7): `[OK] Game <id> ended. Roster unchanged.`
+- **Advancement success** (REQ-056): `[OK] Advancement complete: <name>. Character
+  level: <n>. Class levels: <class> <n>[, …]. Derived: HP <n>, BAB +<n>,
+  Reflex <n>, Fortitude <n>, Will <n>.[ Talent: <name>.] [Starting Feat:
+  <name>.] [Feat: <name>.] [Ability Boost: <name>.] [Force Technique:
+  <name>.] [Force Secret: <name>.]`
+- **Advancement prerequisite failure** (REQ-056): `[ERROR] [RULE_VIOLATION]
+  <class> prerequisites not met:` followed by an indented list of
+  `- <requirement> (current: <state>)` lines. Special prerequisites
+  (member of an organization, narrative requirements) are listed without a
+  current value.
+- **Level cap** (REQ-056): `[ERROR] [INVALID_INPUT] Already at maximum level (<n>).`
 - **Undo** (REQ-041): `[OK] Reverted: <tool-name>. <Name> <Field> <from> → <to>[, …]. Audit entry appended.`
   `<from>` is the value before undo, `<to>` the restored value; undoing a creation renders `<Name> removed.`,
   undoing a deletion renders `<Name> restored.`; when no field summary applies the segment is omitted.
@@ -1370,12 +1398,46 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   Unicode code points. The check runs before any snapshot, so a failed validation does not
   populate the undo stack. A `create_character` tool writes to the roster directly and does
   not create a game entity or snapshot. The character enters game state only through an
-  explicit `import_character` call (Section 6.7).
+  explicit `import_character` call (Section 6.7). When `level` exceeds 1, character stats
+  (BAB, defenses, HP) are computed at the target level from class tables; intermediate
+  milestone choices (talents, feats, ability boosts) are tracked as deferred and the
+  advancement workflow (REQ-056) may be used to fill them retroactively.
 - **Droid characters.** When the `species` parameter resolves to a droid and the ruleset defines
   droid degree sub-types, `create_character` must raise a `[NEED_INPUT]` decision offering the
   degree options with their trait summaries from the ruleset. A droid species combined with a
   class that requires Force Sensitivity (e.g., Jedi) is rejected with `[ERROR] [RULE_VIOLATION]`
   unless the ruleset provides a specific exception.
+- **Advancement workflow.** When the ruleset defines a multiclassing or leveling procedure,
+  expose a tool whose name derives from that heading — gerund reduces to the base verb
+  ("Multiclassing" → `multiclass`). The tool accepts a `roster_id` (character to advance) and
+  a `class_name` (validated against the index's `heroic-class` and `prestige-class` entries,
+  returning `[NOT_FOUND]` with valid class names for unknowns). Prestige class prerequisites
+  (minimum level, BAB, trained skills, feats, talents, Force techniques, Force secrets,
+  special requirements) are validated before any state change with `[ERROR] [RULE_VIOLATION]`
+  listing each unmet requirement and the character's current value. After automatic stat
+  computation (BAB sum, non-stacking defense bonuses, hit points), the tool builds a
+  sequential queue of one decision per open choice and emits the first as `[NEED_INPUT]`.
+  Subsequent decisions fire on each `respond` call. A character at the ruleset's maximum level
+  returns `[ERROR] [INVALID_INPUT]`. Decisions are named per the blocking step: `hd-choice`
+  (die roll vs average — may use the server's RNG for the roll), `starting-feat` (pick one
+  from the new class's starting feat list), `talent` (odd class levels — enumerated from class
+  talent trees plus Force talent trees if the character qualifies), `bonus-feat` (even class
+  levels where the class defines a bonus feat list), `heroic-feat` (character levels at
+  feat-granting milestones — enumerated from all ruleset feats), `ability-boost` (character
+  levels at ability score milestones — pick two of six abilities, annotated with current
+  scores), `force-technique` and `force-secret` (specific class levels per the ruleset).
+- **Prerequisite-text parsing.** For every feat and talent entry in the ruleset index whose
+  content contains a prerequisite line, parse the natural-language text into structured
+  conditions: bold talent names (prerequisite talents), `AbilityName N` (ability score
+  thresholds), `Base Attack Bonus +N` (BAB thresholds), `Trained in X` (skill training),
+  `Proficient with X` or `Armor Proficiency (N)` (weapon/armor proficiencies), and tokens
+  matching the ruleset's feat index (prerequisite feats). Compare each parsed condition
+  against the character's current state. Annotate each `[NEED_INPUT]` option with `[OK]` when
+  all conditions pass or `[MISSING: <requirement list>]` when any fail. The user may select
+  an option with unmet prerequisites; the response logs a warning. Prerequisites referencing
+  size, species restrictions, or narrative conditions (member of an organization) are logged
+  as informational notes but not treated as mechanical blockers. Prestige class entry
+  requirements are validated from the class's prerequisite text using the same parsing engine.
 - **Destiny, background, and organization steps.** When the ruleset contains destiny, background,
   or organization content types (Appendix A.4), `create_character` includes optional `[NEED_INPUT]`
   steps for each: a destiny step following the ruleset's own destiny selection procedure, a
