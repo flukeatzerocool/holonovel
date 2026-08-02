@@ -252,6 +252,7 @@ operator instead of resolving it silently.
 | REQ-002 | Error taxonomy            | 4.1        |
 | REQ-003 | Roll transparency         | 4.1        |
 | REQ-004 | Truncation                | 4.1        |
+| REQ-004a| Statblock baseline view   | 4.1        |
 | REQ-010 | Traceability              | 4.2        |
 | REQ-011 | Confidence                | 4.2        |
 | REQ-012 | Graceful fallback         | 4.2        |
@@ -270,6 +271,7 @@ operator instead of resolving it silently.
 | REQ-056 | Advancement workflow      | 4.3        |
 | REQ-057 | Canonical lookup tools    | 4.3        |
 | REQ-058 | Tool-result fidelity      | 4.3        |
+| REQ-059 | Parameter canon validation| 4.3        |
 | REQ-030 | Single user               | 4.4        |
 | REQ-031 | Persona immutability      | 4.4        |
 | REQ-032 | Server-side gating        | 4.4        |
@@ -318,6 +320,10 @@ The category is selected as follows:
 | `RULE_VIOLATION` | The request breaches a modeled rule (prestige class prerequisites, droid species restrictions, level cap)                                                                                                                                                                       |
 | `STATE_CONFLICT` | A precondition of the operation fails (no pending decision to answer, a decision already pending, a mutating call while a decision is pending (REQ-042), a decision pending when `undo` is called (REQ-041), empty undo history, no active conflict, a conflict already active) |
 
+A parameter that resolves to an empty string after trimming, or that contains only whitespace characters,
+fails `[ERROR] [INVALID_INPUT]` with corrective action naming the expected domain. The server rejects the
+call before any lookup or computation.
+
 A `NOT_FOUND` corrective action against a parameter with a bounded discovered domain — table anchors, move
 names, condition terms, and entity types — enumerates the valid values visible to the session persona (REQ-032);
 when the domain is too long to read comfortably, it names the resource that lists them. Unbounded domains
@@ -332,13 +338,27 @@ relevant `ruleset://` or `entities://` resource when the budget is exceeded.
 _Check:_ T18.
 
 **REQ-003 — Roll transparency.** _(F1)_ Every randomized result shows: the notation used; the individual
-randomizer results; every modifier with label and value; the final total; and the interpreted outcome where
+randomizer results; every modifier with label and value — BAB, ability bonus, range penalty, size modifier,
+concealment, cover, talent bonus, condition penalty, damage bonus, and any other applicable modifier — each
+labeled individually and none applied silently; the final total; and the interpreted outcome where
 applicable. The same fields are recorded in the audit log (REQ-040). Output convention: Section 6.3. _Check:_
 Gate 2.
 
 **REQ-004 — Truncation.** _(F3)_ Tool output beyond the configured limit (Section 6.6) is truncated and ends
 with a pointer to a resource carrying the full content (the `output://` scheme, Section 6.3). Every tool whose
 output can be truncated has such a resource. _Check:_ T13.
+
+**REQ-004a — Statblock baseline view.** _(F2)_ Combat statblock lookups return the baseline
+(top-of-condition-track) row by default. A boolean parameter `all_conditions` (default `false`) expands every
+condition-track row, computed algorithmically from the ruleset's condition penalties table — not stored
+as separate lookup entries. The computation is the same one used by the condition track tools (§6.8.1):
+HP, Damage Threshold, and defense values that change per condition step are rendered inline. The lookup
+tool's documentation states this. Where the ruleset publishes distinct entity variants keyed by a named
+quality — squad size, crew quality, species — each variant is a separate entry with its own canonical
+name; only the condition-track dimension is collapsed by default, not the variant dimension. The
+condition-track progression rule is documented once as a rules-section reference (REQ-022) rather than
+repeated per statblock. The full output, including every condition row, is always reachable with
+`all_conditions=true`. _Check:_ T13.
 
 ### 4.2 Discovery
 
@@ -598,7 +618,9 @@ the ruleset entry server-side, raising `[NEED_INPUT]` for any open choice.
 When the ruleset defines a multiclassing procedure, model a server-side workflow that applies the
 ruleset's multiclass rules — starting feats (one from the new class at its first level), skill access
 (class skills union), base attack bonus (summed across all class levels), defense bonuses (non-stacking
-per-class with heroic level bonus), and hit points per the ruleset's multiclass table. For each level
+per-class with heroic level bonus), and hit points per the ruleset's multiclass table. HP computation
+during advancement MUST use the character's actual Constitution modifier read from ability scores;
+the built-in HP utility MUST NOT hardcode a zero modifier. For each level
 gained, build a sequential queue of decisions: `hd-choice` (die roll versus average), `starting-feat`
 (if first level in the class), `talent` (odd class levels — enumerated from class-available talent trees
 and, when the character has the appropriate qualification, Force talent trees), `bonus-feat` (even class
@@ -634,6 +656,18 @@ similar item, patch around a gap by reading ruleset files directly, or rely on p
 of the server surface. The server is the runtime source of truth for mechanics; the Markdown is input data,
 not a fallback lookup. When a tool returns `[ERROR] [NOT_FOUND]` or `spec_health` reports a gap, extend the
 index, lookup tools, or schemas rather than bypass the surface. _Check:_ T37, T41, T42.
+
+**REQ-059 — Parameter canon validation.** _(F1)_ Every tool parameter that accepts a ruleset-terminology value
+weapon name, Force power name, skill name, table anchor, species name, equipment name, feat name, or talent
+name — validates against the canonical name set discovered from the ruleset (REQ-010). An unknown value
+returns `[ERROR] [NOT_FOUND]` with the session-visible valid values enumerated per REQ-002. Bounded-domain
+parameters (`skill`, `weapon`, `power`, table anchor, `species`, `feat`, `talent`) whose valid values
+derive from a canonical ruleset category (Section 6.5) MUST validate against the index. Open-domain
+parameters (numeric modifiers, DCs, dice expressions, entity IDs, attacker/target names) are not bounded
+and need not resolve against a canonical set. Free-text parameters (arbitrary intent strings) are not
+validated. A bounded-domain parameter's schema description lists the canonical names or names the resource that
+enumerates them; advertising a value in the schema that the tool rejects is a defect (REQ-057). _Check:_
+T39, T39a.
 
 ### 4.4 Session and persona
 
@@ -708,6 +742,12 @@ with labels. The log is exposed as a referee-only resource; undo entries are app
 - `undo` while a workflow decision is pending fails `[ERROR] [STATE_CONFLICT]` (REQ-042).
 - The undo stack holds per-call snapshots only; workflow-start snapshots live with the pending decision
   (REQ-042), not on this stack.
+- **Cancel-and-undo integrity.** When a `respond(cancel)` completes (REQ-042), the workflow-start snapshot
+  and every per-call snapshot taken within the cancelled workflow are discarded and removed from the undo
+  stack. A subsequent mutating call pushes a fresh snapshot, and the next `undo` reverts only that call —
+  the cancelled workflow's calls are unreachable. The test sequence runs as follows: start a workflow
+  (e.g., `multiclass`); cancel the resulting `[NEED_INPUT]`; call a mutating tool; call `undo`. The undo
+  reverts the post-cancel call only, and a second `undo` reports `[ERROR] [STATE_CONFLICT]` (empty stack).
 - Retain at least 20 automatic snapshots (configurable) and prune older ones.
 - Snapshots and undo history are scoped to a game; tests and smoke sessions use dedicated state
   directories or disposable game IDs so they never mutate production roster or game state.
@@ -811,6 +851,10 @@ Face:    face(s) = 1 + ⌊draw · s / 2³²⌋                     64-bit interm
   randomness internally — runs that call against a fresh generator initialized with the given seed, leaving
   game state untouched.
 - All tests involving randomness use fixed seeds.
+- The generator is **seed-injective**: distinct seed values produce distinct first draws. At least 1000
+  test seeds spanning a range of 10 000 produce 1000 distinct d20 faces; a build whose generator maps more
+  than 2% of tested seeds to the same first-draw face is non-conformant. The Appendix B.4 witness table
+  exercises this property with at least three seed values whose first-10-d6 sequences are pairwise distinct.
 
 _Check:_ Gate 2, T27.
 
@@ -1030,7 +1074,7 @@ table there, which governs; layers 1–2 and 3–4 share a checkpoint):
 | Layer                                | Must satisfy                                                                                                                                                                  |
 | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 Configuration and protocol adapter | REQ-054 input validation; Section 6.6 configuration surface; Appendix D capability advertisement                                                                              |
-| 2 Rules index                        | Section 6.1 anchor derivation; Appendix A parsing heuristics; config-driven parsing; REQ-022 search and retrieval                                                             |
+| 2 Rules index                        | Section 6.1 anchor derivation; Appendix A parsing heuristics; config-driven parsing; REQ-022 search and retrieval; **index persistence** — for rulesets exceeding 5,000 indexed sections, serialize the built index to `state/index/cache.bin` keyed by the intake hash (REQ-044). On startup with matching hash, deserialize instead of re-parsing; cold start with a cached index must complete within 1 second. Regenerate on `TTRPG_REBUILD=1`. |
 | 3 Randomizer                         | REQ-050 determinism (Appendix B.4 witness values; Gate 2 step 0); REQ-003 roll transparency                                                                                   |
 | 4 State manager                      | REQ-040 audit; REQ-041 snapshots; REQ-055 durability                                                                                                                          |
 | 5 Domain handlers                    | REQ-020 and REQ-021 tool coverage and economy; REQ-042 workflows, including resume-failure semantics; REQ-043 conflict                                                        |
@@ -1472,6 +1516,15 @@ Decision IDs are named for the blocking step (e.g., `stat-array`). Every such co
 freedom (six permutations into three named options) is a normalization and is logged in `DECISIONS.md`
 (REQ-010).
 
+#### 6.5.1 Sequential Decision Queue
+
+When advancement or creation requires multiple sequential decisions (HD choice → starting
+feat → talent → bonus feat → heroic feat → ability boost → force technique → force secret),
+the server builds an ordered queue of typed Decision objects (Section 6.2) and drains one per
+`respond` call until empty. The queue derives from class-level tables and the ruleset's
+level-based milestones; the server must not pre-select or auto-complete decisions. Drain
+state is per-character, per-workflow; `undo` restores the full queue.
+
 **Source of truth for option lists.** When a `[NEED_INPUT]` decision offers a choice from a
 bounded discovered domain — species, classes, skills, conditions, table anchors — the option
 list is derived from the rules index at call time, filtered by session persona (REQ-032).
@@ -1538,6 +1591,13 @@ into the calling session's game as a fresh copy at its baseline values, with a n
 (Section 6.2). The copy is independent: nothing that happens to it in the game touches the roster record or
 any other game.
 
+**Roster schema versioning.** Each roster entry carries a `_schemaVersion` integer field. When the
+entity's field shape changes (new required fields, renamed properties), increment the schema version and
+provide a migration function for each version gap. On load, the server applies migrations in version order.
+A migration that produces a field the current server version does not recognize quarantines the entry and
+flags it in `spec_health`. The server continues serving remaining roster entries. The initial version is 0;
+`spec_health` reports the count of entries at each version.
+
 **Game independence.** Tools operate whether or not a game exists. The game is an optional
 encounter-management layer (Section 6.7). When a tool requires game state and none exists, a new game is
 created lazily. `end_game` discards the current game; the next game-state operation creates a fresh one.
@@ -1566,6 +1626,25 @@ Modifiers whose situation has no discoverable mechanic — a place ("in wetlands
 applies modifiers from entity state (conditions, stats) and fixed procedure rules only. No ad-hoc modifier
 parameter is added (REQ-013); the unapplied modifier is recorded as a normalization in `DECISIONS.md` and its
 text remains searchable (REQ-012).
+
+### 6.8.1 Multi-step condition tracks
+
+When the ruleset defines a condition track with multiple progressive steps — e.g., Normal → -1 → -2 → -5 → -10
+→ Helpless — and assigns cumulative penalties per step, model it with these primitives:
+
+- **Entity condition state**: an integral step counter per entity, defaulting to 0 (normal).
+- **Penalty table**: a lookup mapping step → penalties for attacks, skill checks, ability checks, and
+  defenses, as stated in the ruleset's text or table.
+- **Threshold trigger**: if the ruleset defines a Damage Threshold that moves the condition track when a
+  single attack's damage meets or exceeds it, integrate the check into the damage pipeline. Output includes
+  both HP and condition changes.
+- **Recovery**: model the ruleset's recovery mechanic as a tool (e.g., `recover` for a turn-based sequence,
+  `rest` for a fixed duration). The tool succeeds or fails based on the ruleset's condition modifiers
+  (e.g., persistent conditions block recovery).
+- **Persistent conditions**: when the ruleset distinguishes persistent from non-persistent conditions,
+  track persistent conditions by name. Provide a removal tool. An entity with active persistent conditions
+  cannot use the `recover` tool.
+- **Terminal step**: model the ruleset's endpoint (unconscious, disabled, destroyed). Log the transition.
 
 ### 6.9 Guidance and persona knowledge
 
@@ -1653,11 +1732,15 @@ Section 5.1 (Q13) and confirm that the server initializes, `tools/list` returns 
 this check is deferred to the smoke session; the deferral is recorded in `DECISIONS.md`.
 
 **Gate 2 — Transcript replay (F1, F3).** Step 0 — randomizer preflight: verify the Appendix B.4 witness
-values exactly (REQ-050) before replaying; a preflight failure stops the line. Build the server from the
-Appendix B fixture (`TTRPG_RULESET` points at the fixture, with a dedicated state directory) and replay
-the Appendix B.3 transcript with a scripted harness, one server process per session: session 1 (persona:
-delver) runs the first block; relaunch with a new `TTRPG_SESSION_ID` and the Lantern Keeper persona
-against the same game (`TTRPG_GAME_ID`) and run the second block. For each expected output, assert:
+values exactly (REQ-050) before replaying; a preflight failure stops the line. Step 1 — resource
+health: read every resource URI listed in `resources/list`; each returns content with the declared media
+type in a non-error response. An empty body is acceptable for resources whose documented empty state is
+valid (e.g., `entities://` with no active entities). A failed read or missing resource is a gate failure.
+Build the server from the Appendix B fixture (`TTRPG_RULESET` points at the fixture, with a dedicated
+state directory) and replay the Appendix B.3 transcript with a scripted harness, one server process per
+session: session 1 (persona: delver) runs the first block; relaunch with a new `TTRPG_SESSION_ID` and the
+Lantern Keeper persona against the same game (`TTRPG_GAME_ID`) and run the second block. For each expected
+output, assert:
 
 - the status prefix and `isError` semantics (REQ-001);
 - every required field of the applicable Section 6.3 convention, in order;
@@ -1728,6 +1811,7 @@ harness.
 | T38 | Advancement workflow derives tool name from ruleset term; raises `[NEED_INPUT]` for open choices; applies progression server-side; waived if no advancement procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-056, REQ-013, REQ-042                   |
 | T39 | Canonical lookup tools registered: for each required category (equipment, spells, monsters, conditions, feats, class features, species, backgrounds as the ruleset requires), assert a `lookup_<category>` tool is in `tools/list`, accepts the canonical name and documented aliases, and returns the ruleset entry                                                                                                                                                                                                                                                                                                                                          | REQ-057, REQ-024                            |
 | T40 | Lookup tool rejects unknown names: request a non-existent item and assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; assert no fabricated entry is returned                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-057, REQ-002                            |
+| T39a| Gameplay tool parameter validation: call `make_skill_check` with an unknown skill name, `use_force_power` with an unknown power name, and `attack_with_weapon` with an unknown weapon name; each returns `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated. Call the same tools with valid parameters; each returns `[OK]` with transparent dice results                                                                                                                                                                                                                                                                               | REQ-059, REQ-002, REQ-003                   |
 | T41 | No direct source reads: instrument the server or inspect handlers; run a tool call that resolves a canonical name and assert no ruleset Markdown file is read after startup indexing; the lookup tool must use the loaded index or model                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-058, REQ-051                            |
 | T42 | No tool-result fabrication: request a canonical item at the edge of the ruleset (last table row, ambiguous alias) and assert the result either resolves correctly or returns `[ERROR]`/`[PARTIAL]`; assert no invented mechanics, damage values, or properties appear                                                                                                                                                                                                                                                                                                                                                                                         | REQ-058, REQ-054                            |
 | T43 | Decision auto-completion blocked: start a workflow that raises `[NEED_INPUT]` and verify the server does not emit a chosen option or complete the workflow without a `respond` call; a client or LLM must not supply a default                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-042, REQ-058                            |
@@ -2155,6 +2239,33 @@ cost, effect text) is flagged as a content finding and surfaced in `spec_health`
 entries within talent-tree sections are each extracted as a distinct item with their full mechanical
 text; the tree heading alone does not satisfy extraction for its member talents.
 
+**Parent-child extraction.** When a section's child headings represent individually
+addressable ruleset items — talent trees containing individual talents, class sections
+containing class features, force traditions containing force techniques — the builder MAY
+generate synthetic child `AnchorEntry` objects, one per child heading, with `parentAnchor`
+pointing to the parent section. Each child inherits the parent's role scoping and content
+types unless its own heading signals a different scope. The generated child count appears
+in `spec_health` registry counts and contributes to confidence scoring (REQ-011).
+
+### A.5 Structured Progression Extraction
+
+When class/level progression data appears in tabular form (BAB tracks, defense tracks,
+HD, bonus feats per level, etc.) with a regular structure but inconsistent Markdown
+formatting across source files, the builder MAY embed a structured representation of
+the progression data in source code provided that:
+
+- **(i)** Every value in the structured representation is traceable to a specific
+  ruleset section via citation.
+- **(ii)** The extraction method (manual or automated) is recorded in `DECISIONS.md`
+  section (5).
+- **(iii)** The representation is independently verifiable against the original Markdown
+  tables.
+- **(iv)** A `DECISIONS.md` section (5) entry records it as a mechanics deviation with
+  a re-activation condition ("re-extract when ruleset Markdown sources are updated").
+
+This is the normative justification for the H3 hardcoded-mechanics waiver when applied
+to class progression tables.
+
 ## Appendix B: Golden Fixture
 
 ### B.1 Fixture ruleset (`tin_lanterns.md`)
@@ -2473,6 +2584,7 @@ then fill in its `Code` and `Tests` columns from the build.
 | REQ-002 | Error taxonomy            | T18                            | —            |
 | REQ-003 | Roll transparency         | Gate 2                         | —            |
 | REQ-004 | Truncation                | T13                            | —            |
+| REQ-004a| Statblock baseline view   | T13                            | —            |
 | REQ-010 | Traceability              | T15                            | —            |
 | REQ-011 | Confidence                | T15                            | —            |
 | REQ-012 | Graceful fallback         | Gate 2, T37                    | —            |
@@ -2491,6 +2603,7 @@ then fill in its `Code` and `Tests` columns from the build.
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | —            |
 | REQ-057 | Canonical lookup tools    | T39, T40                       | —            |
 | REQ-058 | Tool-result fidelity      | T37, T41, T42                  | —            |
+| REQ-059 | Parameter canon validation| T39, T39a                      | —            |
 | REQ-030 | Single user               | Appendix D                     | —            |
 | REQ-031 | Persona immutability      | T9                             | —            |
 | REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    | —            |
