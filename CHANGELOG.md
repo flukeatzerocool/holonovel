@@ -18,6 +18,18 @@
 - Added cross-file dedup rule to Appendix A.4: identical entries are collapsed to the first source;
   content differences in mechanical fields are flagged as findings and surfaced in `spec_health`.
   Individual talent entries within trees are each extracted as distinct items.
+- Updated A.4 content-type detection: feat detection broadened to accept `**Prerequisites:**`,
+  `**Benefit:**`, and `**Special:**` markers alongside `**Prerequisite` and `**Effect:`.
+- Updated A.4 content-type detection: force-power detection broadened with descriptor tags
+  (`[*Telekinetic*]`, `[*Mind-Affecting*]`, `[*Dark Side*]`, `[*Light Side*]`);
+  starship-maneuver detection now excludes sections with DC tables to disambiguate from
+  force powers.
+- Added §6.2 rule: `create_character` returns the roster ID in its response so callers
+  can pass the correct identifier to `import_character` without guessing counter namespaces.
+- Added §6.7 rule: game-dependent tools must check for an active game before executing
+  and return `[NO_ACTIVE_GAME]` when none is active.
+- Added §6.5 bounded-domain validation note: `create_character` must validate `species`
+  and `heroic_class` parameters against the extracted index before creating.
 
 ## 2026-08-01 — Reconciliation restart and lifecycle improvements
 

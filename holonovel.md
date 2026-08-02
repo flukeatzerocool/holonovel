@@ -1223,6 +1223,10 @@ different records in different scopes. IDs are state, not index: re-indexing nev
 REQ-041), so an undone creation is never recycled and the audit log stays unambiguous. Counters widen past 99
 without truncation (`…, 98, 99, 100`).
 
+A `create_character` tool returns the roster ID in its response, not the game-local entity
+ID — this ensures callers can pass the correct identifier to `import_character` without guessing
+which counter namespace produced it.
+
 ### 6.3 Output conventions
 
 Field values vary; the required fields and their ordering do not. Gate 2 asserts these fields and their
@@ -1337,6 +1341,12 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   sheet label reads `Fear Save` is callable as `fear`, `Fear`, `FearSave`, or `Fear Save`. A
   parameter's schema, documentation, or enum must advertise the same canonical values the tool
   accepts; advertising `Sanity` when the tool only recognizes `Sanity Save` is a defect (REQ-057).
+- **Character creation parameters.** A `create_character` tool that accepts `species` and
+  `heroic_class` parameters must validate them against the extracted index before creating the
+  character: unknown species or class values return `[ERROR] [NOT_FOUND]` with the session-visible
+  valid values enumerated, using the same bounded-domain checking as alias resolution
+  (REQ-002). The check runs before any snapshot, so a failed validation does not populate the undo
+  stack.
 - **Alias resolution at lookup boundaries.** Every Query tool that accepts a name parameter —
   `lookup_species`, `lookup_class`, `lookup_equipment`, `lookup_feat`, `lookup_force_power`,
   `lookup_condition`, `lookup_talent`, `lookup_skill` — and any tool that accepts a table anchor
@@ -1430,6 +1440,11 @@ A character moves between games only by explicit import: `import_character` inst
 into the calling session's game as a fresh copy at its baseline values, with a new game-local ID
 (Section 6.2). The copy is independent: nothing that happens to it in the game touches the roster record or
 any other game.
+
+Game-dependent tools (skill checks, attacks, Force powers, table rolls, character import) must check for an
+active game before executing and return `[NO_ACTIVE_GAME]` with corrective action text when no game is active.
+This guard applies regardless of whether the tool's mechanics could operate without game state; a missing
+game is always surfaced to the caller rather than relying on an unhandled downstream error.
 
 One server process hosts one session. Sessions over one game are sequential, single-writer; concurrent
 access is out of scope, and `README.md` says so.
@@ -1998,10 +2013,21 @@ rules:
   or class/level notation.
 - **Stat block (starship):** heading matches `Statistics \(CL \d+\)$` and section
   contains `### Ship Statistics` or `### Abilities`.
-- **Feat:** contains `**Prerequisite` and `**Effect:**`.
-- **Force power:** contains `**Time:**`, `**Targets:**`, and a DC result table.
+- **Feat:** contains `**Prerequisite` or `**Prerequisites:` with `**Effect:`,
+  `**Benefit:`, or `**Special:**` in the section body. A section with
+  `**Prerequisites:**` and only `**Effect:` / `**Benefit:` (no `**Initiative:`)
+  is also a feat. Rare edge cases where a feat-like entry omits one of these
+  markers are surfaced as findings during the false-positive audit.
+- **Force power:** contains `**Time:**`, `**Targets:**`, and a DC result table
+  (matching `/DC\s+\d+/i`). Also recognized by Force descriptor tags
+  `[*Telekinetic*]`, `[*Mind-Affecting*]`, `[*Dark Side*]`, `[*Light Side*]`,
+  or `[*Lightsaber Form*]`. A section matching both descriptor tags and
+  `**Time:` / `**Targets:` without a DC table is a starship maneuver
+  (see below), not a force power.
 - **Starship maneuver:** contains `**Time:**`, `**Targets:**`, and a
-  `**[Descriptor]**` line.
+  `**[Descriptor]**` line with **no DC result table** (matching
+  `/DC\s+\d+/i`). The absence of a DC table disambiguates maneuvers from
+  force powers that share the Time/Targets/Descriptor pattern.
 - **Equipment:** contains `**Cost:**` with a numeric value and `**Availability:**`.
 - **Species:** contains `**Ability Modifiers:**` or heading ends with
   `Characteristics` or `Species Traits`.
