@@ -976,6 +976,15 @@ The `RULESET_MODEL.md` output includes a summary table: per content type
 but absent in others, with the count of each). This table is the data source for
 `spec_health`'s confidence computation and category counts.
 
+**Classification exhaustiveness check.** After writing detection rules against the
+classification inventory, verify that every heading pattern the structural pass
+identified as carrying a core entity type (heroic-class, prestige-class, species,
+etc.) is matched by at least one detection rule. A heading whose structural-pass
+classification is not reproduced by the detection rules is a blocker at the
+Discovery checkpoint. The check is a single-pass reconciliation: for each content
+type with more than zero items in the structural inventory, assert the detection
+rules produce at least one match of that type.
+
 ### 5.4 Output
 
 Produce `RULESET_MODEL.md` (contents: Section 8). Appendix B.2 shows a minimal example from the fixture.
@@ -1346,7 +1355,9 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   character: unknown species or class values return `[ERROR] [NOT_FOUND]` with the session-visible
   valid values enumerated, using the same bounded-domain checking as alias resolution
   (REQ-002). The check runs before any snapshot, so a failed validation does not populate the undo
-  stack.
+  stack. A `create_character` tool writes to the roster directly and does not create a game entity
+  or snapshot. The character enters game state only through an explicit `import_character` call
+  (Section 6.7).
 - **Alias resolution at lookup boundaries.** Every Query tool that accepts a name parameter —
   `lookup_species`, `lookup_class`, `lookup_equipment`, `lookup_feat`, `lookup_force_power`,
   `lookup_condition`, `lookup_talent`, `lookup_skill` — and any tool that accepts a table anchor
