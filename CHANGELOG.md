@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-02 — Sheet parser bug fixes and defensive-parsing spec
+
+- Fixed 8 bugs discovered through comprehensive integration testing of the sheet tools:
+  - `parseString` now stops field capture at newlines, preventing over-capture across labeled fields.
+  - HP regex now handles comma-separated numbers (`2,100` → 2100).
+  - Cover always extracts "Total Cover" instead of single-char "T".
+  - Weapon regex handles multi-gunner notation `(N Gunners)`, optional `*` after attack, and non-parenthetical damage descriptors.
+  - Crew/passenger capture filters OCR artifacts (e.g., `Cover**` leaking into crew field).
+  - Pilot overlay INT guard changed from `>= 0` to `> 0` to prevent -5 penalty when abilities are unparsed.
+  - `create_character` now initializes `trainedSkills` as empty array instead of all class skills.
+- Added §7a (Defensive parsing) to `character-sheet-generator.md` with field-capture rules.
+- Added production-data testing requirement to §7 test coverage table.
+
+## 2026-08-02 — Prestige class prerequisite spec clarifications
+
+- Expanded talent prerequisite model (§6.4): now supports both count-based
+  (`{ count: N }`) and name-based (`{ names: [...] }`) talent requirements for
+  prestige class entry.
+- Clarified feat-name matching (§6.4): parenthetical qualifiers in feat names
+  (weapon types, skill subcategories) must be preserved during prerequisite
+  comparison, not stripped.
+- Acknowledged hardcoded prerequisite fallback (§6.4): when prestige class
+  prerequisite text is embedded in prose and not uniformly parseable from the
+  ruleset Markdown, hardcoded prerequisite objects in the class progression
+  table are an acceptable fallback (cross-referenced against source).
+- Clarified special-prerequisite display (§6.3): narrative/organizational
+  prerequisites now appear as an informational note on successful validation,
+  not only on failure.
+
 ## 2026-08-02 — Spec improvements from first-principles analysis
 
 - Added reading map (§1.3) mapping build stages to required sections.

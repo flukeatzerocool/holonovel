@@ -20,6 +20,13 @@ Before writing code, audit the server for pre-existing infrastructure this chara
   an inline `Valid:` suffix instead, fix the helper — this affects all tools, not just the character sheet.
 - **Render files.** Verify `domain/sheet.ts` and `domain/sheet_md.ts` exist. If they do, use steps 4–7 as
   a compliance checklist against them. If not, build from scratch following steps 4–5.
+- **Incremental PDF discovery.** If the server was built from ruleset inference (Path 4,
+  §1) without PDF access, and a PDF later becomes available for study, run the
+  field-enumeration paths (Paths 1-3, §1) against the PDF, then diff the extracted
+  fields against the existing sheet implementation. Fill discovered gaps: player-tracked
+  resources (currency, XP, per-rest uses), section ordering mismatches, and overlooked
+  conditional fields. Record the comparison in `SHEET_FIELDS.md` with
+  derivation-source annotations.
 - **MCP App readiness.** If you plan to add an HTML UI (step 6a), verify:
   - The renderer functions (`renderCharacterSheet`, `renderCharacterSheetMarkdown`) are
     exported from their modules and importable.
@@ -37,10 +44,55 @@ either way.
 
 ### 1. Study the PDF
 
-Open the PDF. When auditing an existing implementation, use the §0 pre-check outcome and skip
-to §4. Visually enumerate every field (not OCR — read labels by eye). For each: label, data type,
-page, and whether it derives from other fields (e.g. modifier = floor((score - 10) / 2)). Record
-blank/rp-only fields too.
+**Goal:** Enumerate every field on the character sheet — label, data type, page
+position, and whether it derives from other fields (e.g. modifier =
+floor((score - 10) / 2)). Record blank/RP-only fields too.
+
+Exhaust these paths in order. Stop when one succeeds:
+
+1. **Direct reading.** Open the PDF. If your model or toolchain renders it natively
+   (text-based PDF or vision-capable), enumerate fields visually and record them in
+   `SHEET_FIELDS.md`.
+
+2. **Convert to images → vision model.** If direct reading fails, convert PDF pages
+   to images:
+
+   ```
+   pdftoppm -png -r 150 sheet.pdf sheet_page
+   ```
+
+   (also try `convert -density 150 sheet.pdf page-%d.png` if `pdftoppm` is absent).
+   Pass each page image to a vision-capable model for field enumeration.
+
+3. **OCR.** If no vision model is available, extract text via OCR:
+
+   ```
+   tesseract page-1.png output -l eng
+   ```
+
+   Requires `tesseract-ocr`. Parse the extracted text against the ruleset's known
+   field labels (ability names, skill names, defense labels) to reconstruct the
+   layout. Tolerate OCR noise — prefer false positives (extra tokens from decorative
+   elements) over false negatives (missing fields). Even when form layouts are
+   unreadable, partial results have value: version changelogs, running instruction
+   text, and reference panels often survive OCR better than bordered form fields and
+   can confirm overlooked fields or validate derivation rules.
+
+4. **Ruleset inference.** If extraction and OCR both fail or yield unparseable
+   results, infer fields from ruleset knowledge and NPC stat block structure. Record
+   this as a standing limitation in the server's `DECISIONS.md`. Enumerate the
+    inferred fields in `SHEET_FIELDS.md` with the derivation source noted.
+
+   When inferring fields, pay special attention to player-tracked resources:
+   currency, experience points, per-rest/encounter uses, and condition-track state
+   are commonly present on official sheets but invisible to pure ruleset derivation.
+   Enumerate these explicitly in `SHEET_FIELDS.md` even when they carry no
+   derivation rule — they are RP-only fields that renderers must provide slots for.
+
+**Output:** `SHEET_FIELDS.md` — a catalog in the server's source tree listing every
+identified field, its derivation source (page number, OCR, ruleset inference,
+stat block parse), and notes about edge cases (optional fields, conditional
+visibility, blank/RP-only slots).
 
 ### 2. Entity type
 
@@ -260,6 +312,23 @@ the same lookup path (case-folded key, bounded-domain token match) the productio
 | Rendering  | Identity, stat math, weapon resolution (bonus stacking, Unarmed Strike fallback), spellcasting (DC, slots, sorting, empty-case fallback), edge cases (missing data, optional fields). Test both renderers. |
 | Protocol   | Response contract (`{ content: [{ type: "text", text }] }`), error for invalid entity IDs, persona gating, output prefix shape, file extension in status line. |
 | MCP App (if built) | Tool definition includes `_meta.ui.resourceUri`. HTML resource returns MIME type `text/html;profile=mcp-app`. Both `markdown` and `ascii` formats render through the app path with identical data as the text path. On the stdio path (preferred), verify the resource is served without an HTTP server. Client-side markdown parser handles all §5 sections. |
+| Production data | **Test with real ruleset entries, not only hand-crafted minimal fixtures.** Stat blocks from wiki-derived rulesets carry OCR artifacts, inconsistent field terminators (missing semicolons), comma-separated numbers, and abbreviated ability labels. Tests using only idealized fixtures mask parse bugs — assert exact field values (not just `length > 0`) to catch over-capture. Starfighter, capital ship, ground vehicle, and walker types must each have at least one real-data test. |
+
+### 7a. Defensive parsing
+
+When consuming stat blocks or entity data from ruleset sources:
+
+- **Field capture boundaries:** End field capture at newlines, not only semicolons — ruleset entries
+  often lack terminators between fields on adjacent lines.
+- **Numeric commas:** Strip commas from numeric fields (e.g., `2,200` HP → 2200) before parsing to integers.
+- **Ability label variants:** Ruleset stat blocks may use abbreviated ability names (`Str`/`Dex`/`Int`)
+  or full names (`Strength`/`Dexterity`/`Intelligence`). The parser must recognize both.
+- **OCR artifacts:** Wiki-derived content may contain formatting artifacts (e.g., `Cover**` from
+  `**Cover**`) that leak into adjacent field captures. Validate captured fields against expected patterns;
+  discard or fall back for implausible values.
+- **Weapon multi-gunner notation:** `*Ranged (N Gunners):*` parentheticals differ from
+  `*Ranged (Vehicle Weapons):*`. The parser must handle both, plus optional `*` after attack values
+  and non-parenthetical damage descriptors (e.g., `grapple +65`).
 
 ### 8. After each change
 

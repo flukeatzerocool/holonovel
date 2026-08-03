@@ -1461,6 +1461,10 @@ content, never exact wording.
   `- <requirement> (current: <state>)` lines. Special prerequisites
   (member of an organization, narrative requirements) are listed without a
   current value.
+- **Advancement prerequisite success** (REQ-056): When prerequisites pass, any
+  `special` requirements (narrative or organizational conditions) are appended
+  as an informational note on a new `Special: <text>` line so the player is
+  aware of roleplay requirements.
 - **Level cap** (REQ-056): `[ERROR] [INVALID_INPUT] Already at maximum level (<n>).`
 - **Undo** (REQ-041): `[OK] Reverted: <tool-name>. <Name> <Field> <from> → <to>[, …]. Audit entry appended.`
   `<from>` is the value before undo, `<to>` the restored value; undoing a creation renders `<Name> removed.`,
@@ -1564,8 +1568,10 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   ("Multiclassing" → `multiclass`). The tool accepts a `roster_id` (character to advance) and
   a `class_name` (validated against the index's `heroic-class` and `prestige-class` entries,
   returning `[NOT_FOUND]` with valid class names for unknowns). Prestige class prerequisites
-  (minimum level, BAB, trained skills, feats, talents, Force techniques, Force secrets,
-  special requirements) are validated before any state change with `[ERROR] [RULE_VIOLATION]`
+  (minimum level, BAB, trained skills, feats, talents — either a minimum count from any
+  talent tree or specific named talents the ruleset requires — Force techniques,
+  Force secrets, special requirements) are validated before any state change with
+  `[ERROR] [RULE_VIOLATION]`
   listing each unmet requirement and the character's current value. After automatic stat
   computation (BAB sum, non-stacking defense bonuses, hit points), the tool builds a
   sequential queue of one decision per open choice and emits the first as `[NEED_INPUT]`.
@@ -1583,13 +1589,19 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   conditions: bold talent names (prerequisite talents), `AbilityName N` (ability score
   thresholds), `Base Attack Bonus +N` (BAB thresholds), `Trained in X` (skill training),
   `Proficient with X` or `Armor Proficiency (N)` (weapon/armor proficiencies), and tokens
-  matching the ruleset's feat index (prerequisite feats). Compare each parsed condition
+  matching the ruleset's feat index (prerequisite feats). Feat matching preserves
+  parenthetical qualifiers: `Weapon Proficiency (Advanced Melee Weapons)` does not match
+  `Weapon Proficiency (Simple Weapons)`. Compare each parsed condition
   against the character's current state. Annotate each `[NEED_INPUT]` option with `[OK]` when
   all conditions pass or `[MISSING: <requirement list>]` when any fail. The user may select
   an option with unmet prerequisites; the response logs a warning. Prerequisites referencing
   size, species restrictions, or narrative conditions (member of an organization) are logged
   as informational notes but not treated as mechanical blockers. Prestige class entry
-  requirements are validated from the class's prerequisite text using the same parsing engine.
+  requirements are validated from the class's prerequisite text using the same parsing engine
+  where that text is reliably extractable from the ruleset Markdown. When prerequisite lines
+  are embedded in prose and not uniformly parseable, hardcoded prerequisite objects in the
+  class progression table (REQ-013) are an acceptable fallback, provided each entry is
+  cross-referenced against the source text for correctness.
 - **Destiny, background, and organization steps.** When the ruleset contains destiny, background,
   or organization content types (Appendix A.4), `create_character` includes optional `[NEED_INPUT]`
   steps for each: a destiny step following the ruleset's own destiny selection procedure, a
