@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-03 — Add persona foundations and post-build enrichment appendix
+
+- Added **Section 6.9a — Persona foundations** with eight player guidelines,
+  ten referee guidelines, and a five-step referee conversational loop
+  (describe scene → solicit actions → adjudicate → describe outcome → repeat).
+  Foundations are ruleset-agnostic best practices composed into
+  `persona_briefing` alongside ruleset-specific guidance.
+- Added **REQ-062 — Persona foundations** gating foundation composition into
+  `persona_briefing` with persona-appropriate filtering (player excludes
+  referee-tagged items; referee excludes player-tagged items).
+- Updated **Section 6.9 prompt composition** order to include generic
+  foundations between ruleset-specific guidance and tool/resource listing.
+- Updated **T26** test row to verify foundations presence and persona filtering.
+- Added **Appendix K — Post-Build Persona Enrichment** as an optional research
+  step (does not gate the Definition of Done) for collecting ruleset-specific
+  play advice from community sources, actual plays, and strategy guides after
+  the server passes all gates.
+- Updated Contents, Section 4 requirements overview table, and Appendix E
+  manifest.
+
 ## 2026-08-03 — Spec defect fixes from unchecked-assumption audit
 
 - Fixed **REQ-050** seed-injectivity claim — removed impossible "1000 distinct

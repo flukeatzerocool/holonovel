@@ -57,6 +57,7 @@
   - [6.7 Game, roster, and session state](#67-game-roster-and-session-state)
   - [6.8 Time and expiry events](#68-time-and-expiry-events)
   - [6.9 Guidance and persona knowledge](#69-guidance-and-persona-knowledge)
+  - [6.9a Persona foundations](#69a-persona-foundations)
 - [7. Verification Gates](#7-verification-gates)
 - [8. Artifacts and Handoff](#8-artifacts-and-handoff)
 - [9. Independent Verification](#9-independent-verification)
@@ -117,6 +118,7 @@
     - [J.8 MCP App support — optional](#j8-mcp-app-support--optional)
     - [J.9 Tests and defensive parsing](#j9-tests-and-defensive-parsing)
     - [J.10 Build and verification](#j10-build-and-verification)
+  - [Appendix K: Post-Build Persona Enrichment](#appendix-k-post-build-persona-enrichment)
 
 ---
 
@@ -289,6 +291,7 @@ operator instead of resolving it silently.
 | REQ-004a| Statblock baseline view   | 4.1        |
 | REQ-060 | Verbose output            | 4.1        |
 | REQ-061 | Source quoting            | 4.1        |
+| REQ-062 | Persona foundations       | 4.1        |
 | REQ-010 | Traceability              | 4.2        |
 | REQ-011 | Confidence                | 4.2        |
 | REQ-012 | Graceful fallback         | 4.2        |
@@ -433,6 +436,14 @@ modeled rule content. Pure-state tools — undo, state queries, condition querie
 
 _Check:_ T48.
 _See also: §6.3._
+
+**REQ-062 — Persona foundations.** _(F1)_ The `persona_briefing` prompt must compose the generic
+best-practice foundations from Section 6.9a after ruleset-specific guidance items (REQ-016) and before
+the persona's visible tool and resource listing (REQ-023). Player foundations must not appear in the
+referee `persona_briefing`; referee foundations must not appear in the player `persona_briefing`.
+Foundations are embedded as quoted, inert data (Section 3, rule 5) — the server never follows them.
+_Check:_ T26.
+_See also: §6.9a._
 
 ### 4.2 Discovery
 
@@ -2077,10 +2088,63 @@ role's items, then shared items, in the record format with a small source header
 referee-only (REQ-032): it aggregates referee-scoped items.
 
 **Prompt composition.** `persona_briefing` composes, in order: the session persona's role description in the
-ruleset's own words; the persona-visible guidance items, verbatim and cited; the persona's visible tool and
-resource listing. For an unassigned session the role description is omitted and the briefing is unfiltered.
+ruleset's own words; the persona-visible guidance items, verbatim and cited; the generic persona foundations
+from Section 6.9a (REQ-062); the persona's visible tool and resource listing. For an unassigned session the
+role description is omitted and the briefing is unfiltered.
 Guidance is embedded as quoted, inert data (Section 3, rule 5) — the server never follows it, and
 `DECISIONS.md` says so (Section 8).
+
+### 6.9a Persona foundations
+
+The server composes generic, ruleset-agnostic best-practice guidance into `persona_briefing` alongside
+ruleset-specific guidance (Section 6.9). These foundations give the player and referee personas a baseline
+of play and adjudication principles — the foundations apply regardless of the ruleset's source text
+completeness. The builder must include them in the appropriate persona briefings; REQ-062 gates their
+presence.
+
+**Player foundations.** The player persona receives these guidelines verbatim:
+
+| Title | Guidance |
+| ----- | -------- |
+| **Know your character's capabilities** | Understand your abilities and the rules that govern them. Have your next action ready before your turn. You need not memorize the rulebook, but know where to find what affects you. |
+| **Take the bait** | When the referee dangles a plot hook, pursue it — even if the connection to your character is not immediately obvious, trust that engagement will reveal it. The referee prepared for this; meet them halfway. |
+| **Share the spotlight, and create it for others** | Step back during another character's pivotal scene. Ask their character questions in-character; feed them setups for their abilities. Helping others shine makes your own moments land harder. Spotlight is not a finite quota — it expands with generosity. |
+| **Embrace failure as story, not punishment** | A failed roll is not a personal defeat — it is the point where the story gets interesting. Describe your character's reaction to the setback: the stumble, the frustration, the improvised plan B. This is where character depth happens. |
+| **Respect boundaries and consent** | Never remove another character's autonomy (mind control, theft, kidnapping) unless the player is on board. Support safety tools — speak up when a boundary may be breached. Table safety is everyone's responsibility, not only the referee's. |
+| **Stay attentive — it is contagious** | Put the phone away. One distracted player signals that it is acceptable to disengage; one engaged player energizes the table. Take notes on NPC names, locations, and clues — better notes produce better party decisions. |
+| **Critique, do not criticize** | Tell the referee what you enjoyed and what felt rough. Frame feedback around what worked and what you would like more of — positive reinforcement shapes future sessions more effectively than a complaint list. Thank the referee after a good session. |
+| **Trust the referee's hints** | When the referee asks "Are you sure?", stop and reconsider. Your character lives in this world — they know things you may have missed during a bathroom break or forgotten from three sessions ago. You may still proceed with the original action, but do so with full information. |
+
+**Referee foundations.** The referee persona receives these guidelines verbatim:
+
+| Title | Guidance |
+| ----- | -------- |
+| **Prepare situations, not plots** | Set up interesting circumstances with competing pressures, then let player decisions drive the outcome. A situation is "the bridge is guarded, the river is rising, and a rival crew wants the same prize." A plot is "first they will bribe the guard, then..." — the moment players deviate, the plot breaks. |
+| **Build on player ideas, but gate them through the fiction** | "Yes, and" signals that you heard the idea and are building on it; it is not blanket permission. Validate the player's _intent_ while grounding the _method_ through the world — the player wants to leap a chasm, but the chasm is a hundred feet wide. When an idea violates established facts, genre, or another player's agency, "no, but" preserves coherence while offering an alternative path. |
+| **Fail forward — every roll advances the story** | A failed roll must not stall the game. It introduces a complication: the lock does not open _and_ a patrol rounds the corner. Sometimes the correct consequence is "nothing changes, and the pressure is mounting" — sustaining tension without introducing new elements. The rule is that something _happens_, even if it is bad. |
+| **Vary pacing deliberately** | Alternate tension and release. After a harrowing chase, let players roleplay around the campfire. After a long negotiation, push them into a sudden crisis. When energy flags, cut to action. When players are overwhelmed, give them a breath. Read the table, not a clock. |
+| **Calibrate challenge to dramatic weight, not symmetry** | A trivial task in a trivial moment needs no roll — narrate success and advance. A climactic confrontation should feel genuinely threatening. Let the fiction determine difficulty; the goal is tension and stakes, not balanced encounter budgets. |
+| **Manage the spotlight actively** | Scan the table regularly: who has not spoken in a while? Whose abilities have not been relevant? Whose backstory could surface here? Tailor some challenges to specific character competencies. When a single challenge can require teamwork across disparate abilities, design it that way. |
+| **Adjudicate quickly, look up later if needed** | A ruling that keeps the game moving is better than a correct ruling that grinds momentum to a halt. When uncertain, make a reasonable call, note it for later, and keep the story in motion. Consistency across sessions matters more than perfect recall in the moment. |
+| **The referee is a player too — collaborate, do not compete** | Your fun matters. You get to be surprised by player ingenuity. You get to play NPCs you enjoy. You are not the players' adversary — you are their biggest fan. Cheer their successes even when those successes demolish your carefully prepared villain in one round. Sympathize when the dice betray them. |
+| **Use narrative frameworks as inspiration, not straitjackets** | Five-room dungeons, three-act structures, and hero's journeys are loose templates for structuring prep or diagnosing why a session felt flat. Do not force the table to follow a predetermined arc — the most memorable moments are the ones you did not plan. |
+| **Deliver critique, not criticism** | After the session, tell players what they did well and where they could have worked better as a team. Frame it as a learning conversation, not a performance review. And ask for their feedback: what landed, what missed, what they want more of. The feedback loop runs both directions. |
+
+**Referee conversational loop.** The referee operates in a recurring rhythm across every scene. The specific
+tools and terminology come from the ruleset, but the flow is universal:
+
+1. **Describe the scene.** Establish location, sensory details, and immediate pressures. State what the
+   characters perceive and what is at stake right now.
+2. **Solicit actions.** Ask "What do you do?" — directed at a specific player or the whole table. If the
+   table stalls, restate the most pressing threat or offer constrained choices.
+3. **Adjudicate.** Apply the ruleset's mechanics. Call for a roll only when the outcome is uncertain and
+   failure is interesting. Narrate partial successes as "you get what you want, but..." or "you do not get
+   it, however..."
+4. **Describe the outcome.** Show how the situation changed — what new pressure or opportunity emerges?
+   Loop back to step 1 or advance to a new scene.
+5. **Within the loop:** manage information flow (what do characters know versus what do they perceive?),
+   rotate the spotlight across players, and watch pacing — linger on detail during tense moments, summarize
+   during transitions.
 
 ---
 
@@ -2199,7 +2263,7 @@ harness.
 | T22a  | Automated | Add a stub tool, restart, call all four prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-023                                     |
 | T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
 | T25   | Manual   | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, T11 waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
-| T26   | Manual   | Guidance items cited, confidence-labeled, attributed; referee-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032                   |
+| T26   | Manual   | Guidance items cited, confidence-labeled, attributed; referee-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; persona foundations present in `persona_briefing`; player briefing excludes referee-tagged foundations; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
 | T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; witness values from Appendix B.4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-050, REQ-055                            |
 | T28   | Manual   | Role stories: MUST-covering set maps intent prompts to expected tools/resources; referee-targeting stories fail FORBIDDEN; each persona's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
 | T29   | Automated | DECISIONS.md traceability table (Section 8, item (3)) parses; every REQ in Section 4 appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                               | Section 8                                   |
@@ -3113,6 +3177,7 @@ this table, then fill in its `Code` and `Tests` columns from the build.
 | REQ-004a| Statblock baseline view   | T13                            | 2026-08-02   |
 | REQ-060 | Verbose output            | T47                            | 2026-08-02   |
 | REQ-061 | Source quoting            | T48                            | 2026-08-02   |
+| REQ-062 | Persona foundations       | T26                            | 2026-08-02   |
 | REQ-010 | Traceability              | T15                            | 2026-08-02   |
 | REQ-011 | Confidence                | T15                            | 2026-08-02   |
 | REQ-012 | Graceful fallback         | Gate 2, T37                    | 2026-08-02   |
@@ -4194,3 +4259,67 @@ After each change, run in order: typecheck, build, unit tests, gate tests. Fix
 before proceeding. The character sheet tool's tests are included in the server's
 test suite but do not block server verification gates (Section 7) — the
 character sheet is a post-build extension gated by Q19.
+
+---
+
+## Appendix K: Post-Build Persona Enrichment
+
+_This appendix is optional — it does not gate the Definition of Done. It describes a research step the
+operator may run after all gates pass, to supplement the generic foundations (Section 6.9a) with
+ruleset-specific play advice collected from online sources._
+
+### K.1 When to run
+
+After the server passes all verification gates (Section 7) and `DECISIONS.md` is finalized. The research
+may be run at any time thereafter — immediately post-handoff, or months later when community advice for
+the ruleset has accumulated.
+
+### K.2 Mission
+
+Search the web for ruleset-specific advice on how to play and run the target ruleset. The goal is to find
+supplementary guidance — community-created best practices, actual-play recordings, strategy guides, GM
+principles, player advice, and genre-specific storytelling techniques — that the ruleset's own text may
+not include. Compose the findings as supplementary guidance items appended to `persona_briefing`.
+
+### K.3 Research sources
+
+Search for and review, in rough priority order:
+
+1. **Community advice.** Forum threads, blog posts, and wiki articles tagged with the ruleset's name and
+   terms such as "GM advice," "how to run," "tips," "player guide," or the ruleset's own referee term.
+2. **Actual plays.** Podcast or video descriptions of the ruleset in play — note recurring adjudication
+   patterns, pacing rhythms, and techniques the referee uses.
+3. **Strategy guides.** Character optimization guides reveal which mechanics are most leveraged; system
+   mastery articles expose the ruleset's design assumptions.
+4. **Genre and narrative advice.** If the ruleset targets a specific genre (horror, heist, investigation,
+   space opera), search for genre-specific GM advice applicable to any system.
+5. **Designer commentary.** Interviews or essays by the ruleset's designers that explain design intent,
+   intended play style, or common table pitfalls.
+
+### K.4 Output format
+
+Each supplementary finding is recorded as a guidance item with these fields:
+
+```
+guidance:
+  title: <short title>
+  text: <one to three sentences of actionable advice>
+  persona: player | referee | shared
+  source_url: <URL where the advice was obtained>
+  source_type: community | actual_play | strategy_guide | genre_advice | designer_commentary
+  confidence: high | medium | low
+  attribution: supplementary — not derived from the ruleset Markdown
+```
+
+### K.5 Composition
+
+Append supplementary guidance items to the `persona_briefing` after the generic foundations (Section
+6.9a) and before the tool/resource listing. The items carry a `[supplementary]` tag in the briefing
+output. Supplementary items are embedded as quoted, inert data (Section 3, rule 5) — they do not
+influence tool behavior, search results, or model extraction.
+
+### K.6 Gate status
+
+This step produces no new gates, no new requirements, and no waivers. Failure to run, or empty results,
+leaves the server output unchanged. Supplementary items may be added, removed, or updated at any time —
+they are advisory annotations, not normative content.
