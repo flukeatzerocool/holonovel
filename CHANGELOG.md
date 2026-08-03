@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-03 — Web-scrape intake, Gate 0, permissive-license catalog, and self-contained server bundling
+
+- Replaced Q11 with tri-modal intake: Markdown files, PDF/HTML import, or web scrape from a
+  permissively-licensed SRD.
+- Added Q15 (ruleset license type) to the intake table.
+- Added §5.1a — web-scrape sub-flow with catalog presentation, license verification, sample-page
+  dry-run for converter validation, and Gate 0 hard-stop Markdown review before discovery begins.
+- Added Appendix I — 10-entry permissively-licensed ruleset catalog (D&D 3.5/5e, Pathfinder 1e/2e,
+  Starfinder, Traveller, FATE Core, Blades in the Dark, Dungeon World, Old-School Essentials) with
+  search escape hatch.
+- Added self-contained server bundling to §5.5 (ruleset copied into server output as `ruleset/`
+  internal and `ruleset-user/` user-facing copies at build time).
+- Updated §6.6 TTRPG_RULESET description for bundled paths.
+- Updated §5.6 checkpoint list with Gate 0 stage.
+- Added §F.1 Common HTML patterns — documented d20srd.org and MediaWiki site structures for
+  converter authors.
+- Updated README.md: new intake-flow description, web-scrape catalog mention, self-contained output,
+  project status update (D&D 3.5 SRD exercise), revised project structure tree.
+
 ## 2026-08-02 — README restructured and MIT license added
 
 - Added LICENSE file (MIT).

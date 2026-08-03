@@ -37,6 +37,7 @@
   - [4.6 Non-functional](#46-non-functional)
 - [5. Discovery](#5-discovery)
   - [5.1 Intake](#51-intake)
+  - [5.1a Web-scrape sub-flow (Q11-C) and Gate 0](#51a-web-scrape-sub-flow-q11-c-and-gate-0)
   - [5.2 Chunked reading (F2)](#52-chunked-reading-f2)
   - [5.2a Ruleset complexity](#52a-ruleset-complexity)
   - [5.2b Capabilities self-assessment](#52b-capabilities-self-assessment)
@@ -103,6 +104,7 @@
     - [H.11 Special elements](#h11-special-elements)
     - [H.12 Output conventions](#h12-output-conventions)
     - [H.13 Verification checklist](#h13-verification-checklist)
+  - [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
 
 ---
 
@@ -273,6 +275,8 @@ operator instead of resolving it silently.
 | REQ-003 | Roll transparency         | 4.1        |
 | REQ-004 | Truncation                | 4.1        |
 | REQ-004a| Statblock baseline view   | 4.1        |
+| REQ-060 | Verbose output            | 4.1        |
+| REQ-061 | Source quoting            | 4.1        |
 | REQ-010 | Traceability              | 4.2        |
 | REQ-011 | Confidence                | 4.2        |
 | REQ-012 | Graceful fallback         | 4.2        |
@@ -381,6 +385,42 @@ name; only the condition-track dimension is collapsed by default, not the varian
 condition-track progression rule is documented once as a rules-section reference (REQ-022) rather than
 repeated per statblock. The full output, including every condition row, is always reachable with
 `all_conditions=true`. _Check:_ T13.
+
+**REQ-060 — Verbose output.** _(F1)_ Tool output is comprehensive and styled as narrative — the server
+describes what happens in the fiction, not just what the dice produced. Every tool response:
+
+- Returns every field the ruleset defines for the modeled entity, action, or procedure — no curated subset.
+- Presents the full calculation path: each modifier labeled and its contribution shown, the arithmetic
+  traceable, and the outcome rendered in prose.
+- Lookup results return the entry's full text, never a summary or abridged view.
+- Character and entity operations include all derived statistics alongside the inputs.
+- Combat and skill results wrap the transparent roll data (REQ-003) in a scene-appropriate description:
+  the result sentence precedes the mechanical breakdown.
+
+The verbosity rule applies to every registered tool. A tool whose natural scope is already
+complete — undo, audit reads, state queries — satisfies it by construction.
+
+_Check:_ T47.
+_See also: §6.3._
+
+**REQ-061 — Source quoting.** _(F1)_ When a tool response conveys ruleset-derived content, the response
+includes the rules' own words. After the structured output, a horizontal-rule separator introduces a
+source block:
+
+```
+<file>#<anchor>
+<verbatim Markdown excerpt>
+```
+
+The excerpt is the exact Markdown text from which the structured answer was derived and preserves the
+original formatting — bold labels, tables, and lists. The excerpt is attributed to its source file and
+anchor.
+
+This requirement applies to lookup tools, search results, and any tool whose answer synthesizes or repeats
+modeled rule content. Pure-state tools — undo, state queries, condition queries, audit reads — are exempt.
+
+_Check:_ T48.
+_See also: §6.3._
 
 ### 4.2 Discovery
 
@@ -1011,10 +1051,60 @@ above.
 | Q8  | Build-time network access                           | yes (dependency installation and Gate 1 specification pinning only, REQ-051) / no                                                                                                                                               | yes                                                                     |
 | Q9  | Initialize a git repository in the output directory | yes / no                                                                                                                                                                                                                        | no                                                                      |
 | Q10 | Docker packaging (Dockerfile)                       | yes / no                                                                                                                                                                                                                        | no                                                                      |
-| Q11 | Source format                                       | Markdown, or another format (PDF, …) — non-Markdown triggers Appendix F conversion                                                                                                                                              | Markdown                                                                |
+| Q11 | Source format                                       | **A.** Markdown files — operator supplies paths; skip prep. **B.** PDF/HTML import — triggers Appendix F conversion. **C.** Scrape from a website — triggers the web-scrape sub-flow (Section 5.1a). | A (Markdown)                                                          |
 | Q12 | Ruleset edition or title                            | The canonical edition or title as stated in the ruleset header/metadata; `DECISIONS.md` section (1) must record it, and the `DECISIONS.md` title must match it                                                                  | Extracted from the ruleset header; if ambiguous, ask the operator       |
 | Q13 | MCP client configuration entry                      | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                                                                       | unknown — validate later, logged in `DECISIONS.md`                      |
 | Q14 | Client config schema location                       | URL or reference to the chosen client's MCP server configuration documentation, covering field names, value formats, required fields, and client-side connection timeout; if the client supports a configurable timeout, set it to accommodate the server's full-ruleset indexing time                  | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
+| Q15 | Ruleset license type                                | OGL 1.0a / CC BY 4.0 / CC BY-SA 4.0 / CC BY 3.0 / ORC / GFDL 1.3 / proprietary / unknown | Extracted from the source's legal page; "unknown" if ambiguous          |
+
+### 5.1a Web-scrape sub-flow (Q11-C) and Gate 0
+
+When the operator selects Q11-C (web scrape):
+
+**Catalog presentation.** Present the permissively-licensed ruleset catalog (Appendix I).
+The operator selects an entry, chooses "Other — suggest my own URL," or asks to search for
+more games with open licenses. Record the selection in `DECISIONS.md`.
+
+**License verification.** Fetch the source site's legal/license page. Verify the license
+explicitly permits reproduction. If the license cannot be verified, present what was found
+and ask the operator to confirm before proceeding. Record the license type (Q15) and
+verification URL in `DECISIONS.md`. The builder is not the copyright police, but this
+check is mandatory — an unverified-license build blocks unless the operator explicitly
+overrides it with a logged reason.
+
+**Scrape and convert.** Scrape site content and convert to Markdown per Appendix H
+conventions. Before batch-converting the entire site, sample the converter against **2–4
+representative pages** spanning the ruleset's content types — at minimum one entity/class
+page, one table-bearing page, one spell/power/procedure page, and one index or
+table-of-contents page. Verifying this sample catches structural mismatches — wrong content
+selector, footer leakage, link corruption, heading flattening — before they propagate across
+hundreds of pages. Correct any failures, then proceed with the full batch. Skip the sample
+only when the source is a single page. Non-Markdown source pages trigger Appendix F
+conversion first. The resulting Markdown goes through the Appendix H pre-check (H.13)
+before Gate 0.
+
+**Gate 0 — Markdown review.** This gate fires after any source-format path — supplied
+Markdown (Q11-A), converted PDF/HTML (Q11-B), or scraped web content (Q11-C) — once the
+Appendix H pre-check (H.13) passes and before chunked reading (Section 5.2) begins. It is the
+last chance to inspect the ruleset before discovery work begins.
+
+1. The builder presents the finalized Markdown file list with: file name, size in bytes,
+   line count, and a table of contents (every `##` heading with line number).
+2. The builder presents a sampling of the first 100 lines of each file, or the full first
+   section if shorter.
+3. The builder asks: _"Does this look correct? Proceed with build?"_
+4. The operator must explicitly confirm. No confirmation — the build blocks here.
+5. In non-interactive mode, log the gate as "unverified Gate 0" and proceed with a warning
+   recorded in `DECISIONS.md`.
+6. Record the confirmation (or the unverified flag) in `DECISIONS.md` as the "Gate 0 —
+   Markdown review" entry.
+
+Gate 0 does not apply when the ruleset is the Appendix B golden fixture — that fixture is
+self-verifying and does not require operator review.
+
+Internally, this section's checkpoint fires at the same stage as the Conversion checkpoint
+in the Section 5.6 checkpoint list, or immediately after intake when Q11-A (Markdown) is
+selected with no conversion step.
 
 ### 5.2 Chunked reading (F2)
 
@@ -1187,11 +1277,20 @@ source of truth:
 A layer whose acceptance check fails is treated as a failed checkpoint (Section 5.6): fix blockers before the
 next layer begins, and record every deviation in `DECISIONS.md`.
 
+**Self-contained server.** After the build passes all layer acceptance checks, copy the
+finalized ruleset Markdown file(s) to `ruleset/` in the server output directory. This is the
+server's internal reference copy — it reads from this bundled directory at runtime, not from
+any external file path. Simultaneously, place a `ruleset-user/` directory at the output root
+containing the same files as the operator's reference copy. Both copies are frozen at build
+time and covered by the intake hash (REQ-014). `TTRPG_RULESET` in the client configuration
+entry points at the bundled `ruleset/` directory using a path relative to the server root.
+
 ### 5.6 Continuous verification
 
 Do not wait for Section 7's gates to find defects. Maintain a structured task list for the build stages —
-intake, conversion, discovery, layers 1–2, layers 3–4, layers 5–6, gates, and handoff — and update it as
-stages begin, complete, or are blocked. Record the list in `DECISIONS.md` (Section 8, item (6)) with one
+intake, Gate 0 (if applicable), conversion, discovery, layers 1–2, layers 3–4, layers 5–6,
+gates, and handoff — and update it as stages begin, complete, or are blocked. Record the list in
+`DECISIONS.md` (Section 8, item (6)) with one
 entry per stage: status (`not started` / `in progress` / `blocked` / `complete`), blocker or finding, and the
 checkpoint evidence reference. The list is reviewed at the start of each checkpoint and updated at the end of
 every stage, so the builder's own context does not become the sole record of progress.
@@ -1218,6 +1317,10 @@ mutating action — querying a running server, reading a file, executing a read-
    invented beyond the Markdown (REQ-010, REQ-013). Re-run any Section 7 tests already applicable at the
    checkpoint.
 2. **Checkpoint focus.**
+
+   **Gate 0** (applicable to all intake paths; see Section 5.1a). The operator has confirmed the
+   finalized Markdown against the presented file list and sampling. In non-interactive mode, the
+   "unverified Gate 0" flag is logged. Confirmation or flag recorded in `DECISIONS.md`.
 
    **Conversion** (Appendix F; non-Markdown only). The frozen converted Markdown: document order
    preserved across page breaks and columns; grids reassembled, merged cells handled; page furniture
@@ -1501,7 +1604,17 @@ stat-array. Snapshot restored.`).
   `… [truncated — full content: output://<tool>/<counter>]`. The `output://` scheme is served through a
   resource template; payloads are session-local, bounded by `TTRPG_PAYLOADS` (Section 6.6), and
   persona-filtered (REQ-032). The counter is per-session and per-tool, starting at 1. Minting beyond the
-  bound evicts the oldest; an evicted or foreign URI fails `[NOT_FOUND]` (REQ-002).
+   bound evicts the oldest; an evicted or foreign URI fails `[NOT_FOUND]` (REQ-002).
+- **Source quoting** (REQ-061): After the structured output of a lookup tool, search result, or
+   rule-derived response, a `---` separator line introduces the verbatim Markdown source:
+
+   ```markdown
+   <file>#<anchor>
+   <verbatim source excerpt>
+   ```
+
+   The excerpt preserves the original formatting and is attributed to its source file and anchor.
+   Pure-state tools are exempt.
 
 ### 6.4 Tool-name conventions
 
@@ -1615,6 +1728,8 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   with normalized lookup tokens for every anchor, so a single exact-match token lookup at
   runtime is sufficient; no fuzzy or substring search is required at lookup time. `search_rules`
   is the fallback for unresolved names and performs its own word-based search (REQ-012).
+- **Source quoting.** Every lookup tool and any Query tool whose response conveys modeled rule
+  content must include the verbatim source excerpt per REQ-061 (Section 6.3 output convention).
 - **Advantage and disadvantage.** Where a tool supports advantage or disadvantage, the parameter is
   structured — a boolean or an enum such as `{"advantage" | "disadvantage"}` — not a free-text sigil such
   as `[+]` or `[-]`. The output states which modifier was applied (Section 6.3).
@@ -1657,7 +1772,7 @@ is a presentation limit, not a data limit; the full domain remains retrievable t
 
 | Key                | Purpose                                                                                                                                | Default                                                     |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `TTRPG_RULESET`    | Ruleset file(s) to serve — comma-separated paths in intake order; no globbing                                                          | required                                                    |
+| `TTRPG_RULESET`    | Ruleset file(s) to serve — comma-separated paths in intake order relative to the bundled `ruleset/` directory inside the server output (Section 5.5); no globbing. The operator's reference copy is at `ruleset-user/` in the output root. | required                                                    |
 | `TTRPG_STATE_DIR`  | State directory                                                                                                                        | required                                                    |
 | `TTRPG_PERSONA`    | Session persona — `player`/`referee` or the ruleset's own role terms; multi-word role terms slugged per Section 6.1 (`lantern-keeper`) | unassigned (no persona; full access, REQ-030)               |
 | `TTRPG_SEED`       | Seed for a game's RNG, used at game creation (REQ-050); a value conflicting with a persisted generator warns on stderr and is ignored  | default 0, with a startup stderr note; pinned for test runs |
@@ -1938,6 +2053,8 @@ harness.
 | T44   | Automated | Player persona boundary: player request for referee-only content returns `[ERROR] [FORBIDDEN]` or stripped response directing to referee session; no hidden row revealed                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-032, REQ-058                            |
 | T45   | Automated | spec_health threshold: assert overall confidence is at least 80% and MUST-action coverage is 100% after waivers; if the score is below threshold, assert the build stops and `DECISIONS.md` records a remediation plan                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-025, REQ-011                            |
 | T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Waiver: may only be waived when the structural pass (Section 5.2) confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` Section 8, item (5) with the single-source-file evidence from the structural pass. | REQ-013         |
+| T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-060                                     |
+| T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 
 Automated tests must ship a runnable script in the project directory
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exercises the test and returns
@@ -2786,6 +2903,8 @@ this table, then fill in its `Code` and `Tests` columns from the build.
 | REQ-003 | Roll transparency         | Gate 2                         | 2026-08-02   |
 | REQ-004 | Truncation                | T13                            | 2026-08-02   |
 | REQ-004a| Statblock baseline view   | T13                            | 2026-08-02   |
+| REQ-060 | Verbose output            | T47                            | 2026-08-02   |
+| REQ-061 | Source quoting            | T48                            | 2026-08-02   |
 | REQ-010 | Traceability              | T15                            | 2026-08-02   |
 | REQ-011 | Confidence                | T15                            | 2026-08-02   |
 | REQ-012 | Graceful fallback         | Gate 2, T37                    | 2026-08-02   |
@@ -2839,6 +2958,33 @@ stage's checkpoint (Section 5.6). Conversion never modifies the sources.
 - Page furniture — running heads, page numbers, boilerplate — is stripped.
 - Conversion artifacts are flagged, not trusted: anchors whose bodies are empty or near-empty, and headings
   that are stray numerals or symbols, are marked for review rather than silently indexed.
+
+### F.1 Common HTML patterns
+
+When writing an HTML-to-Markdown converter, consult these known structure notes before
+extracting content. They are not exhaustive — every source site is different — but they
+capture the patterns found on the most common SRD hosts.
+
+**d20srd.org (Hypertext d20 SRD).** Content pages are XHTML 1.1. The `<body>` element
+contains content headings directly, not inside a content wrapper. Navigation lives in
+early siblings (`<div id="header">`, `<div id="div-gpt-ad-…">`). Content starts at the
+first `<h1>`, `<h2>`, or `<h3>` after the header divs. Content ends where a `<p>`
+contains the string `The Hypertext d20 SRD`. Between start and end, all block-level
+elements (headings, paragraphs, tables, lists, blockquotes) are the ruleset content.
+`<a name="…">` elements are anchor targets, not navigation. Ad and footer text —
+`GOOGLE 300x250 ADS`, `BoLS Interactive LLC`, `removing standards place holder` — should
+be stripped. `<a href="javascript:void(0);">` links are dice-roller placeholders; keep
+the link text and drop the `href`.
+
+**MediaWiki (dandwiki.com and derivatives).** Content lives inside
+`<div class="mw-parser-output">` (fall back to `<div id="mw-content-text">` if absent).
+Headings use `<span class="mw-headline">` inside `<h2>`–`<h6>`; strip the `[edit]`
+suffix from heading text. The table of contents is `<div id="toc">` — skip it entirely.
+Page-chrome paragraphs beginning with `Jump to:`, `Back to Main Page`, or `« Back to`
+are navigation, not content. Category and retrieval footer text — containing
+`Retrieved from` or `Categories:` — terminates the content region. Image-heavy pages may
+use `<table class="d20">` as float-right stat-block wrappers; preserve the table
+structure as-is.
 
 **Pin.** The converter and its version are recorded in `DECISIONS.md` (Section 8, item (2)); the same
 converter produces the frozen Markdown and any later diagnostic re-run.
@@ -3394,3 +3540,36 @@ Before declaring the ruleset ready, confirm:
 - [ ] The output file is valid UTF-8 with no BOM.
 - [ ] Output file(s) are named `<ruleset_slug>.md` (lowercase-hyphenated).
 - [ ] No commentary or meta-notes appear in the ruleset Markdown output.
+
+---
+
+## Appendix I: Permissively-Licensed Ruleset Catalog
+
+This catalog lists TTRPG rulesets published under open licenses (OGL, CC BY, CC BY-SA,
+ORC, or equivalent) for which a full SRD or ruleset is freely available online. The
+operator may select from this list during the Q11-C web-scrape sub-flow (Section 5.1a) or
+suggest their own URL.
+
+**Disclaimer.** This catalog is a factual reference, not legal advice. The builder verifies
+each source's license at scrape time and records the finding in `DECISIONS.md`. Inclusion
+here does not imply that any particular website's Terms of Service permit automated
+scraping; the operator is responsible for complying with the source site's ToS.
+
+| #    | Game                        | License                           | Key SRD URL                | Notes                                                       |
+| ---- | --------------------------- | --------------------------------- | -------------------------- | ----------------------------------------------------------- |
+| 1    | Dungeons & Dragons 3.5      | OGL 1.0a                          | d20srd.org                 | Core SRD covers PHB, DMG, MM content.                       |
+| 2    | Dungeons & Dragons 5e (2014) | OGL 1.0a + CC BY 4.0 (SRD 5.1)   | 5esrd.com                  | SRD 5.1 is dual-licensed.                                   |
+| 3    | Pathfinder 1e               | OGL 1.0a                          | d20pfsrd.com               | Official partner site is Archives of Nethys (aonprd.com).    |
+| 4    | Pathfinder 2e               | OGL 1.0a + ORC                    | 2e.aonprd.com              | Remastered content uses ORC; legacy OGL for earlier printings. |
+| 5    | Starfinder 1e               | OGL 1.0a                          | aonsrd.com                 | Archives of Nethys hosts the official SRD.                   |
+| 6    | Traveller                   | OGL 1.0a                          | traveller-srd.com           | Mongoose Publishing SRD; 40+ year sci-fi legacy.             |
+| 7    | FATE Core                   | OGL 1.0a + CC BY 3.0              | fate-srd.com                | Multiple ENNIE awards; widely hacked narrative system.       |
+| 8    | Blades in the Dark          | CC BY 4.0                         | bladesinthedark.com (FitD SRD) | ENNIE winner; spawned 50+ Forged in the Dark games.          |
+| 9    | Dungeon World               | CC BY 3.0                         | dungeonworldsrd.com         | Most popular PbtA fantasy game.                              |
+| 10   | Old-School Essentials       | OGL 1.0a                          | necroticgnome.com (SRD)     | Top OSR retroclone; known for clarity and layout.            |
+
+**Search escape hatch.** During the Q11-C sub-flow, the operator may choose "Other — search
+for more games with open licenses." The builder runs a web search for SRD/open-license
+TTRPGs, presents up to 5 additional candidates with license confirmation fetched from each
+source, and lets the operator select or reject. This keeps the appendix lean at 10 entries
+while preserving discoverability.

@@ -1,21 +1,40 @@
 # Holonovel
 
-Holonovel is a build prompt that instructs an AI agent how to turn Markdown
-tabletop RPG rulebooks into an interactive MCP server.
+Holonovel is a build prompt that instructs an AI agent how to turn tabletop RPG
+rulesets — from local Markdown files, PDFs, or scraped web SRDs — into an
+interactive MCP server.
 
 ## What is Holonovel?
 
 Tabletop RPG players and game masters want their rulebooks at their fingertips —
 searchable rules, automated dice rolls, combat tracking — but wiring up a tool
 bridge for every game system is tedious, error-prone manual work. Holonovel
-eliminates that work. Drop in your rulebooks as Markdown, run one AI agent, and
-you get a fully functional MCP server.
+eliminates that work. Provide your rulebooks in any supported format, run one AI
+agent, and you get a fully functional MCP server.
 
 `holonovel.md` is a self-contained build specification. An AI agent reads it
-alongside your Markdown ruleset, then follows the spec to parse the source
-material, model every rule as structured data, verify internal consistency, and
-package the result into a working MCP server. No glue code, no hand-written
-integrations — the spec drives the entire build.
+alongside your ruleset, then follows the spec to parse the source material, model
+every rule as structured data, verify internal consistency, and package the result
+into a working MCP server. No glue code, no hand-written integrations — the spec
+drives the entire build.
+
+**Source intake.** Holonovel accepts rulesets through three paths:
+
+- **Markdown files** — you already have formatted Markdown; skip prep and build
+  directly.
+- **PDF/HTML import** — convert PDF rulebooks or HTML source into spec-compliant
+  Markdown via the Appendix F conversion pipeline.
+- **Web scrape** — scrape an online SRD (System Reference Document) from a
+  permissively-licensed game and convert automatically. Appendix I provides a
+  catalog of ten permissively-licensed TTRPGs you can choose from, or you can
+  suggest your own URL. The spec verifies the source's license before scraping,
+  and the builder presents a hard-stop review of the converted Markdown before
+  any server code is written.
+
+**Self-contained output.** At build time, the finalized ruleset Markdown is
+bundled into the server output — an internal copy the server reads at runtime,
+and a user-facing copy (`ruleset-user/`) for your own reference. The server
+requires no external file paths after build.
 
 The finished server gives you rules-aware dice rolls, initiative and combat
 management, monster and spell lookups, equipment catalogs, character sheets with
@@ -36,7 +55,8 @@ want to skip hand-wiring an MCP server and let AI build the bridge instead.
 
 Holonovel is in active development. The specification is stabilizing; the build
 pipeline has been tested against D&D 2024 (Player's Handbook, Dungeon Master's
-Guide, Monster Manual). No formal versioning yet — track changes in
+Guide, Monster Manual). The web-scrape intake path has been exercised against
+the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
 [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
@@ -50,15 +70,23 @@ Guide, Monster Manual). No formal versioning yet — track changes in
 ## Quick Start
 
 1. Clone this repo or download [`holonovel.md`](holonovel.md).
-2. Place your ruleset Markdown files alongside `holonovel.md`.
+2. Choose your ruleset source:
+   - **Markdown:** place your `.md` files alongside `holonovel.md` and feed
+     them to the agent.
+   - **PDF/HTML:** point the agent at the source files; it converts them to
+     Markdown first (Appendix F).
+   - **Web SRD:** ask the agent to scrape a permissively-licensed game. It
+     presents a catalog of ten games (D&D 3.5/5e, Pathfinder 1e/2e, Starfinder,
+     Traveller, FATE, Blades in the Dark, Dungeon World, Old-School Essentials)
+     or you can suggest your own URL. The spec verifies the license before
+     scraping.
 3. Feed the spec and your ruleset to an AI agent:
 
-   > Use holonovel.md to build a server using `players-handbook.md`.
+   > Use holonovel.md to build a server from `players-handbook.md`.
 
 4. The agent parses, models, verifies, and packages the ruleset into a working
-   MCP server. If the pre-check finds the ruleset deficient in Markdown
-   formatting, the builder applies formatting rules to the source before
-   building begins.
+   MCP server. A hard-stop review gate asks you to confirm the Markdown looks
+   correct before discovery work begins.
 5. (Optional) Validate the spec itself:
 
    ```sh
@@ -99,8 +127,10 @@ Also available separately:
 ```
 Holonovel/
 ├── holonovel.md                ← the complete build specification
-│                                 (includes the ruleset preparation
-│                                 prompt as Appendix H)
+│                                 (includes intake workflow, web-scrape
+│                                 sub-flow, hard-stop readiness gates,
+│                                 and ruleset preparation prompt as
+│                                 Appendix H)
 ├── character-sheet-generator.md  ← prompt: build character sheet
 │                                    rendering on top of a holonovel-built
 │                                    server
