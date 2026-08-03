@@ -66,7 +66,7 @@ function extractReqIndex(text: string): Map<string, string> {
       if (colMap && cells.length >= Math.max(...colMap.values()) + 1) {
         const reqId = cells[colMap.get("REQ")!];
         const title = cells[colMap.get("Title")!];
-        if (/^REQ-\d{3}$/.test(reqId)) {
+        if (/^REQ-\d{3}[a-z]?$/.test(reqId)) {
           reqs.set(reqId, title);
         }
       } else if (!line.trim().startsWith("|")) {
@@ -87,9 +87,9 @@ function extractTestIds(text: string): Set<string> {
     }
     if (inTable) {
       if (line.trim().startsWith("| ---")) continue;
-      const m = line.match(/^\|\s*((?:T\d+)(?:\s*,\s*(?:T\d+))*)\s*\|/);
+      const m = line.match(/^\|\s*((?:T\d+[a-z]?)(?:\s*,\s*(?:T\d+[a-z]?))*)\s*\|/);
       if (m) {
-        for (const tid of m[1].matchAll(/T\d+/g)) {
+        for (const tid of m[1].matchAll(/T\d+[a-z]?/g)) {
           tests.add(tid[0]);
         }
       } else if (!line.trim().startsWith("| T")) {
@@ -150,7 +150,7 @@ function findReqCitations(text: string): Set<string> {
     }
   }
   const combined = beforeApx + afterApx;
-  const matches = combined.matchAll(/\b(REQ-\d{3})\b/g);
+  const matches = combined.matchAll(/\b(REQ-\d{3}[a-z]?)\b/g);
   return new Set(Array.from(matches, (m) => m[1]));
 }
 
@@ -163,7 +163,7 @@ function findTestCitations(text: string): Set<string> {
   } else {
     combined = text;
   }
-  const matches = combined.matchAll(/\b(T\d+)\b/g);
+  const matches = combined.matchAll(/\b(T\d+[a-z]?)\b/g);
   return new Set(Array.from(matches, (m) => m[1]));
 }
 

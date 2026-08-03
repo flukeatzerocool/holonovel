@@ -53,6 +53,7 @@
   - [6.3 Output conventions](#63-output-conventions)
   - [6.4 Tool-name conventions](#64-tool-name-conventions)
   - [6.5 Decision-option generation](#65-decision-option-generation)
+    - [6.5.1 Sequential Decision Queue](#651-sequential-decision-queue)
   - [6.6 Configuration surface](#66-configuration-surface)
   - [6.7 Game, roster, and session state](#67-game-roster-and-session-state)
   - [6.8 Time and expiry events](#68-time-and-expiry-events)
@@ -85,7 +86,8 @@
   - [11.11 Phase completion (final)](#1111-phase-completion-final)
 - [Appendices](#appendices)
   - [Appendix A: Markdown Parsing Heuristics](#appendix-a-markdown-parsing-heuristics)
-    - [A.4 Content-type detection heuristics](#a4-content-type-detection-heuristics)
+    - [A.1 Content-type detection heuristics](#a1-content-type-detection-heuristics)
+    - [A.2 Structured Progression Extraction](#a2-structured-progression-extraction)
   - [Appendix B: Golden Fixture](#appendix-b-golden-fixture)
     - [B.1 Fixture ruleset (tin_lanterns.md)](#b1-fixture-ruleset-tin_lanternsmd)
     - [B.2 Expected model excerpt](#b2-expected-model-excerpt)
@@ -709,7 +711,7 @@ _See also: §6.4._
  The player persona's reported confidence score is the gating metric.
 
 The confidence score is computed from the actual extracted item counts (Section 5.3,
-Appendix A.4), not a literal string. The `spec_health` output includes the formula
+Appendix A.1), not a literal string. The `spec_health` output includes the formula
 expansion — `HIGH=⟨n⟩, MEDIUM=⟨m⟩, LOW=⟨k⟩ → ⟨score⟩%` — computed at call time from
 the rules index and the content-type classifications. A `spec_health` that reports a
 constant rather than a computed value fails T45.
@@ -1091,7 +1093,7 @@ B references A) at intake as a structural defect. A file that is purely referenc
 tables, NPC stat blocks, spell descriptions — is labeled a **reference book** in the intake record. A
 file that is predominantly narrative — adventure modules, setting descriptions, campaign frameworks —
 is labeled a **narrative book**. Narrative books that contain embedded stat blocks (mechanical entries
-within prose sections) follow the embedded-extraction heuristic in Appendix A.4. The classification
+within prose sections) follow the embedded-extraction heuristic in Appendix A.1. The classification
 and intake order are recorded in `DECISIONS.md` (Section 8, item (4)).
 
 **Assumptions check.** Before discovery begins, verify this prompt's structural assumptions against the
@@ -1132,7 +1134,7 @@ intake record. An answer of "all defaults" is valid; record each default taken. 
 is unavailable, take the default and log it per the interaction model above. No answer to these
 questions blocks the build; blocking conditions remain as stated above.
 
-Phase 2 questions (Q2–Q4, Q6–Q7, Q9–Q10, Q13–Q14) are asked at the start of Phase 2 (§5.5).
+Phase 2 questions (Q2–Q4, Q5 re-asked, Q6–Q7, Q9–Q10, Q13–Q14) are asked at the start of Phase 2 (§5.5).
 Phase 4 questions (Q16–Q19) are deferred to Phase 4 (§11). Q5 is re-asked at the start of each
 phase — operator availability may change between phases.
 
@@ -1210,7 +1212,7 @@ last chance to inspect the ruleset before discovery work begins.
    - Per-file: file name, size in bytes, line count, count of `#`/`##`/`###`
      headings, count of tables, count of unresolved image placeholders, count of
      pre-check defects from Appendix H.13.
-   - Aggregated: total mechanical sections (Appendix A.4 signals), confidence
+   - Aggregated: total mechanical sections (Appendix A.1 signals), confidence
      ceiling estimate (REQ-011 calculation from book-level scoping where known).
    - The operator may request a full table of contents for any individual file on
      demand.
@@ -1242,7 +1244,7 @@ Never assume the ruleset fits in context.
 
 After the structural pass (Section 5.2), classify the ruleset by its mechanical
 density — not by raw file size. Use the classification inventory's counts of
-mechanical sections (sections matching a content-type signal per Appendix A.4):
+mechanical sections (sections matching a content-type signal per Appendix A.1):
 
 1. **Minimal**: fewer than 20 mechanical sections. Skip the shadow re-extraction
    at the Discovery checkpoint (Section 5.6) and the full subagent spawn at
@@ -1292,7 +1294,7 @@ Between the structural pass and extraction, enumerate every resolution pattern,
 entity lifecycle, and procedural structure the builder can identify from the
 ruleset. For each, classify it as **recognized** (a mechanic the builder has a
 reliable extraction heuristic for) or **unfamiliar** (a procedural pattern the
-builder cannot confidently classify under any Appendix A.4 content type).
+builder cannot confidently classify under any Appendix A.1 content type).
 
 Record both lists in `DECISIONS.md` Section 8, item (4). An unfamiliar item is
 not modeled by any tool (REQ-013) but stays searchable (REQ-012). A section
@@ -1307,20 +1309,20 @@ adjudication; the operator may provide extraction hints or confirm the
 limitation. In a non-interactive run, the unfamiliar list is logged for later
 operator review.
 
-A section that the builder classified as guidance/prose (Appendix A.4) but that
+A section that the builder classified as guidance/prose (Appendix A.1) but that
 the structural pass flagged as carrying procedure signals is a **capabilities
 gap** — the builder recognized a procedural pattern but could not classify it.
 Record it as a blocker at the Discovery checkpoint.
 
 ### 5.3 Extraction
 
-Content-type detection rules (Appendix A.4) are written against the classification inventory from the
+Content-type detection rules (Appendix A.1) are written against the classification inventory from the
 structural pass (Section 5.2) before the first index build; the inventory and the resulting per-ruleset
 classification profile are recorded in `RULESET_MODEL.md` and `DECISIONS.md` (Section 8, item (4)). After
-the first index build, the false-positive audit (Appendix A.4) verifies the classification before further
+the first index build, the false-positive audit (Appendix A.1) verifies the classification before further
 tuning.
 
-When a section matches multiple content-type detection rules (Appendix A.4), or
+When a section matches multiple content-type detection rules (Appendix A.1), or
 the match is partial — some but not all required signals present, or a signal is
 present at low confidence — record the decision trail in `RULESET_MODEL.md`
 alongside the item's classification: the matched signals, the rejected
@@ -1363,7 +1365,7 @@ Measure and log structural defects; do not repair them in the source (REQ-014). 
 Appendix A.
 
 The `RULESET_MODEL.md` output includes a summary table: per content type
-(Appendix A.4), the count of sections, the confidence distribution
+(Appendix A.1), the count of sections, the confidence distribution
 (HIGH/MEDIUM/LOW), and any structural defects (a field present in some entries
 but absent in others, with the count of each). This table is the data source for
 `spec_health`'s confidence computation and category counts.
@@ -1890,7 +1892,7 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   accepts; advertising `Sanity` when the tool only recognizes `Sanity Save` is a defect (REQ-057).
 - **Character creation parameters.** A `create_character` tool requires `species` and
   `heroic_class` parameters, both non-empty strings. The `heroic_class` parameter validates
-  against entries of content-type `heroic-class` only (Appendix A.4); prestige-class, NPC, and
+  against entries of content-type `heroic-class` only (Appendix A.1); prestige-class, NPC, and
   other non-heroic-class entries are rejected with `[ERROR] [INVALID_INPUT]` explaining that
   prestige classes require level 7+ and prerequisites per the ruleset. Unknown species or class
   values return `[ERROR] [NOT_FOUND]` with the session-visible valid values enumerated, using
@@ -1951,7 +1953,7 @@ the roster. The character enters game state only through an
   class progression table (REQ-013) are an acceptable fallback, provided each entry is
   cross-referenced against the source text for correctness.
 - **Destiny, background, and organization steps.** When the ruleset contains destiny, background,
-  or organization content types (Appendix A.4), `create_character` includes optional `[NEED_INPUT]`
+  or organization content types (Appendix A.1), `create_character` includes optional `[NEED_INPUT]`
   steps for each: a destiny step following the ruleset's own destiny selection procedure, a
   background step from the ruleset's background options, and an organization step when the
   ruleset defines affiliation criteria. Each step must be skippable; skipping records an empty or
@@ -2097,7 +2099,7 @@ applies modifiers from entity state (conditions, stats) and fixed procedure rule
 parameter is added (REQ-013); the unapplied modifier is recorded as a normalization in `DECISIONS.md` and its
 text remains searchable (REQ-012).
 
-### 6.8.1 Multi-step condition tracks
+#### 6.8.1 Multi-step condition tracks
 
 When the ruleset defines a condition track with multiple progressive steps — e.g., Normal → -1 → -2 → -5 → -10
 → Helpless — and assigns cumulative penalties per step, model it with these primitives:
@@ -2581,7 +2583,7 @@ Report in the format below.
   DISPUTED, with basis (commands run, salient output)
 - Documentation gaps found during cold-start setup
 - Waiver audit: REQ-013 fields present or missing, per waiver
-- Handoff gate: H1–H10 results and comparison with the builder's verification record
+- Handoff gate: H1–H12 results and comparison with the builder's verification record
 - Evidence comparison: per-gate salient fields — match, discrepancy, or pin drift
 - Traceability: the T29 result; the five sampled rows walked end to end
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED
@@ -3073,7 +3075,7 @@ you may Z".
 "your job", "should"); advice; tone and setting text addressed to a role; examples of play. Extract verbatim;
 never finish the author's sentences. Attribution follows Section 6.9.
 
-### A.4 Content-type detection heuristics
+### A.1 Content-type detection heuristics
 
 The classification is heuristic, not normative — it feeds `RULESET_MODEL.md`
 generation, `spec_health` category counts, lookup-tool valid-value derivation
@@ -3174,7 +3176,7 @@ pointing to the parent section. Each child inherits the parent's role scoping an
 types unless its own heading signals a different scope. The generated child count appears
 in `spec_health` registry counts and contributes to confidence scoring (REQ-011).
 
-### A.5 Structured Progression Extraction
+### A.2 Structured Progression Extraction
 
 When class/level progression data appears in tabular form (BAB tracks, defense tracks,
 HD, bonus feats per level, etc.) with a regular structure but inconsistent Markdown
@@ -3416,7 +3418,7 @@ Gate 2. Draw consumption and seeding are as defined in REQ-050.
 ### B.5 Cross-file fixture (`tin_lanterns_gear.md`)
 
 Gate 2's single-file fixture exercises most extraction paths but not cross-file dedup
-(Appendix A.4, Section 6.3) or inline mechanical fields within table cells. This
+(Appendix A.1, Section 6.3) or inline mechanical fields within table cells. This
 supplemental file, combined with the main fixture, validates both.
 
 ```markdown
@@ -3808,7 +3810,7 @@ implementation, script, or manual review must satisfy.
 
 ### G.7 Recording and versioning
 
-Record the commands or scripts used for H1–H11 in the `DECISIONS.md` verification record (Section 8, item (6)).
+Record the commands or scripts used for H1–H12 in the `DECISIONS.md` verification record (Section 8, item (6)).
 Pin the script version in `DECISIONS.md` Section 8, item (2). A handoff gate whose controls cannot both pass
 and fail is itself a finding (Section 5.6, _Verification instruments_).
 

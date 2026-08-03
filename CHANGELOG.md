@@ -19,6 +19,23 @@
   in the document body.
 - Swapped Appendix G.13/G.14 so H11 (Client configuration launch) precedes H12
   (Cold-checkout replay), matching the §8.1 handoff-table order.
+- Fixed validator regex patterns in `scripts/validate.ts` to handle suffixed
+  requirement and test IDs (REQ-004a, T22a, T39a). Five patterns updated: REQ
+  ID extraction, REQ citation, test ID extraction (row regex and inner match),
+  and test citation. Manifest row count now 41 (was 40 — REQ-004a was previously
+  invisible to the validator).
+- Updated stale H-check range references: §8 line and G.7 changed from
+  H1–H10/H1–H11 to H1–H12.
+- Updated Phase 2 question list to include Q5 re-asked, matching the Phase 2
+  pre-build question table.
+- Normalized heading levels: §6.8.1 demoted from `###` to `####` to match
+  §6.5.1 at the same sub-subsection depth.
+- Added §6.5.1 Sequential Decision Queue to Contents TOC.
+- Renumbered Appendix A subsections: A.4→A.1 (Content-type detection
+  heuristics), A.5→A.2 (Structured Progression Extraction). Added A.2 to
+  the TOC. Updated 13 cross-references from Appendix A.4 to Appendix A.1.
+  Historical CHANGELOG references to A.4 remain as-is.
+
 
 ## 2026-08-03 — Four-phase build restructure with character sheet baseline
 
