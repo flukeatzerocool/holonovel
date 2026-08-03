@@ -1,71 +1,127 @@
 # Holonovel
 
-Holonovel is a build prompt that instructs an AI agent how to turn tabletop RPG
-rulesets — from local Markdown files, PDFs, or scraped web SRDs — into an
-interactive MCP server.
+Turn your RPG rulebooks into an AI game master.
 
 ## What is Holonovel?
 
-Tabletop RPG players and game masters want their rulebooks at their fingertips —
-searchable rules, automated dice rolls, combat tracking — but wiring up a tool
-bridge for every game system is tedious, error-prone manual work. Holonovel
-eliminates that work. Provide your rulebooks in any supported format, run one AI
-agent, and you get a fully functional MCP server.
+Your rulebooks are sitting on the shelf. What if they could sit at the
+table with you — rolling dice, tracking hit points, and running
+monsters while you focus on the story?
 
-`holonovel.md` is a self-contained build specification. An AI agent reads it
-alongside your ruleset, then follows the spec to parse the source material, model
-every rule as structured data, verify internal consistency, and package the result
-into a working MCP server. No glue code, no hand-written integrations — the spec
-drives the entire build.
+That's the gap. Tabletop RPGs are more fun when the rules fade into the
+background, but managing them takes work. You look up a spell
+mid-combat, flip pages for a saving throw, track initiative on scratch
+paper, and by the time the dice land, the moment is gone.
 
-**Source intake.** Holonovel accepts rulesets through three paths:
+Holonovel closes that gap. Feed your rulebooks — Markdown, PDF, HTML,
+or a scraped online SRD — to an AI agent. It reads the rules, extracts
+every mechanic, and builds you a complete MCP game server. Your books
+become interactive.
 
-- **Markdown files** — you already have formatted Markdown; skip prep and build
-  directly.
-- **PDF/HTML import** — convert PDF rulebooks or HTML source into spec-compliant
-  Markdown via the Appendix F conversion pipeline.
-- **Web scrape** — scrape an online SRD (System Reference Document) from a
-  permissively-licensed game and convert automatically. Appendix I provides a
-  catalog of ten permissively-licensed TTRPGs you can choose from, or you can
-  suggest your own URL. The spec verifies the source's license before scraping,
-  and the builder presents a hard-stop review of the converted Markdown before
-  any server code is written.
+**What you get:**
 
-**Self-contained output.** At build time, the finalized ruleset Markdown is
-bundled into the server output — an internal copy the server reads at runtime,
-and a user-facing copy (`ruleset-user/`) for your own reference. The server
-requires no external file paths after build.
+- **Rules-aware dice.** The server knows which modifier goes where.
+  Roll an attack, cast a spell, make a saving throw — the right dice,
+  the right bonuses, every time.
 
-The finished server gives you rules-aware dice rolls, initiative and combat
-management, monster and spell lookups, equipment catalogs, character sheets with
-leveling, rollable random tables, and encounter-building tools for the game
-master — all sourced directly from your books. To run adventures, you pick a
-persona: the player persona lets the AI act as game master, calling tools for
-mechanics and narration while gating content the player shouldn't see; the game
-master persona gives you full access and adjudication powers.
+- **Live combat tracking.** Initiative order, hit points, conditions,
+  and turn-by-turn resolution. The server keeps the bookkeeping so you
+  keep the momentum.
+
+- **Smart lookups.** Ask for a monster by name, a spell by effect, a
+  weapon by damage type — in natural language. The server knows your
+  rulebooks.
+
+- **Character sheets with leveling.** Create characters, level them up,
+  and render their sheets. The server builds one from your rules even
+  if you don't have a PDF. Give it an official sheet and it matches
+  the layout.
+
+- **Two ways to play.** Player mode — the AI acts as your game
+  master, narrating and rolling while keeping secrets secret. Game
+  master mode — full access, full control, every tool at your
+  command.
+
+- **Any format in.** Markdown files, PDF rulebooks, HTML source, or
+  scraped web SRDs from permissively-licensed games. A built-in
+  catalog of ten open-license systems (D&D 3.5/5e, Pathfinder 1e/2e,
+  Starfinder, Traveller, FATE, Blades in the Dark, Dungeon World,
+  Old-School Essentials) gets you started fast.
+
+- **Self-contained.** The finished server bundles a copy of your
+  ruleset inside itself. No external file paths, no dangling
+  dependencies — move it anywhere and it still works.
+
+Pick a game. Feed it to an AI. Start playing.
 
 ## Who is this for?
 
-Holonovel is for tabletop RPG enthusiasts who want their rulebooks as
-programmable tools — players who want rules-aware dice and character automation,
-game masters who want combat tracking and monster lookups, and developers who
-want to skip hand-wiring an MCP server and let AI build the bridge instead.
+You. You've got tabletop RPG books and an AI agent. You want the
+rules at your fingertips without wiring up tools by hand. Players
+who want dice automation and character tracking. Game masters who
+want combat management and instant monster lookups. Developers who
+want to skip the integration work and let AI build the bridge.
 
-## Project status
+## How it works
 
-Holonovel is in active development. The specification is stabilizing; the build
-pipeline has been tested against D&D 2024 (Player's Handbook, Dungeon Master's
-Guide, Monster Manual). The web-scrape intake path has been exercised against
-the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
-[CHANGELOG.md](CHANGELOG.md).
+The build runs in four phases. At the start of each phase, the AI
+asks a few questions about your preferences — so it builds what you
+want, not what it assumes. At the end of each phase, it pauses to
+report what it built and asks whether you want to continue.
+
+### Phase 1: Prepare your rulebooks
+
+The AI reads your source files and formats them so every rule is
+machine-readable. It checks for common problems — missing table
+headers, ambiguous headings, broken links, missing referee markers —
+and fixes them automatically. Before any code touches the rules, you
+get a preview and can approve or ask for adjustments.
+
+### Phase 2: Build the game server
+
+This is the core. The AI reads your formatted ruleset and builds a
+complete MCP game server from scratch. Dice rolling, combat tracking,
+character management, monster and spell lookups, random tables, and
+more — every mechanic traced back to your actual books with a
+citation. The server always includes a working character sheet tool,
+inferred directly from the rules. Before moving on, the AI runs a
+full test suite and verification pipeline against a known ruleset to
+prove the build is sound.
+
+### Phase 3: Enrich with community advice (optional)
+
+The AI searches the web for game-specific tips — GM advice, player
+strategy guides, actual-play breakdowns, designer commentary — and
+adds them to the server's persona knowledge. Your AI game master now
+knows not just the rules, but how the community plays the game. Skip
+it if you prefer a lean server or already know your system inside
+out.
+
+### Phase 4: Add a character sheet (optional)
+
+The AI studies your game's official character sheet from a PDF you
+provide and enhances the built-in sheet tool with the official
+layout, an ASCII format for terminal play, and an optional HTML
+display for MCP App hosts. If you don't have a PDF, the Phase 2
+baseline already gives you a working sheet from the rules alone —
+this phase adds polish.
+
+### Between phases
+
+The AI reports what it built, what it verified, and any issues it
+found. You decide: continue to the next phase, or stop here. A
+server that finishes Phase 2 is fully functional — the rest is
+enhancement.
 
 ## Prerequisites
 
-- **Node.js 20+** — required for `markdownlint-cli`, `tsx`, and `typescript`
-  (the spec's own validation tooling).
-- **An AI agent with access to DeepSeek Pro or an equivalent model** — this
-  reads the spec and builds the server. On my computer, DeepSeek v4 Pro built
-  an MCP server for D&D 2024 for US $2. I use Opencode Go for DeepSeek access.
+- **Node.js 20+** — runs the spec's validation tooling
+  (markdownlint, TypeScript type checking, cross-reference
+  validation).
+- **An AI agent** — reads the spec and builds the server. We
+  recommend DeepSeek Pro or an equivalent model. Building a
+  server for D&D 2024 cost about US $2 with DeepSeek v4 Pro.
+  We use Opencode Go for DeepSeek access.
 
 ## Quick Start
 
@@ -74,7 +130,7 @@ the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
    - **Markdown:** place your `.md` files alongside `holonovel.md` and feed
      them to the agent.
    - **PDF/HTML:** point the agent at the source files; it converts them to
-     Markdown first (Appendix F).
+     Markdown first using built-in conversion tools.
    - **Web SRD:** ask the agent to scrape a permissively-licensed game. It
      presents a catalog of ten games (D&D 3.5/5e, Pathfinder 1e/2e, Starfinder,
      Traveller, FATE, Blades in the Dark, Dungeon World, Old-School Essentials)
@@ -84,26 +140,24 @@ the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
 
    > Use holonovel.md to build a server from `players-handbook.md`.
 
-4. The agent parses, models, verifies, and packages the ruleset into a working
-   MCP server. A hard-stop review gate asks you to confirm the Markdown looks
-   correct before discovery work begins.
+4. The agent guides you through four build phases — preparing the rules,
+   building the server, and optionally enriching it with community advice and a
+   character sheet tool. It pauses between each phase so you can review progress
+   and decide whether to continue. A hard-stop review gate asks you to confirm
+   the prepared ruleset before any server code is written.
 5. (Optional) Validate the spec itself:
 
    ```sh
    npm install && npm run check
    ```
 
-## Implementation notes
+## Project status
 
-- **Builds in TypeScript** — TypeScript is the mandated implementation language
-  for the server and the game code.
-- **Appendix J of `holonovel.md`** is the character sheet generator — a
-  post-build extension that guides building a character-sheet rendering MCP
-  tool from a character sheet PDF. Covers PDF field enumeration (with
-  combined vision-model + OCR for image-based PDFs), typed data model,
-  format-agnostic derivation layer, Markdown and ASCII renderers, and
-  optional MCP App HTML display. Gated by Q19 of the intake setup
-  questionnaire.
+Holonovel is in active development. The specification is stabilizing; the build
+pipeline has been tested against D&D 2024 (Player's Handbook, Dungeon Master's
+Guide, Monster Manual). The web-scrape intake path has been exercised against
+the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Validating
 
@@ -127,11 +181,10 @@ Also available separately:
 ```
 Holonovel/
 ├── holonovel.md                ← the complete build specification
-│                                 (includes intake workflow, web-scrape
-│                                 sub-flow, hard-stop readiness gates,
-│                                 ruleset preparation prompt as
-│                                 Appendix H, and character sheet
-│                                 generator as Appendix J)
+│                                 (intake workflow, web-scrape
+│                                 sub-flow, readiness gates, ruleset
+│                                 preparation instructions, character
+│                                 sheet generator, persona enrichment)
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/
@@ -147,12 +200,13 @@ Holonovel/
 
 ## Contributing
 
-- Commit messages follow the [CHANGELOG.md](CHANGELOG.md) style: date-stamped
-  headings with bulleted entries. Push to `main`.
-- Prose is wrapped near 110 columns (markdownlint enforces a 120-char limit).
-  Use ATX headings (`##`, `###`). Separate top-level sections with `---`.
+- Commit messages use date-stamped headings with bulleted entries
+  (see the CHANGELOG for examples). Push to `main`.
+- Prose wraps near 110 columns (enforced at 120 by markdownlint).
+  ATX headings only (`##`, `###`). Separate top-level sections
+  with `---`.
 - Run `npm run check` before committing.
-- Fork, branch from `main`, make your changes, and open a pull request.
+- Fork, branch from `main`, make your changes, open a pull request.
 
 ## License
 

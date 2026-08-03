@@ -36,8 +36,7 @@
   - [4.5 State](#45-state)
   - [4.6 Non-functional](#46-non-functional)
 - [5. Discovery](#5-discovery)
-  - [5.1 Intake](#51-intake)
-    - [5.1.1 Character sheet intake](#511-character-sheet-intake)
+  - [5.1 Intake — Phase 1 pre-build questions](#51-intake--phase-1-pre-build-questions)
   - [5.1a Web-scrape sub-flow (Q11-C) and Gate 0](#51a-web-scrape-sub-flow-q11-c-and-gate-0)
   - [5.2 Chunked reading (F2)](#52-chunked-reading-f2)
   - [5.2a Ruleset complexity](#52a-ruleset-complexity)
@@ -45,6 +44,7 @@
   - [5.3 Extraction](#53-extraction)
   - [5.4 Output](#54-output)
   - [5.5 Build](#55-build)
+    - [5.5a Character sheet baseline (always built)](#55a-character-sheet-baseline-always-built)
   - [5.6 Continuous verification](#56-continuous-verification)
   - [5.7 Reconciliation](#57-reconciliation)
 - [6. Conventions and Runtime Model](#6-conventions-and-runtime-model)
@@ -56,11 +56,33 @@
   - [6.6 Configuration surface](#66-configuration-surface)
   - [6.7 Game, roster, and session state](#67-game-roster-and-session-state)
   - [6.8 Time and expiry events](#68-time-and-expiry-events)
+    - [6.8.1 Multi-step condition tracks](#681-multi-step-condition-tracks)
   - [6.9 Guidance and persona knowledge](#69-guidance-and-persona-knowledge)
   - [6.9a Persona foundations](#69a-persona-foundations)
 - [7. Verification Gates](#7-verification-gates)
 - [8. Artifacts and Handoff](#8-artifacts-and-handoff)
 - [9. Independent Verification](#9-independent-verification)
+- [10. Post-Build Persona Enrichment](#10-post-build-persona-enrichment)
+  - [10.1 Pre-build questions](#101-pre-build-questions)
+  - [10.2 When to run](#102-when-to-run)
+  - [10.3 Mission](#103-mission)
+  - [10.4 Research sources](#104-research-sources)
+  - [10.5 Output format](#105-output-format)
+  - [10.6 Composition](#106-composition)
+  - [10.7 Gate status](#107-gate-status)
+  - [10.8 Phase completion](#108-phase-completion)
+- [11. Character Sheet Generator](#11-character-sheet-generator)
+  - [11.1 Pre-build questions](#111-pre-build-questions)
+  - [11.2 Pre-build verification](#112-pre-build-verification)
+  - [11.3 PDF study and field enumeration](#113-pdf-study-and-field-enumeration)
+  - [11.4 Entity type definition](#114-entity-type-definition)
+  - [11.5 Architecture and derivation](#115-architecture-and-derivation)
+  - [11.6 Renderers](#116-renderers)
+  - [11.7 MCP tool wiring](#117-mcp-tool-wiring)
+  - [11.8 MCP App support — optional](#118-mcp-app-support--optional)
+  - [11.9 Tests and defensive parsing](#119-tests-and-defensive-parsing)
+  - [11.10 Build and verification](#1110-build-and-verification)
+  - [11.11 Phase completion (final)](#1111-phase-completion-final)
 - [Appendices](#appendices)
   - [Appendix A: Markdown Parsing Heuristics](#appendix-a-markdown-parsing-heuristics)
     - [A.4 Content-type detection heuristics](#a4-content-type-detection-heuristics)
@@ -90,8 +112,8 @@
     - [G.10 Check H8 — Decision auto-completion blocked](#g10-check-h8--decision-auto-completion-blocked)
     - [G.11 Check H9 — Player persona content boundary](#g11-check-h9--player-persona-content-boundary)
     - [G.12 Check H10 — Confidence and MUST coverage threshold](#g12-check-h10--confidence-and-must-coverage-threshold)
-    - [G.13 Check H12 — Cold-checkout replay evidence present](#g13-check-h12--cold-checkout-replay-evidence-present)
-    - [G.14 Check H11 — Client configuration launch](#g14-check-h11--client-configuration-launch)
+    - [G.13 Check H11 — Client configuration launch](#g13-check-h11--client-configuration-launch)
+    - [G.14 Check H12 — Cold-checkout replay evidence present](#g14-check-h12--cold-checkout-replay-evidence-present)
   - [Appendix H: Ruleset Preparation Prompt](#appendix-h-ruleset-preparation-prompt)
     - [H.1 Mission](#h1-mission)
     - [H.2 Source intake](#h2-source-intake)
@@ -107,18 +129,6 @@
     - [H.12 Output conventions](#h12-output-conventions)
     - [H.13 Verification checklist](#h13-verification-checklist)
   - [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
-  - [Appendix J: Character Sheet Generator](#appendix-j-character-sheet-generator)
-    - [J.1 Pre-build verification](#j1-pre-build-verification)
-    - [J.2 PDF study and field enumeration](#j2-pdf-study-and-field-enumeration)
-    - [J.3 Entity type definition](#j3-entity-type-definition)
-    - [J.4 Prerequisites and ruleset index](#j4-prerequisites-and-ruleset-index)
-    - [J.5 Architecture and derivation](#j5-architecture-and-derivation)
-    - [J.6 Renderers](#j6-renderers)
-    - [J.7 MCP tool wiring](#j7-mcp-tool-wiring)
-    - [J.8 MCP App support — optional](#j8-mcp-app-support--optional)
-    - [J.9 Tests and defensive parsing](#j9-tests-and-defensive-parsing)
-    - [J.10 Build and verification](#j10-build-and-verification)
-  - [Appendix K: Post-Build Persona Enrichment](#appendix-k-post-build-persona-enrichment)
 
 ---
 
@@ -190,29 +200,30 @@ not done.
 
 Before beginning work, read the Contents and identify which sections the current task needs.
 Read only those sections; drop them from context when done. Before re-reading a section, confirm
-the prior read no longer applies. For greenfield builds the sequence is: ruleset preparation
-(Section 5 pre-check and Appendix H; non-Markdown sources add Appendix F), discovery (Section 5
-and Appendix A), each build layer (Section 5.5 with the requirements and Section 6 conventions it
-cites), verification (Section 7 and Appendix D), handoff (Section 8), and — operator-run —
-independent verification (Section 9). For re-verification of an existing server against a newer
-edition of this specification, use the reconciliation procedure (Section 5.7) instead. The
-fixtures (Appendices B and C) matter only at Gates 2–3 and the tests that cite them.
+the prior read no longer applies.
 
-A stage requires only the sections listed below; load them when the stage
-begins and drop them when it ends.
+The build runs in four phases. At the start of each phase, the builder asks a set of pre-build
+questions to establish context and let the operator shape the plan before work begins. At the
+end of each phase, the builder pauses to report what it built, what it verified, and any issues
+it found, then asks whether to proceed to the next phase. Phases 1 and 2 are mandatory; Phases 3
+and 4 are optional.
 
-| Stage                   | Required sections                                    |
-| ----------------------- | ---------------------------------------------------- |
-| Ruleset pre-check       | §5 (pre-check only), Appendix H                      |
-| Intake                  | §5.1, §6.6                                          |
-| Structural pass         | §5.2, §5.2a, §5.2b, §6.1, Appendix A                |
-| Extraction              | §5.3, §4.2 (all REQs), §6.9, Appendix A.4            |
-| Build layers 1–2        | §5.5 (layers 1–2), §6.1–6.3, §6.6, Appendix A        |
-| Build layers 3–4        | §5.5 (layers 3–4), §4.5, §4.6, Appendix B.4          |
-| Build layers 5–6        | §5.5 (layers 5–6), §4.3, §6.4–6.8                    |
-| Gates                   | §7, Appendix D                                       |
-| Handoff                 | §8, §8.1, Appendix G                                 |
-| Reconciliation          | §5.7                                                 |
+| Phase | Name | Gating question | Required sections |
+| ----- | ---- | ---------------- | ----------------- |
+| 1 | Ruleset Preparation | — | §5.1 (Phase 1 Qs), Appendix H; non-Markdown sources add Appendix F |
+| 2 | MCP Server Build | — | §5.2–§5.7, §5.5a, §6, §7, §8, Appendices A–G |
+| 3 | Persona Enrichment | PE1 (§10) | §10 |
+| 4 | PDF-Enhanced Character Sheet | Q19 (§11) | §11 |
+
+The character sheet baseline — a derivation layer, Markdown renderer, and `character_sheet`
+tool inferred from the ruleset — is always built in Phase 2. Phase 4 adds PDF layout study,
+an ASCII renderer, and an optional MCP App HTML display. The server ships with a working
+character sheet tool regardless of whether Phase 4 runs.
+
+A phase requires only the sections listed above; load them when the phase begins and drop them
+when it ends. For re-verification of an existing server against a newer edition of this
+specification, use the reconciliation procedure (§5.7). The fixtures (Appendices B and C)
+matter only at Gates 2–3 and the tests that cite them.
 
 ---
 
@@ -1046,7 +1057,13 @@ retained at handoff.
 Do not skip discovery because the ruleset looks simple. The server is the deliverable: playing the ruleset
 or preparing play materials is out of scope unless the operator directs it.
 
-### 5.1 Intake
+**Phase model.** The build runs in four phases (Section 1.3). At the start of each phase, the builder
+asks a set of pre-build questions to establish context before work begins. At the end of each phase, the
+builder reports what was built, verified, and recorded, then asks whether to proceed to the next phase.
+Phases 1 and 2 are mandatory; Phases 3 and 4 are optional. A "no" at a phase-completion gate stops the
+build at that point.
+
+### 5.1 Intake — Phase 1 pre-build questions
 
 Record in `DECISIONS.md`: the exact ruleset file list; the version hash (REQ-044); the **ruleset edition or
 title** as it appears in the source header or metadata; the output directory; the state directory; the
@@ -1109,74 +1126,27 @@ actual client configuration entry that the end user will use. The entry must:
 Record the entry's command and environment in `DECISIONS.md` (Section 8, item (1)). If the operator cannot
 supply the real client entry during intake, record the assumption and re-run this check before Gate 1.
 
-**Setup questions.** If the operator is available, ask the following as a single batch at intake; record each
-answer — or each default taken — in `DECISIONS.md` as part of the intake record. An answer of "all defaults"
-is valid; record each default taken. If the operator is unavailable, take the default and log it per the
-interaction model above. No answer to these questions blocks the build; blocking conditions remain as stated
-above.
+**Phase 1 pre-build questions.** If the operator is available, ask the following as a single
+batch at intake; record each answer — or each default taken — in `DECISIONS.md` as part of the
+intake record. An answer of "all defaults" is valid; record each default taken. If the operator
+is unavailable, take the default and log it per the interaction model above. No answer to these
+questions blocks the build; blocking conditions remain as stated above.
 
-| #   | Question                                            | Options                                                                                                                                                                                                                         | Non-interactive default                                                 |
-| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Q1  | Ruleset file(s) location                            | Operator-supplied path(s) for `TTRPG_RULESET`, comma-separated in intake order — order determines file-stem collision suffixes (Section 6.1); or the Appendix B fixture extracted byte-exactly (before the REQ-014 intake hash) | None — block per the rule above                                         |
-| Q2  | State directory location                            | Any existing, writable path for `TTRPG_STATE_DIR`; an existing, empty directory is initialized on first run (REQ-055)                                                                                                           | A `state/` directory under the output directory, created by the builder |
-| Q3  | Project (output) directory                          | Any writable path                                                                                                                                                                                                               | A new `holonovel/` directory under the working directory                |
-| Q4  | SDK and tool version pins                            | Operator-supplied pins for `@modelcontextprotocol/server`, `zod`, TypeScript, and Node.js; or latest stable at build time (recorded in `DECISIONS.md`). The stack itself is fixed per Section 3 — this question pins versions only. | Latest stable, recorded in `DECISIONS.md` at install time               |
-| Q5  | Operator availability during the build              | Available for mid-build questions / unavailable — proceed with the most conservative assumption, logged per the interaction model above                                                                                         | Unavailable                                                             |
-| Q6  | Gate 1 verification harness and specification pin   | Official MCP Inspector, or a documented equivalent harness (Section 7, Gate 1); the pinned specification version (current stable unless specified)                                                                              | Documented equivalent and current stable, recorded in `DECISIONS.md`    |
-| Q7  | Smoke-session client                                | A real MCP client (which one), or a scripted equivalent (Section 1.2) built as a required deliverable (Gate 4)                                                                                                                  | Scripted equivalent, recorded in `DECISIONS.md`                         |
-| Q8  | Build-time network access                           | yes (dependency installation and Gate 1 specification pinning only, REQ-051) / no                                                                                                                                               | yes                                                                     |
-| Q9  | Initialize a git repository in the output directory | yes / no                                                                                                                                                                                                                        | no                                                                      |
-| Q10 | Docker packaging (Dockerfile)                       | yes / no                                                                                                                                                                                                                        | no                                                                      |
-| Q11 | Source format                                       | **A.** Markdown files — operator supplies paths; skip prep. **B.** PDF/HTML import — triggers Appendix F conversion. **C.** Scrape from a website — triggers the web-scrape sub-flow (Section 5.1a). | A (Markdown)                                                          |
-| Q12 | Ruleset edition or title                            | The canonical edition or title as stated in the ruleset header/metadata; `DECISIONS.md` section (1) must record it, and the `DECISIONS.md` title must match it                                                                  | Extracted from the ruleset header; if ambiguous, ask the operator       |
-| Q13 | MCP client configuration entry                      | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                                                                       | unknown — validate later, logged in `DECISIONS.md`                      |
-| Q14 | Client config schema location                       | URL or reference to the chosen client's MCP server configuration documentation, covering field names, value formats, required fields, and client-side connection timeout; if the client supports a configurable timeout, set it to accommodate the server's full-ruleset indexing time                  | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
-| Q15 | Ruleset license type                                | OGL 1.0a / CC BY 4.0 / CC BY-SA 4.0 / CC BY 3.0 / ORC / GFDL 1.3 / proprietary / unknown | Extracted from the source's legal page; "unknown" if ambiguous          |
-| Q16 | Character sheet PDF availability                    | yes, local / yes, download URL / search online / included with ruleset / none | none |
-| Q17 | Character sheet PDF path                            | Path to the PDF file (when Q16 is "yes, local") | — |
-| Q18 | Character sheet PDF reading method                  | (1) model's own vision capability; (2) convert pages to images + vision model; (3) OCR on page images; (4) ruleset inference as last resort. The builder probes each path in order, notifying the operator before falling back to inference. Full procedure in §5.1.1. | Attempt each path in order; ruleset inference only after exhausting prior options and notifying the operator |
-| Q19 | Build character sheet rendering MCP tool             | yes / no | no |
+Phase 2 questions (Q2–Q4, Q6–Q7, Q9–Q10, Q13–Q14) are asked at the start of Phase 2 (§5.5).
+Phase 4 questions (Q16–Q19) are deferred to Phase 4 (§11). Q5 is re-asked at the start of each
+phase — operator availability may change between phases.
 
-### 5.1.1 Character sheet intake
+| #   | Question                               | Options                                                                                                                                                                                                                         | Non-interactive default                                                 |
+| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Q1  | Ruleset file(s) location               | Operator-supplied path(s) for `TTRPG_RULESET`, comma-separated in intake order — order determines file-stem collision suffixes (Section 6.1); or the Appendix B fixture extracted byte-exactly (before the REQ-014 intake hash) | None — block per the rule above                                         |
+| Q5  | Operator availability during the build | Available for mid-build questions / unavailable — proceed with the most conservative assumption, logged per the interaction model above                                                                                         | Unavailable                                                             |
+| Q8  | Build-time network access              | yes (dependency installation and Gate 1 specification pinning only, REQ-051) / no                                                                                                                                               | yes                                                                     |
+| Q11 | Source format                          | **A.** Markdown files — operator supplies paths; skip prep. **B.** PDF/HTML import — triggers Appendix F conversion. **C.** Scrape from a website — triggers the web-scrape sub-flow (Section 5.1a). | A (Markdown)                                                          |
+| Q12 | Ruleset edition or title               | The canonical edition or title as stated in the ruleset header/metadata; `DECISIONS.md` section (1) must record it, and the `DECISIONS.md` title must match it                                                                  | Extracted from the ruleset header; if ambiguous, ask the operator       |
+| Q15 | Ruleset license type                   | OGL 1.0a / CC BY 4.0 / CC BY-SA 4.0 / CC BY 3.0 / ORC / GFDL 1.3 / proprietary / unknown | Extracted from the source's legal page; "unknown" if ambiguous          |
 
-Q16–Q19 gate the character sheet rendering extension (Appendix J). In non-interactive
-mode, Q19 defaults to "no" and Appendix J is skipped — the server is complete without
-it per the Definition of Done (§1.2).
-
-When Q19 is "yes," this section's answers determine how the builder studies the
-character sheet PDF:
-
-- **Q16 — Availability.** "Yes, local" expects a file path (Q17). "Yes, download URL"
-  triggers a fetch; the builder records the URL and file hash in `DECISIONS.md`. "Search
-  online" triggers a web search for the ruleset's official or community character sheet;
-  the builder presents candidates and asks the operator to select. "Included with
-  ruleset" means the sheet is part of the already-ingested ruleset source — skip
-  PDF-specific steps and use the ruleset-derived fields directly. "None" sets Q19 to
-  "no" — Appendix J is inapplicable.
-
-- **Q18 — Reading method.** The builder probes the environment in order, never short-cutting
-  to ruleset inference without operator consent. A model that renders PDFs natively
-  uses that capability. When image conversion is required, prefer `pdftoppm` (from
-  Poppler) — it is faster and more reliable for scanned pages than
-  ImageMagick `convert`. Combine the available tools: for an image-based (scanned)
-  PDF that lacks an embedded text layer, convert pages to images with `pdftoppm`,
-  feed them through a vision-capable model as the primary extraction pass, and fall
-  back to OCR on the same images for any field the vision model missed. Merge the
-  results — when the vision model and OCR disagree on a field, the vision output
-  is canonical, the OCR output is logged as a normalization in `DECISIONS.md`
-  (Section 8, item (4)), and the discrepancy is flagged for operator review at
-  the Gate 0-equivalent checkpoint in Appendix J. If neither a vision model nor
-  OCR is available and ruleset inference is the only remaining path, the builder
-  must inform the operator that the sheet will be constructed from the ruleset
-  model and NPC stat block structure rather than from the PDF, and record the
-  limitation per REQ-013.
-
-- **Q19 — Build.** "Yes" engages Appendix J. The character sheet tool is wired as
-  a post-build extension — it is not a requirement on the core MCP server, and its
-  presence or absence does not affect any verification gate (Section 7). The tool
-  reads the server's `RULESET_MODEL.md`, the ruleset Markdown for field definitions
-  and canonical names, and the character sheet PDF (or ruleset-derived equivalent)
-  for layout. It never modifies the server's index or state directory.
+Phase 2 questions (Q2, Q3, Q4, Q5 re-asked, Q6, Q7, Q9, Q10, Q13, Q14) are asked at the start
+of Phase 2 (§5.5). Character sheet questions (Q16–Q19) are deferred to Phase 4 (§11).
 
 ### 5.1a Web-scrape sub-flow (Q11-C) and Gate 0
 
@@ -1413,6 +1383,25 @@ Produce `RULESET_MODEL.md` (contents: Section 8). Appendix B.2 shows a minimal e
 
 ### 5.5 Build
 
+The build begins in Phase 2. Confirm Phase 1 is complete (ruleset prepared, Gate 0 passed) before
+starting. Ask the Phase 2 pre-build questions, then proceed with the layers below.
+
+**Phase 2 pre-build questions.** Ask the operator as a single batch. Re-ask Q5 — operator
+availability may differ from Phase 1. Record each answer or default in `DECISIONS.md`.
+
+| #   | Question                                          | Options                                                                                                                                                                  | Non-interactive default                                              |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Q2  | State directory location                          | Any existing, writable path for `TTRPG_STATE_DIR`; an existing, empty directory is initialized on first run (REQ-055)                                                    | A `state/` directory under the output directory, created by the builder |
+| Q3  | Project (output) directory                        | Any writable path                                                                                                                                                        | A new `holonovel/` directory under the working directory             |
+| Q4  | SDK and tool version pins                         | Operator-supplied pins for `@modelcontextprotocol/server`, `zod`, TypeScript, and Node.js; or latest stable at build time (recorded in `DECISIONS.md`)                   | Latest stable, recorded in `DECISIONS.md` at install time            |
+| Q5  | Operator availability during this phase           | Available for mid-build questions / unavailable — proceed with the most conservative assumption                                                                          | As Phase 1                                                           |
+| Q6  | Gate 1 verification harness and specification pin | Official MCP Inspector, or a documented equivalent harness (Section 7, Gate 1); the pinned specification version (current stable unless specified)                       | Documented equivalent and current stable, recorded in `DECISIONS.md` |
+| Q7  | Smoke-session client                              | A real MCP client (which one), or a scripted equivalent (Section 1.2) built as a required deliverable (Gate 4)                                                           | Scripted equivalent, recorded in `DECISIONS.md`                      |
+| Q9  | Initialize a git repository in the output directory | yes / no                                                                                                                                                               | no                                                                   |
+| Q10 | Docker packaging (Dockerfile)                    | yes / no                                                                                                                                                                 | no                                                                   |
+| Q13 | MCP client configuration entry                   | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                | unknown — validate later, logged in `DECISIONS.md`                   |
+| Q14 | Client config schema location                    | URL or reference to the chosen client's MCP server configuration documentation                                                                                           | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
+
 Bottom-up; each layer depends only on earlier ones:
 
 1. **Configuration and protocol adapter.** Environment/config files; MCP capability advertisement; schema
@@ -1460,14 +1449,70 @@ containing the same files as the operator's reference copy. Both copies are froz
 time and covered by the intake hash (REQ-014). `TTRPG_RULESET` in the client configuration
 entry points at the bundled `ruleset/` directory using a path relative to the server root.
 
+### 5.5a Character sheet baseline (always built)
+
+Regardless of whether Phase 4 runs (gated by Q19), the Phase 2 build always includes a
+ruleset-inferred character sheet — a derivation layer, Markdown renderer, and `character_sheet`
+tool built from the ruleset model without any PDF study. Phase 4 adds PDF layout enhancement,
+an ASCII renderer, and optional MCP App HTML display (§11).
+
+**Rules index.** Build a `RulesIndex` interface with named lookup maps — `speciesByName`,
+`equipmentByName`, `spellsByName`, and every equivalent map the ruleset supports. Map names
+reflect the actual ruleset, never hardcoded. The index is built at server startup from the
+extracted model, not at tool-invocation time. The interface lives in `domain/sheet.ts` and is
+consumed by every derivation function and test double.
+
+**Derivation layer.** Pure functions: `(entity, rulesIndex) => RowData[]`. No layout code.
+Return typed interfaces (`WeaponRowData`, `SpellRowData`) that renderers consume. Common
+helpers: score-to-modifier math, proficiency checks, equipment resolution, spell resolution,
+permanent save bonuses from features and items.
+
+**Markdown renderer.** Defined in `domain/sheet_md.ts`, importing the derivation layer.
+Structure: identity line, combat strip, abilities/saves/skills (bold proficient), weapons
+table, features/traits/feats as a bulleted list, spellcasting section (ability, DC, slots,
+spell table with Concentration/Ritual/Prepared flags), equipment list, details and coins.
+Tables use `| --- |` separators. Empty sections render `_None._`. Escape `|` in cell content.
+Flag entries not found in the index with `(not indexed)`.
+
+**Tool registration.** Register `character_sheet` as a domain handler (Layer 5):
+
+```
+name: "character_sheet"
+title: "<Entity> Sheet"
+description: "Render an entity's sheet from the ruleset."
+persona: both
+input: { entity: string }
+handler:
+  1. Resolve entity from game state (fallback to roster)
+  2. Not found → [ERROR] [NOT_FOUND] <explanation>
+     Corrective action: <valid entity IDs visible to this persona>
+  3. Derive rows, render Markdown
+  4. Output prefix: [OK] Character sheet for {name} ({id}, {source}, markdown.md)
+  5. Truncate if exceeding payload limit, ending with
+     … [truncated — full content: output://character_sheet/<counter>]
+  6. Register output://character_sheet/{counter} resource template (REQ-004)
+  7. Return { content: [{ type: "text", text: result }] }
+```
+
+**Tests.** Build a `minimalIndex()` test double implementing `RulesIndex` — no mocking
+framework, no type casts. Coverage: identity rendering, stat math, weapon resolution
+(bonus stacking, unarmed strike fallback), spellcasting (DC, slots, sorting, empty-case
+fallback), edge cases (missing data, optional fields), protocol (response contract,
+error for invalid entity IDs, persona gating, output prefix shape).
+
+**Acceptance check.** The `character_sheet` tool returns a valid Markdown sheet from a
+ruleset-derived entity with every section populated or explicitly empty. No ASCII renderer,
+no MCP App HTML — those are Phase 4.
+
 ### 5.6 Continuous verification
 
-Do not wait for Section 7's gates to find defects. Maintain a structured task list for the build stages —
-intake, Gate 0 (if applicable), conversion, discovery, layers 1–2, layers 3–4, layers 5–6,
-gates, and handoff — and update it as stages begin, complete, or are blocked. Record the list in
-`DECISIONS.md` (Section 8, item (6)) with one
-entry per stage: status (`not started` / `in progress` / `blocked` / `complete`), blocker or finding, and the
-checkpoint evidence reference. The list is reviewed at the start of each checkpoint and updated at the end of
+Do not wait for Section 7's gates to find defects. Maintain a structured task list for the build
+phases and their stages — Phase 1: intake, Gate 0, conversion; Phase 2: discovery, layers 1–2,
+layers 3–4, layers 5–6 (including the sheet baseline at §5.5a), gates, handoff; Phase 3: research,
+compose; Phase 4: build sheet enhancement — and update it as stages begin, complete, or are blocked.
+Record the list in `DECISIONS.md` (Section 8, item (6)) with one entry per stage: status
+(`not started` / `in progress` / `blocked` / `complete`), blocker or finding, and the checkpoint
+evidence reference. The list is reviewed at the start of each checkpoint and updated at the end of
 every stage, so the builder's own context does not become the sole record of progress.
 
 Verify work at each checkpoint — after conversion (Appendix F; non-Markdown sources only), after the
@@ -1588,6 +1633,16 @@ blocker; a test identifier in the traceability table that has no corresponding t
 major finding. Record every such gap in `DECISIONS.md` under the checkpoint findings log.
 
 These checkpoints complement, and never replace, the Section 7 gates.
+
+**Phase-completion gates.** After the final checkpoint of each phase, the builder pauses and presents
+a summary: what was built (files, tools, registrations), what was verified (checkpoints passed, gates
+run), any defects or open findings, and the next phase's scope. The builder then asks: "Phase N
+complete. Proceed to Phase N+1?" Options: yes / no (stop here). Record the answer in
+`DECISIONS.md`. A "no" at Phase 1 or Phase 2 is a build failure — the required phases are
+incomplete. A "no" at Phase 3 or Phase 4 is a scope reduction — the server is functional but lacks
+the optional enhancement. In non-interactive mode, all phase-completion gates default to "yes,"
+recorded as "unattended — proceeded automatically." If Phase 3 is declined, the builder
+immediately asks the Phase 4 question. Phase 4 completion is the final build gate.
 
 ### 5.7 Reconciliation
 
@@ -1718,10 +1773,12 @@ content, never exact wording.
   Fields in declaration order (name and empty collections omitted); signed modifiers show sign (`+0`),
   pools render `current/max`, selections render `Label: Value`.
 - **Character creation output**: `[OK] Character created: <name> (roster://<id>). Level <n>. Species:
-  <species>. Class: <class>.` When ability scores are assigned during creation, the output appends
-  `Abilities: <Str>/<Dex>/<Con>/<Int>/<Wis>/<Cha>.` When the class table is extractable from the
-  ruleset, the output includes derived statistics: `HP`, `Reflex Defense`, `Fortitude Defense`,
-  `Will Defense`, `Base Attack Bonus`, and `Skills` with trained-skill list.
+  <species>. Class: <class>.` Where the ruleset lacks species, class, or level concepts, those fields
+  are omitted and a field summary follows per the entity-creation convention above. When ability scores
+  are assigned during creation, the output appends `Abilities: <Str>/<Dex>/<Con>/<Int>/<Wis>/<Cha>.`
+  When the class table is extractable from the ruleset, the output includes derived statistics: `HP`,
+  `Reflex Defense`, `Fortitude Defense`, `Will Defense`, `Base Attack Bonus`, and `Skills` with
+  trained-skill list.
 - **Skill or tier training**: `[OK] <Name> trains <selection>. <field>: <value-list>.` When the ruleset
   models skills as tier bonuses rather than named abilities, the tier is rendered distinctly from named
   skills (e.g., `Skills: Military Training, Athletics, Expert (Firearms)`), and the chosen specialty is
@@ -2235,11 +2292,11 @@ mandate. Waivers are allowed only under REQ-013; log each with its reason in `DE
 on invalid waiver grounds (Appendix G.6). When Q7 selects a scripted equivalent, the scripted harness is a
 required build deliverable covering every derived test whose requirements are implemented; it is project
 code, not one of the four handoff artifacts, and is exempt from the artifact diet (Section 8). The tests
-keep their original numbering; identifiers T2, T6, T7, T14, T24, and T30 are retired and never reused: T2
-folds into T16; T6, T7, T14, and T30 fold into Gate 2; T24 folds into the networking-disabled environment
-below. The handshake capability advertisement is exercised by Gate 1 (Appendix D) and is not repeated as a
-derived test. The derived tests run with networking disabled (REQ-051). T9, T22, and T27 share one restart
-harness.
+keep their original numbering; identifiers T1, T2, T6, T7, T14, T24, and T30 are retired and never reused:
+T1 was absorbed into early specification drafts and never formalized; T2 folds into T16; T6, T7, T14, and
+T30 fold into Gate 2; T24 folds into the networking-disabled environment below. The handshake capability
+advertisement is exercised by Gate 1 (Appendix D) and is not repeated as a derived test. The derived tests
+run with networking disabled (REQ-051). T9, T22, and T27 share one restart harness.
 
 | #     | Type     | Test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Requirements                                |
 | ----- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
@@ -2450,6 +2507,13 @@ completed the cold-checkout replay cannot pass H12.
 
 Every chain Markdown → REQ → code → test must be traceable. Any gap is a defect; record it in `DECISIONS.md`.
 
+Handoff completes Phase 2. If the operator proceeds to Phase 3 (persona enrichment,
+§10) or Phase 4 (character sheet enhancement, §11), the four artifacts are amended to
+reflect the additions — `DECISIONS.md` records new phase evidence, `README.md` documents
+new tools or prompts, and `AGENTS.md` notes any new source files or dependencies.
+Phases 3 and 4 do not invalidate the Phase 2 handoff; they extend the build on top of
+it.
+
 ---
 
 ## 9. Independent Verification
@@ -2526,6 +2590,331 @@ Report in the format below.
 A `DISPUTED` item is resolved by the operator re-running that single contested step; the operator adjudicates
 when available, and otherwise the finding stands. The report is review evidence, not a build artifact; it
 never joins the four artifacts of Section 8.
+
+---
+
+## 10. Post-Build Persona Enrichment
+
+_This is Phase 3 — optional. It does not gate the Definition of Done. It describes a research
+step the operator may run after all Phase 2 gates pass, to supplement the generic foundations
+(§6.9a) with ruleset-specific play advice collected from online sources._
+
+### 10.1 Pre-build questions
+
+Ask the operator as a single batch. Record each answer or default in `DECISIONS.md`.
+
+| #   | Question                          | Options                                                                                  | Non-interactive default |
+| --- | --------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------- |
+| PE1 | Run persona enrichment?            | yes / no                                                                                 | yes                     |
+| PE2 | Research depth                    | surface (top 5 results per source type) / deep (exhaustive per source type)               | surface                 |
+| PE3 | Source types to include           | all / select from: community advice, actual plays, strategy guides, genre advice, designer commentary | all           |
+| PE4 | Minimum confidence for inclusion  | high / medium / low                                                                      | medium                  |
+| PE5 | Maximum items per persona         | 5–20                                                                                     | 10                      |
+| PE6 | Operator availability             | available / unavailable                                                                  | as Phase 1              |
+
+If PE1 is "no," Phase 3 is skipped — proceed immediately to the Phase 4 question.
+
+### 10.2 When to run
+
+After the server passes all verification gates (Section 7) and `DECISIONS.md` is finalized.
+The research may be run at any time thereafter — immediately post-handoff, or months later when
+community advice for the ruleset has accumulated.
+
+### 10.3 Mission
+
+Search the web for ruleset-specific advice on how to play and run the target ruleset. The goal
+is to find supplementary guidance — community-created best practices, actual-play recordings,
+strategy guides, GM principles, player advice, and genre-specific storytelling techniques — that
+the ruleset's own text may not include. Compose the findings as supplementary guidance items
+appended to `persona_briefing`.
+
+### 10.4 Research sources
+
+Search for and review, in rough priority order:
+
+1. **Community advice.** Forum threads, blog posts, and wiki articles tagged with the ruleset's
+   name and terms such as "GM advice," "how to run," "tips," "player guide," or the ruleset's
+   own referee term.
+2. **Actual plays.** Podcast or video descriptions of the ruleset in play — note recurring
+   adjudication patterns, pacing rhythms, and techniques the referee uses.
+3. **Strategy guides.** Character optimization guides reveal which mechanics are most leveraged;
+   system mastery articles expose the ruleset's design assumptions.
+4. **Genre and narrative advice.** If the ruleset targets a specific genre (horror, heist,
+   investigation, space opera), search for genre-specific GM advice applicable to any system.
+5. **Designer commentary.** Interviews or essays by the ruleset's designers that explain design
+   intent, intended play style, or common table pitfalls.
+
+### 10.5 Output format
+
+Each supplementary finding is recorded as a guidance item with these fields:
+
+```
+guidance:
+  title: <short title>
+  text: <one to three sentences of actionable advice>
+  persona: player | referee | shared
+  source_url: <URL where the advice was obtained>
+  source_type: community | actual_play | strategy_guide | genre_advice | designer_commentary
+  confidence: high | medium | low
+  attribution: supplementary — not derived from the ruleset Markdown
+```
+
+### 10.6 Composition
+
+Append supplementary guidance items to the `persona_briefing` after the generic foundations
+(§6.9a) and before the tool/resource listing. The items carry a `[supplementary]` tag in the
+briefing output. Supplementary items are embedded as quoted, inert data (§3, rule 5) — they
+do not influence tool behavior, search results, or model extraction.
+
+### 10.7 Gate status
+
+This step produces no new gates, no new requirements, and no waivers. Failure to run, or empty
+results, leaves the server output unchanged. Supplementary items may be added, removed, or
+updated at any time — they are advisory annotations, not normative content.
+
+### 10.8 Phase completion
+
+The builder reports how many supplementary items were added per persona, which source types
+were consulted, and any items that failed the confidence threshold. Ask: "Phase 3 complete.
+Proceed to Phase 4 (PDF-Enhanced Character Sheet)?" Options: yes / no (stop here). Record
+the answer in `DECISIONS.md`.
+
+---
+
+## 11. Character Sheet Generator
+
+_This is Phase 4 — optional. It extends the Phase 2 character sheet baseline (§5.5a) with
+PDF layout study, an ASCII renderer, and optional MCP App HTML display. The baseline —
+derivation layer, Markdown renderer, and `character_sheet` tool — was already built in
+Phase 2 from ruleset inference. This phase adds polish._
+
+### 11.1 Pre-build questions
+
+Ask the operator as a single batch. Record each answer or default in `DECISIONS.md`.
+
+| #   | Question                            | Options                                                                                          | Non-interactive default                                           |
+| --- | ----------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Q16 | Character sheet PDF for layout study | yes, local / yes, download URL / search online / included with ruleset / none                     | none                                                              |
+| Q17 | Character sheet PDF path            | Path to the PDF file (when Q16 is "yes, local")                                                   | —                                                                 |
+| Q18 | PDF reading method                  | (1) model's own vision capability; (2) convert pages to images + vision model; (3) OCR on page images; (4) merge with baseline. The builder probes each path in order, notifying the operator before falling back. | Attempt each path in order; ruleset inference only after exhausting prior options |
+| Q19 | Run Phase 4?                        | yes / no                                                                                         | no                                                                |
+
+Q16 — Availability. "Yes, local" expects a file path (Q17). "Yes, download URL" triggers a
+fetch; the builder records the URL and file hash. "Search online" triggers a web search for
+the ruleset's official or community character sheet; the builder presents candidates. "Included
+with ruleset" means the sheet is part of the already-ingested ruleset source — skip PDF-specific
+steps. "None" means no PDF study but Phase 4 can still build the ASCII renderer and MCP App UI
+from the baseline fields.
+
+Q18 — Reading method. The builder probes the environment in order, never short-cutting to
+inference without operator consent. A model that renders PDFs natively uses that capability.
+When image conversion is required, prefer `pdftoppm` (Poppler) over ImageMagick `convert`.
+Combine the available tools: for scanned PDFs, feed images through a vision-capable model as
+the primary extraction pass, fall back to OCR on the same images, and merge. When the vision
+model and OCR disagree, the vision output is canonical and the OCR output is logged as a
+normalization. Path 4 (ruleset inference) is a merge step — diff PDF-extracted fields against
+the Phase 2 baseline, fill gaps, and record discrepancies.
+
+Q19 — Build. "Yes" runs Phase 4. The character sheet tool is enhanced, not created from
+scratch — the Phase 2 baseline already provides a working Markdown sheet from ruleset
+inference. Phase 4 adds PDF layout study, an ASCII renderer, and optional MCP App HTML display.
+It never modifies the server's index or state directory, and its tests do not block server
+verification gates (Section 7).
+
+### 11.2 Pre-build verification
+
+Before writing code, audit the server for infrastructure the Phase 4 enhancement depends on.
+The Phase 2 baseline (`domain/sheet.ts`, `domain/sheet_md.ts`, `character_sheet` tool) must
+already exist. Verify:
+
+- **Truncation.** Determine whether a shared `truncateText(text)` function exists. If it uses
+  a global `payload-N` counter, replacing it with per-tool counters affects every call site —
+  audit all uses before making the change. Record the audit in `DECISIONS.md`.
+
+- **Output resource.** Verify an `output://` resource template is registered (REQ-004). The
+  character sheet tool registers `output://{tool}/{counter}`. Payloads are session-local; evict
+  the oldest when exceeding the payload bound (REQ-004).
+
+- **Error format.** All server errors follow REQ-002: `[ERROR] [<CATEGORY>] <explanation>` with
+  a separate `Corrective action: <action>` line.
+
+- **Render files.** Verify `domain/sheet.ts` and `domain/sheet_md.ts` exist from Phase 2. The
+  derivation layer and Markdown renderer are already built. This phase extends them with an
+  ASCII renderer and PDF-discovered fields.
+
+- **Incremental PDF discovery.** If the Phase 2 baseline was built from ruleset inference
+  without PDF access, and a PDF later becomes available, run the field-enumeration paths
+  (§11.3) against the PDF, then diff the extracted fields against the existing sheet
+  implementation. Fill discovered gaps: player-tracked resources (currency, XP, per-rest uses),
+  section ordering mismatches, and overlooked conditional fields. Record the comparison in
+  `SHEET_FIELDS.md`.
+
+- **MCP App readiness.** If the builder plans to add an HTML UI (§11.8), verify: the renderer
+  functions are exported and importable; the target MCP host supports `_meta.ui.resourceUri` in
+  tool definitions. Test with a minimal app tool first. Prefer stdio-compatible hosts. Fall
+  back to an HTTP entry point only when the host requires it.
+
+### 11.3 PDF study and field enumeration
+
+**Goal.** Enumerate every field on the character sheet — label, data type, page position, and
+whether it derives from other fields. Record blank/RP-only fields as well.
+
+Exhaust the following paths in order. The builder must never skip directly to Path 4 without
+first attempting each of Paths 1–3 and notifying the operator.
+
+1. **Direct reading.** Open the PDF. If the builder's model or toolchain renders it natively,
+   enumerate fields visually and record them in `SHEET_FIELDS.md`.
+
+2. **Convert to images → vision model.** If direct reading fails, convert PDF pages to images:
+   `pdftoppm -png -r 150 sheet.pdf sheet_page`. If `pdftoppm` is absent, try ImageMagick
+   `convert`. Pass each page image to a vision-capable model for field enumeration.
+
+   Combine vision model with OCR: use the vision model as the primary source, run OCR as a
+   fallback for any field the vision model missed or was uncertain about, and merge. When they
+   disagree, the vision output is canonical and the OCR output is logged as a normalization
+   (§8, item (4)), flagged for operator review.
+
+3. **OCR.** If no vision model is available, extract text via OCR: `tesseract page-1.png output
+   -l eng`. Parse extracted text against the ruleset's known field labels.
+
+4. **Merge with Phase 2 baseline.** Diff the PDF-extracted (or ruleset-inferred) fields against
+   the baseline fields from Phase 2. Fill discovered gaps: player-tracked resources (currency,
+   XP, per-rest uses), section ordering mismatches, and overlooked conditional fields. When no
+   PDF exists, the baseline fields from Phase 2 serve as the starting inventory.
+
+**Output.** `SHEET_FIELDS.md` — a catalog listing every identified field, its derivation source,
+and notes about edge cases.
+
+### 11.4 Entity type definition
+
+Extend the Phase 2 interface with any PDF-discovered fields not in the baseline. Translate the
+field inventory to a flat, serializable interface in `domain/sheet.ts`. One slot per field. Use
+arrays for lists and optional fields for conditional data. Every entity carries a unique
+`id: string`. The interface is consumed by all renderers.
+
+### 11.5 Architecture and derivation
+
+The derivation layer already exists from Phase 2 (§5.5a). Extend it with any new fields
+discovered from the PDF. Keep renderers separate — both import the same derivation module.
+
+```
+domain/sheet.ts       — shared helpers, typed row interfaces (extended from Phase 2)
+domain/sheet_md.ts    — Markdown renderer (built in Phase 2; update if PDF fields changed)
+domain/sheet_ascii.ts — ASCII renderer (built in Phase 4)
+```
+
+### 11.6 Renderers
+
+**Markdown (built in Phase 2).** Update the Phase 2 Markdown renderer if PDF study changed field
+ordering or layout. Structure remains: identity line, combat strip, abilities/saves/skills (bold
+proficient), weapons, features/traits/feats as bulleted list, spellcasting section, equipment
+list, details/coins. Tables use `| --- |` separators. Empty sections render `_None._`. Escape
+`|` in cell content. Flag entries not found in the index with `(not indexed)`.
+
+**ASCII (built in Phase 4).** Same derivation helpers as Markdown, different layout. Use `+`,
+`-`, `|` for boxed tables with per-column widths and horizontal rules between every row. Section
+bands with `+====+`. Checkboxes: `[*]`/`[ ]`. Blanks: `____`. Pips for slot/DS tracking.
+Multi-page PDF → PAGE N OF M headers. Fixed output width (e.g., 100 cols). Wrap long text.
+
+### 11.7 MCP tool wiring
+
+Update the Phase 2 `character_sheet` tool to add a `format` parameter:
+
+```
+name: "character_sheet"
+title: "<Entity> Sheet"
+description: "Render an entity's sheet in the ruleset's official layout."
+persona: both
+input: { entity: string, format: enum["markdown","ascii"], default "markdown" }
+annotations:
+  readOnlyHint: true, idempotentHint: true
+  destructiveHint: false, openWorldHint: false
+sideEffects: "None"
+example: { "entity": "delver_01" }
+
+handler:
+  1. Resolve entity from game state (fallback to roster)
+  2. Not found → [ERROR] [NOT_FOUND] <explanation>
+     Corrective action: <valid entity IDs visible to this persona>
+  3. Dispatch to renderer based on format
+  4. Output prefix: [OK] Character sheet for {name} ({id}, {source}, {format}.md|.txt)
+  5. Truncate if exceeding the payload limit, ending with
+     … [truncated — full content: output://character_sheet/<counter>]
+  6. Register output://character_sheet/{counter} resource template (REQ-004)
+  7. Return { content: [{ type: "text", text: result }] }
+```
+
+**Persona gating with `registerAppTool`.** When the tool is registered via `registerAppTool`
+instead of the server's standard tool registration, persona visibility gating may not be wired
+automatically. After registration, push the tool definition to the server's internal tool
+registry manually (e.g., `toolRegistry.push`) to enforce `persona` gating (REQ-032).
+
+### 11.8 MCP App support — optional
+
+When the target MCP host supports MCP App UI rendering, add an HTML character sheet display on
+top of the text-based tool. The HTML UI consumes the tool's Markdown output — it does not
+duplicate server-side rendering logic. The Markdown text output remains the canonical format.
+
+Prefer stdio-first: if the host supports MCP App resources over stdio transport, register
+`registerAppTool` and `registerAppResource` directly on the existing stdio server. Only fall
+back to a separate HTTP entry point when the host requires it.
+
+**Host compatibility check.** Verify the host supports MCP Apps before building the HTML UI.
+Test in order: (1) stdio — register a minimal `registerAppTool` with `_meta.ui.resourceUri`
+and a `registerAppResource` serving an HTML page; (2) HTTP fallback — register a minimal
+remote tool with `_meta.ui.resourceUri`. If neither path works, skip §11.8 — the text-based
+`character_sheet` tool is still fully functional.
+
+**Architecture — stdio (preferred).** Register the app tool and HTML resource directly on the
+existing stdio server. Replace the `character_sheet` tool definition with `registerAppTool`
+and add `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }`. After
+`registerAppTool`, push the definition to the server's internal tool registry for persona
+gating. Register the HTML resource with `registerAppResource`. Dependencies:
+`@modelcontextprotocol/ext-apps`, `vite`, `vite-plugin-singlefile`. No Express, no HTTP
+transport, no CORS. The standard `npm run build` compiles TypeScript and bundles the HTML UI.
+
+**Architecture — HTTP fallback.** If stdio MCP App is unsupported, create a separate HTTP
+entry point (`src/app.ts`) reusing the server's existing config, index, state, and renderers.
+The core server stays stdio-based (REQ-051). Dependencies: `@modelcontextprotocol/ext-apps`,
+`express`, `cors`, `vite`, `vite-plugin-singlefile`. This duplicates the `character_sheet`
+tool registration between two servers — keep both registrations in sync.
+
+**HTML UI.** A single HTML file (vite + `vite-plugin-singlefile` bundling) that includes the
+`App` class from `@modelcontextprotocol/ext-apps`, an `ontoolresult` handler parsing the
+tool's Markdown output into styled HTML matching the official character sheet layout, a format
+toggle (styled HTML ↔ raw Markdown / raw ASCII), and CSS implementing the PDF-sourced layout.
+The UI parser handles every Markdown section; unrecognized sections pass through as raw
+Markdown.
+
+**Host MCP config.** Stdio path needs no additional configuration. HTTP fallback adds the app
+server as a separate MCP entry. The Markdown text output is the authoritative character sheet;
+the MCP App HTML UI is an optional display enhancement.
+
+### 11.9 Tests and defensive parsing
+
+**Tests (extending Phase 2 baseline).** The `minimalIndex()` test double from Phase 2 is reused
+and extended. Coverage: ASCII renderer (identity, stat math, weapon/spell resolution, edge
+cases), `format` parameter dispatch (Markdown vs. ASCII), MCP App (if built — `_meta.ui`
+resource URI, HTML resource MIME type, stdio resource serving), production data (at least one
+real-entry test per entity type, including starship/capital ship/ground vehicle/walker), and
+defensive parsing.
+
+**Defensive parsing.** When consuming stat blocks or entity data: end field capture at newlines,
+not only semicolons; strip commas from numeric fields before integer parsing; recognize both
+abbreviated and full ability labels; validate captured fields against expected patterns;
+handle weapon multi-gunner notation variants.
+
+### 11.10 Build and verification
+
+After each change, run in order: typecheck, build, unit tests, gate tests. Fix before
+proceeding. Phase 4 tests are included in the server's test suite but do not block server
+verification gates (Section 7) — the character sheet baseline already passed Phase 2 gates.
+
+### 11.11 Phase completion (final)
+
+The builder reports: PDF fields discovered, ASCII renderer status, MCP App status, test count.
+Ask: "Phase 4 complete. Build finished." This is the final gate — no further phases follow.
+Record the completion in `DECISIONS.md`.
 
 ---
 
@@ -2968,7 +3357,10 @@ Question: Choose one knack from the Knacks table.
 Options: marshwise, iron-stomach, quiet-step, old-wounds, lantern-lore, briar-born, cancel
 
 → respond { "decision": "knack", "option": "quiet-step" }
-[OK] Delver created: Moss (entity://delver_01). Grit +2, Nerve +1, Wits +0. Harm 0/6. Knack: Quiet Step.
+[OK] Delver created: Moss (roster://delver_01). Grit +2, Nerve +1, Wits +0. Harm 0/6. Knack: Quiet Step.
+
+→ import_character { "roster_id": "delver_01" }
+[OK] Delver imported: Moss (entity://delver_01) from roster://delver_01. Grit +2, Nerve +1, Wits +0. Harm 0/6. Knack: Quiet Step.
 
 → roll_move { "move": "delve", "entity": "delver_01", "seed": 42 }
 [OK] Total: 5 — failure
@@ -3494,19 +3886,7 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Negative control:** A `spec_health` report with 70% confidence or an uncovered MUST action, with no
   remediation plan.
 
-### G.13 Check H12 — Cold-checkout replay evidence present
-
-- **Covers:** Gate 2, F3.
-- **Input:** `DECISIONS.md` Section 8, item (6).
-- **Procedure:** Assert an evidence entry labeled "Cold-checkout replay" exists
-  with a non-empty command or procedure, a `PASS` result, and evidence containing
-  the exit status.
-- **Pass:** Entry exists with the required fields.
-- **Positive control:** A complete cold-checkout entry.
-- **Negative control:** A `DECISIONS.md` with no cold-checkout entry or
-  `(not executed)` in the result field.
-
-### G.14 Check H11 — Client configuration launch
+### G.13 Check H11 — Client configuration launch
 
 - **Covers:** F6, Section 5.1, Section 8.
 - **Input:** `README.md` client configuration entry; the chosen MCP client.
@@ -3527,6 +3907,18 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Negative control 2 (schema):** A `README.md` entry whose field names or value formats differ from the
   Q14 documented schema (e.g., `env` where `environment` is required, `command` as a string where an array
   is required), caught by the Section 5.1 check before Gate 0.
+
+### G.14 Check H12 — Cold-checkout replay evidence present
+
+- **Covers:** Gate 2, F3.
+- **Input:** `DECISIONS.md` Section 8, item (6).
+- **Procedure:** Assert an evidence entry labeled "Cold-checkout replay" exists
+  with a non-empty command or procedure, a `PASS` result, and evidence containing
+  the exit status.
+- **Pass:** Entry exists with the required fields.
+- **Positive control:** A complete cold-checkout entry.
+- **Negative control:** A `DECISIONS.md` with no cold-checkout entry or
+  `(not executed)` in the result field.
 
 ---
 
@@ -3853,473 +4245,3 @@ for more games with open licenses." The builder runs a web search for SRD/open-l
 TTRPGs, presents up to 5 additional candidates with license confirmation fetched from each
 source, and lets the operator select or reject. This keeps the appendix lean at 10 entries
 while preserving discoverability.
-
-## Appendix J: Character Sheet Generator
-
-This appendix guides building a character-sheet rendering tool on top of a
-holonovel-built MCP server. It is gated by Q19 (§5.1.1) — when Q19 is "no," this
-appendix is not applied. The character sheet tool is a post-build extension: it does
-not modify the server's index, state directory, or verification gates, and its absence
-does not affect the Definition of Done (§1.2).
-
-The appendix covers PDF study and field enumeration, entity type definition, a
-format-agnostic derivation layer, Markdown and ASCII renderers, MCP tool wiring,
-optional MCP App HTML display, and tests. It is server-agnostic — it works with any
-holonovel-built server whose ruleset model and index are accessible.
-
-### J.1 Pre-build verification
-
-Before writing code, audit the server for infrastructure the character sheet tool
-depends on:
-
-- **Truncation.** Determine whether a shared `truncateText(text)` function exists.
-  If it uses a global `payload-N` counter, replacing it with per-tool counters
-  (`output://<tool>/<counter>` starting at 1) affects every call site — audit all
-  uses before making the change. Record the audit in `DECISIONS.md`.
-
-- **Output resource.** Verify an `output://` resource template is registered
-  (REQ-004). The character sheet tool registers `output://{tool}/{counter}`. If a
-  template already exists, verify it supports path-segment variables — the pattern
-  `output://{id}` does not match URIs containing `/`. Payloads are session-local;
-  evict the oldest when exceeding the payload bound (REQ-004).
-
-- **Error format.** All server errors follow REQ-002: `[ERROR] [<CATEGORY>]
-  <explanation>` with a separate `Corrective action: <action>` line. Verify the
-  shared error helper uses this format. If it uses an inline `Valid:` suffix
-  instead, fix the helper — this affects all tools, not only the character sheet.
-
-- **Render files.** Verify `domain/sheet.ts` and `domain/sheet_md.ts` exist. If
-  they do, use §§J.4–J.7 as a compliance checklist against them. If not, build
-  from scratch following §§J.4–J.5.
-
-- **Incremental PDF discovery.** If the server was built from ruleset inference
-  (Path 4, §J.2) without PDF access, and a PDF later becomes available, run the
-  field-enumeration paths (Paths 1–3, §J.2) against the PDF, then diff the
-  extracted fields against the existing sheet implementation. Fill discovered
-  gaps: player-tracked resources (currency, XP, per-rest uses), section ordering
-  mismatches, and overlooked conditional fields. Record the comparison in
-  `SHEET_FIELDS.md` with derivation-source annotations.
-
-- **MCP App readiness.** If the builder plans to add an HTML UI (§J.8), verify:
-  the renderer functions (`renderCharacterSheet`,
-  `renderCharacterSheetMarkdown`) are exported from their modules and
-  importable; the target MCP host supports `_meta.ui.resourceUri` in tool
-  definitions. Test with a minimal app tool before investing in HTML UI work.
-  Prefer stdio-compatible hosts — they serve MCP App resources over the existing
-  stdio transport (no separate HTTP entry point required). Fall back to an HTTP
-  entry point only when the host requires it (§J.8).
-
-The pre-check applies to both greenfield builds and compliance audits of an
-existing implementation.
-
-### J.2 PDF study and field enumeration
-
-**Goal.** Enumerate every field on the character sheet — label, data type, page
-position, and whether it derives from other fields (e.g., modifier =
-floor((score − 10) / 2)). Record blank/RP-only fields as well.
-
-Exhaust the following paths in order, stopping when one succeeds. The builder
-must never skip directly to Path 4 without first attempting each of Paths 1–3
-and notifying the operator (§5.1.1, Q18).
-
-1. **Direct reading.** Open the PDF. If the builder's model or toolchain renders
-   it natively (text-based PDF or vision-capable), enumerate fields visually and
-   record them in `SHEET_FIELDS.md`.
-
-2. **Convert to images → vision model.** If direct reading fails, convert PDF
-   pages to images:
-
-   ```
-   pdftoppm -png -r 150 sheet.pdf sheet_page
-   ```
-
-   If `pdftoppm` is absent, try `convert -density 150 sheet.pdf page-%d.png`
-   (ImageMagick). Pass each page image to a vision-capable model for field
-   enumeration. For image-based (scanned) PDFs that lack an embedded text
-   layer, this is the primary extraction pass — the vision model reads fields
-   visually from the rendered page images.
-
-   To improve completeness, combine this path with Path 3 on the same images:
-   use the vision model as the primary source, run OCR as a fallback for any
-   field the vision model missed or was uncertain about, and merge the results.
-   When the vision model and OCR disagree on a field, the vision output is
-   canonical; the OCR output is logged as a normalization in `DECISIONS.md`
-   (Section 8, item (4)), and the discrepancy is flagged for operator review.
-
-3. **OCR.** If no vision model is available, extract text via OCR:
-
-   ```
-   tesseract page-1.png output -l eng
-   ```
-
-   Requires `tesseract-ocr`. Parse the extracted text against the ruleset's
-   known field labels (ability names, skill names, defense labels) to
-   reconstruct the layout. Tolerate OCR noise — prefer false positives (extra
-   tokens from decorative elements) over false negatives (missing fields). Even
-   when form layouts are unreadable, partial results have value: version
-   changelogs, running instruction text, and reference panels often survive OCR
-   better than bordered form fields and can confirm overlooked fields or
-   validate derivation rules.
-
-4. **Ruleset inference.** If extraction and OCR both fail or yield unparseable
-   results, infer fields from ruleset knowledge and NPC stat block structure.
-   The builder must inform the operator before falling back to this path and
-   record it as a standing limitation in `DECISIONS.md` per REQ-013. Enumerate
-   the inferred fields in `SHEET_FIELDS.md` with the derivation source noted.
-
-   When inferring fields, pay special attention to player-tracked resources:
-   currency, experience points, per-rest/encounter uses, and condition-track
-   state are commonly present on official sheets but invisible to pure ruleset
-   derivation. Enumerate these explicitly in `SHEET_FIELDS.md` even when they
-   carry no derivation rule — they are RP-only fields that renderers must
-   provide slots for.
-
-**Output.** `SHEET_FIELDS.md` — a catalog in the server's source tree listing
-every identified field, its derivation source (page number, OCR, ruleset
-inference, stat block parse), and notes about edge cases (optional fields,
-conditional visibility, blank/RP-only slots).
-
-### J.3 Entity type definition
-
-Translate the field inventory to a flat, serializable interface. One slot per
-PDF field. Use arrays for lists (proficiencies, equipment, spells) and optional
-fields for conditional data (spell slots). Every entity carries a unique `id:
-string`. The interface is defined in `domain/sheet.ts` and consumed by all
-renderers.
-
-### J.4 Prerequisites and ruleset index
-
-The derivation layer requires a pre-built index with named lookup maps — e.g.,
-`equipmentByName`, `spellsByName`, `speciesByName` — where map names reflect the
-actual ruleset, never hardcoded. The index is built at server startup, not at
-tool-invocation time. If the MCP server does not already expose a ruleset index
-in this shape, build it before implementing the sheet renderers. The index
-implements a `RulesIndex` interface that every derivation function and test
-double can depend on.
-
-### J.5 Architecture and derivation
-
-```
-domain/sheet.ts       — shared helpers, typed row interfaces, ASCII renderer
-domain/sheet_md.ts    — Markdown renderer (imports shared; no independent math)
-```
-
-Keep renderers separate. Both import the same derivation module.
-
-**Derivation layer (format-agnostic).** Pure functions:
-`(entity, rulesIndex) => RowData[]`. No layout code. Return typed interfaces
-(`WeaponRowData`, `SpellRowData`) that renderers consume. Common helpers:
-score-to-modifier math, proficiency checks, equipment resolution, spell
-resolution, permanent save bonuses from features/items. The derivation layer
-extends over time as rules change — it is the single source of truth for
-mechanical computation, consumed identically by every renderer.
-
-### J.6 Renderers
-
-**Markdown (build first — default format).** Consume the derivation layer.
-Structure mirrors the PDF: identity line, combat strip, abilities/saves/skills
-(bold proficient), weapons, features/traits/feats as bulleted lists,
-spellcasting section (ability, DC, slots, spell table with
-Concentration/Ritual/Prepared flags), equipment list, details/coins. Tables use
-`| --- |` separators. Handle empty sections: `_No cantrips or prepared
-spells._`. Escape `|` in cell content. Flag entries not found in the ruleset
-index with `(not indexed)`.
-
-**ASCII (build after Markdown — on-request only).** Same derivation helpers,
-different layout. Use `+`, `-`, `|` for boxed tables with per-column widths and
-horizontal rules between every row. Section bands with `+====+`. Checkboxes:
-`[*]`/`[ ]`. Blanks: `____`. Pips for slot/DS tracking. Multi-page PDF → PAGE N
-OF M headers. Fixed output width (e.g., 100 cols). Wrap long text.
-
-### J.7 MCP tool wiring
-
-```
-name: "character_sheet"
-title: "<Entity> Sheet"
-description: "Render an entity's sheet in the ruleset's official layout."
-persona: both
-input: { entity: string, format: enum["markdown","ascii"], default "markdown" }
-annotations:
-  readOnlyHint: true, idempotentHint: true
-  destructiveHint: false, openWorldHint: false
-sideEffects: "None"
-example: { "entity": "delver_01" }
-
-handler:
-  1. Resolve entity from game state (fallback to roster)
-  2. Not found → [ERROR] [NOT_FOUND] <explanation> (REQ-002; REQ-058)
-     Corrective action: <valid entity IDs visible to this persona>
-  3. Dispatch to renderer based on format
-  4. Output prefix: [OK] Character sheet for {name} ({id}, {source}, {format}.md|.txt)
-  5. Truncate output if it exceeds the payload limit, ending with
-     … [truncated — full content: output://character_sheet/<counter>]
-     Per-tool counter; if the server's truncateText is shared, audit all call sites.
-  6. Register an output://{tool}/{counter} resource template. Payloads are
-     session-local; evict oldest when exceeding the payload bound. Not found →
-     throw JSON-RPC error (-32000) with [NOT_FOUND] message (REQ-004).
-  7. Return { content: [{ type: "text", text: result }] }
-```
-
-**Persona gating with `registerAppTool`.** When the tool is registered via
-`registerAppTool` (from `@modelcontextprotocol/ext-apps/server`) instead of the
-server's standard tool registration, persona visibility gating may not be wired
-automatically. After registration, push the tool definition to the server's
-internal tool registry manually (e.g., `toolRegistry.push`) to enforce
-`persona` gating (REQ-032). Skip this if the server's normal registration path
-already handles persona gating (Section 6.4).
-
-### J.8 MCP App support — optional
-
-When the target MCP host supports MCP App UI rendering, add an HTML character
-sheet display on top of the text-based tool. The HTML UI consumes the tool's
-Markdown output — it does not duplicate server-side rendering logic. The
-Markdown text output remains the canonical format and works regardless of host
-support.
-
-Prefer stdio-first: if the host supports MCP App resources over stdio
-transport, register `registerAppTool` and `registerAppResource` directly on the
-existing stdio server. This avoids code duplication — a separate app server
-would register the same `character_sheet` tool a second time, creating drift
-and maintenance burden. Only fall back to a separate HTTP entry point when the
-host requires it.
-
-#### J.8.1 Host compatibility check
-
-Verify the host supports MCP Apps before building the HTML UI. Test in order:
-
-1. **Stdio (preferred).** Register a minimal `registerAppTool` with
-   `_meta.ui.resourceUri` and a `registerAppResource` serving an HTML page at
-   `ui://character-sheet/test.html` on the existing stdio server. Confirm the
-   host renders the HTML in a sandboxed iframe. If this works, skip the HTTP
-   fallback entirely — register the real tool and resource on the stdio server.
-
-2. **HTTP (fallback).** If the host does not support MCP App over stdio,
-   register a minimal remote tool (HTTP transport) with
-   `_meta.ui.resourceUri` and confirm the host renders the HTML. If neither
-   path works, skip §J.8 — the text-based `character_sheet` tool is still
-   fully functional.
-
-#### J.8.2 Architecture — preferred (stdio, no separate server)
-
-When the host supports MCP App over stdio (§J.8.1 test 1 passes), register the
-app tool and HTML resource directly on the existing stdio server entry point
-(e.g., `src/index.ts`):
-
-- **Tool registration.** Replace the `character_sheet` tool definition with
-  `registerAppTool(server, "character_sheet", handler, { ... })` and add
-  `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }` so the
-  host discovers the HTML UI when the tool is invoked. The handler and
-  rendering logic stay identical to the text-only version. After
-  `registerAppTool`, persona gating (the `persona` field) may not be wired
-  automatically — manually push the definition to the server's internal tool
-  registry (e.g., `toolRegistry.push`) if needed (REQ-032).
-
-- **Resource registration.** `registerAppResource(server,
-  "ui://character-sheet/sheet.html", { mimeType: RESOURCE_MIME_TYPE, load:
-  async () => ({ blob: await fs.readFile(path.join(__dirname, "ui",
-  "sheet.html")) }) })`. The bundled HTML lives at `dist/ui/sheet.html` after
-  the build step.
-
-- **Imports.** `registerAppTool`, `registerAppResource`,
-  `RESOURCE_MIME_TYPE` from `@modelcontextprotocol/ext-apps/server`;
-  `fs/promises` and `path` from `node:`.
-
-- **Dependencies.** `@modelcontextprotocol/ext-apps`, `vite`,
-  `vite-plugin-singlefile`. No Express, no HTTP transport, no CORS.
-
-- **Build.** The standard `npm run build` compiles TypeScript (`tsc`) and
-  bundles the HTML UI (`vite build`). Output: `dist/index.js` +
-  `dist/ui/sheet.html`.
-
-- **No HTTP port.** The host serves the HTML resource through its own
-  transport — no Express server, no port to configure, no separate MCP config
-  entry.
-
-#### J.8.3 Architecture — fallback (HTTP entry point)
-
-If the host does not support MCP App over stdio (§J.8.1 test 1 fails but test
-2 passes), create a separate HTTP entry point (`src/app.ts`) that reuses the
-server's existing config, index, state, and renderers. Do not switch the stdio
-server to HTTP — the core server stays stdio-based (REQ-051).
-
-```
-src/app.ts  — HTTP entry point
-src/ui/     — client-side HTML/JS/CSS (bundled to dist/ui/sheet.html)
-```
-
-The app entry point:
-
-- Creates an `McpServer` with a distinct name (e.g.,
-  `holonovel_<ruleset>_sheet`).
-- Registers the `character_sheet` tool via `registerAppTool` (from
-  `@modelcontextprotocol/ext-apps/server`) with
-  `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }`.
-- Registers the bundled HTML as a resource via `registerAppResource` with
-  MIME type `RESOURCE_MIME_TYPE` (`text/html;profile=mcp-app`).
-- Serves via Express + `StreamableHTTPServerTransport` on a configured port.
-
-Dependencies: `@modelcontextprotocol/ext-apps`, `express`, `cors`, `vite`,
-`vite-plugin-singlefile`.
-
-```
-npm run build-app   # vite bundles src/ui/ → dist/ui/sheet.html + tsc compiles src/app.ts
-npm run serve-app   # starts app server on the configured port
-```
-
-This approach duplicates the `character_sheet` tool registration between two
-servers — keep both registrations in sync. Drift causes the HTML UI to render
-differently from the text output.
-
-#### J.8.4 HTML UI
-
-The UI is a single HTML file (vite + `vite-plugin-singlefile` bundling). It
-includes:
-
-- The `App` class from `@modelcontextprotocol/ext-apps` for host communication.
-- An `ontoolresult` handler that receives the tool's Markdown output, parses it
-  into structured data, and renders it in styled HTML matching the official
-  character sheet layout.
-- A format toggle (styled HTML ↔ raw ASCII / raw Markdown) that calls
-  `app.callServerTool()` with `format: "ascii"` or `format: "markdown"` to
-  re-fetch in the alternate format.
-- CSS implementing the PDF-sourced layout (identity banner, combat strip,
-  ability grid, weapon table, features list, spellcasting section,
-  equipment/details).
-
-The UI parser handles every Markdown section documented in §J.6. Unrecognized
-sections pass through as raw Markdown — the tool output is the source of truth.
-
-#### J.8.5 Host MCP config
-
-- **Stdio path (preferred).** No additional MCP configuration is needed. The
-  tool and HTML resource are served by the existing stdio server. The host
-  discovers the app UI from `_meta.ui.resourceUri` in the tool definition.
-
-- **HTTP fallback.** Add the app server as a separate MCP entry in the host
-  configuration:
-
-  ```json
-  "holonovel_sheet_app": {
-    "type": "remote",
-    "url": "http://localhost:3001/mcp"
-  }
-  ```
-
-  The host connects to both servers: stdio for gameplay tools, HTTP for the
-  character sheet display.
-
-The Markdown text output is the authoritative character sheet. The MCP App HTML
-UI is an optional display enhancement. If a host does not support MCP Apps, the
-text-based `character_sheet` tool continues to work unchanged. The HTML UI
-parses the tool's Markdown output; it must never duplicate server-side
-rendering logic.
-
-### J.9 Tests and defensive parsing
-
-#### J.9.1 Tests
-
-Build a `minimalIndex()` test double that implements the same `RulesIndex`
-interface the derivation layer consumes — no mocking framework, no type casts.
-Pre-populate `equipmentByName`, `spellsByName`, `speciesByName`, and every other
-map a renderer path reads. Each populated entry must resolve through the same
-lookup path (case-folded key, bounded-domain token match) the production code
-uses.
-
-| Area       | Coverage |
-| ---------- | -------- |
-| Rendering  | Identity, stat math, weapon resolution (bonus stacking, Unarmed Strike fallback), spellcasting (DC, slots, sorting, empty-case fallback), edge cases (missing data, optional fields). Test both renderers. |
-| Protocol   | Response contract (`{ content: [{ type: "text", text }] }`, REQ-001), error for invalid entity IDs, persona gating (REQ-032), output prefix shape, file extension in status line. |
-| MCP App (if built) | Tool definition includes `_meta.ui.resourceUri`. HTML resource returns MIME type `text/html;profile=mcp-app`. Both `markdown` and `ascii` formats render through the app path with identical data as the text path. On the stdio path, verify the resource is served without an HTTP server. Client-side Markdown parser handles all §J.6 sections. |
-| Production data | Test with real ruleset entries, not only hand-crafted minimal fixtures. Stat blocks from wiki-derived rulesets carry OCR artifacts, inconsistent field terminators (missing semicolons), comma-separated numbers, and abbreviated ability labels. Tests using only idealized fixtures mask parse bugs — assert exact field values (not just `length > 0`) to catch over-capture. Starship, capital ship, ground vehicle, and walker types must each have at least one real-data test. |
-
-#### J.9.2 Defensive parsing
-
-When consuming stat blocks or entity data from ruleset sources:
-
-- **Field capture boundaries.** End field capture at newlines, not only
-  semicolons — ruleset entries often lack terminators between fields on
-  adjacent lines.
-- **Numeric commas.** Strip commas from numeric fields (e.g., `2,200` HP →
-  2200) before parsing to integers.
-- **Ability label variants.** Ruleset stat blocks may use abbreviated ability
-  names (`Str`/`Dex`/`Int`) or full names
-  (`Strength`/`Dexterity`/`Intelligence`). The parser must recognize both.
-- **OCR artifacts.** Wiki-derived content may contain formatting artifacts
-  (e.g., `Cover**` from `**Cover**`) that leak into adjacent field captures.
-  Validate captured fields against expected patterns; discard or fall back
-  for implausible values.
-- **Weapon multi-gunner notation.** `*Ranged (N Gunners):*` parentheticals
-  differ from `*Ranged (Vehicle Weapons):*`. The parser must handle both,
-  plus optional `*` after attack values and non-parenthetical damage
-  descriptors (e.g., `grapple +65`).
-
-### J.10 Build and verification
-
-After each change, run in order: typecheck, build, unit tests, gate tests. Fix
-before proceeding. The character sheet tool's tests are included in the server's
-test suite but do not block server verification gates (Section 7) — the
-character sheet is a post-build extension gated by Q19.
-
----
-
-## Appendix K: Post-Build Persona Enrichment
-
-_This appendix is optional — it does not gate the Definition of Done. It describes a research step the
-operator may run after all gates pass, to supplement the generic foundations (Section 6.9a) with
-ruleset-specific play advice collected from online sources._
-
-### K.1 When to run
-
-After the server passes all verification gates (Section 7) and `DECISIONS.md` is finalized. The research
-may be run at any time thereafter — immediately post-handoff, or months later when community advice for
-the ruleset has accumulated.
-
-### K.2 Mission
-
-Search the web for ruleset-specific advice on how to play and run the target ruleset. The goal is to find
-supplementary guidance — community-created best practices, actual-play recordings, strategy guides, GM
-principles, player advice, and genre-specific storytelling techniques — that the ruleset's own text may
-not include. Compose the findings as supplementary guidance items appended to `persona_briefing`.
-
-### K.3 Research sources
-
-Search for and review, in rough priority order:
-
-1. **Community advice.** Forum threads, blog posts, and wiki articles tagged with the ruleset's name and
-   terms such as "GM advice," "how to run," "tips," "player guide," or the ruleset's own referee term.
-2. **Actual plays.** Podcast or video descriptions of the ruleset in play — note recurring adjudication
-   patterns, pacing rhythms, and techniques the referee uses.
-3. **Strategy guides.** Character optimization guides reveal which mechanics are most leveraged; system
-   mastery articles expose the ruleset's design assumptions.
-4. **Genre and narrative advice.** If the ruleset targets a specific genre (horror, heist, investigation,
-   space opera), search for genre-specific GM advice applicable to any system.
-5. **Designer commentary.** Interviews or essays by the ruleset's designers that explain design intent,
-   intended play style, or common table pitfalls.
-
-### K.4 Output format
-
-Each supplementary finding is recorded as a guidance item with these fields:
-
-```
-guidance:
-  title: <short title>
-  text: <one to three sentences of actionable advice>
-  persona: player | referee | shared
-  source_url: <URL where the advice was obtained>
-  source_type: community | actual_play | strategy_guide | genre_advice | designer_commentary
-  confidence: high | medium | low
-  attribution: supplementary — not derived from the ruleset Markdown
-```
-
-### K.5 Composition
-
-Append supplementary guidance items to the `persona_briefing` after the generic foundations (Section
-6.9a) and before the tool/resource listing. The items carry a `[supplementary]` tag in the briefing
-output. Supplementary items are embedded as quoted, inert data (Section 3, rule 5) — they do not
-influence tool behavior, search results, or model extraction.
-
-### K.6 Gate status
-
-This step produces no new gates, no new requirements, and no waivers. Failure to run, or empty results,
-leaves the server output unchanged. Supplementary items may be added, removed, or updated at any time —
-they are advisory annotations, not normative content.

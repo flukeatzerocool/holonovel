@@ -1,5 +1,52 @@
 # Changelog
 
+## 2026-08-03 — Spec defect fixes from consistency audit
+
+- Fixed B.3 golden transcript: `entity://delver_01` → `roster://delver_01` in
+  `create_delver` output, matching §6.2's roster-ID rule and §6.3's Character
+  creation output convention.
+- Added `import_character` step to B.3 golden transcript between creation and
+  `roll_move`, per §6.4's rule that characters enter game state only through
+  explicit import.
+- Added to §6.3 Character creation output convention: fields absent from the
+  ruleset (species, class, level) are omitted and a field summary follows the
+  entity-creation convention.
+- Added retired T1 to §7 test numbering explanation (was absorbed into early
+  drafts and never formalized).
+- Corrected 2026-08-01 CHANGELOG entry: the `[NO_ACTIVE_GAME]` approach was
+  withdrawn; §6.7 uses lazy game creation instead.
+- Added §6.8.1 to Contents TOC, which was missing despite the heading existing
+  in the document body.
+- Swapped Appendix G.13/G.14 so H11 (Client configuration launch) precedes H12
+  (Cold-checkout replay), matching the §8.1 handoff-table order.
+
+## 2026-08-03 — Four-phase build restructure with character sheet baseline
+
+- Restructured the specification into four distinct build phases, each with its
+  own pre-build question set and a required pause/report/proceed gate at
+  completion. Phase 1 (ruleset prep) and Phase 2 (server build) are mandatory;
+  Phase 3 (persona enrichment) and Phase 4 (PDF-enhanced character sheet) are
+  optional. (§1.3, §5)
+- Split the monolithic Q1–Q19 intake questionnaire into phase-specific batches:
+  Phase 1 Qs stay in §5.1; Phase 2 Qs move to §5.5; Phase 4 Qs (Q16–Q19) move
+  to §11. Added PE1–PE6 pre-build questions for Phase 3 (§10).
+- Added phase-completion gates to §5.6: after each phase the builder reports
+  what was built and verified, then asks whether to proceed. Non-interactive
+  runs default to "yes."
+- Character sheet baseline — derivation layer, Markdown renderer, and
+  `character_sheet` tool inferred from the ruleset — is now always built in
+  Phase 2 (§5.5a). Phase 4 (§11) adds PDF layout study, an ASCII renderer, and
+  optional MCP App HTML display, gated by Q19. The server ships with a working
+  character sheet tool regardless of whether Phase 4 runs.
+- Promoted Appendix J (Character Sheet Generator) to §11 and Appendix K
+  (Post-Build Persona Enrichment) to §10. Deleted Appendices J and K.
+- Added handoff note to §8: Phases 3 and 4 amend the four artifacts without
+  invalidating Phase 2 handoff.
+- Updated TOC, all cross-references, and §1.3 how-to-use table.
+- Rewrote README.md with marketing-focused "What is Holonovel?" section and
+  phase-by-phase "How it works" section. Removed all appendix references.
+  Reordered sections for first-time reader flow.
+
 ## 2026-08-03 — Add persona foundations and post-build enrichment appendix
 
 - Added **Section 6.9a — Persona foundations** with eight player guidelines,
@@ -210,8 +257,9 @@
   force powers.
 - Added §6.2 rule: `create_character` returns the roster ID in its response so callers
   can pass the correct identifier to `import_character` without guessing counter namespaces.
-- Added §6.7 rule: game-dependent tools must check for an active game before executing
-  and return `[NO_ACTIVE_GAME]` when none is active.
+- Added §6.7 rule: game-dependent tools create a new game lazily when none exists.
+  An earlier `[NO_ACTIVE_GAME]` approach was withdrawn; the current lazy-creation rule
+  at §6.7 supersedes it.
 - Added §6.5 bounded-domain validation note: `create_character` must validate `species`
   and `heroic_class` parameters against the extracted index before creating.
 
