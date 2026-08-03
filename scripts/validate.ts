@@ -25,19 +25,50 @@ function stripMarkdownFormatting(raw: string): string {
   return s.trim();
 }
 
+function parseColumnIndices(
+  headerLine: string,
+  requiredCols: string[]
+): Map<string, number> | string {
+  const cols = headerLine
+    .split("|")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const map = new Map<string, number>();
+  for (const name of requiredCols) {
+    const idx = cols.indexOf(name);
+    if (idx === -1) return `Column '${name}' not found in header: ${headerLine.trim()}`;
+    map.set(name, idx);
+  }
+  return map;
+}
+
 function extractReqIndex(text: string): Map<string, string> {
   const reqs = new Map<string, string>();
   let inTable = false;
+  let colMap: Map<string, number> | null = null;
   for (const line of text.split("\n")) {
     if (line.trim().startsWith("| REQ     | Title")) {
       inTable = true;
+      const result = parseColumnIndices(line, ["REQ", "Title"]);
+      if (typeof result === "string") {
+        console.error(`ERROR: ${result}`);
+        process.exit(1);
+      }
+      colMap = result;
       continue;
     }
     if (inTable) {
       if (line.trim().startsWith("| -------")) continue;
-      const m = line.match(/^\|\s*(REQ-\d{3})\s*\|\s*(.+?)\s*\|/);
-      if (m) {
-        reqs.set(m[1], m[2].trim());
+      const cells = line
+        .split("|")
+        .map((s) => s.trim())
+        .filter((_, i) => i > 0); // skip leading empty from split
+      if (colMap && cells.length >= Math.max(...colMap.values()) + 1) {
+        const reqId = cells[colMap.get("REQ")!];
+        const title = cells[colMap.get("Title")!];
+        if (/^REQ-\d{3}$/.test(reqId)) {
+          reqs.set(reqId, title);
+        }
       } else if (!line.trim().startsWith("|")) {
         break;
       }
@@ -187,23 +218,34 @@ function checkSeparators(text: string): string[] {
   return issues;
 }
 
-// NOTE: depends on fixed column order (REQ | Title | Verified by | Spec version).
-// Column reordering breaks this parser — the same risk as extractReqIndex above.
 function checkSpecVersionFormat(text: string): string[] {
   const issues: string[] = [];
   let inTable = false;
+  let reqColIdx: number | null = null;
+  let specColIdx: number | null = null;
   for (const line of text.split("\n")) {
     if (line.trim().startsWith("| REQ     | Title")) {
       inTable = true;
+      const result = parseColumnIndices(line, ["REQ", "Spec version"]);
+      if (typeof result === "string") {
+        console.error(`ERROR: ${result}`);
+        process.exit(1);
+      }
+      reqColIdx = result.get("REQ")!;
+      specColIdx = result.get("Spec version")!;
       continue;
     }
     if (inTable) {
       if (line.trim().startsWith("| -------")) continue;
-      const m = line.match(/^\|\s*(REQ-\d{3})\s*\|.+\|.+\|\s*(.+?)\s*\|$/);
-      if (m) {
-        const version = m[2].trim();
-        if (version === "—") {
-          issues.push(`${m[1]}: Spec version not populated (—)`);
+      const cells = line
+        .split("|")
+        .map((s) => s.trim())
+        .filter((_, i) => i > 0);
+      if (reqColIdx !== null && specColIdx !== null && cells.length > specColIdx) {
+        const reqId = cells[reqColIdx];
+        const version = cells[specColIdx];
+        if (/^REQ-\d{3}$/.test(reqId) && version === "\u2014") {
+          issues.push(`${reqId}: Spec version not populated (\u2014)`);
         }
       } else if (!line.trim().startsWith("|")) {
         break;

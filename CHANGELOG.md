@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026-08-03 — Spec defect fixes from unchecked-assumption audit
+
+- Fixed **REQ-050** seed-injectivity claim — removed impossible "1000 distinct
+  d20 faces" text (only 20 faces exist), replaced with verifiable 8 %
+  single-face distribution threshold, and corrected "three" seed values to
+  "two" matching the Appendix B.4 witness table.
+- Added **Layer 3 (Randomizer) and Layer 4 (State manager)** acceptance checks
+  to §5.5 layer acceptance table, closing coverage gap where only layers 1, 2,
+  5, and 6 had explicit go/no-go checks.
+- Added **REQ-018 extraction span boundaries** in §4.2 — defines what "inside
+  its cited anchor's section span" means for headings, tables, bold-labeled
+  fields, and derived anchors.
+- Added **confidence formula worked example** in §4.2 (REQ-011) — illustrates
+  the MEDIUM ceiling with concrete numbers.
+- Clarified **Pushing contradiction classification** in Appendix B.2 —
+  distinguishes flat restatements from qualified conditional overrides, guiding
+  builder classification of push/reroll mechanics in real rulesets.
+- Documented **`create_character` non-undoable** consequence in §6.4 — explicit
+  statement that roster mutations are not snapshotted (REQ-041).
+- Rewrote `scripts/validate.ts` table parsers to use **header-driven column
+  indices** via new `parseColumnIndices` helper — eliminates silent breakage on
+  column reordering in Appendix E manifest and test tables.
+
+## 2026-08-03 — Character sheet generator merged into specification
+
+- Merged `character-sheet-generator.md` into `holonovel.md` as Appendix J:
+  Character Sheet Generator — the character sheet tool is now part of the
+  unified specification.
+- Added Q16–Q19 to the §5.1 intake setup questionnaire: character sheet PDF
+  availability (Q16), file path (Q17), PDF reading method with combined
+  vision-model + OCR approach for image-based PDFs (Q18), and build gate
+  (Q19).
+- Added §5.1.1 Character sheet intake explaining the Q16–Q19 flow, environment
+  probing order, and combined PDF reading strategy.
+- Enhanced PDF study paths (§J.2) with explicit combined-method instructions:
+  for image-based PDFs, use vision model as primary extraction and OCR as
+  fallback on the same page images.
+- Q18's reading-method detection probes the environment in order — the
+  builder's own model, `pdftoppm`/ImageMagick, OCR — and ruleset inference is
+  a last resort requiring operator notification and a `DECISIONS.md` record.
+- Removed standalone `character-sheet-generator.md`; all references
+  redirected to Appendix J in `README.md`.
+- Updated `package.json` lint target to reflect the merge.
+
+## 2026-08-03 — Large-ruleset scalability, multi-file support, and media asset handling
+
+- Added fourth complexity tier "Huge" (§5.2a) for rulesets exceeding 1 000 mechanical sections, with
+  iterative confidence-improvement directive — re-examine LOW-confidence sections per content type, stop
+  only when no further reasonable extraction path remains.
+- Added multi-file "books" concept (§5.1) with core-first intake discipline: core rulebooks before
+  reference books before adventure modules, ensuring foundational context for structural pass and
+  extraction.
+- Added media asset resolution to the web-scrape (§5.1a) and PDF/HTML import (Q11-B/Q11-C) sub-flows:
+  detect unresolved image placeholders, resolve via source file/image API, mark unavailable images as
+  structural defects.
+- Expanded Appendix A image rule with per-image classification: resolved links, unresolved placeholders
+  (defect), mechanics-conveying images (LOW confidence), and illustrative images (no penalty).
+- Added embedded stat block heuristics to Appendix A.4: consecutive bold-labeled clusters within
+  narrative sections, and sub-section stat-block clusters (adventure module NPC patterns with
+  Defenses/Offense/Base Stats sub-headings).
+- Added Gate 0 summary mode for large/huge rulesets (§5.1a): per-file stats and aggregated counts
+  instead of full tables of contents, with operator on-demand drill-down.
+- Added source preparation acknowledgment (§5): pre-check is lightweight for clean Markdown but may
+  dominate build time for scraped/converted sources; defect-density threshold for scope-reduction
+  suggestion.
+- Added structural-marker insertion guidance (Appendix H.3): prefer heading text or anchors over line
+  numbers when inserting content.
+- Added builder tool reusability note (§5): prefer reusable parameterized functions over one-off
+  procedural scripts during source preparation.
+
 ## 2026-08-03 — Web-scrape intake, Gate 0, permissive-license catalog, and self-contained server bundling
 
 - Replaced Q11 with tri-modal intake: Markdown files, PDF/HTML import, or web scrape from a

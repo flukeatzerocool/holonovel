@@ -37,6 +37,7 @@
   - [4.6 Non-functional](#46-non-functional)
 - [5. Discovery](#5-discovery)
   - [5.1 Intake](#51-intake)
+    - [5.1.1 Character sheet intake](#511-character-sheet-intake)
   - [5.1a Web-scrape sub-flow (Q11-C) and Gate 0](#51a-web-scrape-sub-flow-q11-c-and-gate-0)
   - [5.2 Chunked reading (F2)](#52-chunked-reading-f2)
   - [5.2a Ruleset complexity](#52a-ruleset-complexity)
@@ -105,6 +106,17 @@
     - [H.12 Output conventions](#h12-output-conventions)
     - [H.13 Verification checklist](#h13-verification-checklist)
   - [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
+  - [Appendix J: Character Sheet Generator](#appendix-j-character-sheet-generator)
+    - [J.1 Pre-build verification](#j1-pre-build-verification)
+    - [J.2 PDF study and field enumeration](#j2-pdf-study-and-field-enumeration)
+    - [J.3 Entity type definition](#j3-entity-type-definition)
+    - [J.4 Prerequisites and ruleset index](#j4-prerequisites-and-ruleset-index)
+    - [J.5 Architecture and derivation](#j5-architecture-and-derivation)
+    - [J.6 Renderers](#j6-renderers)
+    - [J.7 MCP tool wiring](#j7-mcp-tool-wiring)
+    - [J.8 MCP App support — optional](#j8-mcp-app-support--optional)
+    - [J.9 Tests and defensive parsing](#j9-tests-and-defensive-parsing)
+    - [J.10 Build and verification](#j10-build-and-verification)
 
 ---
 
@@ -445,6 +457,12 @@ prose. Builders encountering this ceiling record the shortfall under REQ-025's r
 reclassifying sections to inflate the score. Per REQ-025, the player persona's filtered confidence score is
 the gating metric.
 
+For example: a ruleset with 200 HIGH sections and 300 MEDIUM sections scores
+(200 + 0.5 × 300) / 500 = 70 %. Even with flawless extraction, the MEDIUM
+majority caps the score below 80 %. The player-persona filtered score —
+computed over only the sections visible to the player persona — is the gating
+metric per REQ-025.
+
 **Structured content within referee-scoped books.** Within a file tagged referee-scoped at the book level
 (DMG, MM, or equivalent), individual sections whose content is extracted by a targeted parser — spells,
 monsters, equipment tables, stat blocks, reference tables — may be elevated from MEDIUM to HIGH when the
@@ -534,6 +552,14 @@ _Check:_ T28.
   emits — no passthrough or exempt classes. It ships with a positive control (a valid item passes) and a
   negative control (a planted quote-outside-anchor item fails); no pass rate is reported unless both
   controls pass.
+
+A section span includes: the heading that defines the cited anchor, all text up to
+the next heading of equal or higher level, and any subsections whose headings are at
+a lower level. For table-row quotes, the span is the table the row belongs to — from
+header row to the next blank line after the table. For bold-labeled field quotes, the
+span is the containing paragraph or definition-list block. For derived anchors
+(cross-file dedup collapsing to a cross-reference, parent-child synthetic anchors),
+the quote validates against the primary-source anchor's span.
 
 _Check:_ T15; the Discovery checkpoint (Section 5.6).
 
@@ -927,10 +953,11 @@ Face:    face(s) = 1 + ⌊draw · s / 2³²⌋                     64-bit interm
   randomness internally — runs that call against a fresh generator initialized with the given seed, leaving
   game state untouched.
 - All tests involving randomness use fixed seeds.
-- The generator is **seed-injective**: distinct seed values produce distinct first draws. At least 1000
-  test seeds spanning a range of 10 000 produce 1000 distinct d20 faces; a build whose generator maps more
-  than 2% of tested seeds to the same first-draw face is non-conformant. The Appendix B.4 witness table
-  exercises this property with at least three seed values whose first-10-d6 sequences are pairwise distinct.
+- The generator is **seed-injective**: distinct seed values produce distinct first draws.
+  Verify against at least 1 000 test seeds evenly distributed across a range of up to
+  10 000 seeds. No single d20 face may account for more than 8 % of tested draws.
+  The Appendix B.4 witness table exercises this property with at least two seed values
+  whose first-10-d6 sequences are pairwise distinct.
 
 _Check:_ Gate 2, T27.
 _See also: Appendix B.4._
@@ -987,6 +1014,24 @@ output directory; run the full pipeline — intake through handoff — independe
 from a second ruleset in an existing server, merge its index into an existing model, or share its state
 directory. Two rulesets require two servers.
 
+**Source preparation vs. discovery.** The pre-check and formatting pass (Appendix H) is lightweight for
+a ruleset already in clean Markdown. For a ruleset scraped from a wiki, converted from PDF, or assembled
+from multiple fragments, source preparation — resolving placeholders, normalizing heading hierarchies,
+reconciling cross-file links, repairing table malformations — may dominate the build time. The operator
+is encouraged to inspect the source files before invoking this prompt: run the Appendix H.13 checklist
+manually against a sample, estimate defect density, and decide whether to prepare the source ahead of
+time or let the builder format it during intake. The builder reports the defect count at Gate 0 and
+offers to reduce scope (fewer files, fewer content types) if the defect density exceeds 5 defects per
+100 mechanical sections, or 100 defects (whichever is higher).
+
+**Pre-build utilities.** During source preparation — when the builder writes scripts for format
+conversion, image-URL resolution, or content insertion — prefer reusable parameterized functions over
+one-off procedural scripts. A function that inserts content by heading text or `{#id}` anchor, resolves
+image URLs from a wiki file API, or normalizes a table's column count is called once per target rather
+than rewritten per script. The utilities are build-time code, not an appendix deliverable; their
+existence is recorded in `DECISIONS.md` (Section 8, item (1)) for traceability but they are not
+retained at handoff.
+
 Do not skip discovery because the ruleset looks simple. The server is the deliverable: playing the ruleset
 or preparing play materials is out of scope unless the operator directs it.
 
@@ -1000,6 +1045,26 @@ surface it in `spec_health`. Block only when ruleset files are missing, unreadab
 (Appendix A), or when the state directory is missing (the server does not create it) or unwritable; blocking
 means printing a diagnostic to stderr and exiting nonzero before serving any request. An existing, empty,
 writable state directory is initialized on first run (REQ-050, REQ-055) and is not a blocking condition.
+
+**Multi-file rulesets.** When the ruleset spans multiple source files — core rules, equipment catalogs,
+bestiaries, adventure modules, spell compendia — each file is designated a **book**. Intake order is
+meaningful and follows a **core-first** discipline: the file or files that explain how to play and run
+the game — the core rulebook — come first. Player-facing reference books (equipment, spells, species,
+feats) follow. Bestiary or antagonist books come next. Adventure modules and setting books come last.
+This order ensures the structural pass and extraction build on a proper foundation of context: the
+builder understands the resolution mechanic, entity lifecycle, and conflict procedure from the core
+books before encountering them in embedded adventure stat blocks. Cross-file references (Appendix A)
+resolve to the first file in intake order containing the referenced anchor; placing the core books
+first ensures every canonical definition resolves to the authoritative source.
+
+Books that inter-depend — adventure modules that reference NPC stat blocks defined in the bestiary —
+must list the dependency earlier in intake order. The builder flags dependency cycles (A references B,
+B references A) at intake as a structural defect. A file that is purely reference data — equipment
+tables, NPC stat blocks, spell descriptions — is labeled a **reference book** in the intake record. A
+file that is predominantly narrative — adventure modules, setting descriptions, campaign frameworks —
+is labeled a **narrative book**. Narrative books that contain embedded stat blocks (mechanical entries
+within prose sections) follow the embedded-extraction heuristic in Appendix A.4. The classification
+and intake order are recorded in `DECISIONS.md` (Section 8, item (4)).
 
 **Assumptions check.** Before discovery begins, verify this prompt's structural assumptions against the
 actual ruleset, as one batch: the role-scoping convention (Appendix A); the conflict procedure's shape
@@ -1056,6 +1121,51 @@ above.
 | Q13 | MCP client configuration entry                      | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                                                                       | unknown — validate later, logged in `DECISIONS.md`                      |
 | Q14 | Client config schema location                       | URL or reference to the chosen client's MCP server configuration documentation, covering field names, value formats, required fields, and client-side connection timeout; if the client supports a configurable timeout, set it to accommodate the server's full-ruleset indexing time                  | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
 | Q15 | Ruleset license type                                | OGL 1.0a / CC BY 4.0 / CC BY-SA 4.0 / CC BY 3.0 / ORC / GFDL 1.3 / proprietary / unknown | Extracted from the source's legal page; "unknown" if ambiguous          |
+| Q16 | Character sheet PDF availability                    | yes, local / yes, download URL / search online / included with ruleset / none | none |
+| Q17 | Character sheet PDF path                            | Path to the PDF file (when Q16 is "yes, local") | — |
+| Q18 | Character sheet PDF reading method                  | (1) model's own vision capability; (2) convert pages to images + vision model; (3) OCR on page images; (4) ruleset inference as last resort. The builder probes each path in order, notifying the operator before falling back to inference. Full procedure in §5.1.1. | Attempt each path in order; ruleset inference only after exhausting prior options and notifying the operator |
+| Q19 | Build character sheet rendering MCP tool             | yes / no | no |
+
+### 5.1.1 Character sheet intake
+
+Q16–Q19 gate the character sheet rendering extension (Appendix J). In non-interactive
+mode, Q19 defaults to "no" and Appendix J is skipped — the server is complete without
+it per the Definition of Done (§1.2).
+
+When Q19 is "yes," this section's answers determine how the builder studies the
+character sheet PDF:
+
+- **Q16 — Availability.** "Yes, local" expects a file path (Q17). "Yes, download URL"
+  triggers a fetch; the builder records the URL and file hash in `DECISIONS.md`. "Search
+  online" triggers a web search for the ruleset's official or community character sheet;
+  the builder presents candidates and asks the operator to select. "Included with
+  ruleset" means the sheet is part of the already-ingested ruleset source — skip
+  PDF-specific steps and use the ruleset-derived fields directly. "None" sets Q19 to
+  "no" — Appendix J is inapplicable.
+
+- **Q18 — Reading method.** The builder probes the environment in order, never short-cutting
+  to ruleset inference without operator consent. A model that renders PDFs natively
+  uses that capability. When image conversion is required, prefer `pdftoppm` (from
+  Poppler) — it is faster and more reliable for scanned pages than
+  ImageMagick `convert`. Combine the available tools: for an image-based (scanned)
+  PDF that lacks an embedded text layer, convert pages to images with `pdftoppm`,
+  feed them through a vision-capable model as the primary extraction pass, and fall
+  back to OCR on the same images for any field the vision model missed. Merge the
+  results — when the vision model and OCR disagree on a field, the vision output
+  is canonical, the OCR output is logged as a normalization in `DECISIONS.md`
+  (Section 8, item (4)), and the discrepancy is flagged for operator review at
+  the Gate 0-equivalent checkpoint in Appendix J. If neither a vision model nor
+  OCR is available and ruleset inference is the only remaining path, the builder
+  must inform the operator that the sheet will be constructed from the ruleset
+  model and NPC stat block structure rather than from the PDF, and record the
+  limitation per REQ-013.
+
+- **Q19 — Build.** "Yes" engages Appendix J. The character sheet tool is wired as
+  a post-build extension — it is not a requirement on the core MCP server, and its
+  presence or absence does not affect any verification gate (Section 7). The tool
+  reads the server's `RULESET_MODEL.md`, the ruleset Markdown for field definitions
+  and canonical names, and the character sheet PDF (or ruleset-derived equivalent)
+  for layout. It never modifies the server's index or state directory.
 
 ### 5.1a Web-scrape sub-flow (Q11-C) and Gate 0
 
@@ -1080,10 +1190,25 @@ table-of-contents page. Verifying this sample catches structural mismatches — 
 selector, footer leakage, link corruption, heading flattening — before they propagate across
 hundreds of pages. Correct any failures, then proceed with the full batch. Skip the sample
 only when the source is a single page. Non-Markdown source pages trigger Appendix F
-conversion first. The resulting Markdown goes through the Appendix H pre-check (H.13)
-before Gate 0.
+conversion first. The same resolution applies to converted non-Markdown sources (Q11-B,
+Appendix F conversion) whose output contains unresolved image references. The resulting
+Markdown goes through the Appendix H pre-check (H.13) before Gate 0.
 
-**Gate 0 — Markdown review.** This gate fires after any source-format path — supplied
+**Media assets.** When the scraped or converted Markdown contains unresolved image
+placeholders — `*center|WxH*`, `![alt](missing)`, bare wiki markup such as
+`[[File:name.ext|center|700x700px]]`, or reference patterns from the source
+site's embed convention — the builder resolves them before Gate 0. Resolve by:
+fetching the source wiki or CMS file/image API to map each placeholder to its
+CDN URL; substituting the placeholder with `[caption](url)`; or, when the image
+is unavailable (the API returns no match, the license excludes it, or the file
+is deleted), replacing the placeholder with a textual note — `*(Map: <encounter
+name> — image unavailable)*`. The resolution is recorded in `DECISIONS.md`:
+total placeholders found, resolved count, unavailable count with section
+citations, and unavailable images listed as structural defects for
+`spec_health`. Unresolved placeholders carried into the ruleset are flagged by
+the Appendix H pre-check (H.13) as a blocking format defect. The builder does
+not invent or guess image URLs; an unresolvable placeholder is always marked
+unavailable, never filled with a substitute. This gate fires after any source-format path — supplied
 Markdown (Q11-A), converted PDF/HTML (Q11-B), or scraped web content (Q11-C) — once the
 Appendix H pre-check (H.13) passes and before chunked reading (Section 5.2) begins. It is the
 last chance to inspect the ruleset before discovery work begins.
@@ -1098,6 +1223,18 @@ last chance to inspect the ruleset before discovery work begins.
    recorded in `DECISIONS.md`.
 6. Record the confirmation (or the unverified flag) in `DECISIONS.md` as the "Gate 0 —
    Markdown review" entry.
+7. **Summary mode for large rulesets.** When the ruleset exceeds the Moderate tier's
+   threshold (Section 5.2a), the builder presents the Gate 0 review in summary form
+   instead of, or in addition to, the per-file table of contents:
+   - Per-file: file name, size in bytes, line count, count of `#`/`##`/`###`
+     headings, count of tables, count of unresolved image placeholders, count of
+     pre-check defects from Appendix H.13.
+   - Aggregated: total mechanical sections (Appendix A.4 signals), confidence
+     ceiling estimate (REQ-011 calculation from book-level scoping where known).
+   - The operator may request a full table of contents for any individual file on
+     demand.
+   - The confirmation prompt ("Does this look correct?") includes the summary
+     data; a response of "yes" accepts the summary as the Gate 0 gate pass.
 
 Gate 0 does not apply when the ruleset is the Appendix B golden fixture — that fixture is
 self-verifying and does not require operator review.
@@ -1138,10 +1275,35 @@ mechanical sections (sections matching a content-type signal per Appendix A.4):
    re-extraction samples up to eight sections. The chunked reads (Section 5.2,
    item 2) prefer breadth-first traversal of the index skeleton over depth-first
    reads of individual sections. At the Discovery checkpoint, the subagent samples
-   at least ten sections per content type for the false-positive audit.
+    at least ten sections per content type for the false-positive audit.
+4. **Huge**: more than 1 000 mechanical sections. All checkpoints apply. The shadow
+   re-extraction samples one section per content type spread across the books. The
+   structural pass processes one file at a time, producing a per-file skeleton
+   before merging. The chunked reads traverse breadth-first across files — the
+   top-level index of every file before depth-first reads of any file. The
+   Discovery checkpoint subagent samples at least three sections per content type
+   for the false-positive audit.
 
-Record the classification and the inventory counts in `DECISIONS.md` Section 8,
-item (4).
+   **Confidence iteration.** After the first extraction pass, the builder
+   re-examines every LOW-confidence section for missed extraction patterns.
+   Target the content type with the largest LOW count first. For each such
+   section, test whether the existing classification profile would classify it
+   higher given a revised signal — a bold-label pattern, a table structure, a
+   heading convention — that exists in the source but was not in the initial
+   profile. Each iteration that discovers a new extraction signal updates the
+   classification profile, re-indexes, and re-runs extraction on the affected
+   content type. Stop when an iteration produces no new HIGH or MEDIUM
+   extractions, or when three consecutive iterations yield fewer than 1 % of
+   the remaining LOW count elevated. Record each iteration's delta (LOW →
+   HIGH/MEDIUM count per content type) and the classification-profile diff in
+   `DECISIONS.md` (Section 8, item (4)). The 80 % overall confidence
+   threshold (REQ-025) is a floor, not a ceiling; the builder does not accept a
+   score below it and does not stop improving until every reasonable extraction
+   path is exhausted.
+
+   When the ruleset exceeds five source files, the builder presents the
+   file-count and total mechanical-section estimate at intake and asks the
+   operator whether to reduce scope before proceeding.
 
 ### 5.2b Capabilities self-assessment
 
@@ -1271,6 +1433,8 @@ source of truth:
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 Configuration and protocol adapter | The server launches from the exact MCP client configuration entry recorded in Section 5.1 (or from an equivalent process with the same environment and working directory), and a JSON-RPC `initialize` handshake succeeds. A `server unavailable` or equivalent error is a Layer 1 blocker.                                                                          |
 | 2 Rules index                        | No ruleset-derived table, term, or anchor is hardcoded in the parser; parsing is config-driven only.                                                                                                                                                                                                                                                                 |
+| 3 Randomizer                         | The reference randomizer reproduces every Appendix B.4 witness value exactly (REQ-050, Gate 2 step 0). Any mismatched witness value is a blocker.                                                                                                                                                                                                                    |
+| 4 State manager                      | A persisted game resumes with correct HP, conditions, entity data, and game state after restart (REQ-055, Gate 2 step 1 resource health). State corruption or data loss on resume is a blocker.                                                                                                                                                                       |
 | 5 Domain handlers                    | Every mechanical resolution derives from the extracted model. Where the ruleset defines weapons, spells, or damage, a weapon or spell entry resolves to its own damage dice, type, and properties; generic fallback damage values are prohibited. Where the ruleset defines a turn-based conflict procedure, conflict tools model it and maintain server-side state. |
 | 6 Wiring                             | (a) Fixture-specific tools (Appendix B) are absent when serving the target ruleset; (b) stub-tool prompt freshness — add a stub tool, restart, call `prompts/get` for all four prompts, assert the stub appears in each; remove the stub, restart, assert absence — failure is a blocker; (c) a dry-run Gate 2 transcript replay against the Appendix B fixture — failure is a blocker. |
 
@@ -1666,7 +1830,10 @@ target, …)`, `cast_spell(spell, target, …)`, `make_save(save, …)`, `apply_
   empty and whitespace-only strings with `[ERROR] [INVALID_INPUT]`, and names exceeding 100
   Unicode code points. The check runs before any snapshot, so a failed validation does not
   populate the undo stack. A `create_character` tool writes to the roster directly and does
-  not create a game entity or snapshot. The character enters game state only through an
+  not create a game entity or snapshot.
+Consequently, `create_character` is not undoable — only game-state mutations
+are snapshotted (REQ-041). Mistyped characters must be removed manually from
+the roster. The character enters game state only through an
   explicit `import_character` call (Section 6.7). When `level` exceeds 1, character stats
   (BAB, defenses, HP) are computed at the target level from class tables; intermediate
   milestone choices (talents, feats, ability boosts) are tracked as deferred and the
@@ -2408,8 +2575,17 @@ REQ-012. A code block whose info string matches a recognized category such as `s
 `example` is indexed under a derived anchor of the form `<parent-anchor>-codeblock-N` (dedupe
 suffixes apply) and returns the block text with its info string as a source header. The
 recognized-category list is recorded as a normalization in `DECISIONS.md`.
-Images: ignore the file, keep captions; if an image appears to convey a rule, mark the section LOW
-confidence.
+**Images.** An image rendered as a Markdown link (`[caption](url)`) with a caption that
+names the image's subject — encounter name, NPC name, location name — is indexed as a
+section-embedded asset. The caption's text is searchable; the URL is preserved in the
+rendered resource. An unresolved placeholder (`*center|WxH*`, `![missing description]()`,
+bare wiki markup, or equivalent) is a structural defect: the section carries LOW confidence
+and the defect appears in `spec_health`. An image whose caption or alt-text describes a rule
+(a state transition diagram, a flowchart of a resolution mechanic, a matrix) is flagged as
+conveying mechanics; the section is marked LOW confidence per the existing rule. An image
+whose caption is purely illustrative — a character portrait, a scene illustration, a
+decorative element — carries no confidence penalty and the section's label derives from its
+text content alone.
 **Strikethrough.** Strikethrough text (`~~text~~`) is preserved in the Markdown representation.
 Sections containing strikethrough are flagged with a content finding noting the presence of
 struck-through content — potentially deprecated or errata'd material. The flag does not change
@@ -2502,6 +2678,33 @@ at least ten sections per assigned type and verifies the classifications by
 inspection — the **false-positive audit**; a sampled misclassification rate above ten
 percent for a type is a checkpoint finding (Section 5.6), and the rule is narrowed
 before further tuning.
+
+**Embedded stat blocks within narrative sections.** A narrative section (adventure module,
+encounter description) that contains clusters of consecutive bold-labeled mechanical fields —
+`**Defenses:**`, `**Offense:**`, `**Base Stats:**`, `**Abilities:**`, `**Skills:**`,
+`**Possessions:**`, `**Special Qualities:**`, or equivalents — in a repeating pattern signals
+embedded entity definitions. The builder detects the pattern: count runs of consecutive
+bold-labeled lines sharing the same label set within the section; if the count exceeds two
+distinct labels and the pattern repeats for subsequent entities, classify each cluster as a
+distinct entity record. The cluster is extracted with the narrative section's confidence
+label; the narrative section itself retains guidance classification. An embedded entity whose
+field set differs from its neighbors (extra field, missing field) is flagged as a structural
+defect with the field difference recorded; the defect does not block extraction. An entity
+extracted from a narrative section cites both the containing section (for narration context)
+and the entity's own derived anchor (for the mechanical fields). The entity's derived anchor
+takes the form `<parent-anchor>-<entity-name-slug>` where `<entity-name-slug>` is derived
+from the entity's name field if present, or an ordinal suffix if not.
+
+**Sub-section stat-block clusters.** When a narrative section contains at least two
+consecutive `####` or `#####` sub-headings whose content consists primarily of bold-labeled
+mechanical fields and tables, and the sub-heading titles form a recognizable stat-block
+vocabulary set — `Defenses`, `Offense`, `Base Stats`, `Abilities`, `Skills`, `Special
+Qualities`, `Possessions`, `Tactics`, or equivalents discovered in the ruleset — treat the
+cluster of sub-sections as a single named entity. The entity name is the nearest `####`
+heading (preceding the cluster) or the nearest bold-labeled name field within the cluster.
+The cluster is extracted with the narrative section's confidence label. This pattern applies
+to adventure modules where NPC and adversary stat blocks are interleaved with narrative
+encounter text under numbered-encounter headings.
 
 **Cross-file dedup.** After extraction, entries sharing the same canonical alias-normalized name
 across files are compared. Identical content is collapsed to the first file in intake order; other
@@ -2674,7 +2877,12 @@ A correct extraction of the fixture includes at least:
 - **Defects**: (1) knacks rows 3 and 5 lack descriptions (content finding, Appendix A); (2) Pushing
   contradicts Dice — 7–9 is partial per Dice, failure per Pushing → Pushing marked LOW confidence, Dice
   treated as canonical, Pushing raw text stays searchable (REQ-012) and is modeled by no tool; (3) broken link
-  `advancement.md#xp`. 'Natural 2' and 'natural 12' are read as the unmodified dice sum — an interpretation
+  `advancement.md#xp`. This classification turns on the fixture's flat restatement of
+  resolution bands rather than an explicit conditional override. A ruleset that writes "on
+  a pushed roll, the partial-success band becomes failure" is a qualified override — not a
+  contradiction — and may be modeled at the builder's discretion. The classification turns
+  on whether the source language amends the general rule or restates it.
+  'Natural 2' and 'natural 12' are read as the unmodified dice sum — an interpretation
   beyond the literal text [MEDIUM]; it is recorded as a normalization in `DECISIONS.md`, not counted as a
   defect.
 
@@ -3300,6 +3508,13 @@ file; disambiguate with parenthetical suffixes where necessary.
 markers where precise linking is needed (e.g., `## Combat {#combat}`). The marker is trailing,
 lowercase-hyphenated, and stripped from the visible heading text.
 
+**Content insertion.** When inserting new sections into an existing ruleset file during source
+preparation, locate the insertion point by heading text or `{#id}` anchor — never by line number.
+Line-number-based insertion breaks when earlier edits shift the file. The anchor-based alternative:
+search for the subsection heading that precedes or follows the insertion point, then insert after
+or before it. For insertion at the end of a section, find the next `##` or `#` heading and insert
+before it.
+
 **Section separators.** Place a `---` horizontal rule between top-level sections (headings at level `##`
 and above). Do not insert horizontal rules within a section unless the source itself uses them as content
 boundaries.
@@ -3573,3 +3788,409 @@ for more games with open licenses." The builder runs a web search for SRD/open-l
 TTRPGs, presents up to 5 additional candidates with license confirmation fetched from each
 source, and lets the operator select or reject. This keeps the appendix lean at 10 entries
 while preserving discoverability.
+
+## Appendix J: Character Sheet Generator
+
+This appendix guides building a character-sheet rendering tool on top of a
+holonovel-built MCP server. It is gated by Q19 (§5.1.1) — when Q19 is "no," this
+appendix is not applied. The character sheet tool is a post-build extension: it does
+not modify the server's index, state directory, or verification gates, and its absence
+does not affect the Definition of Done (§1.2).
+
+The appendix covers PDF study and field enumeration, entity type definition, a
+format-agnostic derivation layer, Markdown and ASCII renderers, MCP tool wiring,
+optional MCP App HTML display, and tests. It is server-agnostic — it works with any
+holonovel-built server whose ruleset model and index are accessible.
+
+### J.1 Pre-build verification
+
+Before writing code, audit the server for infrastructure the character sheet tool
+depends on:
+
+- **Truncation.** Determine whether a shared `truncateText(text)` function exists.
+  If it uses a global `payload-N` counter, replacing it with per-tool counters
+  (`output://<tool>/<counter>` starting at 1) affects every call site — audit all
+  uses before making the change. Record the audit in `DECISIONS.md`.
+
+- **Output resource.** Verify an `output://` resource template is registered
+  (REQ-004). The character sheet tool registers `output://{tool}/{counter}`. If a
+  template already exists, verify it supports path-segment variables — the pattern
+  `output://{id}` does not match URIs containing `/`. Payloads are session-local;
+  evict the oldest when exceeding the payload bound (REQ-004).
+
+- **Error format.** All server errors follow REQ-002: `[ERROR] [<CATEGORY>]
+  <explanation>` with a separate `Corrective action: <action>` line. Verify the
+  shared error helper uses this format. If it uses an inline `Valid:` suffix
+  instead, fix the helper — this affects all tools, not only the character sheet.
+
+- **Render files.** Verify `domain/sheet.ts` and `domain/sheet_md.ts` exist. If
+  they do, use §§J.4–J.7 as a compliance checklist against them. If not, build
+  from scratch following §§J.4–J.5.
+
+- **Incremental PDF discovery.** If the server was built from ruleset inference
+  (Path 4, §J.2) without PDF access, and a PDF later becomes available, run the
+  field-enumeration paths (Paths 1–3, §J.2) against the PDF, then diff the
+  extracted fields against the existing sheet implementation. Fill discovered
+  gaps: player-tracked resources (currency, XP, per-rest uses), section ordering
+  mismatches, and overlooked conditional fields. Record the comparison in
+  `SHEET_FIELDS.md` with derivation-source annotations.
+
+- **MCP App readiness.** If the builder plans to add an HTML UI (§J.8), verify:
+  the renderer functions (`renderCharacterSheet`,
+  `renderCharacterSheetMarkdown`) are exported from their modules and
+  importable; the target MCP host supports `_meta.ui.resourceUri` in tool
+  definitions. Test with a minimal app tool before investing in HTML UI work.
+  Prefer stdio-compatible hosts — they serve MCP App resources over the existing
+  stdio transport (no separate HTTP entry point required). Fall back to an HTTP
+  entry point only when the host requires it (§J.8).
+
+The pre-check applies to both greenfield builds and compliance audits of an
+existing implementation.
+
+### J.2 PDF study and field enumeration
+
+**Goal.** Enumerate every field on the character sheet — label, data type, page
+position, and whether it derives from other fields (e.g., modifier =
+floor((score − 10) / 2)). Record blank/RP-only fields as well.
+
+Exhaust the following paths in order, stopping when one succeeds. The builder
+must never skip directly to Path 4 without first attempting each of Paths 1–3
+and notifying the operator (§5.1.1, Q18).
+
+1. **Direct reading.** Open the PDF. If the builder's model or toolchain renders
+   it natively (text-based PDF or vision-capable), enumerate fields visually and
+   record them in `SHEET_FIELDS.md`.
+
+2. **Convert to images → vision model.** If direct reading fails, convert PDF
+   pages to images:
+
+   ```
+   pdftoppm -png -r 150 sheet.pdf sheet_page
+   ```
+
+   If `pdftoppm` is absent, try `convert -density 150 sheet.pdf page-%d.png`
+   (ImageMagick). Pass each page image to a vision-capable model for field
+   enumeration. For image-based (scanned) PDFs that lack an embedded text
+   layer, this is the primary extraction pass — the vision model reads fields
+   visually from the rendered page images.
+
+   To improve completeness, combine this path with Path 3 on the same images:
+   use the vision model as the primary source, run OCR as a fallback for any
+   field the vision model missed or was uncertain about, and merge the results.
+   When the vision model and OCR disagree on a field, the vision output is
+   canonical; the OCR output is logged as a normalization in `DECISIONS.md`
+   (Section 8, item (4)), and the discrepancy is flagged for operator review.
+
+3. **OCR.** If no vision model is available, extract text via OCR:
+
+   ```
+   tesseract page-1.png output -l eng
+   ```
+
+   Requires `tesseract-ocr`. Parse the extracted text against the ruleset's
+   known field labels (ability names, skill names, defense labels) to
+   reconstruct the layout. Tolerate OCR noise — prefer false positives (extra
+   tokens from decorative elements) over false negatives (missing fields). Even
+   when form layouts are unreadable, partial results have value: version
+   changelogs, running instruction text, and reference panels often survive OCR
+   better than bordered form fields and can confirm overlooked fields or
+   validate derivation rules.
+
+4. **Ruleset inference.** If extraction and OCR both fail or yield unparseable
+   results, infer fields from ruleset knowledge and NPC stat block structure.
+   The builder must inform the operator before falling back to this path and
+   record it as a standing limitation in `DECISIONS.md` per REQ-013. Enumerate
+   the inferred fields in `SHEET_FIELDS.md` with the derivation source noted.
+
+   When inferring fields, pay special attention to player-tracked resources:
+   currency, experience points, per-rest/encounter uses, and condition-track
+   state are commonly present on official sheets but invisible to pure ruleset
+   derivation. Enumerate these explicitly in `SHEET_FIELDS.md` even when they
+   carry no derivation rule — they are RP-only fields that renderers must
+   provide slots for.
+
+**Output.** `SHEET_FIELDS.md` — a catalog in the server's source tree listing
+every identified field, its derivation source (page number, OCR, ruleset
+inference, stat block parse), and notes about edge cases (optional fields,
+conditional visibility, blank/RP-only slots).
+
+### J.3 Entity type definition
+
+Translate the field inventory to a flat, serializable interface. One slot per
+PDF field. Use arrays for lists (proficiencies, equipment, spells) and optional
+fields for conditional data (spell slots). Every entity carries a unique `id:
+string`. The interface is defined in `domain/sheet.ts` and consumed by all
+renderers.
+
+### J.4 Prerequisites and ruleset index
+
+The derivation layer requires a pre-built index with named lookup maps — e.g.,
+`equipmentByName`, `spellsByName`, `speciesByName` — where map names reflect the
+actual ruleset, never hardcoded. The index is built at server startup, not at
+tool-invocation time. If the MCP server does not already expose a ruleset index
+in this shape, build it before implementing the sheet renderers. The index
+implements a `RulesIndex` interface that every derivation function and test
+double can depend on.
+
+### J.5 Architecture and derivation
+
+```
+domain/sheet.ts       — shared helpers, typed row interfaces, ASCII renderer
+domain/sheet_md.ts    — Markdown renderer (imports shared; no independent math)
+```
+
+Keep renderers separate. Both import the same derivation module.
+
+**Derivation layer (format-agnostic).** Pure functions:
+`(entity, rulesIndex) => RowData[]`. No layout code. Return typed interfaces
+(`WeaponRowData`, `SpellRowData`) that renderers consume. Common helpers:
+score-to-modifier math, proficiency checks, equipment resolution, spell
+resolution, permanent save bonuses from features/items. The derivation layer
+extends over time as rules change — it is the single source of truth for
+mechanical computation, consumed identically by every renderer.
+
+### J.6 Renderers
+
+**Markdown (build first — default format).** Consume the derivation layer.
+Structure mirrors the PDF: identity line, combat strip, abilities/saves/skills
+(bold proficient), weapons, features/traits/feats as bulleted lists,
+spellcasting section (ability, DC, slots, spell table with
+Concentration/Ritual/Prepared flags), equipment list, details/coins. Tables use
+`| --- |` separators. Handle empty sections: `_No cantrips or prepared
+spells._`. Escape `|` in cell content. Flag entries not found in the ruleset
+index with `(not indexed)`.
+
+**ASCII (build after Markdown — on-request only).** Same derivation helpers,
+different layout. Use `+`, `-`, `|` for boxed tables with per-column widths and
+horizontal rules between every row. Section bands with `+====+`. Checkboxes:
+`[*]`/`[ ]`. Blanks: `____`. Pips for slot/DS tracking. Multi-page PDF → PAGE N
+OF M headers. Fixed output width (e.g., 100 cols). Wrap long text.
+
+### J.7 MCP tool wiring
+
+```
+name: "character_sheet"
+title: "<Entity> Sheet"
+description: "Render an entity's sheet in the ruleset's official layout."
+persona: both
+input: { entity: string, format: enum["markdown","ascii"], default "markdown" }
+annotations:
+  readOnlyHint: true, idempotentHint: true
+  destructiveHint: false, openWorldHint: false
+sideEffects: "None"
+example: { "entity": "delver_01" }
+
+handler:
+  1. Resolve entity from game state (fallback to roster)
+  2. Not found → [ERROR] [NOT_FOUND] <explanation> (REQ-002; REQ-058)
+     Corrective action: <valid entity IDs visible to this persona>
+  3. Dispatch to renderer based on format
+  4. Output prefix: [OK] Character sheet for {name} ({id}, {source}, {format}.md|.txt)
+  5. Truncate output if it exceeds the payload limit, ending with
+     … [truncated — full content: output://character_sheet/<counter>]
+     Per-tool counter; if the server's truncateText is shared, audit all call sites.
+  6. Register an output://{tool}/{counter} resource template. Payloads are
+     session-local; evict oldest when exceeding the payload bound. Not found →
+     throw JSON-RPC error (-32000) with [NOT_FOUND] message (REQ-004).
+  7. Return { content: [{ type: "text", text: result }] }
+```
+
+**Persona gating with `registerAppTool`.** When the tool is registered via
+`registerAppTool` (from `@modelcontextprotocol/ext-apps/server`) instead of the
+server's standard tool registration, persona visibility gating may not be wired
+automatically. After registration, push the tool definition to the server's
+internal tool registry manually (e.g., `toolRegistry.push`) to enforce
+`persona` gating (REQ-032). Skip this if the server's normal registration path
+already handles persona gating (Section 6.4).
+
+### J.8 MCP App support — optional
+
+When the target MCP host supports MCP App UI rendering, add an HTML character
+sheet display on top of the text-based tool. The HTML UI consumes the tool's
+Markdown output — it does not duplicate server-side rendering logic. The
+Markdown text output remains the canonical format and works regardless of host
+support.
+
+Prefer stdio-first: if the host supports MCP App resources over stdio
+transport, register `registerAppTool` and `registerAppResource` directly on the
+existing stdio server. This avoids code duplication — a separate app server
+would register the same `character_sheet` tool a second time, creating drift
+and maintenance burden. Only fall back to a separate HTTP entry point when the
+host requires it.
+
+#### J.8.1 Host compatibility check
+
+Verify the host supports MCP Apps before building the HTML UI. Test in order:
+
+1. **Stdio (preferred).** Register a minimal `registerAppTool` with
+   `_meta.ui.resourceUri` and a `registerAppResource` serving an HTML page at
+   `ui://character-sheet/test.html` on the existing stdio server. Confirm the
+   host renders the HTML in a sandboxed iframe. If this works, skip the HTTP
+   fallback entirely — register the real tool and resource on the stdio server.
+
+2. **HTTP (fallback).** If the host does not support MCP App over stdio,
+   register a minimal remote tool (HTTP transport) with
+   `_meta.ui.resourceUri` and confirm the host renders the HTML. If neither
+   path works, skip §J.8 — the text-based `character_sheet` tool is still
+   fully functional.
+
+#### J.8.2 Architecture — preferred (stdio, no separate server)
+
+When the host supports MCP App over stdio (§J.8.1 test 1 passes), register the
+app tool and HTML resource directly on the existing stdio server entry point
+(e.g., `src/index.ts`):
+
+- **Tool registration.** Replace the `character_sheet` tool definition with
+  `registerAppTool(server, "character_sheet", handler, { ... })` and add
+  `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }` so the
+  host discovers the HTML UI when the tool is invoked. The handler and
+  rendering logic stay identical to the text-only version. After
+  `registerAppTool`, persona gating (the `persona` field) may not be wired
+  automatically — manually push the definition to the server's internal tool
+  registry (e.g., `toolRegistry.push`) if needed (REQ-032).
+
+- **Resource registration.** `registerAppResource(server,
+  "ui://character-sheet/sheet.html", { mimeType: RESOURCE_MIME_TYPE, load:
+  async () => ({ blob: await fs.readFile(path.join(__dirname, "ui",
+  "sheet.html")) }) })`. The bundled HTML lives at `dist/ui/sheet.html` after
+  the build step.
+
+- **Imports.** `registerAppTool`, `registerAppResource`,
+  `RESOURCE_MIME_TYPE` from `@modelcontextprotocol/ext-apps/server`;
+  `fs/promises` and `path` from `node:`.
+
+- **Dependencies.** `@modelcontextprotocol/ext-apps`, `vite`,
+  `vite-plugin-singlefile`. No Express, no HTTP transport, no CORS.
+
+- **Build.** The standard `npm run build` compiles TypeScript (`tsc`) and
+  bundles the HTML UI (`vite build`). Output: `dist/index.js` +
+  `dist/ui/sheet.html`.
+
+- **No HTTP port.** The host serves the HTML resource through its own
+  transport — no Express server, no port to configure, no separate MCP config
+  entry.
+
+#### J.8.3 Architecture — fallback (HTTP entry point)
+
+If the host does not support MCP App over stdio (§J.8.1 test 1 fails but test
+2 passes), create a separate HTTP entry point (`src/app.ts`) that reuses the
+server's existing config, index, state, and renderers. Do not switch the stdio
+server to HTTP — the core server stays stdio-based (REQ-051).
+
+```
+src/app.ts  — HTTP entry point
+src/ui/     — client-side HTML/JS/CSS (bundled to dist/ui/sheet.html)
+```
+
+The app entry point:
+
+- Creates an `McpServer` with a distinct name (e.g.,
+  `holonovel_<ruleset>_sheet`).
+- Registers the `character_sheet` tool via `registerAppTool` (from
+  `@modelcontextprotocol/ext-apps/server`) with
+  `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }`.
+- Registers the bundled HTML as a resource via `registerAppResource` with
+  MIME type `RESOURCE_MIME_TYPE` (`text/html;profile=mcp-app`).
+- Serves via Express + `StreamableHTTPServerTransport` on a configured port.
+
+Dependencies: `@modelcontextprotocol/ext-apps`, `express`, `cors`, `vite`,
+`vite-plugin-singlefile`.
+
+```
+npm run build-app   # vite bundles src/ui/ → dist/ui/sheet.html + tsc compiles src/app.ts
+npm run serve-app   # starts app server on the configured port
+```
+
+This approach duplicates the `character_sheet` tool registration between two
+servers — keep both registrations in sync. Drift causes the HTML UI to render
+differently from the text output.
+
+#### J.8.4 HTML UI
+
+The UI is a single HTML file (vite + `vite-plugin-singlefile` bundling). It
+includes:
+
+- The `App` class from `@modelcontextprotocol/ext-apps` for host communication.
+- An `ontoolresult` handler that receives the tool's Markdown output, parses it
+  into structured data, and renders it in styled HTML matching the official
+  character sheet layout.
+- A format toggle (styled HTML ↔ raw ASCII / raw Markdown) that calls
+  `app.callServerTool()` with `format: "ascii"` or `format: "markdown"` to
+  re-fetch in the alternate format.
+- CSS implementing the PDF-sourced layout (identity banner, combat strip,
+  ability grid, weapon table, features list, spellcasting section,
+  equipment/details).
+
+The UI parser handles every Markdown section documented in §J.6. Unrecognized
+sections pass through as raw Markdown — the tool output is the source of truth.
+
+#### J.8.5 Host MCP config
+
+- **Stdio path (preferred).** No additional MCP configuration is needed. The
+  tool and HTML resource are served by the existing stdio server. The host
+  discovers the app UI from `_meta.ui.resourceUri` in the tool definition.
+
+- **HTTP fallback.** Add the app server as a separate MCP entry in the host
+  configuration:
+
+  ```json
+  "holonovel_sheet_app": {
+    "type": "remote",
+    "url": "http://localhost:3001/mcp"
+  }
+  ```
+
+  The host connects to both servers: stdio for gameplay tools, HTTP for the
+  character sheet display.
+
+The Markdown text output is the authoritative character sheet. The MCP App HTML
+UI is an optional display enhancement. If a host does not support MCP Apps, the
+text-based `character_sheet` tool continues to work unchanged. The HTML UI
+parses the tool's Markdown output; it must never duplicate server-side
+rendering logic.
+
+### J.9 Tests and defensive parsing
+
+#### J.9.1 Tests
+
+Build a `minimalIndex()` test double that implements the same `RulesIndex`
+interface the derivation layer consumes — no mocking framework, no type casts.
+Pre-populate `equipmentByName`, `spellsByName`, `speciesByName`, and every other
+map a renderer path reads. Each populated entry must resolve through the same
+lookup path (case-folded key, bounded-domain token match) the production code
+uses.
+
+| Area       | Coverage |
+| ---------- | -------- |
+| Rendering  | Identity, stat math, weapon resolution (bonus stacking, Unarmed Strike fallback), spellcasting (DC, slots, sorting, empty-case fallback), edge cases (missing data, optional fields). Test both renderers. |
+| Protocol   | Response contract (`{ content: [{ type: "text", text }] }`, REQ-001), error for invalid entity IDs, persona gating (REQ-032), output prefix shape, file extension in status line. |
+| MCP App (if built) | Tool definition includes `_meta.ui.resourceUri`. HTML resource returns MIME type `text/html;profile=mcp-app`. Both `markdown` and `ascii` formats render through the app path with identical data as the text path. On the stdio path, verify the resource is served without an HTTP server. Client-side Markdown parser handles all §J.6 sections. |
+| Production data | Test with real ruleset entries, not only hand-crafted minimal fixtures. Stat blocks from wiki-derived rulesets carry OCR artifacts, inconsistent field terminators (missing semicolons), comma-separated numbers, and abbreviated ability labels. Tests using only idealized fixtures mask parse bugs — assert exact field values (not just `length > 0`) to catch over-capture. Starship, capital ship, ground vehicle, and walker types must each have at least one real-data test. |
+
+#### J.9.2 Defensive parsing
+
+When consuming stat blocks or entity data from ruleset sources:
+
+- **Field capture boundaries.** End field capture at newlines, not only
+  semicolons — ruleset entries often lack terminators between fields on
+  adjacent lines.
+- **Numeric commas.** Strip commas from numeric fields (e.g., `2,200` HP →
+  2200) before parsing to integers.
+- **Ability label variants.** Ruleset stat blocks may use abbreviated ability
+  names (`Str`/`Dex`/`Int`) or full names
+  (`Strength`/`Dexterity`/`Intelligence`). The parser must recognize both.
+- **OCR artifacts.** Wiki-derived content may contain formatting artifacts
+  (e.g., `Cover**` from `**Cover**`) that leak into adjacent field captures.
+  Validate captured fields against expected patterns; discard or fall back
+  for implausible values.
+- **Weapon multi-gunner notation.** `*Ranged (N Gunners):*` parentheticals
+  differ from `*Ranged (Vehicle Weapons):*`. The parser must handle both,
+  plus optional `*` after attack values and non-parenthetical damage
+  descriptors (e.g., `grapple +65`).
+
+### J.10 Build and verification
+
+After each change, run in order: typecheck, build, unit tests, gate tests. Fix
+before proceeding. The character sheet tool's tests are included in the server's
+test suite but do not block server verification gates (Section 7) — the
+character sheet is a post-build extension gated by Q19.

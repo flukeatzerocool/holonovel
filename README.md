@@ -97,13 +97,13 @@ the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
 
 - **Builds in TypeScript** — TypeScript is the mandated implementation language
   for the server and the game code.
-- **`character-sheet-generator.md`** is a prompt that guides building
-  a character-sheet rendering MCP app from a character sheet PDF. The process
-  covers field-by-field study of the PDF layout, translating the field
-  inventory to a typed data model, building a format-agnostic derivation layer
-  (modifier math, proficiency checks, equipment resolution), wiring up Markdown
-  and ASCII renderers, and optional MCP App HTML display. Ruleset-agnostic and
-  MCP-server-agnostic — works with any holonovel-built server.
+- **Appendix J of `holonovel.md`** is the character sheet generator — a
+  post-build extension that guides building a character-sheet rendering MCP
+  tool from a character sheet PDF. Covers PDF field enumeration (with
+  combined vision-model + OCR for image-based PDFs), typed data model,
+  format-agnostic derivation layer, Markdown and ASCII renderers, and
+  optional MCP App HTML display. Gated by Q19 of the intake setup
+  questionnaire.
 
 ## Validating
 
@@ -129,11 +129,9 @@ Holonovel/
 ├── holonovel.md                ← the complete build specification
 │                                 (includes intake workflow, web-scrape
 │                                 sub-flow, hard-stop readiness gates,
-│                                 and ruleset preparation prompt as
-│                                 Appendix H)
-├── character-sheet-generator.md  ← prompt: build character sheet
-│                                    rendering on top of a holonovel-built
-│                                    server
+│                                 ruleset preparation prompt as
+│                                 Appendix H, and character sheet
+│                                 generator as Appendix J)
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/
