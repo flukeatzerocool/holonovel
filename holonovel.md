@@ -46,6 +46,7 @@
   - [5.5 Build](#55-build)
     - [5.5a Character sheet baseline (always built)](#55a-character-sheet-baseline-always-built)
   - [5.6 Continuous verification](#56-continuous-verification)
+  - [5.6a Convergence rule](#56a-convergence-rule)
   - [5.7 Reconciliation](#57-reconciliation)
 - [6. Conventions and Runtime Model](#6-conventions-and-runtime-model)
   - [6.1 Anchors and slugs](#61-anchors-and-slugs)
@@ -116,6 +117,7 @@
     - [G.12 Check H10 — Confidence and MUST coverage threshold](#g12-check-h10--confidence-and-must-coverage-threshold)
     - [G.13 Check H11 — Client configuration launch](#g13-check-h11--client-configuration-launch)
     - [G.14 Check H12 — Cold-checkout replay evidence present](#g14-check-h12--cold-checkout-replay-evidence-present)
+    - [G.15 Check H13 — Lookup tool completeness](#g15-check-h13--lookup-tool-completeness)
   - [Appendix H: Ruleset Preparation Prompt](#appendix-h-ruleset-preparation-prompt)
     - [H.1 Mission](#h1-mission)
     - [H.2 Source intake](#h2-source-intake)
@@ -699,6 +701,15 @@ unregistered (per REQ-013, recorded in `DECISIONS.md`) or returns `[NOT_FOUND]` 
 invalid name. The tool description must not advertise canonical anchor values that resolve to
 nothing.
 
+- **Table anchor accuracy.** The `spec_health` reported table count and the functional table surface
+  must agree: the table count from `ruleset://` index parsing and the number of distinct table
+  anchors that `roll_on_table` resolves to a non-trivial result (a roll using the table's actual
+  dice notation, not `1d1`) must match within a tolerance of 10%. At Gate 2, sample ten random
+  anchors from the set advertised in `NOT_FOUND` corrective actions and verify each produces a
+  roll result where the die's face count equals the number of data rows in the source table.
+  Anchors that produce `1d1` on every call or that are absent from the functional set are defects
+  logged in `DECISIONS.md`. Check H13 (Appendix G.15) verifies related functional completeness.
+
 _Check:_ T3, T35, T39.
 _See also: §6.4._
 
@@ -731,7 +742,41 @@ the build and are recorded in `DECISIONS.md` with a remediation plan; the operat
 overall threshold.
 MUST actions waived for absent ruleset content are excluded from the 100% target and recorded.
 
-It is registered **last** during wiring so it reports on the fully assembled surface. _Check:_ T15, T45.
+It is registered **last** during wiring so it reports on the fully assembled surface.
+
+**Process compliance.** `spec_health` additionally reports a `processCompliance` section,
+derived from `DECISIONS.md` records, not boilerplate:
+
+- **Pre-build questions.** Per phase: `asked` (operator confirmed each answer in dialogue),
+  `inferred` (answers filled in from context without asking), or `missing` (no answers
+  recorded). Q1–Q15 for Phase 1, Q2–Q14 for Phase 2, PE1–PE6 for Phase 3, Q16–Q19 for
+  Phase 4 (Section 8, item (6a)). A phase with `missing` pre-build answers is a
+  process-compliance blocker.
+- **Phase completion gates.** Per phase: `confirmed` (operator explicitly answered the
+  "Proceed?" prompt), `defaulted` (non-interactive auto-yes recorded), or `missing`
+  (no gate record exists). A phase with `missing` gate confirmation is a blocker.
+- **Pre-flight reviews.** Count of pre-flight review statements (§5.6) surfaced during the
+  build. Zero pre-flight reviews is a blocker.
+- **Checkpoint subagents.** Count of verification subagent spawns per stage. Zero
+  subagent spawns when the checkpoint description requires one is a finding.
+- **Gate dispositions.** Status of every Section 7 gate: `pass`, `fail`, `waived`, or
+  `not run`. Gates with no recorded disposition are blockers (Section 8.1).
+- **Open process findings.** List of process-compliance items with `blocker` severity that
+  remain unresolved.
+- **Convergence loop counts.** Per verification activity — confidence extraction, gate
+  execution, process compliance, mechanics fidelity — the number of loop iterations run
+  per §5.6a. A loop that ran 0 iterations when the activity's threshold remains unmet
+  (a gate is `not run`, confidence is below 80%, a pre-build Q is `missing`) is a blocker.
+  After 3 iterations without meeting the threshold, the loop may escalate to the operator
+  per §5.6a. `spec_health` reports the iteration count and current disposition of each
+  activity's loop.
+
+A gate whose disposition is `not run` and a process-compliance item whose state is
+`missing` or whose count is zero when the associated requirement demands a positive
+count are reported as `[FINDING]`. The build is not complete while any process-compliance
+blocker is open.
+
+_Check:_ T15, T45.
 
 **REQ-063 — Connection introduction.** _(F2)_ The server provides a standalone
 `intro` prompt (REQ-023), listed first in `prompts/list`. The prompt takes no
@@ -1186,6 +1231,12 @@ phase — operator availability may change between phases.
 Phase 2 questions (Q2, Q3, Q4, Q5 re-asked, Q6, Q7, Q9, Q10, Q13, Q14) are asked at the start
 of Phase 2 (§5.5). Character sheet questions (Q16–Q19) are deferred to Phase 4 (§11).
 
+After answering, record every Q in `DECISIONS.md` under a `Pre-build answers: Phase 1`
+heading (Section 8, item (6a)). Before proceeding to Phase 2, verify the heading exists
+and every Q (Q1, Q5, Q8, Q11, Q12, Q15) has a non-empty entry. Answers backfilled from
+context without asking the operator are recorded as `inferred`; missing answers are a
+process-compliance blocker reported in `spec_health` (REQ-025).
+
 ### 5.1a Web-scrape sub-flow (Q11-C) and Gate 0
 
 When the operator selects Q11-C (web scrape):
@@ -1417,7 +1468,52 @@ rules produce at least one match of that type.
 
 ### 5.4 Output
 
-Produce `RULESET_MODEL.md` (contents: Section 8). Appendix B.2 shows a minimal example from the fixture.
+Produce two output artifacts from the Discovery phase:
+
+1. **RULESET_MODEL.md** — human-readable model (contents: Section 8). Appendix B.2 shows a
+   minimal example from the fixture.
+
+2. **ruleset_model.json** — machine-readable extraction data that the server reads at
+   startup for `spec_health` computation (REQ-025). Produce it alongside
+   `RULESET_MODEL.md` in the project root. Schema:
+
+   ```json
+   {
+     "contentTypes": [
+       { "type": "concept", "total": 0, "high": 0, "medium": 0, "low": 0 }
+     ],
+     "totalItems": 0,
+     "highCount": 0,
+     "mediumCount": 0,
+     "lowCount": 0,
+     "overallConfidence": 0.0,
+     "playerPersonaConfidence": 0.0,
+     "mustCoverageCount": 0,
+     "mustCoverageTotal": 0,
+     "defects": 0,
+     "tablesCount": 0,
+     "generated": "ISO-8601 timestamp"
+   }
+   ```
+
+   `contentTypes[].type` is the content-type name from the inventory table (e.g.,
+   `"concept"`, `"entity (heroic-class)"`, `"equipment (weapon)"`). All numeric fields
+   are integers except `overallConfidence` and `playerPersonaConfidence` (floating-point
+   percentages).
+
+   Population is a build-time step: a script in the project parses
+   `RULESET_MODEL.md`'s Content-Type Inventory table and Summary Statistics section and
+   writes `ruleset_model.json`. The script runs as part of `npm run build` (or the
+   project's equivalent build command). The server never parses `RULESET_MODEL.md`
+   directly at runtime — it reads `ruleset_model.json`.
+
+   The script is a required deliverable. A missing or malformed `ruleset_model.json`
+   after `npm run build` is a build failure. `spec_health` reports the file status and
+   falls back to index-only counts when absent.
+
+   Regenerate `ruleset_model.json` whenever `RULESET_MODEL.md`'s confidence counts
+   change. The file is a build output, generated by `npm run build` and read by the
+   server at startup.
 
 ### 5.5 Build
 
@@ -1439,6 +1535,12 @@ availability may differ from Phase 1. Record each answer or default in `DECISION
 | Q10 | Docker packaging (Dockerfile)                    | yes / no                                                                                                                                                                 | no                                                                   |
 | Q13 | MCP client configuration entry                   | Path to the client configuration file and the server key that will be used; or "unknown — validate later"                                                                | unknown — validate later, logged in `DECISIONS.md`                   |
 | Q14 | Client config schema location                    | URL or reference to the chosen client's MCP server configuration documentation                                                                                           | Inferred from the Q7 client's documented config; recorded in `DECISIONS.md` |
+
+After answering, record every Q in `DECISIONS.md` under a `Pre-build answers: Phase 2`
+heading (Section 8, item (6a)). Before building, verify the heading exists and every Q
+(Q2–Q14) has a non-empty entry. Answers inferred without asking are recorded as
+`inferred`; missing answers are a process-compliance blocker reported in `spec_health`
+(REQ-025).
 
 Bottom-up; each layer depends only on earlier ones:
 
@@ -1670,6 +1772,15 @@ not recorded as a waiver is a blocker; a `DECISIONS.md` title or edition that di
 blocker; a test identifier in the traceability table that has no corresponding test command or evidence is a
 major finding. Record every such gap in `DECISIONS.md` under the checkpoint findings log.
 
+**Process-compliance.** After the Layer 6 checkpoint and before any phase-completion
+gate, verify: (a) pre-build question answers exist in `DECISIONS.md` for the current
+phase, with no Q left `missing`; (b) phase-completion gate records exist for every
+prior phase, with no gate left `missing`; (c) pre-flight review records exist for
+every mutating build step, with no step left unreviewed; (d) checkpoint subagent logs
+exist for every completed checkpoint stage. Missing records are blockers. The build
+does not advance to the next phase while any process-compliance blocker is open.
+Record these checks in `DECISIONS.md` Section 8, item (6a).
+
 These checkpoints complement, and never replace, the Section 7 gates.
 
 **Phase-completion gates.** After the final checkpoint of each phase, the builder pauses and presents
@@ -1681,6 +1792,28 @@ incomplete. A "no" at Phase 3 or Phase 4 is a scope reduction — the server is 
 the optional enhancement. In non-interactive mode, all phase-completion gates default to "yes,"
 recorded as "unattended — proceeded automatically." If Phase 3 is declined, the builder
 immediately asks the Phase 4 question. Phase 4 completion is the final build gate.
+
+### 5.6a Convergence rule
+
+Every verification activity — gate execution, `spec_health` computation, process
+compliance, mechanics fidelity, confidence extraction — runs in a convergence loop:
+
+1. **Measure.** Compute the current value against the activity's threshold (e.g.,
+   80% confidence, all gates pass, spec_health reports computed values, all pre-build
+   Qs answered, all phase gates recorded).
+2. **Improve.** Apply the activity's improvement step (e.g., re-examine LOW sections,
+   build a gate harness, record missing process artifacts, extract a hardcoded table from
+   source).
+3. **Stop check.** If the threshold is met, pass. If 3 consecutive improvement iterations
+   produce delta below the activity's minimum (no new HIGH/MEDIUM extraction, no newly
+   passing gate, no newly resolved process artifact), stop and escalate to the operator
+   per the §5.1 interaction model. An activity that ran 0 iterations is a blocker.
+4. **Record.** Each iteration is recorded in `DECISIONS.md` Section 8, item (6a) with
+   the measured delta. When a block escalates to the operator, its operator disposition
+   (fix now, defer to major, or accept) and rationale are recorded.
+
+Convergence loop counts and outcomes appear in `spec_health`'s `processCompliance`
+section (REQ-025).
 
 ### 5.7 Reconciliation
 
@@ -2519,6 +2652,13 @@ A check may be waived with a logged reason if the ruleset lacks the feature it t
 ruleset has no attack procedure). The waiver is recorded in `DECISIONS.md` section (5) and cross-referenced in
 the verification record.
 
+**Gating rule.** At handoff, every Section 7 gate (Gate 0–4) must either (a) have a recorded
+pass in `DECISIONS.md` Section 8, item (6), or (b) be waived by the operator with a reason
+recorded in `DECISIONS.md` section (5). A gate with no recorded disposition — no pass, fail,
+or waiver — is a handoff blocker. `spec_health` reports each gate's status (REQ-025). Every
+check H1–H12 in this section must likewise have a recorded result; a check with no entry is a
+handoff blocker.
+
 The verification record in `DECISIONS.md` Section 8, item (6) must contain one row per check with the command
 or script used, the result (`PASS` / `FAIL` / `WAIVED`), and the evidence (output hash or transcript pointer).
 The H1–H12 rows are mandatory; additional rows — suite runs, cold-checkout replays, or other evidence — may
@@ -2654,6 +2794,12 @@ Ask the operator as a single batch. Record each answer or default in `DECISIONS.
 
 If PE1 is "no," Phase 3 is skipped — proceed immediately to the Phase 4 question.
 
+After answering, record every PE in `DECISIONS.md` under a `Pre-build answers: Phase 3`
+heading (Section 8, item (6a)). Before beginning research, verify the heading exists
+and every PE (PE1–PE6) has a non-empty entry. Answers inferred without asking are
+recorded as `inferred`; missing answers are a process-compliance blocker reported in
+`spec_health` (REQ-025).
+
 ### 10.2 When to run
 
 After the server passes all verification gates (Section 7) and `DECISIONS.md` is finalized.
@@ -2760,6 +2906,12 @@ scratch — the Phase 2 baseline already provides a working Markdown sheet from 
 inference. Phase 4 adds PDF layout study, an ASCII renderer, and optional MCP App HTML display.
 It never modifies the server's index or state directory, and its tests do not block server
 verification gates (Section 7).
+
+After answering, record every Q in `DECISIONS.md` under a `Pre-build answers: Phase 4`
+heading (Section 8, item (6a)). Before building, verify the heading exists and every Q
+(Q16–Q19) has a non-empty entry. Answers inferred without asking are recorded as
+`inferred`; missing answers are a process-compliance blocker reported in `spec_health`
+(REQ-025).
 
 ### 11.2 Pre-build verification
 
@@ -2895,40 +3047,24 @@ When the target MCP host supports MCP App UI rendering, add an HTML character sh
 top of the text-based tool. The HTML UI consumes the tool's Markdown output — it does not
 duplicate server-side rendering logic. The Markdown text output remains the canonical format.
 
-Prefer stdio-first: if the host supports MCP App resources over stdio transport, register
-`registerAppTool` and `registerAppResource` directly on the existing stdio server. Only fall
-back to a separate HTTP entry point when the host requires it.
+**Outcome.** Build a single-file HTML UI (vite + `vite-plugin-singlefile`) that includes
+the `App` class from `@modelcontextprotocol/ext-apps`, an `ontoolresult` handler parsing
+the tool's Markdown output into styled HTML matching the official character sheet layout, a
+format toggle (styled HTML ↔ raw Markdown / raw ASCII), and CSS implementing the
+PDF-sourced layout. Associate the HTML UI with the `character_sheet` tool using the SDK's
+available UI-binding mechanism. Prefer stdio transport — no Express, no HTTP entry point, no
+CORS.
 
-**Host compatibility check.** Verify the host supports MCP Apps before building the HTML UI.
-Test in order: (1) stdio — register a minimal `registerAppTool` with `_meta.ui.resourceUri`
-and a `registerAppResource` serving an HTML page; (2) HTTP fallback — register a minimal
-remote tool with `_meta.ui.resourceUri`. If neither path works, skip §11.8 — the text-based
-`character_sheet` tool is still fully functional.
+**SDK compatibility.** If the current SDK version supports tool-to-resource auto-discovery
+(`_meta.ui.resourceUri` or equivalent), bind the UI to the tool entry so compatible MCP
+clients auto-discover it. If the SDK version does not support auto-discovery, register the
+UI as a standard resource at `ui://character-sheet/sheet.html` with MIME type
+`text/html;profile=mcp-app`, and include the resource URI in the tool's description. Record
+the resolution — chosen binding method and SDK version — in `DECISIONS.md`.
 
-**Architecture — stdio (preferred).** Register the app tool and HTML resource directly on the
-existing stdio server. Replace the `character_sheet` tool definition with `registerAppTool`
-and add `_meta: { ui: { resourceUri: "ui://character-sheet/sheet.html" } }`. After
-`registerAppTool`, push the definition to the server's internal tool registry for persona
-gating. Register the HTML resource with `registerAppResource`. Dependencies:
-`@modelcontextprotocol/ext-apps`, `vite`, `vite-plugin-singlefile`. No Express, no HTTP
-transport, no CORS. The standard `npm run build` compiles TypeScript and bundles the HTML UI.
-
-**Architecture — HTTP fallback.** If stdio MCP App is unsupported, create a separate HTTP
-entry point (`src/app.ts`) reusing the server's existing config, index, state, and renderers.
-The core server stays stdio-based (REQ-051). Dependencies: `@modelcontextprotocol/ext-apps`,
-`express`, `cors`, `vite`, `vite-plugin-singlefile`. This duplicates the `character_sheet`
-tool registration between two servers — keep both registrations in sync.
-
-**HTML UI.** A single HTML file (vite + `vite-plugin-singlefile` bundling) that includes the
-`App` class from `@modelcontextprotocol/ext-apps`, an `ontoolresult` handler parsing the
-tool's Markdown output into styled HTML matching the official character sheet layout, a format
-toggle (styled HTML ↔ raw Markdown / raw ASCII), and CSS implementing the PDF-sourced layout.
-The UI parser handles every Markdown section; unrecognized sections pass through as raw
-Markdown.
-
-**Host MCP config.** Stdio path needs no additional configuration. HTTP fallback adds the app
-server as a separate MCP entry. The Markdown text output is the authoritative character sheet;
-the MCP App HTML UI is an optional display enhancement.
+**Host MCP config.** Stdio path needs no additional configuration. The Markdown text output
+is the authoritative character sheet; the MCP App HTML UI is an optional display
+enhancement.
 
 ### 11.9 Tests and defensive parsing
 
@@ -3584,6 +3720,30 @@ carries the REQ-002 string and whose `data` object mirrors it (REQ-001). SDK-lev
 failures — a missing required argument, a mistyped parameter — surface as `-32602` before tool code runs and
 carry no REQ-002 string (REQ-001).
 
+### D.2 Undo conformance — scripted test sequence
+
+**Covers:** REQ-041, T34.
+
+Run the following sequence and verify each step:
+
+1. Create a character (`create_character`). Record its entity ID and max HP.
+2. Query condition status (`condition_status`) — confirm HP equals max.
+3. Apply damage (`report_damage`, −N). Confirm HP decreased.
+4. Call `undo`. Confirm `[OK] Reverted` in output.
+5. Query condition status again — HP must equal the value from step 2 (restored).
+6. Call `undo` again. Confirm `[ERROR] [STATE_CONFLICT]` (empty snapshot stack).
+7. Apply damage again, then change condition (`move_condition`). Call `undo` — only the
+   condition change is reverted (per-call snapshot), HP decrease remains. Call `undo`
+   again — HP is restored.
+8. Start a workflow that raises `[NEED_INPUT]`. Call `undo` — confirm
+   `[ERROR] [STATE_CONFLICT]` (workflow pending).
+9. `respond(cancel)` the workflow, then call `undo` — confirm it reverts the most recent
+   post-cancel mutation only (the cancelled workflow's internal undo candidates are discarded
+   per REQ-041).
+
+A test harness runs this sequence as a programmatic MCP client; pass is all nine steps
+verifying the expected output pattern.
+
 ## Appendix E: Requirements Manifest
 
 Derived from Section 4 for convenience — the packing list for the `DECISIONS.md` traceability table
@@ -3960,6 +4120,23 @@ flagged occurrences and the disposition of each one, so the verifier can sample 
 - **Positive control:** A complete cold-checkout entry.
 - **Negative control:** A `DECISIONS.md` with no cold-checkout entry or
   `(not executed)` in the result field.
+
+### G.15 Check H13 — Lookup tool completeness
+
+- **Covers:** REQ-057, REQ-025.
+- **Input:** `spec_health` output (content-type distribution) and `tools/list`.
+- **Procedure:** For every content-type bucket in `spec_health` whose item count exceeds zero —
+  `entity (npc/monster)`, `entity (starship)`, `equipment (weapon)`, `equipment (armor)`,
+  `equipment (gear)`, `skill` — verify that the `tools/list` output contains a corresponding
+  canonical lookup tool (`lookup_monster`, `lookup_starship`, `lookup_equipment`,
+  `lookup_feat`, or equivalent per REQ-057). A bucket with items but no lookup tool is a defect:
+  the ruleset model has indexed content that no tool can resolve by name.
+- **Pass:** Every non-empty content-type bucket with canonical-name entries has a corresponding
+  lookup tool registered. A content-type bucket whose items lack canonical names (all entries
+  are untitled references) is exempt; record the exemption in `DECISIONS.md`.
+- **Positive control:** A server with `entity (npc/monster): 104` and a registered
+  `lookup_monster` tool.
+- **Negative control:** A server with `entity (npc/monster): 104` and no `lookup_monster` tool.
 
 ---
 
