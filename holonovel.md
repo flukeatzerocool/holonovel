@@ -320,6 +320,7 @@ operator instead of resolving it silently.
 | REQ-023 | Prompts                   | 4.3        |
 | REQ-024 | Tool documentation        | 4.3        |
 | REQ-025 | spec_health               | 4.3        |
+| REQ-063 | Connection introduction   | 4.3        |
 | REQ-056 | Advancement workflow      | 4.3        |
 | REQ-057 | Canonical lookup tools    | 4.3        |
 | REQ-058 | Tool-result fidelity      | 4.3        |
@@ -638,8 +639,12 @@ URIs are deterministic and stable across re-indexing unless the Markdown itself 
 and survive re-indexing regardless). _Check:_ T16.
 _See also: §6.1, §6.3._
 
-**REQ-023 — Prompts.** _(F3)_ Four prompts are registered:
+**REQ-023 — Prompts.** _(F3)_ Five prompts are registered:
 
+- **`intro`** — the primary connection entry point. Returns a brief, engaging game overview
+  (REQ-063): what the game is, how it works, what the server can do, available sourcebooks,
+  and concrete next actions. Visible to all personas, unfiltered. Listed first in
+  `prompts/list`.
 - **`use_tool`** — map a natural-language intent to the right tool and parameters.
 - **`lookup_rule`** — map a question to the relevant `ruleset://` resource.
 - **`run_workflow`** — map an intent to a multi-step procedure, surfacing `[NEED_INPUT]` decisions to the end
@@ -649,14 +654,15 @@ _See also: §6.1, §6.3._
   description (Section 6.9).
 - **Envelope.** Every prompt resolves to exactly one user-role message whose content is a single text block;
   the intent-mapping prompts embed the supplied `intent` verbatim beside the composed registry text.
-- **Discoverability.** All four prompts are advertised through `prompts/list` and invocable through
+- **Discoverability.** All five prompts are advertised through `prompts/list` and invocable through
   `prompts/get` (Appendix D); the server does not require the client to discover them through a separate
-  tool-search step. `persona_briefing` is the default orientation prompt, not the only entry point.
+  tool-search step. `intro` is the primary connection entry point, listed first; `persona_briefing` is the
+  role-orientation prompt.
 - **Arguments.** Every argument carries a description; the `intent` description states what a well-formed
   intent looks like for that prompt and points to the visible registry. Argument completion is not
   implemented, even where the pinned specification version defines it; recorded per (5).
 - **Titles.** Where the pinned specification version defines the `title` field, each prompt carries a fixed
-  one: "Use Tool", "Lookup Rule", "Run Workflow", "Persona Briefing".
+  one: "Game Overview", "Use Tool", "Lookup Rule", "Run Workflow", "Persona Briefing".
 
 The three intent-mapping prompts each take a required `intent` string argument; `persona_briefing` takes
 none. All four compose from the server's **live** tool, resource, and prompt registry — never hardcoded
@@ -726,6 +732,36 @@ overall threshold.
 MUST actions waived for absent ruleset content are excluded from the 100% target and recorded.
 
 It is registered **last** during wiring so it reports on the fully assembled surface. _Check:_ T15, T45.
+
+**REQ-063 — Connection introduction.** _(F2)_ The server provides a standalone
+`intro` prompt (REQ-023), listed first in `prompts/list`. The prompt takes no
+arguments, is visible to all personas (REQ-032), and is designed as a
+**conversation starter** — brief, engaging, ending with concrete next actions.
+
+Structure (~250 words, 4 sections):
+
+1. **Hook.** What the game is, genre/tone, who you play as. Opens with the
+   publisher's own tagline where available. Sourced from an official publisher or
+   store page with a footnote URL.
+2. **Core loop.** Resolution mechanic in plain language, what makes the game
+   unique. Cites ruleset:// anchors for mechanics; may also cite a publisher page
+   for the mechanic's name where one exists.
+3. **Server capabilities and sourcebook listing.** Bulleted list of what the
+   server can do, followed by a dynamic listing of indexed sourcebooks from the
+   live ruleset index — file count, section count, table count, and titled
+   entries with one-line descriptions.
+4. **Next actions.** Four concrete calls to action: play an adventure (naming
+   available modules), build an adventure (pointing to Warden workflows), make a
+   character (naming classes, referencing roster), and browse the rulebooks.
+
+The `help` tool directs callers to the `intro` prompt. `persona_briefing`
+includes a one-line pointer to it as a preface. Curated identity text (genre,
+tagline, influences, awards) is attributed to external sources with citation URLs
+recorded in `DECISIONS.md`. Mechanical claims cite `ruleset://` anchors.
+
+_Check:_ T49 (verify `intro` prompt returns engaging starter with four next
+actions and dynamic sourcebook listing), T50 (verify `persona_briefing` and
+`help` point to `intro`).
 
 **REQ-056 — Advancement workflow.** _(F1)_ When the ruleset defines a procedure for improving, leveling,
 ranking up, or otherwise advancing an entity, model it as a server-side workflow (REQ-042) whose tool name
@@ -1438,7 +1474,7 @@ source of truth:
 | 3 Randomizer                         | The reference randomizer reproduces every Appendix B.4 witness value exactly (REQ-050, Gate 2 step 0). Any mismatched witness value is a blocker.                                                                                                                                                                                                                    |
 | 4 State manager                      | A persisted game resumes with correct HP, conditions, entity data, and game state after restart (REQ-055, Gate 2 step 1 resource health). State corruption or data loss on resume is a blocker.                                                                                                                                                                       |
 | 5 Domain handlers                    | Every mechanical resolution derives from the extracted model. Where the ruleset defines weapons, spells, or damage, a weapon or spell entry resolves to its own damage dice, type, and properties; generic fallback damage values are prohibited. Where the ruleset defines a turn-based conflict procedure, conflict tools model it and maintain server-side state. |
-| 6 Wiring                             | (a) Fixture-specific tools (Appendix B) are absent when serving the target ruleset; (b) stub-tool prompt freshness — add a stub tool, restart, call `prompts/get` for all four prompts, assert the stub appears in each; remove the stub, restart, assert absence — failure is a blocker; (c) a dry-run Gate 2 transcript replay against the Appendix B fixture — failure is a blocker. |
+| 6 Wiring                             | (a) Fixture-specific tools (Appendix B) are absent when serving the target ruleset; (b) stub-tool prompt freshness — add a stub tool, restart, call `prompts/get` for all five prompts, assert the stub appears in each; remove the stub, restart, assert absence — failure is a blocker; (c) a dry-run Gate 2 transcript replay against the Appendix B fixture — failure is a blocker. |
 
 A layer whose acceptance check fails is treated as a failed checkpoint (Section 5.6): fix blockers before the
 next layer begins, and record every deviation in `DECISIONS.md`.
@@ -2319,7 +2355,7 @@ run with networking disabled (REQ-051). T9, T22, and T27 share one restart harne
 | T20   | Automated | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
 | T21   | Automated | Original Markdown — and, where conversion applied (Appendix F), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
 | T22   | Automated | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-023                                     |
-| T22a  | Automated | Add a stub tool, restart, call all four prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-023                                     |
+| T22a  | Automated | Add a stub tool, restart, call all five prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-023                                     |
 | T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
 | T25   | Manual   | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, T11 waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
 | T26   | Manual   | Guidance items cited, confidence-labeled, attributed; referee-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; persona foundations present in `persona_briefing`; player briefing excludes referee-tagged foundations; player read of `guidance://<referee-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
@@ -2345,6 +2381,8 @@ run with networking disabled (REQ-051). T9, T22, and T27 share one restart harne
 | T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Waiver: may only be waived when the structural pass (Section 5.2) confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` Section 8, item (5) with the single-source-file evidence from the structural pass. | REQ-013         |
 | T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-060                                     |
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
+| T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `persona_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any persona (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
+| T50   | Manual   | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (player, referee, unassigned) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-032                   |
 
 Automated tests must ship a runnable script in the project directory
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exercises the test and returns
@@ -3587,6 +3625,7 @@ this table, then fill in its `Code` and `Tests` columns from the build.
 | REQ-023 | Prompts                   | T22, T22a                      | 2026-08-02   |
 | REQ-024 | Tool documentation        | T3, T35, T39                   | 2026-08-02   |
 | REQ-025 | spec_health               | T15, T45                       | 2026-08-02   |
+| REQ-063 | Connection introduction   | T49, T50                       | 2026-08-03   |
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | 2026-08-02   |
 | REQ-057 | Canonical lookup tools    | T39, T40                       | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | T37, T41, T42                  | 2026-08-02   |
