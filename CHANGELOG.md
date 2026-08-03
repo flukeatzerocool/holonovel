@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-02 — README restructured and MIT license added
+
+- Added LICENSE file (MIT).
+- Changed package.json license from ISC to MIT; added README.md to lint scope.
+- Restructured README.md: renamed "Purpose" to "What is Holonovel?" and
+  "Implementation recommendations" to "Implementation notes".
+- Added new README sections: Who is this for, Project status, Prerequisites,
+  Quick Start, Contributing, License.
+
+## 2026-08-02 — Verbose output and source-quoting requirements
+
+- Added REQ-060 (Verbose output) — tool responses must be comprehensive, narrative-style descriptions
+  presenting every field, the full calculation path, and prose outcomes rather than terse data dumps.
+- Added REQ-061 (Source quoting) — lookup and rule-derived tool responses must include a verbatim
+  Markdown source excerpt with file-and-anchor attribution, separated by a horizontal rule.
+- Added T47 (verbose output) and T48 (source quoting) automated tests to §7 derived test table.
+- Updated §6.3 Output conventions with source-quoting format.
+- Updated §6.4 Tool-name conventions with source-quoting requirement for lookup tools.
+
 ## 2026-08-02 — Sheet parser bug fixes and defensive-parsing spec
 
 - Fixed 8 bugs discovered through comprehensive integration testing of the sheet tools:

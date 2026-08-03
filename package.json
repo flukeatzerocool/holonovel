@@ -4,14 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "markdownlint holonovel.md character-sheet-generator.md",
+    "lint": "markdownlint holonovel.md character-sheet-generator.md README.md",
     "validate": "npx tsx scripts/validate.ts",
     "typecheck": "npx tsc --noEmit",
     "check": "npm run lint && npm run validate"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "devDependencies": {
     "markdownlint-cli": "^0.49.1",

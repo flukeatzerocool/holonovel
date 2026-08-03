@@ -3,7 +3,7 @@
 Holonovel is a build prompt that instructs an AI agent how to turn Markdown
 tabletop RPG rulebooks into an interactive MCP server.
 
-## Purpose
+## What is Holonovel?
 
 Tabletop RPG players and game masters want their rulebooks at their fingertips —
 searchable rules, automated dice rolls, combat tracking — but wiring up a tool
@@ -25,27 +25,56 @@ persona: the player persona lets the AI act as game master, calling tools for
 mechanics and narration while gating content the player shouldn't see; the game
 master persona gives you full access and adjudication powers.
 
-## Implementation recommendations
+## Who is this for?
 
-- **DeepSeek Pro** is my primary AI for both building this project and running the
-  prompt. I use Opencode Go for access to DeepSeek models. On my computer,
-  Deepseek v4 Pro built an MCP server for D&D 2024 (Players Handbook, Dungeon Master's Guide, and Monster Manual) for US $2.
-- **Using the prompt.** Download `holonovel.md`, place it alongside your
-  Markdown-format ruleset files, and feed them into an AI agent with a prompt
-  such as: *Use holonovel.md to build a server using `players-handbook.md`.*
-  The agent will follow the spec to parse, model, verify, and package the
-  ruleset into a working MCP server.
-- **Preparing the ruleset files.** If the pre-check finds the ruleset deficient
-  in Markdown formatting, the builder applies formatting rules to the
-  source material before chunked reading begins.
-- **Builds in TypeScript** — TypeScript is the mandated
-  implementation language for the server and the game code.
+Holonovel is for tabletop RPG enthusiasts who want their rulebooks as
+programmable tools — players who want rules-aware dice and character automation,
+game masters who want combat tracking and monster lookups, and developers who
+want to skip hand-wiring an MCP server and let AI build the bridge instead.
+
+## Project status
+
+Holonovel is in active development. The specification is stabilizing; the build
+pipeline has been tested against D&D 2024 (Player's Handbook, Dungeon Master's
+Guide, Monster Manual). No formal versioning yet — track changes in
+[CHANGELOG.md](CHANGELOG.md).
+
+## Prerequisites
+
+- **Node.js 20+** — required for `markdownlint-cli`, `tsx`, and `typescript`
+  (the spec's own validation tooling).
+- **An AI agent with access to DeepSeek Pro or an equivalent model** — this
+  reads the spec and builds the server. On my computer, DeepSeek v4 Pro built
+  an MCP server for D&D 2024 for US $2. I use Opencode Go for DeepSeek access.
+
+## Quick Start
+
+1. Clone this repo or download [`holonovel.md`](holonovel.md).
+2. Place your ruleset Markdown files alongside `holonovel.md`.
+3. Feed the spec and your ruleset to an AI agent:
+
+   > Use holonovel.md to build a server using `players-handbook.md`.
+
+4. The agent parses, models, verifies, and packages the ruleset into a working
+   MCP server. If the pre-check finds the ruleset deficient in Markdown
+   formatting, the builder applies formatting rules to the source before
+   building begins.
+5. (Optional) Validate the spec itself:
+
+   ```sh
+   npm install && npm run check
+   ```
+
+## Implementation notes
+
+- **Builds in TypeScript** — TypeScript is the mandated implementation language
+  for the server and the game code.
 - **`character-sheet-generator.md`** is a prompt that guides building
-  a character-sheet rendering MCP app from a character sheet PDF. The process covers
-  field-by-field study of the PDF layout, translating the field inventory
-  to a typed data model, building a format-agnostic derivation layer (modifier
-  math, proficiency checks, equipment resolution), wiring up Markdown and
-  ASCII renderers, and optional MCP App HTML display. Ruleset-agnostic and
+  a character-sheet rendering MCP app from a character sheet PDF. The process
+  covers field-by-field study of the PDF layout, translating the field
+  inventory to a typed data model, building a format-agnostic derivation layer
+  (modifier math, proficiency checks, equipment resolution), wiring up Markdown
+  and ASCII renderers, and optional MCP App HTML display. Ruleset-agnostic and
   MCP-server-agnostic — works with any holonovel-built server.
 
 ## Validating
@@ -56,15 +85,14 @@ npm run check
 
 This runs:
 
-- `npm run lint` — style checks via [markdownlint](https://github.com/DavidAnson/markdownlint)
-- `npm run validate` — cross-reference checker (REQ citations, test IDs, TOC sync,
-  heading separators, requirement block shape)
+- `npm run lint` — style checks via
+  [markdownlint](https://github.com/DavidAnson/markdownlint)
+- `npm run validate` — cross-reference checker (REQ citations, test IDs, TOC
+  sync, heading separators, requirement block shape)
 
 Also available separately:
 
-- `npm run typecheck` — TypeScript type checking (`tsc --noEmit`)
-
-Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).
+- `npm run typecheck` — TypeScript type checking (`npx tsc --noEmit`)
 
 ## Project structure
 
@@ -85,10 +113,19 @@ Holonovel/
 │   └── pre-commit          ← pre-commit hook
 ├── .gitignore
 ├── CHANGELOG.md
+├── LICENSE
 └── README.md              ← this file
 ```
 
-## Versioning
+## Contributing
 
-No formal versioning yet. See [CHANGELOG.md](CHANGELOG.md) for revision
-history.
+- Commit messages follow the [CHANGELOG.md](CHANGELOG.md) style: date-stamped
+  headings with bulleted entries. Push to `main`.
+- Prose is wrapped near 110 columns (markdownlint enforces a 120-char limit).
+  Use ATX headings (`##`, `###`). Separate top-level sections with `---`.
+- Run `npm run check` before committing.
+- Fork, branch from `main`, make your changes, and open a pull request.
+
+## License
+
+MIT — see [LICENSE](./LICENSE) for details.
