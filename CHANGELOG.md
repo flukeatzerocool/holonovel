@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-03 — Renamed build phases to jobs; unified pre-build questions
+
+- Renamed "phase" to "job" throughout the specification for build operations
+  (convert, build, enrich, sheet). Verifier phases in §10 retain the original term.
+- Restructured §6.1 from a sequential five-phase table to four independently
+  selectable jobs. Each job has its own required sections; the operator picks one
+  or more jobs.
+- Consolidated all pre-build questions into §6.2 as a unified, job-gated flow:
+  Q0 (job selection) + Q1 (pause toggle for multi-job runs) + job-specific
+  sub-tables (C1–C3 convert, B1–B6 build, E1–E3 enrich, S1–S4 sheet).
+- Removed PE1, PE6, and Q19 (redundant with job selection). Removed PE2 (research
+  depth — hardcoded to deep) and PE5 (max items cap — confidence threshold alone
+  gates quality). Merged Q3 and Q12 into a single ruleset identifier question.
+- Added B6 (MCP server name) to the build job. Added E1 and S1 (path to existing
+  build artifacts) to the enrich and sheet jobs.
+- Moved §11.1 and §11.2 question tables into §6.2; replaced with pointers.
+- Updated README.md, AGENTS.md, and CHANGELOG.md for consistency.
+
 ## 2026-08-03 — Major rewrite: compress specification from 4,530 to 1,360 lines
 
 - Restructured the document: new section order (§1–11) with Quick Reference box,

@@ -13,14 +13,14 @@ specification document, not an implementation.
 holonovel.md            The specification (standalone, copy-pasteable)
   §1–5                  Mission, requirements, failure modes, standing rules,
                           requirements (34 REQ blocks)
-  §6                    Build process (phases, intake, discovery, construction,
+  §6                    Build process (jobs, intake, discovery, construction,
                           verification & convergence)
   §7                    Runtime conventions (anchors, IDs, output contracts,
                           tool conventions, state model, guidance)
   §8                    Verification gates (Gate 0–4)
   §9                    Artifacts and handoff (4 artifacts, 12 checks)
   §10                   Independent verification
-  §11                   Optional phases (persona enrichment, character sheet)
+  §11                   Optional jobs (persona enrichment, character sheet)
   Appendices A–G, T, I  Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog

@@ -22,7 +22,7 @@
 - [8. Verification Gates](#8-verification-gates)
 - [9. Artifacts and Handoff](#9-artifacts-and-handoff)
 - [10. Independent Verification](#10-independent-verification)
-- [11. Optional Phases](#11-optional-phases)
+- [11. Optional Jobs](#11-optional-jobs)
 - [Appendix A: Markdown Parsing Principles](#appendix-a-markdown-parsing-principles)
 - [Appendix B: Golden Fixture](#appendix-b-golden-fixture)
 - [Appendix C: Injection Fixture](#appendix-c-injection-fixture)
@@ -375,36 +375,76 @@ _Check:_ T9, T31, T34.
 
 ## 6. The Build Process
 
-### 6.1 Phase overview
+### 6.1 Job overview
 
-The build proceeds in ordered phases. At each phase start, the builder reads only the
-sections and appendices required by that phase.
+The build is organized into four independently selectable jobs. The operator picks one or
+more jobs; the builder asks only the questions those jobs need and proceeds accordingly.
 
-| Phase     | Gating question                           | Required sections and appendices       |
-| --------- | ----------------------------------------- | -------------------------------------- |
-| 0 — Setup | Ruleset source ready? Environment ready?   | §6.2, Appendix F, Appendix G           |
-| 1 — Discovery | Ruleset extracted into a model?        | §6.3, §5.2, Appendix A, Appendix B     |
-| 2 — Construction | Server built and verified?         | All sections and appendices            |
-| 3 — Enrichment | Persona guidance enriched? (optional) | §11.1                                  |
-| 4 — Character sheet | Sheet enhanced? (optional)        | §11.2                                  |
+| Job     | What it does                                                | Required sections        |
+| ------- | ----------------------------------------------------------- | ------------------------ |
+| Convert | Convert PDF/HTML/web source to Markdown; validate structure  | §6.2, Appendix F, G      |
+| Build   | Intake Markdown, discover ruleset, construct & verify server | All sections + appendices |
+| Enrich  | Web-researched persona guidance (optional)                   | §11.1                    |
+| Sheet   | Character sheet enhancement (optional)                       | §11.2                    |
 
 ### 6.2 Intake
 
-Ask the operator pre-build questions as a single batch, before any work:
+Ask the operator pre-build questions up front, as a single batch. The builder asks the
+job-selection question first, then all questions relevant to the selected jobs. Each job's
+questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
+runs use defaults from the tables below (default job: `build`).
 
-| #   | Question                     | Options                                  | Default               |
-| --- | ---------------------------- | ---------------------------------------- | --------------------- |
-| Q1  | Ruleset source               | local Markdown / PDF / HTML / web scrape | local Markdown        |
-| Q2  | Ruleset path(s)              | Paths or URLs                            | —                     |
-| Q3  | Ruleset name                 | String                                   | derived from source   |
-| Q7  | MCP client target            | Claude Desktop / CLI / other             | Claude Desktop        |
-| Q10 | State directory              | Path                                     | `.holonovel-state`    |
-| Q11 | Source format (if not MD)    | PDF path / HTML path / web URL           | —                     |
-| Q12 | Ruleset edition/title        | String                                   | derived from source   |
-| Q14 | MCP client config path       | Path                                     | per Q7 target         |
+**Q0 — Job selection.** Asked first, at most one answer.
 
-The builder asks all questions, never one at a time. Non-interactive runs use defaults
-from the table above. All answers are recorded in DECISIONS.md.
+| #   | Question                     | Options                                  | Default |
+| --- | ---------------------------- | ---------------------------------------- | ------- |
+| Q0  | What job(s) should Holonovel run? | convert / build / enrich / sheet (select one or more) | build |
+
+**Q1 — Pause between jobs.** Asked when two or more jobs are selected.
+
+| #   | Question                     | Options       | Default |
+| --- | ---------------------------- | ------------- | ------- |
+| Q1  | Pause between jobs for operator review? | yes / no | yes |
+
+If Q1 is `no`, jobs run back-to-back without pausing; results are reported at the end. If
+`yes`, the builder pauses after each job, reports what it built and verified, and asks
+whether to continue.
+
+**Convert job.** Asked when `convert` is selected.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| C1  | Source type                  | PDF / HTML / web scrape          | —                   |
+| C2  | Source path(s) or URL(s)     | Paths or URLs                    | —                   |
+| C3  | Ruleset identifier (name, edition) | String                      | derived from source |
+
+**Build job.** Asked when `build` is selected.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| B1  | Ruleset path(s)              | Comma-separated Markdown paths   | —                   |
+| B2  | Ruleset identifier (name, edition) | String                      | derived from source |
+| B3  | MCP client target            | Claude Desktop / CLI / other     | Claude Desktop       |
+| B4  | State directory              | Path                             | `.holonovel-state`  |
+| B5  | MCP client config path       | Path                             | per B3 target       |
+| B6  | MCP server name              | String                           | derived from B2     |
+
+**Enrich job.** Asked when `enrich` is selected.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| E1  | Path to existing build artifacts | Directory                    | —                   |
+| E2  | Source types                 | all / select from: community, actual plays, strategy, genre, designer | all |
+| E3  | Minimum confidence           | high / medium / low               | medium              |
+
+**Sheet job.** Asked when `sheet` is selected.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| S1  | Path to existing build artifacts | Directory                    | —                   |
+| S2  | Character sheet PDF source   | local / download URL / search / included / none | none |
+| S3  | PDF path (if S2 is local)    | Path                             | —                   |
+| S4  | PDF reading method           | Probe vision → image → OCR → merge with baseline | in order |
 
 **Gate 0.** Run at intake: verify the source is readable, well-formed, structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
@@ -458,7 +498,7 @@ The server is built in six layers, each with an acceptance check:
 
 ### 6.5 Verification and convergence
 
-**Checkpoints.** After each phase completion and each layer build, the builder spawns a
+**Checkpoints.** After each job completion and each layer build, the builder spawns a
 subagent (fresh context) that audits the work against the requirements cited by that stage.
 The subagent reports findings; the builder resolves each before the next stage.
 
@@ -748,43 +788,27 @@ report is review evidence, not a build artifact.
 
 ---
 
-## 11. Optional Phases
+## 11. Optional Jobs
 
-_These phases do not gate the Definition of Done. They extend the Phase 2 build._
+_These jobs do not gate the Definition of Done. They extend the Build job._
 
 ### 11.1 Persona enrichment
 
-Ask the operator:
+Pre-build questions are collected in §6.2 when the `enrich` job is selected.
 
-| #   | Question                        | Options                                     | Default  |
-| --- | ------------------------------- | ------------------------------------------- | -------- |
-| PE1 | Run persona enrichment?         | yes / no                                    | yes      |
-| PE2 | Research depth                  | surface / deep                               | surface  |
-| PE3 | Source types                    | all / select from: community, actual plays, strategy, genre, designer | all |
-| PE4 | Minimum confidence              | high / medium / low                          | medium   |
-| PE5 | Max items per persona           | 5–20                                        | 10       |
-| PE6 | Operator availability           | available / unavailable                      | as Phase 1 |
-
-If PE1 is "no," skip. Otherwise, search the web for ruleset-specific play advice
-(community forums, actual plays, strategy guides, genre advice, designer commentary).
-Append findings to `persona_briefing` as supplementary guidance items with `[supplementary]`
-tag, source URL, and confidence. Failure or empty results leave the server unchanged.
+Search the web for ruleset-specific play advice (community forums, actual plays, strategy
+guides, genre advice, designer commentary). Research depth is deep. Append findings to
+`persona_briefing` as supplementary guidance items with `[supplementary]` tag, source URL,
+and confidence. Failure or empty results leave the server unchanged.
 
 ### 11.2 Character sheet enhancement
 
-Ask the operator:
+Pre-build questions are collected in §6.2 when the `sheet` job is selected.
 
-| #   | Question                         | Options                                              | Default |
-| --- | -------------------------------- | ---------------------------------------------------- | ------- |
-| Q16 | Character sheet PDF for study    | yes (local) / download URL / search / included / none | none    |
-| Q17 | PDF path (if local)              | Path                                                 | —       |
-| Q18 | PDF reading method               | Probe vision → image → OCR → merge with baseline      | in order |
-| Q19 | Run Phase 4?                     | yes / no                                             | no      |
-
-If Q19 is "no," skip. Otherwise, enhance the Phase 2 `character_sheet` tool with a `format`
-parameter (`markdown` / `ascii`), study the PDF for field layout, and build an ASCII
-renderer. The Phase 2 baseline already provides a working Markdown sheet derived from
-ruleset inference. Phase 4 additions do not block server verification gates.
+Enhance the Build job `character_sheet` tool with a `format` parameter
+(`markdown` / `ascii`), study the PDF for field layout, and build an ASCII renderer.
+The Build job baseline already provides a working Markdown sheet derived from ruleset
+inference. Sheet job additions do not block server verification gates.
 
 ---
 

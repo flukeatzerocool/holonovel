@@ -64,54 +64,52 @@ want to skip the integration work and let AI build the bridge.
 
 ## How it works
 
-The build runs in four phases. At the start of each phase, the AI
-asks a few questions about your preferences — so it builds what you
-want, not what it assumes. At the end of each phase, it pauses to
-report what it built and asks whether you want to continue.
+Holonovel runs as independently selectable jobs. Pick one or more jobs —
+the AI asks only the questions those jobs need, then gets to work.
 
-### Phase 1: Prepare your rulebooks
+### Convert: Prepare your rulebooks
 
-The AI reads your source files and formats them so every rule is
-machine-readable. It checks for common problems — missing table
-headers, ambiguous headings, broken links, missing referee markers —
-and fixes them automatically. Before any code touches the rules, you
-get a preview and can approve or ask for adjustments.
+Feed the AI PDF rulebooks, HTML files, or web SRD URLs. It converts them
+to clean, machine-readable Markdown — reassembling tables across page
+breaks, stripping page furniture, and flagging structural problems. This
+job runs standalone: you get converted Markdown files and stop there.
+Come back and run Build when you're ready.
 
-### Phase 2: Build the game server
+### Build: Build the game server
 
-This is the core. The AI reads your formatted ruleset and builds a
+This is the core. Feed the AI your Markdown ruleset and it builds a
 complete MCP game server from scratch. Dice rolling, combat tracking,
 character management, monster and spell lookups, random tables, and
-more — every mechanic traced back to your actual books with a
-citation. The server always includes a working character sheet tool,
-inferred directly from the rules. Before moving on, the AI runs a
-full test suite and verification pipeline against a known ruleset to
-prove the build is sound.
+more — every mechanic traced back to your actual books with a citation.
+The server always includes a working character sheet tool, inferred
+directly from the rules. Before handing off, the AI runs a full test
+suite and verification pipeline against a known ruleset to prove the
+build is sound. If your source needs conversion first, run the Convert
+job.
 
-### Phase 3: Enrich with community advice (optional)
+### Enrich: Community advice (optional)
 
 The AI searches the web for game-specific tips — GM advice, player
 strategy guides, actual-play breakdowns, designer commentary — and
 adds them to the server's persona knowledge. Your AI game master now
-knows not just the rules, but how the community plays the game. Skip
-it if you prefer a lean server or already know your system inside
-out.
+knows not just the rules, but how the community plays the game. Run
+this job against an existing build anytime.
 
-### Phase 4: Add a character sheet (optional)
+### Sheet: Character sheet (optional)
 
 The AI studies your game's official character sheet from a PDF you
-provide and enhances the built-in sheet tool with the official
-layout, an ASCII format for terminal play, and an optional HTML
-display for MCP App hosts. If you don't have a PDF, the Phase 2
-baseline already gives you a working sheet from the rules alone —
-this phase adds polish.
+provide and enhances the built-in sheet tool with the official layout,
+an ASCII format for terminal play, and an optional HTML display for MCP
+App hosts. The Build job already gives you a working sheet from the
+rules alone — this job adds polish. Run it against an existing build
+anytime.
 
-### Between phases
+### Between jobs
 
-The AI reports what it built, what it verified, and any issues it
-found. You decide: continue to the next phase, or stop here. A
-server that finishes Phase 2 is fully functional — the rest is
-enhancement.
+By default, the AI pauses after each job to report what it built and
+ask whether to continue. During setup you can choose to skip pauses and
+run jobs back-to-back. A server that finishes the Build job is fully
+functional — the rest is enhancement.
 
 ## Prerequisites
 
@@ -140,11 +138,12 @@ enhancement.
 
    > Use holonovel.md to build a server from `players-handbook.md`.
 
-4. The agent guides you through four build phases — preparing the rules,
-   building the server, and optionally enriching it with community advice and a
-   character sheet tool. It pauses between each phase so you can review progress
-   and decide whether to continue. A hard-stop review gate asks you to confirm
-   the prepared ruleset before any server code is written.
+4. The agent asks which job(s) you want to run — Convert (prepare the
+   rules), Build (build the server), and optionally Enrich (community
+   advice) or Sheet (character sheet). It pauses between jobs so
+   you can review progress and decide whether to continue; you can
+   skip pauses during setup. A hard-stop review gate asks you to
+   confirm the prepared ruleset before any server code is written.
 5. (Optional) Validate the spec itself:
 
    ```sh
@@ -191,7 +190,7 @@ Holonovel/
 │                                 modes, standing rules; §6 build process;
 │                                 §7 runtime conventions; §8 verification
 │                                 gates; §9 handoff; §10 independent
-│                                 verification; §11 optional phases;
+│                                 verification; §11 optional jobs;
 │                                 appendices A–G, T, I)
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, typecheck, check)
