@@ -1,0 +1,29 @@
+{
+  "name": "dnd5e-holonovel",
+  "version": "1.0.0",
+  "description": "D&D 5e SRD MCP Server — built by Holonovel",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build-index": "tsx scripts/build-index.ts",
+    "build": "npm run build-index && tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "dnd5e",
+    "ttrpg",
+    "mcp"
+  ],
+  "author": "Holonovel",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.5",
+    "typescript": "^7.0.2"
+  }
+}

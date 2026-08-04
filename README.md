@@ -58,6 +58,18 @@ become interactive.
 
 Pick a game. Feed it to an AI. Start playing.
 
+## What's an MCP server?
+
+MCP (Model Context Protocol) is how AI apps use external tools. Think of it
+like a USB port for AI — your chat app (Claude Desktop, Opencode, Cursor,
+or any MCP-compatible client) plugs into Holonovel, and suddenly it can
+roll dice, look up rules, and track combat. You don't run the server
+yourself. Your chat app does, automatically, every time you start a
+conversation.
+
+To use it you need three things: your rulebooks, an MCP-compatible AI
+client, and Node.js.
+
 ## Who is this for?
 
 **Solo RPG players.** You run entire parties by yourself. You need rules
@@ -173,17 +185,46 @@ entry and verifies the handshake so your server is ready immediately.
 A server that finishes the Build job is fully
 functional — the rest is enhancement.
 
-## Wait, what's an MCP server?
+## Sample MCP Server
 
-MCP (Model Context Protocol) is how AI apps use external tools. Think of it
-like a USB port for AI — your chat app (Claude Desktop, Opencode, Cursor,
-or any MCP-compatible client) plugs into Holonovel, and suddenly it can
-roll dice, look up rules, and track combat. You don't run the server
-yourself. Your chat app does, automatically, every time you start a
-conversation.
+This repo includes a pre-built D&D 5e SRD v5.1 MCP server —
+23 tools, 1,029 indexed ruleset sections, playable immediately.
 
-To use it you need three things: your rulebooks, an MCP-compatible AI
-client, and Node.js.
+### Quick install
+
+```sh
+cd dnd5e
+npm install
+npm run build
+```
+
+### Connect to your client
+
+Add to your MCP client's config. For Opencode
+(`~/.config/opencode/opencode.json`):
+
+```json
+"dnd5e-holonovel": {
+  "type": "local",
+  "command": ["node", "<path-to-repo>/dnd5e/dist/index.js"],
+  "environment": {
+    "TTRPG_GAME_ID": "default",
+    "TTRPG_DATA_DIR": "<path-to-repo>/dnd5e/.holonovel-state",
+    "TTRPG_SEED": "dnd5e-default",
+    "TTRPG_RULESET_DIR": "<path-to-repo>/dnd5e/ruleset"
+  },
+  "enabled": true
+}
+```
+
+Replace `<path-to-repo>` with the directory where you cloned this repo.
+
+### SRD License
+
+The SRD data in `dnd5e/ruleset/` is CC BY 4.0 + OGL 1.0a by
+Wizards of the Coast. The server code in `dnd5e/src/` is MIT.
+See `dnd5e/LICENSE.md` for details. You may freely distribute
+this server — the ruleset data is permissively licensed.
 
 ## Prerequisites
 
@@ -275,14 +316,24 @@ handles that part.
    conversation and the server is ready. Say hello and the AI Game
    Master answers.
 
-### For spec contributors
+### Validating (spec contributors)
 
-If you're editing the spec itself (not building a server), validate your
-changes:
+If you're editing the specification itself, validate your changes:
 
 ```sh
 npm install && npm run check
 ```
+
+This runs:
+
+- `npm run lint` — style checks via
+  [markdownlint](https://github.com/DavidAnson/markdownlint)
+- `npm run validate` — cross-reference checker (REQ citations, test IDs, TOC
+  sync, heading separators, requirement block shape)
+
+Also available separately:
+
+- `npm run typecheck` — TypeScript type checking (`npx tsc --noEmit`)
 
 ## Project status
 
@@ -308,25 +359,6 @@ adventure books as indexed, searchable reference so your narrator never invents 
 or forgets a room. It's a lorebook for rules, delivered as an MCP server — keeping
 your GM honest, creative, and on-world.
 
-## Validating (spec contributors)
-
-If you're editing the specification itself, validate your changes:
-
-```sh
-npm run check
-```
-
-This runs:
-
-- `npm run lint` — style checks via
-  [markdownlint](https://github.com/DavidAnson/markdownlint)
-- `npm run validate` — cross-reference checker (REQ citations, test IDs, TOC
-  sync, heading separators, requirement block shape)
-
-Also available separately:
-
-- `npm run typecheck` — TypeScript type checking (`npx tsc --noEmit`)
-
 ## Project structure
 
 ```
@@ -338,33 +370,24 @@ Holonovel/
 │                                 gates; §9 handoff; §10 independent
 │                                 verification; §11 optional jobs;
 │                                 appendices A–I)
-├── .markdownlint.json     ← lint rules
-├── package.json           ← npm scripts (lint, validate, typecheck, check)
+├── dnd5e/                       ← pre-built D&D 5e SRD v5.1 MCP server
+├── .markdownlint.json          ← lint rules
+├── package.json                ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/
-│   └── validate.ts        ← cross-reference checker
-├── tsconfig.json           ← TypeScript configuration
+│   └── validate.ts             ← cross-reference checker
+├── tsconfig.json               ← TypeScript configuration
 ├── .githooks/
-│   └── pre-commit          ← pre-commit hook
+│   └── pre-commit              ← pre-commit hook
 ├── .gitignore
 ├── CHANGELOG.md
 ├── LICENSE
-└── README.md              ← this file
+└── README.md                   ← this file
 ```
 
 ## Stay Updated
 
 Subscribe to the [RSS feed](https://git.gay/flukeairwalker/Holonovel.rss)
 for changelog updates as they land.
-
-## Contributing
-
-- Commit messages use date-stamped headings with bulleted entries
-  (see the CHANGELOG for examples). Push to `main`.
-- Prose wraps near 110 columns (enforced at 120 by markdownlint).
-  ATX headings only (`##`, `###`). Separate top-level sections
-  with `---`.
-- Run `npm run check` before committing.
-- Fork, branch from `main`, make your changes, open a pull request.
 
 ## License
 

@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 session-*.md
 opencode-raw-*.log
+dnd5e/node_modules/
+dnd5e/dist/
+dnd5e/.holonovel-state/
