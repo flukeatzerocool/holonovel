@@ -2,6 +2,8 @@
 
 Turn your RPG rulebooks into an AI Game Master.
 
+**One spec. Any game. Zero code.**
+
 ## What is Holonovel?
 
 Your rulebooks are sitting on the shelf. What if they could sit at the
@@ -20,7 +22,8 @@ become interactive.
 
 **What you get:**
 
-- **Rules-aware dice.** The server knows which modifier goes where.
+- **Rules-aware dice — the AI game master's calculator.** The server
+  knows which modifier goes where.
   Roll an attack, cast a spell, make a saving throw — the right dice,
   the right bonuses, every time.
 
@@ -44,15 +47,14 @@ become interactive.
   secret while you act. Switch to Game Master anytime for full
   control. No restart needed.
 
-- **Any format in.** Markdown files, PDF rulebooks, HTML source, or
-  scraped web SRDs from permissively-licensed games. A built-in
-  catalog of ten open-license systems (D&D 3.5/5e, Pathfinder 1e/2e,
-  Starfinder, Traveller, FATE, Blades in the Dark, Dungeon World,
-  Old-School Essentials) gets you started fast.
+- **Any format in.** Markdown, PDF, HTML, or scraped SRDs. A catalog
+  of ten permissively-licensed TTRPG systems (D&D 3.5/5e, Pathfinder
+  1e/2e, Starfinder, Traveller, FATE, Blades in the Dark, Dungeon World,
+  Old-School Essentials) gets your AI dungeon master started fast.
 
-- **Self-contained.** The finished server bundles a copy of your
-  ruleset inside itself. No external file paths, no dangling
-  dependencies — move it anywhere and it still works.
+- **Self-contained MCP game server.** The finished server bundles a
+  copy of your ruleset inside itself. No external file paths, no
+  dangling dependencies — move it anywhere and it still works.
 
 Pick a game. Feed it to an AI. Start playing.
 
@@ -60,8 +62,9 @@ Pick a game. Feed it to an AI. Start playing.
 
 **Solo RPG players.** You run entire parties by yourself. You need rules
 that don't drift, dice you can trust, and state that survives between
-sessions. You use an AI RP client (such as SillyTavern), OpenRouter, or a local LLM as your
-narrator — Holonovel is the rules engine that keeps it honest.
+sessions. You use an AI RP client (such as SillyTavern) or a local LLM
+as your narrator — Holonovel is the solo RPG rules engine that keeps it
+honest.
 
 **AI roleplay enthusiasts.** You've spent hours tuning character cards,
 lorebooks, and system prompts. Your narrator still forgets the rules
@@ -79,6 +82,37 @@ and adjudicate; switch to Game Master anytime for full control.
 and an AI agent builds the MCP server. Dice, combat, character
 sheets, monster lookups, NPCs, scene tracking — 35+ requirements
 verified against a golden transcript.
+
+## How Holonovel Compares
+
+The RPG MCP niche has roughly seven known projects.
+Holonovel is the only one that's a factory, not a fixed product.
+Here's how it stacks up.
+
+**vs. AI Dungeon.** AI Dungeon is freeform fiction — great for improvised
+stories, but it doesn't enforce real tabletop rules. Holonovel extracts
+actual mechanics from your rulebooks, validates every action against them,
+and cites its sources. No invented armor classes. No hallucinated saving
+throws.
+
+**vs. rpg-mcp.** A well-tested D&D 5e server — if you play that one system
+and that one system only, it's the most feature-complete option. Holonovel
+builds servers for any ruleset you feed it: D&D, Pathfinder, Call of
+Cthulhu, Mothership, your homebrew. One spec, any game.
+
+**vs. ChatGPT as a Dungeon Master.** An LLM running solo forgets the rules
+mid-combat, invents mechanics that don't exist, and can't track state
+between sessions. Holonovel is the lorebook for rules — it can't forget,
+can't invent, and survives restarts with full game state intact.
+
+**vs. Consumer AI GM platforms.** LoreKeeper, Friends & Fables, and
+similar tools are polished experiences — and walled gardens. They run their
+own AI, charge subscriptions, and don't integrate with other tools.
+Holonovel is open-source, works with any LLM (via your MCP client), deploys
+locally, and costs nothing.
+
+**The difference in one sentence:** Other tools give you a game.
+Holonovel gives you the rules engine — and you bring the narrator.
 
 ## How it works
 
@@ -316,6 +350,11 @@ Holonovel/
 ├── LICENSE
 └── README.md              ← this file
 ```
+
+## Stay Updated
+
+Subscribe to the [RSS feed](https://git.gay/flukeairwalker/Holonovel.rss)
+for changelog updates as they land.
 
 ## Contributing
 
