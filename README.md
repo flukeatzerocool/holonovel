@@ -176,7 +176,19 @@ functional — the rest is enhancement.
 
 ## Project status
 
-Holonovel just leveled up (v1.2). It now thinks like the community it serves — you're
+Holonovel is in active development.
+
+Most build specifications prescribe every detail in advance — output
+formats, tool names, architecture decisions. Holonovel takes the opposite
+approach: it defines a convergence loop. After each build stage, the AI
+measures quality against objective thresholds, improves the work, and
+re-verifies — up to three iterations per activity. Adversarial subagents
+audit every checkpoint with fresh context. A golden transcript replay
+proves the server behaves correctly against a known fixture. This loop is
+the quality engine. It means the specification can stay lean — it states
+what the server must do, not how to build it. The loops close the gaps.
+
+Holonovel just leveled up. It now thinks like the community it serves — you're
 the player, the AI is your Game Master, and you can always jump in to course-correct
 when the narrator drifts off-script. Instead of leaving your AI to improvise or keep
 everything in context alone, Holonovel hands it a full tabletop toolkit: it knows
