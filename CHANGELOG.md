@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-04 — Renumber appendices T, F, G to sequential F, G, H
+
+- Renumbered Appendix T (Derived Test Catalogue) → Appendix F, Appendix F
+  (Source Conversion) → Appendix G, Appendix G (Ruleset Preparation
+  Checklist) → Appendix H. Updated all cross-references in spec body,
+  TOC, and gate descriptions. Updated validate.ts `Appendix T:` heading
+  lookup to `Appendix F:`.
+
 ## 2026-08-03 — Added persona behavioral boundaries (REQ-064); audit fixes
 
 - Added REQ-064 (Persona behavioral boundaries): referee must not take action

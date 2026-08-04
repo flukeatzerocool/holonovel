@@ -28,9 +28,9 @@
 - [Appendix C: Injection Fixture](#appendix-c-injection-fixture)
 - [Appendix D: MCP Conformance Checklist](#appendix-d-mcp-conformance-checklist)
 - [Appendix E: Requirements Manifest](#appendix-e-requirements-manifest)
-- [Appendix T: Derived Test Catalogue](#appendix-t-derived-test-catalogue)
-- [Appendix F: Source Conversion](#appendix-f-source-conversion)
-- [Appendix G: Ruleset Preparation Checklist](#appendix-g-ruleset-preparation-checklist)
+- [Appendix F: Derived Test Catalogue](#appendix-f-derived-test-catalogue)
+- [Appendix G: Source Conversion](#appendix-g-source-conversion)
+- [Appendix H: Ruleset Preparation Checklist](#appendix-h-ruleset-preparation-checklist)
 - [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
 
 ---
@@ -392,7 +392,7 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 
 | Job     | What it does                                                | Required sections        |
 | ------- | ----------------------------------------------------------- | ------------------------ |
-| Convert | Convert PDF/HTML/web source to Markdown; validate structure  | §6.2, Appendix F, G      |
+| Convert | Convert PDF/HTML/web source to Markdown; validate structure  | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server | All sections + appendices |
 | Enrich  | Web-researched persona guidance (optional)                   | §11.1                    |
 | Sheet   | Character sheet enhancement (optional)                       | §11.2                    |
@@ -458,8 +458,8 @@ whether to continue.
 
 **Gate 0.** Run at intake: verify the source is readable, well-formed, structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
-of Appendix G apply. A structural defect blocks the line. Sources not already in Markdown
-are converted per [Appendix F](#appendix-f-source-conversion).
+of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
+are converted per [Appendix G](#appendix-g-source-conversion).
 
 ### 6.3 Discovery
 
@@ -522,7 +522,7 @@ stop.
 | MUST coverage       | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
 | Extraction fidelity | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
 | Mechanics fidelity  | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
-| Conversion fidelity | F.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
+| Conversion fidelity | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 | Process compliance  | Pre-build answers + gate records    | All present   | Collect missing, re-verify               |
 
 The loop converges when all metrics meet their threshold or three iterations without
@@ -643,7 +643,7 @@ pass/fail status, and findings. The record is embedded in DECISIONS.md Section 8
 item (6).
 
 **Gate 0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
-passes the Appendix G checklist: well-formed, all headings unique, tables regular,
+passes the Appendix H checklist: well-formed, all headings unique, tables regular,
 references resolvable. Run at intake.
 
 **Gate 1 — MCP conformance.** Verify the running server against the Appendix D checklist.
@@ -664,7 +664,7 @@ surface, persona gating, and metadata filtering are unchanged. Tool registry and
 listings diff clean (identical except for the new section's anchor and its referee-only
 guidance items).
 
-**Gate 4 — Derived tests.** Execute the tests in [Appendix T](#appendix-t-derived-test-catalogue).
+**Gate 4 — Derived tests.** Execute the tests in [Appendix F](#appendix-f-derived-test-catalogue).
 Tests run with networking disabled (REQ-051). Waivers are allowed only under REQ-013;
 log each with its reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
@@ -710,7 +710,7 @@ have a recorded result in DECISIONS.md.
 | Check | Covers   | Procedure                                              | Pass criterion                                                                                                       |
 | ----- | -------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | H1    | T36      | Compare DECISIONS.md (1) edition/title to source       | Ruleset edition/title matches the source header and document title.                                                   |
-| H2    | T29      | Parse traceability table, cross-reference REQs/tests   | Every REQ in Appendix E appears exactly once in (3); every test ID cited in (3) exists in Appendix T.                 |
+| H2    | T29      | Parse traceability table, cross-reference REQs/tests   | Every REQ in Appendix E appears exactly once in (3); every test ID cited in (3) exists in Appendix F.                 |
 | H3    | T36, F4  | Scan non-fixture, non-waiver source code for literals  | No canonical class, species, hit-dice, equipment, spell, or ruleset-derived table is embedded outside waivers.        |
 | H4    | T35, F4  | Run `tools/list` on target ruleset                     | Fixture-only tool names are not registered when serving a non-fixture ruleset.                                        |
 | H5    | T33, F4  | Run `tools/list`                                       | No tool named `roll_attack` or equivalent generic combat resolver is exposed when the ruleset defines attack procedures. |
@@ -1263,7 +1263,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 
 ---
 
-## Appendix T: Derived Test Catalogue
+## Appendix F: Derived Test Catalogue
 
 Each test cites its requirements; T29 verifies the traceability table mandate. Waivers
 are allowed only under REQ-013. Tests keep their original numbering; identifiers T1, T2,
@@ -1292,7 +1292,7 @@ diet.
 | T18   | Manual   | Anti-persona scenarios (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-002, REQ-032                            |
 | T19   | Manual   | Workflow round-trip: `[NEED_INPUT]` → `respond` resumes; `cancel` restores snapshot; `undo` while a decision is pending fails `[ERROR] [STATE_CONFLICT]`; an invalid `respond` (unknown decision or option) fails `[ERROR] [NOT_FOUND]` with the decision still pending, and a valid `respond` then succeeds                                                                                                                                                                                                                                                                                                                                              | REQ-042, REQ-041                            |
 | T20   | Automated | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
-| T21   | Automated | Original Markdown — and, where conversion applied (Appendix F), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
+| T21   | Automated | Original Markdown — and, where conversion applied (Appendix G), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
 | T22   | Automated | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-023                                     |
 | T22a  | Automated | Add a stub tool, restart, call all five prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-023                                     |
 | T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
@@ -1326,7 +1326,7 @@ diet.
 
 ---
 
-## Appendix F: Source Conversion
+## Appendix G: Source Conversion
 
 **Scope.** When the ruleset's sources are not Markdown (the Convert job is selected), conversion is a build stage
 of its own and completes before discovery. When the sources are Markdown, this appendix
@@ -1352,7 +1352,7 @@ produces the frozen Markdown and any later diagnostic re-run.
 
 ---
 
-## Appendix G: Ruleset Preparation Checklist
+## Appendix H: Ruleset Preparation Checklist
 
 Before declaring the ruleset ready for discovery, confirm:
 

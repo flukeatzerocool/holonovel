@@ -163,7 +163,7 @@ function findTestCitations(text: string): Set<string> {
   } else {
     combined = text;
   }
-  const aptStart = combined.indexOf("## Appendix T:");
+  const aptStart = combined.indexOf("## Appendix F:");
   const aptEnd = combined.indexOf("\n##", aptStart + 1);
   if (aptStart !== -1) {
     combined = combined.slice(0, aptStart) + (aptEnd !== -1 ? combined.slice(aptEnd) : "");
