@@ -826,7 +826,7 @@ The server is built in six layers, each with an acceptance check:
 subagent (fresh context) that audits the work against the requirements cited by that stage.
 The subagent reports findings; the builder resolves each before the next stage.
 
-**Convergence loop.** The builder iterates up to 3 times per activity. For each activity,
+**Convergence loop.** The builder iterates up to 3 attempts per activity. For each activity,
 measure the metric, improve, and verify. If the metric meets its threshold, record and
 stop.
 
@@ -839,7 +839,7 @@ stop.
 | Conversion fidelity | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 | Process compliance  | Pre-build answers + gate records    | All present   | Collect missing, re-verify               |
 
-The loop converges when all metrics meet their threshold or three iterations without
+The loop converges when all metrics meet their threshold or three cycles without
 improvement. At that point, record the current state with the residual gap logged in
 DECISIONS.md.
 
@@ -854,7 +854,7 @@ is a confidence check, not a requirement gate — its purpose is to surface bugs
 structured verification missed, feeding them back into the convergence loop.
 
 **Job completion.** The Build job is not complete until the OCE exits with all
-scenarios passing or the builder records 2 iterations without improvement (see Exit
+scenarios passing or the builder records 2 cycles without improvement (see Exit
 criteria below), and both ruleset-facing gates (1 and 4) pass. Marking a job complete
 without a passing OCE and passing applicable gates is a process defect. The OCE
 findings and pass/fail disposition are recorded in DECISIONS.md (6).
@@ -985,11 +985,11 @@ DECISIONS.md (6).
 (6). The builder classifies the finding and creates a targeted convergence activity:
 diagnose the root cause, fix it, re-verify. The convergence loop (§6.5) re-engages for
 these activities. After convergence re-converges, the OCE re-runs — up to 2 OCE
-iterations. Residual failures after 2 iterations without improvement are logged in
+cycles. Residual failures after 2 cycles without improvement are logged in
 DECISIONS.md (5) as accepted limitations with re-activation conditions.
 
 **Exit criteria.** The OCE completes when all scenarios pass or the builder records 2
-iterations without improvement. The OCE findings and pass/fail disposition are recorded
+cycles without improvement. The OCE findings and pass/fail disposition are recorded
 in DECISIONS.md (6).
 
 ---

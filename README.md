@@ -220,7 +220,7 @@ can use Holonovel.
 
 Each client needs an LLM behind it — either an API key (OpenAI,
 Anthropic, OpenRouter, DeepSeek) or a local model. Holonovel is built
-and tested with DeepSeek.
+and tested with DeepSeek on Opencode Go.
 
 ### Node.js 20 or later
 
@@ -292,7 +292,7 @@ Most build specifications prescribe every detail in advance — output
 formats, tool names, architecture decisions. Holonovel takes the opposite
 approach: it defines a convergence loop. After each build stage, the AI
 measures quality against objective thresholds, improves the work, and
-re-verifies — up to three iterations per activity. Adversarial subagents
+re-verifies — up to three attempts per activity. Adversarial subagents
 audit every checkpoint with fresh context. A golden transcript replay
 proves the server behaves correctly against a known fixture. This loop is
 the quality engine. It means the specification can stay lean — it states
