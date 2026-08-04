@@ -5,6 +5,9 @@
 - README: added "One spec. Any game. Zero code." tagline, "How Holonovel Compares"
   section (vs AI Dungeon, rpg-mcp, ChatGPT, consumer platforms), SEO keywords in
   "What you get" and "Who is this for" bullets, and RSS feed link.
+- §6.5–§6.6 convergence/OCE: disambiguated "iterations" — replaced with "attempts"
+  (per-activity retry) and "cycles" (full pass). The word "iteration" no longer
+  appears in the spec.
 - REQ-002: `[NOT_FOUND]` and `[INVALID_INPUT]` errors now include "Did you mean?"
   fuzzy-match hints when a close Levenshtein match exists (distance ≤ 2). T40 and
   T39a updated with fuzzy-assertion clauses.
