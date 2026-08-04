@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-04 — OCE expanded: 15 scenarios, severity gating, post-write verification
+
+- §6.6 OCE: expanded from 14 to 15 scenarios. Added scenario 15 (Stress and
+  recovery — concurrent sessions, disk corruption, rapid persona switching,
+  scale testing, long-query safety).
+- §6.6 scenarios tightened: S4 requires deterministic combat seeds and
+  external danger damage; S5 requires byte-level state match (numeric HP,
+  ordered conditions, integer round, ID sequence); S8 requires self-contained
+  output, 2000-char limit, alias resolution, and verbatim source quoting;
+  S9 requires conditions to auto-expire via ruleset triggers; S12 requires
+  re-import into second game session with numeric baseline comparison; S14
+  requires explicit boundary-value checklist with 5-second timeout.
+- §6.6 added Failure artifacts: failures must record assertion, request,
+  state snapshot, and diagnostic trail in DECISIONS.md.
+- §6.6 added regression capture: OCE-discovered bugs → permanent new
+  assertion in the triggering scenario.
+- §6.6 Exit criteria now severity-gated: scenarios 1/4/5/6/12/15 are
+  blocking (operator notified); other failures are accepted limitations.
+- §6.5 added Post-write verification: after every file write during
+  construction, builder re-reads and audits heading structure, path
+  corruption, and URL validity.
+- README updated to reflect 15-scenario OCE.
+
 ## 2026-08-04 — Sample D&D 5e MCP server, README restructure
 
 - MCP server: added pre-built D&D 5e SRD v5.1 Holonovel server at `dnd5e/`

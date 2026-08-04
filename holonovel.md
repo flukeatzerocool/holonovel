@@ -843,6 +843,15 @@ The loop converges when all metrics meet their threshold or three cycles without
 improvement. At that point, record the current state with the residual gap logged in
 DECISIONS.md.
 
+**Post-write verification.** After every file write during construction and
+verification, the builder re-reads the written file and verifies: (a) heading
+structure matches the plan — confirm the expected `##` and `###` headings appear in
+order; (b) no path corruption — search for doubled directory components and missing
+slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
+convergence finding and triggers a fix + re-read cycle. This check applies to every
+file write: source code, test scripts, README, DECISIONS.md, and MCP client
+configuration.
+
 ### 6.6 Operational Confidence Exercise
 
 **Timing.** After the convergence loop (§6.5) has converged and the ruleset-facing
@@ -870,6 +879,13 @@ criterion.
 assertion in its pass criterion holds. A failure is recorded as a finding in
 DECISIONS.md (6).
 
+**Failure artifacts.** When a scenario fails, the builder records in DECISIONS.md (6):
+(i) the specific assertion that failed, with expected and actual values; (ii) the
+full tool request and response that triggered the failure; (iii) a server state
+snapshot captured immediately after the failure; (iv) a diagnostic trail showing the
+narrowing steps taken to identify the root cause. A finding that omits any of these
+four items is incomplete and blocks handoff.
+
 1. **Tool surface sweep.** Objective: verify every registered tool accepts valid input
    without error. Method: from the Game Master session, call every tool in `tools/list` at
    least once with valid parameters appropriate to its schema. Assert every response
@@ -895,22 +911,25 @@ DECISIONS.md (6).
 
 4. **Simulated combat session.** Objective: verify the combat pipeline — turn
    resolution, HP tracking, condition effects, round advancement, and victory
-   conditions — under AI-simulated play. Method: run at least 3 full rounds. For each
-   round: (a) Game Master session: call `advance_confrontation` for the player entity with
-   a valid move. Assert the response includes the full calculation path (dice,
-   modifiers, outcome), HP changes if applicable, and the next turn assignment.
-   (b) Player session: read the resulting state; answer any `[NEED_INPUT]` decision
-   that fires. (c) Game Master session: advance dangers per the ruleset's danger-turn
-   rules. Assert danger turns produce the expected outcome. (d) Player session: read
-   state between rounds; assert HP and conditions are consistent with the resolved
-   turns. After the final round, call `end_confrontation` with an outcome. Assert the
+   conditions — under simulated play with deterministic sequencing. Method: all dice
+   rolls in this scenario use fixed per-call seeds so outcomes are reproducible on
+   re-run. Run at least 3 full rounds. For each round: (a) the player entity attacks a
+   danger — assert the response includes the full calculation path (dice, modifiers,
+   outcome) and HP changes to the danger; (b) call `advance_confrontation` — assert
+   the round counter increments numerically and turn passes to the next participant;
+   (c) between rounds, assert HP deltas are numeric and conditions are consistent with
+   resolved turns; (d) assert that at least one danger took damage from a player
+   attack during the encounter, and that `advance_confrontation` was called at least 3
+   times. After the final round, call `end_confrontation` with an outcome. Assert the
    combat terminates cleanly and the outcome is recorded in the audit log.
 
 5. **Combat state survival.** Objective: verify combat state survives a server restart.
-   Method: start a new combat. Advance one round so state has mutated. Record HP
-   values, conditions, round counter, and turn order. Restart the server with the same
-   `TTRPG_GAME_ID`. Assert all recorded values are restored identically. Advance
-   another round to confirm the restored state is operational.
+   Method: start a new combat. Advance one round so state has mutated. Record the
+   exact HP values (numeric), condition list (ordered, case-sensitive), round counter
+   (integer), and turn order (entity ID sequence) for every participant. Restart the
+   server with the same `TTRPG_GAME_ID`. Assert every recorded value is restored
+   identically — no field may differ. Advance another round to confirm the restored
+   state is operational.
 
 6. **Cross-persona boundary enforcement.** Objective: verify persona gating holds
     during realistic workflows. Method: set persona to `player`. Attempt every
@@ -928,20 +947,28 @@ DECISIONS.md (6).
    For GM-only tables, verify the player session is blocked and the Game Master
    session succeeds.
 
-8. **Search and canonical lookup.** Objective: verify search and lookup return correct
-   results. Method: run `search_rules` with exact, prefix, and substring queries for
-   known terms. Assert the target section appears in the top 3 results for each query
-   type. For every `lookup_<category>` tool, request a known item by its canonical
-   name and by a documented alias. Assert the full ruleset entry is returned with
-   source quoting (REQ-061). Request a non-existent item and assert
-   `[ERROR] [NOT_FOUND]` with valid values enumerated.
+8. **Search and canonical lookup.** Objective: verify search and lookup return correct,
+   self-contained results. Method: run `search_rules` with exact, prefix, and
+   substring queries for known terms. Assert the target section appears in the top 3
+   results for each query type. For every `lookup_<category>` tool, request a known
+   item by its canonical name and by a documented alias — assert both resolve to the
+   same item. Assert the full ruleset entry is returned with source quoting (REQ-061)
+   including the file path and a verbatim Markdown excerpt with original formatting
+   preserved. Assert the response is self-contained — a reader unfamiliar with the
+   ruleset can understand the result without cross-referencing. Assert a single-item
+   lookup response does not exceed 2,000 characters. Request a non-existent item and
+   assert `[ERROR] [NOT_FOUND]` with valid values enumerated.
 
 9. **Condition lifecycle.** Objective: verify conditions apply, affect mechanics, and
-   expire. Method: apply a condition to the player entity. Assert the condition
+   expire by the ruleset's own triggers. Method: apply a condition that has a
+   duration-based expiry (e.g., "until end of next turn"). Assert the condition
    appears in the entity's state. Make a roll that the condition penalizes — assert
-   the penalty appears in the modifier list. Trigger the condition's expiry per the
-   ruleset's own triggers. Assert the condition is removed and subsequent rolls no
-   longer carry the penalty.
+   the penalty appears in the modifier list. Advance state past the expiry trigger
+   without calling `remove_condition` — assert the condition self-removes and
+   subsequent rolls no longer carry the penalty. Then apply a condition with no
+   automatic expiry, remove it manually via `remove_condition`, and assert removal. At
+   least one tested condition must expire via the ruleset's own trigger, not via
+   `remove_condition`.
 
 10. **Undo during combat.** Objective: verify undo restores combat state and is blocked
     during pending decisions. Method: advance combat one round, then call `undo`.
@@ -957,11 +984,13 @@ DECISIONS.md (6).
     still works after cancellation.
 
 12. **Roster durability.** Objective: verify roster baselines are immutable and survive
-    game mutations. Method: record the roster baseline for the created character.
-    Import into a game. Apply damage (reduce HP) and a condition. Assert the game
-    entity reflects the damage. Read the roster entry — assert HP and conditions match
-    the baseline, not the mutated game copy. End the game. Re-import — assert the
-    fresh copy matches the roster baseline.
+    game mutations. Method: record the roster baseline for the created character (all
+    fields, with numeric values where applicable). Import into a game. Apply damage
+    (reduce HP by a non-zero amount) and a condition. Assert the game entity reflects
+    the damage — its HP must differ from the baseline. Re-import the same roster ID
+    into a second game session. Call `character_sheet` on the re-imported entity.
+    Assert its HP matches the original baseline (not the damaged value) and no
+    conditions carried over. This proves the roster is immutable.
 
 13. **Game isolation.** Objective: verify entities do not leak between games. Method:
     create a second game with a different `TTRPG_GAME_ID`. Create or import a
@@ -971,15 +1000,30 @@ DECISIONS.md (6).
 14. **Edge cases.** Objective: verify the server handles boundary inputs gracefully.
     Method: (a) call `search_rules` with an empty string — assert no error, valid
     counts returned; (b) call tools with missing required parameters — assert
-    `[ERROR] [INVALID_INPUT]` with corrective action; (c) call tools with boundary
-    values (HP at 0, HP at max, empty name, very long name); (d) make five rapid
-    successive tool calls — assert each returns independently without state
-    corruption; (e) query a canonical lookup with an ambiguous alias shared by two
-    items — assert the server either resolves correctly or returns `[PARTIAL]` listing
-    both; (f) replay a roll with the same per-call seed twice — assert identical
-    results (REQ-050); (g) call `respond` with an unknown decision name or option —
-    assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated, the
-    decision remains pending, and a subsequent valid `respond` succeeds.
+    `[ERROR] [INVALID_INPUT]` with corrective action string present; (c) call tools
+    with every boundary input below — each must return a valid response within 5
+    seconds without crash or hang: HP at 0, HP at max, empty name, name exceeding 100
+    characters, negative AC, AC 0; (d) make five rapid successive tool calls — assert
+    each returns independently without state corruption; (e) query a canonical lookup
+    with an ambiguous alias shared by two items — assert the server either resolves
+    correctly or returns `[PARTIAL]` listing both; (f) replay a roll with the same
+    per-call seed twice — assert identical results (REQ-050); (g) call `respond` with
+    an unknown decision name or option — assert `[ERROR] [NOT_FOUND]` with
+    session-visible valid values enumerated, the decision remains pending, and a
+    subsequent valid `respond` succeeds.
+
+15. **Stress and recovery.** Objective: verify the server handles adversarial input and
+    recovers from corruption. Method: (a) launch two server sessions sharing the same
+    `TTRPG_GAME_ID`, advance combat in one while reading state in the other — assert
+    no deadlocks or state corruption; (b) manually corrupt a game state file on disk
+    (truncate JSON mid-field), restart the server — assert the server detects the
+    corruption and reports `[ERROR]` at startup, not silent data loss; (c) switch
+    persona 10 times in rapid succession — assert no stale gating or mixed-persona
+    state leaks; (d) create 20 entities and 10 dangers, start combat, run 10 rounds —
+    assert all entities survive, turn order remains consistent, undo works after
+    scale; (e) call `search_rules` with a 10,000-character query string — assert no
+    crash and no unbounded resource consumption. Scenario 15 failures are blocking
+    (see Exit criteria).
 
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
@@ -988,9 +1032,21 @@ these activities. After convergence re-converges, the OCE re-runs — up to 2 OC
 cycles. Residual failures after 2 cycles without improvement are logged in
 DECISIONS.md (5) as accepted limitations with re-activation conditions.
 
-**Exit criteria.** The OCE completes when all scenarios pass or the builder records 2
-cycles without improvement. The OCE findings and pass/fail disposition are recorded
-in DECISIONS.md (6).
+When a bug is discovered through an OCE scenario failure and subsequently fixed via
+convergence, the builder adds at least one new assertion to the scenario that
+triggered the discovery — or a new sub-scenario if the fix spans multiple scenarios —
+to prevent regression. This assertion must fail when the original bug is
+reintroduced. The new assertion is recorded in DECISIONS.md (6) with a cross-reference
+to the original finding.
+
+**Exit criteria.** The OCE completes when all scenarios pass and all blocking failures
+are resolved. Failures are severity-gated: (a) failures in scenarios 1 (tool sweep), 4
+(simulated combat), 5 (state survival), 6 (persona boundary), 12 (roster durability),
+or 15 (stress and recovery) are blocking — the Build job is incomplete and the
+operator is notified; (b) failures in other scenarios are logged in DECISIONS.md (5)
+as accepted limitations with re-activation conditions after 2 cycles without
+improvement. All failures are recorded with their severity classification, the
+diagnostic trail, and the reason further convergence would not help.
 
 ---
 
