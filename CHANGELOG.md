@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-04 — Rename referee persona to Game Master (GM)
+
+- Renamed "referee" persona to "Game Master" (GM) throughout holonovel.md;
+  capitalized "Player" in formal persona references alongside "Game Master."
+- Updated persona-gated language: referee-only → GM-only, referee-visible →
+  GM-visible, guidance://referee → guidance://game_master.
+- Changed environment variable value: `referee` → `game_master`.
+- Updated fixture text, model excerpt, gate descriptions, OCE scenarios, and
+  test catalogue descriptions.
+- Updated README: "game master" → "Game Master" in all occurrences.
+- No REQ numbers, test IDs, or cross-reference structure changed.
+
+## 2026-08-04 — OCE, build fingerprint (REQ-065), Appendix E reorder
+
+- Added §6.6 Operational Confidence Exercise: 14 scenarios exercising the built
+  server with AI-simulated Player and Game Master personas; findings feed back into
+  convergence loop.
+- Added REQ-065 (Build fingerprint): state records spec version, ruleset hash, and
+  build timestamp; graceful migration on mismatch; unrecoverable state surfaced in
+  `spec_health`.
+- Added T52 (Build fingerprint automated test).
+- Reorganized §5 into seven focused subsections (§5.3 renamed, §5.4 split into
+  5.4–5.6, §5.5 renumbered 5.7); moved REQ-057/058/059 to §5.3, REQ-042 to §5.4.
+- Reordered Appendix E manifest by §5 subsection; moved REQ-063 and REQ-064 to
+  their correct groups.
+- Updated §7.7 state model with build fingerprint description.
+- Updated README: OCE mention in Build description, fixed stale appendix listing.
+
 ## 2026-08-04 — Renumber appendices T, F, G to sequential F, G, H
 
 - Renumbered Appendix T (Derived Test Catalogue) → Appendix F, Appendix F

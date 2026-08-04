@@ -1,6 +1,6 @@
 # Holonovel
 
-Turn your RPG rulebooks into an AI game master.
+Turn your RPG rulebooks into an AI Game Master.
 
 ## What is Holonovel?
 
@@ -37,10 +37,10 @@ become interactive.
   if you don't have a PDF. Give it an official sheet and it matches
   the layout.
 
-- **Two ways to play.** Player mode — the AI acts as your game
-  master, narrating and rolling while keeping secrets secret, and
+- **Two ways to play.** Player mode — the AI acts as your Game
+  Master, narrating and rolling while keeping secrets secret, and
   respects your agency: it describes the world without making
-  decisions for you. Game master mode — full access, full control,
+  decisions for you. Game Master mode — full access, full control,
   every tool at your command.
 
 - **Any format in.** Markdown files, PDF rulebooks, HTML source, or
@@ -59,7 +59,7 @@ Pick a game. Feed it to an AI. Start playing.
 
 You. You've got tabletop RPG books and an AI agent. You want the
 rules at your fingertips without wiring up tools by hand. Players
-who want dice automation and character tracking. Game masters who
+who want dice automation and character tracking. Game Masters who
 want combat management and instant monster lookups. Developers who
 want to skip the integration work and let AI build the bridge.
 
@@ -84,15 +84,16 @@ character management, monster and spell lookups, random tables, and
 more — every mechanic traced back to your actual books with a citation.
 The server always includes a working character sheet tool, inferred
 directly from the rules. Before handing off, the AI runs a full test
-suite and verification pipeline against a known ruleset to prove the
-build is sound. If your source needs conversion first, run the Convert
+suite, five verification gates, and an Operational Confidence Exercise —
+end-to-end scenarios including AI-simulated combat — to prove the build
+is sound. If your source needs conversion first, run the Convert
 job.
 
 ### Enrich: Community advice (optional)
 
 The AI searches the web for game-specific tips — GM advice, player
 strategy guides, actual-play breakdowns, designer commentary — and
-adds them to the server's persona knowledge. Your AI game master now
+adds them to the server's persona knowledge. Your AI Game Master now
 knows not just the rules, but how the community plays the game. Run
 this job against an existing build anytime.
 
@@ -192,7 +193,7 @@ Holonovel/
 │                                 §7 runtime conventions; §8 verification
 │                                 gates; §9 handoff; §10 independent
 │                                 verification; §11 optional jobs;
-│                                 appendices A–G, T, I)
+│                                 appendices A–I)
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/
