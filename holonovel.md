@@ -3,14 +3,17 @@
 > **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
 > server, and proves it works. Output: a running MCP server with dice, combat, character
-> management, rules lookup, scene-state tracking, NPC management, countdowns, and session
-> recap — plus four artifacts (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md).
-> Quality enforced by five verification gates, 12 handoff checks, and a golden-transcript
-> replay. One server per ruleset. No network at runtime (REQ-051). The Player persona is the
-> human at the table; the Game Master persona is the AI narrator (REQ-032), switchable via
-> `set_persona` (REQ-066). Multi-character support: one player may control multiple entities
-> (REQ-074). Adventures load as indexed reference content (REQ-079). State tiers: roster
-> persists, games isolate, connections are ephemeral transport, game audit logs persist. RNG
+> management, rules lookup, narrative directives, dynamic lore, action suggestions,
+> voice examples, macros, scene-type tagging, audit compression, scene-state tracking,
+> NPC management, countdowns, and session recap — plus four artifacts
+> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment job adds
+> community-sourced play advice. Quality enforced by five verification gates, 12 handoff
+> checks, and a golden-transcript replay. One server per ruleset. No network at runtime
+> (REQ-051). The Player persona is the human at the table; the Game Master persona is the
+> AI narrator (REQ-032), switchable via `set_persona` (REQ-066). Multi-character support:
+> one player may control multiple entities (REQ-074). Adventures load as indexed reference
+> content (REQ-079). State tiers: roster persists, games isolate, lore and enrichment tiers
+> enhance guidance, connections are ephemeral transport, game audit logs persist. RNG
 > deterministic and seedable. Requirements state the contract; verification loops enforce
 > quality.
 
@@ -273,7 +276,9 @@ list matches the registry. _Check:_ T3, T35.
 `entities://`, `entity://<id>`, `audit://game`, `roster://<type>`, `roster://<id>`,
 `guidance://<role>`, `guidance://<role>/anti-slop`, `guidance://<role>/voice`,
 `guidance://shared/persona-switch`, `scene://current`, `countdown://active`,
-`party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`, and
+`party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
+`entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
+`enrichment://voice_examples`, `enrichment://briefing_order`, and
 `adventure://<slug>/<anchor>`. `resources/templates/list` advertises entity, roster-record,
 and `output://` templates. `resources/read` returns Markdown with a small source header.
 _Check:_ T16.
@@ -462,15 +467,19 @@ Game Master only; the Player persona reads scene state via `persona_briefing` an
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields: `description` (physical appearance), `voice` (speech patterns and mannerisms),
-`background` (history and motivation), and `goals` (current objectives). These fields are
-narrative context — inert data, not mechanical. They are stored at the roster level and
+`background` (history and motivation), `goals` (current objectives), and `voice_examples`
+(up to 5 example dialogue snippets with context tags, settable via
+`set_voice_examples(entity_id, examples)` — Player-only for own entities, GM for all).
+These fields are
+narrative context — inert data, not mechanical. Voice examples sourced from enrichment
+carry a `[supplementary]` tag and source URL. They are stored at the roster level and
 are explicitly mutable (an exception to roster baseline immutability — narrative fields,
 unlike mechanical stats, may be edited after creation). Fields are surfaced in
 `persona_briefing` alongside entity stats and at `entity://<id>/personality`. Game-level
 overrides: if personality fields are set on a game entity via `set_personality(entity_id,
 fields)`, they override the roster baseline for that game only. The `set_personality`
 tool is Player-only for own entities. On game entity import, roster personality fields
-are copied alongside mechanical stats. _Check:_ T58.
+are copied alongside mechanical stats. _Check:_ T58, T65.
 
 **Player feedback signal.** The server provides a `player_signal(signal, value)` tool —
 Player-only. Records a structured preference signal: `pace` (slower/faster), `difficulty`
@@ -545,6 +554,95 @@ audit logs survive. `end_game` discards the game; the roster survives. Resuming 
 game fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with the game.
 _Check:_ T9, T31.
 
+### 5.8 Narrative, Guidance, and Enrichment
+
+**REQ-080 — Enrichment boundaries.** Enrich may ADD content to entity
+voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
+(REQ-083), action suggestion patterns (REQ-084), and supplementary guidance. Enrich
+MUST NOT modify mechanical fields (stats, saves, HP, conditions, combat state),
+build-derived tool registrations, persona gating rules, or any [ruleset]-tagged content.
+Enrich recommendations for prompt ordering and lore templates are inert — they never
+auto-apply; the GM must explicitly activate them via the corresponding tools. Every
+enrich finding carries source_url, quoted_excerpt, persona_scope, confidence (derived
+from source authority, not mechanical completeness), and output_module — all
+non-empty. _Check:_ T63.
+
+**REQ-081 — Narrative directive.** The Game Master may set a standing narrative
+instruction via `set_narrative_directive(instruction)`. The directive is a free-text
+string that appears in `persona_briefing` for the Game Master persona only. An empty
+string clears the directive. The directive is inert guidance — it does not affect tool
+behavior, dice results, or rules enforcement. It persists across connections and is
+discarded on `end_game`. Player persona attempts return `[ERROR] [FORBIDDEN]`. Default:
+empty string (no effect). _Check:_ T64.
+
+**REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
+`persona_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
+array of section tokens drawn from a fixed, documented set: `foundations`, `anti_slop`,
+`voice_examples`, `scene_state`, `entities`, `npcs`, `countdowns`, `lore`, `adventure`,
+`player_signals`, `guidance`, `registry`, `intro_pointer`, `session_zero_pointer`,
+`narrative_directive`. Unknown tokens return `[ERROR] [INVALID_INPUT]` with valid
+tokens enumerated. An empty array resets to the builder-determined default, which is
+the sole default order. Tokens whose corresponding sections are absent from the current
+ruleset are accepted and produce empty sections in `persona_briefing` (no error). Enrich
+may record a recommendation visible in `spec_health`, but this recommendation is
+inert — it never auto-applies. The ordering persists across connections and is discarded
+on `end_game`. Player persona attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T66.
+
+**REQ-083 — Dynamic lore entries.** The Game Master may create keyword-triggered lore
+entries via `set_lore_entry(key, content, triggers, persona_scope)`. Each entry carries
+a unique slug, Markdown content, an array of case-insensitive trigger keywords, and a
+persona scope (`game_master` or `shared`). When any trigger keyword appears in
+scene_state text, the entry activates and appears in `persona_briefing`
+(persona-filtered: GM-only entries hidden from Player). Entries deactivate when
+triggers are no longer present. `remove_lore_entry(key)` deletes an entry. The trigger
+scan is capped at 50 entries. Entries persist across connections and are discarded on
+`end_game`. Player persona create/delete attempts return `[ERROR] [FORBIDDEN]`. Enrich
+may seed lore templates visible at `lore://templates`; the GM must explicitly activate
+them via `set_lore_entry`. Default: no entries (no injection). _Check:_ T67.
+
+**REQ-084 — Action suggestions.** The server provides a `suggest_actions(intent)` tool
+that maps a player's natural-language intent to ruleset-legal tool invocations. With an
+intent string, it returns up to 5 matching actions from the ruleset registry, each with
+tool name, required parameters, stat requirements, and a one-line description. Without
+an intent, it returns contextually relevant actions based on current scene type
+(REQ-087), scene_state, entity conditions, and active countdowns. The tool is
+pure-resolution (idempotent, no state mutation). Results are persona-filtered: GM-only
+tools are excluded from Player results. The tool does not fabricate actions — every
+suggestion maps to a registered tool or documented ruleset procedure. Enrich-derived
+action patterns may supplement the matching index. Default: no configuration needed;
+the tool works immediately. _Check:_ T68.
+
+**REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
+in all tool output, resource text, and prompt text before delivery. Supported macros:
+`{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
+`{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`,
+`{{countdown.<name>.total}}`, `{{game.id}}`, `{{persona.active}}`, `{{party.size}}`.
+Macros referencing nonexistent state expand to the literal token unchanged. Macro
+expansion occurs after output composition and before client delivery. Macros do not
+expand in audit log entries. The macro set is fixed and documented; user-defined macros
+are not supported. Default: invisible; macros auto-expand with no configuration.
+_Check:_ T69.
+
+**REQ-086 — Audit compression.** The server provides a `compress_audit(max_entries)`
+tool that returns a formatted prompt containing the most recent audit log entries,
+structured for the calling LLM to produce a compact narrative summary. The tool does
+not modify the audit log (REQ-040). Output is persona-filtered: Player sees only
+own-entity entries; Game Master sees all. `max_entries` is a positive integer; values
+≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation (idempotent, no
+server-side state mutation). Default: no configuration needed; the tool works
+immediately. _Check:_ T70.
+
+**REQ-087 — Scene type tagging.** The Game Master may tag the current scene with a type
+via `set_scene_type(type)`. Valid types: `combat`, `social`, `exploration`, `neutral`.
+The type tag is guidance — it affects `persona_briefing` composition (the registry
+section orders tools by scene-type relevance: tools whose type annotation matches the
+current scene type appear first) and `suggest_actions` filtering, but does not alter
+tool behavior, dice results, or rules enforcement. The type persists across connections
+and is discarded on `end_game`. Player persona attempts return `[ERROR] [FORBIDDEN]`.
+Confrontation tools (REQ-043) operate identically regardless of scene type; the tag
+guides the GM and LLM toward appropriate moves. Default: `neutral` (no effect).
+_Check:_ T71.
+
 ---
 
 ## 6. The Build Process
@@ -566,7 +664,7 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 Ask the operator pre-build questions up front, as a single batch. The builder asks the
 job-selection question first, then all questions relevant to the selected jobs. Each job's
 questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
-runs use defaults from the tables below (default job: `build`).
+runs use defaults from the tables below (defaults: `build` when offline, `build + enrich` when network detected).
 
 The builder MUST NOT begin any job until the operator has answered Q0 and all
 questions for the selected jobs. Answers are recorded in DECISIONS.md (1). A
@@ -580,7 +678,7 @@ selected jobs, all answers, and the first job to execute.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What job(s) should Holonovel run? | convert / build / enrich / sheet (select one or more) | build |
+| Q0  | What job(s) should Holonovel run? | convert / build / enrich / sheet (select one or more) | build + enrich (when network detected), build (when offline) |
 
 **Q1 — Pause between jobs.** Asked when two or more jobs are selected.
 
@@ -635,6 +733,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E1  | Path to existing build artifacts | Directory                    | —                   |
 | E2  | Source types                 | all / select from: community, actual plays, strategy, genre, designer | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
+| E4  | Enrichment budget cap       | default / custom                 | default             |
 
 **Sheet job.** Asked when `sheet` is selected.
 
@@ -920,6 +1019,11 @@ Additional output classes (creation, generation, decision, undo) follow the same
 conventions. The golden transcript (§B.3) is the canonical reference for expected output
 shapes.
 
+**Macro expansion.** Before delivery to the client, all tool output text, resource text,
+and prompt text is scanned for macro tokens of the form `{{<path>}}` and expanded to the
+corresponding live state value (REQ-085). Macros referencing nonexistent state expand to
+the literal token unchanged. Macros do not expand in audit log entries.
+
 ### 7.4 Tool-surface conventions
 
 Tool names derive from ruleset terminology: `snake_case`, English, one verb per tool
@@ -963,6 +1067,8 @@ State tiers:
 | NPC       | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
 | Scene     | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write, Player read-only |
 | Countdown | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
+| Lore      | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only (persona-filtered) |
+| Enrichment | One `TTRPG_GAME_ID`  | Survives connections, replaced by re-enrich, discarded by `end_game` | GM read/write, Player read-only (persona-filtered) |
 | Adventure | Index (read-only)    | Loaded at build time, survives connections | Content persona-filtered; one active adventure per game |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no persistent state.
@@ -990,14 +1096,22 @@ Individual items are at `guidance://<role>/<anchor>`.
 
 **Prompts.** `persona_briefing` composes these categories, persona-filtered: generic persona
 foundations (REQ-062, including anti-slop REQ-070 and voice examples REQ-071), persona
-switch guidance (`guidance://shared/persona-switch`), scene state (if set, REQ-076),
-active adventure context (if loaded, REQ-079), entity summaries with personality fields
-(REQ-077), active countdowns (REQ-073), current player signals, ruleset-derived guidance
-(REQ-016), the tool and resource registry filtered by persona (REQ-023), and pointers to
-the `intro` (REQ-063) and `session_zero` (REQ-078) prompts. The builder determines the
-optimal composition order for the specific ruleset and model; the convergence loop (§6.5)
-verifies completeness. `guidance://shared/persona-switch` provides common patterns for
-when to switch personas during play.
+switch guidance (`guidance://shared/persona-switch`), narrative directive (if set,
+REQ-081), scene state and scene type tag (if set, REQ-076, REQ-087), active adventure
+context (if loaded, REQ-079), entity summaries with personality fields and voice examples
+(REQ-077, tagged `[supplementary]` when enrich-sourced), active countdowns (REQ-073),
+activated lore entries (REQ-083, persona-filtered), current player signals,
+ruleset-derived guidance (REQ-016), enrichment-derived supplementary guidance (tagged
+`[supplementary]`, §11.1), the tool and resource registry filtered by persona (REQ-023),
+context-sensitive tips (up to 3 one-line suggestions for available server features, each
+including the tool name in backticks, persona-filtered and gated behind usage thresholds;
+absent when no tips apply), enrich-derived prompt ordering recommendation (inert —
+visible in `spec_health`, never auto-applies), and pointers to the `intro` (REQ-063) and
+`session_zero` (REQ-078) prompts. The builder determines the optimal composition order for
+the specific ruleset and model, which is the sole default order. If the GM sets a custom
+order via `set_briefing_order` (REQ-082), sections are composed in that order. The
+convergence loop (§6.5) verifies completeness. `guidance://shared/persona-switch`
+provides common patterns for when to switch personas during play.
 
 ---
 
@@ -1176,21 +1290,131 @@ _These jobs do not gate the Definition of Done. They extend the Build job._
 
 ### 11.1 Persona enrichment
 
-Pre-build questions are collected in §6.2 when the `enrich` job is selected.
+Pre-build questions are collected in §6.2 when the `enrich` job is selected. Enrich runs
+after Build completes and gates pass, enhancing the server with community-sourced play
+advice. Build alone produces a fully working server; enrichment makes a good server better.
 
-Search the web for ruleset-specific play advice across all selected source types
-(E2). Research depth is deep -- at minimum:
+**Research requirements.** Search the web for ruleset-specific play advice across all
+selected source types (E2). Research depth is deep — at minimum:
 
 - **5 distinct source domains** across all selected source types.
-- **3 substantive pages** of extracted content per source type (≥500 words each
-  after stripping boilerplate).
-- Each finding records the source URL, a quoted excerpt, the persona(s) it
-  applies to, and a confidence label (HIGH/MEDIUM/LOW).
+- **3 substantive pages** of extracted content per source type (≥500 words each after
+  stripping boilerplate).
 
-A source type that returns zero results is recorded as a finding with the
-"empty" disposition and does not block completion. Findings are appended to
-`persona_briefing` as supplementary guidance items with `[supplementary]` tag,
-source URL, and confidence. Failure or empty results leave the server unchanged.
+A source type that returns zero results is recorded as a finding with the "empty"
+disposition and does not block completion. Failure or empty results leave the server
+unchanged; all enrichment content is additive.
+
+**Structured outputs.** Enrich produces an enrichment manifest with five output modules
+(see §11.1a for the manifest format):
+
+1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
+   `text` (the dialogue), `context` (situation tag), `source_url`, and `confidence`.
+   Stored at `enrichment://voice_examples`. The GM activates them via `set_voice_examples`
+   (REQ-077).
+
+2. **Prompt ordering.** A single recommended ordering of `persona_briefing` section tokens.
+   Stored at `enrichment://briefing_order`. **Inert** — visible in `spec_health`, never
+   auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to use it.
+
+3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries
+   total. Each records: `key` (slug), `content` (Markdown), `triggers` (keyword array),
+   `persona_scope`, `source_url`, and `confidence`. Stored at `lore://templates`. **Inert**
+   — the GM must explicitly activate them via `set_lore_entry` (REQ-083).
+
+4. **Action patterns.** Up to 10 patterns mapping common player intents to ruleset-legal
+   actions. Each records: `intent` (natural-language string), `suggested_actions` (array of
+   ruleset tool names), `source_url`, and `confidence`. They supplement the `suggest_actions`
+   (REQ-084) matching index. Automatically active when present — no GM activation needed.
+
+5. **Supplementary guidance.** Up to 20 items. Appended to `persona_briefing` with
+   `[supplementary]` tag, source URL, and confidence. This is the existing enrich behavior,
+   retained alongside the new structured outputs.
+
+**Boundaries.** Enrich may ADD to: entity voice_examples, prompt ordering recommendations,
+lore templates, action suggestion patterns, and supplementary guidance. Enrich MUST NOT
+modify: mechanical fields (stats, saves, HP, conditions, combat state), build-derived tool
+registrations, persona gating rules, or any `[ruleset]`-tagged content (REQ-080).
+
+**Budgets.** Caps prevent unbounded state growth:
+
+| Output module       | Cap                       | Configurable? |
+| ------------------- | ------------------------- | ------------- |
+| Voice examples      | 5 per entity type         | Yes           |
+| Prompt ordering     | 1 (single recommendation) | No            |
+| Lore templates      | 3 per keyword, 30 total   | Yes           |
+| Action patterns     | 10 total                  | Yes           |
+| Supplementary guidance | 20 total               | Yes           |
+
+**Confidence.** Enrich confidence uses source authority, not mechanical completeness:
+
+| Confidence | Source type |
+| ---------- | ----------- |
+| HIGH       | Designer blog/post, official publisher advice, published strategy guide |
+| MEDIUM     | Curated community wiki, recognized actual-play podcast, prominent community guide |
+| LOW        | Individual forum/Reddit post, personal blog, unverified source |
+
+This is distinct from Build confidence (which derives from mechanical completeness per
+REQ-011). The LLM sees both labels with full provenance.
+
+**Idempotence.** Enrich records the build fingerprint (REQ-065) in its manifest. Running
+enrich against the same build fingerprint is a no-op (detected, reported as `[OK]
+Enrichment up to date`). Running enrich against a new build fingerprint replaces all
+enrichment state. Enrichment state is stored separately from build state:
+`enrichment/voice_examples.json`, `enrichment/prompt_ordering.json`,
+`enrichment/lore_templates.json`, `enrichment/action_patterns.json`,
+`enrichment/supplementary_guidance.json`.
+
+**Verification.** After enrichment completes, the builder runs these checks and records
+results in DECISIONS.md:
+
+1. Source completeness: every finding has source_url, quoted_excerpt, persona_scope, and
+   confidence — all non-empty.
+2. Tag audit: all enrich content carries `[supplementary]` tag; no `[ruleset]` content
+   is modified (diff entity personality fields, briefing sections, lore entries
+   before/after).
+3. Boundary enforcement: no mechanics, stats, tools, or persona gating changed (diff
+   `tools/list`, `resources/list`, and entity stat fields).
+4. Idempotence: re-run enrich against same build fingerprint → no-op, identical manifest.
+5. Persona filtering: GM-scoped enrich content hidden from Player persona.
+6. Budget compliance: no output module exceeds its cap.
+
+These are verification steps, not new gates. Failures are enrichment defects recorded in
+DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
+
+**Reversion.** Re-running Build (without enrich) or using the `revert_enrichment` tool
+restores the pre-enrich server state. Enrichment manifest and verification results remain
+in DECISIONS.md for audit.
+
+### 11.1a Enrichment manifest format
+
+The enrichment manifest is written to the state directory alongside build state. Each
+output module is a JSON file conforming to the schema below.
+
+**`voice_examples.json`:** An object mapping entity type names to arrays of up to 5 voice
+example objects. Each object: `text` (string, the dialogue example), `context` (string,
+situation tag — e.g. "combat", "negotiation"), `source_url` (string), `confidence`
+(string, one of HIGH/MEDIUM/LOW), `persona_scope` (string, one of player/game_master).
+
+**`prompt_ordering.json`:** An object with a single `sections` field — an ordered array of
+section token strings.
+
+**`lore_templates.json`:** An object mapping keyword strings to arrays of up to 3 lore
+template objects. Each object: `key` (string, slug), `content` (string, Markdown),
+`triggers` (array of strings), `persona_scope` (string, one of game_master/shared),
+`source_url` (string), `confidence` (string).
+
+**`action_patterns.json`:** An array of up to 10 action pattern objects. Each object:
+`intent` (string), `suggested_actions` (array of strings — ruleset tool names),
+`source_url` (string), `confidence` (string).
+
+**`supplementary_guidance.json`:** An array of up to 20 guidance objects. Each object:
+`text` (string, the guidance content), `persona_scope` (string), `source_url` (string),
+`confidence` (string).
+
+All JSON files are UTF-8, no BOM. The manifest also records the build fingerprint
+(REQ-065) in a `fingerprint` field at the top level of each file. If the fingerprint is
+absent, the file is treated as corrupted and regenerated on the next enrich run.
 
 ### 11.2 Character sheet enhancement
 
@@ -1650,9 +1874,17 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-074 | Multi-entity support      | T55                            | 2026-08-04   |
 | REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
 | REQ-076 | Scene-state ledger        | T57                            | 2026-08-04   |
-| REQ-077 | Entity personality fields | T58                            | 2026-08-04   |
+| REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
+| REQ-080 | Enrichment boundaries     | T63                            | 2026-08-04   |
+| REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
+| REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
+| REQ-083 | Dynamic lore entries      | T67                            | 2026-08-04   |
+| REQ-084 | Action suggestions        | T68                            | 2026-08-04   |
+| REQ-085 | Macro system              | T69                            | 2026-08-04   |
+| REQ-086 | Audit compression         | T70                            | 2026-08-04   |
+| REQ-087 | Scene type tagging        | T71                            | 2026-08-04   |
 
 ---
 
@@ -1722,6 +1954,15 @@ diet.
 | T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as game entities but adventure A's content no longer appears in `persona_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
 | T61   | Automated | Adventure continuity: load adventure, create NPCs, set scene state within the adventure. Restart the server with the same `TTRPG_GAME_ID`. Assert the active adventure, NPCs, and scene state are restored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-079, REQ-055                            |
 | T62   | Automated | Help and tool discovery: invoke `help()` with no query — assert output includes a categorized task map and all registered tools. Invoke `help("combat")` — assert results include combat tools. Invoke as Player persona — assert GM-only tools are not listed.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-067, REQ-032                            |
+| T63   | Automated | Enrichment boundaries: run enrich, diff entity stat fields (stats/saves/HP) before and after — assert no changes. Diff `tools/list` — assert no changes. Assert all voice_examples, lore templates, and action patterns carry `[supplementary]` tag. Assert six enumerated enrichment verification checks pass. Re-run enrich — assert idempotent. Switch to player persona — assert GM-scoped enrich content hidden.                                                                                                                                                                                                                                                                                                                     | REQ-080, REQ-077, REQ-032                   |
+| T64   | Automated | Narrative directive: set directive, verify it appears in GM `persona_briefing` and is absent from Player `persona_briefing`. Clear directive, verify absent from both. Player attempt to set returns `[FORBIDDEN]`. Restart connection, verify directive persists.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-081, REQ-032                            |
+| T65   | Automated | Entity voice examples: set voice_examples, verify they appear in `entity://<id>/personality` and `persona_briefing` tagged `[supplementary]` when enrich-sourced. Set game-level overrides — assert they replace roster baseline for that game. Verify mechanical stats remain immutable. Player attempt on another player's entity returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                            | REQ-077, REQ-032                            |
+| T66   | Automated | Prompt section ordering: set custom order, invoke `persona_briefing` for GM — assert sections appear in specified order. Omit a section token — assert section absent from briefing. Set empty array — assert builder default order restored. Unknown token — assert `[ERROR] [INVALID_INPUT]` with valid token list. Token for absent ruleset feature accepted (empty section). Player attempt returns `[FORBIDDEN]`. Restart — verify ordering persists.                                                                                                                                                                                                                                              | REQ-082, REQ-032                            |
+| T67   | Automated | Dynamic lore: create lore entry with trigger "vault". Set scene_state containing "vault" — assert entry in GM `persona_briefing`. Change scene_state without trigger — assert entry deactivated. Create GM-only lore entry — switch to Player, assert GM-only entry hidden, shared entry visible. Remove entry — assert absent. Player create attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                           | REQ-083, REQ-032                            |
+| T68   | Automated | Action suggestions: call `suggest_actions("I want to attack")` in combat context — assert results include combat tools with correct tool names and parameter hints. Call with empty intent — assert context-relevant suggestions based on scene type and entity state. Call with nonsense intent — assert graceful fallback (empty list). Verify no GM-only tools in Player results. Verify enrich-derived patterns appear when enrich has run.                                                                                                                                                                                                                                                            | REQ-084, REQ-032                            |
+| T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
+| T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains exactly 3 formatted audit entries with summarization instructions. Switch to Player persona — assert only own-entity entries visible. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                            | REQ-086, REQ-032, REQ-040                   |
+| T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `persona_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
 
 ---
 

@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-04 — Eight SillyTavern-inspired features, enriched guidance, README prerequisites overhaul
+
+- Eight new inline features, all zero-config by default:
+  - Narrative directive (`set_narrative_directive`, REQ-081) — GM sets standing
+    narration instruction visible only in their persona_briefing.
+  - Entity voice examples (`set_voice_examples`, REQ-077 amended) — example
+    dialogue snippets per character for AI voice-matching.
+  - Prompt section ordering (`set_briefing_order`, REQ-082) — GM reorders
+    persona_briefing sections; enrich recommendation is inert (never auto-applies).
+  - Dynamic lore entries (`set_lore_entry`/`remove_lore_entry`, REQ-083) —
+    keyword-triggered setting details that auto-inject into persona_briefing.
+  - Action suggestions (`suggest_actions`, REQ-084) — natural-language intent
+    maps to ruleset-legal tool invocations.
+  - Macro system (REQ-085) — `{{entity.name}}`, `{{scene.current}}`, etc.
+    auto-expand in all output; invisible to user.
+  - Audit compression (`compress_audit`, REQ-086) — formatted prompt for LLM
+    to summarize old audit entries; audit log stays append-only.
+  - Scene type tagging (`set_scene_type`, REQ-087) — combat/social/exploration/
+    neutral tag guides tool prioritization without altering mechanics.
+- Context-sensitive tips mechanism in persona_briefing (up to 3 one-line
+  suggestions, persona-filtered, gated behind usage thresholds).
+- Enrich job upgraded (§11.1, §11.1a): produces structured enrichment manifest
+  with five output modules (voice examples, prompt ordering, lore templates,
+  action patterns, supplementary guidance) plus boundaries, budgets,
+  idempotence, and verification. REQ-080 defines enrich constraints.
+- Enrich recommendations are inert: prompt ordering and lore templates never
+  auto-apply; the GM must explicitly activate them.
+- State model gains Lore and Enrichment tiers (§7.7).
+- REQ-022 resources expanded: `entity://<id>/voice_examples`, `lore://active`,
+  `lore://<key>`, `lore://templates`, `enrichment://voice_examples`,
+  `enrichment://briefing_order`.
+- §6.2 intake: Q0 defaults to build+enrich when network detected; E4 budget
+  cap question added.
+- 9 new REQs (REQ-080–REQ-087, REQ-088 reserved), 9 new tests (T63–T71),
+  1 amended REQ (REQ-077), 9 new tools.
+- README.md prerequisites overhauled for AI novices: structured three-part
+  prerequisites, MCP explainer section, compatible client list, linearized
+  Quick Start, contributor-only validation marker.
+
 ## 2026-08-04 — v1.2
 
 - Holonovel just leveled up (v1.2). It now thinks like the community it serves —

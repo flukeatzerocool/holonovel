@@ -135,44 +135,121 @@ entry and verifies the handshake so your server is ready immediately.
 A server that finishes the Build job is fully
 functional — the rest is enhancement.
 
+## Wait, what's an MCP server?
+
+MCP (Model Context Protocol) is how AI apps use external tools. Think of it
+like a USB port for AI — your chat app (Claude Desktop, Opencode, Cursor,
+or any MCP-compatible client) plugs into Holonovel, and suddenly it can
+roll dice, look up rules, and track combat. You don't run the server
+yourself. Your chat app does, automatically, every time you start a
+conversation.
+
+To use it you need three things: your rulebooks, an MCP-compatible AI
+client, and Node.js.
+
 ## Prerequisites
 
-- **Node.js 20+** — runs the spec's validation tooling
-  (markdownlint, TypeScript type checking, cross-reference
-  validation).
-- **An AI agent** — reads the spec and builds the server. We
-  recommend DeepSeek Pro or an equivalent model. Building a
-  server for D&D 2024 cost about US $2 with DeepSeek v4 Pro.
-  We use Opencode Go for DeepSeek access.
+### Your rulebooks
+
+The rules for whatever game you want to play. Pick one format:
+
+- **Markdown files** — ideal. If your game has an SRD available as `.md`
+  files, use those. If you've already converted a PDF with the Convert
+  job, the Markdown output goes here.
+- **A PDF rulebook** — the agent converts it for you using the Convert
+  job. Vision-capable models (GPT-4o, Claude 3.5 Sonnet, Gemini 2.5 Pro)
+  handle this best.
+- **A web SRD** — point the agent at a URL. The spec includes a catalog
+  of 10 permissively-licensed games (D&D 3.5/5e, Pathfinder 1e/2e,
+  Starfinder, Traveller, FATE, Blades in the Dark, Dungeon World,
+  Old-School Essentials) — pick one or suggest your own.
+
+Don't have any ruleset? Start with the spec's built-in Tin Lanterns
+fixture — a tiny playable game included in the spec that lets you test
+the whole pipeline in under a minute.
+
+### An MCP-compatible AI client
+
+This is the app where you chat with the AI. It needs to support the
+MCP protocol so it can connect to Holonovel's server. Compatible clients
+include:
+
+- **Opencode** — open-source terminal client with built-in MCP support.
+  Free. Works with any LLM API.
+- **Claude Desktop** — Anthropic's desktop app. Free, requires an
+  Anthropic API key or Pro subscription.
+- **Continue.dev** — open-source AI plugin for VS Code and JetBrains.
+- **Cursor** and **Windsurf** — AI-powered code editors with MCP support.
+
+Any MCP-compatible client works. If your client supports MCP tools, it
+can use Holonovel.
+
+Each client needs an LLM behind it — either an API key (OpenAI,
+Anthropic, OpenRouter, DeepSeek) or a local model. Building a server
+for D&D 2024 cost about US $2 with DeepSeek v4 Pro (pricing varies — check
+current rates).
+
+### Node.js 20 or later
+
+Download from [nodejs.org](https://nodejs.org). npm (the Node.js package
+manager) comes bundled.
+
+Verify your installation:
+
+```sh
+node --version   # should print v20.x, v22.x, or later
+npm --version    # should print 10.x or later
+```
+
+Node.js is used by the spec's validation tooling (markdownlint,
+TypeScript type checking). If you're only building a server and not
+editing the spec, you can skip installing npm dependencies — the agent
+handles that part.
 
 ## Quick Start
 
-1. Clone this repo or download [`holonovel.md`](holonovel.md).
-2. Choose your ruleset source:
-   - **Markdown:** place your `.md` files alongside `holonovel.md` and feed
-     them to the agent.
-   - **PDF/HTML:** point the agent at the source files; it converts them to
-     Markdown first using built-in conversion tools.
-   - **Web SRD:** ask the agent to scrape a permissively-licensed game. It
-     presents a catalog of ten games (D&D 3.5/5e, Pathfinder 1e/2e, Starfinder,
-     Traveller, FATE, Blades in the Dark, Dungeon World, Old-School Essentials)
-     or you can suggest your own URL. The spec verifies the license before
-     scraping.
-3. Feed the spec and your ruleset to an AI agent:
+1. **Install Node.js 20+** ([nodejs.org](https://nodejs.org)). Verify it
+   worked:
+
+   ```sh
+   node --version
+   ```
+
+2. **Get the spec.** Clone this repo or download
+   [`holonovel.md`](holonovel.md) — it's a single file containing the
+   complete build specification. Everything you need is in that one
+   document.
+
+3. **Prepare your rules.** Put your ruleset files (`.md`, PDF, or a URL)
+   alongside `holonovel.md`. If you don't have a ruleset yet, the agent
+   can scrape one from the built-in catalog of 10 open-license games
+   (D&D, Pathfinder, Starfinder, Traveller, FATE, Blades in the Dark,
+   Dungeon World, Old-School Essentials) — just tell it which game you
+   want. No ruleset at all? The spec includes Tin Lanterns, a tiny
+   playable game, so you can test the pipeline in under a minute.
+
+4. **Open your AI client and feed it the spec.** Use a prompt like:
 
    > Use holonovel.md to build a server from `players-handbook.md`.
 
-4. The agent asks which job(s) you want to run — Convert (prepare the
-   rules), Build (build the server), and optionally Enrich (community
-   advice) or Sheet (character sheet). It pauses between jobs so
-   you can review progress and decide whether to continue; you can
-   skip pauses during setup. A hard-stop review gate asks you to
-   confirm the prepared ruleset before any server code is written.
-5. (Optional) Validate the spec itself:
+   The agent reads the spec and your rules, asks which jobs to run
+   (Convert, Build, and optionally Enrich or Sheet), then builds
+   everything automatically. It pauses between jobs so you can review
+   progress. Default answers work for most setups.
 
-   ```sh
-   npm install && npm run check
-   ```
+5. **Start playing.** When the Build job finishes, the agent connects the
+   server to your MCP client and verifies the handshake. Open a fresh
+   conversation and the server is ready. Say hello and the AI Game
+   Master answers.
+
+### For spec contributors
+
+If you're editing the spec itself (not building a server), validate your
+changes:
+
+```sh
+npm install && npm run check
+```
 
 ## Project status
 
@@ -198,7 +275,9 @@ adventure books as indexed, searchable reference so your narrator never invents 
 or forgets a room. It's a lorebook for rules, delivered as an MCP server — keeping
 your GM honest, creative, and on-world.
 
-## Validating
+## Validating (spec contributors)
+
+If you're editing the specification itself, validate your changes:
 
 ```sh
 npm run check
