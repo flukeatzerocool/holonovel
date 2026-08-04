@@ -1,7 +1,7 @@
 {
   "name": "holonovel-spec",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.1.0",
+  "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
     "lint": "markdownlint holonovel.md README.md",
