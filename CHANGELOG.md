@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-04 — Remove unassigned persona; pre-build gate; dedup; ses_034b fixes; proofread
+
+- Removed the `unassigned` persona entirely (A1–A15): REQ-031 default is now
+  `player`; REQ-066 accepts `player` or `game_master` only; glossary, quick
+  reference, play model, config table, Appendix D, T9, T15, and T50 updated.
+  12 references replaced or removed across 11 sites.
+- Applied "state once" deduplication (B1–B3): quick reference carries REQ
+  citations instead of bare prose; Appendix D persona access and conformance
+  text replaced with `(REQ-032)` and `(REQ-031, REQ-066)` citations.
+- Pre-build gate (C1): builder MUST NOT begin any job until operator answers
+  Q0 and all selected-job questions, recorded in DECISIONS.md (1).
+- Cross-job deduplication rule (C2): E1/S1 share one answer; C2→B1 implicit.
+- Build job question B7 (default persona for MCP client config) and B8
+  (connect MCP client to server after build?). B8: when yes, writes config and
+  verifies handshake immediately.
+- Config-key verification step (C5): builder fetches target client's MCP
+  server config schema and verifies key names per B3's client target.
+- Q1 pause enforcement (C6): builder MUST NOT produce completion summary or AAR
+  until all jobs are finished when Q1=no.
+- Enrich depth quantified (C7): min 5 domains, 3 substantive pages per source
+  type (≥500 words), empty source types recorded as findings.
+- H11 verified at config-write time per §6.2, re-confirmed at handoff (C8).
+- Proofread corrections (D1–D10): removed stray `// F42FPPJK`; fixed
+  non-existent section references in verifier prompt (§10); T29 "Section 4" →
+  "Appendix E"; DECISIONS.md item (6) references corrected; verifier prompt
+  "Section 7 format" → "Section 8 format"; H9 "GM session" → `set_persona`;
+  B.3 golden transcript "start a Lantern Keeper session" → "switch to
+  game_master persona via `set_persona`"; NEED_INPUT bracket consistency;
+  T29/T36 Requirements column "Section 8" → "§9"; quick-reference line-wrap
+  and "sessions audit" wording fix.
+
 ## 2026-08-04 — Persona model: immutability → switchable masks; REQ-066 set_persona
 
 - Rewrote REQ-031 (Persona immutability) as REQ-031 (Persona activation):

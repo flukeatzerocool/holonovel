@@ -111,7 +111,10 @@ anytime.
 
 By default, the AI pauses after each job to report what it built and
 ask whether to continue. During setup you can choose to skip pauses and
-run jobs back-to-back. A server that finishes the Build job is fully
+run jobs back-to-back. The builder also asks whether to connect the
+finished server to your MCP client — if you say yes, it writes the config
+entry and verifies the handshake so your server is ready immediately.
+A server that finishes the Build job is fully
 functional — the rest is enhancement.
 
 ## Prerequisites
