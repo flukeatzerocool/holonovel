@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-04 — Retire OCE-subsumed tests; automate T25 and T50
+
+- Retired T11, T12, T19, T34, T37 from Appendix F — all subsumed by OCE
+  scenarios 4, 5, 8, 9, 10, 11, 14 or redundant with existing automated tests.
+- Automated T25 (deletion drills) and T50 (intro pointer consistency).
+- Extended OCE-14 edge cases with unknown decision/option response test,
+  covering the T19 retirement gap.
+- Cleaned retired test IDs from all REQ _Check:_ trailers and Appendix E
+  "Verified by" columns.
+
 ## 2026-08-04 — Rename referee persona to Game Master (GM)
 
 - Renamed "referee" persona to "Game Master" (GM) throughout holonovel.md;

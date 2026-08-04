@@ -83,7 +83,7 @@ The spec is designed around six failure modes. Recognize them early.
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | Gate 1 conformance (REQ-001, Appendix D)                           |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
-| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055, T34); audit log (REQ-040)    |
+| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; OCE-5); audit log (REQ-040)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
 
 ---
@@ -203,7 +203,7 @@ _Check:_ T15.
 searchable via `search_rules` and retrievable as a `ruleset://` resource. // F42FPPJK
 The builder never fabricates mechanics to fill a gap. Missing triggers do not invalidate the modeled portion.
 Search returns the expected section in the top 3 results for exact, prefix, and substring queries.
-_Check:_ Gate 2, T37, T4.
+_Check:_ Gate 2, T4.
 
 **REQ-013 — No assumed mechanics.** Nothing enters the model that is not traceable to the
 ruleset text. A mechanic present in one edition or supplement but absent from the source is
@@ -211,7 +211,7 @@ not assumed. Absent features — no advancement, no deletion, no spellcasting �
 tool; this absence is recorded in DECISIONS.md as a waiver with a re-activation condition.
 Inline formatting inside table cells is preserved, not interpreted. Code blocks are literal
 text, not executed. Callouts produce no mechanics. Conditions apply and expire per the ruleset's own triggers.
-_Check:_ T25, T32, T33, T36, T12.
+_Check:_ T25, T32, T33, T36.
 
 **REQ-014 — Source immutability.** The ruleset Markdown — and, where conversion applied, the
 original sources — is hashed at intake and never modified. A drift check at startup warns
@@ -241,7 +241,7 @@ checkpoint.
 ruleset terminology — never invented names. Character creation, condition management,
 combat encounter management, and table rolling are the minimum tool categories any
 ruleset deserves; missing categories are recorded as waivers. _Check:_ T3, T5, T32,
-T33, T37; Gate 2.
+T33; Gate 2.
 
 **REQ-021 — Tool-surface economy.** A named set of related operations (one per table, one
 per move, one per stat) shares a single parameterized tool. The tool surface is determined
@@ -291,7 +291,7 @@ incomplete extraction: no fabricated entries, no result padding, no hiding of th
 Canonical lookups use the loaded index or model, never the original Markdown files after
 startup indexing. No option is ever pre-selected in a `[NEED_INPUT]` workflow — decisions
 require an explicit `respond`. Tool error messages must be readable in a chat interface.
-_Check:_ T37, T41, T42.
+_Check:_ T41, T42.
 
 **REQ-059 — Parameter canon validation.** Tool parameters that accept bounded-domain values
 (skill names, force power names, weapon names, move names) validate against the ruleset
@@ -313,7 +313,7 @@ that raise `[NEED_INPUT]` are completed by `respond(decision, option)`. Each dec
 enumerates options — limited to at most 25 entries, derived from the ruleset index, with
 empty-string and "cancel" always available. An unrecognized decision or option returns
 `[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the pre-workflow
-snapshot. _Check:_ T19, T32; Gate 2.
+snapshot. _Check:_ T32; Gate 2.
 
 ### 5.5 Personas and Access
 
@@ -335,21 +335,21 @@ correct persona session. _Check:_ T9, T13, T15, T18, T26, T44.
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://game`), including timestamp, persona, tool name,
 arguments, and output prefix. State queries are not logged. The log survives session
-restarts for the same game. _Check:_ T8, T34.
+restarts for the same game. _Check:_ T8.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
 `undo` restores the most recent mutation; an empty stack returns `[ERROR] [STATE_CONFLICT]`.
 `undo` is a pure-state tool — it itself is not snapshot-able, and the step it reverses is
 removed from the snapshot stack. A pending `[NEED_INPUT]` blocks undo. Cancelling a
 workflow restores the pre-workflow snapshot and discards the workflow's internal undo
-candidates. _Check:_ T10, T34.
+candidates. _Check:_ T10.
 
 **REQ-043 — Conflict lifecycle.** If the ruleset defines a conflict procedure (combat,
 confrontation), it is modeled as game-scoped state: participants, round counter, turn
 order. `init_combat` starts; `advance_combat` resolves one participant's turn and advances
 the turn order, incrementing the round when wrapping around; `end_combat` terminates. A
 turn for a non-entity participant (a danger with no stats) advances automatically.
-Snapshot/load operations work within one session. _Check:_ T11, T25, T33, T34; Gate 2.
+Snapshot/load operations work within one session. _Check:_ T25, T33; Gate 2.
 
 **REQ-044 — Ruleset versioning.** The server records the ruleset's intake hash and
 content fingerprint. A drift check at startup detects changes after intake; a mismatch
@@ -389,14 +389,14 @@ environment is recorded per requirement. _Check:_ T23.
 
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
-change. The server trusts nothing client-supplied. _Check:_ T20, T37, T42.
+change. The server trusts nothing client-supplied. _Check:_ T20, T42.
 
 **REQ-055 — Durability and resume.** Game state survives session restarts:
 entities, HP, conditions, slots, turn order persist. The roster is permanent and immutable
 at baseline. `import_character` brings a fresh copy of a roster entry into a game. Session
 audit logs survive. `end_game` discards the game; the roster survives. Resuming an ended
 game fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with the game.
-_Check:_ T9, T31, T34.
+_Check:_ T9, T31.
 
 ---
 
@@ -670,7 +670,9 @@ DECISIONS.md (6).
     corruption; (e) query a canonical lookup with an ambiguous alias shared by two
     items — assert the server either resolves correctly or returns `[PARTIAL]` listing
     both; (f) replay a roll with the same per-call seed twice — assert identical
-    results (REQ-050).
+    results (REQ-050); (g) call `respond` with an unknown decision name or option —
+    assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated, the
+    decision remains pending, and a subsequent valid `respond` succeeds.
 
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
@@ -1386,14 +1388,14 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-064 | Persona behavioral boundaries | T51                        | 2026-08-03   |
 | REQ-010 | Traceability              | T15                            | 2026-08-02   |
 | REQ-011 | Confidence                | T15                            | 2026-08-02   |
-| REQ-012 | Graceful fallback         | Gate 2, T37                    | 2026-08-02   |
+| REQ-012 | Graceful fallback         | Gate 2, T4                     | 2026-08-02   |
 | REQ-013 | No assumed mechanics      | T25, T32, T33, T36             | 2026-08-02   |
 | REQ-014 | Source immutability       | T21                            | 2026-08-02   |
 | REQ-015 | Action classification     | T15                            | 2026-08-02   |
 | REQ-016 | Guidance extraction       | T26                            | 2026-08-02   |
 | REQ-017 | Role stories              | T28                            | 2026-08-02   |
 | REQ-018 | Extraction evidence       | T15; Discovery checkpoint      | 2026-08-02   |
-| REQ-020 | Tools                     | T3, T5, T32, T33, T37; Gate 2  | 2026-08-02   |
+| REQ-020 | Tools                     | T3, T5, T32, T33; Gate 2       | 2026-08-02   |
 | REQ-021 | Tool-surface economy      | T3, T35                        | 2026-08-02   |
 | REQ-022 | Resources                 | T16                            | 2026-08-02   |
 | REQ-023 | Prompts                   | T22, T22a                      | 2026-08-02   |
@@ -1402,23 +1404,23 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-063 | Connection introduction   | T49, T50                       | 2026-08-03   |
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | 2026-08-02   |
 | REQ-057 | Canonical lookup tools    | T39, T40                       | 2026-08-02   |
-| REQ-058 | Tool-result fidelity      | T37, T41, T42                  | 2026-08-02   |
+| REQ-058 | Tool-result fidelity      | T41, T42                       | 2026-08-02   |
 | REQ-059 | Parameter canon validation| T39, T39a                      | 2026-08-02   |
 | REQ-030 | Single user               | Appendix D                     | 2026-08-02   |
 | REQ-031 | Persona immutability      | T9                             | 2026-08-02   |
 | REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    | 2026-08-02   |
-| REQ-040 | Audit log                 | T8, T34                        | 2026-08-02   |
-| REQ-041 | Snapshots and undo        | T10, T34                       | 2026-08-02   |
-| REQ-042 | Workflow decisions        | T19, T32; Gate 2               | 2026-08-02   |
-| REQ-043 | Conflict lifecycle        | T11, T25, T33, T34; Gate 2     | 2026-08-02   |
+| REQ-040 | Audit log                 | T8                             | 2026-08-02   |
+| REQ-041 | Snapshots and undo        | T10                            | 2026-08-02   |
+| REQ-042 | Workflow decisions        | T32; Gate 2                    | 2026-08-02   |
+| REQ-043 | Conflict lifecycle        | T25, T33; Gate 2               | 2026-08-02   |
 | REQ-044 | Ruleset versioning        | T17                            | 2026-08-02   |
 | REQ-065 | Build fingerprint         | T52                            | 2026-08-04   |
 | REQ-050 | Determinism               | Gate 2, T27                    | 2026-08-02   |
 | REQ-051 | No runtime network access | Appendix D; Gate 4 environment | 2026-08-02   |
 | REQ-052 | Path containment          | T20                            | 2026-08-02   |
 | REQ-053 | Performance               | T23                            | 2026-08-02   |
-| REQ-054 | Input safety              | T20, T37, T42                  | 2026-08-02   |
-| REQ-055 | Durability and resume     | T9, T31, T34                   | 2026-08-02   |
+| REQ-054 | Input safety              | T20, T42                       | 2026-08-02   |
+| REQ-055 | Durability and resume     | T9, T31                        | 2026-08-02   |
 
 ---
 
@@ -1426,7 +1428,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 
 Each test cites its requirements; T29 verifies the traceability table mandate. Waivers
 are allowed only under REQ-013. Tests keep their original numbering; identifiers T1, T2,
-T6, T7, T14, T24, and T30 are retired and never reused.
+T6, T7, T11, T12, T14, T19, T24, T30, T34, and T37 are retired and never reused.
 
 Automated tests must ship a runnable script in the project directory
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exercises the test and returns exit
@@ -1442,20 +1444,17 @@ diet.
 | T8    | Automated | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-040                                     |
 | T9    | Automated | Player blocked from GM tools/content; game_master/unassigned full access; persona and game state survive restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-031, REQ-032, REQ-055                   |
 | T10   | Automated | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-041                                     |
-| T11   | Manual   | Conflict starts, advances, snapshots, ends; explicit load works within one session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-043                                     |
-| T12   | Manual   | Conditions or temporary effects apply and expire per the ruleset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-013, REQ-020                            |
 | T13   | Automated | Truncation at limit with `output://` pointer; payload persona filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-004, REQ-032                            |
 | T15   | Automated | `spec_health` reports confidence, counts, coverage, defects, version; player filters GM-only items; game_master/unassigned report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
 | T16   | Automated | Rules index loads; anchor count matches structural pass; resource retrieval returns expected Markdown for major anchors; re-index twice and diff URI lists; `resources/list` stable across entity creation; entity, roster-record, and `output://` templates appear in `resources/templates/list`; resources declare REQ-022 media type and title                                                                                                                                                                                                                                                                                                        | REQ-022                                     |
 | T17   | Automated | Ruleset drift after intake — simulated on a copy of the ruleset so T21's byte-identity holds — → stderr warning + `spec_health` flag                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-044                                     |
 | T18   | Manual   | Anti-persona scenarios (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-002, REQ-032                            |
-| T19   | Manual   | Workflow round-trip: `[NEED_INPUT]` → `respond` resumes; `cancel` restores snapshot; `undo` while a decision is pending fails `[ERROR] [STATE_CONFLICT]`; an invalid `respond` (unknown decision or option) fails `[ERROR] [NOT_FOUND]` with the decision still pending, and a valid `respond` then succeeds                                                                                                                                                                                                                                                                                                                                              | REQ-042, REQ-041                            |
 | T20   | Automated | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
 | T21   | Automated | Original Markdown — and, where conversion applied (Appendix G), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
 | T22   | Automated | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-023                                     |
 | T22a  | Automated | Add a stub tool, restart, call all five prompts, assert the stub appears in each; remove it, restart, assert absence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-023                                     |
 | T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
-| T25   | Manual   | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, T11 waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
+| T25   | Automated | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, the conflict tools are waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
 | T26   | Manual   | Guidance items cited, confidence-labeled, attributed; GM-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; persona foundations present in `persona_briefing`; Player briefing excludes GM-tagged foundations; Player read of `guidance://<gm-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
 | T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; witness values from Appendix B.4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-050, REQ-055                            |
 | T28   | Manual   | Role stories: MUST-covering set maps intent prompts to expected tools/resources; GM-targeting stories fail FORBIDDEN; each persona's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
@@ -1463,10 +1462,8 @@ diet.
 | T31   | Automated | Game isolation: entities invisible across games; roster baselines immutable; `import_character` creates fresh copy; `end_game` discards game; roster survives; resuming ended game fails                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-055                                     |
 | T32   | Manual   | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment; if leveling defined, verify class-table progression via REQ-056; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056          |
 | T33   | Manual   | Combat resolution uses ruleset: attack with named weapon/spell via ruleset-specific and canonical lookup tools; damage dice, type, and properties match ruleset entry; miss/save produces ruleset outcome, no HP change; H5 automates live invocation; waived if no attack procedure                                                                                                                                                                                                                                                                                                                                                                     | REQ-013, REQ-020, REQ-043, REQ-057          |
-| T34   | Manual   | Server-side combat state survives disconnect: HP, conditions, slots, turn order restored on reconnect; LLM not required to track them; waived if no conflict procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-040, REQ-041, REQ-043, REQ-055          |
 | T35   | Automated | Fixture isolation: with the target ruleset (not the Appendix B fixture), verify that fixture-only tool names (`create_delver`, `roll_move`, `start_confrontation`) are absent from `tools/list`; when serving the fixture itself, verify they are present                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-021, REQ-024                            |
 | T36   | Automated | DECISIONS.md review: section (1) edition/title matches source; section (5) covers every hardcoded class, species, hit-dice, equipment, or spell table with waiver; missing waiver is failure                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-013, Section 8                          |
-| T37   | Manual   | Tool-result fidelity: search/lookup returning no results for known term reports `[NOT_FOUND]` or `[PARTIAL]` with corrective action; builder must not patch around missing results                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-012, REQ-020, REQ-054, REQ-058          |
 | T38   | Manual   | Advancement workflow derives tool name from ruleset term; raises `[NEED_INPUT]` for open choices; applies progression server-side; waived if no advancement procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | REQ-056, REQ-013, REQ-042                   |
 | T39   | Automated | Canonical lookup tools registered: for each required category (equipment, spells, monsters, conditions, feats, class features, species, backgrounds as the ruleset requires), assert a `lookup_<category>` tool is in `tools/list`, accepts the canonical name and documented aliases, and returns the ruleset entry                                                                                                                                                                                                                                                                                                                                      | REQ-057, REQ-024                            |
 | T40   | Automated | Lookup tool rejects unknown names: request a non-existent item and assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; assert no fabricated entry is returned                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-057, REQ-002                            |
@@ -1480,7 +1477,7 @@ diet.
 | T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-060                                     |
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `persona_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any persona (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
-| T50   | Manual   | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (player, game_master, unassigned) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-032                   |
+| T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (player, game_master, unassigned) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Persona behavioral boundaries: invoke a Player-persona session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-persona session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both personas and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T52   | Automated | Build fingerprint: build server, create state (character, game entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 
