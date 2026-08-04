@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-04 — README comparison section, fuzzy-match hints, propose-validate principle
+
+- README: added "One spec. Any game. Zero code." tagline, "How Holonovel Compares"
+  section (vs AI Dungeon, rpg-mcp, ChatGPT, consumer platforms), SEO keywords in
+  "What you get" and "Who is this for" bullets, and RSS feed link.
+- REQ-002: `[NOT_FOUND]` and `[INVALID_INPUT]` errors now include "Did you mean?"
+  fuzzy-match hints when a close Levenshtein match exists (distance ≤ 2). T40 and
+  T39a updated with fuzzy-assertion clauses.
+- §4 standing rules: added rule 6 — "LLMs propose intentions; the engine validates
+  and executes." Codifies the anti-hallucination architecture already enforced by
+  persona gating, tool-result fidelity, and parameter canon validation. Existing rule 6
+  renumbered to 7.
+
 ## 2026-08-04 — Persona system rewrite, intake simplification, README sync
 
 - Persona system rewritten: no persona active by default (full access
