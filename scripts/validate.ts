@@ -155,13 +155,18 @@ function findReqCitations(text: string): Set<string> {
 }
 
 function findTestCitations(text: string): Set<string> {
-  const sec7Start = text.indexOf("## 7. Verification Gates");
-  const sec8Start = text.indexOf("## 8.");
+  const gatesStart = text.indexOf("## 8. Verification Gates");
+  const gatesEnd = text.indexOf("## 9. Artifacts");
   let combined: string;
-  if (sec7Start !== -1 && sec8Start !== -1) {
-    combined = text.slice(0, sec7Start) + text.slice(sec8Start);
+  if (gatesStart !== -1 && gatesEnd !== -1) {
+    combined = text.slice(0, gatesStart) + text.slice(gatesEnd);
   } else {
     combined = text;
+  }
+  const aptStart = combined.indexOf("## Appendix T:");
+  const aptEnd = combined.indexOf("\n##", aptStart + 1);
+  if (aptStart !== -1) {
+    combined = combined.slice(0, aptStart) + (aptEnd !== -1 ? combined.slice(aptEnd) : "");
   }
   const matches = combined.matchAll(/\b(T\d+[a-z]?)\b/g);
   return new Set(Array.from(matches, (m) => m[1]));

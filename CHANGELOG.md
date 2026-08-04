@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-08-03 — Major rewrite: compress specification from 4,530 to 1,360 lines
+
+- Restructured the document: new section order (§1–11) with Quick Reference box,
+  requirements-at-a-glance, and consolidated appendices (A–G, T, I).
+- Compressed each of the 34 REQ blocks from multi-paragraph prose and tables to
+  single-paragraph statements keeping only the normative body and check citations.
+  REQ-056 (advancement) and REQ-063 (intro) collapsed from prescribed
+  implementations to principle-level statements.
+- Cut the 20-item output convention catalog (§6.3 old) to roll-result format,
+  error format, and the Golden Transcript as canonical reference.
+- Consolidated convergence rules into one table (§6.5) replacing five separate
+  activity-specific loops.
+- Merged handoff check definitions (old Appendix G) into the §9 handoff checks
+  table with a Procedure column, eliminating 120+ lines of per-check prose.
+- Moved derived test catalogue from §7 to Appendix T; updated validate.ts to
+  handle new section boundaries.
+- Reduced appendices: old A (parsing heuristics) to principles only, cutting
+  A.1 content-type detection signals and A.2 structured progression extraction;
+  old D (conformance) to checklist only, cutting illustrative exchanges and undo
+  script; old F (conversion) to 30 lines; old H (ruleset prep) to the H.13
+  checklist only; old I (catalog) to table only.
+- Converted optional phases (§§10–11 old, now §11) from detailed build
+  instructions to phase declarations with pre-build question tables.
+- Eliminated duplicate content: guardrails (§3 old) which duplicated REQ-058;
+  per-checkpoint focus descriptions (§5.6 old) which duplicated requirement
+  citations; persona foundations (§6.9a old) which belonged in Phase 3.
+- Net reduction: ~65% fewer lines (~4,530 → ~1,360), ~50% fewer tokens.
+  No requirements added or removed; all verification gates and golden transcript
+  unchanged.
+
 ## 2026-08-03 — Add conversion fidelity gates, sampling, and reporting
 
 - Added pre-batch conversion fidelity sampling to Appendix F (new F.1): sample
