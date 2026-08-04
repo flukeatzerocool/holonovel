@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-08-04 — Community-informed improvements; play model; terminology; 11 new REQs
+
+- Play model rewritten: Player persona is the human at the table (default); Game
+  Master persona is the AI narrator and adjudicator. `set_persona` remains available
+  for correction and direct state management. Multi-character clarified: one user per
+  connection, multiple entities per game.
+- Terminology: "Session" renamed to "Connection" for the MCP transport tier.
+  "Game" sharpened to mean the `TTRPG_GAME_ID` state container. Informal uses of
+  "game" meaning "ruleset" replaced throughout.
+- 11 new requirements: REQ-067 (help and tool discovery), REQ-070 (anti-slop
+  guidance — Appendix J), REQ-071 (voice examples), REQ-072 (session recap),
+  REQ-073 (countdowns/timers), REQ-074 (multi-entity support), REQ-075 (named-NPC
+  state), REQ-076 (scene-state ledger), REQ-077 (entity personality fields),
+  REQ-078 (session zero prompt), REQ-079 (adventure modules — Appendix K).
+- REQ-020 amended: session recap added to minimum tool categories.
+- REQ-022 amended: 8 new resource URIs added (guidance variants, scene, countdown,
+  party, NPC, personality, adventure).
+- REQ-023 amended: prompts expanded from 4 to 6 (use_tool now includes worked
+  examples; session_zero added). persona_briefing composition changed from
+  prescribed order to category list (Standing Rule 6).
+- New tool specs: `player_signal` (inert preference signals), persona switch
+  guidance resource (`guidance://shared/persona-switch`).
+- §6.3 Discovery: voice example extraction added as guidance subcategory.
+- §7.7 State model: expanded from 3 tiers (Roster/Game/Connection) to 7 tiers
+  by adding NPC, Scene, Countdown, and Adventure rows.
+- §7.6 Config surface: `TTRPG_ADVENTURE` env var added.
+- REQ-043: clarified participants may be entities, named NPCs, or dangers.
+- Appendix D: `help` added to required utility tools.
+- Appendix E: 11 new REQ rows (56 total).
+- Appendix F: 10 new test rows T53–T62 added.
+- New Appendices: J (Anti-Slop Catalogue — 13 patterns), K (Adventure Module
+  Format).
+- Appendix I: "Game" column renamed to "Ruleset".
+- Golden transcript (B.3): "new session" → "new connection" (one line).
+- README: "Who is this for?" rewritten for target audience (solo RPG players,
+  AI roleplay enthusiasts).
+
 ## 2026-08-04 — Remove unassigned persona; pre-build gate; dedup; ses_034b fixes; proofread
 
 - Removed the `unassigned` persona entirely (A1–A15): REQ-031 default is now

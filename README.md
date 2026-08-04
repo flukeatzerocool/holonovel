@@ -58,11 +58,27 @@ Pick a game. Feed it to an AI. Start playing.
 
 ## Who is this for?
 
-You. You've got tabletop RPG books and an AI agent. You want the
-rules at your fingertips without wiring up tools by hand. Players
-who want dice automation and character tracking. Game Masters who
-want combat management and instant monster lookups. Developers who
-want to skip the integration work and let AI build the bridge.
+**Solo RPG players.** You run entire parties by yourself. You need rules
+that don't drift, dice you can trust, and state that survives between
+sessions. You use SillyTavern, OpenRouter, or a local LLM as your
+narrator — Holonovel is the rules engine that keeps it honest.
+
+**AI roleplay enthusiasts.** You've spent hours tuning character cards,
+lorebooks, and system prompts. Your narrator still forgets the rules
+mid-combat and invents mechanics that don't exist. Holonovel is the
+lorebook for rules — it can't forget, can't invent, and cites its
+sources.
+
+**Players who want less bookkeeping.** Dice automation, character
+tracking, condition management, countdowns, session recaps — the
+server handles it so you focus on the story. Two play modes: Player
+mode lets the AI narrate and adjudicate while you act; Game Master
+mode gives you full control.
+
+**Developers.** Skip the integration work. Feed the spec your rulebooks
+and an AI agent builds the MCP server. Dice, combat, character
+sheets, monster lookups, NPCs, scene tracking — 35+ requirements
+verified against a golden transcript.
 
 ## How it works
 

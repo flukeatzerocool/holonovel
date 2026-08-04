@@ -3,12 +3,16 @@
 > **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
 > server, and proves it works. Output: a running MCP server with dice, combat, character
-> management, and rules lookup — plus four artifacts (RULESET_MODEL.md, DECISIONS.md,
-> README.md, AGENTS.md). Quality enforced by five verification gates, 12 handoff checks, and
-> a golden-transcript replay. One server per ruleset. No network at runtime (REQ-051). Two personas
-> (player/game_master) gated server-side (REQ-032), switchable via `set_persona` (REQ-066). State tiers:
-> roster persists, games isolate, session audit logs persist. RNG deterministic and seedable.
-> Requirements state the contract; verification loops enforce quality.
+> management, rules lookup, scene-state tracking, NPC management, countdowns, and session
+> recap — plus four artifacts (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md).
+> Quality enforced by five verification gates, 12 handoff checks, and a golden-transcript
+> replay. One server per ruleset. No network at runtime (REQ-051). The Player persona is the
+> human at the table; the Game Master persona is the AI narrator (REQ-032), switchable via
+> `set_persona` (REQ-066). Multi-character support: one player may control multiple entities
+> (REQ-074). Adventures load as indexed reference content (REQ-079). State tiers: roster
+> persists, games isolate, connections are ephemeral transport, game audit logs persist. RNG
+> deterministic and seedable. Requirements state the contract; verification loops enforce
+> quality.
 
 ## Contents
 
@@ -32,6 +36,8 @@
 - [Appendix G: Source Conversion](#appendix-g-source-conversion)
 - [Appendix H: Ruleset Preparation Checklist](#appendix-h-ruleset-preparation-checklist)
 - [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
+- [Appendix J: Anti-Slop Catalogue](#appendix-j-anti-slop-catalogue)
+- [Appendix K: Adventure Module Format](#appendix-k-adventure-module-format)
 
 ---
 
@@ -42,16 +48,11 @@ converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
 coding — the AI reads the ruleset and builds.
 
-**The play model.** Two roles, enforced server-side:
-
-| Persona    | Description                                      |
-| ---------- | ------------------------------------------------ |
-| Player     | One participant in the game.                      |
-| Game Master | The adjudicator (Keeper, DM, etc.).   |
-
-One user per server session (REQ-030). The persona is the active role, switchable at runtime
-via `set_persona` (REQ-066). Cross-persona — GM tools blocked from players, GM-only content
-gated (REQ-032). The ruleset's own terms are used everywhere.
+**The play model.** Two personas, enforced server-side. The Player persona is the human at the
+table — the default. The Game Master persona is the AI narrator and adjudicator. The
+player may switch to Game Master to correct, undo, or directly manage game state;
+`set_persona` (REQ-066) enables this without restart. One user per MCP connection
+(REQ-030) — no multiplayer.
 
 **Definition of done.** The server must: (1) pass all five verification gates (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
@@ -114,8 +115,12 @@ The spec is designed around six failure modes. Recognize them early.
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
 | Persona        | Active role — `player` or `game_master` (REQ-031, REQ-066).                |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
-| Game           | An active play session's entities and state, isolated from other games.                   |
-| Session        | A single MCP connection; persona defaults to `TTRPG_PERSONA`, switchable at runtime (REQ-066). |
+| Game           | One state container identified by `TTRPG_GAME_ID`. Holds all entities,      |
+|                | conditions, combat state, scene state, NPCs, and audit log for a single      |
+|                | ruleset playthrough. Isolated from other games; one active game per server   |
+|                | instance. Survives Connection restarts; discarded by `end_game`.             |
+| Connection     | One MCP transport lifecycle; born at startup, dies at close. No persistent   |
+|                | state of its own — game state and audit log survive the connection.          |
 
 **Technology stack.** Node.js, TypeScript, stdio transport. Single process, no database, no
 external services. Chosen for universal MCP host compatibility.
@@ -171,6 +176,23 @@ be a fan of the players, collaborate with players, hold on loosely) and core pla
 (embrace danger, take initiative, think beyond the sheet, collaborate with the Game Master, share
 the spotlight, build on others' contributions) — as brief quoted data before the
 ruleset-derived guidance. _Check:_ T26.
+
+**REQ-070 — Anti-slop guidance.** Persona foundations include anti-slop guidance — concrete
+examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]`
+and served at `guidance://<role>/anti-slop`. Twelve patterns: six Game Master (purple prose,
+negation framing, rushing to closure, rubber-stamp success, declaring player actions,
+predictable rhythm, over-describing the known) and five Player (establishing world facts,
+assuming outcomes, rushing past tension, declaring NPC reactions, monologuing world-truths,
+skipping steps). The catalogue is spec-embedded in Appendix J, not extracted from the
+ruleset. Anti-slop guidance is persona-filtered and appears in `persona_briefing` after
+foundations and before scene state. _Check:_ T26.
+
+**REQ-071 — Voice examples.** `persona_briefing` includes up to three `[voice]`-tagged
+guidance items per persona — example-of-play prose extracted from the ruleset that
+demonstrates narrative tone, served at `guidance://<role>/voice`. Each carries source
+anchor and confidence. Discovery (§6.3) extracts voice examples as a guidance subcategory.
+When the ruleset provides none, the Enrich job (§11.1) may source community voice
+examples. _Check:_ T26.
 
 **REQ-064 — Persona behavioral boundaries.** The server respects persona boundaries in
 all tool output. The Game Master persona describes situations, surfaces essential
@@ -238,7 +260,7 @@ checkpoint.
 
 **REQ-020 — Tools.** Server behavior is modeled as MCP tools. Tools derive names from
 ruleset terminology — never invented names. Character creation, condition management,
-combat encounter management, and table rolling are the minimum tool categories any
+combat encounter management, table rolling, and session recap are the minimum tool categories any
 ruleset deserves; missing categories are recorded as waivers. _Check:_ T3, T5, T32,
 T33; Gate 2.
 
@@ -248,17 +270,24 @@ by extraction, not by what a builder finds easy to implement. The per-tool justi
 list matches the registry. _Check:_ T3, T35.
 
 **REQ-022 — Resources.** The server provides `ruleset://` (with persona filtering),
-`entities://`, `entity://<id>`, `audit://game`, `roster://<type>`, `roster://<id>`, and
-`guidance://<role>`. `resources/templates/list` advertises entity, roster-record, and
-`output://` templates. `resources/read` returns Markdown with a small source header.
+`entities://`, `entity://<id>`, `audit://game`, `roster://<type>`, `roster://<id>`,
+`guidance://<role>`, `guidance://<role>/anti-slop`, `guidance://<role>/voice`,
+`guidance://shared/persona-switch`, `scene://current`, `countdown://active`,
+`party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`, and
+`adventure://<slug>/<anchor>`. `resources/templates/list` advertises entity, roster-record,
+and `output://` templates. `resources/read` returns Markdown with a small source header.
 _Check:_ T16.
 
-**REQ-023 — Prompts.** The server provides four prompts: (1) `use_tool` — maps player
-intent to tool calls, (2) `lookup_rule` — searches the indexed ruleset, (3) `run_workflow`
-— steps through multi-decision procedures, and (4) `persona_briefing` — what this persona
-can see and do. Prompts are dynamic: adding a tool, resource, or guidance item updates their
-output without restart — no staleness allowed. An `intro` prompt (REQ-063) is listed first
-and is a separate, always-available entry point. `prompts/get` returns exactly one user-role
+**REQ-023 — Prompts.** The server provides six prompts: (1) `use_tool` — maps player
+intent to tool calls, with at least one worked example per registered tool pairing a
+narrative intent with a concrete tool invocation from role stories (REQ-017), (2)
+`lookup_rule` — searches the indexed ruleset, (3) `run_workflow` — steps through
+multi-decision procedures, with complete walkthrough examples for character creation and
+advancement where the ruleset defines them, (4) `persona_briefing` — what this persona
+can see and do, (5) `intro` — always-available connection starter (REQ-063), and (6)
+`session_zero` — a structured questionnaire surfaced at the start of a new adventure
+(REQ-078). Prompts are dynamic: adding a tool, resource, or guidance item updates their
+output without restart — no staleness allowed. `prompts/get` returns exactly one user-role
 message. `prompts/list` carries a title on every prompt and a description on every argument.
 _Check:_ T22, T22a.
 
@@ -271,11 +300,30 @@ procedures, guidance items), pending sections, MUST-action coverage, defect coun
 ruleset-version status, and gate dispositions. The player persona sees only player-filtered
 metrics. Output is filtered by persona. _Check:_ T15, T45.
 
+**REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
+required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_health`.
+`help` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to
+the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters,
+dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and
+(3) a pointer to `persona_briefing` for persona-specific guidance. With a query, it
+searches tool descriptions, prompt summaries, and guidance text for the most relevant
+matches and returns their names, descriptions, and example invocations from the tool-use
+playbook. Output is persona-filtered. _Check:_ T62.
+
 **REQ-063 — Connection introduction.** The server provides an `intro` prompt, listed first
 in `prompts/list`. It takes no arguments, is visible to all personas, and serves as a
-conversation starter — a brief overview of the game, its core mechanic, and concrete next
+conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
 actions a player can take. The `help` tool and `persona_briefing` each point to it.
 _Check:_ T49, T50.
+
+**REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
+arguments, is Player-visible only, and serves as a structured questionnaire surfaced at the
+start of a new adventure. It gathers: character introductions (narrative fields, REQ-077),
+tone preference (lighter/darker/grittier), difficulty preference, pacing preference
+(more-action/more-exploration/more-dialogue), content boundaries (topics to avoid), and
+adventure confirmation. Player responses feed into `player_signal` and entity personality
+fields. `session_zero` is listed in `prompts/list` after `intro`. The `intro` prompt
+includes a pointer to `session_zero`. _Check:_ T22.
 
 **REQ-057 — Canonical lookup tools.** For each category the ruleset defines as canonical
 content (equipment, spells, monsters/stat-blocks, conditions, feats, class features,
@@ -316,9 +364,9 @@ snapshot. _Check:_ T32; Gate 2.
 
 ### 5.5 Personas and Access
 
-**REQ-030 — Single user.** One session serves one active persona at a time — the persona
+**REQ-030 — Single user.** One connection serves one active persona at a time — the persona
 most recently set via `set_persona` or `TTRPG_PERSONA`. No concurrency, no multiplayer
-state sharing within a session. _Check:_ Appendix D.
+state sharing within a connection. _Check:_ Appendix D.
 
 **REQ-031 — Persona activation.** The active persona is `player` by default. It can be
 set at startup via `TTRPG_PERSONA` or at runtime via the `set_persona` tool. Only one
@@ -345,7 +393,7 @@ T18, T26, T44.
 **REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://game`), including timestamp, persona, tool name,
-arguments, and output prefix. State queries are not logged. The log survives session
+arguments, and output prefix. State queries are not logged. The log survives connection
 restarts for the same game. _Check:_ T8.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
@@ -358,9 +406,97 @@ candidates. _Check:_ T10.
 **REQ-043 — Conflict lifecycle.** If the ruleset defines a conflict procedure (combat,
 confrontation), it is modeled as game-scoped state: participants, round counter, turn
 order. `init_combat` starts; `advance_combat` resolves one participant's turn and advances
-the turn order, incrementing the round when wrapping around; `end_combat` terminates. A
-turn for a non-entity participant (a danger with no stats) advances automatically.
-Snapshot/load operations work within one session. _Check:_ T25, T33; Gate 2.
+the turn order, incrementing the round when wrapping around; `end_combat` terminates.
+Participants may be entities, named NPCs (REQ-075), or dangers. A turn for a participant
+with no turn-defining stats (a danger or a statless NPC) advances automatically.
+Snapshot/load operations work within one connection. _Check:_ T25, T33; Gate 2.
+
+**REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
+that returns a structured summary of the current game: session timespan (earliest to latest
+audit entry), active entities with final state (HP, conditions, status), completed
+confrontations, pending confrontations, current scene state, roster changes, condition
+changes, and the last N significant rolls (default 5, configurable). `session_recap` output
+is persona-filtered: the Player persona sees only own-entity data; the Game Master persona
+sees all. Session recap does not produce prose — it returns structured data the LLM uses
+to narrate the recap. _Check:_ T53.
+
+**REQ-073 — Countdowns.** The server supports named game-scoped countdowns via
+`set_countdown(name, ticks, trigger)`. A `round` countdown decrements automatically at the
+end of each combat round. A `narrative` countdown decrements only when the Game Master
+calls `advance_countdown(name)` (for in-world events: time until sunrise, enemy army
+arrival, ritual completion, torch burnout, poison timers). `remove_countdown(name)` deletes
+a countdown. When a countdown reaches zero, it fires: recorded in the audit log with a
+timestamp. Expired countdowns are retained in the log but removed from active countdowns
+in `persona_briefing`. `countdown://active` lists all active countdowns with remaining
+ticks. Countdowns are game-scoped — they survive connection restarts, are discarded by
+`end_game`. Countdown tools are Game Master only; the Player persona reads active
+countdowns via `persona_briefing`. _Check:_ T54.
+
+**REQ-074 — Multi-entity support.** A game may contain multiple game entities under the
+same persona. The roster may hold multiple entities for the player. `entities://` lists
+all game entities visible to the active persona. One entity is the active entity — the
+default target for tools that accept an `entity_id` when no `entity_id` is supplied. The
+first imported entity is the active entity by default. `set_active_entity(entity_id)`
+switches the active entity and is always callable regardless of persona. The `party`
+resource (`party://current`) lists all player-owned entities with summary stats: name,
+active status, HP, and conditions. REP-030 scoping is unchanged — one user per
+connection, no multiplayer. _Check:_ T55.
+
+**REQ-075 — Named-NPC state.** The server supports named non-player characters via
+`create_npc(name)`. NPCs are game-scoped with URIs (`npc://<id>`). Only `name` is a
+required field; optional fields include `description`, `disposition`, `location`, and
+any ruleset-derived stat fields as partial entries (all optional). NPCs may participate in
+confrontations alongside entities and dangers (REQ-043). `update_npc(id, fields)` mutates
+NPC fields; `remove_npc(id)` deletes an NPC. `npcs://` lists all active NPCs. NPC state
+persists with the game. All NPC tools are Game Master only; the Player persona reads
+NPC state via `persona_briefing` and resource URIs. _Check:_ T56.
+
+**REQ-076 — Scene-state ledger.** The server maintains a game-scoped narrative scene
+description via `set_scene_state(description)`. Each call creates a timestamped entry in
+the audit log; previous entries are retained in audit history. `scene://current` returns
+the most recent scene state. Scene state is narrative context only — it never influences
+tool behavior, search results, or mechanical resolution. The `set_scene_state` tool is
+Game Master only; the Player persona reads scene state via `persona_briefing` and
+`scene://current`. Scene state survives connection restarts; it is discarded by
+`end_game`. _Check:_ T57.
+
+**REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
+fields: `description` (physical appearance), `voice` (speech patterns and mannerisms),
+`background` (history and motivation), and `goals` (current objectives). These fields are
+narrative context — inert data, not mechanical. They are stored at the roster level and
+are explicitly mutable (an exception to roster baseline immutability — narrative fields,
+unlike mechanical stats, may be edited after creation). Fields are surfaced in
+`persona_briefing` alongside entity stats and at `entity://<id>/personality`. Game-level
+overrides: if personality fields are set on a game entity via `set_personality(entity_id,
+fields)`, they override the roster baseline for that game only. The `set_personality`
+tool is Player-only for own entities. On game entity import, roster personality fields
+are copied alongside mechanical stats. _Check:_ T58.
+
+**Player feedback signal.** The server provides a `player_signal(signal, value)` tool —
+Player-only. Records a structured preference signal: `pace` (slower/faster), `difficulty`
+(easier/harder), `tone` (lighter/darker/grittier), `focus`
+(more-action/more-exploration/more-dialogue), or `boundary` (avoid a topic string). The
+signal is recorded in the audit log and surfaced in `persona_briefing` as current player
+preferences. Purely inert data — the server does not enforce preferences; the LLM reads
+them and adjusts narration. Adversarial free-text in `value` is stored verbatim as inert
+data (REQ-054).
+
+**REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
+Build job alongside the ruleset. Adventure content is indexed and served at
+`adventure://<adventure-slug>/<anchor>`. No mechanical extraction — all adventure content
+is guidance-category. One adventure is active per game, set via `load_adventure(adventure)`
+(Game Master only). `search_rules` includes adventure content; active-adventure results are
+sorted first. `persona_briefing` includes the active adventure's hook and current location.
+Adventure content is persona-filtered: sections marked `*Keeper only*` (or the ruleset's
+adjudicator term) are hidden from the Player persona; unmarked sections are visible to all.
+Multiple adventures may be indexed; only the active adventure's content is surfaced in
+`persona_briefing`. Adventure NPCs are reference text — the Game Master creates them as
+named-NPCs (REQ-075) at runtime. Adventure format conventions are defined in Appendix K.
+Adventure content is read-only index-level data — it never influences tool behavior. State
+isolation: adventure NPCs are game entities (discarded by `end_game`); switching adventures
+replaces the active adventure but retains existing game entities. `load_adventure` is Game
+Master only. `TTRPG_ADVENTURE` env var (optional, comma-separated paths) pre-loads
+adventures at startup. _Check:_ T59, T60, T61.
 
 **REQ-044 — Ruleset versioning.** The server records the ruleset's intake hash and
 content fingerprint. A drift check at startup detects changes after intake; a mismatch
@@ -402,7 +538,7 @@ environment is recorded per requirement. _Check:_ T23.
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
 change. The server trusts nothing client-supplied. _Check:_ T20, T42.
 
-**REQ-055 — Durability and resume.** Game state survives session restarts:
+**REQ-055 — Durability and resume.** Game state survives connection restarts:
 entities, HP, conditions, slots, turn order persist. The roster is permanent and immutable
 at baseline. `import_character` brings a fresh copy of a roster entry into a game. Session
 audit logs survive. `end_game` discards the game; the roster survives. Resuming an ended
@@ -479,6 +615,7 @@ next job.
 | B6  | MCP server name              | String                           | derived from B2     |
 | B7  | Default persona for MCP client config | player / game_master       | player              |
 | B8  | Connect MCP client to server after build? | yes / no                | yes                 |
+| B9  | Adventure Markdown path(s)   | Comma-separated paths, or "none"  | none               |
 
 **Config verification.** After writing the MCP client configuration, the builder
 fetches the target client's documentation for its MCP server config schema (from
@@ -532,7 +669,7 @@ Cross-chunk references are resolved at the end.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
-1. **Concepts** — named game terms: stats, moves, conditions, statuses. Each with
+1. **Concepts** — named ruleset terms: stats, moves, conditions, statuses. Each with
    confidence and source anchor.
 2. **Entities** — character types, monsters, NPCs. Each with fields, field types, default
    values and ranges, and lifecycle (creation, advancement, deletion where defined).
@@ -542,6 +679,9 @@ Cross-chunk references are resolved at the end.
 5. **Resolution** — the core mechanic: dice notation, stat associations, result bands.
 6. **Roles** — Player and Game Master terms from the ruleset.
 7. **Guidance** — role-addressed prose, verbatim, with attribution and persona scope.
+   **Voice examples** are a guidance subcategory: example-of-play passages that demonstrate
+   the ruleset's narrative tone, tagged `[voice]` and surfaced in `persona_briefing`
+   (REQ-071).
 
 **Outputs.** Discovery produces:
 
@@ -802,25 +942,31 @@ fires. `cancel` restores the pre-workflow snapshot.
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
 | `TTRPG_PERSONA`      | No       | Default active persona on startup (`player`, `game_master`) |
-| `TTRPG_GAME_ID`      | No¹      | Game identifier for cross-session persistence       |
+| `TTRPG_GAME_ID`      | No¹      | Game identifier for cross-connection persistence       |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
-| `TTRPG_SESSION_ID`   | No       | Session identifier for audit log continuity         |
+| `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
 | `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`)        |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
+| `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 
 ¹ Required to resume an existing game.
 
 ### 7.7 State model
 
-Three tiers of state:
+State tiers:
 
-| Tier    | Scope                | Lifecycle                               | Visibility                |
-| ------- | -------------------- | --------------------------------------- | ------------------------- |
-| Roster  | Cross-game           | Permanent, baselines immutable          | Player (own) / Game Master (all) |
-| Game    | One `TTRPG_GAME_ID`  | Survives session restarts, discarded by `end_game` | One game per server instance |
-| Session | One MCP connection   | Born at startup, dies at close          | Audit log survives via game |
+| Tier      | Scope                | Lifecycle                               | Visibility                |
+| --------- | -------------------- | --------------------------------------- | ------------------------- |
+| Roster    | Cross-game           | Permanent, baselines immutable (narrative fields mutable per REQ-077) | Player (own) / Game Master (all) |
+| Game      | One `TTRPG_GAME_ID`  | Survives connection restarts, discarded by `end_game` | One game per server instance |
+| Connection | One MCP transport    | Born at startup, dies at close          | No persistent state — game state and audit log survive the connection |
+| NPC       | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
+| Scene     | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write, Player read-only |
+| Countdown | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
+| Adventure | Index (read-only)    | Loaded at build time, survives connections | Content persona-filtered; one active adventure per game |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no persistent state.
+Named NPCs (REQ-075) have IDs, URIs, and persistent state.
 
 The build fingerprint — specification version, ruleset hash, and build timestamp — is
 stored in the state directory. On startup with existing state, the fingerprint
@@ -842,9 +988,16 @@ never influences tool behavior, search results, or model extraction.
 `guidance://shared` — each returning an index of guidance items visible to that persona.
 Individual items are at `guidance://<role>/<anchor>`.
 
-**Prompts.** `persona_briefing` composes, in order: generic persona foundations
-(REQ-062), ruleset-derived guidance (REQ-016), the tool and resource registry filtered
-by persona (REQ-023), and a pointer to the `intro` prompt (REQ-063).
+**Prompts.** `persona_briefing` composes these categories, persona-filtered: generic persona
+foundations (REQ-062, including anti-slop REQ-070 and voice examples REQ-071), persona
+switch guidance (`guidance://shared/persona-switch`), scene state (if set, REQ-076),
+active adventure context (if loaded, REQ-079), entity summaries with personality fields
+(REQ-077), active countdowns (REQ-073), current player signals, ruleset-derived guidance
+(REQ-016), the tool and resource registry filtered by persona (REQ-023), and pointers to
+the `intro` (REQ-063) and `session_zero` (REQ-078) prompts. The builder determines the
+optimal composition order for the specific ruleset and model; the convergence loop (§6.5)
+verifies completeness. `guidance://shared/persona-switch` provides common patterns for
+when to switch personas during play.
 
 ---
 
@@ -1289,7 +1442,7 @@ Corrective action: ask the Keeper to roll, or switch to game_master persona via 
 → roll_on_table { "table": "knacks", "seed": 42 }
 [OK] Knacks (knacks): rolled 2 — Iron Stomach: immune to ingested poisons
 
-# --- same game, new session, persona: Lantern Keeper ---
+# --- same game, new connection, persona: Lantern Keeper ---
 → start_confrontation { "participants": ["delver_01"], "dangers": ["hollow-man"] }
 [OK] Confrontation active. Round 1. Turn order: Moss, hollow man.
 
@@ -1408,7 +1561,7 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   implements — tools, resources, and prompts — and no others; `resources` advertises no
   `subscribe`, and none of `tools`, `resources`, or `prompts` advertises `listChanged`.
 - `tools/list`: unique names, valid JSON schemas, required utility tools present
-  (`search_rules`, `respond`, `undo`, `spec_health`).
+  (`search_rules`, `respond`, `undo`, `spec_health`, `help`).
 - `tools/call`: REQ-001 prefix and `isError` semantics on success and failure paths.
   Tool-level failure is a normal `result` with `isError: true`, never a JSON-RPC `error`
   response. SDK-level schema-validation failures surface as `-32602` and carry no REQ-002
@@ -1489,6 +1642,17 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-053 | Performance               | T23                            | 2026-08-02   |
 | REQ-054 | Input safety              | T20, T42                       | 2026-08-02   |
 | REQ-055 | Durability and resume     | T9, T31                        | 2026-08-02   |
+| REQ-067 | Help and tool discovery   | T62                            | 2026-08-04   |
+| REQ-070 | Anti-slop guidance        | T26                            | 2026-08-04   |
+| REQ-071 | Voice examples            | T26                            | 2026-08-04   |
+| REQ-072 | Session recap             | T53                            | 2026-08-04   |
+| REQ-073 | Countdowns                | T54                            | 2026-08-04   |
+| REQ-074 | Multi-entity support      | T55                            | 2026-08-04   |
+| REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
+| REQ-076 | Scene-state ledger        | T57                            | 2026-08-04   |
+| REQ-077 | Entity personality fields | T58                            | 2026-08-04   |
+| REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
+| REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
 
 ---
 
@@ -1548,6 +1712,16 @@ diet.
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (switch via `set_persona`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Persona behavioral boundaries: invoke a Player-persona session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-persona session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both personas and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T52   | Automated | Build fingerprint: build server, create state (character, game entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
+| T53   | Automated | Session recap: invoke `session_recap` after a combat session, assert the summary includes entities with final HP and conditions, combat outcomes, and scene state. Invoke as Player persona — assert only own-entity data appears. Invoke as Game Master — assert all entity data appears.                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-072, REQ-032                            |
+| T54   | Automated | Countdowns: set a `round` countdown (5 ticks), run 3 combat rounds, assert remaining ticks = 2. Set a `narrative` countdown (3 ticks), advance twice manually, assert remaining = 1. Advance again — assert countdown fires and is removed from active countdowns but present in audit log.                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-073                                     |
+| T55   | Automated | Multi-entity: create two entities, import both into a game, assert `entities://` lists both. Switch active entity via `set_active_entity`, assert mutating tools target the active entity. Verify `party://current` lists all player entities with summary stats.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-074                                     |
+| T56   | Automated | Named-NPC: create an NPC with partial stats (only name + Grit), verify at `npc://<id>`. Include NPC in a confrontation — assert NPC gets a turn. Update NPC stats, verify changes persist across connection restart.                                                                                                                                                                                                                                                                                                                                                                                                                                                               | REQ-075, REQ-043                            |
+| T57   | Automated | Scene state: set scene state, verify it appears in `scene://current` and `persona_briefing`. Update scene state, verify old entry in audit log and new entry as current. Attempt `set_scene_state` as Player persona — assert `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-076, REQ-032                            |
+| T58   | Automated | Entity personality: create a character, set personality fields, verify they appear in `persona_briefing` and `entity://<id>/personality`. Set game-level overrides — assert they replace roster baseline in `persona_briefing` for that game. Verify mechanical stats remain immutable (baseline unchanged).                                                                                                                                                                                                                                                                                                                                                                                         | REQ-077                                     |
+| T59   | Automated | Adventure load: load an adventure, verify `adventure://<slug>/<anchor>` resources are retrievable. Assert `*Keeper only*` sections return content for Game Master persona and are hidden from Player persona.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-079, REQ-032                            |
+| T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as game entities but adventure A's content no longer appears in `persona_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
+| T61   | Automated | Adventure continuity: load adventure, create NPCs, set scene state within the adventure. Restart the server with the same `TTRPG_GAME_ID`. Assert the active adventure, NPCs, and scene state are restored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-079, REQ-055                            |
+| T62   | Automated | Help and tool discovery: invoke `help()` with no query — assert output includes a categorized task map and all registered tools. Invoke `help("combat")` — assert results include combat tools. Invoke as Player persona — assert GM-only tools are not listed.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-067, REQ-032                            |
 
 ---
 
@@ -1617,7 +1791,7 @@ ORC, or equivalent) for which a full SRD or ruleset is freely available online. 
 operator may select from this list when the Convert job web-scrape path is chosen, or suggest their
 own URL.
 
-| #    | Game                        | License                           | Key SRD URL                | Notes                                                       |
+| #    | Ruleset                    | License                           | Key SRD URL                | Notes                                                       |
 | ---- | --------------------------- | --------------------------------- | -------------------------- | ----------------------------------------------------------- |
 | 1    | Dungeons & Dragons 3.5      | OGL 1.0a                          | d20srd.org                 | Core SRD covers PHB, DMG, MM content.                       |
 | 2    | Dungeons & Dragons 5e (2014) | OGL 1.0a + CC BY 4.0 (SRD 5.1)   | 5esrd.com                  | SRD 5.1 is dual-licensed.                                   |
@@ -1627,5 +1801,179 @@ own URL.
 | 6    | Traveller                   | OGL 1.0a                          | traveller-srd.com           | Mongoose Publishing SRD; 40+ year sci-fi legacy.             |
 | 7    | FATE Core                   | OGL 1.0a + CC BY 3.0              | fate-srd.com                | Multiple ENNIE awards; widely hacked narrative system.       |
 | 8    | Blades in the Dark          | CC BY 4.0                         | bladesinthedark.com (FitD SRD) | ENNIE winner; spawned 50+ Forged in the Dark games.          |
-| 9    | Dungeon World               | CC BY 3.0                         | dungeonworldsrd.com         | Most popular PbtA fantasy game.                              |
+| 9    | Dungeon World               | CC BY 3.0                         | dungeonworldsrd.com         | Most popular PbtA fantasy ruleset.                              |
 | 10   | Old-School Essentials       | OGL 1.0a                          | necroticgnome.com (SRD)     | Top OSR retroclone; known for clarity and layout.            |
+
+---
+
+## Appendix J: Anti-Slop Catalogue
+
+_Spec-embedded narrative quality rules. Each pattern pairs a forbidden example with a
+corrected alternative. Served at `guidance://<role>/anti-slop` (REQ-070)._
+
+### Game Master anti-slop
+
+**1. Purple prose.** Over-ornamented description that buries actionable detail.
+
+- **Forbidden:** "You can't help but notice the ancient, crumbling architecture all around
+  you, a haunting testament to a bygone era whose ghosts still whisper through these halls,
+  their sorrow etched into every stone."
+- **Correct:** "The hall is old. Cracked pillars. Moss on the flagstones. A faint draft from
+  somewhere ahead — it smells of damp earth and old copper."
+
+**2. Negation framing.** Describing by what is absent rather than present. Transformer models
+process negation poorly.
+
+- **Forbidden:** "You don't see any immediate threats. The door is not locked. There are no
+  signs of struggle."
+- **Correct:** "The corridor is still. The door stands ajar — the latch is bent. Dust
+  settles undisturbed on the floor."
+
+**3. Rushing to closure.** Resolving all tension in one response, jumping past the player's
+opportunity to act.
+
+- **Forbidden:** "You enter the vault and find the goblet on its pedestal. You take it and
+  the temple begins to collapse. You escape just in time."
+- **Correct:** "The vault is small. A silver goblet rests on a stone pedestal in the center.
+  The floor around it is darker than the surrounding stone — almost wet-looking. Three
+  alcoves, each holding a clay urn. What do you do?"
+
+**4. Rubber-stamp success.** Letting every player action succeed without friction.
+
+- **Forbidden:** "You easily convince the guard. He nods and waves you through."
+- **Correct:** "The guard narrows his eyes. 'The captain didn't mention anyone coming
+  through tonight.' He rests a hand on his sword hilt — not drawn, but ready."
+
+**5. Declaring player actions.** Narrating what the player character does, thinks, or feels.
+
+- **Forbidden:** "A wave of courage washes over you. You step forward and raise your blade."
+- **Correct:** "The beast exhales — hot, wet breath that smells of rot. It hasn't moved
+  yet, but its eyes track you. The chamber is maybe forty feet across."
+
+**6. Predictable rhythm.** Every response follows the same pattern: describe → tension →
+hint → question mark. Vary pacing. Let silence land. Some responses should end on an image,
+not a question.
+
+- **Forbidden:** [Every response ends with "What do you do?"]
+- **Correct:** "The torch gutters. The flame catches, steadies — then gutters again. This
+  one won't last another minute." [No question. Pressure is in the image.]
+
+**7. Over-describing the known.** Repeating what the player already knows.
+
+- **Forbidden:** "You remain in the cave, which is still dark and damp as it was before,
+  with its stone walls and the sound of dripping water in the distance."
+- **Correct:** "Nothing changes. The water drips. The darkness waits."
+
+### Player anti-slop
+
+**1. Establishing world facts.** Declaring what exists as established truth.
+
+- **Forbidden:** "I notice the assassin hiding behind the curtain. I draw my weapon."
+- **Correct:** "I scan the room. The curtains — are they moving? Is there space behind them
+  where someone could hide?"
+
+**2. Assuming outcomes.** Narrating the result before any roll or adjudication.
+
+- **Forbidden:** "I stab the guard. He falls dead without a sound."
+- **Correct:** "I lunge at the guard with my dagger, aiming for his throat before he can
+  shout."
+
+**3. Rushing past tension.** Skipping interesting moments to reach resolution.
+
+- **Forbidden:** "I open the chest and take the treasure."
+- **Correct:** "I study the chest first. Iron bands, old but intact. The lock looks simple.
+  I check for traps — any needles, springs, or faint seams in the wood?"
+
+**4. Declaring NPC reactions.** Stating how an NPC responds.
+
+- **Forbidden:** "The merchant is impressed and lowers the price to 50 gold."
+- **Correct:** "I lay out my reasoning — the blade is chipped, the market is slow, and I'm
+  the only buyer who's shown interest all day. I wait for his response."
+
+**5. Monologuing world-truths.** Long internal monologue asserting world facts or history.
+
+- **Forbidden:** "I realize this must be the same cult that plagued the northern villages. I
+  remember the seven signs from the old stories."
+- **Correct:** "The symbols on the altar — they remind me of something. The old stories
+  Elder Myra told us. Seven signs, wasn't it? 'Anyone recognize these markings?'"
+
+**6. Skipping steps.** Collapsing a complex action into its conclusion.
+
+- **Forbidden:** "I search the room thoroughly and find the hidden door."
+- **Correct:** "I search the room. Bookshelf first — seams in the back panel, scuff marks
+  on the floor, books that look like levers. Then the desk."
+
+---
+
+## Appendix K: Adventure Module Format
+
+_Adventure modules are supplementary Markdown loaded during the Build job (REQ-079, B9).
+Same heading, anchor, role-marker, table, and bold-labeled-field conventions as the ruleset
+(Appendix A, H). No mechanical extraction — all content is guidance-category._
+
+### Required conventions
+
+- `# Adventure Title` — used as the adventure slug (lowercase-hyphenated).
+- `## Overview` — GM-only summary. Always marked `*Keeper only*` (or the ruleset's
+  adjudicator term). Not surfaced to the Player persona.
+- `## Adventure Hook` — player-visible introduction. No role marker.
+- `## Region:` / `## Level:` — structural divisions within the adventure.
+- `### Location Name` — individual rooms or scenes. Player-visible if unmarked; GM-only if
+  the heading or section carries an adjudicator marker.
+- `*Keeper only*` — hide section from Player persona. Use the ruleset's own adjudicator
+  term when it differs (e.g., `*Warden only*`, `*DM only*`).
+- **Bold-labeled fields** for NPC stat blocks, trap mechanics, and treasure entries.
+- **Tables** for treasure, encounter tables, and random events.
+
+### Format example
+
+```markdown
+# The Sunken Temple
+_A dungeon adventure for 4–6 delvers of levels 3–5._
+
+## Overview — *Keeper only*
+The Sunken Temple lies beneath the Marsh of Whispers. Four levels, each
+with a theme and a boss encounter. The delvers seek the Lantern of Lost Souls.
+
+## Adventure Hook
+The village elder offers 500 gold for the Lantern. She knows the temple's
+entrance is at the base of the Weeping Willow, three days into the marsh.
+
+## Level 1: The Drowned Gate
+
+### Entrance Chamber
+The stone door is ajar, held open by a rusted crowbar. Water drips, pooling
+ankle-deep. Three corridors: north (carved steps descending), east (a dry
+passage, torch soot on the walls), south (the sound of running water).
+
+### Trapped Hallway — *Keeper only*
+The east passage. Third flagstone depresses: DC 12 Steady to notice; DC 15
+Delve to disarm. Failure: scythe blade — 2d6 slashing, +1 Harm on failed Notice.
+
+#### Treasure — *Keeper only*
+| d6  | Item                         |
+| --- | ---------------------------- |
+| 1–3 | 50 gold pieces               |
+| 4–5 | Potion of Grit (+1 Grit, 1 scene) |
+| 6   | Rusty Blade (1d6 slashing)   |
+
+### The Guardian — *Keeper only*
+**Murk-Eye** — Grit +2, Nerve +1, Wits 0, Harm 2/4.
+Weapon: Rusty Blade (1d6 slashing).
+Tactic: ambush from water; fight to half Harm, then flee.
+
+## NPCs
+
+### Elder Myra
+The village elder. She knows the marsh but won't enter — her son was lost
+there years ago. She carries a Whisper Stone and will give it to the
+delvers if they promise to search for signs of her son.
+```
+
+### Indexing and persona gating
+
+Adventure content is indexed during discovery alongside the ruleset. Anchors are derived
+from headings. `*Keeper only*` sections produce GM-only guidance items. Unmarked sections
+produce shared (player-visible) guidance items. Adventure content appears in `search_rules`
+results filtered by active adventure and persona. The `load_adventure` tool (REQ-079) sets
+the active adventure for the current game.
