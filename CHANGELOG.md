@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-04 — Persona system rewrite, intake simplification, README sync
+
+- Persona system rewritten: no persona active by default (full access
+  equivalent to Game Master). Persona gating only applies after explicit
+  `set_persona` activation. `end_game` deactivates persona. REQ-031 and
+  REQ-032 redrafted; §1 play model and §4 terminology updated.
+- Intake questions simplified for novice audiences: removed B7 (persona
+  question — personas don't apply outside adventures), B9 (adventure files —
+  discovered in provided materials), and S4 (PDF reading method — convergence
+  loop determines). Ten question texts reworded in plain language. E4 budget
+  cap removed — replaced with automatic LOW-confidence budget rule in §11.1.
+- §6.1 Convert and Build descriptions expanded to welcome all materials:
+  core rulebooks, supplemental books, character sheets, and adventure modules.
+- Enrich sources expanded to include media influences (movies, TV, video games).
+- README synced: persona model reflects unrestricted-by-default, Convert/Build
+  descriptions welcome all materials, Enrich adds media influences.
+- Stale Enrich description in §6.1 fixed; REQ-083 citation tightened; §11.1
+  gate cross-reference added; §6.2 auto-detection prose added; §7.7 Lore
+  tier citation added; B-number ripple effects resolved.
+
 ## 2026-08-04 — Eight AI RP community-inspired features, enriched guidance, README prerequisites overhaul
 
 - Eight new inline features, all zero-config by default:
