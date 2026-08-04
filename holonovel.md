@@ -4,7 +4,7 @@
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
 > server, and proves it works. Output: a running MCP server with dice, combat, character
 > management, and rules lookup — plus four artifacts (RULESET_MODEL.md, DECISIONS.md,
-> README.md, AGENTS.md). Quality enforced by four verification gates, 12 handoff checks, and
+> README.md, AGENTS.md). Quality enforced by five verification gates, 12 handoff checks, and
 > a golden-transcript replay. One server per ruleset. No network at runtime. Three personas.
 > (player/referee/unassigned) gated server-side. State tiers: roster persists, games isolate,
 > sessions audit. RNG deterministic and seedable. Requirements state the contract;
@@ -54,7 +54,7 @@ One user per server session (REQ-030). The persona is immutable for the session'
 (REQ-031). Cross-persona — referee tools blocked from players, referee-only content gated
 (REQ-032). The ruleset's own terms are used everywhere.
 
-**Definition of done.** The server must: (1) pass all four verification gates (§8), (2)
+**Definition of done.** The server must: (1) pass all five verification gates (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
 play with a real LLM, (3) hand off four specified artifacts and nothing else (§9), and (4)
 survive an independent verification (§10) where a second AI re-runs the gates blind from a
@@ -65,7 +65,7 @@ cold checkout, comparing its results against the builder's own.
 ## 2. Requirements at a Glance
 
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
-— 34 requirements covering output contracts, error taxonomy, roll transparency, personas
+— requirements covering output contracts, error taxonomy, roll transparency, personas
 and security, state and persistence, extraction and confidence, tools and resources,
 guidance, determinism, input safety, and durability. Each is one paragraph in §5. The
 manifest is the packing list for the DECISIONS.md traceability table and is mechanically
@@ -172,6 +172,16 @@ be a fan of the players, collaborate with players, hold on loosely) and core pla
 (embrace danger, take initiative, think beyond the sheet, collaborate with the referee, share
 the spotlight, build on others' contributions) — as brief quoted data before the
 ruleset-derived guidance. _Check:_ T26.
+
+**REQ-064 — Persona behavioral boundaries.** The server respects persona boundaries in
+all tool output. The referee persona describes situations, surfaces essential
+information proactively (visible stats, risks, options), and never takes action or
+makes decisions on behalf of the player. The player persona describes character
+intent, and may negotiate for environmental details by asking whether elements
+exist — but never prescribes world facts or narrative outcomes as established
+without referee confirmation. Output defaults to verbosity: describe richly,
+prescribe never. Player-initiated actions may be narrated in prose, provided the
+narration follows from declared intent without assuming further decisions. _Check:_ T51.
 
 ### 5.2 Extraction and Confidence
 
@@ -448,7 +458,7 @@ whether to continue.
 
 **Gate 0.** Run at intake: verify the source is readable, well-formed, structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
-of Appendix H.13 apply. A structural defect blocks the line. Sources not already in Markdown
+of Appendix G apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix F](#appendix-f-source-conversion).
 
 ### 6.3 Discovery
@@ -556,7 +566,7 @@ Error results follow this format:
 Corrective action: <action>
 ```
 
-Additional output classes (creation, generation, decision, undo). follow the same prefix
+Additional output classes (creation, generation, decision, undo) follow the same prefix
 conventions. The golden transcript (§B.3) is the canonical reference for expected output
 shapes.
 
@@ -633,7 +643,7 @@ pass/fail status, and findings. The record is embedded in DECISIONS.md Section 8
 item (6).
 
 **Gate 0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
-passes the Appendix H.13 checklist: well-formed, all headings unique, tables regular,
+passes the Appendix G checklist: well-formed, all headings unique, tables regular,
 references resolvable. Run at intake.
 
 **Gate 1 — MCP conformance.** Verify the running server against the Appendix D checklist.
@@ -690,7 +700,7 @@ separate files.
   -->` (6) gate evidence, checkpoint findings, verification record, and structured task
   list.
 - **README.md** — setup, usage, persona model, state model, RNG continuity, and
-  copy-paste MCP client configuration entry verified against the Q14 client.
+  copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: layer map, where each requirement
   lives in the code, gate commands.
 
@@ -1231,6 +1241,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-024 | Tool documentation        | T3, T35, T39                   | 2026-08-02   |
 | REQ-025 | spec_health               | T15, T45                       | 2026-08-02   |
 | REQ-063 | Connection introduction   | T49, T50                       | 2026-08-03   |
+| REQ-064 | Persona behavioral boundaries | T51                        | 2026-08-03   |
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | 2026-08-02   |
 | REQ-057 | Canonical lookup tools    | T39, T40                       | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | T37, T41, T42                  | 2026-08-02   |
@@ -1311,12 +1322,13 @@ diet.
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `persona_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any persona (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Manual   | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (player, referee, unassigned) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-032                   |
+| T51   | Manual   | Persona behavioral boundaries: invoke a player-persona session and assert the server does not prescribe world facts or narrative outcomes without referee confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a referee-persona session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both personas and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 
 ---
 
 ## Appendix F: Source Conversion
 
-**Scope.** When the ruleset's sources are not Markdown (Q11), conversion is a build stage
+**Scope.** When the ruleset's sources are not Markdown (the Convert job is selected), conversion is a build stage
 of its own and completes before discovery. When the sources are Markdown, this appendix
 does not apply.
 
@@ -1377,7 +1389,7 @@ Before declaring the ruleset ready for discovery, confirm:
 
 This catalog lists TTRPG rulesets published under open licenses (OGL, CC BY, CC BY-SA,
 ORC, or equivalent) for which a full SRD or ruleset is freely available online. The
-operator may select from this list during the Q11-C web-scrape sub-flow or suggest their
+operator may select from this list when the Convert job web-scrape path is chosen, or suggest their
 own URL.
 
 | #    | Game                        | License                           | Key SRD URL                | Notes                                                       |

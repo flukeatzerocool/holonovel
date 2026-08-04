@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-03 — Added persona behavioral boundaries (REQ-064); audit fixes
+
+- Added REQ-064 (Persona behavioral boundaries): referee must not take action
+  or make decisions on behalf of the player; player must not prescribe world
+  facts or narrative outcomes without referee confirmation; output defaults to
+  verbosity ("describe richly, prescribe never").
+- Added T51 manual test for persona behavioral boundaries.
+- Fixed stale cross-references: Appendix H.13 → Appendix G (2 occurrences),
+  Q11/Q11-C → Convert job (2 occurrences), Q14 → build-time client target
+  (1 occurrence).
+- Fixed gate count: "four verification gates" → "five" (2 occurrences).
+- Dropped stale requirement count ("34 requirements").
+- Fixed stray period in output conventions section.
+- Updated README: "Two ways to play" now mentions player agency boundaries.
+
 ## 2026-08-03 — Renamed build phases to jobs; unified pre-build questions
 
 - Renamed "phase" to "job" throughout the specification for build operations

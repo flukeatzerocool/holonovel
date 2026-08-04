@@ -38,9 +38,10 @@ become interactive.
   the layout.
 
 - **Two ways to play.** Player mode — the AI acts as your game
-  master, narrating and rolling while keeping secrets secret. Game
-  master mode — full access, full control, every tool at your
-  command.
+  master, narrating and rolling while keeping secrets secret, and
+  respects your agency: it describes the world without making
+  decisions for you. Game master mode — full access, full control,
+  every tool at your command.
 
 - **Any format in.** Markdown files, PDF rulebooks, HTML source, or
   scraped web SRDs from permissively-licensed games. A built-in
