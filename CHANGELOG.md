@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-03 — Add conversion fidelity gates, sampling, and reporting
+
+- Added pre-batch conversion fidelity sampling to Appendix F (new F.1): sample
+  3–5 representative source pages, diff converted Markdown against rendered source
+  text, compute fidelity rate; block batch conversion below 90 %. Renumbered F.1
+  Common HTML patterns → F.2. Added F.1/F.2 sub-entries to Contents TOC.
+- Amended §5.6 Conversion checkpoint: ground-truth reconciliation rate now a
+  measured metric (per Appendix F.1), provisional until re-verified at Discovery
+  checkpoint; below-threshold is a blocker.
+- Extended §5.6a convergence rule: added conversion fidelity as sixth named
+  verification activity with threshold (≥90 %), improvement step (tune converter,
+  re-sample), and stop-check semantics.
+- Added conversion confidence cap to REQ-011: sections from converted sources
+  whose content type's fidelity rate falls below 90 % are capped at MEDIUM
+  regardless of extraction signals; cap lifted when fidelity is restored.
+- Extended §5.1a Gate 0 summary mode with random content sampling for converted
+  sources (one excerpt per content type drawn from the fidelity sample).
+- Extended Appendix H.13 verification checklist with semantic table-row check:
+  at least 3 random tables diffed for row count and header label match against
+  source page renderings.
+- Added `conversionFidelity` section to `spec_health` output (REQ-025):
+  per-content-type rates, overall rate, sample set, unresolved ambiguities,
+  confidence cap counts. Updated convergence loop counts to include conversion
+  fidelity. Section absent for native Markdown sources.
+
 ## 2026-08-03 — Spec defect fixes from consistency audit
 
 - Fixed B.3 golden transcript: `entity://delver_01` → `roster://delver_01` in

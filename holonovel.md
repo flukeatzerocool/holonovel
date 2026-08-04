@@ -102,6 +102,8 @@
     - [D.1 Illustrative exchanges](#d1-illustrative-exchanges)
   - [Appendix E: Requirements Manifest](#appendix-e-requirements-manifest)
   - [Appendix F: Source Conversion](#appendix-f-source-conversion)
+    - [F.1 Conversion fidelity sampling](#f1-conversion-fidelity-sampling)
+    - [F.2 Common HTML patterns](#f2-common-html-patterns)
   - [Appendix G: Automated Handoff Gate Checks](#appendix-g-automated-handoff-gate-checks)
     - [G.1 Check H1 — Edition/title match](#g1-check-h1--editiontitle-match)
     - [G.2 Check H2 — Traceability completeness](#g2-check-h2--traceability-completeness)
@@ -490,6 +492,16 @@ majority caps the score below 80 %. The player-persona filtered score —
 computed over only the sections visible to the player persona — is the gating
 metric per REQ-025.
 
+**Conversion confidence cap.** When a ruleset was converted from a non-Markdown source
+(Q11-B/C), sections whose content type's conversion fidelity rate (Appendix F.1) falls
+below 90 % are capped at MEDIUM confidence regardless of extraction signals. The cap
+derives from the per-content-type rate, not the overall rate: a source whose procedure
+sections converted poorly but whose tables converted well caps only the procedure
+sections. Each capped section is logged in `DECISIONS.md` (Section 8, item (4)) with the
+content type, the fidelity rate, and the capped count. The cap is lifted when the
+conversion fidelity rate for that content type rises above 90 % through converter tuning
+(§5.6a).
+
 **Structured content within referee-scoped books.** Within a file tagged referee-scoped at the book level
 (DMG, MM, or equivalent), individual sections whose content is extracted by a targeted parser — spells,
 monsters, equipment tables, stat blocks, reference tables — may be elevated from MEDIUM to HIGH when the
@@ -764,12 +776,33 @@ derived from `DECISIONS.md` records, not boilerplate:
 - **Open process findings.** List of process-compliance items with `blocker` severity that
   remain unresolved.
 - **Convergence loop counts.** Per verification activity — confidence extraction, gate
-  execution, process compliance, mechanics fidelity — the number of loop iterations run
-  per §5.6a. A loop that ran 0 iterations when the activity's threshold remains unmet
-  (a gate is `not run`, confidence is below 80%, a pre-build Q is `missing`) is a blocker.
-  After 3 iterations without meeting the threshold, the loop may escalate to the operator
-  per §5.6a. `spec_health` reports the iteration count and current disposition of each
+  execution, process compliance, mechanics fidelity, conversion fidelity — the number of
+  loop iterations run per §5.6a. A loop that ran 0 iterations when the activity's
+  threshold remains unmet (a gate is `not run`, confidence is below 80%, a pre-build Q is
+  `missing`, conversion fidelity rate is below 90 %) is a blocker. After 3 iterations
+  without meeting the threshold, the loop may escalate to the operator per §5.6a.
+  `spec_health` reports the iteration count and current disposition of each
   activity's loop.
+
+**Conversion fidelity.** When the ruleset was converted from a non-Markdown source
+(Q11-B/C), `spec_health` additionally reports a `conversionFidelity` section:
+
+- **Per-content-type rates.** The fidelity rate (Appendix F.1) for each sampled content
+  type — fraction of diffed mechanical fields, table cells, and procedure steps matching
+  the source.
+- **Overall rate.** The mean of the per-content-type rates weighted by sampled section
+  count, or `n/a` when the ruleset is native Markdown (Q11-A).
+- **Sample set.** The anchors of the sampled sections and the number of pages rendered
+  vs. unrenderable.
+- **Unresolved ambiguities.** Count of conversion ambiguities — reading order, merged
+  regions, symbolic conventions — that the text layer could not settle and remain
+  open (Appendix F).
+- **Conversion confidence cap.** Count of sections whose confidence is capped at MEDIUM
+  per REQ-011 due to below-threshold conversion fidelity, by content type.
+
+The section is absent when the ruleset is native Markdown (Q11-A). Filters per persona
+(REQ-032) do not apply to conversion fidelity — the rates describe the source conversion
+process, not ruleset content.
 
 A gate whose disposition is `not run` and a process-compliance item whose state is
 `missing` or whose count is zero when the associated requirement demands a positive
@@ -1303,6 +1336,11 @@ last chance to inspect the ruleset before discovery work begins.
      ceiling estimate (REQ-011 calculation from book-level scoping where known).
    - The operator may request a full table of contents for any individual file on
      demand.
+   - For converted sources (Q11-B/C): one random section excerpt per content type (first
+     20 lines of the Markdown, including any tables) — at minimum one table-bearing, one
+     stat-block, and one procedure section — drawn from the conversion fidelity sample
+     (Appendix F.1) where available. When the fidelity sample is unavailable (all source
+     pages unrenderable), draw the excerpts from the converted Markdown alone.
    - The confirmation prompt ("Does this look correct?") includes the summary
      data; a response of "yes" accepts the summary as the Gate 0 gate pass.
 
@@ -1684,7 +1722,9 @@ mutating action — querying a running server, reading a file, executing a read-
 
    **Conversion** (Appendix F; non-Markdown only). The frozen converted Markdown: document order
    preserved across page breaks and columns; grids reassembled, merged cells handled; page furniture
-   stripped; artifact anchors flagged; Section 5.3 ground-truth reconciliation rate recorded; REQ-014
+   stripped; artifact anchors flagged; conversion fidelity rate measured per Appendix F.1 and recorded
+   (provisional until the Discovery checkpoint re-verifies against §5.3 ground-truthing — a rate below
+   the Appendix F.1 threshold is a blocker); REQ-014
    freeze verified for sources and converted Markdown.
 
    **Discovery.** `RULESET_MODEL.md`: citations, confidence labels, action classification, guidance
@@ -1796,14 +1836,16 @@ immediately asks the Phase 4 question. Phase 4 completion is the final build gat
 ### 5.6a Convergence rule
 
 Every verification activity — gate execution, `spec_health` computation, process
-compliance, mechanics fidelity, confidence extraction — runs in a convergence loop:
+compliance, mechanics fidelity, confidence extraction, conversion fidelity — runs in a
+convergence loop:
 
 1. **Measure.** Compute the current value against the activity's threshold (e.g.,
-   80% confidence, all gates pass, spec_health reports computed values, all pre-build
-   Qs answered, all phase gates recorded).
+    80% confidence, all gates pass, spec_health reports computed values, all pre-build
+    Qs answered, all phase gates recorded, conversion fidelity rate ≥ 90 % per
+    Appendix F.1).
 2. **Improve.** Apply the activity's improvement step (e.g., re-examine LOW sections,
-   build a gate harness, record missing process artifacts, extract a hardcoded table from
-   source).
+    build a gate harness, record missing process artifacts, extract a hardcoded table from
+    source, tune the PDF/HTML converter and re-sample per Appendix F.1).
 3. **Stop check.** If the threshold is met, pass. If 3 consecutive improvement iterations
    produce delta below the activity's minimum (no new HIGH/MEDIUM extraction, no newly
    passing gate, no newly resolved process artifact), stop and escalate to the operator
@@ -3825,7 +3867,26 @@ stage's checkpoint (Section 5.6). Conversion never modifies the sources.
 - Conversion artifacts are flagged, not trusted: anchors whose bodies are empty or near-empty, and headings
   that are stray numerals or symbols, are marked for review rather than silently indexed.
 
-### F.1 Common HTML patterns
+### F.1 Conversion fidelity sampling
+
+Before batch-converting the entire source (Q11-B PDF/HTML or Q11-C web scrape), sample the
+converter against **3–5 representative source pages** spanning at least one table-bearing
+section, one stat-block or entity section, and one procedure section. For each page: render
+the source, convert to Markdown, and diff the resulting Markdown against the rendered source
+text for mechanical content fidelity. Compute a **conversion fidelity rate** — the fraction
+of diffed mechanical fields, table cells, and procedure steps that match the source. Report
+the per-content-type and overall rates.
+
+A rate below 90 % for any content type blocks the batch conversion and requires converter
+fixes before proceeding. When a source page cannot be rendered (no renderer available in the
+build environment), record the limitation and skip the semantic diff for that page; the
+structural pre-check (Appendix H.13) remains the fidelity floor. A build where every sampled
+page is unrenderable proceeds with a warning recorded in `DECISIONS.md` (Section 8, item (4)).
+
+Record the fidelity rate and the sample set in `DECISIONS.md` (Section 8, item (4)). The rate
+is reported at Gate 0 (§5.1a) and in `spec_health` (REQ-025).
+
+### F.2 Common HTML patterns
 
 When writing an HTML-to-Markdown converter, consult these known structure notes before
 extracting content. They are not exhaustive — every source site is different — but they
@@ -4430,6 +4491,10 @@ Before declaring the ruleset ready, confirm:
 - [ ] The output file is valid UTF-8 with no BOM.
 - [ ] Output file(s) are named `<ruleset_slug>.md` (lowercase-hyphenated).
 - [ ] No commentary or meta-notes appear in the ruleset Markdown output.
+- [ ] (Converted sources only) At least 3 randomly selected tables match their source pages in
+  row count and header labels — diff the converted Markdown table against the Appendix F.1
+  fidelity sample renderings. A mismatch is a structural defect; record it and repair the
+  converter or Markdown before proceeding.
 
 ---
 
