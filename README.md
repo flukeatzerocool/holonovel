@@ -60,7 +60,7 @@ Pick a game. Feed it to an AI. Start playing.
 
 **Solo RPG players.** You run entire parties by yourself. You need rules
 that don't drift, dice you can trust, and state that survives between
-sessions. You use SillyTavern, OpenRouter, or a local LLM as your
+sessions. You use an AI RP client (such as SillyTavern), OpenRouter, or a local LLM as your
 narrator — Holonovel is the rules engine that keeps it honest.
 
 **AI roleplay enthusiasts.** You've spent hours tuning character cards,
@@ -162,11 +162,7 @@ The rules for whatever game you want to play. Pick one format:
 - **A web SRD** — point the agent at a URL. The spec includes a catalog
   of 10 permissively-licensed games (D&D 3.5/5e, Pathfinder 1e/2e,
   Starfinder, Traveller, FATE, Blades in the Dark, Dungeon World,
-  Old-School Essentials) — pick one or suggest your own.
-
-Don't have any ruleset? Start with the spec's built-in Tin Lanterns
-fixture — a tiny playable game included in the spec that lets you test
-the whole pipeline in under a minute.
+   Old-School Essentials) — pick one or suggest your own.
 
 ### An MCP-compatible AI client
 
@@ -185,9 +181,8 @@ Any MCP-compatible client works. If your client supports MCP tools, it
 can use Holonovel.
 
 Each client needs an LLM behind it — either an API key (OpenAI,
-Anthropic, OpenRouter, DeepSeek) or a local model. Building a server
-for D&D 2024 cost about US $2 with DeepSeek v4 Pro (pricing varies — check
-current rates).
+Anthropic, OpenRouter, DeepSeek) or a local model. Holonovel is built
+and tested with DeepSeek.
 
 ### Node.js 20 or later
 
@@ -225,17 +220,17 @@ handles that part.
    can scrape one from the built-in catalog of 10 open-license games
    (D&D, Pathfinder, Starfinder, Traveller, FATE, Blades in the Dark,
    Dungeon World, Old-School Essentials) — just tell it which game you
-   want. No ruleset at all? The spec includes Tin Lanterns, a tiny
-   playable game, so you can test the pipeline in under a minute.
+    want.
 
-4. **Open your AI client and feed it the spec.** Use a prompt like:
+4. **Open your AI client and give it the spec.** Use a prompt like:
 
-   > Use holonovel.md to build a server from `players-handbook.md`.
+   > Read holonovel.md
 
-   The agent reads the spec and your rules, asks which jobs to run
-   (Convert, Build, and optionally Enrich or Sheet), then builds
-   everything automatically. It pauses between jobs so you can review
-   progress. Default answers work for most setups.
+   The agent reads the spec, then asks what you want to build and which
+   ruleset to use. It handles the rest — converting PDFs, building the
+   server, and optionally enriching with community advice or adding a
+   character sheet. It pauses between jobs so you can review progress.
+   Default answers work for most setups.
 
 5. **Start playing.** When the Build job finishes, the agent connects the
    server to your MCP client and verifies the handshake. Open a fresh
