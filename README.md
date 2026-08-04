@@ -85,9 +85,11 @@ character management, monster and spell lookups, random tables, and
 more — every mechanic traced back to your actual books with a citation.
 The server always includes a working character sheet tool, inferred
 directly from the rules. Before handing off, the AI runs a full test
-suite, five verification gates, and an Operational Confidence Exercise —
+suite, three ruleset-facing verification gates (structural integrity, MCP
+conformance, derived tests), and an Operational Confidence Exercise —
 end-to-end scenarios including AI-simulated combat — to prove the build
-is sound. If your source needs conversion first, run the Convert
+is sound. Two fixture gates verify the builder against a known-correct
+specification once per implementation, not per ruleset. If your source needs conversion first, run the Convert
 job.
 
 ### Enrich: Community advice (optional)

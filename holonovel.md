@@ -519,7 +519,8 @@ annotation.
 **Gate 0.** Run at intake: verify the source is readable, well-formed, structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
-are converted per [Appendix G](#appendix-g-source-conversion).
+are converted per [Appendix G](#appendix-g-source-conversion). Gate 0 is a ruleset-facing
+gate — per §8, Gates 2 and 3 are fixture gates run once per builder implementation.
 
 ### 6.3 Discovery
 
@@ -591,11 +592,19 @@ DECISIONS.md.
 
 ### 6.6 Operational Confidence Exercise
 
-**Timing.** After the convergence loop (§6.5) has converged and all gates (§8) have
-passed, the builder runs the Operational Confidence Exercise (OCE). The OCE exercises
-the built server with AI-simulated personas in realistic play scenarios. It is a
-confidence check, not a requirement gate — its purpose is to surface bugs that
+**Timing.** After the convergence loop (§6.5) has converged and the ruleset-facing
+gates (§8: Gates 1 and 4) have passed, the builder runs the Operational Confidence
+Exercise (OCE). Fixture gates (Gates 2 and 3 — see §8) are specification-level checks
+run once per builder implementation; they are independent of OCE timing. The OCE
+exercises the built server with AI-simulated personas in realistic play scenarios. It
+is a confidence check, not a requirement gate — its purpose is to surface bugs that
 structured verification missed, feeding them back into the convergence loop.
+
+**Job completion.** The Build job is not complete until the OCE exits with all
+scenarios passing or the builder records 2 iterations without improvement (see Exit
+criteria below), and both ruleset-facing gates (1 and 4) pass. Marking a job complete
+without a passing OCE and passing applicable gates is a process defect. The OCE
+findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder launches the server in two separate sessions sharing one
 `TTRPG_GAME_ID`: a Game Master session and a Player session. The builder acts as both
@@ -846,6 +855,12 @@ Each gate produces an evidence record: gate name, timestamp, environment pins
 pass/fail status, and findings. The record is embedded in DECISIONS.md item (6)
 (`@section evidence`).
 
+**Gates 2 and 3 are fixture gates:** they test the builder against a known-correct
+specification fixture (Appendix B: Tin Lanterns) and an injection fixture
+(Appendix C). These gates are run once per builder implementation — not once per
+ruleset. Their results apply to every ruleset served by that builder. Gates 0, 1,
+and 4 are ruleset-facing: each ruleset must pass them independently.
+
 **Gate 0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
 passes the Appendix H checklist: well-formed, all headings unique, tables regular,
 references resolvable. Run at intake.
@@ -854,7 +869,7 @@ references resolvable. Run at intake.
 Every check must pass. Run the MCP Inspector or equivalent against a server built from the
 Appendix B fixture.
 
-**Gate 2 — Golden transcript replay.** Build a server from the Appendix B fixture and
+**Gate 2 — Golden transcript replay (fixture gate).** Build a server from the Appendix B fixture and
 replay the Appendix B.3 transcript. Assert: status prefix and `isError` semantics
 (REQ-001), required fields in order, die values pinned by per-call seeds (REQ-050),
 gating decisions (REQ-032), and decision round-trips (REQ-042). Exact wording is not
@@ -863,7 +878,7 @@ asserted.
 Before handoff, re-run Gate 2 once from a cold checkout of the four artifacts, following
 only README.md and AGENTS.md. A reproduction failure stops the line.
 
-**Gate 3 — Injection.** Run discovery over the Appendix C fixture. Verify the capability
+**Gate 3 — Injection (fixture gate).** Run discovery over the Appendix C fixture. Verify the capability
 surface, persona gating, and metadata filtering are unchanged. Tool registry and resource
 listings diff clean (identical except for the new section's anchor and its GM-only
 guidance items).
@@ -1301,6 +1316,10 @@ Ruleset version: matches intake snapshot
 
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify this
 table before running Gate 2. Draw consumption and seeding are as defined in REQ-050.
+
+The reference algorithm is a 32-bit linear congruential generator:
+`state ← (state × 1664525 + 1013904223) mod 2³²`. The initial state is the numeric
+value of the seed string (`parseInt(seed, 10)`). A d6 draw is `⌊next() × 6⌋ + 1`.
 
 | Seed | First 10 d6 faces            |
 | ---- | ---------------------------- |
