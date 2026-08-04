@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-08-04 — Eight SillyTavern-inspired features, enriched guidance, README prerequisites overhaul
+## 2026-08-04 — Eight AI RP community-inspired features, enriched guidance, README prerequisites overhaul
 
 - Eight new inline features, all zero-config by default:
   - Narrative directive (`set_narrative_directive`, REQ-081) — GM sets standing
