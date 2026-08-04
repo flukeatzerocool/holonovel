@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-04 — Sample D&D 5e MCP server, README restructure
+
+- MCP server: added pre-built D&D 5e SRD v5.1 Holonovel server at `dnd5e/`
+  (23 tools, 1,029 indexed sections, 37 weapons, 319 spells, 318 monsters).
+  Licensed CC BY 4.0 + OGL 1.0a (ruleset data) and MIT (server code).
+- README: moved "Wait, what's an MCP server?" → "What's an MCP server?"
+  under "What is Holonovel?". Added Sample MCP Server section with quick
+  install and Opencode config fragment. Merged Validating into Quick Start.
+  Removed Contributing section. Updated project structure tree.
+- .gitignore: excluded `dnd5e/node_modules/`, `dnd5e/dist/`,
+  `dnd5e/.holonovel-state/`.
+
 ## 2026-08-04 — README comparison section, fuzzy-match hints, propose-validate principle
 
 - README: added "One spec. Any game. Zero code." tagline, "How Holonovel Compares"
