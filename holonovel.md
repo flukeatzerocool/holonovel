@@ -51,10 +51,11 @@ converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
 coding — the AI reads the ruleset and builds.
 
-**The play model.** Two personas, enforced server-side. The Player persona is the human at the
-table — the default. The Game Master persona is the AI narrator and adjudicator. The
-player may switch to Game Master to correct, undo, or directly manage game state;
-`set_persona` (REQ-066) enables this without restart. One user per MCP connection
+**The play model.** Two personas, enforced server-side during play. By default no persona
+is active — the user has full access for setup, prep, and building. When an adventure is
+in play, activate the Player persona via `set_persona` (REQ-066) to enforce persona
+gating (REQ-032). Switch to Game Master persona to correct, undo, or directly manage
+game state. `set_persona` works without restart. One user per MCP connection
 (REQ-030) — no multiplayer.
 
 **Definition of done.** The server must: (1) pass all five verification gates (§8), (2)
@@ -116,7 +117,7 @@ The spec is designed around six failure modes. Recognize them early.
 | Verifier       | A second, independent AI that re-runs the gate suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Persona        | Active role — `player` or `game_master` (REQ-031, REQ-066).                |
+| Persona        | Active role — `player`, `game_master`, or none (full access) (REQ-031, REQ-066).         |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Game           | One state container identified by `TTRPG_GAME_ID`. Holds all entities,      |
 |                | conditions, combat state, scene state, NPCs, and audit log for a single      |
@@ -373,12 +374,14 @@ snapshot. _Check:_ T32; Gate 2.
 most recently set via `set_persona` or `TTRPG_PERSONA`. No concurrency, no multiplayer
 state sharing within a connection. _Check:_ Appendix D.
 
-**REQ-031 — Persona activation.** The active persona is `player` by default. It can be
-set at startup via `TTRPG_PERSONA` or at runtime via the `set_persona` tool. Only one
-persona is active at any moment. Switching personas is recorded in the audit log. Each
-persona maintains its own undo stack; switching clears no history but exposes only the
-new persona's stack. If a workflow is pending `[NEED_INPUT]`, `set_persona` returns
-`[STATE_CONFLICT]`. _Check:_ T9.
+**REQ-031 — Persona activation.** By default, no persona is active — the server operates
+with full access, equivalent to Game Master privileges. All tools, resources, and prompts
+are accessible without restriction. Persona gating (REQ-032) takes effect only when a
+persona is explicitly activated via `set_persona` (REQ-066). When no persona is active,
+all persona-filtered surfaces (`persona_briefing`, `prompts/list`, `resources/list`,
+`tools/list`, guidance) return full unfiltered content. The persona activation state
+persists across connections alongside game state (REQ-055). `end_game` deactivates the
+persona and returns to full-access mode. _Check:_ T9.
 
 **REQ-066 — set_persona tool.** The server provides a `set_persona` tool accepting
 `player` or `game_master`. Returns `[OK] Active persona: <role>` on
@@ -386,12 +389,13 @@ success. Returns `[STATE_CONFLICT]` if a pending workflow exists. The tool is NE
 persona-gated — it is always callable regardless of current persona. The persona switch
 takes effect immediately on the next tool call. _Check:_ T9.
 
-**REQ-032 — Server-side gating.** The server enforces persona access on every endpoint
-based on the currently active persona. Player tools, resources, and prompts are a strict
-subset of GM-visible ones. `tools/list` and related metadata surfaces are filtered.
-Guidance items are filtered. `spec_health` metrics are filtered. The `[FORBIDDEN]`
-response directs callers to use `set_persona` to switch roles. _Check:_ T9, T13, T15,
-T18, T26, T44.
+**REQ-032 — Server-side gating.** When a persona is active, the server enforces persona
+access on every endpoint. Player tools, resources, and prompts are a strict subset of
+GM-visible ones. `tools/list` and related metadata surfaces are filtered. Guidance items
+are filtered. `spec_health` metrics are filtered. `[FORBIDDEN]` responses direct callers
+to use `set_persona` to switch roles. When no persona is active, no gating applies — all
+endpoints return full content and all tools are callable. _Check:_ T9, T13, T15, T18,
+T26, T44.
 
 ### 5.6 State and Lifecycle
 
@@ -592,7 +596,7 @@ on `end_game`. Player persona attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T6
 entries via `set_lore_entry(key, content, triggers, persona_scope)`. Each entry carries
 a unique slug, Markdown content, an array of case-insensitive trigger keywords, and a
 persona scope (`game_master` or `shared`). When any trigger keyword appears in
-scene_state text, the entry activates and appears in `persona_briefing`
+`scene://current` text, the entry activates and appears in `persona_briefing`
 (persona-filtered: GM-only entries hidden from Player). Entries deactivate when
 triggers are no longer present. `remove_lore_entry(key)` deletes an entry. The trigger
 scan is capped at 50 entries. Entries persist across connections and are discarded on
@@ -654,9 +658,9 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 
 | Job     | What it does                                                | Required sections        |
 | ------- | ----------------------------------------------------------- | ------------------------ |
-| Convert | Convert PDF/HTML/web source to Markdown; validate structure  | §6.2, Appendix G, H      |
-| Build   | Intake Markdown, discover ruleset, construct & verify server | All sections + appendices |
-| Enrich  | Web-researched persona guidance (optional)                   | §11.1                    |
+| Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
+| Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
+| Enrich  | Community play advice and structured enrichment (optional)   | §11.1, §11.1a            |
 | Sheet   | Character sheet enhancement (optional)                       | §11.2                    |
 
 ### 6.2 Intake
@@ -693,6 +697,12 @@ not read as completion. If `yes`, the builder pauses after each job, reports its
 outcome and verification results, and asks the operator whether to continue to the
 next job.
 
+Auto-detection for Q0 default. When the default option specifies "when network
+detected," the builder probes connectivity to at least one known-public host before
+presenting questions. If the probe fails, the builder falls back to `build` only and
+records the failure in DECISIONS.md. If the probe succeeds, the default includes
+`enrich`; the operator may still deselect it.
+
 **Convert job.** Asked when `convert` is selected.
 
 | #   | Question                     | Options                          | Default             |
@@ -705,22 +715,20 @@ next job.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| B1  | Ruleset path(s)              | Comma-separated Markdown paths   | —                   |
+| B1  | Ruleset path(s)              | File paths                       | —                   |
 | B2  | Ruleset identifier (name, edition) | String                      | derived from source |
-| B3  | MCP client target            | Claude Desktop / CLI / other     | Claude Desktop       |
-| B4  | State directory              | Path                             | `.holonovel-state`  |
-| B5  | MCP client config path       | Path                             | per B3 target       |
-| B6  | MCP server name              | String                           | derived from B2     |
-| B7  | Default persona for MCP client config | player / game_master       | player              |
-| B8  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B9  | Adventure Markdown path(s)   | Comma-separated paths, or "none"  | none               |
+| B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
+| B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
+| B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
+| B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
+| B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 
 **Config verification.** After writing the MCP client configuration, the builder
 fetches the target client's documentation for its MCP server config schema (from
 B3) and verifies every key name matches the target's conventions. Known
 differences include: `workdir` vs `cwd`, `env` vs `environment`, `args` as a
 separate array vs appended to `command`. An incorrect key is a client-config
-defect (F6) and blocks the build until remedied. If B8 is `yes`, the builder
+defect (F6) and blocks the build until remedied. If B7 is `yes`, the builder
 writes the server entry into the client's config file, then immediately runs the
 H11 check: launch the server via the client's documented invocation, assert the
 initialize handshake succeeds, and confirm `serverInfo.name` matches the
@@ -730,19 +738,17 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| E1  | Path to existing build artifacts | Directory                    | —                   |
-| E2  | Source types                 | all / select from: community, actual plays, strategy, genre, designer | all |
+| E1  | Where is the server you already built? | Folder path              | —                   |
+| E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
-| E4  | Enrichment budget cap       | default / custom                 | default             |
 
 **Sheet job.** Asked when `sheet` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| S1  | Path to existing build artifacts | Directory                    | —                   |
+| S1  | Where is the server you already built? | Folder path              | —                   |
 | S2  | Character sheet PDF source   | local / download URL / search / included / none | none |
 | S3  | PDF path (if S2 is local)    | Path                             | —                   |
-| S4  | PDF reading method           | Probe vision → image → OCR → merge with baseline | in order |
 
 **Cross-job deduplication.** When the operator selects multiple jobs, questions
 identical in wording and semantics are asked once. E1 and S1 ("Path to existing
@@ -1067,7 +1073,7 @@ State tiers:
 | NPC       | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
 | Scene     | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write, Player read-only |
 | Countdown | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only |
-| Lore      | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only (persona-filtered) |
+| Lore      | One `TTRPG_GAME_ID`  | Survives connections, discarded by `end_game` | GM read/write/create/delete, Player read-only (persona-filtered per REQ-083) |
 | Enrichment | One `TTRPG_GAME_ID`  | Survives connections, replaced by re-enrich, discarded by `end_game` | GM read/write, Player read-only (persona-filtered) |
 | Adventure | Index (read-only)    | Loaded at build time, survives connections | Content persona-filtered; one active adventure per game |
 
@@ -1112,6 +1118,10 @@ the specific ruleset and model, which is the sole default order. If the GM sets 
 order via `set_briefing_order` (REQ-082), sections are composed in that order. The
 convergence loop (§6.5) verifies completeness. `guidance://shared/persona-switch`
 provides common patterns for when to switch personas during play.
+
+When no persona is active, `persona_briefing` returns all content unfiltered — both
+Game Master and Player sections are visible. Persona filtering applies only when a
+persona is active (REQ-031).
 
 ---
 
@@ -1291,7 +1301,7 @@ _These jobs do not gate the Definition of Done. They extend the Build job._
 ### 11.1 Persona enrichment
 
 Pre-build questions are collected in §6.2 when the `enrich` job is selected. Enrich runs
-after Build completes and gates pass, enhancing the server with community-sourced play
+after Build completes and all verification gates pass (§8), enhancing the server with community-sourced play
 advice. Build alone produces a fully working server; enrichment makes a good server better.
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
@@ -1356,6 +1366,13 @@ registrations, persona gating rules, or any `[ruleset]`-tagged content (REQ-080)
 
 This is distinct from Build confidence (which derives from mechanical completeness per
 REQ-011). The LLM sees both labels with full provenance.
+
+**LOW-confidence budget.** After enrichment completes its primary research pass
+(HIGH and MEDIUM confidence items), it may collect up to half as many LOW
+confidence items as the total HIGH + MEDIUM count. Example: 20 HIGH + MEDIUM
+items permits up to 10 additional LOW items. This ensures the server captures
+community metadiscussion without diluting the enrichment manifest. Collection
+stops when sources are exhausted, whichever comes first.
 
 **Idempotence.** Enrich records the build fingerprint (REQ-065) in its manifest. Running
 enrich against the same build fingerprint is a no-op (detected, reported as `[OK]
@@ -1799,7 +1816,7 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   `intent` argument with a description, `persona_briefing` and `intro` take none; each
   `prompts/get` returns exactly one user-role message (REQ-023).
 - All operations function with networking disabled (REQ-051).
-- Conformance runs exercise both personas (player, game_master) per REQ-031, REQ-066.
+- Conformance runs exercise both gated states (no persona / full access, Player persona / gated) per REQ-031, REQ-066.
 
 ---
 
@@ -1906,7 +1923,7 @@ diet.
 | T4    | Automated | Search returns the expected section in the top 3 results for exact, prefix, and substring queries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-012                                     |
 | T5    | Manual   | Entity lifecycle end to end: create, field mutation, and deletion where the ruleset defines it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-020                                     |
 | T8    | Automated | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-040                                     |
-| T9    | Automated | Player blocked from GM tools/content; game_master full access; persona switches via `set_persona` are audited; `set_persona` blocked during pending workflows (STATE_CONFLICT); undo stacks are persona-separate; game state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-031, REQ-032, REQ-055, REQ-066         |
+| T9    | Automated | Startup: no persona active — full access, no gating. `set_persona player`: Player gating active — GM tools blocked. `set_persona game_master`: full access restored. `end_game`: persona deactivated, full access. Persona switches are audited; `set_persona` blocked during pending workflows (STATE_CONFLICT); undo stacks are persona-separate; game state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
 | T10   | Automated | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-041                                     |
 | T13   | Automated | Truncation at limit with `output://` pointer; payload persona filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-004, REQ-032                            |
 | T15   | Automated | `spec_health` reports confidence, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
@@ -2148,7 +2165,7 @@ not a question.
 
 ## Appendix K: Adventure Module Format
 
-_Adventure modules are supplementary Markdown loaded during the Build job (REQ-079, B9).
+_Adventure modules are supplementary Markdown loaded during the Build job (REQ-079).
 Same heading, anchor, role-marker, table, and bold-labeled-field conventions as the ruleset
 (Appendix A, H). No mechanical extraction — all content is guidance-category._
 

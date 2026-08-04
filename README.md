@@ -37,12 +37,12 @@ become interactive.
   if you don't have a PDF. Give it an official sheet and it matches
   the layout.
 
-- **Two ways to play.** Player mode — the AI acts as your Game
-  Master, narrating and rolling while keeping secrets secret, and
-  respects your agency: it describes the world without making
-  decisions for you. Game Master mode — full access, full control,
-  every tool at your command. Switch personas anytime with
-  `set_persona` — no restart needed.
+- **Two personas for play — unrestricted access for setup.** Build
+  characters, load adventures, and prep your game with every tool
+  unlocked. When you're ready to play, activate Player persona via
+  `set_persona` — the AI narrates and adjudicates, keeping secrets
+  secret while you act. Switch to Game Master anytime for full
+  control. No restart needed.
 
 - **Any format in.** Markdown files, PDF rulebooks, HTML source, or
   scraped web SRDs from permissively-licensed games. A built-in
@@ -71,9 +71,9 @@ sources.
 
 **Players who want less bookkeeping.** Dice automation, character
 tracking, condition management, countdowns, session recaps — the
-server handles it so you focus on the story. Two play modes: Player
-mode lets the AI narrate and adjudicate while you act; Game Master
-mode gives you full control.
+server handles it so you focus on the story. Start with everything unlocked
+for setup. Activate Player persona when you want the AI to narrate
+and adjudicate; switch to Game Master anytime for full control.
 
 **Developers.** Skip the integration work. Feed the spec your rulebooks
 and an AI agent builds the MCP server. Dice, combat, character
@@ -87,16 +87,19 @@ the AI asks only the questions those jobs need, then gets to work.
 
 ### Convert: Prepare your rulebooks
 
-Feed the AI PDF rulebooks, HTML files, or web SRD URLs. It converts them
-to clean, machine-readable Markdown — reassembling tables across page
+Feed the AI any game materials — core rulebooks, supplemental books,
+character sheets, adventure modules, PDFs, HTML files, or web SRD URLs.
+It converts them to clean, machine-readable Markdown — reassembling tables across page
 breaks, stripping page furniture, and flagging structural problems. This
 job runs standalone: you get converted Markdown files and stop there.
 Come back and run Build when you're ready.
 
 ### Build: Build the game server
 
-This is the core. Feed the AI your Markdown ruleset and it builds a
-complete MCP game server from scratch. Dice rolling, combat tracking,
+This is the core. Feed the AI any game materials — core rulebooks,
+supplemental books, character sheets, and adventure modules — and it
+builds a complete MCP game server from scratch. Adventures are
+discovered within your provided files automatically. Dice rolling, combat tracking,
 character management, monster and spell lookups, random tables, and
 more — every mechanic traced back to your actual books with a citation.
 The server always includes a working character sheet tool, inferred
@@ -111,8 +114,9 @@ job.
 ### Enrich: Community advice (optional)
 
 The AI searches the web for game-specific tips — GM advice, player
-strategy guides, actual-play breakdowns, designer commentary — and
-adds them to the server's persona knowledge. Your AI Game Master now
+strategy guides, actual-play breakdowns, designer commentary, and
+media influences (movies, TV, video games) — and adds them to the
+server's knowledge. Your AI Game Master now
 knows not just the rules, but how the community plays the game. Run
 this job against an existing build anytime.
 
