@@ -98,8 +98,7 @@ verified against a golden transcript.
 ## How Holonovel Compares
 
 The RPG MCP niche has roughly seven known projects.
-Holonovel is the only one that's a factory, not a fixed product.
-Here's how it stacks up.
+Holonovel is the only one that's a factory, not a fixed product. Here's how it stacks up. (Researched on August 4, 2026.)
 
 **vs. AI Dungeon.** AI Dungeon is freeform fiction — great for improvised
 stories, but it doesn't enforce real tabletop rules. Holonovel extracts
@@ -151,9 +150,9 @@ more — every mechanic traced back to your actual books with a citation.
 The server always includes a working character sheet tool, inferred
 directly from the rules. Before handing off, the AI runs a full test
 suite, three ruleset-facing verification gates (structural integrity, MCP
-conformance, derived tests), and an Operational Confidence Exercise —
-end-to-end scenarios including AI-simulated combat — to prove the build
-is sound. Two fixture gates verify the builder against a known-correct
+conformance, derived tests), and a 15-scenario Operational Confidence
+Exercise — simulated combat, state survival, stress testing, and persona
+boundary enforcement — to prove the build is sound. Two fixture gates verify the builder against a known-correct
 specification once per implementation, not per ruleset. If your source needs conversion first, run the Convert
 job.
 
