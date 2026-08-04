@@ -176,17 +176,15 @@ functional — the rest is enhancement.
 
 ## Project status
 
-Holonovel is in active development.
-
-Most build specifications prescribe every detail in advance — output
-formats, tool names, architecture decisions. Holonovel takes the opposite
-approach: it defines a convergence loop. After each build stage, the AI
-measures quality against objective thresholds, improves the work, and
-re-verifies — up to three iterations per activity. Adversarial subagents
-audit every checkpoint with fresh context. A golden transcript replay
-proves the server behaves correctly against a known fixture. This loop is
-the quality engine. It means the specification can stay lean — it states
-what the server must do, not how to build it. The loops close the gaps.
+Holonovel just leveled up (v1.2). It now thinks like the community it serves — you're
+the player, the AI is your Game Master, and you can always jump in to course-correct
+when the narrator drifts off-script. Instead of leaving your AI to improvise or keep
+everything in context alone, Holonovel hands it a full tabletop toolkit: it knows
+who's in every scene, it tracks deadlines and timers, it remembers every NPC you meet
+by name and disposition, it recaps what happened between sessions, and it loads whole
+adventure books as indexed, searchable reference so your narrator never invents a rule
+or forgets a room. It's a lorebook for rules, delivered as an MCP server — keeping
+your GM honest, creative, and on-world.
 
 ## Validating
 

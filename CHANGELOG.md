@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-04 — v1.2
+
+- Holonovel just leveled up (v1.2). It now thinks like the community it serves —
+  you're the player, the AI is your Game Master, and you can always jump in to
+  course-correct when the narrator drifts off-script. Instead of leaving your AI
+  to improvise or keep everything in context alone, Holonovel hands it a full
+  tabletop toolkit: it knows who's in every scene, it tracks deadlines and timers,
+  it remembers every NPC you meet by name and disposition, it recaps what happened
+  between sessions, and it loads whole adventure books as indexed, searchable
+  reference so your narrator never invents a rule or forgets a room. It's a
+  lorebook for rules, delivered as an MCP server — keeping your GM honest,
+  creative, and on-world.
+
 ## 2026-08-04 — Community-informed improvements; play model; terminology; 11 new REQs
 
 - Play model rewritten: Player persona is the human at the table (default); Game
