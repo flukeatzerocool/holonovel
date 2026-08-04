@@ -29,6 +29,11 @@
 - Net reduction: ~65% fewer lines (~4,530 → ~1,360), ~50% fewer tokens.
   No requirements added or removed; all verification gates and golden transcript
   unchanged.
+- Added 6th standing rule and Quick Reference line mandating contracts-not-implementations;
+  added style-guide bullet to AGENTS.md to prevent future clutter.
+- Updated README: fixed stale project-structure parenthetical, replaced project status
+  with convergence-loop philosophy explaining why the spec stays lean.
+- Removed AGENTS.md from .gitignore; the project's own AGENTS.md is now tracked.
 
 ## 2026-08-03 — Add conversion fidelity gates, sampling, and reporting
 

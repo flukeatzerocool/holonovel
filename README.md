@@ -153,11 +153,17 @@ enhancement.
 
 ## Project status
 
-Holonovel is in active development. The specification is stabilizing; the build
-pipeline has been tested against D&D 2024 (Player's Handbook, Dungeon Master's
-Guide, Monster Manual). The web-scrape intake path has been exercised against
-the D&D 3.5 SRD (d20srd.org). No formal versioning yet — track changes in
-[CHANGELOG.md](CHANGELOG.md).
+Holonovel is in active development.
+
+Most build specifications prescribe every detail in advance — output
+formats, tool names, architecture decisions. Holonovel takes the opposite
+approach: it defines a convergence loop. After each build stage, the AI
+measures quality against objective thresholds, improves the work, and
+re-verifies — up to three iterations per activity. Adversarial subagents
+audit every checkpoint with fresh context. A golden transcript replay
+proves the server behaves correctly against a known fixture. This loop is
+the quality engine. It means the specification can stay lean — it states
+what the server must do, not how to build it. The loops close the gaps.
 
 ## Validating
 
@@ -181,10 +187,12 @@ Also available separately:
 ```
 Holonovel/
 ├── holonovel.md                ← the complete build specification
-│                                 (intake workflow, web-scrape
-│                                 sub-flow, readiness gates, ruleset
-│                                 preparation instructions, character
-│                                 sheet generator, persona enrichment)
+│                                 (§1–5 mission, requirements, failure
+│                                 modes, standing rules; §6 build process;
+│                                 §7 runtime conventions; §8 verification
+│                                 gates; §9 handoff; §10 independent
+│                                 verification; §11 optional phases;
+│                                 appendices A–G, T, I)
 ├── .markdownlint.json     ← lint rules
 ├── package.json           ← npm scripts (lint, validate, typecheck, check)
 ├── scripts/

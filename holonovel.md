@@ -5,9 +5,10 @@
 > server, and proves it works. Output: a running MCP server with dice, combat, character
 > management, and rules lookup — plus four artifacts (RULESET_MODEL.md, DECISIONS.md,
 > README.md, AGENTS.md). Quality enforced by four verification gates, 12 handoff checks, and
-> a golden-transcript replay. One server per ruleset. No network at runtime. Three personas
+> a golden-transcript replay. One server per ruleset. No network at runtime. Three personas.
 > (player/referee/unassigned) gated server-side. State tiers: roster persists, games isolate,
-> sessions audit. RNG deterministic and seedable.
+> sessions audit. RNG deterministic and seedable. Requirements state the contract;
+> verification loops enforce quality.
 
 ## Contents
 
@@ -97,6 +98,11 @@ The spec is designed around six failure modes. Recognize them early.
 3. No network access at runtime (REQ-051).
 4. The server trusts nothing client-supplied; every tool validates its inputs (REQ-054).
 5. Persona gating is enforced server-side (REQ-032).
+6. **Contracts, not implementations.** Requirements state what the server must do. The
+   convergence loop (§6.5) and verification gates (§8) enforce quality. Do not prescribe
+   how the builder achieves it — no output format catalogues, no tool-name enumerations,
+   no specific architecture decisions, no worked examples disguised as requirements. If
+   the convergence loop catches a deviation, trust the loop.
 
 **Terminology.**
 
