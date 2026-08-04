@@ -41,7 +41,8 @@ become interactive.
   Master, narrating and rolling while keeping secrets secret, and
   respects your agency: it describes the world without making
   decisions for you. Game Master mode — full access, full control,
-  every tool at your command.
+  every tool at your command. Switch personas anytime with
+  `set_persona` — no restart needed.
 
 - **Any format in.** Markdown files, PDF rulebooks, HTML source, or
   scraped web SRDs from permissively-licensed games. A built-in

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-04 — Persona model: immutability → switchable masks; REQ-066 set_persona
+
+- Rewrote REQ-031 (Persona immutability) as REQ-031 (Persona activation):
+  persona is the active role, switchable at runtime via `set_persona`, not a
+  startup-locked session identity. Switching is audited; each persona has its
+  own undo stack; `set_persona` raises `[STATE_CONFLICT]` during pending
+  workflows.
+- Added REQ-066 (`set_persona` tool): accepts `player`, `game_master`,
+  `unassigned`; never persona-gated; returns `[OK] Active persona: <role>`.
+- Updated REQ-030, REQ-032 to reflect active-persona model. REQ-032 gating
+  now checks the currently active persona, not a session-locked value.
+- Updated REQ-002: `[FORBIDDEN]` response directs to `set_persona`, not
+  "correct persona session."
+- Changed `TTRPG_PERSONA` from required to optional (default initial persona;
+  server starts as `unassigned` if unset).
+- Updated glossary (Persona, Session), quick-reference block, §1 model
+  description, and OCE-6 scenario to reflect switchable personas.
+- Updated T9, T44, T50 test descriptions for persona switching.
+- Bumped REQ count: 34 → 35 (added REQ-066).
+- Updated README: "Two ways to play" now mentions `set_persona`.
+
 ## 2026-08-04 — Retire OCE-subsumed tests; automate T25 and T50
 
 - Retired T11, T12, T19, T34, T37 from Appendix F — all subsumed by OCE
