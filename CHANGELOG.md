@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-08-05 — Enrich job spec improvements (12 recommendations)
+
+- §5.8: Added **REQ-103 — Enrichment reversion** — `revert_enrichment` tool removes all
+  enrichment state, pure-state, idempotent, fully reversible. GM only, Player →
+  `[FORBIDDEN]`.
+- §5.8: Amended **REQ-084 — Action suggestions** — enrich-derived action patterns are now
+  **inert** (must be GM-activated via Novel-scoped toggle) to match the inert-by-default
+  principle.
+- §5.8: Amended **REQ-080 — Enrichment boundaries** — every enrich finding now carries
+  `collected_at` (ISO 8601 timestamp of collection) for staleness detection.
+- §5.9: Specified **adventure_advice integration** in REQ-090 (category match by
+  adventure_templates, keyword match against premise, genre tag for scenario_starters) and
+  REQ-091 (keyword match against table_expansions, highest confidence first).
+- §6.2: Restored **E4 budget cap question** — operator may override module budget caps at
+  intake; overrides below spec minimum are rejected.
+- §11.1 Structured outputs: Added `collected_at` timestamp to all enrichment items;
+  timestamps surfaced in resource output.
+- §11.1 Module 4: Action patterns changed from auto-active to **Inert** (matching
+  REQ-084 amendment).
+- §11.1: Added **Persona scope assignment rules** — three-tier rule for classifying
+  enrichment content as game_master, player, or shared based on source language.
+- §11.1 Budgets: Added note that E4 budget overrides must be ≥ spec minimum.
+- §11.1: Added **LOW-confidence presentation** semantics — `[LOW]` tag distinct from
+  `[supplementary]`, grouped after HIGH/MEDIUM items, signals reduced weight.
+- §11.1: Added **Deduplication and conflicts** — contradictory findings both recorded;
+  later item carries `conflicts_with` reference; LLM may flag to GM.
+- §11.1 Idempotence: **Decoupled from spec version** — enrichment fingerprint now uses
+  ruleset content hash + intake answers only; spec-only updates do not invalidate
+  enrichment.
+- §11.1 Verification: Added checks 7 (research depth — ≥1 item per module, ≥2 domains
+  per module) and 8 (content relevance — ruleset-specific anchor required).
+- §11.1 Reversion: Cites REQ-103.
+- Appendix E: Added REQ-103 row.
+- Appendix F: Added **T94** (enrichment reversion), **T95** (LOW-confidence tagging),
+  **T96** (action pattern inertness), **T97** (collected_at completeness).
+- README.md: Noted `revert_enrichment` and `collected_at` timestamp in Extend with Enrich
+  section.
+
 ## 2026-08-05 — Build job quality improvements (12 recommendations)
 
 - §6.4: Declared six-layer construction order as recommendation, not requirement —
