@@ -24,7 +24,8 @@ holonovel.md            The specification (standalone, copy-pasteable)
   Appendices A–G, T, I  Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog
-README.md               Project orientation
+README.md               Project orientation; see HTML comment at top for
+                          README design conventions
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
 package.json            Task runner (lint, validate, typecheck)
