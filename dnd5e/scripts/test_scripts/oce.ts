@@ -114,13 +114,15 @@ async function main() {
     const c = createClient(); await init(c);
     await c.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
 
-    const tools = [
+    const tools: [string, Record<string, unknown>][] = [
       ["spec_health", {}],
       ["search_rules", { query: "combat" }],
       ["help", {}],
+      ["help", { query: "combat" }],
       ["lookup_spell", { name: "fireball" }],
       ["lookup_monster", { name: "goblin" }],
       ["lookup_equipment", { name: "longsword" }],
+      ["lookup_class", { name: "fighter" }],
       ["roll_on_table", { table: "difficulty_classes" }],
       ["roll_save", { save: "dexterity", entity_id: "e999" }],
       ["session_recap", {}],
@@ -133,6 +135,26 @@ async function main() {
       ["roll_weapon_attack", { weapon: "longsword", entity_id: "e999", target_ac: 15 }],
       ["roll_weapon_damage", { weapon: "longsword", attacker_id: "e999", target_id: "e999" }],
       ["respond", { decision: "stat_method", option: "cancel" }],
+      ["end_game", {}],
+      ["set_active_entity", { entity_id: "e999" }],
+      ["set_personality", { entity_id: "e999", description: "test" }],
+      ["set_voice_examples", { entity_id: "e999", examples: [{ context: "test", dialogue: "hello" }] }],
+      ["player_signal", { signal: "ready" }],
+      ["set_scene_state", { description: "A dark forest" }],
+      ["set_scene_type", { type: "exploration" }],
+      ["set_narrative_directive", { directive: "Find the lost temple" }],
+      ["create_npc", { name: "Guildmaster" }],
+      ["update_npc", { npc_id: "npc99", name: "Updated" }],
+      ["remove_npc", { npc_id: "npc99" }],
+      ["set_countdown", { name: "ritual", ticks: 5, type: "narrative" }],
+      ["advance_countdown", { name: "ritual" }],
+      ["remove_countdown", { name: "ritual" }],
+      ["set_lore_entry", { key: "temple", content: "An ancient temple in the forest", triggers: ["dark forest"], persona_scope: "shared" }],
+      ["remove_lore_entry", { key: "temple" }],
+      ["set_briefing_order", { sections: ["foundations", "registry"] }],
+      ["suggest_actions", { intent: "attack the goblin" }],
+      ["compress_audit", { max_entries: 5 }],
+      ["load_adventure", { slug: "nonexistent" }],
     ];
 
     let sweepOk = true;
@@ -221,10 +243,10 @@ async function main() {
     const ch = await createCharacter(c, "dwarf", "fighter", "Soldier", "Thorin");
     await c.call("tools/call", { name: "import_character", arguments: { roster_id: ch.eid } });
 
-    // Danger gets ID danger_npc1 (first danger created in this game)
+    // Danger gets ID danger_npc01 (first danger created in this game)
     let r = await c.call("tools/call", { name: "init_combat", arguments: { participants: [ch.eid], dangers: [{ name: "Goblin", ac: 15, hp: 7 }] } });
     ok(fullText(r), "init_combat");
-    const dangerId = "danger_npc1";
+    const dangerId = "danger_npc01";
     let advanceCount = 0;
 
     // Round 1: attack the danger with seed
@@ -282,12 +304,13 @@ async function main() {
     ok(fullText(r), "advance");
 
     // Read and record state from disk
-    const stateFile = path.join(DATA, "game_oce-s5.json");
+    const stateFile = path.join(DATA, "state", "oce-s5.json");
     const rawState = fs.readFileSync(stateFile, "utf-8");
     const state1 = JSON.parse(rawState);
-    const recordedRound = state1.combat.round;
-    const recordedTurnIndex = state1.combat.turnIndex;
-    const recordedParticipants = state1.combat.participants.map((p: any) => ({
+    const recordedCombat = state1.game.combat;
+    const recordedRound = state1.game.combat.round;
+    const recordedTurnIndex = state1.game.combat.turnIndex;
+    const recordedParticipants = state1.game.combat.participants.map((p: any) => ({
       id: p.id, type: p.type, name: p.name, initiative: p.initiative,
       ac: p.ac, hp: p.hp,
     }));
@@ -299,13 +322,13 @@ async function main() {
     const state2Raw = fs.readFileSync(stateFile, "utf-8");
     const state2 = JSON.parse(state2Raw);
 
-    assert.strictEqual(state2.combat.round, recordedRound, `Round: ${recordedRound} vs ${state2.combat.round}`);
-    assert.strictEqual(state2.combat.turnIndex, recordedTurnIndex, `Turn index: ${recordedTurnIndex} vs ${state2.combat.turnIndex}`);
-    assert.strictEqual(state2.combat.participants.length, recordedParticipants.length, "Participant count");
+    assert.strictEqual(state2.game.combat.round, recordedRound, `Round: ${recordedRound} vs ${state2.game.combat.round}`);
+    assert.strictEqual(state2.game.combat.turnIndex, recordedTurnIndex, `Turn index: ${recordedTurnIndex} vs ${state2.game.combat.turnIndex}`);
+    assert.strictEqual(state2.game.combat.participants.length, recordedParticipants.length, "Participant count");
     for (let i = 0; i < recordedParticipants.length; i++) {
-      assert.strictEqual(state2.combat.participants[i].id, recordedParticipants[i].id, `Participant ${i} id`);
-      assert.strictEqual(state2.combat.participants[i].name, recordedParticipants[i].name, `Participant ${i} name`);
-      assert.strictEqual(state2.combat.participants[i].hp, recordedParticipants[i].hp, `Participant ${i} hp`);
+      assert.strictEqual(state2.game.combat.participants[i].id, recordedParticipants[i].id, `Participant ${i} id`);
+      assert.strictEqual(state2.game.combat.participants[i].name, recordedParticipants[i].name, `Participant ${i} name`);
+      assert.strictEqual(state2.game.combat.participants[i].hp, recordedParticipants[i].hp, `Participant ${i} hp`);
     }
 
     // Confirm state is operational
@@ -336,6 +359,31 @@ async function main() {
     r = await c.call("tools/call", { name: "init_combat", arguments: { participants: [], dangers: [{ name: "Kobold", ac: 12, hp: 5 }] } });
     ok(fullText(r), "GM init_combat works");
     await c.call("tools/call", { name: "end_combat", arguments: { outcome: "Test" } });
+
+    // Block new v1.2 GM tools from Player
+    await c.call("tools/call", { name: "set_persona", arguments: { persona: "player" } });
+    const gmToolTests: [string, Record<string, unknown>][] = [
+      ["set_scene_state", { description: "test" }],
+      ["set_scene_type", { type: "exploration" }],
+      ["set_narrative_directive", { directive: "test" }],
+      ["set_personality", { entity_id: "e999", description: "test" }],
+      ["set_voice_examples", { entity_id: "e999", examples: [{ context: "test", dialogue: "hello" }] }],
+      ["create_npc", { name: "TestNPC" }],
+      ["update_npc", { npc_id: "npc99", name: "Test" }],
+      ["remove_npc", { npc_id: "nonexistent" }],
+      ["set_countdown", { name: "test", ticks: 3, type: "narrative" }],
+      ["advance_countdown", { name: "nonexistent" }],
+      ["remove_countdown", { name: "nonexistent" }],
+      ["set_lore_entry", { key: "test", content: "test" }],
+      ["remove_lore_entry", { key: "nonexistent" }],
+      ["set_briefing_order", { sections: ["foundations"] }],
+      ["compress_audit", { max_entries: 5 }],
+      ["load_adventure", { slug: "nonexistent" }],
+    ];
+    for (const [tool, args] of gmToolTests) {
+      r = await c.call("tools/call", { name: tool, arguments: args });
+      er(fullText(r), `Player blocked from ${tool}`, "FORBIDDEN");
+    }
 
     // Switch back to player, verify no GM content leaks
     await c.call("tools/call", { name: "set_persona", arguments: { persona: "player" } });
@@ -672,7 +720,8 @@ async function main() {
       c1.close();
 
       // Corrupt the game file
-      const stateFile = path.join(DATA, "game_oce-s15b.json");
+      const stateFile = path.join(DATA, "state", "oce-s15b.json");
+      fs.mkdirSync(path.dirname(stateFile), { recursive: true });
       fs.writeFileSync(stateFile, "NOT VALID JSON {{{", "utf-8");
 
       const c2 = createClient({ TTRPG_GAME_ID: "oce-s15b" });
@@ -689,7 +738,7 @@ async function main() {
       c2.close();
 
       // Clean up corrupted state for subsequent scenarios
-      fs.writeFileSync(stateFile, JSON.stringify({ entities: {}, npcs: {}, combat: null, auditLog: [], sceneState: "", activeEntityId: null }));
+      fs.writeFileSync(stateFile, JSON.stringify({ game: null, roster: {}, counter: 0 }));
     }
 
     // (c) Rapid persona switching ×10
@@ -766,6 +815,135 @@ async function main() {
     }
 
     pass("Stress and recovery");
+  }
+
+  // ═══ SCENARIO 16: Narrative State ════════════════════════════════════
+  {
+    console.log("SCENARIO 16: Narrative State");
+    const c = createClient({ TTRPG_GAME_ID: "oce-s16" }); await init(c);
+    await c.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+
+    // Scene state
+    let r = await c.call("tools/call", { name: "set_scene_state", arguments: { description: "The Whispering Woods at dusk" } });
+    ok(fullText(r), "set scene state");
+
+    r = await c.call("tools/call", { name: "set_scene_type", arguments: { type: "exploration" } });
+    ok(fullText(r), "set scene type");
+
+    r = await c.call("tools/call", { name: "set_narrative_directive", arguments: { directive: "Find the druid's hidden grove before nightfall" } });
+    ok(fullText(r), "set narrative directive");
+
+    // NPC lifecycle
+    r = await c.call("tools/call", { name: "create_npc", arguments: { name: "Elara the Druid", description: "A reclusive elven druid", disposition: "wary", location: "Deep Grove" } });
+    const npcText = fullText(r);
+    ok(npcText, "create NPC");
+    const npcMatch = npcText.match(/npc:\/\/(npc\d+)/);
+    assert.ok(npcMatch, "NPC ID in output");
+    const npcId = npcMatch![1];
+
+    r = await c.call("tools/call", { name: "update_npc", arguments: { npc_id: npcId, disposition: "friendly", description: "Elara, keeper of the ancient grove" } });
+    ok(fullText(r), "update NPC");
+
+    r = await c.call("tools/call", { name: "remove_npc", arguments: { npc_id: npcId } });
+    ok(fullText(r), "remove NPC");
+
+    r = await c.call("tools/call", { name: "remove_npc", arguments: { npc_id: npcId } });
+    er(fullText(r), "re-remove NPC NOT_FOUND", "NOT_FOUND");
+
+    // Countdown lifecycle
+    r = await c.call("tools/call", { name: "set_countdown", arguments: { name: "ritual_completion", ticks: 5, type: "round" } });
+    const cdText = fullText(r);
+    ok(cdText, "set countdown");
+    assert.ok(cdText.includes("5/5"), "Countdown ticks correct");
+
+    r = await c.call("tools/call", { name: "advance_countdown", arguments: { name: "ritual_completion" } });
+    const advText = fullText(r);
+    ok(advText, "advance countdown");
+    assert.ok(advText.includes("4/5"), "Advanced to 4/5");
+
+    // Round countdown ticks via combat
+    const ch = await createCharacter(c, "human", "fighter", "Soldier", "Kael");
+    await c.call("tools/call", { name: "import_character", arguments: { roster_id: ch.eid } });
+    r = await c.call("tools/call", { name: "init_combat", arguments: { participants: [ch.eid], dangers: [{ name: "Wolf", ac: 13, hp: 10 }] } });
+    ok(fullText(r), "init combat with countdown");
+
+    // Advance through the round — should tick countdown
+    r = await c.call("tools/call", { name: "advance_combat", arguments: {} });
+    const adv1 = fullText(r);
+    assert.ok(adv1.includes("Round 1"), "Round indicated"); 
+    // advance_combat first moves to the next turn, then if it wraps to first turn, increments round
+    // With 2 participants (entity + danger), one advance goes to danger, second goes to round 2
+    r = await c.call("tools/call", { name: "advance_combat", arguments: {} });
+    const adv2 = fullText(r);
+    if (adv2.includes("Round 2")) {
+      r = await c.call("tools/call", { name: "advance_countdown", arguments: { name: "ritual_completion" } });
+    }
+
+    await c.call("tools/call", { name: "end_combat", arguments: { outcome: "Test done" } });
+
+    r = await c.call("tools/call", { name: "remove_countdown", arguments: { name: "ritual_completion" } });
+    ok(fullText(r), "remove countdown");
+
+    // Lore lifecycle
+    r = await c.call("tools/call", { name: "set_lore_entry", arguments: { key: "druid_grove", content: "The druid's grove is hidden behind a waterfall that glows faintly at night.", triggers: ["druid", "grove", "waterfall"], persona_scope: "shared" } });
+    ok(fullText(r), "set lore entry");
+
+    r = await c.call("tools/call", { name: "set_lore_entry", arguments: { key: "gm_secret", content: "The druid is actually a polymorphed dragon.", triggers: ["druid", "grove"], persona_scope: "game_master" } });
+    ok(fullText(r), "set gm lore");
+
+    r = await c.call("tools/call", { name: "remove_lore_entry", arguments: { key: "druid_grove" } });
+    ok(fullText(r), "remove lore");
+
+    r = await c.call("tools/call", { name: "remove_lore_entry", arguments: { key: "gm_secret" } });
+    ok(fullText(r), "remove gm lore");
+
+    // Enrichment boundaries check
+    r = await c.call("tools/call", { name: "set_personality", arguments: { entity_id: ch.eid, voice: "Gruff and commanding", background: "Former mercenary captain turned adventurer", goals: "Find glory and gold" } });
+    ok(fullText(r), "set personality");
+
+    r = await c.call("tools/call", { name: "set_voice_examples", arguments: { entity_id: ch.eid, examples: [{ context: "Before battle", dialogue: "Steel yourselves! Today we earn our names in blood!", tag: "rally" }, { context: "Investigating", dialogue: "Quiet. Something doesn't feel right about this place.", tag: "cautious" }] } });
+    ok(fullText(r), "set voice examples");
+
+    // Briefing order
+    r = await c.call("tools/call", { name: "set_briefing_order", arguments: { sections: ["foundations", "anti_slop", "voice_examples", "scene_state", "registry"] } });
+    ok(fullText(r), "set briefing order");
+
+    r = await c.call("tools/call", { name: "set_briefing_order", arguments: { sections: ["invalid_token"] } });
+    er(fullText(r), "invalid briefing token", "INVALID_INPUT");
+
+    r = await c.call("tools/call", { name: "set_briefing_order", arguments: { sections: [] } });
+    ok(fullText(r), "reset briefing order");
+
+    // Suggest actions
+    r = await c.call("tools/call", { name: "suggest_actions", arguments: { intent: "I want to attack", entity_id: ch.eid } });
+    ok(fullText(r), "suggest actions (combat intent)");
+
+    r = await c.call("tools/call", { name: "suggest_actions", arguments: { intent: "search the cave" } });
+    ok(fullText(r), "suggest actions (search intent)");
+
+    // Compress audit
+    r = await c.call("tools/call", { name: "compress_audit", arguments: { max_entries: 5 } });
+    ok(fullText(r), "compress audit");
+
+    // Player signal
+    await c.call("tools/call", { name: "set_persona", arguments: { persona: "player" } });
+    r = await c.call("tools/call", { name: "player_signal", arguments: { signal: "I'd like to investigate the fountain more carefully", detail: "Perception check" } });
+    ok(fullText(r), "player signal");
+
+    await c.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+
+    // Active entity
+    r = await c.call("tools/call", { name: "set_active_entity", arguments: { entity_id: ch.eid } });
+    ok(fullText(r), "set active entity");
+
+    // Lookup class
+    r = await c.call("tools/call", { name: "lookup_class", arguments: { name: "wizard" } });
+    const lcText = fullText(r);
+    ok(lcText, "lookup class");
+    assert.ok(lcText.includes("Hit Die") || lcText.includes("d6"), "Class info present");
+
+    c.close();
+    pass("Narrative state");
   }
 
   // ═══ SUMMARY ════════════════════════════════════════════════════════════

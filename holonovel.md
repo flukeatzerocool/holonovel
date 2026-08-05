@@ -327,7 +327,9 @@ playbook. Output is persona-filtered. _Check:_ T62.
 **REQ-063 — Connection introduction.** The server provides an `intro` prompt, listed first
 in `prompts/list`. It takes no arguments, is visible to all personas, and serves as a
 conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
-actions a player can take. The `help` tool and `persona_briefing` each point to it.
+actions a player can take. The tone is engaging and energetic; the anti-slop catalogue
+(REQ-070, Appendix J) governs in-game GM and Player narration, not server onboarding
+prompts. The `help` tool and `persona_briefing` each point to it.
 _Check:_ T49, T50.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
