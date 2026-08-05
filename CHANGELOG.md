@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-08-05 — v1.3 "Novels"
+
+The Novel is a named, persistent save file that bundles the whole game
+under one roof. Create a Novel, set up your adventure (load a module,
+generate from a premise, or build from scratch), activate the Player
+persona, and play. Every Novel saves to disk — your game survives
+restarts and rebuilds, waiting right where you left it. Setup is a
+freeform toolkit, not a rigid wizard: the server surfaces what's
+available and recommends a path, but you drive.
+
+- Terminology overhaul: Game → Novel, `TTRPG_GAME_ID` → `TTRPG_NOVEL`,
+  `end_game` → `end_novel` (deprecation alias one version), `game.id`
+  macro → `novel.slug`, `audit://game` → `audit://novel`. Standing rules,
+  play model, and all REQs updated.
+- 6 new REQs (088–093): Novel lifecycle (create/resume/end with
+  state-conflict gating), setup tracking (characters/adventure/
+  session-zero flags), adventure generation (ruleset-bolstered scaffold,
+  GM-only, no runtime network), encounter generation (batch scene+NPC+
+  lore, single-undo atomic), disk persistence (`.holonovel-state/
+  novels/<slug>.json`), Novel-scoped metadata in `spec_health`.
+- REQ-062 trimmed from 12 to 7 principles (3 GM + 4 Player); REQ-070 and
+  Appendix J reduced from full anti-slop catalogue to 7-row synopsis
+  table (full catalogue moves to Enrich supplementary guidance).
+- REQ-022 (+5 resource URIs), REQ-023 (6→7 prompts, `novel_setup` added),
+  REQ-025 (Novel metadata in `spec_health`).
+- OCE: 3 new scenarios (17–19). S17: Novel lifecycle and persistence
+  (blocking). S18: Novel isolation and adventure generation
+  (non-blocking). S19: setup tracking and encounter generation
+  (non-blocking).
+- Enrich gains 6th output module `adventure_advice` (30-item budget:
+  templates, table expansions, scenario starters), added to idempotence
+  manifest.
+- REQ-080 updated (+adventure_advice), REQ-082 section tokens (+`novel`).
+- State model rewritten: Novel tier replaces Game; all persistence,
+  lifecycle, and isolation documented.
+- 7 new tests (T72–T78), 3 tests updated (T9, T31, T61).
+- README rewritten: 404→207 lines, workflow-centric structure,
+  natural-language demos (no tool names), two-audience split, design
+  conventions documented in HTML comment header. `.markdownlint.json`
+  MD028 disabled for blockquote styling. AGENTS.md pointer added.
+- Appendix D conformance, Appendix E manifest (70 REQ rows), Appendix F
+  test catalogue all updated for Novel changes.
+
 ## 2026-08-04 — Add server LICENSE.md requirement
 
 - Specified that the Build job MUST include a `LICENSE.md` in the server
