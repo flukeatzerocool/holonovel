@@ -228,6 +228,8 @@ language, vague qualifiers, indefinite terms in REQ bodies).
 | `npm run graph-deps` | REQ dependency graph (DOT/Graphviz output) |
 | `npm run spec-health-trends` | REQ count, test count, line count, cross-ref density |
 
+All scripts share parsing logic from `scripts/lib/parse-spec.ts`.
+
 ### Spec-level security
 
 Appendix P provides a STRIDE security threat model mapping spoofing,

@@ -1,18 +1,5 @@
 #!/usr/bin/env npx tsx
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SPEC = path.resolve(__dirname, "..", "holonovel.md");
-
-function readSpec(): string {
-  if (!fs.existsSync(SPEC)) {
-    console.error(`ERROR: ${SPEC} not found`);
-    process.exit(1);
-  }
-  return fs.readFileSync(SPEC, "utf-8");
-}
+import { readSpec } from "./lib/parse-spec.js";
 
 function checkCitations(text: string): string[] {
   const issues: string[] = [];

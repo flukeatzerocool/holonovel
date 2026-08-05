@@ -2,17 +2,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readSpec } from "./lib/parse-spec.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SPEC = path.resolve(__dirname, "..", "holonovel.md");
-
-function readSpec(): string {
-  if (!fs.existsSync(SPEC)) {
-    console.error(`ERROR: ${SPEC} not found`);
-    process.exit(1);
-  }
-  return fs.readFileSync(SPEC, "utf-8");
-}
 
 function stripMarkdownFormatting(raw: string): string {
   let s = raw;

@@ -47,6 +47,7 @@ scripts/scan-ambiguity.ts     Ambiguity scanner (hedging, vague qualifiers,
 scripts/fmea.ts               REQ-level failure mode and effects skeleton
 scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
 scripts/spec-health-trends.ts Spec health metrics over revisions
+scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies)
 ```
 
 ## Conventions
