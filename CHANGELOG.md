@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-08-05 — v2.0 "Self Reflection" — Assumption audit remediation
+
+- Full 47-assumption audit conducted against the specification. 5 blockers, 28
+  risks, 14 latent assumptions identified and remediated across 28 changes. The
+  audit challenged the spec's own premises: TypeScript prescription, AI-as-builder
+  viability, convergence loop completeness, state persistence model, MCP ecosystem
+  assumptions, and more. 18 of 18 audit recommendations implemented.
+- §1: Play model clarifies solo-play scope; rebuild costs documented.
+- §4: Technology stack prescribes TypeScript on Node.js 20+ as the default;
+  alternative stacks allowed via Gate verification with DECISIONS.md
+  justification. Distribution mechanism requirement added (Docker, binary, or npx).
+- §5: Three new requirements — REQ-099 (confidence-floor operator
+  acknowledgment), REQ-100 (performance benchmarking with 4-tier system:
+  Light/Standard/Heavy/Huge), REQ-101 (assumption audit trail per build).
+- §5: REQ-092 amended to require atomic writes and backup retention.
+- §6.5: Convergence confidence thresholds tiered by ruleset complexity
+  (Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70%).
+- §6.6: Gauntlet scenario S20 added (50-round campaign endurance with state
+  accumulation and memory checks). Scenario count: 19 → 20. S20 added to
+  blocking scenarios list.
+- §7.1: Slug safety rules — Windows reserved names and 240-char path limits.
+- §8: Gate 2b added — complex fixture replay for rulesets above 200 indexed
+  items (mandatory pre-handoff).
+- §9: AGENTS.md artifact requires a Troubleshooting section covering common
+  failure modes.
+- §10: Independent verifier gains adversarial round — 5 breakage attempts
+  (persona switching, simultaneous Novel ops, seed injection, oversized state,
+  path traversal).
+- §11.1: Copyright note for Enrich job — operator responsible for source
+  compliance.
+- Appendix B.3: Golden transcript extended from 7 to 17 interactions —
+  scene state, countdown lifecycle, combat with dangers, session_recap, undo.
+- New Appendix N: Complex Fixture (skeleton — content TBD).
+- New Appendix O: Behavioral Contracts — observable output contracts for dice
+  resolution, canonical lookups, combat, state management, workflows, persona
+  gating, and state survival.
+- Appendix E manifest: 72 → 75 REQ rows (REQ-099, REQ-100, REQ-101).
+- Appendix F test catalogue: 7 new test IDs (T86–T92).
+- New `scripts/audit-assumptions.ts` — structural assumption auditor detecting
+  unverifiable citations, magic numbers, absolute language, and untiered
+  thresholds. Exit 0, warnings only. Added to `npm run check` pipeline.
+- New MCP prompt `assumption_audit` referenced in REQ-101 — guides AI through
+  a structured nine-category assumption audit.
+- README: Contribute section updated with assumption audit workflow.
+- package.json: version 1.4.0 → 2.0.0; `audit-assumptions` script added.
+- AGENTS.md: layer map updated (75 REQs, Gates 0–5+2b, Appendices A–O,
+  new script).
+
 ## 2026-08-05 — Convergence loop enhancements (6 improvements)
 
 - §6.5: Cross-model audit recommendation — audit subagent uses a different model

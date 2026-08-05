@@ -12,29 +12,34 @@ specification document, not an implementation.
 ```
 holonovel.md            The specification (standalone, copy-pasteable)
   §1–5                  Mission, requirements, failure modes, standing rules,
-                          requirements (56 REQ blocks)
+                          requirements (75 REQ blocks)
   §6                    Build process (jobs, intake, discovery, construction,
                           verification & convergence)
   §7                    Runtime conventions (anchors, IDs, output contracts,
                           tool conventions, state model, guidance)
-  §8                    Verification gates (Gate 0–4)
-  §9                    Artifacts and handoff (4 artifacts, 12 checks)
-  §10                   Independent verification
+  §8                    Verification gates (Gate 0–5, Gate 2b)
+  §9                    Artifacts and handoff (4 artifacts, 12 checks,
+                          troubleshooting)
+  §10                   Independent verification (includes adversarial round)
   §11                   Optional jobs (persona enrichment)
-  Appendices A–M        Parsing principles, golden fixture, injection fixture,
+  Appendices A–O        Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog,
                           anti-slop synopsis, adventure format, lorebook format,
-                          REQ authoring conventions
+                          REQ authoring conventions, complex fixture, behavioral
+                          contracts
 README.md               Project orientation; see HTML comment at top for
                           README design conventions
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
-package.json            Task runner (lint, validate, typecheck)
+package.json            Task runner (lint, validate, audit-assumptions,
+                          typecheck)
 .markdownlint.json      Lint rules (120-char prose, ATX headings)
 tsconfig.json           TypeScript configuration
 scripts/validate.ts     Cross-reference checker (REQ citations, test IDs,
                           TOC sync, heading separators, block shape)
+scripts/audit-assumptions.ts  Structural assumption auditor (citations,
+                          magic numbers, absolute language, thresholds)
 ```
 
 ## Conventions
@@ -79,10 +84,11 @@ npm run check
 
 This runs:
 
-| Command              | What it checks                                    |
-|----------------------|---------------------------------------------------|
-| `npm run lint`       | markdownlint style rules (`.markdownlint.json`)  |
-| `npm run validate`   | Cross-references, TOC sync, REQ blocks, separators, spec violations |
+| Command                    | What it checks                                    |
+|----------------------------|---------------------------------------------------|
+| `npm run lint`             | markdownlint style rules (`.markdownlint.json`)  |
+| `npm run validate`         | Cross-references, TOC sync, REQ blocks, separators, spec violations |
+| `npm run audit-assumptions`| Structural assumption patterns (citations, magic numbers, absolute language) |
 
 Also available separately:
 

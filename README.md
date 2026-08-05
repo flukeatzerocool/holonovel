@@ -207,10 +207,25 @@ Your AI Game Master answers.
 ## Contribute to the spec
 
 ```sh
-npm install && npm run check
+npm install && npm run check       # lint + validate + assumption audit
 ```
 
 `markdownlint` + cross-reference validator (REQ citations, test IDs, TOC
-sync, block shape).
+sync, block shape) + structural assumption auditor (unverifiable citations,
+magic numbers, absolute language, untiered thresholds).
+
+### Automated assumption audit
+
+`npm run audit-assumptions` catches structural assumption patterns:
+unverifiable citations, hardcoded magic numbers without justification,
+absolute language, and untiered confidence thresholds. Warnings only —
+does not block the build.
+
+For a full qualitative audit (challenging assumptions against external
+evidence), invoke the `assumption_audit` prompt from the spec. The prompt
+guides an AI through a structured nine-category audit — technology,
+AI-as-builder, extraction, MCP ecosystem, state persistence, verification,
+build process, runtime guarantees, and spec process — producing an audit
+trail in DECISIONS.md.
 
 License: MIT. [RSS](https://git.gay/flukeatzerocool/Holonovel).
