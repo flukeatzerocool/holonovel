@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-08-05 — dnd5e v1.3 Novel migration + OCE re-verification requirement
+
+- Spec (§6.6, §11): OCE reclassified from "confidence check, not a requirement
+  gate" to "required quality check." After any optional job that modifies the
+  server (Enrich, Sheet) completes, re-run the OCE blocking scenarios and verify
+  no regression. Record re-verification results in DECISIONS.md.
+- dnd5e: Novel terminology migration (Game→Novel). State types, methods, and
+  fields renamed: `GameState`→`NovelState`, `getActiveGame`→`getActiveNovel`,
+  `_games`→`_novels`, `_activeGameId`→`_activeNovelSlug`. ~130 rename sites
+  across `state.ts` and `index.ts`.
+- dnd5e: 4 new tools (`create_novel`, `resume_novel`, `generate_adventure`,
+  `generate_encounter`) conforming to REQ-088, REQ-090, REQ-091. `end_game`
+  deprecated as alias for `end_novel` (backward compat).
+- dnd5e: 2 new resources (`novel://current`, `novel://<slug>`), 1 new prompt
+  (`novel_setup`, REQ-089). `audit://game`→`audit://novel`.
+- dnd5e: Persistence path changed from `state/<id>.json` to
+  `novels/<slug>.json` (REQ-092). Backward compat for `data.novel || data.game`
+  JSON key and `TTRPG_GAME_ID` fallback.
+- dnd5e: `NovelState` gains 6 metadata fields (slug, name, createdAt,
+  charactersPresent, adventureSet, sessionZeroCompleted) per REQ-093.
+  `spec_health` reports Novels on disk.
+- dnd5e: `persona_briefing` gains `novel` section token; `set_briefing_order`
+  valid tokens updated; `help` categories reorganized. McpServer version
+  bumped to 1.3.0.
+- dnd5e: Adventures split into per-novel (`adventureModules` in `NovelState`)
+  and system (`_systemAdventures` on `StateManager` for startup-loaded
+  modules). Dual-lookup prevents generated adventure leakage between Novels.
+- dnd5e: `loadState` restores `NovelState` metadata fields (name, slug,
+  createdAt, setup flags, adventureModules) discovered missing during OCE.
+- dnd5e: `session_recap` heading fixed (Game:→Novel:). OCE scenarios S1, S6,
+  S12, S13, S15(c-e), S18, S19 passed.
+
 ## 2026-08-05 — v1.3 "Novels"
 
 The Novel is a named, persistent save file that bundles the whole game

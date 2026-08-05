@@ -935,8 +935,8 @@ gates (§8: Gates 1 and 4) have passed, the builder runs the Operational Confide
 Exercise (OCE). Fixture gates (Gates 2 and 3 — see §8) are specification-level checks
 run once per builder implementation; they are independent of OCE timing. The OCE
 exercises the built server with AI-simulated personas in realistic play scenarios. It
-is a confidence check, not a requirement gate — its purpose is to surface bugs that
-structured verification missed, feeding them back into the convergence loop.
+is a required quality check. Run after Build converges; findings feed back into the
+convergence loop. Its purpose is to surface bugs that structured verification missed.
 
 **Job completion.** The Build job is not complete until the OCE exits with all
 scenarios passing or the builder records 2 cycles without improvement (see Exit
@@ -1473,6 +1473,11 @@ report is review evidence, not a build artifact.
 ## 11. Optional Jobs
 
 _These jobs do not gate the Definition of Done. They extend the Build job._
+
+After any optional job that modifies the server (Enrich, Sheet, or both) completes,
+re-run the OCE blocking scenarios (§6.6 exit criteria) and verify no regression. A
+previously-passing blocking scenario that now fails is a defect that must be resolved
+before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Persona enrichment
 
