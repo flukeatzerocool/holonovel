@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-04 — Eliminate JavaScript artifacts, run TypeScript natively
+
+- dnd5e: removed `dist/` directory (compiled JavaScript from `tsc`). All
+  paths now reference TypeScript source directly — `main` is `src/index.ts`,
+  `start` and `dev` use `tsx`, `build` drops `tsc` compilation step.
+- dnd5e/package.json: added `typecheck` script (`tsc --noEmit`) to retain
+  type safety without compilation.
+- dnd5e OCE: spawns server via `tsx` instead of `node` since the entry
+  point is now `.ts`.
+- dnd5e docs: AGENTS.md, DECISIONS.md, and README.md updated to reference
+  `src/index.ts` and `tsx` invocation.
+- .gitignore: removed `dnd5e/dist/` entry.
+
 ## 2026-08-04 — D&D 5e OCE updated to 15 scenarios, server hardened
 
 - dnd5e OCE: updated from 14 to 15 scenarios per §6.6. Tightened S4
