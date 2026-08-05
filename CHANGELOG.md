@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-04 — Add server LICENSE.md requirement
+
+- Specified that the Build job MUST include a `LICENSE.md` in the server
+  project root with Ruleset Data and Server Code sections (MIT).
+
 ## 2026-08-05 — dnd5e MCP server v1.2 alignment, energetic intros, anti-slop domain boundary
 
 - dnd5e: upgraded from v1.1 to v1.2 spec alignment. State model expanded
