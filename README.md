@@ -80,6 +80,8 @@ from scene and NPC tools. You drive. The server recommends a path.
 > "When anyone mentions the ossuary, remind me: the drowned priests
 > still pray down here."
 
+> "Export all my lore. Save it — I'll use this world again."
+
 > "The ritual completes in five rounds. Start the countdown."
 
 > "An acolyte named Sister Mora steps out of the shadows. She's
