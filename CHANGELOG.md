@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-05 — Audit findings remediation
+
+- Appendix E: Populated 19 `(today)` spec-version placeholders with actual
+  CHANGELOG dates — REQ-062/070 (2026-08-04), REQ-080/088–103 (2026-08-05).
+- `scripts/validate.ts`: `checkSpecVersionFormat` now flags both `—` and
+  `(today)` as unpopulated spec versions.
+- REQ-087: Replaced vague qualifier "appropriate moves" with "moves matching
+  the scene type" — ambiguity scanner now reports zero findings.
+- §6.3: Added justification for 10-section chunk budget (calibrated compromise
+  under REQ-100 tier benchmarks).
+- §9 H10: Added tier context to ≥80% confidence threshold (Standard tier floor
+  per REQ-100).
+
 ## 2026-08-05 — Novel subsystem: multi-novel, export, health, and persistence hardening
 
 - REQ-088 (Novel lifecycle): Multiple Novels per server instance (one active per

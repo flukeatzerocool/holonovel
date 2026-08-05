@@ -284,8 +284,8 @@ function checkSpecVersionFormat(text: string): string[] {
       if (reqColIdx !== null && specColIdx !== null && cells.length > specColIdx) {
         const reqId = cells[reqColIdx];
         const version = cells[specColIdx];
-        if (/^REQ-\d{3}$/.test(reqId) && version === "\u2014") {
-          issues.push(`${reqId}: Spec version not populated (\u2014)`);
+        if (/^REQ-\d{3}$/.test(reqId) && (version === "\u2014" || version === "(today)")) {
+          issues.push(`${reqId}: Spec version not populated`);
         }
       } else if (!line.trim().startsWith("|")) {
         break;
