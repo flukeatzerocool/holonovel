@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-05 — Convert job spec refinements (6 recommendations)
+
+- Added REQ-102 — Source conversion contract (§5.2): normative requirement covering
+  Appendix G conversion, fidelity sampling, converter pinning, artifact disposition, and
+  `spec_health` reporting. Added T93 (Manual) to Appendix F for conversion verification.
+  Added REQ-102 row to Appendix E manifest (76 REQs).
+- Fixed REQ-025 — spec_health: added `conversionFidelity` field (per-content-type rates,
+  overall rate, sample set, ambiguities, confidence cap counts) which was recorded in the
+  2026-08-03 CHANGELOG but missing from the REQ body. Field is absent when conversion was
+  not selected. Added T93 to REQ-025's Check line.
+- Defined fidelity measurement protocol (Appendix G): character-level diff after whitespace
+  normalization and Markdown formatting stripping; mechanical content scope defined as
+  `<table>` elements, `**Bold Label:**` patterns, and numbered-procedure blocks.
+- Added web-scrape protocol (Appendix G): same-origin link following, 1s request spacing,
+  3-retry exponential backoff (2/4/8s), 30s page timeout, non-content pattern exclusion,
+  default depth 1. Failed pages logged in DECISIONS.md; 3 consecutive failures stops scrape.
+- Added conversion threats to STRIDE (Appendix P): tampering (converter errors unscanned by
+  fidelity sampling), denial of service (scrape exhaust/IP ban), information disclosure
+  (credential/personal data in scraped source).
+- Defined artifact disposition (Appendix G): flagged conversion artifacts receive a
+  disposition — `fixed` (manually repaired before Gate 0), `waived` (accepted with
+  justification), or `pending` (blocks Gate 0 until resolved).
+
 ## 2026-08-05 — dnd5e enrichment job + prior spec fixes
 
 - Enrich job (§11) run on dnd5e MCP server. Research across 3 source domains (CBR,
