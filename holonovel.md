@@ -751,7 +751,8 @@ any [ruleset]-tagged content. Enrich recommendations for prompt ordering, lore t
 and adventure advice are inert — they never auto-apply; the GM must explicitly activate
 them via the corresponding tools. Every enrich finding carries source_url, quoted_excerpt,
 persona_scope, confidence (derived from source authority, not mechanical completeness),
-and output_module — all non-empty. _Check:_ T63.
+output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
+_Check:_ T63, T95, T97.
 
 **REQ-081 — Narrative directive.** The Game Master may set a standing narrative
 instruction via `set_narrative_directive(instruction)`. The directive is a free-text
@@ -786,7 +787,20 @@ an intent, it returns contextually relevant actions based on current scene type
 pure-resolution (idempotent, no state mutation). Results are persona-filtered: GM-only
 tools are excluded from Player results. The tool does not fabricate actions — every
 suggestion maps to a registered tool or documented ruleset procedure. Enrich-derived
-action patterns may supplement the matching index. _Check:_ T68.
+action patterns may supplement the matching index. They are **inert** — visible at
+`enrichment://action_patterns` for review but excluded from `suggest_actions` results
+until the GM explicitly activates them via a Novel-scoped toggle. Unactivated enrich
+patterns remain reference-only and do not influence tool output. _Check:_ T68, T96.
+
+**REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
+tool — Game Master only. Removes all enrichment state (six output modules from
+§11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
+build-derived tool registrations, persona gating rules, or any `[ruleset]`-tagged
+content. Does not modify DECISIONS.md — the enrichment manifest and verification
+results remain for audit. Re-running Build (without enrich) achieves the same result
+for the next build cycle. Player persona returns `[ERROR] [FORBIDDEN]`. Pure-state
+tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
+enrichment state. _Check:_ T94.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
@@ -847,8 +861,11 @@ Accepts a free-text premise and produces an adventure scaffold: a title (slug-if
 premise), an Overview (GM-only, template-populated), an Adventure Hook (player-visible), 2–6
 location headings with table-rolled flavor (setting, horror, puzzle tables from the
 ruleset), NPC name suggestions, and encounter table seeding. Uses indexed ruleset tables
-and, when available, Enrich `adventure_advice` content for template patterns and genre
-conventions. No runtime network — all content from indexed data. The scaffold is stored as
+and, when available, Enrich `adventure_advice` content — selecting templates by
+category match (adventure_templates for scaffold structure), genre-convention items by
+keyword match against the premise string, and scenario_starters by genre tag — each
+selection carrying its source_url and confidence in the output. No runtime
+network — all content from indexed data. The scaffold is stored as
 adventure content scoped to the Novel (read-only index-level data, guidance-category, same
 persona gating as loaded modules per REQ-079). Appears in `search_rules`,
 `persona_briefing` under the `adventure` token, and at
@@ -858,7 +875,8 @@ narrative prose. _Check:_ T75.
 
 **REQ-091 — Enhanced encounter generation.** `generate_encounter(context)` (Game Master
 only, optional context string). Combines ruleset encounter tables with Enrich
-`adventure_advice` content to produce a complete encounter in one call: a scene description,
+`adventure_advice` content (matching by scene context keywords against table_expansions
+category items, highest confidence first) to produce a complete encounter in one call: a scene description,
 an NPC or monster stat block, and a complication entry. With ruleset tables, rolls on them
 for the mechanical backbone and wraps in generated narrative. Without tables, produces from
 context and Enrich template patterns. Output: three structured artifacts as a batch — one
@@ -982,6 +1000,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E1  | Where is the server you already built? | Folder path              | —                   |
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
+| E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
 
 **Cross-job deduplication.** When the operator selects multiple jobs, questions
 identical in wording and semantics are asked once. If Convert produces the Markdown sources
@@ -1701,7 +1720,9 @@ threshold (e.g., "re-run when ≥3 new domains are reachable"). An incomplete
 disposition requires a supplement source audit in DECISIONS.md (6) listing which
 modules drew from supplemental content and which are from live research.
 
-**Structured outputs.** Enrich produces an enrichment manifest with six output modules:
+**Structured outputs.** Every item across all six modules records a `collected_at` ISO 8601
+timestamp, enabling staleness detection. The timestamp is surfaced in enrichment resource
+output. Enrich produces an enrichment manifest with six output modules:
 
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
    `text` (the dialogue), `context` (situation tag), `source_url`, and `confidence`.
@@ -1720,8 +1741,10 @@ modules drew from supplemental content and which are from live research.
 4. **Action patterns.** Up to 10 patterns mapping common player intents to ruleset-legal
    actions. Each records: `intent` (natural-language string), `suggested_actions` (array of
    ruleset tool names), `source_url`, and `confidence`. They supplement the
-   `suggest_actions` (REQ-084) matching index. Automatically active when present — no GM
-   activation needed.
+    `suggest_actions` (REQ-084) matching index. **Inert** — the GM must explicitly
+    activate them via a Novel-scoped toggle before they appear in `suggest_actions`
+    results. Unactivated patterns are visible at `enrichment://action_patterns` for
+    review.
 
 5. **Supplementary guidance.** Up to 20 items. Appended to `persona_briefing` with
    `[supplementary]` tag, source URL, and confidence. Includes the expanded persona
@@ -1743,6 +1766,14 @@ Enrich MUST NOT modify: mechanical fields (stats, saves, HP, conditions, combat 
 build-derived tool registrations, persona gating rules, or any `[ruleset]`-tagged content
 (REQ-080).
 
+**Persona scope assignment.** During research, the builder assigns `persona_scope` by
+these rules, applied in order: (1) if the source material is explicitly addressed to
+Dungeon Masters/Game Masters (imperative "tell your players," "set the scene," "describe
+the monster"), scope is `game_master`; (2) if addressed to players ("your character,"
+"at the table," "talk to your DM"), scope is `player`; (3) if the advice applies to all
+participants or is ambiguous, scope is `shared`. Scope assignment is recorded as a
+verification check — every item's scope must match one of these three rules.
+
 **Budgets.** Caps prevent unbounded state growth:
 
 | Output module       | Cap                       | Configurable? |
@@ -1753,6 +1784,10 @@ build-derived tool registrations, persona gating rules, or any `[ruleset]`-tagge
 | Action patterns         | 10 total                  | Yes           |
 | Supplementary guidance   | 20 total                  | Yes           |
 | Adventure advice         | 30 total                  | Yes           |
+
+Budget cap overrides are accepted via E4 at intake (§6.2). Overrides must be ≥ the
+spec minimum shown in this table. Overrides below the minimum are rejected with a
+warning and the default is used.
 
 **Confidence.** Enrich confidence uses source authority, not mechanical completeness:
 
@@ -1772,10 +1807,25 @@ items permits up to 10 additional LOW items. This ensures the server captures
 community metadiscussion without diluting the enrichment manifest. Collection
 stops when sources are exhausted, whichever comes first.
 
-**Idempotence.** Enrich records the build fingerprint (REQ-065) in its manifest. Running
-enrich against the same build fingerprint is a no-op (detected, reported as `[OK]
-Enrichment up to date`). Running enrich against a new build fingerprint replaces all
-enrichment state. Enrichment state is stored separately from build state:
+**LOW-confidence presentation.** LOW-confidence items carry a visible `[LOW]` tag in
+`persona_briefing` and in enrichment resource output, distinct from the standard
+`[supplementary]` tag. Items are grouped after HIGH and MEDIUM items within their output
+module. The LLM sees both tags; the `[LOW]` tag signals reduced weight in narration
+decisions.
+
+**Deduplication and conflicts.** When two enrichment findings make contradictory claims
+on the same mechanical or narrative topic, both are recorded. The later collection (by
+`collected_at`) carries a `conflicts_with` reference to the earlier item's key. Both
+appear in the enrichment manifest; the LLM sees the conflict annotation and may flag it
+to the GM in `persona_briefing`. The GM resolves by disabling or removing one entry.
+
+**Idempotence.** Enrich records the enrichment fingerprint — composed of the
+ruleset content hash (REQ-044) and the enrichment intake answers (E1–E4). The
+specification version is excluded so that spec-only updates do not invalidate valid
+enrichment. Running enrich against the same enrichment fingerprint is a no-op (detected,
+reported as `[OK] Enrichment up to date`). Running enrich against a new enrichment
+fingerprint replaces all enrichment state. Enrichment state is stored separately from
+build state:
 `enrichment/voice_examples.json`, `enrichment/prompt_ordering.json`,
 `enrichment/lore_templates.json`, `enrichment/action_patterns.json`,
 `enrichment/supplementary_guidance.json`, `enrichment/adventure_advice.json`.
@@ -1783,16 +1833,25 @@ enrichment state. Enrichment state is stored separately from build state:
 **Verification.** After enrichment completes, the builder runs these checks and records
 results in DECISIONS.md:
 
-1. Source completeness: every finding has source_url, quoted_excerpt, persona_scope, and
-   confidence — all non-empty.
-2. Tag audit: all enrich content carries `[supplementary]` tag; no `[ruleset]` content
+1. Source completeness: every finding has source_url, quoted_excerpt, persona_scope,
+   confidence, collected_at, and output_module — all non-empty.
+2. Tag audit: all enrich content carries `[supplementary]` tag (and `[LOW]` tag where
+   applicable); no `[ruleset]` content
    is modified (diff entity personality fields, briefing sections, lore entries
    before/after).
 3. Boundary enforcement: no mechanics, stats, tools, or persona gating changed (diff
    `tools/list`, `resources/list`, and entity stat fields).
-4. Idempotence: re-run enrich against same build fingerprint → no-op, identical manifest.
-5. Persona filtering: GM-scoped enrich content hidden from Player persona.
+4. Idempotence: re-run enrich against same enrichment fingerprint → no-op, identical
+   manifest.
+5. Persona filtering: GM-scoped enrich content hidden from Player persona. LOW-confidence
+   items carry `[LOW]` tag in all persona views.
 6. Budget compliance: no output module exceeds its cap.
+7. Research depth: every output module (modules 1–6) contains ≥1 actionable item. Source
+   domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
+   disposition with supplement source audit is recorded in DECISIONS.md.
+8. Content relevance: every enrichment item references the ruleset by name or by a term
+   drawn from the ruleset's index. Generic RPG advice without a ruleset-specific anchor
+   is flagged in DECISIONS.md with the "generic" disposition and does not block handoff.
 
 These are verification steps, not new gates. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
@@ -1802,9 +1861,9 @@ responsible for ensuring all sourced content is used in compliance with the sour
 of service and copyright license. Enrich records `source_url` for attribution; it does not
 redistribute source content beyond the Novel's local state.
 
-**Reversion.** Re-running Build (without enrich) or using the `revert_enrichment` tool
-restores the pre-enrich server state. Enrichment manifest and verification results remain
-in DECISIONS.md for audit.
+**Reversion.** Re-running Build (without enrich) or calling `revert_enrichment`
+(REQ-103) restores the pre-enrich server state. Enrichment manifest and verification
+results remain in DECISIONS.md for audit.
 
 ---
 
@@ -2309,6 +2368,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-092 | Novel persistence         | T77, T88                       | (today)      |
 | REQ-093 | Novel listing and metadata | T78                           | (today)      |
 | REQ-094 | Lorebook interchange      | T80                            | (today)      |
+| REQ-103 | Enrichment reversion      | T94                            | (today)      |
 | REQ-098 | Spec-driven update workflow | T84                            | (today)      |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | (today)      |
 | REQ-100 | Performance benchmark     | T87                            | (today)      |
@@ -2412,6 +2472,10 @@ diet.
 | T91   | Manual   | Behavioral contracts: for a running server, invoke one tool from each contract category (O.1–O.7) and assert the output shape matches Appendix O. For the dice tool, assert full roll transparency (notation, faces, modifiers, total, prose outcome). For a lookup tool, assert source attribution with `---` separator. For combat, assert round counter and turn order visibility. For undo, assert full state restoration and audit append-only behavior.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032, REQ-060, REQ-061                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification gates pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
+| T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all modules empty, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained. Re-run enrich — assert repopulation succeeds. Player persona attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-103, REQ-080                            |
+| T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `persona_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
+| T96   | Automated | Action pattern inertness: run enrich. Assert `suggest_actions(intent)` does not return enrich-derived patterns until GM activates them. Activate patterns — assert they appear in results. GM-only tool patterns excluded from Player results whether activated or not.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-084                                     |
+| T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all six output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
 
 ---
 

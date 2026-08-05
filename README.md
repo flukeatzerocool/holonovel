@@ -158,7 +158,9 @@ without touching your Novels. That's spec-driven development: the spec
 is your long-term investment. The server is rebuilt whenever the spec
 changes. Everything you've created — characters, worlds, novels —
 survives every rebuild.
-Re-run Enrich to catch fresh community wisdom. Drop in a new sourcebook —
+Re-run Enrich to catch fresh community wisdom. Each enrichment item carries a
+`collected_at` timestamp so you know when advice is current. `revert_enrichment`
+removes all enrichment in one call — nothing is permanent. Drop in a new sourcebook —
 it joins the ruleset as reference material. You never start over. You add on.
 
 ## Extend with Enrich
