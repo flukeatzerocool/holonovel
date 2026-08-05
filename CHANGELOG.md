@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-04 — D&D 5e OCE updated to 15 scenarios, server hardened
+
+- dnd5e OCE: updated from 14 to 15 scenarios per §6.6. Tightened S4
+  (danger damage with per-call seeds), S5 (byte-level state survival),
+  S8 (source quoting, length check), S12 (re-import into second game
+  with numeric baseline comparison). Added S15 (stress and recovery:
+  concurrent sessions, corruption detection, rapid persona ×10, scale
+  20/10/10, 10K-char search).
+- dnd5e server: `roll_weapon_damage` now supports danger targets in
+  combat participants. Added `corruptStates` tracking — `loadState`
+  records corruption on JSON parse failure; `spec_health` reports it.
+- dnd5e DECISIONS.md: OCE updated to 15 scenarios with accepted
+  limitations (S9 D&D condition auto-expiry N/A, S8 structured JSON
+  vs raw Markdown excerpt).
+- .gitignore: added `dnd5e/.holonovel-oce-state/`.
+
 ## 2026-08-04 — OCE expanded: 15 scenarios, severity gating, post-write verification
 
 - §6.6 OCE: expanded from 14 to 15 scenarios. Added scenario 15 (Stress and
