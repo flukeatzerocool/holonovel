@@ -11,7 +11,7 @@ extracted into structured data (37 weapons, 14 armor, 319 spells, 318 monsters,
 ```bash
 cd dnd5e-holonovel
 npm install
-npm run build        # extracts ruleset data + compiles TypeScript
+npm run build        # extracts ruleset data
 ```
 
 ## Opencode Configuration
@@ -22,8 +22,8 @@ Add to `~/.config/opencode/opencode.json`:
 {
   "mcpServers": {
     "dnd5e-holonovel": {
-      "command": "node",
-      "args": ["dist/index.js"],
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
       "cwd": "/home/fluke/Holonovel/dnd5e-holonovel"
     }
   }

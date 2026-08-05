@@ -69,7 +69,7 @@ All errors use one of four codes:
 ```bash
 npm run build-index    # Extract structured data from ruleset/ → src/generated/
 npm run build          # Full pipeline: build-index + tsc
-npm run start          # Run compiled server (node dist/index.js)
+npm run start          # Run server (tsx src/index.ts)
 npm run dev            # Run with tsx (no compile step)
 npm run typecheck      # tsc --noEmit
 ```

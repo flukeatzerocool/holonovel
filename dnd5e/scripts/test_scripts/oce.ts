@@ -6,7 +6,8 @@ import { strict as assert } from "node:assert";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SERVER = path.resolve(__dirname, "..", "..", "dist", "index.js");
+const SERVER = path.resolve(__dirname, "..", "..", "src", "index.ts");
+const TSX = path.resolve(__dirname, "..", "..", "node_modules", ".bin", "tsx");
 const RULESET = path.resolve(__dirname, "..", "..", "ruleset");
 const DATA = path.resolve(__dirname, "..", "..", ".holonovel-oce-state");
 
@@ -22,7 +23,7 @@ type Client = {
 };
 
 function createClient(env?: Record<string, string>): Client {
-  const p = spawn("node", [SERVER], {
+  const p = spawn(process.execPath, [TSX, SERVER], {
     env: { ...process.env, TTRPG_GAME_ID: env?.["TTRPG_GAME_ID"] || "oce", TTRPG_DATA_DIR: DATA, TTRPG_SEED: "oce-seed", TTRPG_RULESET_DIR: RULESET, ...env },
     stdio: ["pipe", "pipe", "pipe"],
   });

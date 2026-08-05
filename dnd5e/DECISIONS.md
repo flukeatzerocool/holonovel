@@ -172,6 +172,6 @@ implemented tool handlers).
   per T43), H9 PASS (player blocked from GM per T44), H10 PASS
   (spec_health reports 85% confidence, 100% MUST coverage), H11 PASS
   (server starts and handshakes), H12 PASS (config entry at
-  `~/.config/opencode/opencode.json` references correct dist/index.js path).
+  `~/.config/opencode/opencode.json` references correct src/index.ts path).
 - **Independent verification:** See §10 of `holonovel.md` for IV
   checklist.
