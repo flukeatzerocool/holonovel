@@ -832,7 +832,7 @@ current scene type appear first) and `suggest_actions` filtering, but does not a
 tool behavior, dice results, or rules enforcement. The type persists with the Novel.
 Player persona attempts return `[ERROR] [FORBIDDEN]`.
 Confrontation tools (REQ-043) operate identically regardless of scene type; the tag
-guides the GM and LLM toward appropriate moves. _Check:_ T71.
+guides the GM and LLM toward moves matching the scene type. _Check:_ T71.
 
 ### 5.9 Novel Lifecycle and Generation
 
@@ -1091,7 +1091,10 @@ DECISIONS.md (4).
 ### 6.3 Discovery
 
 **Chunked reading.** The ruleset is read in fixed-size chunks of 10 mechanical sections
-(headings with procedures, tables, bold-labeled fields, or definition lists). The builder
+(headings with procedures, tables, bold-labeled fields, or definition lists). The budget
+of 10 sections balances discovery depth against context-collapse risk — fewer sections
+per chunk reduce false merges at the cost of more round-trips; 10 is the calibrated
+compromise under REQ-100 tier benchmarks. The builder
 reads each chunk, extracts models (see below), then requests the next 10. Guidance-only
 sections are read in a background pass and don't count against the 10-section budget.
 Cross-chunk references are resolved at the end.
@@ -1758,7 +1761,7 @@ have a recorded result in DECISIONS.md.
 | H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model. |
 | H8    | T43      | Start a workflow, verify no auto-completion            | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.           |
 | H9    | T44      | Player-persona request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_persona`; no hidden content exposed.           |
-| H10   | T45      | Run `spec_health`                                      | Overall confidence ≥ 80% and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
+| H10   | T45      | Run `spec_health`                                      | Overall confidence ≥ 80% (Standard tier floor per REQ-100; other tiers adjust via convergence loop) and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | —        | Cold-checkout Gate 2 replay                            | Evidence entry in DECISIONS.md (6) with non-empty command, PASS result, and exit-status evidence.                     |
 
@@ -2465,7 +2468,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-004a| Statblock baseline view   | T13                            | 2026-08-02   |
 | REQ-060 | Verbose output            | T47                            | 2026-08-02   |
 | REQ-061 | Source quoting            | T48                            | 2026-08-02   |
-| REQ-062 | Persona foundations       | T26                            | (today)      |
+| REQ-062 | Persona foundations       | T26                            | 2026-08-04   |
 | REQ-064 | Persona behavioral boundaries | T51                        | 2026-08-03   |
 | REQ-010 | Traceability              | T15                            | 2026-08-02   |
 | REQ-011 | Confidence                | T15                            | 2026-08-02   |
@@ -2476,7 +2479,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-016 | Guidance extraction       | T26                            | 2026-08-02   |
 | REQ-017 | Role stories              | T28                            | 2026-08-02   |
 | REQ-018 | Extraction evidence       | T15; Discovery checkpoint      | 2026-08-02   |
-| REQ-102 | Source conversion contract | T93                            | (today)      |
+| REQ-102 | Source conversion contract | T93                            | 2026-08-05   |
 | REQ-020 | Tools                     | T3, T5, T32, T33; Gate 2       | 2026-08-02   |
 | REQ-021 | Tool-surface economy      | T3, T35                        | 2026-08-02   |
 | REQ-022 | Resources                 | T16                            | 2026-08-02   |
@@ -2505,7 +2508,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-054 | Input safety              | T20, T42                       | 2026-08-02   |
 | REQ-055 | Durability and resume     | T9, T31                        | 2026-08-02   |
 | REQ-067 | Help and tool discovery   | T62                            | 2026-08-04   |
-| REQ-070 | Anti-slop guidance        | T26                            | (today)      |
+| REQ-070 | Anti-slop guidance        | T26                            | 2026-08-04   |
 | REQ-071 | Voice examples            | T26                            | 2026-08-04   |
 | REQ-072 | Session recap             | T53                            | 2026-08-04   |
 | REQ-073 | Countdowns                | T54                            | 2026-08-04   |
@@ -2515,7 +2518,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
-| REQ-080 | Enrichment boundaries     | T63, T97, T102                 | (today)      |
+| REQ-080 | Enrichment boundaries     | T63, T97, T102                 | 2026-08-05   |
 | REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
 | REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
 | REQ-083 | Dynamic lore              | T67, T79, T81, T82, T83       | 2026-08-05   |
@@ -2523,21 +2526,21 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-085 | Macro system              | T69                            | 2026-08-04   |
 | REQ-086 | Audit compression         | T70                            | 2026-08-04   |
 | REQ-087 | Scene type tagging        | T71                            | 2026-08-04   |
-| REQ-088 | Novel lifecycle           | T72, T73, T98                  | (today)      |
-| REQ-089 | Novel setup               | T74                            | (today)      |
-| REQ-090 | Adventure generation      | T75                            | (today)      |
-| REQ-091 | Enhanced encounter generation | T76                        | (today)      |
-| REQ-092 | Novel persistence         | T77, T88                       | (today)      |
-| REQ-093 | Novel listing and metadata | T78, T99                      | (today)      |
-| REQ-094 | Lorebook interchange      | T80                            | (today)      |
-| REQ-095 | Novel switching           | T98                            | (today)      |
-| REQ-096 | Novel interchange         | T100                           | (today)      |
-| REQ-097 | Novel health              | T101                           | (today)      |
-| REQ-103 | Enrichment reversion      | T94                            | (today)      |
-| REQ-098 | Spec-driven update workflow | T84                            | (today)      |
-| REQ-099 | Confidence-floor acknowledgment | T86                    | (today)      |
-| REQ-100 | Performance benchmark     | T87                            | (today)      |
-| REQ-101 | Assumption audit trail    | T89                            | (today)      |
+| REQ-088 | Novel lifecycle           | T72, T73, T98                  | 2026-08-05   |
+| REQ-089 | Novel setup               | T74                            | 2026-08-05   |
+| REQ-090 | Adventure generation      | T75                            | 2026-08-05   |
+| REQ-091 | Enhanced encounter generation | T76                        | 2026-08-05   |
+| REQ-092 | Novel persistence         | T77, T88                       | 2026-08-05   |
+| REQ-093 | Novel listing and metadata | T78, T99                      | 2026-08-05   |
+| REQ-094 | Lorebook interchange      | T80                            | 2026-08-05   |
+| REQ-095 | Novel switching           | T98                            | 2026-08-05   |
+| REQ-096 | Novel interchange         | T100                           | 2026-08-05   |
+| REQ-097 | Novel health              | T101                           | 2026-08-05   |
+| REQ-103 | Enrichment reversion      | T94                            | 2026-08-05   |
+| REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
+| REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
+| REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
+| REQ-101 | Assumption audit trail    | T89                            | 2026-08-05   |
 
 ---
 
