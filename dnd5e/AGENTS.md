@@ -1,4 +1,4 @@
-# AGENTS.md — D&D 5e Holonovel MCP Server (v1.2)
+# AGENTS.md — D&D 5e Holonovel MCP Server (v2.1)
 
 AI maintainer orientation for the D&D 5e Holonovel MCP server implementation.
 
@@ -9,24 +9,38 @@ src/dice.ts             PRNG (LCG 1664525/1013904223), rollD20, rollDice,
                         abilityModifier, proficiencyBonus
         ↓
 src/data.ts             Structured ruleset data: ABILITY_SCORES, SKILLS,
-                        CONDITIONS, RACES, CLASSES, plus lookup functions
-                        (lookupWeapon, lookupArmor, lookupSpell,
-                        lookupMonster, lookupMagicItem, lookupEquipment,
-                        searchRules, buildSearchIndex). Imports frozen
-                        JSON from src/generated/.
+                        SKILL_MAP, CONDITIONS, RACES, RACE_MODIFIERS, CLASSES,
+                        plus lookup functions. Imports frozen JSON from
+                        src/generated/. Indexes 1,021 ruleset Markdown files
+                        for search_rules.
         ↓
-src/state.ts            StateManager: roster, games (Map<id, GameState>),
-                        NPCs, scene, countdowns, lore, enrichment, adventures,
-                        snapshots (per-game undo stacks), audit log,
-                        persona (player|game_master|null), workflows,
-                        build fingerprint. Persists to .holonovel-state/.
+src/state.ts            StateManager singleton: novels (Map<slug, NovelState>),
+                        roster, NPCs, scene, countdowns, lore, enrichment,
+                        adventures, snapshots (per-persona undo stacks),
+                        audit log, persona gating, workflows, build fingerprint.
+                        Atomic persistence to .holonovel-state/ via tmp + rename
+                        + .bak retention.
         ↓
-src/index.ts            McpServer: registers all 43 tools, 6 prompts,
-                        9 resources, startup + adventure loading.
-                        Entry point for STDIO transport.
+src/macros.ts           expandMacros — {{entity.name}}, {{entity.hp}},
+                        {{entity.<stat>}}, {{scene.current}}, {{scene.type}},
+                        {{countdown.<n>.remaining}}, {{countdown.<n>.total}},
+                        {{novel.slug}}, {{persona.active}}, {{party.size}}.
+                        Unknown macros preserved as literals.
+        ↓
+src/enrichment.ts       Enrichment manifest — 6 output modules:
+                        voice_examples (5), briefing_order (1),
+                        lore_templates (10), action_patterns (10),
+                        supplementary_guidance (19), adventure_advice (11).
+                        Additive, inert, idempotent per build fingerprint.
+        ↓
+src/index.ts            McpServer: registers 54 tools, 31 resources, 7 prompts.
+                        Entry point for STDIO transport. Persona gating via
+                        requireGM(). Error taxonomy: [FORBIDDEN], [NOT_FOUND],
+                        [INVALID_INPUT], [STATE_CONFLICT], [RULE_VIOLATION],
+                        [UNIMPLEMENTED].
 ```
 
-## Tool Surface (43 tools)
+## Tool Surface (54 tools)
 
 ### Persona & Workflow
 `set_persona` `respond` `undo` `help` `end_game`
@@ -59,10 +73,12 @@ src/index.ts            McpServer: registers all 43 tools, 6 prompts,
 `set_countdown` `advance_countdown` `remove_countdown`
 
 ### Lore (GM only)
-`set_lore_entry` `remove_lore_entry`
+`set_lore_entry` `remove_lore_entry` `toggle_lore_entry` `set_lore_group`
+`suggest_lore` `export_lorebook` `import_lorebook`
 
 ### Guidance (GM only)
 `set_briefing_order` `compress_audit` `load_adventure`
+`generate_adventure` `generate_encounter`
 
 ### Session
 `session_recap`
@@ -70,3 +86,47 @@ src/index.ts            McpServer: registers all 43 tools, 6 prompts,
 ## Tool Registry
 
 All tools registered via `server.registerTool()`. GM-only tools gated with `requireGM()`. Player-only tools (`player_signal`) gated for player persona. Tool names use `snake_case`. No persona (null) = full access.
+
+## State Model
+
+- **Roster:** Persistent character store at `.holonovel-state/roster.json`. Baselines immutable (narrative fields mutable per REQ-077).
+- **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves (write `.tmp`, rename over target, retain `.json.bak`). Removed by `end_novel` (file + backup). One active per server instance.
+- **Snapshots:** Per-mutation snapshots per persona stack. `undo` restores; empty stack returns `[STATE_CONFLICT]`.
+- **Audit:** Append-only log embedded in novel state. Not mutated by `compress_audit` (idempotent per REQ-086).
+
+## RNG
+
+Linear Congruential Generator (1664525/1013904223), seedable per session (`TTRPG_SEED`) or per call (optional `seed` param). Same seed + same call sequence = same results.
+
+## Running
+
+```bash
+cd dnd5e && npm run start          # start server
+npm run build-index                 # regenerate extraction data
+npm run typecheck                   # TypeScript type checking
+npx tsx scripts/test_scripts/run_all.ts  # run all tests
+```
+
+## Build
+
+```bash
+npm install
+npm run build    # runs build-index to extract ruleset data
+```
+
+## Troubleshooting
+
+### Config mismatch
+Ensure the `cwd` in your MCP client config matches the actual project directory. The server is `dnd5e-holonovel` with cwd pointing to the `dnd5e/` directory containing `package.json`.
+
+### Corrupted state
+`spec_health` reports corrupted states. Delete `.holonovel-state/novels/<corrupted-slug>.json` and its `.json.bak` to recover. Roster data in `.holonovel-state/roster.json` is independent.
+
+### Build fingerprint mismatch
+A build fingerprint mismatch on startup means the ruleset was modified after the server was built. Run `npm run build` to regenerate extraction data. Novel state loads gracefully — missing fields receive defaults; extra fields preserved as inert data.
+
+### Persona confusion
+GM-only tools return `[FORBIDDEN]` directing to `set_persona`. Use `set_persona("game_master")` to switch. `set_persona` is never persona-gated.
+
+### Missing environment variables
+`TTRPG_DATA_DIR` defaults to `.holonovel-state`. `TTRPG_SEED` defaults to `Date.now()`. No other variables are required for basic operation.

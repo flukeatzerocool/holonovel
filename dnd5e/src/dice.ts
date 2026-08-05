@@ -1,65 +1,56 @@
-// Deterministic PRNG (LCG with 1664525/1013904223) — seedable, reproducible
 export class PRNG {
   private state: number;
+  private initialSeed: string;
 
   constructor(seed: string) {
-    this.state = parseInt(seed, 10) || 0;
+    this.initialSeed = seed;
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    this.state = (h >>> 0) || 1;
   }
 
   next(): number {
-    this.state = (this.state * 1664525 + 1013904223) | 0;
+    this.state = (Math.imul(1664525, this.state) + 1013904223) | 0;
     return (this.state >>> 0) / 4294967296;
   }
 
-  nextInt(max: number): number {
-    return Math.floor(this.next() * max);
-  }
-
   nextRange(min: number, max: number): number {
-    return min + this.nextInt(max - min + 1);
+    return Math.floor(this.next() * (max - min + 1)) + min;
   }
 
   reseed(seed: string): void {
-    this.state = parseInt(seed, 10) || 0;
+    this.initialSeed = seed;
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    this.state = (h >>> 0) || 1;
+  }
+
+  getSeed(): string {
+    return this.initialSeed;
   }
 }
 
-export function rollD20(rng: PRNG): number {
+export function seedFromString(s: string): PRNG {
+  return new PRNG(s);
+}
+
+export function rollD20(rng: PRNG, advantage: boolean = false): number {
+  if (advantage) {
+    return Math.max(rng.nextRange(1, 20), rng.nextRange(1, 20));
+  }
   return rng.nextRange(1, 20);
 }
 
-export function rollDice(rng: PRNG, notation: string): { faces: number[]; total: number } {
-  const match = notation.match(/^(\d+)d(\d+)(.*)$/);
-  if (!match) throw new Error(`Invalid dice notation: ${notation}`);
-  const count = parseInt(match[1]);
-  const sides = parseInt(match[2]);
-  const rest = match[3] || "";
-  const faces: number[] = [];
+export function rollDice(rng: PRNG, count: number, sides: number): number[] {
+  const results: number[] = [];
   for (let i = 0; i < count; i++) {
-    faces.push(rng.nextRange(1, sides));
+    results.push(rng.nextRange(1, sides));
   }
-  let total = faces.reduce((a, b) => a + b, 0);
-  const modMatch = rest.match(/^([+-]\d+)$/);
-  if (modMatch) {
-    total += parseInt(modMatch[1]);
-  }
-  return { faces, total };
-}
-
-export function rollAdvantage(rng: PRNG): { rolls: number[]; result: number; advantage: boolean } {
-  const r1 = rollD20(rng);
-  const r2 = rollD20(rng);
-  return { rolls: [r1, r2], result: Math.max(r1, r2), advantage: true };
-}
-
-export function rollDisadvantage(rng: PRNG): { rolls: number[]; result: number; advantage: boolean } {
-  const r1 = rollD20(rng);
-  const r2 = rollD20(rng);
-  return { rolls: [r1, r2], result: Math.min(r1, r2), advantage: false };
-}
-
-export function formatRoll(dice: string, faces: number[], total: number): string {
-  return `Dice: ${dice} = [${faces.join(", ")}]\nTotal: ${total}`;
+  return results;
 }
 
 export function abilityModifier(score: number): number {
@@ -67,5 +58,13 @@ export function abilityModifier(score: number): number {
 }
 
 export function proficiencyBonus(level: number): number {
-  return Math.floor((level - 1) / 4) + 2;
+  return Math.ceil(level / 4) + 1;
+}
+
+export function formatRoll(dice: number[], modifier: number): { total: number; breakdown: string } {
+  const sum = dice.reduce((a, b) => a + b, 0);
+  const total = sum + modifier;
+  const sign = modifier >= 0 ? "+" : "";
+  const breakdown = `${dice.length}d${dice[0] !== undefined ? "?" : "?"} = [${dice.join(", ")}]${modifier !== 0 ? ` ${sign}${modifier}` : ""}`;
+  return { total, breakdown };
 }

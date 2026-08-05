@@ -1,206 +1,183 @@
 # Build Decisions — D&D 5e Holonovel MCP Server
 
 <!-- @section intake -->
-- **Source:** `oldmanumby/dnd.srd.5.1` GitHub repository (shallow clone of
-  `5esrd` branch), supplemented by `5esrd.com` for edge-case prose gaps.
-- **Edition:** D&D 5th Edition SRD v5.1 (Wizards of the Coast, 2016).
-- **License:** Open Game License v1.0a (OGL) + Creative Commons
-  Attribution 4.0 International (CC BY 4.0).
-- **File count:** 1021 Markdown files across 10 category directories
-  (`races/`, `classes/`, `equipment/`, `spells/`, `monsters/`,
-  `magic-items/`, `using-ability-scores/`, `adventuring/`, `combat/`,
-  `gameplay/`).
-- **Encoding:** UTF-8, ATX headings (all verified at Gate 0).
+## 1. Intake Record
+
+- **Source:** D&D 5th Edition SRD v5.1 Markdown (in-tree `ruleset/` directory)
+- **Source origin:** `oldmanumby/dnd.srd.5.1` GitHub repository (shallow clone of `5esrd` branch)
+- **Edition:** D&D 5th Edition SRD v5.1 (Wizards of the Coast, 2016)
+- **License:** Open Game License v1.0a (OGL) + Creative Commons Attribution 4.0 International (CC BY 4.0)
+- **File count:** 1,021 Markdown files across 10 category directories
+- **Encoding:** UTF-8, ATX headings
+- **Build date:** 2026-08-05
+- **Pre-build answers:**
+  - B1: Ruleset path = `ruleset/` (in-tree)
+  - B2: Ruleset = D&D 5e SRD v5.1
+  - B3: Client = Opencode CLI
+  - B4: Data dir = `.holonovel-state`
+  - B5: Config = `~/.config/opencode/opencode.json`
+  - B6: Server name = `dnd5e-holonovel`
+  - B7: Connect after build = yes
+  - E1: Server path = `dnd5e/`
+  - E2: Source types = all (community forums, actual plays, strategy guides, genre advice, designer notes)
+  - E3: Minimum confidence = MEDIUM
 
 <!-- @section versions -->
-- **Runtime:** Node.js 20+ (LTS).
-- **MCP SDK:** `@modelcontextprotocol/sdk` v1.30.0.
-- **TypeScript:** 7.x (dev dependency).
-- **Validation:** Zod 4.x (runtime input validation).
-- **Ruleset fingerprint:** `dnd-srd-v51-1741` (recorded in `package.json` as
-  `holonovel.rulesetFingerprint`).
-- **Build tools:** `tsx` for scripts, `tsc` for compilation.
+## 2. Pinned Versions
+
+- **Runtime:** Node.js 20+
+- **MCP SDK:** `@modelcontextprotocol/sdk` v1.30.0
+- **TypeScript:** 7.x (dev dependency)
+- **Validation:** Zod 4.x
+- **Build tools:** `tsx` for scripts, `tsc` for compilation
+- **Spec version:** 2.1.0
+- **Ruleset fingerprint:** sha256 first 16 chars of combined ruleset Markdown
 
 <!-- @section traceability -->
-Each requirement from Appendix E (Requirements Manifest) maps to at least one
-code location:
+## 3. Traceability Table
 
-| REQ        | Title                            | Primary location                  |
-|------------|----------------------------------|-----------------------------------|
-| REQ-001    | Output prefix                    | `src/index.ts` — `[OK]`, `[ERROR]`, `[NEED_INPUT]` |
-| REQ-002    | Error taxonomy                   | `src/index.ts` — `FORBIDDEN`, `STATE_CONFLICT`, `NOT_FOUND`, `INVALID_INPUT` |
-| REQ-003    | Roll transparency                | `src/index.ts` — `roll_save`, `roll_skill_check`, `roll_attack`, `roll_damage` |
-| REQ-004    | Truncation                       | WAIVED (REQ-013) — no long-output tables beyond lookup results |
-| REQ-004a   | Statblock baseline view          | WAIVED (REQ-013) — `character_sheet` renders full entity; no compact view |
-| REQ-060    | Verbose output                   | `src/index.ts` — all lookup tools return full entry, not summaries |
-| REQ-061    | Source quoting                  | `src/index.ts` — all lookup tools include `---`-separated source block with file path |
-| REQ-062    | Persona foundations              | `src/index.ts` — `persona_briefing` with player/GM guidance, anti-slop, voice examples |
-| REQ-064    | Persona behavioral boundaries    | WAIVED (REQ-013) — T51 requires manual persona session evaluation |
-| REQ-010    | Traceability                     | `DECISIONS.md` — this table |
-| REQ-011    | Confidence                       | `RULESET_MODEL.md` — confidence labels per section |
-| REQ-012    | Graceful fallback                | `src/index.ts` — `NOT_FOUND` with hints on all lookup failures |
-| REQ-013    | No assumed mechanics             | `DECISIONS.md` §5 — all waivers logged with reason |
-| REQ-014    | Source immutability              | `src/data.ts` — JSON imports; `scripts/build-index.ts` — extraction |
-| REQ-015    | Action classification            | `RULESET_MODEL.md` — classification per section |
-| REQ-016    | Guidance extraction              | `src/index.ts` — `persona_briefing` prompt guidance content |
-| REQ-017    | Role stories                     | WAIVED (REQ-013) — T28 manual verification pending |
-| REQ-018    | Extraction evidence              | `DECISIONS.md` §6 — extraction counts recorded |
-| REQ-020    | Tools                            | `src/index.ts` — 43 registered tools |
-| REQ-021    | Tool-surface economy             | `src/index.ts` — no fixture-only tools; all 43 tools are D&D-specific |
-| REQ-022    | Resources                        | `src/index.ts` — `ruleset://`, `entities://`, `entity://{id}`, `audit://game`, `roster://`, `party://current`, `npcs://`, `scene://current`, `countdown://active` |
-| REQ-023    | Prompts                          | `src/index.ts` — `intro`, `persona_briefing`, `use_tool`, `lookup_rule`, `run_workflow`, `session_zero` |
-| REQ-024    | Tool documentation               | `src/index.ts` — every tool has `title` and `description` |
-| REQ-025    | spec_health                      | `src/index.ts` — `spec_health` tool reporting indexed counts, tool count, confidence |
-| REQ-063    | Connection introduction          | `src/index.ts` — `intro` prompt ≤300 words with tagline, sourcebooks, 4 actions |
-| REQ-056    | Advancement workflow             | WAIVED (REQ-013) — no level-up/advancement workflow in current build |
-| REQ-057    | Canonical lookup tools           | `src/index.ts` — `lookup_equipment`, `lookup_spell`, `lookup_monster`, `lookup_class` |
-| REQ-058    | Tool-result fidelity             | WAIVED (REQ-013) — T41/T42 require file-read instrumentation |
-| REQ-059    | Parameter canon validation       | WAIVED (REQ-013) — T39a requires D&D-specific tool names not matching our API |
-| REQ-030    | Single user                      | `src/state.ts` — single `activeGameId` per instance |
-| REQ-031    | Persona activation               | `src/state.ts` — `activePersona` nullable (null = full access); `setPersona()` method |
-| REQ-066    | set_persona tool                 | `src/index.ts` — `set_persona` tool with `z.enum(["player","game_master"])` |
-| REQ-032    | Server-side gating               | `src/index.ts` — `requireGame()`, `requireGM()` guards |
-| REQ-040    | Audit log                        | `src/state.ts` — `audit()` method; `src/index.ts` — `audit://game` resource |
-| REQ-041    | Snapshots and undo               | `src/state.ts` — `snapshot()`, `undo()` with all v1.2 state tiers |
-| REQ-042    | Workflow decisions               | `src/index.ts` — `respond`, `create_character` with `[NEED_INPUT]` loop |
-| REQ-043    | Conflict lifecycle               | `src/index.ts` — `init_combat`, `advance_combat`, `end_combat` |
-| REQ-044    | Ruleset versioning               | WAIVED (REQ-013) — no drift detection on source files; build-index is manual |
-| REQ-065    | Build fingerprint                | `src/state.ts` — `buildFingerprint`; `package.json` — `holonovel.rulesetFingerprint` |
-| REQ-050    | PRNG seeding                     | `src/dice.ts` — LCG seed, per-call `seed` parameter |
-| REQ-051    | No network calls in tools        | All `src/*.ts` tools — zero outbound network in tool handlers |
-| REQ-052    | Security hardening               | `src/index.ts` — `z.enum()` and `z.string()` types prevent injection paths |
-| REQ-053    | Performance                      | WAIVED (REQ-013) — T23 cold start timing not measured |
-| REQ-054    | Adversarial input                | `src/index.ts` — Zod validation rejects malformed input; free-text walled by parameter type |
-| REQ-055    | Undo/snapshots                   | `src/state.ts` — `snapshot()`, `undo()` |
-| REQ-067    | Help tool                        | `src/index.ts` — `help` tool with categorized output, optional query |
-| REQ-070    | Anti-slop catalogue              | `src/index.ts` — anti-slop patterns embedded in `persona_briefing` (Appendix J adapted for D&D) |
-| REQ-071    | Persona briefing content         | `src/index.ts` — `persona_briefing` includes voice_examples from active entity |
-| REQ-072    | Session recap                    | `src/index.ts` — `session_recap` tool |
-| REQ-073    | Countdowns                       | `src/state.ts` — `CountdownState`, set/advance/remove/advanceRound; `src/index.ts` — 3 countdown tools + combat integration |
-| REQ-074    | Multi-entity management          | `src/index.ts` — `set_active_entity`; `src/state.ts` — `activeEntityId`; resource: `party://current` |
-| REQ-075    | Named NPCs                       | `src/state.ts` — `NPCEntity` with description/disposition/location; `src/index.ts` — create/update/remove; resource: `npcs://` |
-| REQ-076    | Scene state                      | `src/state.ts` — `SceneState` with type/history; `src/index.ts` — `set_scene_state`; resource: `scene://current` |
-| REQ-077    | Entity personality               | `src/index.ts` — `set_personality` (description/voice/background/goals), `set_voice_examples` |
-| REQ-078    | Session zero prompt              | `src/index.ts` — `session_zero` prompt with premise, characters, expectations |
-| REQ-079    | Adventure loading                | `src/state.ts` — `AdventureState`, register/setActive/getActive; `src/index.ts` — `load_adventure`; startup indexing from `TTRPG_ADVENTURE` |
-| REQ-080    | Enrichment boundaries            | `src/state.ts` — `EnrichmentRecord` interface; `getActiveEnrichment()` |
-| REQ-081    | Narrative directives             | `src/index.ts` — `set_narrative_directive`; surfaced in `persona_briefing` |
-| REQ-082    | Briefing section ordering        | `src/index.ts` — `set_briefing_order` with valid token validation; `persona_briefing` renders in order |
-| REQ-083    | Dynamic lore entries             | `src/state.ts` — `LoreEntry` with keyword triggers; `src/index.ts` — set/remove tools; `getActiveLore()` scene-matching |
-| REQ-084    | Action suggestions               | `src/index.ts` — `suggest_actions` with context-aware and intent-driven matching |
-| REQ-085    | Macros                           | WAIVED — no macro expansion in current output pipeline |
-| REQ-086    | Audit compression                | `src/index.ts` — `compress_audit` with persona-filtered entries |
-| REQ-087    | Scene type tagging               | `src/index.ts` — `set_scene_type` (combat/social/exploration/neutral); feeds `suggest_actions` |
+| REQ | Title | Location |
+|-----|-------|----------|
+| REQ-001 | Response contract | `src/index.ts` — PREFIX_OK, PREFIX_ERR, PREFIX_PARTIAL, PREFIX_WARNING |
+| REQ-002 | Error taxonomy | `src/index.ts` — FORBIDDEN, NOT_FOUND, INVALID_INPUT, STATE_CONFLICT, RULE_VIOLATION, UNIMPLEMENTED |
+| REQ-003 | Roll transparency | `src/index.ts` — roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage |
+| REQ-004 | Truncation | ACCEPTED LIMITATION — output:// not yet implemented; no D&D lookup exceeds default threshold |
+| REQ-010 | Traceability | DECISIONS.md — this table |
+| REQ-011 | Confidence | RULESET_MODEL.md — confidence labels per section |
+| REQ-012 | Graceful fallback | `src/index.ts` — NOT_FOUND with valid-value enumeration; search_rules returns unmodeled sections |
+| REQ-013 | No assumed mechanics | DECISIONS.md §5 — waivers logged with reason |
+| REQ-014 | Source immutability | `src/state.ts` — ruleset hash computed at build, drift warning on mismatch |
+| REQ-015 | Action classification | RULESET_MODEL.md — Resolution/Command/Generation |
+| REQ-016 | Guidance extraction | `src/enrichment.ts` — supplementary guidance, voice examples |
+| REQ-018 | Extraction evidence | RULESET_MODEL.md — confidence labels per section |
+| REQ-020 | Tools | `src/index.ts` — 54 registered tools |
+| REQ-021 | Tool-surface economy | `src/index.ts` — no fixture-only tools |
+| REQ-022 | Resources | `src/index.ts` — 31 resources |
+| REQ-023 | Prompts | `src/index.ts` — 7 prompts (intro, persona_briefing, use_tool, lookup_rule, run_workflow, session_zero, novel_setup) |
+| REQ-024 | Tool documentation | `src/index.ts` — every tool has title and description |
+| REQ-025 | spec_health | `src/index.ts` — reports indexed counts, tool count, novel listing, gate dispositions |
+| REQ-030 | Single user | `src/state.ts` — single activeNovelId, no multiplayer |
+| REQ-031 | Persona activation | `src/state.ts` — null persona = full access |
+| REQ-032 | Server-side gating | `src/index.ts` — requireGM() enforces GM-only tool access |
+| REQ-040 | Audit log | `src/state.ts` — state.audit() appends to novel.auditLog |
+| REQ-041 | Snapshots and undo | `src/state.ts` — snapshot()/undo() with persona stacks |
+| REQ-042 | Workflow decisions | `src/index.ts` — respond() with NEED_INPUT queue |
+| REQ-043 | Conflict lifecycle | `src/index.ts` — init_combat, advance_combat, end_combat |
+| REQ-044 | Ruleset versioning | `src/state.ts` — rulesetHash in buildFingerprint |
+| REQ-050 | Determinism | `src/dice.ts` — PRNG LCG, seedable, per-call seeds |
+| REQ-051 | No runtime network | `src/` — no outbound network calls |
+| REQ-054 | Input safety | `src/index.ts` — zod validation on all inputs |
+| REQ-055 | Durability and resume | `src/state.ts` — persistent Novel state, restore on startup |
+| REQ-056 | Advancement workflow | ACCEPTED LIMITATION — level-up workflow not yet implemented beyond character creation |
+| REQ-057 | Canonical lookup tools | `src/index.ts` — lookup_equipment, lookup_spell, lookup_monster, lookup_class |
+| REQ-058 | Tool-result fidelity | `src/index.ts` — canonical lookups use loaded index, never fabrication |
+| REQ-060 | Verbose output | `src/index.ts` — all lookup tools return full entry |
+| REQ-061 | Source quoting | `src/index.ts` — source block on lookup results |
+| REQ-062 | Persona foundations | `src/index.ts` — persona_briefing with guidance |
+| REQ-063 | Connection introduction | `src/index.ts` — intro prompt |
+| REQ-065 | Build fingerprint | `src/state.ts` — buildFingerprint with specVersion, rulesetHash, timestamps |
+| REQ-066 | set_persona tool | `src/index.ts` — always callable, no gating |
+| REQ-067 | Help and tool discovery | `src/index.ts` — help tool with categorized task map |
+| REQ-070 | Anti-slop guidance | `src/index.ts` — guidance://{role}/anti-slop, persona_briefing |
+| REQ-071 | Voice examples | `src/enrichment.ts` — 5 per entity type, surfaced in guidance |
+| REQ-072 | Session recap | `src/index.ts` — session_recap tool |
+| REQ-073 | Countdowns | `src/index.ts` — set_countdown, advance_countdown, remove_countdown |
+| REQ-074 | Multi-entity support | `src/index.ts` — set_active_entity, entities:// |
+| REQ-075 | Named-NPC state | `src/index.ts` — create_npc, update_npc, remove_npc, npc://, npcs:// |
+| REQ-076 | Scene-state ledger | `src/index.ts` — set_scene_state, scene_history |
+| REQ-077 | Entity personality fields | `src/index.ts` — set_personality, set_voice_examples, entity://{id}/personality |
+| REQ-078 | Session zero prompt | `src/index.ts` — session_zero prompt |
+| REQ-079 | Adventure modules | `src/index.ts` — load_adventure, adventure://{slug}/{anchor} |
+| REQ-080 | Enrichment boundaries | `src/enrichment.ts` — additive only, never modifies mechanics |
+| REQ-081 | Narrative directive | `src/index.ts` — set_narrative_directive |
+| REQ-082 | Prompt section ordering | `src/index.ts` — set_briefing_order |
+| REQ-083 | Dynamic lore | `src/index.ts` — set_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export/import lorebook |
+| REQ-084 | Action suggestions | `src/index.ts` — suggest_actions |
+| REQ-085 | Macro system | `src/macros.ts` — {{entity.name}}, {{entity.hp}}, {{scene.current}}, etc. |
+| REQ-086 | Audit compression | `src/index.ts` — compress_audit (idempotent, no mutation) |
+| REQ-087 | Scene type tagging | `src/index.ts` — set_scene_type |
+| REQ-088 | Novel lifecycle | `src/state.ts` — create_novel, resume_novel, end_novel |
+| REQ-089 | Novel setup | `src/index.ts` — novel_setup prompt, novel://setup |
+| REQ-090 | Adventure generation | `src/index.ts` — generate_adventure |
+| REQ-091 | Enhanced encounter generation | `src/index.ts` — generate_encounter |
+| REQ-092 | Novel persistence | `src/state.ts` — atomic save with .tmp + rename + .bak |
+| REQ-093 | Novel listing | `src/index.ts` — spec_health shows novels, novel://current, novel://{slug} |
+| REQ-094 | Lorebook interchange | `src/index.ts` — export_lorebook, import_lorebook |
+| REQ-098 | Spec-driven update | DECISIONS.md — dated gap-disposition entry |
+| REQ-099 | Confidence-floor acknowledgment | Overall 85%, >80% Standard tier threshold |
+| REQ-100 | Performance benchmark | Standard tier (>500 indexed items), D&D at ~2000 items but mostly HIGH confidence structured data |
+| REQ-101 | Assumption audit trail | This DECISIONS.md entry |
 
 <!-- @section normalizations -->
-- **Ability scores** are normalized to the 3–30 range (natural + magical).
-- **d20 roll-over** mechanic: success when `d20 + modifier ≥ DC`.
-- **Proficiency bonus:** `Math.floor((level - 1) / 4) + 2` (2 at levels
-  1–4, 3 at 5–8, 4 at 9–12, 5 at 13–16, 6 at 17–20).
-- **Advantage/disadvantage** cancel each other; multiple sources of either
-  are non-stacking. Resolved via `rollD20()` with an `advantage` flag.
-- **All tools operate locally** on pre-extracted JSON data frozen at build
-  time. No runtime network requests.
-- **Capabilities:** character creation workflow, saving throws, skill
-  checks, attack/damage rolls, combat lifecycle (init → advance → end),
-  condition management, random tables, full-text ruleset search, canonical
-  equipment/spell/monster/magic-item/class lookups with source citations,
-  NPC management, scene state tracking, countdown timers (round & narrative),
-  dynamic lore entries, narrative directives, briefing section ordering,
-  action suggestions, audit compression, adventure module loading, voice
-  examples, player signals, persona briefing with anti-slop guidance.
+## 4. Assumptions, Normalizations, and Capabilities
 
-## 2026-08-05 — Spec-Driven Update (REQ-098)
+- **Data extraction:** All structured data (weapons, armor, spells, monsters, magic items) extracted by `scripts/build-index.ts` into `src/generated/*.json`. Extraction is deterministic and verified by Gate 0.
+- **Search index:** Built at first call from ruleset Markdown files, cached in memory.
+- **State persistence:** Atomic saves with `.tmp` rename and `.bak` retention per REQ-092.
+- **RNG:** LCG algorithm (1664525/1013904223), seedable per session or per call.
+- **Persona model:** null = full access; explicit player/game_master with server-side gating.
+- **Novel lifecycle:** One active Novel per server instance. Persists to `.holonovel-state/novels/<slug>.json`.
+- **Capabilities inventory:** 54 tools, 31 resources, 7 prompts, 5 lookup categories, 15 conditions, 12 classes, 9 races.
 
-Gap audit against holonovel.md as of 2026-08-05. All gaps below are
-resolved in the current build.
+<!-- @section waivers -->
+## 5. Waivers and Accepted Limitations
 
-| Gap | REQ | Disposition | Details |
-|-----|-----|-------------|---------|
-| G-001 | REQ-085 | Implemented | Macro system (`src/macros.ts`) expands `{{entity.name}}`, `{{entity.hp}}`, `{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`, `{{countdown.<name>.total}}`, `{{novel.slug}}`, `{{persona.active}}`, `{{party.size}}`. Expands in `ok()`/`err()`/`partial()` tool output. |
-| G-002 | REQ-083 | Implemented | Lore entries extended with `priority`, `sticky`, `enabled`, `group` fields. New tools: `toggle_lore_entry`, `set_lore_group`, `suggest_lore`. Sticky refreshes on trigger, advances per scene. Token budget via `TTRPG_MAX_LORE_TOKENS`. |
-| G-003 | REQ-094 | Implemented | Lorebook export/import: `export_lorebook` (JSON/Markdown), `import_lorebook` (dry-run/merge/replace). |
-| G-004 | REQ-022 | Implemented | Added 14 new resources: `entity://{id}/personality`, `entity://{id}/voice_examples`, `npc://{id}`, `lore://active`, `lore://{key}`, `lore://templates`, `novel://setup`, `adventure://{slug}/{anchor}`, `guidance://{role}` (gm/player/shared/anti-slop/voice/foundations/persona-switch), `enrichment://*` (voice_examples/briefing_order/adventure_advice), `resources/templates/list`. |
-| G-005 | REQ-066 | Implemented | `player_signal` signal param constrained to enum `[pace, difficulty, tone, focus, boundary]`. |
-| G-006 | Appendix D | Implemented | Removed `subscribe: true` from MCP capabilities. |
-| G-007 | REQ-001/002 | Implemented | Added `[PARTIAL]`, `[RULE_VIOLATION]`, `[UNIMPLEMENTED]` error categories via `partial()`, `ruleViolation()`, `unimplemented()` helpers. |
-| G-008 | REQ-065 | Implemented | Build fingerprint includes SHA-256 ruleset hash. Drift check emits stderr warning on mismatch. `lastSpecReview` and `lastGauntlet` recorded. |
-| G-009 | REQ-025/093 | Implemented | `spec_health` expanded with confidence scores, indexed counts, gate dispositions, novel listing, `last_spec_review`, `last_gauntlet`. |
-| G-010 | REQ-079 | Implemented | `search_rules` includes adventure content sorted first. |
-| G-011 | REQ-090/091 | Implemented | `generate_adventure` uses ruleset flavor tables (setting/theme/trinkets) with 2–6 locations. `generate_encounter` uses locale/ambience/complication tables for richer output. |
-| G-012 | REQ-088 | Implemented | `end_game` deprecated with `[WARNING]` prefix. |
-| G-013 | §11.1 | Implemented | Enrich job produces 5 voice examples, 1 briefing order recommendation, 10 lore templates, 10 action patterns, 20 supplementary guidance items, 11 adventure advice items. Applied on novel creation/load with build fingerprint idempotence. |
-| G-014 | §11.2 | Verified | Character sheet `markdown` and `ascii` formats already implemented. No PDF field layout study needed — baseline derived from ruleset inference. |
-
-**Gauntlet re-run:** All 19/19 scenarios pass, including all blocking scenarios
-(S1 tool surface sweep, S4 simulated combat, S5 state survival, S6 cross-persona boundary,
-S12 roster durability, S15 stress/recovery, S17 novel lifecycle/persistence).
-Three new scenarios (S17-S19) implemented to bring spec compliance to 100%.
-The following REQ-013 coverage gaps are waived because the content is not in
-the SRD:
-
-| Waiver | Description                                   | Reason                          |
-|--------|-----------------------------------------------|---------------------------------|
-| W-001  | No psionics or Mystic class                   | Not in SRD v5.1                 |
-| W-002  | Warlock invocations limited to SRD subset     | Not in SRD v5.1                 |
-| W-003  | No vehicle/ship combat rules                  | Not in SRD v5.1                 |
-| W-004  | No epic boons or levels 21+                   | SRD caps at level 20            |
-| W-005  | No subclass features beyond base exemplar     | SRD includes only one per class |
-| W-006  | No expanded downtime crafting or followers    | Limited to SRD Adventuring.md   |
-| W-007  | Magic item confidence capped at MEDIUM        | Prose extraction limitation     |
-| W-008  | No UA/playtest content                        | Out of scope                    |
-
-**MUST-action coverage: 100%** after waivers (all remaining REQs map to
-implemented tool handlers).
+| REQ | Waiver | Reason | Re-activation |
+|-----|--------|--------|--------------|
+| REQ-004 | Truncation + output:// | No D&D lookup exceeds default 32KB threshold. output:// URI template listed in resource templates for future implementation. | When a lookup produces output >32KB |
+| REQ-004a | Statblock baseline view | character_sheet renders full entity; compact view not needed for D&D's simple stat block format | When ruleset demands compact view |
+| REQ-017 | Role stories | Manual verification pending. Action mapping covers expected play activities via suggest_actions and help. | Manual play session |
+| REQ-056 | Advancement workflow | Level-up mechanics not yet implemented beyond character creation. D&D's advancement is table-driven and complex. | When advancement tables are fully modeled |
+| REQ-064 | Persona behavioral boundaries | Server enforces tool-level gating; conversational boundaries are LLM-level enforcement. | Add behavioral contract tests |
 
 <!-- @section evidence -->
-- **Gate 0 (Intake):** PASSED. 1021 files, valid UTF-8, ATX headings,
-  proper Markdown tables, no broken links (internal to ruleset).
-- **Gate 1 (MCP Conformance):** PASSED. Initialize handshake returns
-  `serverInfo.name = "dnd5e-holonovel"`. 43 tools registered with unique
-  names and Zod schemas. All tool responses follow REQ-001 prefix. 9 resources registered with
-  `text/markdown` MIME type. 6 prompts registered with titles. Zero outbound
-  network in tool handlers (code inspection). STDIO transport only.
-- **Gate 4 (Derived Tests):** 11 automated tests pass:
-  T4 (roll transparency), T8 (audit log), T9 (persona switching),
-  T10 (undo), T15 (spec_health), T16 (resources), T22 (prompts),
-  T39 (canonical lookups), T40 (lookup rejects unknown),
-  T43 (workflow no auto-complete), T44 (player blocked from GM),
-  T45 (spec_health threshold), T62 (help categorized). Run with
-  `npx tsx scripts/test_scripts/run_all.ts`. 11 passed, 0 failed.
-  Remaining Appendix F tests waived per §5 waivers — see W-003 through
-  W-008 for feature-absence waivers.
-- **Gauntlet (operational verification):** ALL 19 SCENARIOS PASSED.
-  Scenario 1 (54-tool surface sweep), 2 (character creation), 3 (encounter setup),
-  4 (simulated combat, 3 rounds), 5 (combat state survival across restart),
-  6 (cross-persona boundary, 27 GM tools blocked from Player), 7 (table generation),
-  8 (search & canonical lookup with source quoting), 9 (condition lifecycle),
-  10 (undo during combat), 11 (workflow cancellation), 12 (roster durability),
-  13 (game isolation), 14 (edge cases), 15 (stress & recovery), 16 (narrative state —
-  scene, NPC lifecycle, countdowns, lore, briefing order, action suggestions,
-  player signals, voice examples), **17 (novel lifecycle and persistence)**, 
-  **18 (novel isolation and adventure generation)**, **19 (novel setup tracking and encounter generation)**.
-  Run with `npx tsx scripts/test_scripts/oce.ts`.
-- **Accepted limitations (Gauntlet):** S9 condition auto-expiry — D&D 5e conditions
-  do not auto-expire on turn advancement (they require saving throws or rest).
-  Manual apply/remove lifecycle verified. S8 verbatim Markdown excerpt — server
-  returns structured JSON data with source file paths, not raw Markdown.
-  Accepted as architectural choice.
-- **Build health:** TypeScript compilation passes (`tsc --noEmit`).
-  Data extraction yields 37 weapons, 14 armor, 319 spells, 318 monsters,
-  239 magic items. `spec_health` reports `build_confidence: 85%` with
-  MUST-action coverage at 100% after waivers.
-- **State persistence:** `.holonovel-state/roster.json` and per-game
-  `.holonovel-state/game-*.json` files survive process restarts.
-- **Handoff checks:** H1 PASS (edition match), H2 PASS (91 REQ rows), 
-  H3 PASS (no embedded data outside waivers — all canonical data in
-  `src/generated/`), H4 PASS (no fixture-only tools), H5 NOTED (`roll_attack`
-  name is generic per spec convention but implementation is D&D-specific),
-  H6 PASS (waivers cross-reference tests), H7 PASS (lookups use loaded
-  JSON data, not runtime file reads), H8 PASS (workflow requires respond
-  per T43), H9 PASS (player blocked from GM per T44), H10 PASS
-  (spec_health reports 85% confidence, 100% MUST coverage), H11 PASS
-  (server starts and handshakes), H12 PASS (config entry at
-  `~/.config/opencode/opencode.json` references correct src/index.ts path).
-- **Independent verification:** See §10 of `holonovel.md` for IV
-  checklist.
+## 6. Gate Evidence
+
+### Gate 0 — Structural Integrity
+- **Timestamp:** 2026-08-05
+- **Environment:** Node.js 20+, Linux
+- **Result:** PASSED
+- **Findings:** 1,021 Markdown files, all UTF-8, ATX headings, well-formed. build-index extracts 37 weapons, 14 armor, 319 spells, 318 monsters, 239 magic items without errors.
+
+### Gate 1 — MCP Conformance
+- **Timestamp:** 2026-08-05
+- **Environment:** Node.js 20+, Linux
+- **Result:** PASSED
+- **Findings:** Server registers 54 tools, 31 resources, 7 prompts. All conform to MCP spec. Initialize handshake returns correct serverInfo.
+
+### Gate 4 — Derived Tests
+- **Timestamp:** 2026-08-05
+- **Result:** PASSED
+- **Tests:** 8 automated test scripts, 113 assertions. All pass (exit 0).
+- **Coverage:** PRNG determinism, dice mechanics, lookup functions, novel lifecycle, character creation, macro expansion, enrichment, lore management, state persistence.
+
+### Gate 5 — Gauntlet
+- **Status:** PENDING
+- **Note:** 20-scenario Gauntlet requires full server runtime with AI-simulated personas. Pending manual verification.
+
+### Spec-Driven Update Gap Disposition (REQ-098)
+- **Date:** 2026-08-05
+- **Spec version:** 2.0.0 → 2.1.0
+- **Gap audit:** Tool catalog (54 tools match spec), resource map (31 resources), prompt list (7 prompts), state model (Novel lifecycle, atomic persistence), persona gating (server-side), behavioral contracts (tool-level enforcement)
+- **Changes applied:** specVersion → 2.1.0, atomic persistence (REQ-092), compress_audit idempotency (REQ-086), novel listing in spec_health (REQ-093)
+- **Gauntlet:** Pending re-run on changed code paths
+- **Verification:** typecheck (0 errors), test suite (113 assertions, 0 failures), build-index (clean regeneration)
+
+### Enrichment Job (REQ-080, §11)
+- **Date:** 2026-08-05
+- **Pre-build answers:** E1 = dnd5e/, E2 = all source types, E3 = MEDIUM
+- **Source domains (3 achieved, 5+ intended with supplement):**
+  - https://www.cbr.com/dnd-fun-dialogue-roleplaying/ (Sonny Giordano II, May 2024) — DM dialogue preparation, NPC embodiment, player confidence
+  - https://litrpgreads.com/blog/improvising-dialogue-making-reactions-feel-natural-in-dnd-roleplay (Kiera Mensah, Nov 2024) — REACT method, character voice, emotional range, scenario response patterns
+  - https://dungeondwellersdigest.wordpress.com/2024/03/02/enhancing-your-roleplaying-experience-tips-for-dd-5e-players/ (Mar 2024) — player roleplay tips, in-character decisions, collaborative storytelling
+  - Existing sources retained: https://thealexandrian.net (node-based design), https://rpgbot.net (action patterns), https://reddit.com/r/DMAcademy (community wisdom)
+- **Output modules:**
+  - Voice examples: 5 (3 player, 2 GM) — HIGH confidence from CBR + MEDIUM from blog sources
+  - Briefing order: 1 recommendation — MEDIUM confidence (derived from prep workflow advice)
+  - Lore templates: 10 (environment-specific lore with DC checks and social prompts) — MEDIUM confidence
+  - Action patterns: 10 (skill+attack mappings derived from REACT method scenarios) — HIGH confidence
+  - Supplementary guidance: 15 items (7 player, 5 GM, 3 shared) — MEDIUM confidence
+  - Adventure advice: 11 items (3 templates, 4 scenario starters, 4 table expansions) — HIGH for templates, MEDIUM for expansions
+- **Search limitation:** DuckDuckGo returned empty results for TTRPG-specific queries (1,024-character query limit may truncate terms). Content extracted from page-level fetches of 3 distinct domains. Supplemented with existing enrichment content where source URLs were retained from earlier builds.
+- **Verification:** typecheck (0 errors), test suite (8/8 pass, enrichment test confirms 6 modules present with entries), no regression
+- **Enrichment cap compliance:** Voice (5, cap 5), Lore (10, cap 30), Actions (10, cap 10), Supplementary (15, cap 20), Adventure (11, cap 30) — all within module budgets
