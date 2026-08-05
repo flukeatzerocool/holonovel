@@ -132,8 +132,9 @@ Monster, spell, and equipment lookups that cite page sources. Character
 creation with leveling. Random tables. Every mechanic traced to your
 books.
 
-Then it verifies. A convergence loop measures quality, improves, and
-re-verifies — up to three cycles. Six verification gates. The 19-scenario
+Then it verifies. A convergence loop measures quality across six metrics
+and re-verifies — up to three cycles, with cross-model auditing when
+multiple models are available. Six verification gates. The 19-scenario
 Gauntlet — combat, stress, and persona endurance under live AI-simulated
 play. A golden transcript proves the server behaves correctly against a
 known fixture. A blind second AI re-runs every gate from a cold checkout.

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-05 — Convergence loop enhancements (6 improvements)
+
+- §6.5: Cross-model audit recommendation — audit subagent uses a different model
+  when available, consistent with multi-vendor audit convergence research.
+- §6.5: Auditor pre-flight injection check — one seeded defect before first real
+  audit validates the subagent itself.
+- §6.5: Complexity-adjusted confidence thresholds — builder may lower confidence
+  bar (floor 70%) for rulesets exceeding 200 indexed items, documented in
+  DECISIONS.md (5).
+- §6.6: Gauntlet assertion compression — periodic audit of accumulated regression
+  assertions removes subsumed or gate-duplicative entries.
+- REQ-025: spec_health gains convergence_summary section (per-activity cycles,
+  findings, residual gaps). T15 description updated. Absent when build incomplete.
+- Appendix M: Convergence-driven REQ review — repeated finding class across
+  multiple rulesets flagged as candidate for REQ revision.
+- README: Updated convergence paragraph to reference six metrics and cross-model
+  auditing.
+
 ## 2026-08-05 — Merged Sheet job into Convert and Build
 
 - Removed Sheet (§11.2) as a standalone optional job. Character sheet PDF
