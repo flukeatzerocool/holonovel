@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-08-05 — dnd5e enrichment job + prior spec fixes
+
+- Enrich job (§11) run on dnd5e MCP server. Research across 3 source domains (CBR,
+  litrpgreads, Dungeon Dweller's Digest) plus retained existing sources (The Alexandrian,
+  r/RPG, RPGbot). 6 output modules populated:
+  - Voice examples — 5 items (3 player, 2 GM) sourced from professional RPG journalism
+  - Briefing order — 1 recommendation derived from DM session-prep workflow advice
+  - Lore templates — 10 environment-specific entries (tavern, forest, ruins, dungeon,
+    mountain, night, city, underground, desert, coast) with DC-based skill checks
+  - Action patterns — 10 player intent-to-tool mappings informed by the REACT improvisation
+    method from litrpgreads.com
+  - Supplementary guidance — 15 items across player, GM, and shared scopes
+  - Adventure advice — 11 items covering templates (five-room, node-based, three-act),
+    scenario starters (horror, mystery, heist, sandbox), and table expansions
+  - Search limitation acknowledged: DuckDuckGo returned empty results for TTRPG-specific
+    terms; content extracted primarily from page-level fetches. All module caps satisfied.
+- DECISIONS.md: enrichment evidence recorded including source domain audit, module
+  counts per budget, and search limitation disposition.
+
+## 2026-08-05 — Spec clarifications from dnd5e nuclear-rebuild AAR
+
+- REQ-025: Added live-computation requirement — `spec_health` counts must be derived from
+  live registrations, not hardcoded literals.
+- REQ-065: Clarified build fingerprint precedence — constructor-derived fields
+  (specification version, ruleset hash, build timestamp) always override stored values.
+  Stored values retained for drift comparison only.
+- REQ-088: Added Novel-scoped operation enumeration — character creation, import, and NPC
+  creation explicitly require an active novel. Silent orphan creation is a defect.
+- REQ-098: Added MCP server restart requirement — after spec-driven code changes, the
+  builder must restart the server process and confirm `spec_health` reports the updated
+  specification version.
+
 ## 2026-08-05 — v2.1 "Structured Analysis" — SATs applied to the spec
 
 - Researched Structured Analytic Techniques (Heuer & Pherson taxonomy: decomposition,

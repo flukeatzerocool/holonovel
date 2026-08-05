@@ -456,9 +456,11 @@ term for that action. Annotations match action classification. _Check:_ T3, T35,
 cycle, residual gaps for each of the six activities in §6.5), indexed counts (anchors,
 concepts, entity types, actions, tables, procedures, guidance items), pending sections,
 MUST-action coverage, defect count, ruleset-version status, gate dispositions, and
-available Novels on disk (slug, name, last-modified, active — per REQ-093). The
-player persona sees only player-filtered metrics. Output is filtered by persona. The
-convergence summary section is absent when the build is not yet complete.
+available Novels on disk (slug, name, last-modified, active — per REQ-093). Counts are
+derived from live registrations at call time — the running tool catalog, resource map,
+prompt list, search index, and extracted data arrays — not from hardcoded numeric
+literals. The player persona sees only player-filtered metrics. Output is filtered by
+persona. The convergence summary section is absent when the build is not yet complete.
 _Check:_ T15, T45.
 
 **REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
@@ -675,14 +677,19 @@ warns on stderr and appears in `spec_health`. _Check:_ T17.
 directory: the specification version, the ruleset content hash (REQ-044), and the build
 timestamp. On startup with existing state, the server compares the stored fingerprint
 against the current build. A match requires no action. A mismatch emits a warning on
-stderr listing the differing fields and indicating a rebuild occurred. The server must
-load existing state gracefully: fields present in state but absent from the current
-entity model are preserved as inert data and cause no errors; fields required by the
-current model but absent from existing state receive their ruleset-defined defaults.
-Roster baselines remain immutable across rebuilds. Unrecoverable state — state that
-cannot be parsed or structurally loaded — is reported to the operator via stderr and
-surfaced in `spec_health`; the server must not silently discard it. A fresh start
-against an empty state directory is a match. _Check:_ T52.
+stderr listing the differing fields and indicating a rebuild occurred. The active build's
+specification version, ruleset hash, and build timestamp always take precedence over
+stored values — stored values are retained for drift comparison only. Per-session fields
+(the last specification review timestamp and last Gauntlet execution timestamp) may be
+updated at runtime and preserved across restarts, but the constructor-derived version,
+hash, and timestamp are immutable for the build's lifetime. The server must load existing
+state gracefully: fields present in state but absent from the current entity model are
+preserved as inert data and cause no errors; fields required by the current model but
+absent from existing state receive their ruleset-defined defaults. Roster baselines remain
+immutable across rebuilds. Unrecoverable state — state that cannot be parsed or
+structurally loaded — is reported to the operator via stderr and surfaced in `spec_health`;
+the server must not silently discard it. A fresh start against an empty state directory
+is a match. _Check:_ T52.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -804,10 +811,14 @@ guides the GM and LLM toward appropriate moves. _Check:_ T71.
 activates it. `resume_novel(slug)` resumes an existing Novel from disk. `end_novel()` ends
 the active Novel: deactivates persona, clears undo stacks, removes the Novel's save file
 from disk (no orphaned state), and the roster survives. One Novel is active per server
-instance. Switching between Novels deactivates the current Novel's state before loading the
-new one. `[STATE_CONFLICT]` if no Novel active when a Novel-scoped tool is called. Server
-start without `TTRPG_NOVEL` operates with no Novel active — Novel-scoped tools direct users
-to create or resume one. _Check:_ T72, T73.
+instance. Character creation, character import, and NPC creation are Novel-scoped
+operations — they require an active novel. Without one, they return `[STATE_CONFLICT]`
+directing the operator to `create_novel`. Silent orphan creation — adding an entity
+to the roster without a novel association — is a defect. Switching between Novels
+deactivates the current Novel's state before loading the new one. `[STATE_CONFLICT]` if no
+Novel active when a Novel-scoped tool is called. Server start without `TTRPG_NOVEL` operates
+with no Novel active — Novel-scoped tools direct users to create or resume one.
+_Check:_ T72, T73.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
 `prompts/list`). It surfaces the recommended setup workflow: (1) create or import
@@ -1222,15 +1233,17 @@ convergence would not help.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps, produce a
-documented plan, implement changes with passing verification gates, re-run the Gauntlet
-with zero failures on changed code paths, implement any unimplemented Gauntlet scenarios
-from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
+documented plan, implement changes with passing verification gates, restart the MCP server
+process and confirm `spec_health` reports the updated specification version, re-run the
+Gauntlet with zero failures on changed code paths, implement any unimplemented Gauntlet
+scenarios from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
 Gap audit must cover the tool catalog, resource map, prompt list, state model,
 persona gating, and behavioral contracts.
 
-_Check:_ A dated DECISIONS.md gap-disposition entry exists. The Gauntlet run produces
-zero failures on all scenarios exercising changed code paths. `spec_health` reports
-`last_spec_review` and `last_gauntlet` fields populated with ISO dates.
+_Check:_ A dated DECISIONS.md gap-disposition entry exists. `spec_health` reports the
+updated specification version. The Gauntlet run produces zero failures on all scenarios
+exercising changed code paths. `spec_health` reports `last_spec_review` and `last_gauntlet`
+fields populated with ISO dates.
 
 ---
 
