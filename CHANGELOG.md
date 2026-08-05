@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-08-05 — Gauntlet improvements (10 recommendations from deep research)
+
+- §6.6: Concretized S15 (stress and recovery) into four sub-scenarios — S15a
+  (concurrent sessions), S15b (corrupted state file), S15c (rapid persona
+  switching), S15d (long combat) — each with explicit tool calls and pass
+  criteria.
+- §6.6: Added S20 (persona briefing correctness) — verifies
+  `persona_briefing` content adapts correctly across personas and scene types.
+  Blocking.
+- §6.6: Added S21 (lorebook interchange) — round-trips `export_lorebook` and
+  `import_lorebook` through dry-run, merge, and replace modes. Blocking.
+- §6.6: Renumbered old S20 (campaign endurance) to S22. Gauntlet scenario
+  count increased from 20 to 22 across spec, README, DECISIONS.md, Gate 5,
+  and `spec_health`.
+- §6.6: Elevated S2 (character creation) to blocking — a server that cannot
+  create characters fails the build.
+- §6.6: Clarified Method paragraph — two MCP connections sharing one data
+  directory, interleaved Player/GM calls, each scenario specifies which
+  persona calls each tool.
+- §6.6: Defined "valid input" for S1 tool sweep — parameter types per schema,
+  simplest valid input, pass criterion covers crashes, hangs, and unexpected
+  error codes.
+- §6.6: Added S22 timeout budget (10 minutes wall-clock; 3 consecutive
+  exceedances trigger scope re-evaluation) and global Gauntlet budget
+  (60 minutes wall-clock with per-scenario timings).
+- §6.6, §8: Updated exit criteria and Gate 5 blocking list to include new
+  blocking scenarios (S2, S20, S21, S22) with parenthetical labels.
+- dnd5e: Fixed `lastGauntlet` not set at construction (was `new Date()` in
+  constructor — now absent until Gauntlet execution). Added
+  `gauntletScenariosPassed` field to `BuildFingerprint`. `spec_health` reports
+  "completed N/22" or "pending 22 scenarios" depending on `lastGauntlet`
+  presence.
+
 ## 2026-08-05 — Enrich job spec improvements (12 recommendations)
 
 - §5.8: Added **REQ-103 — Enrichment reversion** — `revert_enrichment` tool removes all
