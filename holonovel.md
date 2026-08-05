@@ -822,6 +822,13 @@ The server is built in six layers, each with an acceptance check:
 | 5     | State: snapshots, undo, audit, persona gating, resource URIs | T9 pass (persona test)                                       |
 | 6     | Prompts: `use_tool`, `lookup_rule`, `run_workflow`, `persona_briefing`, `intro` | T22 pass (prompt registry test)            |
 
+**License.** The server MUST include a `LICENSE.md` file at the project
+root with two sections: a **Ruleset Data** section identifying the source
+material and its license (drawn from Appendix I), and a **Server Code**
+section stating that `src/` and `scripts/` are MIT-licensed (see
+`package.json`). The dnd5e server's `LICENSE.md` is the canonical
+template.
+
 ### 6.5 Verification and convergence
 
 **Checkpoints.** After each job completion and each layer build, the builder spawns a
