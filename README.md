@@ -156,11 +156,10 @@ without touching your Novels. That's spec-driven development: the spec
 is your long-term investment. The server is rebuilt whenever the spec
 changes. Everything you've created — characters, worlds, novels —
 survives every rebuild.
-Re-run Enrich to catch fresh community wisdom. Feed it a character sheet
-PDF you just found — the layout
-updates. You never start over. You add on.
+Re-run Enrich to catch fresh community wisdom. Drop in a new sourcebook —
+it joins the ruleset as reference material. You never start over. You add on.
 
-## Extend with Enrich and Sheet
+## Extend with Enrich
 
 Optional. Idempotent. Never touch mechanics.
 
@@ -169,12 +168,6 @@ Optional. Idempotent. Never touch mechanics.
 The AI hunts down community wisdom — actual-play breakdowns, designer
 commentary, media influences. Your GM learns how the community plays the
 game, not just what the rulebook says.
-
-> "Here's the official character sheet PDF."
-
-The built-in sheet — already generated from the rules alone — gains the
-official layout, an ASCII format for terminal play, and an HTML variant
-for rich clients.
 
 ## How it compares
 

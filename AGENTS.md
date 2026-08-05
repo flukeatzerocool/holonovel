@@ -20,7 +20,7 @@ holonovel.md            The specification (standalone, copy-pasteable)
   §8                    Verification gates (Gate 0–4)
   §9                    Artifacts and handoff (4 artifacts, 12 checks)
   §10                   Independent verification
-  §11                   Optional jobs (persona enrichment, character sheet)
+  §11                   Optional jobs (persona enrichment)
   Appendices A–M        Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog,
