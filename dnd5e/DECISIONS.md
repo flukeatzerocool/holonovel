@@ -153,7 +153,7 @@
 
 ### Gate 5 — Gauntlet
 - **Status:** PENDING
-- **Note:** 20-scenario Gauntlet requires full server runtime with AI-simulated personas. Pending manual verification.
+- **Note:** 22-scenario Gauntlet requires full server runtime with AI-simulated personas. Pending manual verification.
 
 ### Spec-Driven Update Gap Disposition (REQ-098)
 - **Date:** 2026-08-05

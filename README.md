@@ -134,7 +134,7 @@ books.
 
 Then it verifies. A convergence loop measures quality across six metrics
 and re-verifies — up to three cycles, with cross-model auditing when
-multiple models are available. Six verification gates. The 20-scenario
+multiple models are available. Six verification gates. The 22-scenario
 Gauntlet — combat, stress, and persona endurance under live AI-simulated
 play. A golden transcript — built against a "Tin Lanterns" dark-fantasy
 holo-novel and a "Captain Proton" pulp-sci-fi complex fixture —

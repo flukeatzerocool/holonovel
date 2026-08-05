@@ -1199,12 +1199,14 @@ criteria below), and both ruleset-facing gates (1 and 4) pass. Marking a job com
 without a passing Gauntlet and passing applicable gates is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
-**Method.** The builder launches the server in two separate sessions sharing one
-`TTRPG_NOVEL`: a Game Master session and a Player session. The builder acts as both
-personas — the builder decides player intent (which move to use, when to push, how to
-respond to decisions) and GM adjudication (when to escalate, how to narrate
-outcomes). Every scenario states its objective, the tool calls to make, and the pass
-criterion.
+**Method.** The builder starts two MCP client connections to the same server process
+sharing one `TTRPG_DATA_DIR` — one connection for the Game Master persona
+(`set_persona("game_master")`), one for the Player persona (`set_persona("player")`).
+Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
+calls between the two connections to simulate realistic turn-taking: the Player acts
+(moves, attacks, asks questions), the GM adjudicates (narrates outcomes, escalates,
+manages state). Every scenario states its objective, the tool calls to make, which
+persona calls each, and the pass criterion.
 
 **Verification principle.** Gauntlet scenarios verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `persona_briefing`,
@@ -1227,9 +1229,15 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep.** Every registered tool accepts valid input without error.
+1. **Tool surface sweep.** Every registered tool is called at least once with valid
+   input according to its schema: a non-empty string for `string` params, a valid
+   enum member for `enum` params, a positive integer within declared bounds for
+   `number` params with min/max constraints, and an array of the declared item type
+   for `array` params. Each tool is called with its simplest valid input —
+   default-resolvable parameters omitted, required parameters supplied inline. The pass
+   criterion: no tool crashes, hangs, or returns an unexpected error code. (Blocking.)
 2. **Character creation workflow.** Full creation produces a correct entity with all
-   derived statistics; the entity appears in the roster and imports correctly.
+   derived statistics; the entity appears in the roster and imports correctly. (Blocking.)
 3. **Encounter setup.** Combat init with entities and dangers reports round counter, turn order, and participant classification.
 4. **Simulated combat session.** The combat pipeline — turn resolution, HP tracking,
    condition effects, round advancement — produces correct results over at least 3 rounds
@@ -1276,9 +1284,27 @@ four items is incomplete and blocks handoff.
     h. **spec_health under Player persona.** `spec_health` called as Player returns
         only player-filtered metrics and never exposes GM-only counts, confidence
         breakdowns, or convergence data.
-15. **Stress and recovery.** Adversarial conditions (concurrent sessions, corrupted
-    state, rapid persona switching, large-scale combat, long queries) handled without
-    data loss or deadlocks.
+15. **Stress and recovery.**
+    a. **Concurrent sessions.** Two MCP connections sharing one data directory
+       access the same Novel. One mutates state (apply condition, set scene),
+       the other reads state (character_sheet, session_recap). Assert reads reflect
+       the latest writes after each mutation — no stale reads, no write conflicts,
+       no deadlocks.
+    b. **Corrupted state file.** Truncate the on-disk Novel `.json` to half its
+       length. Start the server with that Novel active. Assert `spec_health`
+       reports the corrupted state as a `[WARNING]` enumerating the corrupted
+       Novel by slug without crashing. Assert tools targeting uncorrupted
+       Novels and roster functions continue to work.
+    c. **Rapid persona switching.** Call `set_persona` 10 times in rapid
+       succession, alternating between `"player"` and `"game_master"`. After the
+       final switch to Game Master, assert a GM-only tool succeeds and a
+       Player-only tool is persona-filtered correctly. No lost state, no crash.
+    d. **Long combat.** Run a 50-round combat with 2 entities and 2 NPC dangers
+       using deterministic seeds. Assert round counter reaches 50, conditions
+       applied mid-combat persist to the correct round, `session_recap` summarizes
+       all 50 rounds, and memory usage has not doubled from the pre-combat
+       baseline.
+    (Blocking.)
 16. **Narrative state.** Scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
 17. **Novel lifecycle and persistence.** Novel create/resume/end cycle works; state
     persists to disk and restores after restart; end_novel removes file; ended Novel
@@ -1289,7 +1315,28 @@ four items is incomplete and blocks handoff.
     persona-filtered, searchable, and regeneratable.
 19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
     generate_encounter produces batch state (scene + NPC + lore) as a single undo target.
-20. **Campaign endurance.** Create a Novel with 2 entities, 3 NPCs, 2 countdowns (one
+20. **Persona briefing correctness.** Create a Novel with one entity, 2 NPCs,
+    3 lore entries (one GM-only, one shared), and 2 countdowns. Set scene state
+    to a description containing one of the lore entry triggers. Switch to Player
+    persona and retrieve `persona_briefing`. Assert: entity stats visible;
+    numeric confidence breakdowns not visible; GM-only lore entries not visible;
+    countdowns listed without GM-only metadata. Switch to Game Master persona and
+    retrieve `persona_briefing` again. Assert: all lore entries present; all NPC
+    stats visible; countdown tools reachable; briefing order matches the
+    configured order. Switch between scene types (combat, social, exploration)
+    and assert `persona_briefing` content adapts correctly. (Blocking.)
+21. **Lorebook interchange.** Export the Novel's lorebook via `export_lorebook`
+    in JSON format. Assert the exported JSON contains every active lore entry with
+    key, content, triggers, and persona_scope fields. Remove one lore entry. Call
+    `import_lorebook(data, "dry-run")` with the previously exported JSON — assert
+    the response lists one entry to be restored with a `would_add` disposition and
+    no side effects (the removed entry remains absent). Call
+    `import_lorebook(data, "merge")` — assert the removed entry is restored.
+    Export again and assert the round-tripped JSON matches the first export's
+    entry set. Call `import_lorebook(data, "replace")` — assert all entries match
+    the import data and previously-added Novel entries not in the import are
+    removed. (Blocking.)
+22. **Campaign endurance.** Create a Novel with 2 entities, 3 NPCs, 2 countdowns (one
     round, one narrative), and 3 lore entries. Run 30 combat rounds across 3
     confrontations (10 rounds each), applying and removing 3 conditions per entity,
     advancing both countdowns, updating scene state once per confrontation,
@@ -1299,6 +1346,15 @@ four items is incomplete and blocks handoff.
     `compress_audit(20)` returns structured entries; memory usage has not more than
     doubled from the pre-Gauntlet baseline; snapshot stack depth equals mutation count
     minus undo count; the on-disk Novel file is ≤ 5 MB. (Blocking.)
+
+A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
+the scenario but is recorded with the actual duration. Three consecutive S22 runs
+exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
+
+**Global budget.** The full Gauntlet run of all scenarios must complete within 60
+minutes of wall-clock time. A run exceeding the budget is recorded with actual
+duration and per-scenario timings in DECISIONS.md (6). The operator may increase
+the budget for rulesets exceeding 2,000 indexed items (REQ-100 Huge tier).
 
 **Structured encoding.** For mechanical consumption during Gauntlet execution, the
 builder encodes each scenario internally as a structured record — `scenario_id` (stable
@@ -1336,9 +1392,10 @@ weakening regression coverage.
 
 **Exit criteria.** The Gauntlet completes when all scenarios pass and all blocking
 failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
-(tool sweep), 4 (simulated combat), 5 (state survival), 6 (persona boundary), 12
-(roster durability), 15 (stress and recovery), 17 (Novel lifecycle and persistence), or
-20 (campaign endurance)
+(tool sweep), 2 (character creation), 4 (simulated combat), 5 (state survival),
+6 (persona boundary), 12 (roster durability), 15 (stress and recovery),
+17 (Novel lifecycle and persistence), 20 (persona briefing), 21 (lorebook
+interchange), or 22 (campaign endurance)
 are blocking — the Build job is incomplete and the operator is notified; (b) failures
 in other scenarios are logged in DECISIONS.md (5) as accepted limitations with
 re-activation conditions after 2 stalled cycles. All failures are recorded
@@ -1539,8 +1596,8 @@ log each with its reason in DECISIONS.md. Automated tests must ship a runnable s
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
 document the verification procedure and expected output shape in DECISIONS.md.
 
-**Gate 5 — The Gauntlet (operational verification).** Run the 20-scenario Gauntlet
-defined in §6.6. All blocking scenarios (S1, S4, S5, S6, S12, S15, S17, S20) must pass.
+**Gate 5 — The Gauntlet (operational verification).** Run the 22-scenario Gauntlet
+defined in §6.6. All blocking scenarios (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and

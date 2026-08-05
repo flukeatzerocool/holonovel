@@ -117,6 +117,7 @@ export interface BuildFingerprint {
   rulesetHash: string;
   lastSpecReview?: string;
   lastGauntlet?: string;
+  gauntletScenariosPassed?: number;
 }
 
 export interface NovelMetadata {
@@ -232,7 +233,6 @@ export class StateManager {
       buildTimestamp: new Date().toISOString(),
       rulesetHash: computeRulesetHash(),
       lastSpecReview: new Date().toISOString(),
-      lastGauntlet: new Date().toISOString(),
     };
     fs.mkdirSync(dataDir, { recursive: true });
     this.loadRoster();

@@ -295,7 +295,12 @@ server.registerTool("spec_health", {
   out += `  Build timestamp: ${fp.buildTimestamp.slice(0, 10)}\n`;
   out += `  Ruleset hash: ${fp.rulesetHash}\n`;
   if (fp.lastSpecReview) out += `  Last spec review: ${fp.lastSpecReview}\n`;
-  if (fp.lastGauntlet) out += `  Last Gauntlet: ${fp.lastGauntlet}\n`;
+  if (fp.lastGauntlet) {
+    out += `  Last Gauntlet: ${fp.lastGauntlet}\n`;
+    if (fp.gauntletScenariosPassed !== undefined) {
+      out += `  Gauntlet scenarios passed: ${fp.gauntletScenariosPassed}/22\n`;
+    }
+  }
   out += "\n";
   out += "## Indexed Counts\n";
   out += `  Source files: 1,021 Markdown\n`;
@@ -316,7 +321,7 @@ server.registerTool("spec_health", {
   out += `  Gate 0 (Structural): PASSED\n`;
   out += `  Gate 1 (MCP Conformance): PASSED\n`;
   out += `  Gate 4 (Derived Tests): PASSED\n`;
-  out += `  Gate 5 (Gauntlet): pending 20 scenarios\n\n`;
+  out += `  Gate 5 (Gauntlet): ${fp.lastGauntlet ? 'completed' : 'pending'} 22 scenarios\n\n`;
 
   if (!isPlayer) {
     out += "## Novels on Disk\n";
