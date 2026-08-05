@@ -57,9 +57,8 @@ entity management, tables, and guidance as MCP tools, resources, and prompts. No
 coding — the AI reads the ruleset and builds. The specification is the permanent
 artifact; implementations are disposable and rebuilt on demand. Full rebuilds have
 token and time costs. The builder prefers incremental updates when the spec delta is
-narrow: re-run only the affected gates and Gauntlet scenarios. A full rebuild is
-required when the ruleset changes, the extraction model changes, or the spec version
-changes by a major increment.
+narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
+model changes, or the spec version changes by a major increment.
 
 **The play model.** Two personas, enforced server-side during play. The Novel is the
 container — a named, persistent save file on disk. Create a Novel, set up characters
@@ -913,7 +912,7 @@ metadata. Formats are defined in Appendix L. Player persona attempts return `[ER
 
 ### 6.1 Job overview
 
-The build is organized into three independently selectable jobs. The operator picks one or
+The build is organized into four independently selectable jobs. The operator picks one or
 more jobs; the builder asks only the questions those jobs need and proceeds accordingly.
 
 | Job     | What it does                                                | Required sections        |
@@ -921,6 +920,7 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
+| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet scenarios. | §6.7, §6.2      |
 
 ### 6.2 Intake
 
@@ -941,7 +941,7 @@ selected jobs, all answers, and the first job to execute.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What job(s) should Holonovel run? | convert / build / enrich (select one or more) | build + enrich (when network detected), build (when offline) |
+| Q0  | What job(s) should Holonovel run? | convert / build / enrich / update (select one or more) | build + enrich (when network detected), build (when offline) |
 
 **Q1 — Pause between jobs.** Asked when two or more jobs are selected.
 
@@ -1001,6 +1001,13 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
+
+**Update job.** Asked when `update` is selected.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| U1  | Where is the server to update? | Folder path                    | —                   |
+| U2  | How should the spec version delta be detected? | auto (compare DECISIONS.md to current spec) / manual (operator states the previous spec version) | auto |
 
 **Cross-job deduplication.** When the operator selects multiple jobs, questions
 identical in wording and semantics are asked once. If Convert produces the Markdown sources
@@ -1405,18 +1412,51 @@ convergence would not help.
 ### 6.7 Spec-driven updates
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
-to match changes in this specification, the operator must audit gaps, produce a
-documented plan, implement changes with passing verification gates, restart the MCP server
-process and confirm `spec_health` reports the updated specification version, re-run the
-Gauntlet with zero failures on changed code paths, implement any unimplemented Gauntlet
-scenarios from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
-Gap audit must cover the tool catalog, resource map, prompt list, state model,
-persona gating, and behavioral contracts.
+to match changes in this specification, the operator must audit gaps across the tool
+catalog, resource map, prompt list, state model, persona gating, and behavioral
+contracts; produce a documented plan with gap dispositions (implemented / deferred /
+waived) each citing the relevant REQ; implement changes with passing verification
+gates; restart the MCP server process and confirm `spec_health` reports the updated
+specification version; re-run all blocking Gauntlet scenarios and any non-blocking
+scenarios exercising gap-audit-implemented tools, resources, or prompts, with zero
+failures on both; implement any unimplemented Gauntlet scenarios from §6.6; and
+record all gap dispositions in a dated DECISIONS.md entry.
 
-_Check:_ A dated DECISIONS.md gap-disposition entry exists. `spec_health` reports the
-updated specification version. The Gauntlet run produces zero failures on all scenarios
-exercising changed code paths. `spec_health` reports `last_spec_review` and `last_gauntlet`
-fields populated with ISO dates.
+**Delta classes.**
+
+| Class   | Trigger                                                       | Workflow                                                  |
+| ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
+| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | Gate 0 + Gate 1 only; record version bump in DECISIONS.md; no Gauntlet |
+| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; blocking Gauntlet only |
+| Major   | State model changed, new tools/prompts/resources mandated, persona-gating contract altered | Full gap audit; full 22-scenario Gauntlet |
+
+The builder classifies the delta during gap audit. A major spec version increment
+always triggers the Major class. The operator may override the classification at
+intake (U2).
+
+**Gap audit method.** The builder compares the server's live registrations — tool
+catalog (tools/list), resource map (resources/list), prompt list (prompts/list),
+and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
+conventions (§7.4), state model (§7.7), and REQ-032 persona gating. Behavioral
+contracts are verified by Gauntlet re-run. The audit produces one row per identified
+gap with: the affected surface, the citing REQ, the disposition, and the reason.
+
+**State migration.** When the state model changes, the builder verifies that
+existing Novel state loads without error under REQ-065 compatibility rules. Novel
+state fields present in stored state but absent in the updated model are preserved
+as inert data; fields absent in stored state receive defaults. A load failure
+during a spec-driven update is a blocking defect.
+
+**Budget.** The operator may set a wall-clock budget in minutes at intake. If the
+budget is exceeded before the Gauntlet passes, the builder reports residual gaps
+and the operator chooses: accept the partial update, extend the budget, or revert.
+No budget set → no limit.
+
+_Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing its
+relevant REQ and disposition reason. `spec_health` reports the updated specification
+version. All blocking Gauntlet scenarios pass; non-blocking scenarios exercising
+gap-audit-implemented tools, resources, or prompts pass. `spec_health` reports
+`last_spec_review` and `last_gauntlet` fields populated with ISO dates.
 
 ---
 
@@ -2520,7 +2560,7 @@ diet.
 | T81   | Automated | Lore grouping: group entries under named groups. Assert `lore://groups` lists groups with correct members. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032                            |
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
 | T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create many lore entries, all triggered. Assert `persona_briefing` lore section includes only entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries included before non-sticky. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear. One oversized entry permitted per assembly.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
-| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run covers all changed code paths with zero failures on those paths. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run includes all blocking scenarios and any non-blocking scenarios exercising gap-audit-implemented tools, resources, or prompts, with zero failures on both. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
 | T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert measurements recorded in DECISIONS.md (4) and `spec_health`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-100                                     |
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
