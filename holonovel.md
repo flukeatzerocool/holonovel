@@ -1594,6 +1594,16 @@ A source type that returns zero results is recorded as a finding with the "empty
 disposition and does not block completion. Failure or empty results leave the server
 unchanged; all enrichment content is additive.
 
+A source-domain shortfall — fewer than 5 distinct domains returning non-empty results
+across all source types — is recorded with the "incomplete" disposition and does not
+block handoff. The builder may supplement the research with: (a) enrichment content
+retained from prior Build cycles that carries verified source URLs, (b) pages fetched
+from pre-seeded, known-TTRPG-community domains listed in the intake answers, or (c)
+an accepted limitation with re-activation conditions: a target date and a domain
+threshold (e.g., "re-run when ≥3 new domains are reachable"). An incomplete
+disposition requires a supplement source audit in DECISIONS.md (6) listing which
+modules drew from supplemental content and which are from live research.
+
 **Structured outputs.** Enrich produces an enrichment manifest with six output modules:
 
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:

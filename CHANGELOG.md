@@ -16,6 +16,10 @@
     scenario starters (horror, mystery, heist, sandbox), and table expansions
   - Search limitation acknowledged: DuckDuckGo returned empty results for TTRPG-specific
     terms; content extracted primarily from page-level fetches. All module caps satisfied.
+- §11.1: Added source-domain fallback protocol — fewer than 5 distinct domains is an
+  "incomplete" disposition (does not block handoff). Builder may supplement from retained
+  content, pre-seeded community domains, or an accepted limitation with re-activation
+  conditions.
 - DECISIONS.md: enrichment evidence recorded including source domain audit, module
   counts per budget, and search limitation disposition.
 
