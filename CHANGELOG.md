@@ -1,6 +1,42 @@
 # Changelog
 
-## 2026-08-04 — Eliminate JavaScript artifacts, run TypeScript natively
+## 2026-08-05 — dnd5e MCP server v1.2 alignment, energetic intros, anti-slop domain boundary
+
+- dnd5e: upgraded from v1.1 to v1.2 spec alignment. State model expanded
+  from 3 to 9 tiers (NPC, Scene, Countdown, Lore, Enrichment, Adventure).
+  Tool count increased from 23 to 43 (+20): `lookup_class`, `end_game`,
+  `set_active_entity`, `set_personality`, `set_voice_examples`,
+  `player_signal`, `set_scene_state`, `set_scene_type`,
+  `set_narrative_directive`, `create_npc`/`update_npc`/`remove_npc`,
+  `set_countdown`/`advance_countdown`/`remove_countdown`,
+  `set_lore_entry`/`remove_lore_entry`, `set_briefing_order`,
+  `suggest_actions`, `compress_audit`, `load_adventure`. Persona model
+  changed to nullable (null = full access, per REQ-031). Resources
+  increased from 5 to 9 (+`party://current`, `npcs://`,
+  `scene://current`, `countdown://active`).
+- dnd5e: `persona_briefing` redesigned with anti-slop guidance
+  (D&D-adapted Appendix J), voice examples, scene state, entities,
+  NPCs, countdowns, lore, adventure, player signals, narrative directive,
+  and `set_briefing_order`-aware section ordering. `intro` prompt
+  rewritten to energetic D&D-flavored invitation with dynamic sourcebook
+  listing.
+- dnd5e: `advance_combat` now ticks round countdowns on new-round
+  transitions. State file format updated (`state/` subdirectory with
+  roster + game envelope) for v1.2 persistence.
+- dnd5e OCE: expanded from 15 to 16 scenarios. Scenario 1 sweeps all 43
+  tools. Scenario 6 blocks 16 GM tools from Player persona. New Scenario
+  16 validates full narrative pipeline (scene, NPC lifecycle, countdowns,
+  lore, briefing order, action suggestions, player signals, voice
+  examples, class lookup). State file paths updated for new `state/`
+  directory format.
+- dnd5e docs: DECISIONS.md traceability table updated — 56 REQ rows
+  implemented (22 WAIVED rows removed). AGENTS.md rewritten for 43-tool
+  surface with categorized registry. README.md capabilities updated.
+- Spec: REQ-063 clarification added — the `intro` prompt may use an
+  engaging, energetic tone; the anti-slop catalogue (REQ-070, Appendix J)
+  governs in-game GM and Player narration, not server onboarding prompts.
+- Mothership MCP: `intro` prompt rewritten to energetic, sourcebook-aware
+  invitation with four action-focused next actions.
 
 - dnd5e: removed `dist/` directory (compiled JavaScript from `tsc`). All
   paths now reference TypeScript source directly — `main` is `src/index.ts`,
