@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-08-05 — Spec compression and philosophy hardening
+
+- Spec compressed from 2,620 to 2,229 lines (-15%). All cuts are reductive — no
+  requirements removed, only implementation detail stripped.
+- Regained ~450 lines lost to bloat from v1.3 "Novels" and v1.4 "Lorebook" releases.
+- Lore subsystem collapsed: 5 REQs (083, 094, 095, 096, 097) → 2 (083, 094).
+  Implementation-prescriptive algorithms (priority sort order, sticky decay mechanism,
+  token-budget fill order, trigger-scan caps) moved to builder domain. Grouping (095),
+  suggestion (096), and token budget (097) folded into REQ-083 as declarative clauses.
+- OCE scenarios (19) compressed from step-by-step test scripts to objectives + pass
+  criteria. Builder derives method from REQs; convergence loop verifies.
+- §7.8 (Guidance and persona knowledge) collapsed from 40-line catalog duplicate
+  of §5.8 REQ prose to a 4-line pointer.
+- §6.7 Spec-driven updates merged with REQ-098 — no duplicate procedural steps.
+- §11.1a (Enrichment manifest JSON schemas) removed entirely. Builders determine
+  file formats; convergence loop verifies correctness.
+- Appendix L (Lorebook Interchange Format) reduced from detailed JSON/Markdown
+  schemas to a one-paragraph format declaration.
+- Token catalogs removed: REQ-023 (7 prompts by name → domains), REQ-082 (16
+  section tokens → declarative), REQ-085 (macro token list trimmed).
+- All "Default:" clauses removed from REQ prose (083, 084, 085, 086, 087, 081).
+  Defaults are the builder's domain.
+- Lifecycle repetition consolidated: 6 REQs changed from "persists across
+  connections and is discarded on end_novel" to "persists with the Novel." State
+  model table (§7.7) remains canonical lifecycle reference.
+- REQ-062 trimmed: enumerated GM/Player principles removed (Enrich job handles).
+- REQ-064 trimmed: narrative-style prose reduced to core boundary contract.
+- Quick reference: "games" → "Novels", stale REP-030 typo fixed, stale §11.1a
+  references removed.
+- Standing Rule 7 extended with 5-question REQ authoring checklist (applied
+  before any new requirement).
+- New Appendix M: "REQ Authoring Conventions" — defines REQ anatomy, what
+  belongs elsewhere, and the "trust the loop" test.
+- `scripts/validate.ts`: new `checkSpecViolations` function — warns on long REQ
+  bodies (>800 chars), parameter type annotations, Default: clauses, enumerated
+  token catalogs (>5 tokens), and lifecycle repetition (>3 occurrences). All
+  warnings; none block the build.
+- `.markdownlint.json`: MD049 disabled (underscore emphasis is intentional for
+  `_Check:_` convention).
+- AGENTS.md: requirement authoring guidelines added with pointer to Appendix M;
+  layer map updated for current appendix count and REQ count.
+- REQ-094 renamed "Lorebook export and import" → "Lorebook interchange."
+
 ## 2026-08-05 — v1.4 "Lorebook"
 
 Holonovel's lore subsystem learns from lorebooks without becoming one. Eight
