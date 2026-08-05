@@ -43,6 +43,8 @@
 - [Appendix K: Adventure Module Format](#appendix-k-adventure-module-format)
 - [Appendix L: Lorebook Interchange Format](#appendix-l-lorebook-interchange-format)
 - [Appendix M: REQ Authoring Conventions](#appendix-m-req-authoring-conventions)
+- [Appendix N: Complex Fixture](#appendix-n-complex-fixture)
+- [Appendix O: Behavioral Contracts](#appendix-o-behavioral-contracts)
 
 ---
 
@@ -52,7 +54,11 @@
 converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution mechanics,
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
 coding — the AI reads the ruleset and builds. The specification is the permanent
-artifact; implementations are disposable and rebuilt on demand.
+artifact; implementations are disposable and rebuilt on demand. Full rebuilds have
+token and time costs. The builder prefers incremental updates when the spec delta is
+narrow: re-run only the affected gates and Gauntlet scenarios. A full rebuild is
+required when the ruleset changes, the extraction model changes, or the spec version
+changes by a major increment.
 
 **The play model.** Two personas, enforced server-side during play. The Novel is the
 container — a named, persistent save file on disk. Create a Novel, set up characters
@@ -60,7 +66,10 @@ and your adventure (load a module, generate from a premise, or build from scratc
 then activate the Player persona via `set_persona` (REQ-066) to enforce persona
 gating (REQ-032). Switch to Game Master persona to correct, undo, or directly manage
 Novel state. `set_persona` works without restart. One user per MCP connection
-(REQ-030) — no multiplayer.
+(REQ-030) — no multiplayer. Holonovel targets solo play: one human player, one AI
+Game Master. Multiplayer (multiple human connections sharing one Novel) is out of
+scope for the current specification. One player may control multiple characters
+(REQ-074).
 
 **Definition of done.** The server must: (1) pass all five verification gates (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
@@ -151,8 +160,17 @@ The spec is designed around six failure modes. Recognize them early.
 | Connection     | One MCP transport lifecycle; born at startup, dies at close. No persistent   |
 |                | state of its own — Novel state and audit log survive the connection.         |
 
-**Technology stack.** Node.js, TypeScript, stdio transport. Single process, no database, no
-external services. Chosen for universal MCP host compatibility.
+**Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
+database, no external services. This is the prescribed stack; the dnd5e reference
+implementation uses it. Builders may select an alternative language, runtime, or
+transport if the resulting server passes every verification gate and the full Gauntlet
+— the alternative choice must be recorded with justification in DECISIONS.md (2).
+_Check:_ T92.
+
+**Distribution.** The builder must provide at minimum one of: a Docker container, a
+single-binary build (via Bun build, pkg, or equivalent), or an `npx`-runnable
+package. The goal is that an operator can run the server without installing a language
+toolchain beyond the MCP client's runtime.
 
 ---
 
@@ -161,6 +179,14 @@ external services. Chosen for universal MCP host compatibility.
 _The normative core. Each requirement is one paragraph followed by its check citations._
 
 ### 5.1 Output and Error Contracts
+
+**REQ-101 — Assumption audit trail.** Before the Convert job begins, the builder invokes the
+`assumption_audit` prompt against the current spec revision and records at least one
+challenged assumption per category — technology, AI-as-builder, extraction and confidence,
+MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec
+process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a
+diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+_Check:_ T89.
 
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
 `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`. Tool-level failures use
@@ -242,6 +268,13 @@ the extraction was stable and not restructured — is HIGH above the book-level 
 flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is
 computed per-section and aggregated, with the player-filtered view as the gating metric.
 _Check:_ T15.
+
+**REQ-099 — Confidence-floor acknowledgment.** When the overall confidence threshold drops
+below 80% — whether via the convergence loop's adjusted-threshold provision or acceptance of
+residual gaps — the builder records the drop in DECISIONS.md (5) with the adjusted threshold,
+the justification, and a field requiring explicit operator approval. The build does not proceed
+past the convergence loop without this approval. The operator may accept, reject, or request a
+specific remediation target. _Check:_ T86.
 
 **REQ-012 — Graceful fallback.** A section that cannot be modeled as a tool or state remains
 searchable via `search_rules` and retrievable as a `ruleset://` resource.
@@ -566,6 +599,14 @@ malformed input are rejected. _Check:_ T20.
 **REQ-053 — Performance.** Cold start ≤ 5 seconds; simple query ≤ 1 second. Measurement
 environment is recorded per requirement. _Check:_ T23.
 
+**REQ-100 — Performance benchmark.** The builder measures and records cold-start time and
+representative query latency for the target ruleset. Measurements are recorded in
+DECISIONS.md (4) with the measurement environment (OS, CPU, memory, runtime version).
+Cold-start timing: launch server, call `spec_health`, measure wall-clock time from process
+start to response. Query latency is the mean of 5 representative lookups. `spec_health`
+reports the most recent measurement. Tiers: Light (<100 indexed items) ≤2 s cold start;
+Standard (100–500) ≤5 s; Heavy (500–2000) ≤10 s; Huge (2000+) ≤20 s. _Check:_ T87.
+
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
 change. The server trusts nothing client-supplied. _Check:_ T20, T42.
@@ -700,11 +741,14 @@ as a single undo target. No `[NEED_INPUT]`. Player persona → `[FORBIDDEN]`. _C
 
 **REQ-092 — Novel persistence.** Every mutating tool call writes the Novel to
 `.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers plus
-Novel metadata). A rebuild with a changed entity model loads the Novel gracefully:
+Novel metadata) using an atomic rename — write to a temporary file, then atomically rename
+over the target. A backup of the previous Novel file is retained as
+`<slug>.json.bak`. Both corrupted JSON and a missing backup surface in `spec_health`
+and stderr. A rebuild with a changed entity model loads the Novel gracefully:
 absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined
 defaults. Roster baselines remain immutable across rebuilds. Structurally corrupted JSON →
 stderr warning and `spec_health` flag; never silently discarded. No orphaned state —
-`end_novel` removes the save file. _Check:_ T77.
+`end_novel` removes the save file and its backup. _Check:_ T77, T88.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
@@ -898,11 +942,12 @@ process-compliance finding recorded in DECISIONS.md (6); the subagent is re-prom
 
 **Convergence loop.** The builder iterates up to 3 attempts per activity. For each activity,
 measure the metric, improve, and verify. If the metric meets its threshold, record and
-stop.
+stop. Thresholds are tiered per REQ-100: Light (<100 indexed items), Standard (100–500),
+Heavy (500–2000), Huge (2000+).
 
 | Activity            | Metric                              | Threshold     | Improvement step                         |
 | ------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
-| Confidence          | Player-filtered HIGH + MEDIUM       | ≥ 80%         | Re-extract, narrow scope, log as defect  |
+| Confidence          | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
 | MUST coverage       | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
 | Extraction fidelity | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
 | Mechanics fidelity  | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
@@ -911,11 +956,13 @@ stop.
 
 The loop converges when all metrics meet their threshold or three cycles without
 improvement. At that point, record the current state with the residual gap logged in
-DECISIONS.md.
+DECISIONS.md. For rulesets above 200 indexed items, verification continues with the
+complex fixture gate (Gate 2b, §8; verified by T90).
 
 **Cross-model audit.** When the builder has access to more than one model, the audit
 subagent should use a different model from the builder's primary model. A cross-model
-audit surfaces defects that same-model audits miss (arXiv:2605.12280). The builder
+audit surfaces defects that same-model audits miss. Different models detect different
+defect classes; cross-model auditing increases coverage. The builder
 detects cross-model availability; a single-model audit is valid when only one model is
 available.
 
@@ -1024,6 +1071,16 @@ four items is incomplete and blocks handoff.
     persona-filtered, searchable, and regeneratable.
 19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
     generate_encounter produces batch state (scene + NPC + lore) as a single undo target.
+20. **Campaign endurance.** Create a Novel with 2 entities, 3 NPCs, 2 countdowns (one
+    round, one narrative), and 3 lore entries. Run 50 combat rounds across 5
+    confrontations (10 rounds each), applying and removing 3 conditions per entity,
+    advancing both countdowns, updating scene state 5 times, creating/destroying 2 NPCs
+    per confrontation, and snapshotting every mutation. Assert: all 3 lore entries still
+    trigger correctly against the latest scene state; the audit log contains ≥200 entries
+    and `session_recap` returns correct final state; `compress_audit(20)` returns
+    structured entries; memory usage has not more than doubled from the pre-Gauntlet
+    baseline; snapshot stack depth equals mutation count minus undo count; the on-disk
+    Novel file is ≤ 5 MB. (Blocking.)
 
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
@@ -1049,7 +1106,8 @@ weakening regression coverage.
 **Exit criteria.** The Gauntlet completes when all scenarios pass and all blocking
 failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
 (tool sweep), 4 (simulated combat), 5 (state survival), 6 (persona boundary), 12
-(roster durability), 15 (stress and recovery), or 17 (Novel lifecycle and persistence)
+(roster durability), 15 (stress and recovery), 17 (Novel lifecycle and persistence), or
+20 (campaign endurance)
 are blocking — the Build job is incomplete and the operator is notified; (b) failures
 in other scenarios are logged in DECISIONS.md (5) as accepted limitations with
 re-activation conditions after 2 cycles without improvement. All failures are recorded
@@ -1081,6 +1139,10 @@ replace whitespace with hyphens, collapse runs. Explicit IDs (`{#id}`) take prec
 over slugged text. Duplicate anchors append `-1`, `-2`, etc. Role-scoping markers
 (`*Keeper only*`) are stripped before slug derivation. Re-indexing reproduces identical
 anchors.
+
+Slugs used as filenames must avoid Windows reserved names (CON, PRN, AUX, NUL,
+COM1–COM9, LPT1–LPT9). Collisions resolve by appending `-1`. Path lengths must not
+exceed 240 characters for the full Novel state path.
 
 ### 7.2 Entity IDs
 
@@ -1228,14 +1290,24 @@ surface, persona gating, and metadata filtering are unchanged. Tool registry and
 listings diff clean (identical except for the new section's anchor and its GM-only
 guidance items).
 
+**Gate 2b — Complex fixture replay (fixture gate).** For rulesets above 200 indexed items
+(REQ-100 tiers Standard, Heavy, or Huge), build a server from the Appendix N fixture and
+replay the Appendix N.3 transcript. Assert: status prefixes and `isError` semantics
+(REQ-001), required fields in order, die values pinned (REQ-050), gating decisions
+(REQ-032), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
+session_recap correctness (REQ-072), and undo round-trip (REQ-041). Exact wording is not
+asserted. Before handoff for qualifying rulesets, re-run Gate 2b once from a cold
+checkout following only README.md and AGENTS.md. A reproduction failure stops the line.
+_Verify:_ T90.
+
 **Gate 4 — Derived tests.** Execute the tests in [Appendix F](#appendix-f-derived-test-catalogue).
 Tests run with networking disabled (REQ-051). Waivers are allowed only under REQ-013;
 log each with its reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
 document the verification procedure and expected output shape in DECISIONS.md.
 
-**Gate 5 — The Gauntlet (operational verification).** Run the 19-scenario Gauntlet
-defined in §6.6. All blocking scenarios (S1, S4, S5, S6, S12, S15, S17) must pass.
+**Gate 5 — The Gauntlet (operational verification).** Run the 20-scenario Gauntlet
+defined in §6.6. All blocking scenarios (S1, S4, S5, S6, S12, S15, S17, S20) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and
@@ -1273,7 +1345,9 @@ separate files.
 - **README.md** — setup, usage, persona model, state model, RNG continuity, and
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: layer map, where each requirement
-  lives in the code, gate commands.
+  lives in the code, gate commands, and a `## Troubleshooting` section covering common
+  operator-reported failure modes (config mismatch, corrupted state, persona confusion,
+  missing environment variables).
 
 **Handoff checks.** Before declaring done, run these checks in order. Every check must
 have a recorded result in DECISIONS.md.
@@ -1339,6 +1413,15 @@ Phase 1 — blind re-execution, in order:
 5. Run the automated handoff gate and record the results; compare with the builder's
    verification record.
 6. Confirm the four-artifact diet: no stray files.
+7. (Adversarial) Execute 5 breakage attempts: (a) rapid persona switching (player↔GM 20
+   times during an active combat round, assert no state leaked across persona boundaries),
+   (b) simultaneous Novel create/end (create Novel A, create Novel B, end Novel A, assert
+   Novel B still active and Novel A state removed), (c) seed injection (call roll_move
+   with seed "", 0, and "NaN" — assert valid results or ERROR, no crash), (d) oversized
+   state (create 500 NPCs in one Novel, assert server remains responsive and on-disk file
+   parses correctly), and (e) path traversal (set NPC name to
+   "../../../etc/passwd" — assert the name is stored verbatim as inert data, no
+   file-system access outside the state directory).
 
 Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md`:
 7. Compare your evidence entries against the recorded ones field by field, on salient
@@ -1489,6 +1572,11 @@ results in DECISIONS.md:
 
 These are verification steps, not new gates. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
+
+**Copyright.** Enrichment content is supplementary reference material. The operator is
+responsible for ensuring all sourced content is used in compliance with the source's terms
+of service and copyright license. Enrich records `source_url` for attribution; it does not
+redistribute source content beyond the Novel's local state.
 
 **Reversion.** Re-running Build (without enrich) or using the `revert_enrichment` tool
 restores the pre-enrich server state. Enrichment manifest and verification results remain
@@ -1756,6 +1844,36 @@ MUST coverage: 8/8 tools registered
 Defects: 3 — knacks rows 3/5 lack descriptions [content finding]; pushing contradiction [LOW; fallback: search_rules];
 broken link advancement.md#xp
 Ruleset version: matches intake snapshot
+
+→ set_scene_state { "description": "marsh clearing, lantern flies flickering" }
+[OK] Scene set: marsh clearing, lantern flies flickering
+
+→ set_countdown { "name": "lantern-oil", "ticks": 3, "type": "round" }
+[OK] Countdown set: lantern-oil (3 ticks, round)
+
+→ init_combat { "participants": ["delver_01"], "dangers": [{"name": "hollow-man"}, {"name": "willow-witch"}] }
+[OK] Confrontation active. Round 1. Turn order: Moss (6), hollow man (4), willow witch (3).
+
+→ advance_combat { "entity": "delver_01", "move": "delve", "seed": 42 }
+[OK] Moss acts. (Delve: [2, 1] + 2 = 5, failure.) Keeper move: hollow man deals 1 Harm. Round 2. Countdown lantern-oil: 2 ticks remaining.
+
+→ apply_condition { "entity_id": "delver_01", "condition": "shaken" }
+[OK] Condition applied: shaken (delver_01). Expires after one scene of rest.
+
+→ advance_combat { "entity": "delver_01", "move": "steady", "seed": 7 }
+[OK] Moss acts. (Steady: [2, 6] + 1 - 1 = 8, partial success.) Conditions: shaken (-1). Complication: marsh floor gives way. Round 3. Countdown lantern-oil: 1 tick remaining.
+
+→ advance_combat {}
+[OK] Advanced. Round 3 complete. Countdown lantern-oil expired — recorded in audit log.
+
+→ session_recap {}
+[OK] Session: [timespan]. Entity: Moss (HP 5/6, Harm 1/6, Shaken). Confrontation active: Round 4. Scene: marsh clearing, lantern flies flickering.
+
+→ undo {}
+[OK] Reverted. Countdown lantern-oil restored to 1 tick. Round: 3.
+
+→ end_combat { "outcome": "delvers fled" }
+[OK] Confrontation ended.
 ```
 
 ### B.4 RNG witness values
@@ -1959,10 +2077,13 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-089 | Novel setup               | T74                            | (today)      |
 | REQ-090 | Adventure generation      | T75                            | (today)      |
 | REQ-091 | Enhanced encounter generation | T76                        | (today)      |
-| REQ-092 | Novel persistence         | T77                            | (today)      |
+| REQ-092 | Novel persistence         | T77, T88                       | (today)      |
 | REQ-093 | Novel listing and metadata | T78                           | (today)      |
 | REQ-094 | Lorebook interchange      | T80                            | (today)      |
 | REQ-098 | Spec-driven update workflow | T84                            | (today)      |
+| REQ-099 | Confidence-floor acknowledgment | T86                    | (today)      |
+| REQ-100 | Performance benchmark     | T87                            | (today)      |
+| REQ-101 | Assumption audit trail    | T89                            | (today)      |
 
 ---
 
@@ -2054,6 +2175,13 @@ diet.
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
 | T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create many lore entries, all triggered. Assert `persona_briefing` lore section includes only entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries included before non-sticky. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear. One oversized entry permitted per assembly.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
 | T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run covers all changed code paths with zero failures on those paths. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
+| T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert measurements recorded in DECISIONS.md (4) and `spec_health`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-100                                     |
+| T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
+| T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (0) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
+| T90   | Manual   | Complex fixture gate: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and persona enforcement. Required for rulesets above 200 indexed items (REQ-100 tiers Standard, Heavy, Huge).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
+| T91   | Manual   | Behavioral contracts: for a running server, invoke one tool from each contract category (O.1–O.7) and assert the output shape matches Appendix O. For the dice tool, assert full roll transparency (notation, faces, modifiers, total, prose outcome). For a lookup tool, assert source attribution with `---` separator. For combat, assert round counter and turn order visibility. For undo, assert full state restoration and audit append-only behavior.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032, REQ-060, REQ-061                                   |
+| T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification gates pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 
 ---
 
@@ -2275,3 +2403,120 @@ heuristics, repeated MUST-coverage gaps from an unmodeled mechanic present in mu
 rulesets, or repeated Gauntlet failures from an undertested contract. The flag cites
 the finding class, the affected rulesets, and the REQ(s) most likely affected. This is
 a spec-maintainer signal, not a build requirement.
+
+---
+
+## Appendix N: Complex Fixture
+
+This fixture exercises extraction, cross-file references, embedded stat blocks,
+and multi-file deduplication at a scale beyond Tin Lanterns (Appendix B).
+Gate 2b (§8) requires this fixture for rulesets above 200 indexed items.
+
+_Content to be drafted. Requirements for the fixture body:_
+
+- 300+ lines of Markdown across 3+ files
+- At least 2 cross-file references (one broken, one resolvable)
+- At least 1 embedded stat block within narrative prose (bold-labeled fields
+  inside a descriptive paragraph, not in a separate section)
+- At least 1 multi-column table with inline mechanical fields
+- At least 2 role-scoped sections (GM-only marker)
+- At least 1 mechanical contradiction (resolvable by builder per Appendix A)
+- At least 1 content finding (well-formed but thin content)
+- A character type with creation lifecycle (stats, name, one choice)
+- A resolution mechanic with stated result bands
+- A generation table with dice notation
+- At least 1 conflict procedure (confrontation rules)
+- At least 1 condition with mechanical effect and expiry trigger
+- 200+ words of guidance text
+- At least 5 distinct mechanical sections plus 3 guidance-only sections
+- The transcript (N.3) must exercise: character creation, import, combat over 3+
+  rounds with condition application/expiry, NPC create/update, scene state,
+  countdown lifecycle, session_recap, undo during combat, and persona boundary
+  enforcement
+
+### N.1 Fixture files
+
+TBD — content block fulfilling the requirements above.
+
+### N.2 Expected model excerpt
+
+TBD.
+
+### N.3 Complex transcript
+
+TBD.
+
+### N.4 RNG witness values
+
+TBD.
+
+---
+
+## Appendix O: Behavioral Contracts
+
+_This appendix defines observable behavioral contracts for each tool category._
+_It states what correct output looks like — not how the builder achieves it._
+_Builders may exceed these contracts; the convergence loop enforces the minimum._
+
+### O.1 Dice and Resolution
+
+Every roll result includes: dice notation, individual die faces, every modifier
+with its source and signed contribution, the total, and a prose outcome.
+Example shape (wording is not asserted):
+
+```
+[OK] Total: 14 — success
+Dice: 1d20 = [12]
+Modifiers: Strength +2
+Outcome: The attack lands.
+```
+
+### O.2 Canonical Lookups
+
+Every lookup result includes: the item's canonical name, all fields the ruleset
+defines for that item, and a `---`-separated source block with `<file>#<anchor>`
+and a verbatim Markdown excerpt. Unknown names return `[ERROR] [NOT_FOUND]` with
+session-visible valid values enumerated. A single close match (Levenshtein ≤2)
+includes a "Did you mean?" hint before the enumeration.
+
+### O.3 Combat
+
+`init_combat` starts a Novel-scoped conflict with participants, round counter
+(starting at 1), and turn order. `advance_combat` resolves the current
+participant's turn (one significant action), advances the turn order, and
+increments the round when wrapping around. Turn resolution reports: the
+participant, the action taken, the roll result with full transparency, and
+any resulting state changes (HP, conditions). `end_combat` terminates the
+conflict and records the outcome in the audit log. Round countdowns decrement
+on round wrap.
+
+### O.4 State Management
+
+`undo` restores the complete pre-mutation state (entities, combat, NPCs, scene,
+countdowns, lore) and removes the reversed mutation from the snapshot stack.
+Empty stack returns `[ERROR] [STATE_CONFLICT]`. Undo is blocked during pending
+`[NEED_INPUT]` workflows. `undo` itself is not snapshot-able.
+
+### O.5 Workflows
+
+Character creation and advancement use sequential `[NEED_INPUT]` decisions. Each
+decision presents a question, an option list (kebab-cased, ≤25 entries, derived
+from the ruleset index, with "cancel" always last). `respond` drains one
+decision. "cancel" restores pre-workflow state. No option is pre-selected.
+
+### O.6 Persona Gating
+
+When a persona is active, GM-only tools return `[ERROR] [FORBIDDEN]` for the
+Player persona. GM-only guidance, lore entries, and resources are excluded from
+Player-visible surfaces. `set_persona` is never gated. When no persona is
+active, all tools are callable and all content is visible.
+
+### O.7 State Survival
+
+After a server restart with the same `TTRPG_NOVEL`, all Novel state tiers
+(entities, NPCs, combat, scene, countdowns, lore, enrichment, adventure, audit
+log, persona) are restored to their pre-restart values. A rebuild with a changed
+entity model loads state gracefully (absent fields preserved as inert data;
+missing fields receive ruleset-defined defaults).
+
+_Verify behavioral contracts with:_ T91.
