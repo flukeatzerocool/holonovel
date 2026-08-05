@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-05 — Novel subsystem: multi-novel, export, health, and persistence hardening
+
+- REQ-088 (Novel lifecycle): Multiple Novels per server instance (one active per
+  connection), `end_novel` confirmation workflow (`[NEED_INPUT]` with yes/cancel),
+  clarified ended-Novel semantics (STATE_CONFLICT when file absent on disk).
+- New REQ-095 (Novel switching): `switch_novel(slug)` — always callable, switches
+  active Novel per connection, restores target's persona state, two connections
+  may have different Novels active simultaneously.
+- §4, §7.7, §7.6: Updated terminology, state model, and configuration surface to
+  reflect multiple Novels per server and per-connection active Novel.
+- REQ-041 (undo): Clarified LIFO snapshot stack semantics — stack depth is
+  implementation-defined with minimum one level, resolving tension with S22
+  assertion.
+- REQ-092 (persistence): Added guided corruption recovery — auto-restore from
+  `.bak` when primary corrupt, dual-corruption diagnostic path, and integrity
+  checksum field verified on load.
+- REQ-093 (metadata): Extended with session count, cumulative play time,
+  last-active scene anchor, combat-round tracking.
+- REQ-080 (enrichment boundaries): Added staleness detection — inactive items
+  with `collected_at` exceeding `TTRPG_ENRICH_STALE_DAYS` flagged `[stale]` in
+  `spec_health` and excluded from enrichment surfaces.
+- New REQ-096 (Novel interchange): `export_novel` and `import_novel` with
+  dry-run/replace/merge modes, JSON and Markdown formats, round-trip fidelity.
+- New REQ-097 (Novel health): Per-Novel health metrics in `spec_health` — NPC
+  count, lore entry count, audit log size, snapshot depth, file size warnings,
+  and `healthy` flag, persona-filtered.
+- §7.6: New env vars — `TTRPG_MAX_NPCS`, `TTRPG_MAX_LORE_ENTRIES`,
+  `TTRPG_MAX_SNAPSHOT_DEPTH`, `TTRPG_ENRICH_STALE_DAYS`.
+- New Appendix Q (Novel Interchange Format): JSON and Markdown schemas for
+  Novel export/import.
+- Appendix E: Manifest updated with REQ-095/096/097 (80 REQ rows).
+- Appendix F: New tests T98 (Novel switching), T99 (Novel metadata), T100
+  (Novel interchange), T101 (Novel health), T102 (enrichment staleness).
+- Appendix P (STRIDE): Updated Tampering row — checksum field mitigates
+  previously flagged gap.
+- Gauntlet S17: Rewritten for multi-novel switch/end/confirm cycle.
+- README: Updated "Playing a Novel" section with switch_novel, end_novel
+  confirmation, export_novel, and health checks.
+
 ## 2026-08-05 — Spec-driven update intake path + §6.7 improvements (10 recommendations from deep research)
 
 - §6.1: Added Update job (fourth job) — selectable at intake for reconciling

@@ -108,8 +108,22 @@ come and go. Your party remains.
 
 > "End the game."
 
-The save file cleans up. Start a new Novel whenever you're ready. Your
-characters, your roster — still there.
+The server asks you to confirm. Say yes or cancel. The save file cleans up.
+Start a new Novel whenever you're ready. Your characters, your roster — still
+there.
+
+> "Switch to my other campaign."
+
+Multiple Novels coexist on disk. Switch between them without restarting. Each
+Novel is isolated — your Tomb of Horrors campaign and your Waterdeep game never
+leak into each other.
+
+> "Export the entire campaign. Save it for later."
+
+Export your Novel — characters, NPCs, scenes, countdowns, lore, combat state,
+everything — as a single file. Import it back with merge, replace, or dry-run
+modes. `spec_health` now reports per-Novel health metrics: NPC counts, lore
+entry counts, file size, snapshot depth, and a `healthy` flag.
 
 ## Build your own game server
 
