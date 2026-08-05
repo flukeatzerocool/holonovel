@@ -46,6 +46,7 @@
 - [Appendix N: Complex Fixture](#appendix-n-complex-fixture)
 - [Appendix O: Behavioral Contracts](#appendix-o-behavioral-contracts)
 - [Appendix P: STRIDE Security Threat Model](#appendix-p-stride-security-threat-model)
+- [Appendix Q: Novel Interchange Format](#appendix-q-novel-interchange-format)
 
 ---
 
@@ -258,8 +259,8 @@ F6: Client config has wrong field names, paths, or values
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and persona state for a single ruleset playthrough.         |
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
-|               | and rebuilds. Removed from disk by `end_novel`. One Novel active per server       |
-|               | instance. Isolated from other Novels.                                              |
+|               | and rebuilds. Removed from disk by `end_novel`. Multiple Novels per server       |
+|               | instance; one active per connection. Isolated from other Novels.                  |
 | Connection     | One MCP transport lifecycle; born at startup, dies at close. No persistent   |
 |                | state of its own — Novel state and audit log survive the connection.         |
 
@@ -575,11 +576,12 @@ arguments, and output prefix. State queries are not logged. The log survives con
 restarts for the same Novel. _Check:_ T8.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
-`undo` restores the most recent mutation; an empty stack returns `[ERROR] [STATE_CONFLICT]`.
-`undo` is a pure-state tool — it itself is not snapshot-able, and the step it reverses is
-removed from the snapshot stack. A pending `[NEED_INPUT]` blocks undo. Cancelling a
-workflow restores the pre-workflow snapshot and discards the workflow's internal undo
-candidates. _Check:_ T10.
+`undo` restores the most recent mutation from a LIFO snapshot stack. The stack depth is
+implementation-defined; at minimum one undo level is available. An empty stack returns
+`[ERROR] [STATE_CONFLICT]`. `undo` is a pure-state tool — it itself is not snapshot-able,
+and the step it reverses is removed from the snapshot stack. A pending `[NEED_INPUT]`
+blocks undo. Cancelling a workflow restores the pre-workflow snapshot and discards the
+workflow's internal undo candidates. _Check:_ T10.
 
 **REQ-043 — Conflict lifecycle.** If the ruleset defines a conflict procedure (combat,
 confrontation), it is modeled as Novel-scoped state: participants, round counter, turn
@@ -748,7 +750,11 @@ supplementary guidance. Enrich MUST NOT modify mechanical fields (stats, saves, 
 conditions, combat state), build-derived tool registrations, persona gating rules, or
 any [ruleset]-tagged content. Enrich recommendations for prompt ordering, lore templates,
 and adventure advice are inert — they never auto-apply; the GM must explicitly activate
-them via the corresponding tools. Every enrich finding carries source_url, quoted_excerpt,
+them via the corresponding tools. Enrichment items that have never been activated and whose
+`collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]`
+in `spec_health` and excluded from enrichment resource surfaces. Stale items are retained
+on disk and reactivate if the GM explicitly activates them. Re-running Enrich refreshes
+timestamps for all items. Every enrich finding carries source_url, quoted_excerpt,
 persona_scope, confidence (derived from source authority, not mechanical completeness),
 output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
 _Check:_ T63, T95, T97.
@@ -832,17 +838,33 @@ guides the GM and LLM toward appropriate moves. _Check:_ T71.
 
 **REQ-088 — Novel lifecycle.** A Novel is a named, persistent save file on disk.
 `create_novel(name)` creates a new Novel at `.holonovel-state/novels/<slug>.json` and
-activates it. `resume_novel(slug)` resumes an existing Novel from disk. `end_novel()` ends
-the active Novel: deactivates persona, clears undo stacks, removes the Novel's save file
-from disk (no orphaned state), and the roster survives. One Novel is active per server
-instance. Character creation, character import, and NPC creation are Novel-scoped
-operations — they require an active novel. Without one, they return `[STATE_CONFLICT]`
-directing the operator to `create_novel`. Silent orphan creation — adding an entity
-to the roster without a novel association — is a defect. Switching between Novels
-deactivates the current Novel's state before loading the new one. `[STATE_CONFLICT]` if no
-Novel active when a Novel-scoped tool is called. Server start without `TTRPG_NOVEL` operates
-with no Novel active — Novel-scoped tools direct users to create or resume one.
-_Check:_ T72, T73.
+activates it for the calling connection. `resume_novel(slug)` activates an existing Novel
+from disk. `switch_novel(slug)` (REQ-095) switches the active Novel for a connection.
+`end_novel()` emits a `[NEED_INPUT]` workflow decision — "End Novel `<slug>`?" — with
+options `yes` and `cancel`. On `yes`: deactivates persona, clears undo stacks, removes
+the Novel's save file and its backup from disk (no orphaned state), and the roster
+survives. On `cancel`: restores pre-invocation state unchanged. `resume_novel(slug)`
+returns `[STATE_CONFLICT]` if no file exists at
+`.holonovel-state/novels/<slug>.json` (whether removed by `end_novel` or never created).
+Multiple Novels may coexist on disk per server instance. One Novel is active per connection
+at a time (REQ-030); a connection may switch between Novels via `switch_novel` (REQ-095).
+Character creation, character import, and NPC creation are Novel-scoped operations — they
+require an active Novel. Without one, they return `[STATE_CONFLICT]` directing the operator
+to `create_novel`. Silent orphan creation — adding an entity to the roster without a Novel
+association — is a defect. `[STATE_CONFLICT]` if no Novel active when a Novel-scoped tool is
+called. Server start without `TTRPG_NOVEL` operates with no Novel active — Novel-scoped
+tools direct users to create or resume one. _Check:_ T72, T73, T98.
+
+**REQ-095 — Novel switching.** `switch_novel(slug)` (always callable regardless of persona)
+deactivates the connection's current Novel and activates the target Novel identified by
+slug. The target must exist on disk and must not have been ended (file must be present at
+`.holonovel-state/novels/<slug>.json`). Returns `[STATE_CONFLICT]` if the slug does not
+exist or the target Novel's file is absent. When switching, the active persona for the
+target Novel is restored from the Novel's persisted persona state (REQ-055). If no Novel
+is currently active, `switch_novel` activates the target directly (equivalent to
+`resume_novel(slug)` without requiring a fresh server start). Novel-scoped tools operate on
+the connection's active Novel. Each connection maintains its own active Novel reference;
+two connections may have different Novels active simultaneously. _Check:_ T98.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
 `prompts/list`). It surfaces the recommended setup workflow: (1) create or import
@@ -890,21 +912,55 @@ over the target. A backup of the previous Novel file is retained as
 and stderr. A rebuild with a changed entity model loads the Novel gracefully:
 absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined
 defaults. Roster baselines remain immutable across rebuilds. Structurally corrupted JSON →
-stderr warning and `spec_health` flag; never silently discarded. No orphaned state —
-`end_novel` removes the save file and its backup. _Check:_ T77, T88.
+stderr warning and `spec_health` flag; never silently discarded. On load, if the primary
+file is structurally corrupt but the `.bak` file is intact and parseable, the server loads
+from the backup and records a `[restored_from_backup]` audit entry. If both primary and
+backup are corrupt, the server emits a stderr warning listing both file paths, surfaces a
+`[corrupted_novel]` flag in `spec_health` with the slug, and provides the backup path for
+operator recovery. The server must not silently discard or zero-initialize the Novel. No
+orphaned state — `end_novel` removes the save file and its backup. The Novel JSON includes
+a checksum field — a hash of the serialized state excluding the checksum field itself. On
+load, the server verifies the checksum against the loaded state. A mismatch follows the
+same recovery path as structural corruption: attempt backup restore, then surface the
+mismatch in `spec_health` and stderr if both are tainted. The checksum algorithm and field
+name are builder-determined; the convergence loop enforces that tainted state is detected.
+_Check:_ T77, T88.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
 creation timestamp, last-modified timestamp, entity count, adventure source (module slug,
-"generated", or "none"), and setup-completion flags. This metadata appears in
+"generated", or "none"), setup-completion flags, session count (distinct `TTRPG_SESSION_ID`
+values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
+range), last-active scene anchor, current combat round if in-combat, and total combat rounds
+played across this Novel's lifetime. This metadata appears in
 `persona_briefing` under the `novel` section token (added to REQ-082's documented token
-set). `novel://current` and `novel://<slug>` resources return full metadata. _Check:_ T78.
+set). `novel://current` and `novel://<slug>` resources return full metadata. _Check:_ T78,
+T99.
 
 **REQ-094 — Lorebook interchange.** The Game Master may export Novel lore to and import
 lorebooks from interoperable formats. Export excludes mechanical state; import modifies
 only the lore tier with merge, replace, and dry-run modes. Round-trip preserves lore
 metadata. Formats are defined in Appendix L. Player persona attempts return `[ERROR]
 [FORBIDDEN]`. _Check:_ T80.
+
+**REQ-096 — Novel interchange.** `export_novel(format)` (Game Master only, format `json`
+or `markdown`) exports the active Novel's complete state — entities, NPCs, scene,
+countdowns, lore, enrichment, adventure, audit log, snapshots, persona state, and
+metadata — in a self-contained interchange format. `import_novel(data, mode)` (Game Master
+only, mode `dry-run`, `replace`, or `merge`) imports a previously exported Novel.
+`dry-run` reports what would change without side effects. `replace` replaces the active
+Novel's state with the import data. `merge` adds entities and NPCs from the import to the
+active Novel, skipping duplicates by entity or NPC ID. Player persona attempts return
+`[ERROR] [FORBIDDEN]`. Round-trip: export → import → export produces identical output.
+Format schema is defined in Appendix Q. _Check:_ T100.
+
+**REQ-097 — Novel health.** The `spec_health` tool reports per-Novel health metrics for
+the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore
+entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log
+entry count, snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
+configured), on-disk file size in bytes (with warning if exceeding 4 MB), and a `healthy`
+flag — set to false if any warning is active). Health metrics are persona-filtered:
+Player sees entity-level health only; GM sees all. _Check:_ T101.
 
 ---
 
@@ -1313,11 +1369,16 @@ four items is incomplete and blocks handoff.
        baseline.
     (Blocking.)
 16. **Narrative state.** Scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
-17. **Novel lifecycle and persistence.** Novel create/resume/end cycle works; state
-    persists to disk and restores after restart; end_novel removes file; ended Novel
-    cannot be resumed. A server started with `TTRPG_NOVEL` set auto-loads or
-    auto-creates the Novel before any tool call — `create_novel` with a matching
-    slug returns `[STATE_CONFLICT]`.
+17. **Novel lifecycle and persistence.** Novel create/resume/end/switch cycle works;
+    state persists to disk and restores after restart; end_novel emits confirmation
+    workflow and on confirmation removes file + backup; an ended Novel cannot be
+    resumed or switched to. Create two Novels (A and B) with distinct state. Switch from
+    A to B via `switch_novel` — assert B's state restored independently. Switch back to
+    A — assert A's state unchanged. `switch_novel` with non-existent slug →
+    `[STATE_CONFLICT]`. Two connections with different active Novels operate
+    independently. `end_novel` with `cancel` leaves the Novel intact. A server started
+    with `TTRPG_NOVEL` set auto-loads or auto-creates the Novel before any tool call —
+    `create_novel` with a matching slug returns `[STATE_CONFLICT]`.
 18. **Novel isolation and adventure generation.** Generated adventures are Novel-scoped,
     persona-filtered, searchable, and regeneratable.
 19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
@@ -1530,14 +1591,18 @@ fires. `cancel` restores the pre-workflow snapshot.
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
 | `TTRPG_PERSONA`      | No       | Default active persona on startup (`player`, `game_master`) |
-| `TTRPG_NOVEL`       | No¹      | Novel identifier for cross-connection persistence       |
+| `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
 | `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`)        |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
+| `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
+| `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
+| `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 1)                  |
+| `TTRPG_ENRICH_STALE_DAYS` | No   | Days before inactive enrichment items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 
-¹ Required to resume an existing Novel.
+¹ Optional. Sets the initial active Novel on startup.
 
 ### 7.7 State model
 
@@ -1546,7 +1611,7 @@ State tiers:
 | Tier       | Scope                | Lifecycle                               | Visibility                |
 | ---------- | -------------------- | --------------------------------------- | ------------------------- |
 | Roster     | Cross-Novel          | Permanent, baselines immutable (narrative fields mutable per REQ-077) | Player (own) / Game Master (all) |
-| Novel      | One `TTRPG_NOVEL`    | Persists to disk (`.holonovel-state/novels/<slug>.json`), survives process restarts and rebuilds, removed by `end_novel` | One Novel per server instance |
+| Novel      | One Novel slug per connection | Persists to disk (`.holonovel-state/novels/<slug>.json`), survives process restarts and rebuilds, removed by `end_novel` | Multiple Novels per server; one active per connection |
 | Connection | One MCP transport    | Born at startup, dies at close          | No persistent state — Novel state and audit log survive the connection |
 | NPC        | One `TTRPG_NOVEL`    | Survives connections and process restart, discarded by `end_novel` | GM read/write/create/delete, Player read-only |
 | Scene      | One `TTRPG_NOVEL`    | Survives connections and process restart, discarded by `end_novel` | GM read/write, Player read-only |
@@ -2450,7 +2515,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
-| REQ-080 | Enrichment boundaries     | T63                            | 2026-08-04   |
+| REQ-080 | Enrichment boundaries     | T63, T97, T102                 | (today)      |
 | REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
 | REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
 | REQ-083 | Dynamic lore              | T67, T79, T81, T82, T83       | 2026-08-05   |
@@ -2458,13 +2523,16 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-085 | Macro system              | T69                            | 2026-08-04   |
 | REQ-086 | Audit compression         | T70                            | 2026-08-04   |
 | REQ-087 | Scene type tagging        | T71                            | 2026-08-04   |
-| REQ-088 | Novel lifecycle           | T72, T73                       | (today)      |
+| REQ-088 | Novel lifecycle           | T72, T73, T98                  | (today)      |
 | REQ-089 | Novel setup               | T74                            | (today)      |
 | REQ-090 | Adventure generation      | T75                            | (today)      |
 | REQ-091 | Enhanced encounter generation | T76                        | (today)      |
 | REQ-092 | Novel persistence         | T77, T88                       | (today)      |
-| REQ-093 | Novel listing and metadata | T78                           | (today)      |
+| REQ-093 | Novel listing and metadata | T78, T99                      | (today)      |
 | REQ-094 | Lorebook interchange      | T80                            | (today)      |
+| REQ-095 | Novel switching           | T98                            | (today)      |
+| REQ-096 | Novel interchange         | T100                           | (today)      |
+| REQ-097 | Novel health              | T101                           | (today)      |
 | REQ-103 | Enrichment reversion      | T94                            | (today)      |
 | REQ-098 | Spec-driven update workflow | T84                            | (today)      |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | (today)      |
@@ -2573,6 +2641,11 @@ diet.
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `persona_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
 | T96   | Automated | Action pattern inertness: run enrich. Assert `suggest_actions(intent)` does not return enrich-derived patterns until GM activates them. Activate patterns — assert they appear in results. GM-only tool patterns excluded from Player results whether activated or not.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-084                                     |
 | T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all six output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
+| T98   | Automated | Novel switching: create two Novels (A and B) with distinct state. Switch from A to B via `switch_novel` — assert B's state restored independently. Switch back to A — assert A's state unchanged. Assert `switch_novel` with non-existent slug returns `[STATE_CONFLICT]`. Assert switching to ended Novel returns `[STATE_CONFLICT]`. Assert two connections with different active Novels operate independently. Verify persona state restores per Novel on switch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-095, REQ-088, REQ-055                   |
+| T99   | Automated | Novel metadata enrichment: create a Novel with entities, play through 3 sessions with distinct `TTRPG_SESSION_ID` values, run combat rounds. Assert `spec_health` and `persona_briefing` report session count, cumulative play time, last-active scene anchor, current combat round, and total combat rounds played. Assert metadata appears under the `novel` section token in `persona_briefing`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-093                                     |
+| T100  | Automated | Novel interchange: create a populated Novel with entities, NPCs, scene, countdowns, lore, and combat state. Export as JSON — assert output matches Appendix Q schema. Import as `dry-run` — assert preview and no side effects. Import as `replace` — assert state matches exported data. Import as `merge` — assert entities and NPCs added, duplicates skipped. Verify round-trip: export → import → export produces identical output. Player persona attempts return `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-096, REQ-032                            |
+| T101  | Automated | Novel health: populate a Novel to near-limit thresholds (NPCs, lore entries, snapshots, file size approaching 4 MB). Assert `spec_health` reports warnings for each threshold and `healthy` reports false. Remove items to clear thresholds — assert `healthy` reports true. Assert Player persona sees entity-level health only; GM sees all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-097, REQ-032                            |
+| T102  | Automated | Enrichment staleness: populate enrichment with `collected_at` timestamps past `TTRPG_ENRICH_STALE_DAYS`. Assert `[stale]` flag in `spec_health` for inactive items. Assert stale items excluded from enrichment resource surfaces. Activate one stale item — assert flag cleared. Re-run enrich — assert all timestamps refreshed and stale flags removed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-080                                     |
 
 ---
 
@@ -3297,7 +3370,7 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | STRIDE | Threat | Existing mitigation | Gap |
 | ------ | ------ | ------------------- | --- |
 | **Spoofing** | Client impersonates GM via `set_persona` without authorization | `set_persona` is always callable (REQ-066) — no authentication mechanism exists; the spec assumes a single trusted operator | **Moderate.** The server trusts all callers. For solo play this is acceptable by design; for multi-operator scenarios it is a documented limitation. |
-| **Tampering** | Novel state file corrupted on disk | REQ-092: atomic writes + `.bak` retention, T88 verifies backup creation and recovery | **Minor.** No integrity hash or checksum on the on-disk state file. Corruption between writes and reads could silently degrade. |
+| **Tampering** | Novel state file corrupted on disk | REQ-092: atomic writes + `.bak` retention + checksum verification, T88 verifies backup creation and recovery | **Minor.** Checksum detects tampering at load time; corruption between writes and backup retention could still degrade if both files are tainted identically. |
 | **Tampering** | Audit log entries forged by direct file manipulation | REQ-040: append-only audit log, but append-only is enforced at the API level — the on-disk JSON is writable by the host process | **Minor.** No cryptographic integrity on audit log entries. Operator trust required. |
 | **Repudiation** | Mutations denied by operator claiming tools were never called | REQ-040: append-only audit log records every mutating call with timestamp, persona, tool name, arguments, and output prefix; T8 verifies logging | **Covered.** Audit log provides non-repudiation at the operator-trust level. |
 | **Information Disclosure** | Player persona sees GM-only lore through side channels in error messages | REQ-032: persona-filtered error values, REQ-002: curated valid-value enumerations, `[FORBIDDEN]` on GM-only requests | **Minor.** Error message verbosity (e.g., "Did you mean?" hints for GM-only terms) could leak existence of GM-only content. Not systematically audited. |
@@ -3312,3 +3385,38 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 
 _Verify:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.
+
+---
+
+## Appendix Q: Novel Interchange Format
+
+_Novel export (REQ-096) produces self-contained interchange files in JSON and Markdown
+formats._
+
+**JSON format.** The top-level object contains these keys:
+
+| Key              | Content                                                         |
+| ---------------- | --------------------------------------------------------------- |
+| `novel_metadata` | slug, name, created_at, last_modified_at, spec_version           |
+| `entities`       | Array of entity objects with all mechanical and narrative fields |
+| `npcs`           | Array of NPC objects with all fields                            |
+| `scene`          | Current scene description and scene type                        |
+| `countdowns`     | Array of active countdowns with name, ticks, type                |
+| `lore`           | Array of lore entries (Appendix L schema per entry)              |
+| `enrichment`     | Array of enrichment items across all six output modules          |
+| `adventure`      | Active adventure slug and generated adventure content            |
+| `audit_log`      | Array of audit entries (timestamp, persona, tool, args, output)  |
+| `persona_state`  | Active persona and per-Novel persona preferences                 |
+| `undo_snapshots` | Array of snapshot objects (per-persona stacks)                   |
+
+**Markdown format.** HTML-comment-annotated sections following the same key structure
+as the JSON format. Each section begins with `<!-- @section <key> -->` and contains
+the section's data in a human-readable Markdown representation. Sections with empty
+arrays or null values are omitted.
+
+**Round-trip fidelity.** `export_novel(format)` → `import_novel(data, mode)` →
+`export_novel(format)` produces identical output for the same format. The builder
+determines the exact schema and serialization; the convergence loop enforces
+round-trip fidelity as a verification check.
+
+_Verify with:_ T100.
