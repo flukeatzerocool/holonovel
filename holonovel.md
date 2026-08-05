@@ -315,11 +315,14 @@ every prompt and a description on every argument. _Check:_ T22, T22a.
 term for that action. Annotations match action classification. _Check:_ T3, T35, T39.
 
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
-(per-file and overall), indexed counts (anchors, concepts, entity types, actions, tables,
-procedures, guidance items), pending sections, MUST-action coverage, defect count,
-ruleset-version status, gate dispositions, and available Novels on disk (slug, name,
-last-modified, active — per REQ-093). The player persona sees only player-filtered
-metrics. Output is filtered by persona. _Check:_ T15, T45.
+(per-file and overall), convergence summary (per-activity cycles run, findings per
+cycle, residual gaps for each of the six activities in §6.5), indexed counts (anchors,
+concepts, entity types, actions, tables, procedures, guidance items), pending sections,
+MUST-action coverage, defect count, ruleset-version status, gate dispositions, and
+available Novels on disk (slug, name, last-modified, active — per REQ-093). The
+player persona sees only player-filtered metrics. Output is filtered by persona. The
+convergence summary section is absent when the build is not yet complete.
+_Check:_ T15, T45.
 
 **REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
 required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_health`.
@@ -887,6 +890,12 @@ template.
 subagent (fresh context) that audits the work against the requirements cited by that stage.
 The subagent reports findings; the builder resolves each before the next stage.
 
+**Auditor pre-flight.** Before the first checkpoint audit of a build session, the
+builder seeds one deliberate defect in its own output — a mislabeled anchor, a
+missing cross-reference, or an extra tool name in a registry entry — and verifies the
+audit subagent catches it. A subagent that misses a seeded defect is a
+process-compliance finding recorded in DECISIONS.md (6); the subagent is re-prompted.
+
 **Convergence loop.** The builder iterates up to 3 attempts per activity. For each activity,
 measure the metric, improve, and verify. If the metric meets its threshold, record and
 stop.
@@ -903,6 +912,18 @@ stop.
 The loop converges when all metrics meet their threshold or three cycles without
 improvement. At that point, record the current state with the residual gap logged in
 DECISIONS.md.
+
+**Cross-model audit.** When the builder has access to more than one model, the audit
+subagent should use a different model from the builder's primary model. A cross-model
+audit surfaces defects that same-model audits miss (arXiv:2605.12280). The builder
+detects cross-model availability; a single-model audit is valid when only one model is
+available.
+
+**Adjusted thresholds.** The builder may lower the confidence threshold specified in
+the handoff checks (§9 H10) for rulesets whose indexed-item count exceeds 200. The
+adjusted threshold is documented in DECISIONS.md (5) with the complexity metric used
+and the justification. The floor is 70%. The convergence loop enforces the chosen
+threshold in the same cycle as the standard threshold.
 
 **Post-write verification.** After every file write during construction and
 verification, the builder re-reads the written file and verifies: (a) heading
@@ -1017,6 +1038,13 @@ triggered the discovery — or a new sub-scenario if the fix spans multiple scen
 to prevent regression. This assertion must fail when the original bug is
 reintroduced. The new assertion is recorded in DECISIONS.md (6) with a cross-reference
 to the original finding.
+
+**Assertion compression.** After every spec-driven update (REQ-098) or after five
+Gauntlet cycles, the builder audits accumulated regression assertions for redundancy.
+Assertions subsumed by newer assertions or testing behavior now covered by a
+verification gate are removed. Removed assertions are logged in DECISIONS.md (6) with
+the subsuming assertion or gate cited. This keeps Gauntlet scenarios lean without
+weakening regression coverage.
 
 **Exit criteria.** The Gauntlet completes when all scenarios pass and all blocking
 failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
@@ -1959,7 +1987,7 @@ diet.
 | T9    | Automated | Startup: no persona active — full access, no gating. `set_persona player`: Player gating active — GM tools blocked. `set_persona game_master`: full access restored. `end_novel`: persona deactivated, full access. Persona switches are audited; `set_persona` blocked during pending workflows (STATE_CONFLICT); undo stacks are persona-separate; Novel state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
 | T10   | Automated | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-041                                     |
 | T13   | Automated | Truncation at limit with `output://` pointer; payload persona filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-004, REQ-032                            |
-| T15   | Automated | `spec_health` reports confidence, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
+| T15   | Automated | `spec_health` reports confidence, convergence_summary, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
 | T16   | Automated | Rules index loads; anchor count matches structural pass; resource retrieval returns expected Markdown for major anchors; re-index twice and diff URI lists; `resources/list` stable across entity creation; entity, roster-record, and `output://` templates appear in `resources/templates/list`; resources declare REQ-022 media type and title                                                                                                                                                                                                                                                                                                        | REQ-022                                     |
 | T17   | Automated | Ruleset drift after intake — simulated on a copy of the ruleset so T21's byte-identity holds — → stderr warning + `spec_health` flag                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-044                                     |
 | T18   | Manual   | Anti-persona scenarios (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-002, REQ-032                            |
@@ -2238,3 +2266,12 @@ no catalog enumerations, no tool-name lists.
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
 Gate 2, Gate 4, Gate 5, the convergence loop, or a Gauntlet scenario, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
+
+**Convergence-driven REQ review.** When the convergence loop produces more than two
+findings of the same class across two or more ruleset builds, the builder flags the
+pattern in DECISIONS.md (5) as a candidate for REQ revision. Common classes include:
+consistently low extraction confidence in a section type not covered by existing
+heuristics, repeated MUST-coverage gaps from an unmodeled mechanic present in multiple
+rulesets, or repeated Gauntlet failures from an undertested contract. The flag cites
+the finding class, the affected rulesets, and the REQ(s) most likely affected. This is
+a spec-maintainer signal, not a build requirement.
