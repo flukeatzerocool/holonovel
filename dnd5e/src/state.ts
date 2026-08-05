@@ -96,6 +96,7 @@ export class StateManager {
   public activePersona: Persona = "player";
   public workflow: WorkflowState | null = null;
   public dataDir: string;
+  public corruptStates: Set<string> = new Set();
   private entityCounter = 0;
   private npcCounter = 0;
 
@@ -185,7 +186,10 @@ export class StateManager {
       this._games[gameId] = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
       this._activeGameId = gameId;
       return true;
-    } catch (_) { return false; }
+    } catch (_) {
+      this.corruptStates.add(gameId);
+      return false;
+    }
   }
 
   saveRoster(): void {

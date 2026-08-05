@@ -142,13 +142,21 @@ implemented tool handlers).
   `npx tsx scripts/test_scripts/run_all.ts`. 11 passed, 0 failed.
   Remaining Appendix F tests waived per §5 waivers — see W-003 through
   W-008 for feature-absence waivers.
-- **OCE (Operational Confidence Exercise):** ALL 14 SCENARIOS PASSED.
+- **OCE (Operational Confidence Exercise):** ALL 15 SCENARIOS PASSED.
   Scenario 1 (tool surface sweep), 2 (character creation), 3 (encounter setup),
   4 (simulated combat), 5 (combat state survival), 6 (cross-persona boundary),
   7 (table generation sweep), 8 (search/lookup), 9 (condition lifecycle),
   10 (undo during combat), 11 (workflow cancellation), 12 (roster durability),
   13 (game isolation), 14 (edge cases — seed reproducibility, rapid calls,
-  boundary inputs). Run with `npx tsx scripts/test_scripts/oce.ts`.
+  boundary inputs), 15 (stress and recovery — concurrent sessions, disk
+  corruption detection, rapid persona switching ×10, scale: 20 entities +
+  10 dangers × 10 rounds, 10K-char search query). Run with
+  `npx tsx scripts/test_scripts/oce.ts`.
+- **Accepted limitations (OCE):** S9 condition auto-expiry — D&D 5e conditions
+  do not auto-expire on turn advancement (they require saving throws or rest).
+  Manual apply/remove lifecycle verified. S8 verbatim Markdown excerpt — server
+  returns structured JSON data with source file paths, not raw Markdown.
+  Accepted as architectural choice.
 - **Build health:** TypeScript compilation passes (`tsc --noEmit`).
   Data extraction yields 37 weapons, 14 armor, 319 spells, 318 monsters,
   239 magic items. `spec_health` reports `build_confidence: 85%` with

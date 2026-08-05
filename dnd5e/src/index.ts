@@ -53,6 +53,12 @@ function findEntity(id: string) {
   return game.entities[id] ?? null;
 }
 
+function findCombatParticipant(id: string): import("./state.js").CombatParticipant | null {
+  const game = state.getActiveGame();
+  if (!game?.combat?.active) return null;
+  return game.combat.participants.find(p => p.id === id) ?? null;
+}
+
 function getStatMod(entity: import("./state.js").DnDEntity, stat: AbilityScore): number {
   return abilityModifier(entity.stats[stat]);
 }
@@ -268,7 +274,11 @@ server.registerTool("spec_health", {
   out += `Ruleset: D&D 5e SRD v5.1\n`;
   out += `Source files: 1021 Markdown files\n`;
   out += `MUST coverage: character creation, lookup, skill/save/attack/damage rolls, combat lifecycle, conditions, tables, session recap\n`;
-  return ok(out);
+  if (state.corruptStates.size > 0) {
+    out += `\n[ERROR] Corrupted state files detected: ${[...state.corruptStates].join(", ")}.`;
+    out += `\nGame state could not be loaded — these games will start fresh.`;
+  }
+  return { content: [{ type: "text", text: out }] };
 });
 
 // search_rules
@@ -614,9 +624,12 @@ server.registerTool("roll_weapon_damage", {
   inputSchema: { weapon: z.string(), target_id: z.string(), attacker_id: z.string(), crit: z.boolean().optional(), seed: z.string().optional() },
 }, async ({ weapon, target_id, attacker_id, crit = false, seed }) => {
   const attacker = findEntity(attacker_id);
-  const target = findEntity(target_id);
   if (!attacker) return err("NOT_FOUND", `Attacker "${attacker_id}" not found.`);
-  if (!target) return err("NOT_FOUND", `Target "${target_id}" not found.`);
+
+  const target = findEntity(target_id);
+  const dangerTarget = !target ? findCombatParticipant(target_id) : null;
+  if (!target && !dangerTarget) return err("NOT_FOUND", `Target "${target_id}" not found.`);
+
   const { rng, used } = getRng(seed);
   const w = lookupWeapon(weapon);
   if (!w || !w.item) return err("NOT_FOUND", `Weapon "${weapon}" not found.`);
@@ -638,12 +651,25 @@ server.registerTool("roll_weapon_damage", {
   }
 
   state.snapshot();
-  target.currentHp = Math.max(0, target.currentHp - totalDamage);
-  let result = `${w.item.name} deals ${totalDamage} ${w.item.damageType} damage to ${target.name}\n`;
+  let targetName: string;
+  if (dangerTarget) {
+    dangerTarget.hp = dangerTarget.hp !== undefined ? Math.max(0, dangerTarget.hp - totalDamage) : undefined;
+    targetName = dangerTarget.name;
+  } else {
+    target!.currentHp = Math.max(0, target!.currentHp - totalDamage);
+    targetName = target!.name;
+  }
+
+  let result = `${w.item.name} deals ${totalDamage} ${w.item.damageType} damage to ${targetName}\n`;
   result += `Rolls: ${dmgStr}${crit ? " x2" : ""}${bonus !== 0 ? ` + ${bonus > 0 ? "+" : ""}${bonus}` : ""} = [${allFaces.join(", ")}${bonus !== 0 ? `, ${bonus}` : ""}]`;
   if (crit) result += `\nCRITICAL HIT — damage dice doubled!`;
-  result += `\n${target.name} HP: ${target.currentHp}/${target.maxHp}`;
-  if (target.currentHp <= 0) result += ` — ${target.name} is at 0 HP!`;
+  if (dangerTarget) {
+    result += `\n${targetName} HP: ${dangerTarget.hp !== undefined ? dangerTarget.hp : "?"}`;
+    if (dangerTarget.hp !== undefined && dangerTarget.hp <= 0) result += ` — ${targetName} is at 0 HP!`;
+  } else {
+    result += `\n${target!.name} HP: ${target!.currentHp}/${target!.maxHp}`;
+    if (target!.currentHp <= 0) result += ` — ${target!.name} is at 0 HP!`;
+  }
   state.audit(state.activePersona, "roll_weapon_damage", { weapon, target_id, crit }, `${totalDamage} damage dealt.`);
   if (used) result += `\n[WARNING] Per-call seed overrides session seed.`;
   return ok(result);
