@@ -1,4 +1,4 @@
-// State management: roster, game entities, NPCs, scene, countdowns, lore, enrichment, adventure, snapshots, audit log, persona
+// State management: roster, novel entities, NPCs, scene, countdowns, lore, enrichment, adventure, snapshots, audit log, persona
 import { PRNG } from "./dice.js";
 import { AbilityScore, CLASS_NAMES, ClassName } from "./data.js";
 import * as fs from "node:fs";
@@ -110,7 +110,13 @@ export interface BuildFingerprint {
   buildTimestamp: string;
 }
 
-export interface GameState {
+export interface NovelState {
+  slug: string;
+  name: string;
+  createdAt: string;
+  charactersPresent: boolean;
+  adventureSet: boolean;
+  sessionZeroCompleted: boolean;
   entities: Record<string, DnDEntity>;
   npcs: Record<string, NPCEntity>;
   combat: CombatState | null;
@@ -119,6 +125,7 @@ export interface GameState {
   countdowns: Record<string, CountdownState>;
   loreEntries: Record<string, LoreEntry>;
   enrichment: EnrichmentRecord[];
+  adventureModules: Record<string, AdventureState>;
   activeAdventureId: string | null;
   narrativeDirective: string;
   briefingOrder: string[];
@@ -150,8 +157,14 @@ function defaultScene(): SceneState {
   return { description: "", type: "neutral", history: [] };
 }
 
-function defaultGame(): GameState {
+function defaultNovel(): NovelState {
   return {
+    slug: "",
+    name: "",
+    createdAt: new Date().toISOString(),
+    charactersPresent: false,
+    adventureSet: false,
+    sessionZeroCompleted: false,
     entities: {},
     npcs: {},
     combat: null,
@@ -160,6 +173,7 @@ function defaultGame(): GameState {
     countdowns: {},
     loreEntries: {},
     enrichment: [],
+    adventureModules: {},
     activeAdventureId: null,
     narrativeDirective: "",
     briefingOrder: [],
@@ -170,8 +184,8 @@ function defaultGame(): GameState {
 
 export class StateManager {
   _roster: Record<string, DnDEntity> = {};
-  _games: Record<string, GameState> = {};
-  _activeGameId: string | null = null;
+  _novels: Record<string, NovelState> = {};
+  _activeNovelSlug: string | null = null;
   public prng: PRNG;
   public sessionSeed: string | null = null;
   private personaStacks: Record<Persona, Snapshot[]> = { player: [], game_master: [] };
@@ -181,10 +195,10 @@ export class StateManager {
   public corruptStates: string[] = [];
   private entityCounter = 0;
   private npcCounter = 0;
-  public buildFingerprint: BuildFingerprint = { specVersion: "1.2.0", buildTimestamp: new Date().toISOString() };
-  public adventureModules: Record<string, AdventureState> = {};
+  public buildFingerprint: BuildFingerprint = { specVersion: "1.3.0", buildTimestamp: new Date().toISOString() };
+  public _systemAdventures: Record<string, AdventureState> = {};
 
-  get activeGameId(): string | null { return this._activeGameId; }
+  get activeNovelSlug(): string | null { return this._activeNovelSlug; }
 
   constructor(seed: string, dataDir: string) {
     this.prng = new PRNG(seed);
@@ -200,70 +214,140 @@ export class StateManager {
     return this.personaStacks[p] ?? this.personaStacks["game_master"];
   }
 
-  getActiveGame(): GameState | null {
-    if (!this._activeGameId) return null;
-    const g = this._games[this._activeGameId] ?? null;
+  getActiveNovel(): NovelState | null {
+    if (!this._activeNovelSlug) return null;
+    const g = this._novels[this._activeNovelSlug] ?? null;
     if (g?.ended) return null;
     return g;
   }
 
-  getOrCreateGame(gameId: string): GameState {
-    this._activeGameId = gameId;
-    if (!this._games[gameId]) {
-      this._games[gameId] = defaultGame();
+  getOrCreateNovel(novelSlug: string, name?: string): NovelState {
+    this._activeNovelSlug = novelSlug;
+    if (!this._novels[novelSlug]) {
+      this._novels[novelSlug] = defaultNovel();
+      this._novels[novelSlug].slug = novelSlug;
+      this._novels[novelSlug].name = name || novelSlug;
+      this._novels[novelSlug].createdAt = new Date().toISOString();
     }
-    return this._games[gameId];
+    return this._novels[novelSlug];
   }
 
-  endGame(): void {
-    if (!this._activeGameId) return;
-    const g = this._games[this._activeGameId];
-    if (g) {
-      g.ended = true;
+  createNovel(name: string): NovelState {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return this.getOrCreateNovel(slug, name);
+  }
+
+  resumeNovel(slug: string): NovelState | null {
+    if (this.loadState(slug)) {
+      return this._novels[slug] ?? null;
     }
+    return null;
+  }
+
+  listNovels(): { slug: string; name: string; lastModified: string; active: boolean }[] {
+    const results: { slug: string; name: string; lastModified: string; active: boolean }[] = [];
+    const dir = path.join(this.dataDir, "novels");
+    if (!fs.existsSync(dir)) return [];
+    for (const entry of fs.readdirSync(dir)) {
+      if (!entry.endsWith(".json")) continue;
+      const slug = entry.replace(/\.json$/, "");
+      try {
+        const stat = fs.statSync(path.join(dir, entry));
+        const raw = JSON.parse(fs.readFileSync(path.join(dir, entry), "utf-8"));
+        const novel = raw.novel || raw.game || {};
+        results.push({
+          slug,
+          name: novel.name || slug,
+          lastModified: stat.mtime.toISOString(),
+          active: slug === this._activeNovelSlug,
+        });
+      } catch (_) { /* skip unreadable files */ }
+    }
+    return results;
+  }
+
+  generateAdventure(premise: string): AdventureState {
+    const slug = premise.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+    const title = premise.slice(0, 80);
+    const sections = [
+      { anchor: `${slug}-overview`, title: "Overview", gm_only: true, content: `# ${title}\n\n**Premise:** ${premise}\n\nDetailed adventure content generated from premise.` },
+      { anchor: `${slug}-hook`, title: "Adventure Hook", gm_only: false, content: "## Adventure Hook\n\nThe party is drawn into the story by..." },
+      { anchor: `${slug}-locations`, title: "Locations", gm_only: true, content: "## Locations\n\nKey locations and their descriptions." },
+    ];
+    const adv: AdventureState = { slug, title, sections };
+    const novel = this.getActiveNovel();
+    if (novel) {
+      novel.adventureModules[slug] = adv;
+      novel.adventureSet = true;
+    }
+    return adv;
+  }
+
+  generateEncounter(context: string): { sceneDescription: string; npcName: string; loreKey: string } {
+    const novel = this.getActiveNovel();
+    const sceneDescription = `Encounter: ${context}. The environment reacts to the party's presence.`;
+    if (novel) novel.scene.description = sceneDescription;
+    const npcName = `Encounter NPC (${context.slice(0, 20)})`;
+    const npc = this.createNpc(npcName, { description: `Generated from: ${context}`, disposition: "neutral" });
+    const loreKey = context.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+    if (novel) {
+      novel.loreEntries[loreKey] = { key: loreKey, content: `Encounter lore: ${context}`, triggers: [], persona_scope: "game_master" };
+    }
+    return { sceneDescription, npcName: npc.id, loreKey };
+  }
+
+  endNovel(): void {
+    if (!this._activeNovelSlug) return;
+    const slug = this._activeNovelSlug;
+    this._novels[slug].ended = true;
     this.deactivatePersona();
     this.personaStacks = { player: [], game_master: [] };
+    this._activeNovelSlug = null;
+    try {
+      const file = path.join(this.dataDir, "novels", `${slug}.json`);
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    } catch (_) { /* silent */ }
   }
 
   snapshot(): void {
-    const game = this.getActiveGame();
-    if (!game) return;
+    const novel = this.getActiveNovel();
+    if (!novel) return;
     const snap: Snapshot = {
       timestamp: new Date().toISOString(),
-      entities: JSON.parse(JSON.stringify(game.entities)),
-      combat: game.combat ? JSON.parse(JSON.stringify(game.combat)) : null,
-      npcs: JSON.parse(JSON.stringify(game.npcs)),
-      scene: JSON.parse(JSON.stringify(game.scene)),
-      countdowns: JSON.parse(JSON.stringify(game.countdowns)),
-      loreEntries: JSON.parse(JSON.stringify(game.loreEntries)),
-      activeEntityId: game.activeEntityId,
+      entities: JSON.parse(JSON.stringify(novel.entities)),
+      combat: novel.combat ? JSON.parse(JSON.stringify(novel.combat)) : null,
+      npcs: JSON.parse(JSON.stringify(novel.npcs)),
+      scene: JSON.parse(JSON.stringify(novel.scene)),
+      countdowns: JSON.parse(JSON.stringify(novel.countdowns)),
+      loreEntries: JSON.parse(JSON.stringify(novel.loreEntries)),
+      activeEntityId: novel.activeEntityId,
     };
     const p = this.activePersona ?? "game_master";
     if (!this.personaStacks[p]) this.personaStacks[p] = [];
     this.personaStacks[p].push(snap);
-    if (this._activeGameId) this.saveState(this._activeGameId);
+    if (this._activeNovelSlug) this.saveState(this._activeNovelSlug);
   }
 
   undo(): Snapshot | null {
     const p = this.activePersona ?? "game_master";
     const stack = this.personaStacks[p] ?? [];
-    const game = this.getActiveGame();
-    if (!game || stack.length === 0) return null;
+    const novel = this.getActiveNovel();
+    if (!novel || stack.length === 0) return null;
     const snap = stack.pop()!;
-    game.entities = snap.entities;
-    game.combat = snap.combat;
-    game.npcs = snap.npcs;
-    game.scene = snap.scene;
-    game.countdowns = snap.countdowns;
-    game.loreEntries = snap.loreEntries;
-    game.activeEntityId = snap.activeEntityId;
+    novel.entities = snap.entities;
+    novel.combat = snap.combat;
+    novel.npcs = snap.npcs;
+    novel.scene = snap.scene;
+    novel.countdowns = snap.countdowns;
+    novel.loreEntries = snap.loreEntries;
+    novel.activeEntityId = snap.activeEntityId;
     return snap;
   }
 
   audit(persona: string, tool: string, args: Record<string, unknown>, result: string): void {
-    const game = this.getActiveGame();
-    if (!game) return;
-    game.auditLog.push({
+    const novel = this.getActiveNovel();
+    if (!novel) return;
+    novel.auditLog.push({
       timestamp: new Date().toISOString(),
       persona: persona || "none",
       tool,
@@ -289,45 +373,45 @@ export class StateManager {
   importCharacter(rosterId: string): DnDEntity | null {
     const baseline = this._roster[rosterId];
     if (!baseline) return null;
-    const game = this.getActiveGame();
-    if (!game) return null;
+    const novel = this.getActiveNovel();
+    if (!novel) return null;
     const copy: DnDEntity = JSON.parse(JSON.stringify(baseline));
-    game.entities[copy.id] = copy;
-    if (!game.activeEntityId) game.activeEntityId = rosterId;
-    if (this._activeGameId) this.saveState(this._activeGameId);
+    novel.entities[copy.id] = copy;
+    if (!novel.activeEntityId) novel.activeEntityId = rosterId;
+    if (this._activeNovelSlug) this.saveState(this._activeNovelSlug);
     return copy;
   }
 
-  getGameEntity(id: string): DnDEntity | null {
-    const game = this.getActiveGame();
-    if (!game) return null;
-    return game.entities[id] ?? null;
+  getNovelEntity(id: string): DnDEntity | null {
+    const novel = this.getActiveNovel();
+    if (!novel) return null;
+    return novel.entities[id] ?? null;
   }
 
-  getAllGameEntities(): DnDEntity[] {
-    const game = this.getActiveGame();
-    if (!game) return [];
-    return Object.values(game.entities);
+  getAllNovelEntities(): DnDEntity[] {
+    const novel = this.getActiveNovel();
+    if (!novel) return [];
+    return Object.values(novel.entities);
   }
 
   setActiveEntity(id: string): boolean {
-    const game = this.getActiveGame();
-    if (!game) return false;
-    if (!game.entities[id]) return false;
-    game.activeEntityId = id;
+    const novel = this.getActiveNovel();
+    if (!novel) return false;
+    if (!novel.entities[id]) return false;
+    novel.activeEntityId = id;
     return true;
   }
 
   getActiveEntity(): DnDEntity | null {
-    const game = this.getActiveGame();
-    if (!game || !game.activeEntityId) return null;
-    return game.entities[game.activeEntityId] ?? null;
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.activeEntityId) return null;
+    return novel.entities[novel.activeEntityId] ?? null;
   }
 
   // ─── NPC methods ──────────────────────────────────────────────────────
 
   createNpc(name: string, fields?: Partial<NPCEntity>): NPCEntity {
-    const game = this.getActiveGame()!;
+    const novel = this.getActiveNovel()!;
     const id = this.nextNpcId();
     const npc: NPCEntity = {
       id, name,
@@ -340,59 +424,59 @@ export class StateManager {
       disposition: fields?.disposition,
       location: fields?.location,
     };
-    game.npcs[id] = npc;
+    novel.npcs[id] = npc;
     return npc;
   }
 
   updateNpc(id: string, fields: Partial<NPCEntity>): NPCEntity | null {
-    const game = this.getActiveGame();
-    if (!game || !game.npcs[id]) return null;
-    Object.assign(game.npcs[id], fields);
-    return game.npcs[id];
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.npcs[id]) return null;
+    Object.assign(novel.npcs[id], fields);
+    return novel.npcs[id];
   }
 
   removeNpc(id: string): boolean {
-    const game = this.getActiveGame();
-    if (!game || !game.npcs[id]) return false;
-    delete game.npcs[id];
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.npcs[id]) return false;
+    delete novel.npcs[id];
     return true;
   }
 
   getAllNpcs(): NPCEntity[] {
-    const game = this.getActiveGame();
-    if (!game) return [];
-    return Object.values(game.npcs);
+    const novel = this.getActiveNovel();
+    if (!novel) return [];
+    return Object.values(novel.npcs);
   }
 
   // ─── Countdown methods ────────────────────────────────────────────────
 
   setCountdown(name: string, ticks: number, type: "round" | "narrative"): CountdownState {
-    const game = this.getActiveGame()!;
+    const novel = this.getActiveNovel()!;
     const c: CountdownState = { name, ticks, total: ticks, type, active: true };
-    game.countdowns[name] = c;
+    novel.countdowns[name] = c;
     return c;
   }
 
   advanceCountdown(name: string): CountdownState | null {
-    const game = this.getActiveGame();
-    if (!game || !game.countdowns[name]) return null;
-    const c = game.countdowns[name];
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.countdowns[name]) return null;
+    const c = novel.countdowns[name];
     c.ticks = Math.max(0, c.ticks - 1);
     if (c.ticks === 0) c.active = false;
     return c;
   }
 
   removeCountdown(name: string): boolean {
-    const game = this.getActiveGame();
-    if (!game || !game.countdowns[name]) return false;
-    delete game.countdowns[name];
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.countdowns[name]) return false;
+    delete novel.countdowns[name];
     return true;
   }
 
   advanceRoundCountdowns(): void {
-    const game = this.getActiveGame();
-    if (!game) return;
-    for (const c of Object.values(game.countdowns)) {
+    const novel = this.getActiveNovel();
+    if (!novel) return;
+    for (const c of Object.values(novel.countdowns)) {
       if (c.type === "round" && c.active) {
         c.ticks = Math.max(0, c.ticks - 1);
         if (c.ticks === 0) c.active = false;
@@ -403,83 +487,86 @@ export class StateManager {
   // ─── Lore methods ─────────────────────────────────────────────────────
 
   setLoreEntry(key: string, content: string, triggers: string[], persona_scope: "game_master" | "shared"): LoreEntry {
-    const game = this.getActiveGame()!;
+    const novel = this.getActiveNovel()!;
     const e: LoreEntry = { key, content, triggers, persona_scope };
-    game.loreEntries[key] = e;
+    novel.loreEntries[key] = e;
     return e;
   }
 
   removeLoreEntry(key: string): boolean {
-    const game = this.getActiveGame();
-    if (!game || !game.loreEntries[key]) return false;
-    delete game.loreEntries[key];
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.loreEntries[key]) return false;
+    delete novel.loreEntries[key];
     return true;
   }
 
   getActiveLore(persona: Persona): LoreEntry[] {
-    const game = this.getActiveGame();
-    if (!game || !game.scene.description) return [];
-    const sceneLower = game.scene.description.toLowerCase();
-    return Object.values(game.loreEntries)
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.scene.description) return [];
+    const sceneLower = novel.scene.description.toLowerCase();
+    return Object.values(novel.loreEntries)
       .filter(e => persona === "game_master" || e.persona_scope === "shared")
       .filter(e => e.triggers.some(t => sceneLower.includes(t.toLowerCase())))
       .slice(0, 50);
   }
 
   getActiveEnrichment(persona: Persona): EnrichmentRecord[] {
-    const game = this.getActiveGame();
-    if (!game) return [];
-    return game.enrichment
+    const novel = this.getActiveNovel();
+    if (!novel) return [];
+    return novel.enrichment
       .filter(e => persona === "game_master" || e.persona_scope === "shared" || e.persona_scope === "player");
   }
 
   // ─── Adventure methods ────────────────────────────────────────────────
 
   registerAdventure(slug: string, title: string, sections: { anchor: string; title: string; gm_only: boolean; content: string }[]): void {
-    this.adventureModules[slug] = { slug, title, sections };
+    this._systemAdventures[slug] = { slug, title, sections };
   }
 
   setActiveAdventure(slug: string): boolean {
-    if (!this.adventureModules[slug]) return false;
-    const game = this.getActiveGame();
-    if (!game) return false;
-    game.activeAdventureId = slug;
+    const novel = this.getActiveNovel();
+    if (!novel) return false;
+    if (!novel.adventureModules[slug] && !this._systemAdventures[slug]) return false;
+    novel.activeAdventureId = slug;
     return true;
   }
 
   getActiveAdventure(): AdventureState | null {
-    const game = this.getActiveGame();
-    if (!game || !game.activeAdventureId) return null;
-    return this.adventureModules[game.activeAdventureId] ?? null;
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.activeAdventureId) return null;
+    return novel.adventureModules[novel.activeAdventureId]
+      ?? this._systemAdventures[novel.activeAdventureId]
+      ?? null;
   }
 
   // ─── Save/load state to disk ───────────────────────────────────────────
 
-  saveState(gameId: string): void {
-    const game = this._games[gameId];
+  saveState(novelSlug: string): void {
+    const novel = this._novels[novelSlug];
     const state = {
       roster: this._roster,
-      game: game ?? null,
+      novel: novel ?? null,
       seed: this.sessionSeed,
       counter: this.entityCounter,
       npcCounter: this.npcCounter,
       persona: this.activePersona,
       fp: this.buildFingerprint,
     };
-    const dir = path.join(this.dataDir, "state");
+    const dir = path.join(this.dataDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${gameId}.json`), JSON.stringify(state, null, 2));
+    fs.writeFileSync(path.join(dir, `${novelSlug}.json`), JSON.stringify(state, null, 2));
   }
 
-  loadState(gameId: string): boolean {
-    const file = path.join(this.dataDir, "state", `${gameId}.json`);
+  loadState(novelSlug: string): boolean {
+    const file = path.join(this.dataDir, "novels", `${novelSlug}.json`);
     if (!fs.existsSync(file)) return false;
     try {
       const data = JSON.parse(fs.readFileSync(file, "utf-8"));
       this._roster = data.roster ?? {};
-      if (data.game) {
-        const g = defaultGame();
-        const loaded = data.game;
+      const loadedData = data.novel || data.game;
+      if (loadedData) {
+        const g = defaultNovel();
+        const loaded = loadedData;
         g.entities = loaded.entities ?? {};
         g.combat = loaded.combat ?? null;
         g.auditLog = loaded.auditLog ?? [];
@@ -493,8 +580,15 @@ export class StateManager {
         g.briefingOrder = loaded.briefingOrder ?? [];
         g.activeEntityId = loaded.activeEntityId ?? null;
         g.ended = loaded.ended ?? false;
-        this._games[gameId] = g;
-        this._activeGameId = gameId;
+        g.name = loaded.name ?? "";
+        g.slug = loaded.slug ?? novelSlug;
+        g.createdAt = loaded.createdAt ?? new Date().toISOString();
+        g.charactersPresent = loaded.charactersPresent ?? false;
+        g.adventureSet = loaded.adventureSet ?? false;
+        g.sessionZeroCompleted = loaded.sessionZeroCompleted ?? false;
+        g.adventureModules = loaded.adventureModules ?? {};
+        this._novels[novelSlug] = g;
+        this._activeNovelSlug = novelSlug;
       }
       if (data.seed) {
         this.prng.reseed(data.seed);
@@ -504,10 +598,10 @@ export class StateManager {
       this.npcCounter = data.npcCounter ?? 0;
       if (data.persona !== undefined) this.activePersona = data.persona;
       if (data.fp) this.buildFingerprint = data.fp;
-      this.corruptStates = this.corruptStates.filter(s => s !== gameId);
+      this.corruptStates = this.corruptStates.filter(s => s !== novelSlug);
       return true;
     } catch {
-      if (!this.corruptStates.includes(gameId)) this.corruptStates.push(gameId);
+      if (!this.corruptStates.includes(novelSlug)) this.corruptStates.push(novelSlug);
       return false;
     }
   }
@@ -532,7 +626,11 @@ export const state = new StateManager(
   process.env.TTRPG_DATA_DIR || path.join(process.cwd(), ".holonovel-state"),
 );
 state.loadRoster();
-if (process.env.TTRPG_GAME_ID) {
-  const loaded = state.loadState(process.env.TTRPG_GAME_ID);
-  if (!loaded) state.getOrCreateGame(process.env.TTRPG_GAME_ID);
+const novelSlug = process.env.TTRPG_NOVEL || process.env.TTRPG_GAME_ID;
+if (process.env.TTRPG_GAME_ID && !process.env.TTRPG_NOVEL) {
+  console.warn("[WARNING] TTRPG_GAME_ID is deprecated; use TTRPG_NOVEL instead.");
+}
+if (novelSlug) {
+  const loaded = state.loadState(novelSlug);
+  if (!loaded) state.getOrCreateNovel(novelSlug);
 }

@@ -35,9 +35,9 @@ function requireGM() {
   return null;
 }
 
-function requireGame() {
-  if (!state.getActiveGame()) {
-    return err("STATE_CONFLICT", "No active game.", "Set TTRPG_GAME_ID environment variable.");
+function requireNovel() {
+  if (!state.getActiveNovel()) {
+    return err("STATE_CONFLICT", "No active novel.", "Set TTRPG_NOVEL environment variable.");
   }
   return null;
 }
@@ -48,15 +48,15 @@ function getRng(seed?: string) {
 }
 
 function findEntity(id: string) {
-  const game = state.getActiveGame();
-  if (!game) return null;
-  return game.entities[id] ?? null;
+  const novel = state.getActiveNovel();
+  if (!novel) return null;
+  return novel.entities[id] ?? null;
 }
 
 function findCombatParticipant(id: string): import("./state.js").CombatParticipant | null {
-  const game = state.getActiveGame();
-  if (!game?.combat?.active) return null;
-  return game.combat.participants.find(p => p.id === id) ?? null;
+  const novel = state.getActiveNovel();
+  if (!novel?.combat?.active) return null;
+  return novel.combat.participants.find(p => p.id === id) ?? null;
 }
 
 function getStatMod(entity: import("./state.js").DnDEntity, stat: AbilityScore): number {
@@ -94,7 +94,8 @@ const ALL_TOOLS = [
   "apply_condition", "remove_condition",
   "roll_on_table",
   "init_combat", "advance_combat", "end_combat",
-  "session_recap", "end_game",
+  "session_recap", "end_novel", "end_game", "create_novel", "resume_novel",
+  "generate_adventure", "generate_encounter",
   "set_active_entity", "set_personality", "set_voice_examples", "player_signal",
   "set_scene_state", "set_scene_type", "set_narrative_directive",
   "create_npc", "update_npc", "remove_npc",
@@ -105,7 +106,7 @@ const ALL_TOOLS = [
 
 const server = new McpServer({
   name: "dnd5e-holonovel",
-  version: "1.2.0",
+  version: "1.3.0",
 }, {
   capabilities: { tools: {}, resources: { subscribe: true }, prompts: {} },
 });
@@ -251,23 +252,23 @@ server.registerTool("help", {
   description: "Show available commands and tools.",
   inputSchema: { query: z.string().optional() },
 }, async ({ query }) => {
-  const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "set_briefing_order", "compress_audit", "load_adventure"];
+  const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter", "end_novel", "end_game"];
   const filtered = query ? ALL_TOOLS.filter(t => t.toLowerCase().includes(query!.toLowerCase())) : ALL_TOOLS;
   const visible = state.activePersona === "player" ? filtered.filter(t => !gmOnly.includes(t)) : filtered;
   const grouped: Record<string, string[]> = {
-    "Game & Persona": visible.filter(t => ["set_persona", "respond", "undo", "help", "spec_health", "end_game", "set_active_entity"].includes(t)),
+    "Novel & Persona": visible.filter(t => ["set_persona", "respond", "undo", "help", "spec_health", "end_novel", "end_game", "create_novel", "resume_novel", "set_active_entity"].includes(t)),
     "Rules & Lookup": visible.filter(t => ["search_rules", "lookup_equipment", "lookup_spell", "lookup_monster", "lookup_class"].includes(t)),
     "Dice & Checks": visible.filter(t => ["roll_save", "roll_skill_check", "roll_weapon_attack", "roll_weapon_damage"].includes(t)),
     "Characters": visible.filter(t => ["create_character", "character_sheet", "import_character", "set_personality", "set_voice_examples", "player_signal"].includes(t)),
     "Combat": visible.filter(t => ["init_combat", "advance_combat", "end_combat"].includes(t)),
     "Conditions": visible.filter(t => ["apply_condition", "remove_condition"].includes(t)),
     "Tables": visible.filter(t => ["roll_on_table"].includes(t)),
-    "Session": visible.filter(t => ["session_recap", "end_game"].includes(t)),
+    "Novel": visible.filter(t => ["session_recap", "create_novel", "resume_novel"].includes(t)),
     "Narrative": visible.filter(t => ["set_scene_state", "set_scene_type", "set_narrative_directive"].includes(t)),
     "NPCs": visible.filter(t => ["create_npc", "update_npc", "remove_npc"].includes(t)),
     "Countdowns": visible.filter(t => ["set_countdown", "advance_countdown", "remove_countdown"].includes(t)),
     "Lore": visible.filter(t => ["set_lore_entry", "remove_lore_entry"].includes(t)),
-    "Guidance": visible.filter(t => ["set_briefing_order", "suggest_actions", "compress_audit", "load_adventure"].includes(t)),
+    "Guidance": visible.filter(t => ["set_briefing_order", "suggest_actions", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter"].includes(t)),
   };
   let out = "# D&D 5e Holonovel — Available Tools\n\n";
   for (const [cat, tools] of Object.entries(grouped)) {
@@ -287,16 +288,24 @@ server.registerTool("spec_health", {
   inputSchema: {},
 }, async () => {
   const index = buildSearchIndex();
+  const novels = state.listNovels();
   let out = "[OK] Build health report\n\n";
   out += `Indexed sections: ${index.length}\n`;
-  out += `Registered tools: ${ALL_TOOLS.length} (of 23 targeted)\n`;
+  out += `Registered tools: ${ALL_TOOLS.length}\n`;
   out += `Ruleset data: ${WEAPONS.length} weapons, ${ARMOR.length} armor, ${SPELLS.length} spells, ${MONSTERS.length} monsters, ${MAGIC_ITEMS.length} magic items\n`;
-  out += `Ruleset: D&D 5e SRD v5.1\n`;
+  out += `Ruleset: D&D 5e SRD v5.1 (spec v1.3.0)\n`;
   out += `Source files: 1021 Markdown files\n`;
-  out += `MUST coverage: character creation, lookup, skill/save/attack/damage rolls, combat lifecycle, conditions, tables, session recap\n`;
+  out += `MUST coverage: character creation, lookup, skill/save/attack/damage rolls, combat lifecycle, conditions, tables, session recap, novel lifecycle\n`;
+  if (novels.length > 0) {
+    out += `\nNovels on disk: ${novels.length}\n`;
+    for (const n of novels.slice(0, 10)) {
+      out += `  - ${n.name} (${n.slug})${n.active ? " [ACTIVE]" : ""} — ${n.lastModified.slice(0, 10)}\n`;
+    }
+    if (novels.length > 10) out += `  ... and ${novels.length - 10} more\n`;
+  }
   if (state.corruptStates.length > 0) {
     out += `\n[ERROR] Corrupted state files detected: ${state.corruptStates.join(", ")}.`;
-    out += `\nGame state could not be loaded — these games will start fresh.`;
+    out += `\nNovel state could not be loaded — these novels will start fresh.`;
   }
   return { content: [{ type: "text", text: out }] };
 });
@@ -414,8 +423,8 @@ server.registerTool("create_character", {
   description: "Start character creation workflow for D&D 5e (stats → race → class → background → name).",
   inputSchema: {},
 }, async () => {
-  const gameErr = requireGame();
-  if (gameErr) return gameErr;
+  const novelErr = requireNovel();
+  if (novelErr) return novelErr;
 
   state.workflow = {
     persona: state.activePersona,
@@ -546,11 +555,11 @@ server.registerTool("character_sheet", {
 // import_character
 server.registerTool("import_character", {
   title: "Import Character",
-  description: "Import a roster character into the active game.",
+  description: "Import a roster character into the active novel.",
   inputSchema: { roster_id: z.string() },
 }, async ({ roster_id }) => {
-  const gameErr = requireGame();
-  if (gameErr) return gameErr;
+  const novelErr = requireNovel();
+  if (novelErr) return novelErr;
   const imported = state.importCharacter(roster_id);
   if (!imported) return err("NOT_FOUND", `Roster character "${roster_id}" not found.`);
   state.snapshot();
@@ -804,9 +813,9 @@ server.registerTool("init_combat", {
   inputSchema: { participants: z.array(z.string()), dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional() },
 }, async ({ participants, dangers }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  if (game.combat?.active) {
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  if (novel.combat?.active) {
     return err("STATE_CONFLICT", "Combat is already active.", "End the current combat before starting a new one.");
   }
 
@@ -816,7 +825,7 @@ server.registerTool("init_combat", {
   type CP = import("./state.js").CombatParticipant;
   const parts: CP[] = [];
   for (const eid of participants) {
-    const e = findEntity(eid) ?? state.getActiveGame()?.npcs[eid];
+    const e = findEntity(eid) ?? state.getActiveNovel()?.npcs[eid];
     if (!e) return err("NOT_FOUND", `Entity "${eid}" not found.`);
     const { rng } = getRng();
     const bonus = "initiative" in (e as any) ? (e as any).initiative : abilityModifier((e as any).stats?.dexterity || 10);
@@ -832,7 +841,7 @@ server.registerTool("init_combat", {
   }
 
   parts.sort((a, b) => b.initiative - a.initiative);
-  game.combat = { active: true, round: 1, participants: parts, turnIndex: 0 };
+  novel.combat = { active: true, round: 1, participants: parts, turnIndex: 0 };
   state.audit("game_master", "init_combat", { participants }, "OK");
 
   let r = `Combat started!\nRound: 1\nTurn order:`;
@@ -851,12 +860,12 @@ server.registerTool("advance_combat", {
   inputSchema: {},
 }, async () => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  if (!game.combat?.active) return err("STATE_CONFLICT", "No active combat.");
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  if (!novel.combat?.active) return err("STATE_CONFLICT", "No active combat.");
 
   state.snapshot();
-  const c = game.combat;
+  const c = novel.combat;
   c.turnIndex++;
   if (c.turnIndex >= c.participants.length) {
     c.turnIndex = 0;
@@ -876,12 +885,12 @@ server.registerTool("end_combat", {
   inputSchema: { outcome: z.string().optional() },
 }, async ({ outcome }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  if (!game.combat?.active) return err("STATE_CONFLICT", "No active combat.");
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  if (!novel.combat?.active) return err("STATE_CONFLICT", "No active combat.");
 
   const summary = outcome || "Combat concluded.";
-  game.combat = null;
+  novel.combat = null;
   state.snapshot();
   state.audit("game_master", "end_combat", { outcome: outcome || "none" }, summary);
   return ok(summary);
@@ -895,43 +904,113 @@ server.registerTool("session_recap", {
   description: "Summarize recent session activity.",
   inputSchema: {},
 }, async () => {
-  const gameErr = requireGame();
-  if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  const entities = Object.values(game.entities);
+  const novelErr = requireNovel();
+  if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  const entities = Object.values(novel.entities);
   let out = "# Session Recap\n\n";
-  out += `Game: ${state.activeGameId}, Persona: ${personaLabel()}\n\n`;
+  out += `Novel: ${state.activeNovelSlug}, Persona: ${personaLabel()}\n\n`;
   out += "## Entities\n";
   for (const e of entities) {
     out += `- **${e.name}** (${e.race} ${e.className} Lv${e.level}): HP ${e.currentHp}/${e.maxHp}`;
     if (e.conditions.length > 0) out += ` [${e.conditions.join(", ")}]`;
     out += "\n";
   }
-  if (game.combat) {
-    out += `\n## Combat — Round ${game.combat.round}\n`;
-    for (let i = 0; i < game.combat.participants.length; i++) {
-      const p = game.combat.participants[i];
-      out += `${i === game.combat.turnIndex ? "→ " : "  "}${p.name} (Init: ${p.initiative})\n`;
+  if (novel.combat) {
+    out += `\n## Combat — Round ${novel.combat.round}\n`;
+    for (let i = 0; i < novel.combat.participants.length; i++) {
+      const p = novel.combat.participants[i];
+      out += `${i === novel.combat.turnIndex ? "→ " : "  "}${p.name} (Init: ${p.initiative})\n`;
     }
   }
   out += "\n## Recent Activity\n";
-  for (const a of game.auditLog.slice(-10)) {
+  for (const a of novel.auditLog.slice(-10)) {
     out += `- [${new Date(a.timestamp).toISOString().slice(11, 19)}] ${a.persona}: ${a.tool} → ${a.result.slice(0, 60)}\n`;
   }
   return ok(out);
 });
 
-// end_game
-server.registerTool("end_game", {
-  title: "End Game",
-  description: "End the current game session. Deactivates persona, marks game ended.",
+// end_novel
+server.registerTool("end_novel", {
+  title: "End Novel",
+  description: "End the current novel. Deactivates persona, removes save file.",
   inputSchema: {},
 }, async () => {
-  const game = state.getActiveGame();
-  if (!game) return err("STATE_CONFLICT", "No active game.");
-  state.endGame();
+  const novel = state.getActiveNovel();
+  if (!novel) return err("STATE_CONFLICT", "No active novel.");
+  state.endNovel();
   state.saveRoster();
-  return ok("Game ended. Roster preserved. Use import_character to start a new game.");
+  return ok("Novel ended. Roster preserved. Use create_novel or resume_novel to continue.");
+});
+
+// deprecated: end_game (alias for end_novel)
+server.registerTool("end_game", {
+  title: "End Game",
+  description: "Deprecated. Use end_novel instead. Ends the current novel.",
+  inputSchema: {},
+}, async () => {
+  const novel = state.getActiveNovel();
+  if (!novel) return err("STATE_CONFLICT", "No active novel.");
+  state.endNovel();
+  state.saveRoster();
+  return ok("Novel ended. Roster preserved. Use create_novel or resume_novel to continue.");
+});
+
+// create_novel
+server.registerTool("create_novel", {
+  title: "Create Novel",
+  description: "Create a named novel. Novel persists to disk at .holonovel-state/novels/<slug>.json.",
+  inputSchema: { name: z.string() },
+}, async ({ name }) => {
+  if (!name.trim()) return err("INVALID_INPUT", "Novel name must not be empty.");
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (state._novels[slug] && !state._novels[slug].ended) {
+    return err("STATE_CONFLICT", `Novel "${slug}" already exists and is active.`, "Use resume_novel to resume or end_novel to end it.");
+  }
+  const novel = state.createNovel(name);
+  state.saveState(novel.slug);
+  state.audit(personaStr(), "create_novel", { name }, `Created novel ${novel.slug}`);
+  return ok(`Novel created: "${novel.name}" (slug: ${novel.slug}). Save file: .holonovel-state/novels/${novel.slug}.json\n\nNext: import a character, load an adventure, or run session_zero to set up your campaign.`);
+});
+
+// resume_novel
+server.registerTool("resume_novel", {
+  title: "Resume Novel",
+  description: "Resume a previously created novel from disk.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }) => {
+  const novel = state.resumeNovel(slug);
+  if (!novel) return err("NOT_FOUND", `Novel "${slug}" not found.`, `Available novels: ${state.listNovels().map(n => n.slug).join(", ") || "none"}`);
+  state.audit(personaStr(), "resume_novel", { slug }, `Resumed novel ${novel.name}`);
+  return ok(`Novel resumed: "${novel.name}" (slug: ${novel.slug}). Created: ${novel.createdAt}`);
+});
+
+// generate_adventure
+server.registerTool("generate_adventure", {
+  title: "Generate Adventure",
+  description: "Generate an adventure scaffold from a premise. GM only.",
+  inputSchema: { premise: z.string() },
+}, async ({ premise }) => {
+  const gmErr = requireGM(); if (gmErr) return gmErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const adv = state.generateAdventure(premise);
+  state.snapshot();
+  state.audit(personaStr(), "generate_adventure", { premise }, adv.title);
+  return ok(`Adventure scaffold generated: "${adv.title}" (${adv.sections.length} sections). Load it with load_adventure("${adv.slug}").`);
+});
+
+// generate_encounter
+server.registerTool("generate_encounter", {
+  title: "Generate Encounter",
+  description: "Generate a scene + NPC + lore entry from context. Snapshot as single undo. GM only.",
+  inputSchema: { context: z.string() },
+}, async ({ context }) => {
+  const gmErr = requireGM(); if (gmErr) return gmErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  state.snapshot();
+  const result = state.generateEncounter(context);
+  state.audit(personaStr(), "generate_encounter", { context }, `Scene: ${result.sceneDescription.slice(0, 80)}`);
+  return ok(`Encounter generated:\n- Scene: ${result.sceneDescription}\n- NPC: npc://${result.npcName}\n- Lore: ${result.loreKey}`);
 });
 
 // set_active_entity
@@ -940,13 +1019,13 @@ server.registerTool("set_active_entity", {
   description: "Set the currently active entity (the character being played or narrated).",
   inputSchema: { entity_id: z.string() },
 }, async ({ entity_id }) => {
-  const gameErr = requireGame();
-  if (gameErr) return gameErr;
+  const novelErr = requireNovel();
+  if (novelErr) return novelErr;
   const ok_ = state.setActiveEntity(entity_id);
-  if (!ok_) return err("NOT_FOUND", `Entity "${entity_id}" not found in game.`);
+  if (!ok_) return err("NOT_FOUND", `Entity "${entity_id}" not found in novel.`);
   state.snapshot();
   state.audit(personaStr(), "set_active_entity", { entity_id }, "OK");
-  const entity = state.getGameEntity(entity_id)!;
+  const entity = state.getNovelEntity(entity_id)!;
   return ok(`Active entity: ${entity.name} (entity://${entity_id})`);
 });
 
@@ -957,7 +1036,7 @@ server.registerTool("set_personality", {
   inputSchema: { entity_id: z.string(), description: z.string().optional(), voice: z.string().optional(), background: z.string().optional(), goals: z.string().optional() },
 }, async ({ entity_id, description, voice, background, goals }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const entity = state.getGameEntity(entity_id);
+  const entity = state.getNovelEntity(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity "${entity_id}" not found.`);
   state.snapshot();
   if (description !== undefined) entity.description = description;
@@ -975,7 +1054,7 @@ server.registerTool("set_voice_examples", {
   inputSchema: { entity_id: z.string(), examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })) },
 }, async ({ entity_id, examples }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const entity = state.getGameEntity(entity_id);
+  const entity = state.getNovelEntity(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity "${entity_id}" not found.`);
   state.snapshot();
   entity.voice_examples = examples;
@@ -992,8 +1071,8 @@ server.registerTool("player_signal", {
   if (state.activePersona !== "player" && state.activePersona !== null) {
     return err("FORBIDDEN", "Requires Player persona.", "Use set_persona(\"player\") to switch.");
   }
-  const gameErr = requireGame();
-  if (gameErr) return gameErr;
+  const novelErr = requireNovel();
+  if (novelErr) return novelErr;
   state.snapshot();
   const msg = detail ? `${signal}: ${detail}` : signal;
   state.audit(personaStr(), "player_signal", { signal, detail }, msg);
@@ -1009,11 +1088,11 @@ server.registerTool("set_scene_state", {
   inputSchema: { description: z.string() },
 }, async ({ description }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
   state.snapshot();
-  game.scene.history.push({ timestamp: new Date().toISOString(), description });
-  game.scene.description = description;
+  novel.scene.history.push({ timestamp: new Date().toISOString(), description });
+  novel.scene.description = description;
   state.audit(personaStr(), "set_scene_state", { description: description.slice(0, 80) }, "OK");
   return ok(`Scene set: ${description.slice(0, 100)}${description.length > 100 ? "..." : ""}`);
 });
@@ -1025,10 +1104,10 @@ server.registerTool("set_scene_type", {
   inputSchema: { type: z.enum(["combat", "social", "exploration", "neutral"]) },
 }, async ({ type }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
   state.snapshot();
-  game.scene.type = type;
+  novel.scene.type = type;
   state.audit(personaStr(), "set_scene_type", { type }, "OK");
   return ok(`Scene type set to: ${type}`);
 });
@@ -1040,10 +1119,10 @@ server.registerTool("set_narrative_directive", {
   inputSchema: { directive: z.string() },
 }, async ({ directive }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
   state.snapshot();
-  game.narrativeDirective = directive;
+  novel.narrativeDirective = directive;
   state.audit(personaStr(), "set_narrative_directive", { directive }, "OK");
   return ok(`Narrative directive set.`);
 });
@@ -1057,7 +1136,7 @@ server.registerTool("create_npc", {
   inputSchema: { name: z.string(), description: z.string().optional(), disposition: z.string().optional(), location: z.string().optional(), ac: z.number().optional(), hp: z.number().optional(), speed: z.number().optional() },
 }, async ({ name, description, disposition, location, ac, hp, speed }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const npc = state.createNpc(name, {
     description, disposition, location,
@@ -1074,7 +1153,7 @@ server.registerTool("update_npc", {
   inputSchema: { npc_id: z.string(), name: z.string().optional(), description: z.string().optional(), disposition: z.string().optional(), location: z.string().optional(), ac: z.number().optional(), hp: z.number().optional(), speed: z.number().optional() },
 }, async ({ npc_id, name, description, disposition, location, ac, hp, speed }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const updated = state.updateNpc(npc_id, {
     ...(name !== undefined ? { name } : {}),
@@ -1093,11 +1172,11 @@ server.registerTool("update_npc", {
 // remove_npc
 server.registerTool("remove_npc", {
   title: "Remove NPC",
-  description: "Remove an NPC from the game. GM only.",
+  description: "Remove an NPC from the novel. GM only.",
   inputSchema: { npc_id: z.string() },
 }, async ({ npc_id }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const ok_ = state.removeNpc(npc_id);
   if (!ok_) return err("NOT_FOUND", `NPC "${npc_id}" not found.`);
@@ -1114,7 +1193,7 @@ server.registerTool("set_countdown", {
   inputSchema: { name: z.string(), ticks: z.number().min(1), type: z.enum(["round", "narrative"]).default("narrative") },
 }, async ({ name, ticks, type = "narrative" }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const c = state.setCountdown(name, ticks, type);
   state.audit(personaStr(), "set_countdown", { name, ticks, type }, "OK");
@@ -1128,7 +1207,7 @@ server.registerTool("advance_countdown", {
   inputSchema: { name: z.string() },
 }, async ({ name }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const c = state.advanceCountdown(name);
   if (!c) return err("NOT_FOUND", `Countdown "${name}" not found.`);
@@ -1144,7 +1223,7 @@ server.registerTool("remove_countdown", {
   inputSchema: { name: z.string() },
 }, async ({ name }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const ok_ = state.removeCountdown(name);
   if (!ok_) return err("NOT_FOUND", `Countdown "${name}" not found.`);
@@ -1157,11 +1236,11 @@ server.registerTool("remove_countdown", {
 // set_lore_entry
 server.registerTool("set_lore_entry", {
   title: "Set Lore Entry",
-  description: "Log a lore entry for the current game. Optional keyword triggers match scene descriptions. GM only.",
+  description: "Log a lore entry for the current novel. Optional keyword triggers match scene descriptions. GM only.",
   inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).default([]), persona_scope: z.enum(["game_master", "shared"]).default("game_master") },
 }, async ({ key, content, triggers = [], persona_scope = "game_master" }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   state.setLoreEntry(key, content, triggers, persona_scope);
   state.audit(personaStr(), "set_lore_entry", { key, triggers, persona_scope }, "OK");
@@ -1175,7 +1254,7 @@ server.registerTool("remove_lore_entry", {
   inputSchema: { key: z.string() },
 }, async ({ key }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   state.snapshot();
   const ok_ = state.removeLoreEntry(key);
   if (!ok_) return err("NOT_FOUND", `Lore entry "${key}" not found.`);
@@ -1192,14 +1271,14 @@ server.registerTool("set_briefing_order", {
   inputSchema: { sections: z.array(z.string()) },
 }, async ({ sections }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  const validTokens = ["foundations", "anti_slop", "voice_examples", "scene_state", "entities", "npcs", "countdowns", "lore", "adventure", "player_signals", "guidance", "registry", "intro_pointer", "session_zero_pointer", "narrative_directive"];
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  const validTokens = ["foundations", "anti_slop", "voice_examples", "scene_state", "entities", "npcs", "countdowns", "lore", "adventure", "player_signals", "guidance", "registry", "intro_pointer", "session_zero_pointer", "narrative_directive", "novel"];
   for (const s of sections) {
     if (!validTokens.includes(s)) return err("INVALID_INPUT", `Invalid section token: "${s}".`, `Valid: ${validTokens.join(", ")}`);
   }
   state.snapshot();
-  game.briefingOrder = sections;
+  novel.briefingOrder = sections;
   state.audit(personaStr(), "set_briefing_order", { sections }, "OK");
   return ok(sections.length === 0 ? "Briefing order reset to default." : `Briefing order set: ${sections.join(" → ")}`);
 });
@@ -1212,7 +1291,7 @@ server.registerTool("suggest_actions", {
 }, async ({ intent, entity_id }) => {
   const i = intent.toLowerCase();
   const suggestions: { tool: string; params: Record<string, unknown>; description: string }[] = [];
-  const sceneType = state.getActiveGame()?.scene.type ?? "neutral";
+  const sceneType = state.getActiveNovel()?.scene.type ?? "neutral";
 
   if (i.includes("attack") || i.includes("hit") || i.includes("strike") || i.includes("swing")) {
     suggestions.push({ tool: "roll_weapon_attack", params: { weapon: "<weapon>", entity_id: entity_id ?? "<id>" }, description: "Roll an attack against a target" });
@@ -1256,9 +1335,9 @@ server.registerTool("compress_audit", {
   inputSchema: { max_entries: z.number().default(20), persona_filter: z.enum(["player", "game_master"]).optional() },
 }, async ({ max_entries = 20, persona_filter }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
-  const game = state.getActiveGame()!;
-  const entries = game.auditLog
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+  const entries = novel.auditLog
     .filter(a => !persona_filter || a.persona === persona_filter)
     .slice(-max_entries);
   if (entries.length === 0) return ok("No matching audit entries.");
@@ -1273,9 +1352,10 @@ server.registerTool("load_adventure", {
   inputSchema: { slug: z.string() },
 }, async ({ slug }) => {
   const gmErr = requireGM(); if (gmErr) return gmErr;
-  const gameErr = requireGame(); if (gameErr) return gameErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
   const ok_ = state.setActiveAdventure(slug);
-  if (!ok_) return err("NOT_FOUND", `Adventure "${slug}" not found.`, `Available: ${Object.keys(state.adventureModules).join(", ") || "none loaded"}`);
+  const allAdvs = state.getActiveNovel() ? { ...state._systemAdventures, ...state.getActiveNovel()!.adventureModules } : { ...state._systemAdventures };
+  if (!ok_) return err("NOT_FOUND", `Adventure "${slug}" not found.`, `Available: ${Object.keys(allAdvs).join(", ") || "none loaded"}`);
   const adv = state.getActiveAdventure()!;
   state.audit(personaStr(), "load_adventure", { slug }, adv.title);
   return ok(`Adventure loaded: ${adv.title} (${adv.sections.length} sections)`);
@@ -1301,10 +1381,10 @@ server.registerResource("ruleset_list", "ruleset://", { title: "Ruleset Index" }
 });
 
 server.registerResource("entities_list", "entities://", { title: "Game Entities" }, async () => {
-  const game = state.getActiveGame();
-  if (!game) return { contents: [{ uri: "entities://", mimeType: "text/markdown", text: "# Entities\n\nNo active game." }] };
+  const novel = state.getActiveNovel();
+  if (!novel) return { contents: [{ uri: "entities://", mimeType: "text/markdown", text: "# Entities\n\nNo active novel." }] };
   let text = "# Active Game Entities\n\n";
-  for (const e of Object.values(game.entities)) {
+  for (const e of Object.values(novel.entities)) {
     text += `- **${e.name}** (${e.race} ${e.className} Lv${e.level}): HP ${e.currentHp}/${e.maxHp}, AC ${e.armorClass}\n`;
     text += `  entity://${e.id}\n`;
   }
@@ -1329,17 +1409,17 @@ server.registerResource("entity_detail", "entity://{id}", { title: "Entity Detai
   return { contents: [{ uri: uri.href, mimeType: "text/markdown", text }] };
 });
 
-server.registerResource("audit_log", "audit://game", { title: "Audit Log" }, async () => {
-  const game = state.getActiveGame();
-  if (!game || game.auditLog.length === 0) {
-    return { contents: [{ uri: "audit://game", mimeType: "text/markdown", text: "# Audit Log\n\nNo entries." }] };
+server.registerResource("audit_log", "audit://novel", { title: "Audit Log" }, async () => {
+  const novel = state.getActiveNovel();
+  if (!novel || novel.auditLog.length === 0) {
+    return { contents: [{ uri: "audit://novel", mimeType: "text/markdown", text: "# Audit Log\n\nNo entries." }] };
   }
   let text = "# Audit Log\n\n";
-  const visible = state.activePersona === "game_master" ? game.auditLog : game.auditLog.filter(a => a.persona !== "game_master");
+  const visible = state.activePersona === "game_master" ? novel.auditLog : novel.auditLog.filter(a => a.persona !== "game_master");
   for (const e of visible) {
     text += `- [${new Date(e.timestamp).toISOString().slice(11, 19)}] ${e.persona}: ${e.tool} → ${e.result}\n`;
   }
-  return { contents: [{ uri: "audit://game", mimeType: "text/markdown", text }] };
+  return { contents: [{ uri: "audit://novel", mimeType: "text/markdown", text }] };
 });
 
 server.registerResource("roster_list", "roster://", { title: "Character Roster" }, async () => {
@@ -1356,10 +1436,10 @@ server.registerResource("roster_list", "roster://", { title: "Character Roster" 
 // ─── v1.2 Resources ────────────────────────────────────────────────────────
 
 server.registerResource("party_current", "party://current", { title: "Party Overview" }, async () => {
-  const entities = state.getAllGameEntities();
-  if (entities.length === 0) return { contents: [{ uri: "party://current", mimeType: "text/markdown", text: "# Party\n\nNo characters in game." }] };
+  const entities = state.getAllNovelEntities();
+  if (entities.length === 0) return { contents: [{ uri: "party://current", mimeType: "text/markdown", text: "# Party\n\nNo characters in novel." }] };
   let text = "# Party\n\n";
-  const activeId = state.getActiveGame()?.activeEntityId;
+  const activeId = state.getActiveNovel()?.activeEntityId;
   for (const e of entities) {
     const active = e.id === activeId ? "★ " : "";
     text += `- ${active}**${e.name}** (${e.race} ${e.className} Lv${e.level}) — entity://${e.id}\n`;
@@ -1369,7 +1449,7 @@ server.registerResource("party_current", "party://current", { title: "Party Over
 
 server.registerResource("npcs_list", "npcs://", { title: "NPCs" }, async () => {
   const npcs = state.getAllNpcs();
-  if (npcs.length === 0) return { contents: [{ uri: "npcs://", mimeType: "text/markdown", text: "# NPCs\n\nNo NPCs in game." }] };
+  if (npcs.length === 0) return { contents: [{ uri: "npcs://", mimeType: "text/markdown", text: "# NPCs\n\nNo NPCs in novel." }] };
   let text = "# NPCs\n\n";
   for (const n of npcs) {
     text += `- **${n.name}**${n.disposition ? ` (${n.disposition})` : ""} — npc://${n.id}\n`;
@@ -1379,22 +1459,43 @@ server.registerResource("npcs_list", "npcs://", { title: "NPCs" }, async () => {
 });
 
 server.registerResource("scene_current", "scene://current", { title: "Current Scene" }, async () => {
-  const game = state.getActiveGame();
-  if (!game) return { contents: [{ uri: "scene://current", mimeType: "text/markdown", text: "# Scene\n\nNo active game." }] };
-  const s = game.scene;
+  const novel = state.getActiveNovel();
+  if (!novel) return { contents: [{ uri: "scene://current", mimeType: "text/markdown", text: "# Scene\n\nNo active novel." }] };
+  const s = novel.scene;
   let text = `# Scene\n\n**Description:** ${s.description || "(none)"}\n**Type:** ${s.type}\n\n## History\n`;
   for (const h of s.history.slice(-5)) text += `- [${h.timestamp.slice(11, 19)}] ${h.description}\n`;
   return { contents: [{ uri: "scene://current", mimeType: "text/markdown", text }] };
 });
 
 server.registerResource("countdown_active", "countdown://active", { title: "Active Countdowns" }, async () => {
-  const game = state.getActiveGame();
-  if (!game || Object.keys(game.countdowns).length === 0) return { contents: [{ uri: "countdown://active", mimeType: "text/markdown", text: "# Countdowns\n\nNo active countdowns." }] };
+  const novel = state.getActiveNovel();
+  if (!novel || Object.keys(novel.countdowns).length === 0) return { contents: [{ uri: "countdown://active", mimeType: "text/markdown", text: "# Countdowns\n\nNo active countdowns." }] };
   let text = "# Countdowns\n\n";
-  for (const c of Object.values(game.countdowns)) {
+  for (const c of Object.values(novel.countdowns)) {
     text += `- **${c.name}**: ${c.ticks}/${c.total} (${c.type})${c.active ? "" : " — EXPIRED"}\n`;
   }
   return { contents: [{ uri: "countdown://active", mimeType: "text/markdown", text }] };
+});
+
+// ─── Novel Resources ──────────────────────────────────────────────────────
+
+server.registerResource("novel_current", "novel://current", { title: "Current Novel" }, async () => {
+  const novel = state.getActiveNovel();
+  if (!novel) return { contents: [{ uri: "novel://current", mimeType: "text/markdown", text: "# Novel\n\nNo active novel. Use create_novel or resume_novel." }] };
+  let text = `# Novel: ${novel.name}\n\n`;
+  text += `**Slug:** ${novel.slug}\n`;
+  text += `**Created:** ${novel.createdAt.slice(0, 10)}\n`;
+  text += `**Setup:** characters ${novel.charactersPresent ? "present" : "missing"}, adventure ${novel.adventureSet ? "set" : "not set"}, session zero ${novel.sessionZeroCompleted ? "completed" : "pending"}\n`;
+  text += `**Entities:** ${Object.keys(novel.entities).length} characters\n`;
+  return { contents: [{ uri: "novel://current", mimeType: "text/markdown", text }] };
+});
+
+server.registerResource("novel_detail", "novel://{slug}", { title: "Novel Detail" }, async (uri) => {
+  const slug = uri.pathname.replace(/^\/+/, "");
+  const novels = state.listNovels().filter(n => n.slug === slug);
+  if (novels.length === 0) return { contents: [{ uri: uri.href, mimeType: "text/markdown", text: `# Not Found\n\nNovel "${slug}" not found.` }] };
+  const n = novels[0];
+  return { contents: [{ uri: uri.href, mimeType: "text/markdown", text: `# Novel: ${n.name}\n\n**Slug:** ${n.slug}\n**Last modified:** ${n.lastModified.slice(0, 10)}\n**Active:** ${n.active ? "yes" : "no"}` }] };
 });
 
 // ─── Prompts ──────────────────────────────────────────────────────────────
@@ -1464,7 +1565,7 @@ server.registerPrompt("persona_briefing", {
   const p = state.activePersona;
   const isPlayer = p === "player";
   const isGM = p === "game_master" || p === null;
-  const game = state.getActiveGame();
+  const novel = state.getActiveNovel();
 
   const playerGuidance = [
     "**Describe actions, not mechanics.** Tell the DM what you want to do, not what rule you want to use. The DM will decide what check (if any) applies.",
@@ -1500,8 +1601,8 @@ server.registerPrompt("persona_briefing", {
     "[anti-slop] **Don't declare NPC reactions.** State your argument, then wait for the DM. *Bad:* 'The merchant is impressed and lowers the price.' *Good:* 'I lay out my reasoning and wait for his response.'",
   ];
 
-  const defaultOrder = ["foundations", "anti_slop", "voice_examples", "scene_state", "entities", "npcs", "countdowns", "lore", "adventure", "player_signals", "narrative_directive", "guidance", "registry", "intro_pointer", "session_zero_pointer"];
-  const sectionOrder = (game?.briefingOrder?.length ?? 0) > 0 ? game!.briefingOrder : defaultOrder;
+  const defaultOrder = ["foundations", "anti_slop", "voice_examples", "scene_state", "entities", "npcs", "countdowns", "lore", "adventure", "player_signals", "narrative_directive", "novel", "guidance", "registry", "intro_pointer", "session_zero_pointer"];
+  const sectionOrder = (novel?.briefingOrder?.length ?? 0) > 0 ? novel!.briefingOrder : defaultOrder;
 
   const sections: Record<string, string> = {};
 
@@ -1521,8 +1622,8 @@ server.registerPrompt("persona_briefing", {
   })();
 
   sections["scene_state"] = (() => {
-    if (!game) return "_No active game._";
-    const s = game.scene;
+    if (!novel) return "_No active novel._";
+    const s = novel.scene;
     let v = s.description ? `**Scene:** ${s.description}\n` : "_No scene set._";
     v += `**Type:** ${s.type}\n`;
     if (s.history.length > 1) v += `**Recent:** ${s.history[s.history.length - 2].description.slice(0, 80)}\n`;
@@ -1530,23 +1631,23 @@ server.registerPrompt("persona_briefing", {
   })();
 
   sections["entities"] = (() => {
-    const entities = state.getAllGameEntities();
-    if (entities.length === 0) return "_No entities in game._";
+    const entities = state.getAllNovelEntities();
+    if (entities.length === 0) return "_No entities in novel._";
     return entities.map(e => {
-      const active = e.id === game?.activeEntityId ? "★ " : "";
+      const active = e.id === novel?.activeEntityId ? "★ " : "";
       return `- ${active}**${e.name}** (${e.race} ${e.className} Lv${e.level}): HP ${e.currentHp}/${e.maxHp}, AC ${e.armorClass}${e.conditions.length ? ` [${e.conditions.join(", ")}]` : ""}`;
     }).join("\n");
   })();
 
   sections["npcs"] = (() => {
     const npcs = state.getAllNpcs();
-    if (npcs.length === 0) return "_No NPCs in game._";
+    if (npcs.length === 0) return "_No NPCs in novel._";
     return npcs.map(n => `- **${n.name}**${n.disposition ? ` (${n.disposition})` : ""}${n.description ? ` — ${n.description}` : ""}${n.location ? ` @ ${n.location}` : ""}`).join("\n");
   })();
 
   sections["countdowns"] = (() => {
-    if (!game || Object.keys(game.countdowns).length === 0) return "_No active countdowns._";
-    return Object.values(game.countdowns).map(c => `- **${c.name}**: ${c.ticks}/${c.total} (${c.type})${c.active ? "" : " — EXPIRED"}`).join("\n");
+    if (!novel || Object.keys(novel.countdowns).length === 0) return "_No active countdowns._";
+    return Object.values(novel.countdowns).map(c => `- **${c.name}**: ${c.ticks}/${c.total} (${c.type})${c.active ? "" : " — EXPIRED"}`).join("\n");
   })();
 
   sections["lore"] = (() => {
@@ -1564,22 +1665,27 @@ server.registerPrompt("persona_briefing", {
     return v;
   })();
 
+  sections["novel"] = (() => {
+    if (!novel) return "_No active novel._";
+    return `**${novel.name}** (slug: ${novel.slug})\nCreated: ${novel.createdAt.slice(0, 10)}\nCharacters: ${novel.charactersPresent ? "present" : "none"}, Adventure: ${novel.adventureSet ? "loaded" : "none"}, Session Zero: ${novel.sessionZeroCompleted ? "done" : "pending"}`;
+  })();
+
   sections["player_signals"] = (() => {
-    if (!game) return "_No active game._";
-    const signals = game.auditLog.filter(a => a.tool === "player_signal").slice(-3);
+    if (!novel) return "_No active novel._";
+    const signals = novel.auditLog.filter(a => a.tool === "player_signal").slice(-3);
     if (signals.length === 0) return "_No player signals._";
     return signals.map(s => `- [${s.timestamp.slice(11, 19)}] ${s.result}`).join("\n");
   })();
 
   sections["narrative_directive"] = (() => {
-    if (!game || !game.narrativeDirective) return "_No narrative directive set._";
-    return game.narrativeDirective;
+    if (!novel || !novel.narrativeDirective) return "_No narrative directive set._";
+    return novel.narrativeDirective;
   })();
 
   sections["guidance"] = "- Ability checks: d20 + ability mod + prof (if skilled) vs DC\n- Attack rolls: d20 + ability mod + prof vs AC; nat 20 = crit (double damage dice)\n- Advantage: roll 2d20, take highest. Disadvantage: take lowest. They cancel.\n- Conditions apply mechanical penalties; use `apply_condition` and `remove_condition`\n- Hit Points: at 0 HP = unconscious, roll death saves";
 
   sections["registry"] = (() => {
-    const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "set_briefing_order", "compress_audit", "load_adventure"];
+    const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter"];
     const visible = ALL_TOOLS.filter(t => isPlayer ? !gmOnly.includes(t) : true);
     return visible.map(t => `- \`${t}\``).join("\n");
   })();
@@ -1694,7 +1800,7 @@ Walk each player through \`create_character()\`. The workflow guides them throug
 4. Choose background — ${BACKGROUNDS.slice(0, 6).join(", ")}, and more
 5. Name the character
 
-Use \`import_character("roster_id")\` to add each to the game. Use \`lookup_equipment("name")\` to help with starting gear.
+Use \`import_character("roster_id")\` to add each to the novel. Use \`lookup_equipment("name")\` to help with starting gear.
 
 ## Step 3: Set Expectations
 
@@ -1706,6 +1812,47 @@ Use \`import_character("roster_id")\` to add each to the game. Use \`lookup_equi
 ## Step 4: Begin Play
 
 With characters imported, describe the opening scene and ask: "What do you do?" Use \`roll_skill_check\` for any uncertain actions. Player checks and GM combat management flow from here.`
+      }
+    }]
+  };
+});
+
+server.registerPrompt("novel_setup", {
+  title: "Novel Setup",
+  description: "Guide for setting up a new novel: characters, adventure, session zero.",
+}, async () => {
+  const roster = Object.values(state._roster);
+  const allAdvs2 = state.getActiveNovel() ? { ...state._systemAdventures, ...state.getActiveNovel()!.adventureModules } : { ...state._systemAdventures };
+  const adventures = Object.keys(allAdvs2);
+  return {
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `# Novel Setup — Getting Started
+
+## Step 1: Create or Resume a Novel
+
+- **New:** \`create_novel("your adventure name")\` to start fresh
+- **Resume:** \`resume_novel("slug")\` to continue from disk
+
+## Step 2: Add Characters
+
+Import roster characters into your novel with \`import_character("roster_id")\`.
+
+${roster.length > 0 ? `**Available roster characters:**\n${roster.map(c => `- ${c.name} (${c.race} ${c.className}) — roster://${c.id}`).join("\n")}` : "_No roster characters. Use create_character() to make one._"}
+
+## Step 3: Load an Adventure
+
+${adventures.length > 0 ? `- \`load_adventure("slug")\` with one of: ${adventures.join(", ")}` : "- _No adventure modules indexed. Use generate_adventure(\"premise\") to scaffold one._"}
+
+## Step 4: Run Session Zero
+
+Use the \`session_zero\` prompt to set campaign expectations, tone, and boundaries.
+
+## Step 5: Begin
+
+\`set_scene_state("description")\` to set the opening scene, then describe what happens and ask "What do you do?"`
       }
     }]
   };
