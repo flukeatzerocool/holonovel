@@ -144,9 +144,11 @@ it anywhere. It's yours.
 
 The spec doesn't retire. Drop in a new sourcebook — the server learns
 creatures it didn't know yesterday. Load an adventure module for your
-next campaign. Rebuild against a newer spec — fixes and features land
-without touching your Novels. Re-run Enrich to catch fresh community
-wisdom. Feed it a character sheet PDF you just found — the layout
+next campaign. Rebuild against a newer spec — the spec defines a formal
+update workflow (§6.7): full comparison audit, gap plan, OCE
+re-verification. Fixes and features land without touching your Novels.
+Re-run Enrich to catch fresh community wisdom. Feed it a character sheet
+PDF you just found — the layout
 updates. You never start over. You add on.
 
 ## Extend with Enrich and Sheet

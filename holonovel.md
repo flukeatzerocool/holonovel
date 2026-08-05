@@ -1237,6 +1237,52 @@ as accepted limitations with re-activation conditions after 2 cycles without
 improvement. All failures are recorded with their severity classification, the
 diagnostic trail, and the reason further convergence would not help.
 
+### 6.7 Spec-driven updates
+
+When the specification is used to update an existing MCP server -- not the initial
+build, but a revision bringing the server into compliance with spec changes -- the
+following workflow is mandatory:
+
+1. **Full comparison.** Compare every requirement against the server's current
+   implementation. Audit the tool catalog, resource map, prompt list, state model,
+   persona gating, and behavioral contracts (output formats, audit logging,
+   snapshot/undo coverage, error taxonomies, macro expansion). Record every gap as
+   an actionable finding. The comparison must cover full source inspection, not
+   just the tool list.
+
+2. **Plan.** For each gap found, produce a plan identifying affected source files,
+   state types, and OCE scenarios. Plans must call out breaking changes explicitly:
+   persona gating changes, parameter schema expansions, resource URI changes,
+   tool-parameter renames or additions. The plan must itemize all new resources,
+   tools, and prompts that will be added.
+
+3. **Implement.** Apply changes per the plan. Run the server's typecheck and lint
+   gates. Rebuild the server index if discovery artifacts changed.
+
+4. **OCE re-verification.** Run the full OCE suite. Every scenario whose
+   assertions touch a changed tool, resource, state type, or behavioral contract
+   must be triaged and updated before the OCE is considered passing. Scenarios
+   exercising unchanged code may be skipped only if the comparison audit confirms
+   zero intersection. OCE scenarios defined in §6.6 but not yet implemented in
+   the server's OCE script must be implemented as part of the update.
+
+5. **Decisions record.** Update DECISIONS.md with a dated entry recording the spec
+   version, each gap found, its disposition (implemented / deferred / waived with
+   REQ-013 rationale), and the final OCE run result. Accepted limitations carry
+   the same rationale requirements as the initial Build.
+
+**REQ-098 -- Spec-driven update workflow.** When an existing MCP server is updated
+to match changes in this specification, the operator must perform a full comparison
+(tool catalog, resource map, prompt list, state model, persona gating, behavioral
+contracts), produce a documented gap plan identifying all changed files and affected
+OCE scenarios, implement the changes with passing typecheck/lint gates, run the full
+OCE suite with zero failures on changed code paths, implement any unimplemented OCE
+scenarios from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
+
+_Check:_ A dated DECISIONS.md gap-disposition entry exists. The OCE run produces
+zero failures on all scenarios exercising changed code paths. `spec_health` reports
+`last_spec_review` and `last_oce` fields populated with ISO dates.
+
 ---
 
 ## 7. Runtime Conventions
@@ -2198,6 +2244,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-095 | Lore grouping              | T81                            | (today)      |
 | REQ-096 | Lore suggestion            | T82                            | (today)      |
 | REQ-097 | Lore token budget          | T83                            | (today)      |
+| REQ-098 | Spec-driven update workflow | T84                            | (today)      |
 
 ---
 
@@ -2288,6 +2335,7 @@ diet.
 | T81   | Automated | Lore grouping: group 3 entries under "faction", 2 under "locations". Assert `lore://groups` lists both groups with correct members. Assert `lore://groups/faction` lists 3 entry keys. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Verify `persona_briefing` lore section renders grouped entries under `[group: <name>]` headers, ungrouped entries after. Player attempt → `[FORBIDDEN]`. Undo — assert group assignment restored.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-095, REQ-032                            |
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore("crumbling temple")` — assert up to 5 matching templates returned with key, content preview (first 200 chars), triggers, confidence, and source_url. Call without argument in a scene containing matching text — assert same results. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication — every result maps to a stored enrich template. Switch to Player — assert GM-scoped templates excluded. Results are idempotent (same input, same output).                                                                                                                                                                                                                                                                                                                                        | REQ-096, REQ-032, REQ-080                   |
 | T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create 20 lore entries (each ~100 tokens estimated), all triggered. Assert `persona_briefing` lore section includes only the top-priority entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries with current trigger match are included before non-sticky entries regardless of priority. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear (backward-compatible default). One oversized entry permitted per assembly (included rather than truncated).                                                                                                                                                                                                                                                                                                                                                                                    | REQ-097                                     |
+| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_oce` fields populated with ISO dates. Assert the OCE run covers all changed code paths with zero failures on those paths. Assert any unimplemented OCE scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 
 ---
 
