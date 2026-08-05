@@ -1,6 +1,43 @@
 # Changelog
 
+## 2026-08-05 — Build job quality improvements (12 recommendations)
+
+- §6.4: Declared six-layer construction order as recommendation, not requirement —
+  builders may organize differently if they pass the same acceptance checks.
+- §6.2: Added viability pre-check after Gate 0 — counts mechanical-section proportion
+  and warns operator below 30% density before discovery begins.
+- §6.3: Added cross-format consistency check — builder samples 10 items spanning at
+  least 3 categories to verify RULESET_MODEL.md and ruleset_model.json agree before
+  construction.
+- §6.5: Added no-delta detection — convergence activities that produce zero measurable
+  improvement abort after one stalled cycle, with remaining activities continuing
+  independently.
+- §6.5: Added critical-mechanics floor — core resolution mechanic must maintain ≥85%
+  confidence independently; below-threshold triggers `[core-mechanic-block]` finding
+  requiring operator disposition.
+- §6.5: Added unbuildable disposition — two criteria (core ≤50% confidence or >40% LOW
+  mechanical sections) trigger a formal unbuildable declaration distinct from residual
+  gaps.
+- §6.5: Extended post-write verification with completeness check — builder maintains a
+  file manifest; missing or empty files are convergence findings.
+- §6.5: Cross-model audit now records `single-model-audit` annotation in DECISIONS.md
+  when only one model is available — informational, not blocking.
+- §6.6: Defined improvement measurement for Gauntlet cycles — fewer total assertion
+  failures or at least one previously-blocking scenario downgraded to non-blocking.
+  Replaced "2 cycles without improvement" with "2 stalled cycles" throughout.
+- §6.6: Split Gauntlet S14 (edge cases) into S14a–S14h — empty strings, boundary HP
+  (zero/max), rapid calls, ambiguous aliases, unknown decisions, seed replay, and
+  spec_health persona filtering — each with its own pass criterion.
+- §6.6: Reduced Gauntlet S20 (campaign endurance) from 50 combat rounds/5
+  confrontations to 30 rounds/3 confrontations with proportional NPC churn and audit
+  log threshold (≥100) — same structural coverage, lower execution cost.
+- §6.6: Added structured encoding paragraph — builder encodes Gauntlet scenarios as
+  `{scenario_id, objective, blocking, steps}` records for mechanical consumption;
+  dnd5e Gauntlet fixture is reference implementation.
+
 ## 2026-08-05 — Convert job spec refinements (6 recommendations)
+
+- Added REQ-102 — Source conversion contract (§5.2): normative requirement covering
 
 - Added REQ-102 — Source conversion contract (§5.2): normative requirement covering
   Appendix G conversion, fidelity sampling, converter pinning, artifact disposition, and

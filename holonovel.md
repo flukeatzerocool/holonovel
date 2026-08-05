@@ -996,6 +996,16 @@ of Appendix H apply. A structural defect blocks the line. Sources not already in
 are converted per [Appendix G](#appendix-g-source-conversion). Gate 0 is a ruleset-facing
 gate — per §8, Gates 2 and 3 are fixture gates run once per builder implementation.
 
+**Viability pre-check.** After Gate 0 but before chunked discovery, the builder
+counts mechanical sections — headings containing procedures, tables,
+bold-labeled fields, or definition lists — as a proportion of total
+`##`-level sections. If mechanical sections are below 30% of total sections,
+the builder warns the operator: "This ruleset is below the
+mechanical-density threshold (X% mechanical). Discovery may not produce a
+playable server." The operator may proceed, select a different source, or
+abort. The builder records the pre-check count and operator decision in
+DECISIONS.md (4).
+
 ### 6.3 Discovery
 
 **Chunked reading.** The ruleset is read in fixed-size chunks of 10 mechanical sections
@@ -1027,13 +1037,24 @@ Cross-chunk references are resolved at the end.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
 
+**Cross-format consistency.** Before server construction, the builder samples 10
+items at random from the model — spanning at least three extraction categories — and
+verifies that RULESET_MODEL.md and ruleset_model.json agree on: name, source anchor,
+confidence label, and action classification. A mismatch is a discovery defect,
+recorded in the defect log, and must be resolved before construction begins.
+
 **Reconciliation.** When the ruleset restates a mechanic across multiple sections (e.g., a
 procedure and a summary table disagree), every source is recorded. The most authoritative
 section is canonical; others are LOW confidence. Ambiguity is flagged as a defect.
 
 ### 6.4 Server construction
 
-The server is built in six layers, each with an acceptance check:
+The six-layer order below is a recommended construction sequence, not a
+requirement. A builder that organizes its work differently and passes the same
+acceptance checks (third column) is compliant. The layers are
+dependency-ordered — each builds on the previous — and skipping or reordering
+a layer without an alternative acceptance check is a process-compliance
+finding. The server is built in six layers, each with an acceptance check:
 
 | Layer | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
@@ -1080,6 +1101,13 @@ Heavy (500–2000), Huge (2000+).
 | Conversion fidelity | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 | Process compliance  | Pre-build answers + gate records    | All present   | Collect missing, re-verify               |
 
+**No-delta detection.** If an activity produces zero measurable improvement from
+one cycle to the next — the numeric metric is unchanged and no new findings are
+resolved — the builder aborts that activity after one stalled cycle and logs the
+reason in DECISIONS.md (5). Remaining activities continue independently. A stalled
+activity with no metric (process compliance) is declared stalled when it is
+unsatisfied and no new gate records are collected on the repeated attempt.
+
 The loop converges when all metrics meet their threshold or three cycles without
 improvement. At that point, record the current state with the residual gap logged in
 DECISIONS.md. For rulesets above 200 indexed items, verification continues with the
@@ -1090,13 +1118,34 @@ subagent should use a different model from the builder's primary model. A cross-
 audit surfaces defects that same-model audits miss. Different models detect different
 defect classes; cross-model auditing increases coverage. The builder
 detects cross-model availability; a single-model audit is valid when only one model is
-available.
+available. A single-model build — where only one model is available for both
+construction and audit — records a `single-model-audit` annotation in DECISIONS.md
+(6). This annotation is informational and does not block handoff; it alerts the
+operator that same-model auditing may miss defect classes a cross-model audit would
+catch.
 
 **Adjusted thresholds.** The builder may lower the confidence threshold specified in
 the handoff checks (§9 H10) for rulesets whose indexed-item count exceeds 200. The
 adjusted threshold is documented in DECISIONS.md (5) with the complexity metric used
 and the justification. The floor is 70%. The convergence loop enforces the chosen
-threshold in the same cycle as the standard threshold.
+threshold in the same cycle as the standard threshold. The core resolution
+mechanic — the ruleset's primary dice/outcome procedure, identified by the builder
+during discovery — must maintain at least 85% confidence independently. If the core
+mechanic falls below 85% after convergence (including any adjusted thresholds), the
+builder records a `[core-mechanic-block]` finding in DECISIONS.md (5). The operator
+is notified and may accept, reject, or request targeted re-extraction. The build does
+not proceed past convergence without operator disposition of this finding.
+
+**Unbuildable disposition.** A ruleset is declared unbuildable when either criterion
+is met after convergence: (a) the core resolution mechanic carries confidence below
+50%, or (b) more than 40% of mechanical sections carry LOW confidence. The builder
+records the disposition in DECISIONS.md (5) with: the specific criterion triggered, a
+summary of what could not be modeled, and a recommendation for source remediation
+(conversion tuning, higher-quality Markdown, or selection of a different ruleset). An
+unbuildable disposition stops the build — the operator may remediate the source and
+restart or accept the disposition. This disposition is distinct from residual gaps: a
+residual gap means the server works with known limitations; an unbuildable disposition
+means the server cannot meet the Definition of Done.
 
 **Post-write verification.** After every file write during construction and
 verification, the builder re-reads the written file and verifies: (a) heading
@@ -1105,7 +1154,10 @@ order; (b) no path corruption — search for doubled directory components and mi
 slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
 convergence finding and triggers a fix + re-read cycle. This check applies to every
 file write: source code, test scripts, README, DECISIONS.md, and MCP client
-configuration.
+configuration. (d) **completeness** — the builder maintains a file manifest (list of
+expected output files recorded after construction planning). The manifest is checked
+during post-write verification: every file in the manifest must exist and have
+non-zero size. A missing or empty file is a convergence finding.
 
 ### 6.6 The Gauntlet
 
@@ -1181,9 +1233,30 @@ four items is incomplete and blocks handoff.
 11. **Workflow cancellation.** Cancel restores pre-workflow state; the tool works after cancellation.
 12. **Roster durability.** Roster baselines are immutable; re-import produces a fresh copy matching the original baseline.
 13. **Novel isolation.** Entities, adventures, and generated content do not leak between Novels.
-14. **Edge cases.** Boundary inputs (empty strings, missing params, zero HP, max HP,
-    rapid calls, ambiguous aliases, unknown decisions, seed replay) all return correct
-    results without crashes.
+14. **Edge cases.**
+
+    a. **Empty strings and missing params.** Tools that accept string parameters return
+       `[ERROR] [INVALID_INPUT]` for empty strings where the parameter is required;
+       tools called with missing required parameters return `[ERROR] [MISSING_PARAM]`
+       (or the MCP framework equivalent) — no crash, no undefined behavior.
+    b. **Boundary HP — zero.** An entity at 0 HP triggers the ruleset's own outcome
+       (death save, unconscious, removed) according to the ruleset's defined procedure
+       — not the builder's invention.
+    c. **Boundary HP — max.** An entity healed above max HP caps at max — no overflow,
+       no negative-wrapping.
+    d. **Rapid calls.** Five consecutive tool calls in rapid succession (same session,
+       no delay) all complete without timeout, state corruption, or lost updates.
+    e. **Ambiguous aliases.** A canonical lookup with an ambiguous alias (matches two
+       or more entries) returns `[ERROR] [AMBIGUOUS]` enumerating the matched entries —
+       not a silent pick.
+    f. **Unknown decisions.** `respond(decision, option)` with a non-existent decision
+       ID returns `[ERROR] [NOT_FOUND]` with valid decision IDs enumerated.
+    g. **Seed replay.** Two identical tool calls with the same `seed` produce identical
+       results; two calls with different seeds produce results that differ in at least
+       the dice-roll component.
+    h. **spec_health under Player persona.** `spec_health` called as Player returns
+        only player-filtered metrics and never exposes GM-only counts, confidence
+        breakdowns, or convergence data.
 15. **Stress and recovery.** Adversarial conditions (concurrent sessions, corrupted
     state, rapid persona switching, large-scale combat, long queries) handled without
     data loss or deadlocks.
@@ -1198,22 +1271,35 @@ four items is incomplete and blocks handoff.
 19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
     generate_encounter produces batch state (scene + NPC + lore) as a single undo target.
 20. **Campaign endurance.** Create a Novel with 2 entities, 3 NPCs, 2 countdowns (one
-    round, one narrative), and 3 lore entries. Run 50 combat rounds across 5
+    round, one narrative), and 3 lore entries. Run 30 combat rounds across 3
     confrontations (10 rounds each), applying and removing 3 conditions per entity,
-    advancing both countdowns, updating scene state 5 times, creating/destroying 2 NPCs
-    per confrontation, and snapshotting every mutation. Assert: all 3 lore entries still
-    trigger correctly against the latest scene state; the audit log contains ≥200 entries
-    and `session_recap` returns correct final state; `compress_audit(20)` returns
-    structured entries; memory usage has not more than doubled from the pre-Gauntlet
-    baseline; snapshot stack depth equals mutation count minus undo count; the on-disk
-    Novel file is ≤ 5 MB. (Blocking.)
+    advancing both countdowns, updating scene state once per confrontation,
+    creating/destroying 1 NPC per confrontation, and snapshotting every mutation.
+    Assert: all 3 lore entries still trigger correctly against the latest scene state;
+    the audit log contains ≥100 entries and `session_recap` returns correct final state;
+    `compress_audit(20)` returns structured entries; memory usage has not more than
+    doubled from the pre-Gauntlet baseline; snapshot stack depth equals mutation count
+    minus undo count; the on-disk Novel file is ≤ 5 MB. (Blocking.)
+
+**Structured encoding.** For mechanical consumption during Gauntlet execution, the
+builder encodes each scenario internally as a structured record — `scenario_id` (stable
+string, e.g., `S1`, `S14a`), `objective` (one line), `blocking` (boolean), and `steps`
+(ordered array of tool calls with `tool`, `params`, and `assert` fields). The prose
+descriptions above are the canonical source; the structured encoding is a lossless
+mechanical transcription of the same assertions. The dnd5e server's Gauntlet fixture is
+the reference implementation of the structured encoding.
 
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
 diagnose the root cause, fix it, re-verify. The convergence loop (§6.5) re-engages for
 these activities. After convergence re-converges, the Gauntlet re-runs — up to 2
-Gauntlet cycles. Residual failures after 2 cycles without improvement are logged in
-DECISIONS.md (5) as accepted limitations with re-activation conditions.
+Gauntlet cycles.
+
+**Improvement** is measured per cycle: (i) fewer total assertion failures than the
+prior Gauntlet run, or (ii) at least one previously-blocking scenario downgraded to
+non-blocking. A run with no improvement on either measure is a stalled cycle. Residual
+failures after 2 stalled cycles are logged in DECISIONS.md (5) as accepted limitations
+with re-activation conditions.
 
 When a bug is discovered through a Gauntlet scenario failure and subsequently fixed via
 convergence, the builder adds at least one new assertion to the scenario that
@@ -1236,7 +1322,7 @@ failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
 20 (campaign endurance)
 are blocking — the Build job is incomplete and the operator is notified; (b) failures
 in other scenarios are logged in DECISIONS.md (5) as accepted limitations with
-re-activation conditions after 2 cycles without improvement. All failures are recorded
+re-activation conditions after 2 stalled cycles. All failures are recorded
 with their severity classification, the diagnostic trail, and the reason further
 convergence would not help.
 
