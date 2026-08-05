@@ -385,7 +385,7 @@ Holonovel/
 
 ## Stay Updated
 
-Subscribe to the [RSS feed](https://git.gay/flukeairwalker/Holonovel.rss)
+Subscribe to the [RSS feed](https://git.gay/flukeatzerocool/Holonovel)
 for changelog updates as they land.
 
 ## License
