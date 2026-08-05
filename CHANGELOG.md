@@ -20,6 +20,13 @@ new tools, four new REQ blocks, five new tests — all backward-compatible.
   group headers, and budget overflow notes.
 - Five new automated tests (T79–T83).
 - README: lorebook export demo quote added to "Playing a Novel" section.
+- Spec: new §6.7 "Spec-driven updates" with REQ-098 — mandates formal
+  workflow when using the spec to update an existing MCP server: full
+  comparison audit, gap plan, OCE re-verification with zero failures on
+  changed code paths, dated DECISIONS.md record.
+- New test T84 (Manual, process artifact verification).
+- README: "Rebuild against a newer spec" section references formal §6.7
+  update workflow.
 
 ## 2026-08-05 — dnd5e v1.3 Novel migration + OCE re-verification requirement
 
