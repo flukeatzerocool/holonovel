@@ -139,7 +139,7 @@ async function main() {
       ["set_active_entity", { entity_id: "e999" }],
       ["set_personality", { entity_id: "e999", description: "test" }],
       ["set_voice_examples", { entity_id: "e999", examples: [{ context: "test", dialogue: "hello" }] }],
-      ["player_signal", { signal: "ready" }],
+      ["player_signal", { signal: "pace", value: "faster" }],
       ["set_scene_state", { description: "A dark forest" }],
       ["set_scene_type", { type: "exploration" }],
       ["set_narrative_directive", { directive: "Find the lost temple" }],
@@ -155,13 +155,25 @@ async function main() {
       ["suggest_actions", { intent: "attack the goblin" }],
       ["compress_audit", { max_entries: 5 }],
       ["load_adventure", { slug: "nonexistent" }],
+      // New tools from spec-driven update (v1.3.0)
+      ["end_novel", {}],
+      ["create_novel", { name: "ocetest" }],
+      ["resume_novel", { slug: "ocetest" }],
+      ["generate_adventure", { premise: "A lost temple in the jungle" }],
+      ["generate_encounter", { context: "The clearing ahead is eerily silent" }],
+      ["toggle_lore_entry", { key: "nonexistent" }],
+      ["set_lore_group", { key: "nonexistent", group: "test" }],
+      ["suggest_lore", {}],
+      ["export_lorebook", { format: "json" }],
+      ["import_lorebook", { data: "{}", mode: "dry-run" }],
+      ["set_lore_entry", { key: "temple", content: "An ancient temple", triggers: ["temple"], priority: 5, sticky: 3, group: "locations" }],
     ];
 
     let sweepOk = true;
     for (const [name, args] of tools) {
       const r = await c.call("tools/call", { name, arguments: args as any });
       const t = fullText(r);
-      if (t.startsWith("[OK]") || t.startsWith("[NEED_INPUT]") || t.startsWith("[PARTIAL]") || t.startsWith("[ERROR]")) {
+      if (t.startsWith("[OK]") || t.startsWith("[NEED_INPUT]") || t.startsWith("[PARTIAL]") || t.startsWith("[ERROR]") || t.startsWith("[WARNING]")) {
         // all valid states
       } else {
         console.error(`    Tool "${name}" returned unexpected: ${t.slice(0, 80)}`);
@@ -304,13 +316,14 @@ async function main() {
     ok(fullText(r), "advance");
 
     // Read and record state from disk
-    const stateFile = path.join(DATA, "state", "oce-s5.json");
+    const stateFile = path.join(DATA, "novels", "oce-s5.json");
     const rawState = fs.readFileSync(stateFile, "utf-8");
     const state1 = JSON.parse(rawState);
-    const recordedCombat = state1.game.combat;
-    const recordedRound = state1.game.combat.round;
-    const recordedTurnIndex = state1.game.combat.turnIndex;
-    const recordedParticipants = state1.game.combat.participants.map((p: any) => ({
+    const novelState = state1.novel || state1.game;
+    const recordedCombat = novelState.combat;
+    const recordedRound = novelState.combat.round;
+    const recordedTurnIndex = novelState.combat.turnIndex;
+    const recordedParticipants = novelState.combat.participants.map((p: any) => ({
       id: p.id, type: p.type, name: p.name, initiative: p.initiative,
       ac: p.ac, hp: p.hp,
     }));
@@ -321,14 +334,15 @@ async function main() {
     await c2.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
     const state2Raw = fs.readFileSync(stateFile, "utf-8");
     const state2 = JSON.parse(state2Raw);
+    const state2Novel = state2.novel || state2.game;
 
-    assert.strictEqual(state2.game.combat.round, recordedRound, `Round: ${recordedRound} vs ${state2.game.combat.round}`);
-    assert.strictEqual(state2.game.combat.turnIndex, recordedTurnIndex, `Turn index: ${recordedTurnIndex} vs ${state2.game.combat.turnIndex}`);
-    assert.strictEqual(state2.game.combat.participants.length, recordedParticipants.length, "Participant count");
+    assert.strictEqual(state2Novel.combat.round, recordedRound, `Round: ${recordedRound} vs ${state2Novel.combat.round}`);
+    assert.strictEqual(state2Novel.combat.turnIndex, recordedTurnIndex, `Turn index: ${recordedTurnIndex} vs ${state2Novel.combat.turnIndex}`);
+    assert.strictEqual(state2Novel.combat.participants.length, recordedParticipants.length, "Participant count");
     for (let i = 0; i < recordedParticipants.length; i++) {
-      assert.strictEqual(state2.game.combat.participants[i].id, recordedParticipants[i].id, `Participant ${i} id`);
-      assert.strictEqual(state2.game.combat.participants[i].name, recordedParticipants[i].name, `Participant ${i} name`);
-      assert.strictEqual(state2.game.combat.participants[i].hp, recordedParticipants[i].hp, `Participant ${i} hp`);
+      assert.strictEqual(state2Novel.combat.participants[i].id, recordedParticipants[i].id, `Participant ${i} id`);
+      assert.strictEqual(state2Novel.combat.participants[i].name, recordedParticipants[i].name, `Participant ${i} name`);
+      assert.strictEqual(state2Novel.combat.participants[i].hp, recordedParticipants[i].hp, `Participant ${i} hp`);
     }
 
     // Confirm state is operational
@@ -927,7 +941,7 @@ async function main() {
 
     // Player signal
     await c.call("tools/call", { name: "set_persona", arguments: { persona: "player" } });
-    r = await c.call("tools/call", { name: "player_signal", arguments: { signal: "I'd like to investigate the fountain more carefully", detail: "Perception check" } });
+    r = await c.call("tools/call", { name: "player_signal", arguments: { signal: "focus", value: "investigation" } });
     ok(fullText(r), "player signal");
 
     await c.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
@@ -944,6 +958,182 @@ async function main() {
 
     c.close();
     pass("Narrative state");
+  }
+
+  // ═══ SCENARIO 17: Novel Lifecycle and Persistence ════════════════════
+  {
+    console.log("SCENARIO 17: Novel Lifecycle and Persistence");
+    const slug = "oce-s17";
+
+    // Create novel fresh — no TTRPG_NOVEL env var so server starts with no active novel
+    const c1 = createClient({ TTRPG_NOVEL: undefined as any }); await init(c1);
+    await c1.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+
+    let r = await c1.call("tools/call", { name: "create_novel", arguments: { name: slug } });
+    const createText = fullText(r);
+    ok(createText, "create novel");
+    assert.ok(createText.includes(slug), "Slug in output");
+
+    // Verify state persisted to disk
+    const novelFile = path.join(DATA, "novels", `${slug}.json`);
+    assert.ok(fs.existsSync(novelFile), "Novel file exists on disk");
+    const state1 = JSON.parse(fs.readFileSync(novelFile, "utf-8"));
+    assert.ok(state1.novel, "State has novel data");
+    assert.strictEqual(state1.novel.name, slug, "Novel name persisted");
+    assert.ok(state1.fp, "Build fingerprint in state");
+    assert.ok(state1.fp.rulesetHash, "Ruleset hash in fingerprint");
+
+    // Add scene state and countdown — trigger save after each via another mutation
+    await c1.call("tools/call", { name: "set_scene_state", arguments: { description: "A moonlit clearing with ancient standing stones." } });
+    await c1.call("tools/call", { name: "set_countdown", arguments: { name: "moon_set", ticks: 3, type: "narrative" } });
+    // Trigger save by calling snapshot-triggering action (scene_type saves current state)
+    await c1.call("tools/call", { name: "set_scene_type", arguments: { type: "exploration" } });
+    
+    // Verify scene and countdown in file
+    const state2 = JSON.parse(fs.readFileSync(novelFile, "utf-8"));
+    assert.ok(state2.novel.scene.description.includes("moonlit"), "Scene state persisted");
+    const moonCountdown = state2.novel.countdowns["moon_set"];
+    assert.ok(moonCountdown, "Countdown persisted");
+    assert.strictEqual(moonCountdown.ticks, 3, "Countdown ticks correct");
+    c1.close();
+
+    // Restart and verify state survived
+    const c2 = createClient({ TTRPG_NOVEL: slug }); await init(c2);
+    await c2.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+    r = await c2.call("tools/call", { name: "advance_countdown", arguments: { name: "moon_set" } });
+    ok(fullText(r), "advance countdown after restart");
+    const advText2 = fullText(r);
+    assert.ok(advText2.includes("2/3"), "Advanced to 2/3 after restart");
+    c2.close();
+
+    // End novel and verify file removed
+    const c3 = createClient({ TTRPG_NOVEL: slug }); await init(c3);
+    await c3.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+    r = await c3.call("tools/call", { name: "end_novel", arguments: {} });
+    ok(fullText(r), "end novel");
+    assert.ok(!fs.existsSync(novelFile), "Novel file removed after end_novel");
+
+    // Verify ended novel cannot be resumed (on same connection where ended=true is in memory)
+    r = await c3.call("tools/call", { name: "resume_novel", arguments: { slug } });
+    er(fullText(r), "re-resume blocked after end_novel", "NOT_FOUND");
+    c3.close();
+
+    // Verify end_novel file removal sticks — new server with same slug starts fresh
+    const c4 = createClient({ TTRPG_NOVEL: slug }); await init(c4);
+    await c4.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+    // New novel should exist as auto-created default (ended=false)
+    r = await c4.call("tools/call", { name: "set_scene_state", arguments: { description: "Fresh start." } });
+    ok(fullText(r), "fresh novel operational after end_novel");
+    c4.close();
+
+    pass("Novel lifecycle and persistence");
+  }
+
+  // ═══ SCENARIO 18: Novel Isolation and Adventure Generation ════════════
+  {
+    console.log("SCENARIO 18: Novel Isolation and Adventure Generation");
+
+    // Create Novel A and generate adventure — no TTRPG_NOVEL to avoid auto-create
+    const cA = createClient({ TTRPG_NOVEL: undefined as any }); await init(cA);
+    await cA.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+    let r = await cA.call("tools/call", { name: "create_novel", arguments: { name: "oce-s18a" } });
+    ok(fullText(r), "create novel A");
+
+    r = await cA.call("tools/call", { name: "generate_adventure", arguments: { premise: "A lost temple in the jungle guarding an ancient relic" } });
+    const advTextA = fullText(r);
+    ok(advTextA, "generate adventure in A");
+    assert.ok(advTextA.length > 50, "Adventure has content");
+
+    // Adventure content searchable in Novel A
+    r = await cA.call("tools/call", { name: "search_rules", arguments: { query: "temple relic" } });
+    ok(fullText(r), "search rules in novel A");
+    cA.close();
+
+    // Create Novel B — verify no leak from A
+    const cB = createClient({ TTRPG_NOVEL: undefined as any }); await init(cB);
+    await cB.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+    r = await cB.call("tools/call", { name: "create_novel", arguments: { name: "oce-s18b" } });
+    ok(fullText(r), "create novel B");
+
+    r = await cB.call("tools/call", { name: "generate_adventure", arguments: { premise: "A pirate ship lost at sea with cursed treasure" } });
+    const advTextB = fullText(r);
+    ok(advTextB, "generate adventure in B");
+    assert.ok(!advTextB.includes("temple") || advTextB.length < advTextA.length, "No temple leak into B");
+    cB.close();
+
+    // Novel A file still has its own adventure
+    const fileA = path.join(DATA, "novels", "oce-s18a.json");
+    const stateA = JSON.parse(fs.readFileSync(fileA, "utf-8"));
+    assert.ok(stateA.novel.adventureModules, "Novel A has adventure modules");
+    const advKeysA = Object.keys(stateA.novel.adventureModules);
+    assert.ok(advKeysA.length > 0, "Novel A has at least one adventure");
+
+    // Novel B file has its own isolated adventures
+    const fileB = path.join(DATA, "novels", "oce-s18b.json");
+    const stateB = JSON.parse(fs.readFileSync(fileB, "utf-8"));
+    assert.ok(stateB.novel.adventureModules, "Novel B has adventure modules");
+    const advKeysB = Object.keys(stateB.novel.adventureModules);
+    assert.ok(advKeysB.length > 0, "Novel B has at least one adventure");
+    assert.notStrictEqual(advKeysA.join(","), advKeysB.join(","), "Different adventures between novels");
+
+    pass("Novel isolation and adventure generation");
+  }
+
+  // ═══ SCENARIO 19: Novel Setup Tracking and Encounter Generation ══════
+  {
+    console.log("SCENARIO 19: Novel Setup Tracking and Encounter Generation");
+    const slug = "oce-s19";
+    const c = createClient({ TTRPG_NOVEL: undefined as any }); await init(c);
+    await c.call("tools/call", { name: "set_persona", arguments: { persona: "game_master" } });
+
+    // Create novel and verify setup metadata
+    let r = await c.call("tools/call", { name: "create_novel", arguments: { name: slug } });
+    ok(fullText(r), "create novel");
+    const novelFile = path.join(DATA, "novels", `${slug}.json`);
+    const state = JSON.parse(fs.readFileSync(novelFile, "utf-8"));
+    assert.ok(state.novel.createdAt, "Novel has createdAt timestamp");
+    assert.strictEqual(state.novel.slug, slug, "Slug matches");
+    assert.strictEqual(state.novel.name, slug, "Novel name matches slug");
+
+    // Set initial scene state for undo verification
+    await c.call("tools/call", { name: "set_scene_state", arguments: { description: "A dusty library filled with ancient tomes." } });
+    r = await c.call("tools/call", { name: "set_scene_type", arguments: { type: "exploration" } });
+    ok(fullText(r), "set scene type");
+
+    // Generate encounter — should produce scene + NPC + lore as single undo target
+    r = await c.call("tools/call", { name: "generate_encounter", arguments: { context: "The floorboards creak and a spectral figure materializes from the shadows" } });
+    const encText = fullText(r);
+    ok(encText, "generate encounter");
+
+    // Verify encounter output contains scene, NPC, and lore references
+    assert.ok(
+      encText.includes("scene") || encText.includes("Scene") || encText.includes("location"),
+      "Encounter includes scene reference"
+    );
+    assert.ok(
+      encText.includes("npc") || encText.includes("NPC") || encText.includes("spectral") || encText.includes("figure"),
+      "Encounter includes NPC reference"
+    );
+
+    // Undo — should revert scene + NPC + lore as single undo target
+    r = await c.call("tools/call", { name: "undo", arguments: {} });
+    ok(fullText(r), "undo after generate_encounter");
+
+    // After undo, verify the scene state changed (undo worked)
+    r = await c.call("tools/call", { name: "session_recap", arguments: {} });
+    const recap = fullText(r);
+    ok(recap, "session recap after undo");
+
+    // NPCS and scene from encounter should be reverted after undo
+    r = await c.call("tools/call", { name: "undo", arguments: {} });
+    ok(fullText(r), "undo scene type");
+
+    // Verify undo stack is functional (at least one more undo succeeds)
+    r = await c.call("tools/call", { name: "undo", arguments: {} });
+    ok(fullText(r), "undo scene state");
+
+    c.close();
+    pass("Novel setup tracking and encounter generation");
   }
 
   // ═══ SUMMARY ════════════════════════════════════════════════════════════

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-05 — dnd5e REQ-098 update + Gauntlet (Build, Enrich, Sheet)
+
+- dnd5e v1.3.0: 14 gap dispositions resolved across Build, Enrich, and Sheet
+  jobs. Core fixes — `[WARNING]`/`[PARTIAL]`/`[RULE_VIOLATION]`/`[UNIMPLEMENTED]`
+  error categories, macro expansion system (`src/macros.ts`), 14 new resources,
+  11 new tools, enriched `spec_health` with fingerprint fields and novel listing.
+- Enrich job (`src/enrichment.ts`): 5 voice examples, 10 lore templates,
+  10 action patterns, 20 guidance items, 11 adventure advice items.
+- Gauntlet: all 19 scenarios pass (was 16). S17 (novel lifecycle), S18 (novel
+  isolation), and S19 (setup/encounters) implemented. S1 sweep covers 54 tools.
+  All 7 blocking scenarios pass.
+- §6.6: Added verification principle — Gauntlet scenarios verify state through
+  tool-observable surfaces, not raw state file reads. Gate 4 tests the on-disk
+  format; Gate 5 tests observable behavior. S5 and S17 clarified; T72 tagged as
+  Gate 4 format test with cross-reference to the verification principle.
+
 ## 2026-08-05 — v1.4 "Gauntlet"
 
 - OCE (Operational Confidence Exercise) renamed to "The Gauntlet" across the

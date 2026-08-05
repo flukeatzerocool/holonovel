@@ -948,6 +948,16 @@ respond to decisions) and GM adjudication (when to escalate, how to narrate
 outcomes). Every scenario states its objective, the tool calls to make, and the pass
 criterion.
 
+**Verification principle.** Gauntlet scenarios verify state through tool-observable
+surfaces — `character_sheet`, `session_recap`, `spec_health`, `persona_briefing`,
+tool output — where the same assertion can be expressed through a tool call. The
+on-disk state format is tested by Gate 4 (Appendix F derived tests, T72/T77) and
+is an implementation detail. A Gauntlet scenario that reads raw state files to
+verify behavior observable through tools will become stale when the state model
+changes during a spec-driven update (REQ-098). Direct file reads remain valid in
+S17 (file removal) and S15 (corruption) where the pass criterion is a
+file-system-level assertion.
+
 **Scenarios.** The builder must execute all scenarios. A scenario passes when every
 assertion in its pass criterion holds. A failure is recorded as a finding in
 DECISIONS.md (6).
@@ -967,7 +977,9 @@ four items is incomplete and blocks handoff.
    condition effects, round advancement — produces correct results over at least 3 rounds
    with deterministic seeds.
 5. **Combat state survival.** Combat state (HP, conditions, round counter, turn order)
-   is restored identically after server restart.
+   is restored identically after server restart. Verified through tool-observable
+   state: `character_sheet`, `session_recap`, or `persona_briefing` must report
+   the same HP, conditions, round, and turn order after restart as before.
 6. **Cross-persona boundary enforcement.** GM-only tools are blocked from Player persona
    and succeed for Game Master; no GM-only content leaks to Player-visible surfaces.
 7. **Table generation sweep.** Every generation table produces valid results matching
@@ -991,7 +1003,9 @@ four items is incomplete and blocks handoff.
 16. **Narrative state.** Scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
 17. **Novel lifecycle and persistence.** Novel create/resume/end cycle works; state
     persists to disk and restores after restart; end_novel removes file; ended Novel
-    cannot be resumed.
+    cannot be resumed. A server started with `TTRPG_NOVEL` set auto-loads or
+    auto-creates the Novel before any tool call — `create_novel` with a matching
+    slug returns `[STATE_CONFLICT]`.
 18. **Novel isolation and adventure generation.** Generated adventures are Novel-scoped,
     persona-filtered, searchable, and regeneratable.
 19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
@@ -2016,7 +2030,7 @@ diet.
 | T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
 | T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains exactly 3 formatted audit entries with summarization instructions. Switch to Player persona — assert only own-entity entries visible. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                            | REQ-086, REQ-032, REQ-040                   |
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `persona_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
-| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
+| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (Gate 4). Gauntlet scenarios (Gate 5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
 | T73   | Automated | Novel isolation: create Novel A with entities. Create Novel B — assert Novel A's entities not visible via `entities://`. Resume Novel A — assert entities restored. Generated adventure content scoped to the Novel that generated it.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-088, REQ-074, REQ-090                   |
 | T74   | Manual   | Novel setup: invoke `novel_setup` prompt on a fresh Novel. Assert output lists the setup checklist, available roster characters, indexed adventures, and generation tools. Create a character — assert "characters_present" step marked complete. Load an adventure — assert "adventure_set" step marked complete. Verify metadata in `persona_briefing` under `novel` token.                                                                                                                                                                                                                                                                                                                            | REQ-089                                     |
 | T75   | Automated | Adventure generation: call `generate_adventure("A haunted space station")`. Assert output contains title, Overview (GM-only), Adventure Hook, 2–6 locations, NPC entries. Assert generated content retrievable at `adventure://<slug>/<anchor>`. Assert GM-only sections hidden from Player. Assert appears in `search_rules` results. Regenerate — assert old content replaced.                                                                                                                                                                                                                                                                                                                       | REQ-090, REQ-032                            |

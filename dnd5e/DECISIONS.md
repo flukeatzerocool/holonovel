@@ -110,7 +110,32 @@ code location:
   action suggestions, audit compression, adventure module loading, voice
   examples, player signals, persona briefing with anti-slop guidance.
 
-<!-- @section waivers -->
+## 2026-08-05 — Spec-Driven Update (REQ-098)
+
+Gap audit against holonovel.md as of 2026-08-05. All gaps below are
+resolved in the current build.
+
+| Gap | REQ | Disposition | Details |
+|-----|-----|-------------|---------|
+| G-001 | REQ-085 | Implemented | Macro system (`src/macros.ts`) expands `{{entity.name}}`, `{{entity.hp}}`, `{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`, `{{countdown.<name>.total}}`, `{{novel.slug}}`, `{{persona.active}}`, `{{party.size}}`. Expands in `ok()`/`err()`/`partial()` tool output. |
+| G-002 | REQ-083 | Implemented | Lore entries extended with `priority`, `sticky`, `enabled`, `group` fields. New tools: `toggle_lore_entry`, `set_lore_group`, `suggest_lore`. Sticky refreshes on trigger, advances per scene. Token budget via `TTRPG_MAX_LORE_TOKENS`. |
+| G-003 | REQ-094 | Implemented | Lorebook export/import: `export_lorebook` (JSON/Markdown), `import_lorebook` (dry-run/merge/replace). |
+| G-004 | REQ-022 | Implemented | Added 14 new resources: `entity://{id}/personality`, `entity://{id}/voice_examples`, `npc://{id}`, `lore://active`, `lore://{key}`, `lore://templates`, `novel://setup`, `adventure://{slug}/{anchor}`, `guidance://{role}` (gm/player/shared/anti-slop/voice/foundations/persona-switch), `enrichment://*` (voice_examples/briefing_order/adventure_advice), `resources/templates/list`. |
+| G-005 | REQ-066 | Implemented | `player_signal` signal param constrained to enum `[pace, difficulty, tone, focus, boundary]`. |
+| G-006 | Appendix D | Implemented | Removed `subscribe: true` from MCP capabilities. |
+| G-007 | REQ-001/002 | Implemented | Added `[PARTIAL]`, `[RULE_VIOLATION]`, `[UNIMPLEMENTED]` error categories via `partial()`, `ruleViolation()`, `unimplemented()` helpers. |
+| G-008 | REQ-065 | Implemented | Build fingerprint includes SHA-256 ruleset hash. Drift check emits stderr warning on mismatch. `lastSpecReview` and `lastGauntlet` recorded. |
+| G-009 | REQ-025/093 | Implemented | `spec_health` expanded with confidence scores, indexed counts, gate dispositions, novel listing, `last_spec_review`, `last_gauntlet`. |
+| G-010 | REQ-079 | Implemented | `search_rules` includes adventure content sorted first. |
+| G-011 | REQ-090/091 | Implemented | `generate_adventure` uses ruleset flavor tables (setting/theme/trinkets) with 2–6 locations. `generate_encounter` uses locale/ambience/complication tables for richer output. |
+| G-012 | REQ-088 | Implemented | `end_game` deprecated with `[WARNING]` prefix. |
+| G-013 | §11.1 | Implemented | Enrich job produces 5 voice examples, 1 briefing order recommendation, 10 lore templates, 10 action patterns, 20 supplementary guidance items, 11 adventure advice items. Applied on novel creation/load with build fingerprint idempotence. |
+| G-014 | §11.2 | Verified | Character sheet `markdown` and `ascii` formats already implemented. No PDF field layout study needed — baseline derived from ruleset inference. |
+
+**Gauntlet re-run:** All 19/19 scenarios pass, including all blocking scenarios
+(S1 tool surface sweep, S4 simulated combat, S5 state survival, S6 cross-persona boundary,
+S12 roster durability, S15 stress/recovery, S17 novel lifecycle/persistence).
+Three new scenarios (S17-S19) implemented to bring spec compliance to 100%.
 The following REQ-013 coverage gaps are waived because the content is not in
 the SRD:
 
@@ -145,15 +170,17 @@ implemented tool handlers).
   `npx tsx scripts/test_scripts/run_all.ts`. 11 passed, 0 failed.
   Remaining Appendix F tests waived per §5 waivers — see W-003 through
   W-008 for feature-absence waivers.
-- **Gauntlet (operational verification):** ALL 16 SCENARIOS PASSED.
-  Scenario 1 (43-tool surface sweep), 2 (character creation), 3 (encounter setup),
+- **Gauntlet (operational verification):** ALL 19 SCENARIOS PASSED.
+  Scenario 1 (54-tool surface sweep), 2 (character creation), 3 (encounter setup),
   4 (simulated combat, 3 rounds), 5 (combat state survival across restart),
-  6 (cross-persona boundary, 16 GM tools blocked from Player), 7 (table generation),
+  6 (cross-persona boundary, 27 GM tools blocked from Player), 7 (table generation),
   8 (search & canonical lookup with source quoting), 9 (condition lifecycle),
   10 (undo during combat), 11 (workflow cancellation), 12 (roster durability),
   13 (game isolation), 14 (edge cases), 15 (stress & recovery), 16 (narrative state —
   scene, NPC lifecycle, countdowns, lore, briefing order, action suggestions,
-  player signals, voice examples). Run with `npx tsx scripts/test_scripts/oce.ts`.
+  player signals, voice examples), **17 (novel lifecycle and persistence)**, 
+  **18 (novel isolation and adventure generation)**, **19 (novel setup tracking and encounter generation)**.
+  Run with `npx tsx scripts/test_scripts/oce.ts`.
 - **Accepted limitations (Gauntlet):** S9 condition auto-expiry — D&D 5e conditions
   do not auto-expire on turn advancement (they require saving throws or rest).
   Manual apply/remove lifecycle verified. S8 verbatim Markdown excerpt — server

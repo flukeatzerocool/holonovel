@@ -3,6 +3,8 @@ import { PRNG } from "./dice.js";
 import { AbilityScore, CLASS_NAMES, ClassName } from "./data.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
+import { applyEnrichment } from "./enrichment.js";
 
 export interface DnDEntity {
   id: string;
@@ -83,6 +85,11 @@ export interface LoreEntry {
   content: string;
   triggers: string[];
   persona_scope: "game_master" | "shared";
+  priority?: number;
+  sticky?: number;          // Remaining scenes to persist without trigger
+  stickyMax?: number;        // Original sticky duration
+  enabled?: boolean;         // Default true
+  group?: string;            // Group name
 }
 
 export interface SceneState {
@@ -96,7 +103,7 @@ export interface EnrichmentRecord {
   quoted_excerpt: string;
   persona_scope: "game_master" | "shared" | "player";
   confidence: "HIGH" | "MEDIUM" | "LOW";
-  output_module: "voice_examples" | "briefing_order" | "lore_templates" | "action_patterns" | "supplementary_guidance";
+  output_module: "voice_examples" | "briefing_order" | "lore_templates" | "action_patterns" | "supplementary_guidance" | "adventure_advice";
 }
 
 export interface AdventureState {
@@ -108,6 +115,9 @@ export interface AdventureState {
 export interface BuildFingerprint {
   specVersion: string;
   buildTimestamp: string;
+  rulesetHash: string;
+  lastSpecReview?: string;
+  lastGauntlet?: string;
 }
 
 export interface NovelState {
@@ -195,7 +205,7 @@ export class StateManager {
   public corruptStates: string[] = [];
   private entityCounter = 0;
   private npcCounter = 0;
-  public buildFingerprint: BuildFingerprint = { specVersion: "1.3.0", buildTimestamp: new Date().toISOString() };
+  public buildFingerprint: BuildFingerprint = { specVersion: "1.3.0", buildTimestamp: new Date().toISOString(), rulesetHash: "unknown" };
   public _systemAdventures: Record<string, AdventureState> = {};
 
   get activeNovelSlug(): string | null { return this._activeNovelSlug; }
@@ -228,6 +238,8 @@ export class StateManager {
       this._novels[novelSlug].slug = novelSlug;
       this._novels[novelSlug].name = name || novelSlug;
       this._novels[novelSlug].createdAt = new Date().toISOString();
+      // Apply enrichment to new novels
+      applyEnrichment(this._novels[novelSlug], this.buildFingerprint.rulesetHash);
     }
     return this._novels[novelSlug];
   }
@@ -269,11 +281,41 @@ export class StateManager {
   generateAdventure(premise: string): AdventureState {
     const slug = premise.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
     const title = premise.slice(0, 80);
+
+    // Use ruleset tables for flavor
+    const trinkets = ["A mummified goblin hand", "A piece of crystal that faintly glows", "A brass orb etched with strange runes", "A silver skull with a dark patina", "A tiny mechanical spider", "A glass sphere filled with moving fog", "A 1-pound egg with a bright red shell"];
+    const settings = ["dungeon", "wilderness", "urban", "coastal", "mountain", "underdark", "feywild"];
+    const themes = ["mystery", "revenge", "protection", "recovery", "exploration", "survival"];
+
+    const rng = this.prng;
+    const pick = <T>(arr: T[]): T => arr[Math.floor(rng.next() * arr.length)];
+    const count = 2 + Math.floor(rng.next() * 5); // 2–6 locations
+    const setting = pick(settings);
+    const theme = pick(themes);
+    const reward = pick(trinkets);
+
     const sections = [
-      { anchor: `${slug}-overview`, title: "Overview", gm_only: true, content: `# ${title}\n\n**Premise:** ${premise}\n\nDetailed adventure content generated from premise.` },
-      { anchor: `${slug}-hook`, title: "Adventure Hook", gm_only: false, content: "## Adventure Hook\n\nThe party is drawn into the story by..." },
-      { anchor: `${slug}-locations`, title: "Locations", gm_only: true, content: "## Locations\n\nKey locations and their descriptions." },
+      { anchor: `${slug}-overview`, title: "Overview", gm_only: true, content: `# ${title}\n\n**Premise:** ${premise}\n\n**Setting:** ${setting} | **Theme:** ${theme}\n\n**Reward Hook:** ${reward}\n\nDetailed adventure content generated from premise. Populate locations, NPCs, encounters, and challenges using the ruleset tables and tools.` },
+      { anchor: `${slug}-hook`, title: "Adventure Hook", gm_only: false, content: `## Adventure Hook\n\n${premise}\n\nThe party is drawn into the story, with the promise of ${reward} as a potential reward.` },
     ];
+
+    for (let i = 0; i < count; i++) {
+      const flavor = pick(trinkets);
+      sections.push({
+        anchor: `${slug}-location-${i + 1}`,
+        title: `Location ${i + 1}`,
+        gm_only: i % 2 === 0,
+        content: `## Location ${i + 1}: ${flavor}\n\nA key location within the adventure. Features environmental details, potential encounters, and narrative connections to the overall story.`
+      });
+    }
+
+    sections.push({
+      anchor: `${slug}-npcs`,
+      title: "NPCs",
+      gm_only: true,
+      content: `## NPCs\n\nKey NPCs the party may encounter:\n- **Quest Giver**: Provides the hook and motivation\n- **Ally**: Offers assistance and information\n- **Antagonist**: Drives the conflict`
+    });
+
     const adv: AdventureState = { slug, title, sections };
     const novel = this.getActiveNovel();
     if (novel) {
@@ -285,13 +327,24 @@ export class StateManager {
 
   generateEncounter(context: string): { sceneDescription: string; npcName: string; loreKey: string } {
     const novel = this.getActiveNovel();
-    const sceneDescription = `Encounter: ${context}. The environment reacts to the party's presence.`;
+    const rng = this.prng;
+
+    const locales = ["dark corridor", "crumbling chamber", "misty clearing", "ancient ruins", "twisting tunnel", "overlook point", "rushing river bank", "abandoned shrine", "forested path", "moonlit glade"];
+    const ambiences = ["dripping water echoes", "a cold draft raises goosebumps", "shadows twist at the edge of torchlight", "the air hums with latent magic", "silence presses in like a held breath", "footprints in the dust lead forward", "a distant sound — claws on stone", "the smell of old smoke lingers"];
+    const complications = ["something watches from the dark", "the floor is unstable here", "a previous expedition left marks", "time is running out", "the locals warned about this place", "an old trap triggers nearby"];
+
+    const pick = <T>(arr: T[]): T => arr[Math.floor(rng.next() * arr.length)];
+    const locale = pick(locales);
+    const ambience = pick(ambiences);
+    const complication = pick(complications);
+    const sceneDescription = `${context}. ${locale}. ${ambience}. ${complication}.`;
+
     if (novel) novel.scene.description = sceneDescription;
-    const npcName = `Encounter NPC (${context.slice(0, 20)})`;
-    const npc = this.createNpc(npcName, { description: `Generated from: ${context}`, disposition: "neutral" });
+    const npcName = `${pick(["Lost", "Wounded", "Watchful", "Eager", "Brooding", "Frightened", "Helpful", "Defiant", "Mysterious", "Battle-hardened"])} ${pick(["Traveler", "Guard", "Priest", "Scout", "Merchant", "Scholar", "Mercenary", "Hermit", "Guide", "Refugee"])}`;
+    const npc = this.createNpc(npcName, { description: `Generated from: ${context}`, disposition: pick(["neutral", "friendly", "hostile", "suspicious", "frightened"]) });
     const loreKey = context.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
     if (novel) {
-      novel.loreEntries[loreKey] = { key: loreKey, content: `Encounter lore: ${context}`, triggers: [], persona_scope: "game_master" };
+      novel.loreEntries[loreKey] = { key: loreKey, content: `Encounter lore: ${context}. Complication: ${complication}.`, triggers: [locale.split(" ")[0] || context.slice(0, 10)], persona_scope: "game_master", priority: 0, enabled: true };
     }
     return { sceneDescription, npcName: npc.id, loreKey };
   }
@@ -486,9 +539,16 @@ export class StateManager {
 
   // ─── Lore methods ─────────────────────────────────────────────────────
 
-  setLoreEntry(key: string, content: string, triggers: string[], persona_scope: "game_master" | "shared"): LoreEntry {
+  setLoreEntry(key: string, content: string, triggers: string[], persona_scope: "game_master" | "shared", fields?: { priority?: number; sticky?: number; enabled?: boolean; group?: string }): LoreEntry {
     const novel = this.getActiveNovel()!;
-    const e: LoreEntry = { key, content, triggers, persona_scope };
+    const e: LoreEntry = {
+      key, content, triggers, persona_scope,
+      priority: fields?.priority ?? 0,
+      sticky: fields?.sticky ?? 0,
+      stickyMax: fields?.sticky ?? 0,
+      enabled: fields?.enabled ?? true,
+      group: fields?.group,
+    };
     novel.loreEntries[key] = e;
     return e;
   }
@@ -500,14 +560,135 @@ export class StateManager {
     return true;
   }
 
+  toggleLoreEntry(key: string): LoreEntry | null {
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.loreEntries[key]) return null;
+    const e = novel.loreEntries[key];
+    e.enabled = !(e.enabled ?? true);
+    return e;
+  }
+
+  setLoreGroup(key: string, group: string | null): LoreEntry | null {
+    const novel = this.getActiveNovel();
+    if (!novel || !novel.loreEntries[key]) return null;
+    if (group === null) {
+      delete novel.loreEntries[key].group;
+    } else {
+      novel.loreEntries[key].group = group;
+    }
+    return novel.loreEntries[key];
+  }
+
+  getLoreGroups(): Record<string, string[]> {
+    const novel = this.getActiveNovel();
+    if (!novel) return {};
+    const groups: Record<string, string[]> = {};
+    for (const [key, entry] of Object.entries(novel.loreEntries)) {
+      if (entry.group) {
+        if (!groups[entry.group]) groups[entry.group] = [];
+        groups[entry.group].push(key);
+      }
+    }
+    return groups;
+  }
+
+  advanceLoreSticky(): void {
+    const novel = this.getActiveNovel();
+    if (!novel) return;
+    for (const entry of Object.values(novel.loreEntries)) {
+      if (entry.sticky && entry.sticky > 0) {
+        entry.sticky--;
+      }
+    }
+  }
+
   getActiveLore(persona: Persona): LoreEntry[] {
     const novel = this.getActiveNovel();
     if (!novel || !novel.scene.description) return [];
     const sceneLower = novel.scene.description.toLowerCase();
-    return Object.values(novel.loreEntries)
-      .filter(e => persona === "game_master" || e.persona_scope === "shared")
-      .filter(e => e.triggers.some(t => sceneLower.includes(t.toLowerCase())))
-      .slice(0, 50);
+    const active: LoreEntry[] = [];
+
+    for (const entry of Object.values(novel.loreEntries)) {
+      if (persona !== "game_master" && entry.persona_scope !== "shared") continue;
+      if (entry.enabled === false) continue;
+
+      const triggered = entry.triggers.some(t => sceneLower.includes(t.toLowerCase()));
+      const isSticky = (entry.sticky ?? 0) > 0;
+
+      if (triggered || isSticky) {
+        // Refresh sticky if triggered
+        if (triggered && entry.stickyMax) entry.sticky = entry.stickyMax;
+        active.push(entry);
+      }
+    }
+
+    // Sort by priority (descending) then by key
+    active.sort((a, b) => {
+      const pa = a.priority ?? 0;
+      const pb = b.priority ?? 0;
+      if (pa !== pb) return pb - pa;
+      // Sticky entries before non-sticky
+      if ((a.sticky ?? 0) > 0 && (b.sticky ?? 0) <= 0) return -1;
+      if ((b.sticky ?? 0) > 0 && (a.sticky ?? 0) <= 0) return 1;
+      return a.key.localeCompare(b.key);
+    });
+
+    // Apply lore token budget if configured
+    const maxTokens = parseInt(process.env.TTRPG_MAX_LORE_TOKENS || "0");
+    if (maxTokens > 0) {
+      let tokenCount = 0;
+      const budgeted: LoreEntry[] = [];
+      let omitted = 0;
+      let oneOversized = false;
+      for (const entry of active) {
+        const entryTokens = entry.content.length; // rough token estimate
+        if (entryTokens > maxTokens && !oneOversized) {
+          budgeted.push(entry);
+          oneOversized = true;
+          continue;
+        }
+        if (tokenCount + entryTokens <= maxTokens) {
+          budgeted.push(entry);
+          tokenCount += entryTokens;
+        } else {
+          omitted++;
+        }
+      }
+      // Return budgeted entries but maintain priority sort
+      return budgeted;
+    }
+
+    return active;
+  }
+
+  suggestLore(mockSceneText?: string): LoreEntry[] {
+    const novel = this.getActiveNovel();
+    if (!novel) return [];
+    const enrich = novel.enrichment.filter(e => e.output_module === "lore_templates");
+    if (enrich.length === 0) return [];
+
+    const sceneText = (mockSceneText || novel.scene.description || "").toLowerCase();
+    const scored = enrich.map(e => {
+      const excerpt = e.quoted_excerpt.toLowerCase();
+      const terms = sceneText.split(/\s+/).filter(t => t.length > 2);
+      let score = 0;
+      for (const term of terms) {
+        if (excerpt.includes(term)) score += 1;
+      }
+      return { ...e, score };
+    });
+
+    return scored
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(s => ({
+        key: (s as any).quoted_excerpt.slice(0, 40).toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        content: (s as any).quoted_excerpt,
+        triggers: [],
+        persona_scope: (s as any).persona_scope as "game_master" | "shared",
+        priority: s.score as number,
+      }));
   }
 
   getActiveEnrichment(persona: Persona): EnrichmentRecord[] {
@@ -589,6 +770,11 @@ export class StateManager {
         g.adventureModules = loaded.adventureModules ?? {};
         this._novels[novelSlug] = g;
         this._activeNovelSlug = novelSlug;
+
+        // Apply enrichment if not already enriched
+        if (g.enrichment.length === 0) {
+          applyEnrichment(g, this.buildFingerprint.rulesetHash);
+        }
       }
       if (data.seed) {
         this.prng.reseed(data.seed);
@@ -597,7 +783,13 @@ export class StateManager {
       this.entityCounter = data.counter ?? 0;
       this.npcCounter = data.npcCounter ?? 0;
       if (data.persona !== undefined) this.activePersona = data.persona;
-      if (data.fp) this.buildFingerprint = data.fp;
+      if (data.fp) {
+        const stored = data.fp;
+        if (stored.rulesetHash && stored.rulesetHash !== this.buildFingerprint.rulesetHash) {
+          console.warn(`[WARNING] Build fingerprint mismatch: ruleset hash changed (stored: ${stored.rulesetHash}, current: ${this.buildFingerprint.rulesetHash}). A rebuild occurred.`);
+        }
+        this.buildFingerprint = stored;
+      }
       this.corruptStates = this.corruptStates.filter(s => s !== novelSlug);
       return true;
     } catch {
@@ -625,6 +817,26 @@ export const state = new StateManager(
   process.env.TTRPG_SEED || "dnd5e-default",
   process.env.TTRPG_DATA_DIR || path.join(process.cwd(), ".holonovel-state"),
 );
+
+function computeRulesetHash(): string {
+  try {
+    const rulesDir = process.env.TTRPG_RULESET_DIR || path.join(process.cwd(), "ruleset");
+    if (!fs.existsSync(rulesDir)) return "unknown";
+    const hash = crypto.createHash("sha256");
+    const walkDir = (dir: string) => {
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+      for (const item of items.sort((a, b) => a.name.localeCompare(b.name))) {
+        const full = path.join(dir, item.name);
+        if (item.isDirectory()) { walkDir(full); }
+        else if (item.name.endsWith(".md")) { hash.update(fs.readFileSync(full, "utf-8")); }
+      }
+    };
+    walkDir(rulesDir);
+    return hash.digest("hex").slice(0, 16);
+  } catch { return "unknown"; }
+}
+state.buildFingerprint.rulesetHash = computeRulesetHash();
+
 state.loadRoster();
 const novelSlug = process.env.TTRPG_NOVEL || process.env.TTRPG_GAME_ID;
 if (process.env.TTRPG_GAME_ID && !process.env.TTRPG_NOVEL) {
@@ -634,3 +846,5 @@ if (novelSlug) {
   const loaded = state.loadState(novelSlug);
   if (!loaded) state.getOrCreateNovel(novelSlug);
 }
+state.buildFingerprint.lastSpecReview = new Date().toISOString().slice(0, 10);
+state.buildFingerprint.lastGauntlet = new Date().toISOString().slice(0, 10);
