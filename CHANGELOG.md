@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-05 — Spec-driven update intake path + §6.7 improvements (10 recommendations from deep research)
+
+- §6.1: Added Update job (fourth job) — selectable at intake for reconciling
+  existing servers with a revised specification.
+- §6.2: Added U1–U2 intake questions for Update job. Q0 options list now
+  includes `update`.
+- §6.7: Delta classes (Patch/Minor/Major) with scoped workflows —
+  wording-only changes skip the Gauntlet.
+- §6.7: Gap audit method — comparison surfaces (tools/list, resources/list,
+  prompts/list, spec_health, REQ-032, state model) without prescribing steps.
+- §6.7: Changed code paths redefined — all blocking scenarios always re-run;
+  non-blocking scenarios re-run only when exercising gap-audit-implemented
+  surfaces.
+- §6.7: State migration guidance — existing Novel state loads under REQ-065
+  compatibility; absent fields default, extra fields preserved as inert data.
+- §6.7: Operator-set wall-clock budget for spec-driven updates.
+- §6.7: Strengthened REQ-098 Check: clause — each gap disposition must cite REQ
+  and reason.
+- §1: Pointer to §6.7 for delta classification replaces inline "narrow delta"
+  criteria.
+- README: "Point the Build job" → "Run the Update job" for spec-driven update
+  flow.
+
 ## 2026-08-05 — Gauntlet improvements (10 recommendations from deep research)
 
 - §6.6: Concretized S15 (stress and recovery) into four sub-scenarios — S15a

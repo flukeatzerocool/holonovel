@@ -150,8 +150,8 @@ it anywhere. It's yours.
 creatures it didn't know yesterday. Load an adventure module for your
 next campaign. Rebuild against a newer spec — the spec defines a formal
 update workflow: full comparison audit, gap plan, Gauntlet
-re-verification. Point the Build job at your existing server directory
-and an updated ruleset — it discovers the gap between current
+re-verification. Run the Update job against your existing server
+directory — it discovers the gap between current
 implementation and the updated spec, fills it, and re-runs every
 verification gate including the Gauntlet. Fixes and features land
 without touching your Novels. That's spec-driven development: the spec
