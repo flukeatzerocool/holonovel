@@ -416,6 +416,15 @@ achievable from its visible registry. _Check:_ T28.
 accompanied by the verbatim source text on which it was based. _Check:_ T15; Discovery
 checkpoint.
 
+**REQ-102 — Source conversion contract.** When the Convert job is selected (§6.2),
+source materials are converted to Markdown per Appendix G: layout-aware extraction,
+table reassembly with merged-cell handling, page-furniture stripping, and artifact
+flagging. A fidelity sample of 3–5 representative pages is diffed per the fidelity
+protocol in Appendix G; a rate below 90% for any content type blocks the batch. The
+converter and its version are pinned in DECISIONS.md. Flagged artifacts receive a
+disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity
+rates appear in `spec_health` (REQ-025). _Check:_ T93.
+
 ### 5.3 Tools, Resources, and Lookups
 
 **REQ-020 — Tools.** Server behavior is modeled as MCP tools. Tools derive names from
@@ -452,16 +461,18 @@ every prompt and a description on every argument. _Check:_ T22, T22a.
 term for that action. Annotations match action classification. _Check:_ T3, T35, T39.
 
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
-(per-file and overall), convergence summary (per-activity cycles run, findings per
-cycle, residual gaps for each of the six activities in §6.5), indexed counts (anchors,
-concepts, entity types, actions, tables, procedures, guidance items), pending sections,
-MUST-action coverage, defect count, ruleset-version status, gate dispositions, and
-available Novels on disk (slug, name, last-modified, active — per REQ-093). Counts are
-derived from live registrations at call time — the running tool catalog, resource map,
-prompt list, search index, and extracted data arrays — not from hardcoded numeric
-literals. The player persona sees only player-filtered metrics. Output is filtered by
-persona. The convergence summary section is absent when the build is not yet complete.
-_Check:_ T15, T45.
+(per-file and overall), conversion fidelity (per-content-type rates, overall rate,
+sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absent
+when conversion was not selected), convergence summary (per-activity cycles run,
+findings per cycle, residual gaps for each of the six activities in §6.5), indexed
+counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
+pending sections, MUST-action coverage, defect count, ruleset-version status, gate
+dispositions, and available Novels on disk (slug, name, last-modified, active — per
+REQ-093). Counts are derived from live registrations at call time — the running tool
+catalog, resource map, prompt list, search index, and extracted data arrays — not
+from hardcoded numeric literals. The player persona sees only player-filtered metrics.
+Output is filtered by persona. The convergence summary section is absent when the
+build is not yet complete. _Check:_ T15, T45, T93.
 
 **REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
 required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_health`.
@@ -2158,6 +2169,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-016 | Guidance extraction       | T26                            | 2026-08-02   |
 | REQ-017 | Role stories              | T28                            | 2026-08-02   |
 | REQ-018 | Extraction evidence       | T15; Discovery checkpoint      | 2026-08-02   |
+| REQ-102 | Source conversion contract | T93                            | (today)      |
 | REQ-020 | Tools                     | T3, T5, T32, T33; Gate 2       | 2026-08-02   |
 | REQ-021 | Tool-surface economy      | T3, T35                        | 2026-08-02   |
 | REQ-022 | Resources                 | T16                            | 2026-08-02   |
@@ -2313,6 +2325,7 @@ diet.
 | T90   | Manual   | Complex fixture gate: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and persona enforcement. Required for rulesets above 200 indexed items (REQ-100 tiers Standard, Heavy, Huge).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
 | T91   | Manual   | Behavioral contracts: for a running server, invoke one tool from each contract category (O.1–O.7) and assert the output shape matches Appendix O. For the dice tool, assert full roll transparency (notation, faces, modifiers, total, prose outcome). For a lookup tool, assert source attribution with `---` separator. For combat, assert round counter and turn order visibility. For undo, assert full state restoration and audit append-only behavior.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032, REQ-060, REQ-061                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification gates pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
+| T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
 
 ---
 
@@ -2331,6 +2344,9 @@ originals.
 page breaks and column layouts. Table grids are reassembled faithfully; merged cells are
 expanded or marked. Page furniture (running heads, page numbers, boilerplate) is stripped.
 Conversion artifacts (empty anchors, stray-numeral headings) are flagged for review.
+Flagged artifacts are recorded in DECISIONS.md (5) with a disposition: `fixed`
+(manually repaired before Gate 0), `waived` (accepted with justification and no
+mechanical impact on the model), or `pending` (blocks Gate 0 until resolved).
 
 **Fidelity.** Sample 3–5 representative source pages spanning at least one table-bearing
 section, one stat-block section, and one procedure section. Diff the converted Markdown
@@ -2339,6 +2355,29 @@ content type blocks the batch conversion. Record the fidelity rate in DECISIONS.
 
 **Pin.** The converter and its version are recorded in DECISIONS.md; the same converter
 produces the frozen Markdown and any later diagnostic re-run.
+
+**Fidelity protocol.** The fidelity diff is character-level after normalizing
+whitespace (collapse runs, trim) and stripping Markdown formatting delimiters
+(`**`, `*`, backticks). The rendered source text is extracted from the original
+source using the same tool pipeline as conversion — for PDF, the text-extraction
+layer of the chosen converter; for HTML, the rendered-textContent output of the
+same parser. Mechanical content is defined as: text within `<table>` elements
+(HTML) or table regions (PDF), text matching the `**Bold Label:** value` pattern,
+and text within numbered-procedure blocks (lines beginning with a digit followed
+by `.` or `)` and an imperative verb). Content matching none of these patterns is
+textual content — excluded from the fidelity numerator but recorded for
+completeness. The fidelity rate is (matching characters in mechanical content) ÷
+(total characters in mechanical content in rendered source).
+
+**Web-scrape protocol.** When C1 is "web scrape," the builder fetches pages with
+at least 1 second between requests, follows links only within the same origin and
+below the starting URL path, retries failed fetches up to 3 times with exponential
+backoff (2/4/8 seconds), and times out individual page fetches after 30 seconds.
+The builder records the scraped URL, response code, and byte count per page in
+DECISIONS.md (6). A scrape that fails 3 consecutive pages stops and records the
+failure. The builder never follows links that match known non-content patterns
+(login, search, print, PDF download pages). The operator may supply a
+link-following depth; the default is 1 (starting page only).
 
 ---
 
@@ -3020,6 +3059,9 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | **Denial of Service** | Malformed input crashes the server | REQ-054: input validation on every tool, T20: path traversal and malformed input rejection | **Covered.** |
 | **Elevation of Privilege** | Player bypasses persona gating through rapid persona switching | §10 adversarial round (a): 20 rapid switches during combat, no state leak | **Covered.** Tested. |
 | **Elevation of Privilege** | Player accesses GM-only resources through direct URI crafting | REQ-032: server-side gating on every endpoint including resources, T44 verifies player boundary | **Covered.** |
+| **Tampering** | Converter tool produces subtly incorrect Markdown (swapped table columns, merged paragraphs) | Fidelity sampling (Appendix G) catches gross errors; pinning (Appendix G) ensures reproducibility | **Moderate.** Fidelity sampling covers 3–5 pages. A systemic error on unscanned pages would propagate into the model. No cross-converter verification. |
+| **Denial of Service** | Web scrape exhausts builder resources, gets IP banned by source site | Web-scrape protocol (Appendix G) enforces rate limiting and retry with backoff | **Minor.** Single-source scrape is bounded. Multi-source concurrent scraping is not addressed. |
+| **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | No existing mitigation — the spec does not require content inspection before conversion | **Moderate.** A compromised SRD page or a redirect to a phishing page could inject non-ruleset content. The spec assumes trusted sources. |
 
 _Verify:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.
