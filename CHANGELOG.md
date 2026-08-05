@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-05 — Merged Sheet job into Convert and Build
+
+- Removed Sheet (§11.2) as a standalone optional job. Character sheet PDF
+  conversion is handled by Convert (character sheets were already accepted as
+  source material). The ASCII renderer and `format` parameter on
+  `character_sheet` are now Build baselines (§6.4).
+- Specification: 4 jobs → 3 jobs. Deleted §11.2, S1–S3 intake questions, and
+  cross-job deduplication for Sheet. Updated §6.6 and §8 Gauntlet references.
+- README: "Extend with Enrich and Sheet" → "Extend with Enrich"; removed
+  Sheet-specific prose.
+- AGENTS.md: §11 layer map updated.
+
 ## 2026-08-05 — dnd5e REQ-098 update + Gauntlet (Build, Enrich, Sheet)
 
 - dnd5e v1.3.0: 14 gap dispositions resolved across Build, Enrich, and Sheet

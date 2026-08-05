@@ -722,7 +722,7 @@ metadata. Formats are defined in Appendix L. Player persona attempts return `[ER
 
 ### 6.1 Job overview
 
-The build is organized into four independently selectable jobs. The operator picks one or
+The build is organized into three independently selectable jobs. The operator picks one or
 more jobs; the builder asks only the questions those jobs need and proceeds accordingly.
 
 | Job     | What it does                                                | Required sections        |
@@ -730,7 +730,6 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
-| Sheet   | Character sheet enhancement (optional)                       | §11.2                    |
 
 ### 6.2 Intake
 
@@ -751,7 +750,7 @@ selected jobs, all answers, and the first job to execute.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What job(s) should Holonovel run? | convert / build / enrich / sheet (select one or more) | build + enrich (when network detected), build (when offline) |
+| Q0  | What job(s) should Holonovel run? | convert / build / enrich (select one or more) | build + enrich (when network detected), build (when offline) |
 
 **Q1 — Pause between jobs.** Asked when two or more jobs are selected.
 
@@ -811,17 +810,8 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 
-**Sheet job.** Asked when `sheet` is selected.
-
-| #   | Question                     | Options                          | Default             |
-| --- | ---------------------------- | -------------------------------- | ------------------- |
-| S1  | Where is the server you already built? | Folder path              | —                   |
-| S2  | Character sheet PDF source   | local / download URL / search / included / none | none |
-| S3  | PDF path (if S2 is local)    | Path                             | —                   |
-
 **Cross-job deduplication.** When the operator selects multiple jobs, questions
-identical in wording and semantics are asked once. E1 and S1 ("Path to existing
-build artifacts") share one answer. If Convert produces the Markdown sources
+identical in wording and semantics are asked once. If Convert produces the Markdown sources
 Build uses, C2's resolved paths answer B1 implicitly; B1 is still asked so the
 operator can override. The builder records the shared answer under each
 applicable job's entry in DECISIONS.md (1) with a `(shared with <job>)`
@@ -881,6 +871,9 @@ The server is built in six layers, each with an acceptance check:
 | 5     | State: snapshots, undo, audit, persona gating, resource URIs | T9 pass (persona test)                                       |
 | 6     | Prompts: `use_tool`, `lookup_rule`, `run_workflow`, `persona_briefing`, `intro` | T22 pass (prompt registry test)            |
 
+The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
+Both formats are Build baselines.
+
 **License.** The server MUST include a `LICENSE.md` file at the project
 root with two sections: a **Ruleset Data** section identifying the source
 material and its license (drawn from Appendix I), and a **Server Code**
@@ -931,7 +924,7 @@ quality check. Run after Build converges; findings feed back into the convergenc
 Its purpose is to surface bugs that structured verification missed.
 
 **Independent invocation.** The Gauntlet must also be re-run whenever server source
-code changes — after Enrich, after Sheet, after every spec-driven update (REQ-098),
+code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking scenario that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
@@ -1217,7 +1210,7 @@ document the verification procedure and expected output shape in DECISIONS.md.
 defined in §6.6. All blocking scenarios (S1, S4, S5, S6, S12, S15, S17) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
-completion, after Enrich and Sheet (§11), after spec-driven updates (REQ-098), and
+completion, after Enrich (§11), after spec-driven updates (REQ-098), and
 after any manual code modification.
 
 **T18 anti-persona scenarios:**
@@ -1350,10 +1343,9 @@ report is review evidence, not a build artifact.
 
 ## 11. Optional Jobs
 
-_These jobs do not gate the Definition of Done. They extend the Build job._
+_This job does not gate the Definition of Done. It extends the Build job._
 
-After any optional job that modifies the server (Enrich, Sheet, or both) completes,
-re-run the Gauntlet blocking scenarios (§6.6 exit criteria) and verify no regression. A
+After Enrich completes, re-run the Gauntlet blocking scenarios (§6.6 exit criteria) and verify no regression. A
 previously-passing blocking scenario that now fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
@@ -1473,15 +1465,6 @@ DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
 **Reversion.** Re-running Build (without enrich) or using the `revert_enrichment` tool
 restores the pre-enrich server state. Enrichment manifest and verification results remain
 in DECISIONS.md for audit.
-
-### 11.2 Character sheet enhancement
-
-Pre-build questions are collected in §6.2 when the `sheet` job is selected.
-
-Enhance the Build job `character_sheet` tool with a `format` parameter
-(`markdown` / `ascii`), study the PDF for field layout, and build an ASCII renderer.
-The Build job baseline already provides a working Markdown sheet derived from ruleset
-inference. Sheet job additions do not block server verification gates.
 
 ---
 
