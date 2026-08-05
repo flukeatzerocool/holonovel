@@ -113,8 +113,10 @@ characters, your roster — still there.
 
 ## Build your own game server
 
-You don't code. You commission. An AI agent reads your rulebooks, builds
-an MCP server, and fights itself until it's right.
+You don't code. You commission. This is specification-driven development:
+the spec is the permanent artifact, the implementation is disposable.
+An AI agent reads your rulebooks, builds an MCP server, and fights
+itself until it's right.
 
 > "Convert my PDF to Markdown."
 
@@ -131,11 +133,11 @@ creation with leveling. Random tables. Every mechanic traced to your
 books.
 
 Then it verifies. A convergence loop measures quality, improves, and
-re-verifies — up to three cycles. Five verification gates. A
-19-scenario combat, stress, and persona endurance suite. A golden
-transcript proves the server behaves correctly against a known fixture.
-A blind second AI re-runs every gate from a cold checkout. The spec bets
-its reputation on reproducibility.
+re-verifies — up to three cycles. Six verification gates. The 19-scenario
+Gauntlet — combat, stress, and persona endurance under live AI-simulated
+play. A golden transcript proves the server behaves correctly against a
+known fixture. A blind second AI re-runs every gate from a cold checkout.
+The spec bets its reputation on reproducibility.
 
 Output: a self-contained MCP server with your ruleset baked inside. Move
 it anywhere. It's yours.
@@ -145,8 +147,15 @@ it anywhere. It's yours.
 The spec doesn't retire. Drop in a new sourcebook — the server learns
 creatures it didn't know yesterday. Load an adventure module for your
 next campaign. Rebuild against a newer spec — the spec defines a formal
-update workflow (§6.7): full comparison audit, gap plan, OCE
-re-verification. Fixes and features land without touching your Novels.
+update workflow (§6.7): full comparison audit, gap plan, Gauntlet
+re-verification. Point the Build job at your existing server directory
+and an updated ruleset — it discovers the gap between current
+implementation and the updated spec, fills it, and re-runs every
+verification gate including the Gauntlet. Fixes and features land
+without touching your Novels. That's spec-driven development: the spec
+is your long-term investment. The server is rebuilt whenever the spec
+changes. Everything you've created — characters, worlds, novels —
+survives every rebuild.
 Re-run Enrich to catch fresh community wisdom. Feed it a character sheet
 PDF you just found — the layout
 updates. You never start over. You add on.
