@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-05 — v1.4 "Gauntlet"
+
+- OCE (Operational Confidence Exercise) renamed to "The Gauntlet" across the
+  specification. Promoted to Gate 5 — both a Build completion requirement and an
+  independently runnable verification gate. The Gauntlet must re-run after any
+  server code change: Enrich, Sheet, spec-driven updates, or manual edits.
+- Specification-driven development philosophy surfaced in the spec and README.
+  The Mission (§1) now states that the specification is the permanent artifact
+  and implementations are disposable. The README frames spec-driven development
+  as the reader's long-term investment — the server is rebuilt whenever the spec
+  changes, and everything the reader creates survives every rebuild.
+
+## 2026-08-05 — OCE renamed to Gauntlet, promoted to Gate 5
+
+- §6.6: "Operational Confidence Exercise (OCE)" renamed to "The Gauntlet"
+  throughout the spec, README, and CHANGELOG.
+- §6.6: added independent invocation trigger — the Gauntlet re-runs after any
+  server code change (Enrich, Sheet, spec-driven updates, manual edits).
+- §8: Gate 5 — The Gauntlet added to verification gates. The Gauntlet is both a
+  Build completion requirement and an independently runnable gate.
+- README: rebuild-from-spec feature clarified in "Build your own game server"
+  section; six verification gates now including the Gauntlet.
+- `spec_health` field `last_oce` renamed to `last_gauntlet` (breaking change for
+  existing servers — dnd5e implementation pending).
+
 ## 2026-08-05 — Spec compression and philosophy hardening
 
 - Spec compressed from 2,620 to 2,229 lines (-15%). All cuts are reductive — no

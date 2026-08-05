@@ -145,7 +145,7 @@ implemented tool handlers).
   `npx tsx scripts/test_scripts/run_all.ts`. 11 passed, 0 failed.
   Remaining Appendix F tests waived per §5 waivers — see W-003 through
   W-008 for feature-absence waivers.
-- **OCE (Operational Confidence Exercise):** ALL 16 SCENARIOS PASSED.
+- **Gauntlet (operational verification):** ALL 16 SCENARIOS PASSED.
   Scenario 1 (43-tool surface sweep), 2 (character creation), 3 (encounter setup),
   4 (simulated combat, 3 rounds), 5 (combat state survival across restart),
   6 (cross-persona boundary, 16 GM tools blocked from Player), 7 (table generation),
@@ -154,7 +154,7 @@ implemented tool handlers).
   13 (game isolation), 14 (edge cases), 15 (stress & recovery), 16 (narrative state —
   scene, NPC lifecycle, countdowns, lore, briefing order, action suggestions,
   player signals, voice examples). Run with `npx tsx scripts/test_scripts/oce.ts`.
-- **Accepted limitations (OCE):** S9 condition auto-expiry — D&D 5e conditions
+- **Accepted limitations (Gauntlet):** S9 condition auto-expiry — D&D 5e conditions
   do not auto-expire on turn advancement (they require saving throws or rest).
   Manual apply/remove lifecycle verified. S8 verbatim Markdown excerpt — server
   returns structured JSON data with source file paths, not raw Markdown.

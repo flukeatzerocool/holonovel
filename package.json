@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {

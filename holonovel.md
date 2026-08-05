@@ -51,7 +51,8 @@
 **Mission.** Build an MCP server from a tabletop RPG ruleset provided as Markdown (or
 converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution mechanics,
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
-coding — the AI reads the ruleset and builds.
+coding — the AI reads the ruleset and builds. The specification is the permanent
+artifact; implementations are disposable and rebuilt on demand.
 
 **The play model.** Two personas, enforced server-side during play. The Novel is the
 container — a named, persistent save file on disk. Create a Novel, set up characters
@@ -90,7 +91,7 @@ The spec is designed around six failure modes. Recognize them early.
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | Gate 1 conformance (REQ-001, Appendix D)                           |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
-| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; OCE-5); audit log (REQ-040); Novel persistence (REQ-092)    |
+| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
 
 ---
@@ -919,21 +920,26 @@ convergence finding and triggers a fix + re-read cycle. This check applies to ev
 file write: source code, test scripts, README, DECISIONS.md, and MCP client
 configuration.
 
-### 6.6 Operational Confidence Exercise
+### 6.6 The Gauntlet
 
 **Timing.** After the convergence loop (§6.5) has converged and the ruleset-facing
-gates (§8: Gates 1 and 4) have passed, the builder runs the Operational Confidence
-Exercise (OCE). Fixture gates (Gates 2 and 3 — see §8) are specification-level checks
-run once per builder implementation; they are independent of OCE timing. The OCE
-exercises the built server with AI-simulated personas in realistic play scenarios. It
-is a required quality check. Run after Build converges; findings feed back into the
-convergence loop. Its purpose is to surface bugs that structured verification missed.
+gates (§8: Gates 1 and 4) have passed, the builder runs the Gauntlet. Fixture gates
+(Gates 2 and 3 — see §8) are specification-level checks run once per builder
+implementation; they are independent of Gauntlet timing. The Gauntlet exercises the
+built server with AI-simulated personas in realistic play scenarios. It is a required
+quality check. Run after Build converges; findings feed back into the convergence loop.
+Its purpose is to surface bugs that structured verification missed.
 
-**Job completion.** The Build job is not complete until the OCE exits with all
+**Independent invocation.** The Gauntlet must also be re-run whenever server source
+code changes — after Enrich, after Sheet, after every spec-driven update (REQ-098),
+and after any manual code modification. A previously-passing blocking scenario that now
+fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
+
+**Job completion.** The Build job is not complete until the Gauntlet exits with all
 scenarios passing or the builder records 2 cycles without improvement (see Exit
 criteria below), and both ruleset-facing gates (1 and 4) pass. Marking a job complete
-without a passing OCE and passing applicable gates is a process defect. The OCE
-findings and pass/fail disposition are recorded in DECISIONS.md (6).
+without a passing Gauntlet and passing applicable gates is a process defect. The
+Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder launches the server in two separate sessions sharing one
 `TTRPG_NOVEL`: a Game Master session and a Player session. The builder acts as both
@@ -994,39 +1000,40 @@ four items is incomplete and blocks handoff.
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
 diagnose the root cause, fix it, re-verify. The convergence loop (§6.5) re-engages for
-these activities. After convergence re-converges, the OCE re-runs — up to 2 OCE
-cycles. Residual failures after 2 cycles without improvement are logged in
+these activities. After convergence re-converges, the Gauntlet re-runs — up to 2
+Gauntlet cycles. Residual failures after 2 cycles without improvement are logged in
 DECISIONS.md (5) as accepted limitations with re-activation conditions.
 
-When a bug is discovered through an OCE scenario failure and subsequently fixed via
+When a bug is discovered through a Gauntlet scenario failure and subsequently fixed via
 convergence, the builder adds at least one new assertion to the scenario that
 triggered the discovery — or a new sub-scenario if the fix spans multiple scenarios —
 to prevent regression. This assertion must fail when the original bug is
 reintroduced. The new assertion is recorded in DECISIONS.md (6) with a cross-reference
 to the original finding.
 
-**Exit criteria.** The OCE completes when all scenarios pass and all blocking failures
-are resolved. Failures are severity-gated: (a) failures in scenarios 1 (tool sweep), 4
-(simulated combat), 5 (state survival), 6 (persona boundary), 12 (roster durability),
-15 (stress and recovery), or 17 (Novel lifecycle and persistence) are blocking — the
-Build job is incomplete and the operator is notified; (b) failures in other scenarios are logged in DECISIONS.md (5)
-as accepted limitations with re-activation conditions after 2 cycles without
-improvement. All failures are recorded with their severity classification, the
-diagnostic trail, and the reason further convergence would not help.
+**Exit criteria.** The Gauntlet completes when all scenarios pass and all blocking
+failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
+(tool sweep), 4 (simulated combat), 5 (state survival), 6 (persona boundary), 12
+(roster durability), 15 (stress and recovery), or 17 (Novel lifecycle and persistence)
+are blocking — the Build job is incomplete and the operator is notified; (b) failures
+in other scenarios are logged in DECISIONS.md (5) as accepted limitations with
+re-activation conditions after 2 cycles without improvement. All failures are recorded
+with their severity classification, the diagnostic trail, and the reason further
+convergence would not help.
 
 ### 6.7 Spec-driven updates
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps, produce a
-documented plan, implement changes with passing verification gates, re-run the OCE
-suite with zero failures on changed code paths, implement any unimplemented OCE
-scenarios from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
+documented plan, implement changes with passing verification gates, re-run the Gauntlet
+with zero failures on changed code paths, implement any unimplemented Gauntlet scenarios
+from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
 Gap audit must cover the tool catalog, resource map, prompt list, state model,
 persona gating, and behavioral contracts.
 
-_Check:_ A dated DECISIONS.md gap-disposition entry exists. The OCE run produces
+_Check:_ A dated DECISIONS.md gap-disposition entry exists. The Gauntlet run produces
 zero failures on all scenarios exercising changed code paths. `spec_health` reports
-`last_spec_review` and `last_oce` fields populated with ISO dates.
+`last_spec_review` and `last_gauntlet` fields populated with ISO dates.
 
 ---
 
@@ -1162,7 +1169,7 @@ pass/fail status, and findings. The record is embedded in DECISIONS.md item (6)
 specification fixture (Appendix B: Tin Lanterns) and an injection fixture
 (Appendix C). These gates are run once per builder implementation — not once per
 ruleset. Their results apply to every ruleset served by that builder. Gates 0, 1,
-and 4 are ruleset-facing: each ruleset must pass them independently.
+4, and 5 are ruleset-facing: each ruleset must pass them independently.
 
 **Gate 0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
 passes the Appendix H checklist: well-formed, all headings unique, tables regular,
@@ -1191,6 +1198,13 @@ Tests run with networking disabled (REQ-051). Waivers are allowed only under REQ
 log each with its reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
 document the verification procedure and expected output shape in DECISIONS.md.
+
+**Gate 5 — The Gauntlet (operational verification).** Run the 19-scenario Gauntlet
+defined in §6.6. All blocking scenarios (S1, S4, S5, S6, S12, S15, S17) must pass.
+Non-blocking failures are recorded as accepted limitations with re-activation
+conditions. The Gauntlet re-runs after every server code change: during Build
+completion, after Enrich and Sheet (§11), after spec-driven updates (REQ-098), and
+after any manual code modification.
 
 **T18 anti-persona scenarios:**
 
@@ -1325,7 +1339,7 @@ report is review evidence, not a build artifact.
 _These jobs do not gate the Definition of Done. They extend the Build job._
 
 After any optional job that modifies the server (Enrich, Sheet, or both) completes,
-re-run the OCE blocking scenarios (§6.6 exit criteria) and verify no regression. A
+re-run the Gauntlet blocking scenarios (§6.6 exit criteria) and verify no regression. A
 previously-passing blocking scenario that now fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
@@ -2014,7 +2028,7 @@ diet.
 | T81   | Automated | Lore grouping: group entries under named groups. Assert `lore://groups` lists groups with correct members. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032                            |
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
 | T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create many lore entries, all triggered. Assert `persona_briefing` lore section includes only entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries included before non-sticky. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear. One oversized entry permitted per assembly.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
-| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_oce` fields populated with ISO dates. Assert the OCE run covers all changed code paths with zero failures on those paths. Assert any unimplemented OCE scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run covers all changed code paths with zero failures on those paths. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 
 ---
 
@@ -2220,10 +2234,10 @@ no catalog enumerations, no tool-name lists.
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
-- Worked examples and step-by-step procedures → golden transcript (§B.3) and OCE (§6.6)
+- Worked examples and step-by-step procedures → golden transcript (§B.3) and the Gauntlet (§6.6)
 - JSON schemas and file format specifications → builder's implementation; gates verify
   correctness
 
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
-Gate 2, Gate 4, the convergence loop, or an OCE scenario, do not specify the mechanism
+Gate 2, Gate 4, Gate 5, the convergence loop, or a Gauntlet scenario, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
