@@ -3,7 +3,7 @@
 > **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
 > server, and proves it works. Output: a running MCP server with dice, combat, character
-> management, rules lookup, narrative directives, dynamic lore, lorebook export/import, action suggestions,
+> management, rules lookup, narrative directives, dynamic lore, action suggestions,
 > voice examples, macros, scene-type tagging, audit compression, scene-state tracking,
 > NPC management, countdowns, and session recap — plus four artifacts
 > (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment job adds
@@ -12,9 +12,9 @@
 > (REQ-051). The Player persona is the human at the table; the Game Master persona is the
 > AI narrator (REQ-032), switchable via `set_persona` (REQ-066). Multi-character support:
 > one player may control multiple entities (REQ-074). Adventures load as indexed reference
-> content (REQ-079). State tiers: roster persists, games isolate, lore and enrichment tiers
-> enhance guidance, connections are ephemeral transport, game audit logs persist. RNG
-> deterministic and seedable. Requirements state the contract; verification loops enforce
+> content (REQ-079). State tiers: roster persists, Novels isolate, lore and enrichment
+> tiers enhance guidance, connections are ephemeral transport, Novel audit logs persist.
+> RNG deterministic and seedable. Requirements state the contract; verification loops enforce
 > quality.
 
 ## Contents
@@ -42,6 +42,7 @@
 - [Appendix J: Anti-Slop Synopsis](#appendix-j-anti-slop-synopsis)
 - [Appendix K: Adventure Module Format](#appendix-k-adventure-module-format)
 - [Appendix L: Lorebook Interchange Format](#appendix-l-lorebook-interchange-format)
+- [Appendix M: REQ Authoring Conventions](#appendix-m-req-authoring-conventions)
 
 ---
 
@@ -115,6 +116,20 @@ The spec is designed around six failure modes. Recognize them early.
    no specific architecture decisions, no worked examples disguised as requirements. If
    the convergence loop catches a deviation, trust the loop.
 
+   **Before adding a requirement, apply these tests:**
+   (a) Does this REQ state *what* the server must do, or *how* to implement it? If it
+   names a parameter type, default value, sort order, or algorithm — it's an
+   implementation detail. Cut it.
+   (b) Can the convergence loop catch a deviation from this REQ? If not, the REQ is
+   either too vague or too prescriptive. Tighten or loosen accordingly.
+   (c) Does this REQ duplicate content already present elsewhere? If so, cite it — don't
+   restate it.
+   (d) Does the REQ end with a "Default:" clause specifying a starting value? If so,
+   remove it — defaults are the builder's domain.
+   (e) Would the REQ still be valid if the builder chose a different data structure, sort
+   algorithm, file format, or parameter signature? If not, it's locked to one
+   implementation.
+
 **Terminology.**
 
 | Term           | Meaning                                                                                  |
@@ -186,14 +201,9 @@ responses include a `---`-separated source block with `<file>#<anchor>` label an
 Markdown excerpt preserving original formatting. Pure-state tools (undo, state queries,
 condition queries, audit reads) are exempt. _Check:_ T48.
 
-**REQ-062 — Persona foundations.** `persona_briefing` includes generic foundations for each
-persona — core GM principles (fail forward, be a fan of the players, prepare situations not
-plots) and core player principles (describe actions, not mechanics; engage with the world;
-take initiative to drive the story forward; think creatively beyond the sheet) — as brief
-quoted data before the ruleset-derived guidance. The Enrich job (§11.1) supplements with
-expanded foundations and ruleset-specific play advice; the full persona foundations
-catalogue is served at `guidance://<role>/foundations` as supplementary guidance.
-_Check:_ T26.
+**REQ-062 — Persona foundations.** `persona_briefing` includes ruleset-agnostic best-practice
+foundations for each persona. The Enrich job (§11.1) supplies the expanded foundations
+catalogue at `guidance://<role>/foundations` as supplementary guidance. _Check:_ T26.
 
 **REQ-070 — Anti-slop guidance.** Persona foundations include anti-slop guidance — concrete
 examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]`
@@ -211,14 +221,10 @@ When the ruleset provides none, the Enrich job (§11.1) may source community voi
 examples. _Check:_ T26.
 
 **REQ-064 — Persona behavioral boundaries.** The server respects persona boundaries in
-all tool output. The Game Master persona describes situations, surfaces essential
-information proactively (visible stats, risks, options), and never takes action or
-makes decisions on behalf of the player. The Player persona describes character
-intent, and may negotiate for environmental details by asking whether elements
-exist — but never prescribes world facts or narrative outcomes as established
-without Game Master confirmation. Output defaults to verbosity: describe richly,
-prescribe never. Player-initiated actions may be narrated in prose, provided the
-narration follows from declared intent without assuming further decisions. _Check:_ T51.
+all tool output. The Game Master persona describes situations and surfaces information; it
+never takes action or makes decisions on behalf of the player. The Player persona describes
+character intent; it never prescribes world facts or narrative outcomes without Game
+Master confirmation. _Check:_ T51.
 
 ### 5.2 Extraction and Confidence
 
@@ -297,17 +303,10 @@ list matches the registry. _Check:_ T3, T35.
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header. _Check:_ T16.
 
-**REQ-023 — Prompts.** The server provides seven prompts: (1) `use_tool` — maps player
-intent to tool calls, with at least one worked example per registered tool pairing a
-narrative intent with a concrete tool invocation from role stories (REQ-017), (2)
-`lookup_rule` — searches the indexed ruleset, (3) `run_workflow` — steps through
-multi-decision procedures, with complete walkthrough examples for character creation and
-advancement where the ruleset defines them, (4) `persona_briefing` — what this persona
-can see and do, (5) `intro` — always-available connection starter (REQ-063), (6)
-`session_zero` — a structured questionnaire surfaced at the start of a new adventure
-(REQ-078), and (7) `novel_setup` — surfaces the Novel setup workflow with available
-characters, adventures, and generation tools (REQ-089). Prompts are dynamic: adding a tool,
-resource, or guidance item updates their output without restart — no staleness allowed.
+**REQ-023 — Prompts.** The server provides prompts covering tool use (mapping player
+intent to tool calls), rule lookup, multi-step workflows, persona briefing, connection
+introduction (REQ-063), session zero (REQ-078), and Novel setup (REQ-089). Prompts are
+dynamic: adding a tool, resource, or guidance item updates their output without restart.
 `prompts/get` returns exactly one user-role message. `prompts/list` carries a title on
 every prompt and a description on every argument. _Check:_ T22, T22a.
 
@@ -397,7 +396,7 @@ are accessible without restriction. Persona gating (REQ-032) takes effect only w
 persona is explicitly activated via `set_persona` (REQ-066). When no persona is active,
 all persona-filtered surfaces (`persona_briefing`, `prompts/list`, `resources/list`,
 `tools/list`, guidance) return full unfiltered content. The persona activation state
-persists across connections alongside Novel state (REQ-055). `end_novel` deactivates the
+persists with the Novel (REQ-055). `end_novel` deactivates the
 persona and returns to full-access mode. _Check:_ T9.
 
 **REQ-066 — set_persona tool.** The server provides a `set_persona` tool accepting
@@ -465,7 +464,7 @@ default target for tools that accept an `entity_id` when no `entity_id` is suppl
 first imported entity is the active entity by default. `set_active_entity(entity_id)`
 switches the active entity and is always callable regardless of persona. The `party`
 resource (`party://current`) lists all player-owned entities with summary stats: name,
-active status, HP, and conditions. REP-030 scoping is unchanged — one user per
+active status, HP, and conditions. REQ-030 scoping is unchanged — one user per
 connection, no multiplayer. _Check:_ T55.
 
 **REQ-075 — Named-NPC state.** The server supports named non-player characters via
@@ -483,8 +482,7 @@ the audit log; previous entries are retained in audit history. `scene://current`
 the most recent scene state. Scene state is narrative context only — it never influences
 tool behavior, search results, or mechanical resolution. The `set_scene_state` tool is
 Game Master only; the Player persona reads scene state via `persona_briefing` and
-`scene://current`. Scene state survives connection restarts; it is discarded by
-`end_novel`. _Check:_ T57.
+`scene://current`. Scene state persists with the Novel. _Check:_ T57.
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields: `description` (physical appearance), `voice` (speech patterns and mannerisms),
@@ -592,49 +590,25 @@ and output_module — all non-empty. _Check:_ T63.
 instruction via `set_narrative_directive(instruction)`. The directive is a free-text
 string that appears in `persona_briefing` for the Game Master persona only. An empty
 string clears the directive. The directive is inert guidance — it does not affect tool
-behavior, dice results, or rules enforcement. It persists across connections and is
-discarded on `end_novel`. Player persona attempts return `[ERROR] [FORBIDDEN]`. Default:
-empty string (no effect). _Check:_ T64.
+behavior, dice results, or rules enforcement. It persists with the Novel. Player persona
+attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T64.
 
 **REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
 `persona_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
-array of section tokens drawn from a fixed, documented set: `foundations`, `anti_slop`,
-`voice_examples`, `scene_state`, `entities`, `npcs`, `countdowns`, `lore`, `adventure`,
-`player_signals`, `guidance`, `registry`, `intro_pointer`, `session_zero_pointer`,
-`novel`, `narrative_directive`. Unknown tokens return `[ERROR] [INVALID_INPUT]` with valid
-tokens enumerated. An empty array resets to the builder-determined default, which is
-the sole default order. Tokens whose corresponding sections are absent from the current
-ruleset are accepted and produce empty sections in `persona_briefing` (no error). Enrich
-may record a recommendation visible in `spec_health`, but this recommendation is
-inert — it never auto-applies. The ordering persists across connections and is discarded
-on `end_novel`. Player persona attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T66.
+array of section tokens. Unknown tokens return `[ERROR] [INVALID_INPUT]` with valid
+tokens enumerated. An empty array resets to the builder-determined default. Tokens
+whose corresponding sections are absent from the current ruleset produce empty
+sections (no error). Enrich may record an ordering recommendation visible in
+`spec_health`, but never auto-applies. The ordering persists with the Novel. Player
+persona attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T66.
 
-**REQ-083 — Dynamic lore entries.** The Game Master may create keyword-triggered lore
-entries via `set_lore_entry(key, content, triggers, persona_scope, priority?, sticky?,
-enabled?)`. Each entry carries a unique slug, Markdown content, an array of
-case-insensitive trigger keywords, and a persona scope (`game_master` or `shared`).
-`priority` (integer, default 0) controls insertion order within the `lore` section of
-`persona_briefing` — higher values appear first; ties break on key. `sticky` (integer,
-0–20, default 0) specifies how many `persona_briefing` assemblies the entry remains
-active after its last trigger match. `enabled` (boolean, default true) controls whether
-the entry participates in activation; disabled entries never appear in
-`persona_briefing` regardless of triggers but persist on disk and remain addressable at
-`lore://<key>`. When any trigger keyword appears in `scene://current` text, the entry
-activates and appears in `persona_briefing` (persona-filtered: GM-only entries hidden
-from Player), and `sticky_remaining` resets to `sticky`. On subsequent assemblies where
-triggers are absent, `sticky_remaining` decrements by 1 each time `persona_briefing` is
-requested; the entry stays active while `sticky_remaining` > 0. Sticky refresh and
-expiry are audited mutations captured in snapshots; undo restores the prior
-`sticky_remaining` value. `set_lore_entry` with an existing key updates all fields
-(upsert); omitted optional parameters retain their current values. Entry `content` is
-Markdown; the `key` must be unique within the Novel. `remove_lore_entry(key)` deletes
-an entry. `enable_lore_entry(key)` and `disable_lore_entry(key)` toggle the `enabled`
-flag without removing the entry. The trigger scan is capped at 50 entries (disabled
-entries excluded from the cap, counted in storage only). Entries persist across
-connections and are discarded on `end_novel`. Player persona create, delete, enable,
-and disable attempts return `[ERROR] [FORBIDDEN]`. Enrich may seed lore templates
-visible at `lore://templates`; the GM must explicitly activate them via
-`set_lore_entry`. Default: no entries (no injection). _Check:_ T67, T79.
+**REQ-083 — Dynamic lore.** The Game Master may create, update, toggle, group, and remove
+keyword-triggered lore entries. Entries activate when trigger keywords appear in scene
+text, are persona-filtered, support priority ordering and sticky persistence, and are
+subject to a configurable token budget. The server may suggest matching enrich templates
+at `lore://templates`. Lore entries and groups persist with the Novel. Player persona
+mutating and grouping attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T67, T79, T81, T82,
+T83.
 
 **REQ-084 — Action suggestions.** The server provides a `suggest_actions(intent)` tool
 that maps a player's natural-language intent to ruleset-legal tool invocations. With an
@@ -645,8 +619,7 @@ an intent, it returns contextually relevant actions based on current scene type
 pure-resolution (idempotent, no state mutation). Results are persona-filtered: GM-only
 tools are excluded from Player results. The tool does not fabricate actions — every
 suggestion maps to a registered tool or documented ruleset procedure. Enrich-derived
-action patterns may supplement the matching index. Default: no configuration needed;
-the tool works immediately. _Check:_ T68.
+action patterns may supplement the matching index. _Check:_ T68.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
@@ -655,29 +628,25 @@ in all tool output, resource text, and prompt text before delivery. Supported ma
 `{{countdown.<name>.total}}`, `{{novel.slug}}`, `{{persona.active}}`, `{{party.size}}`.
 Macros referencing nonexistent state expand to the literal token unchanged. Macro
 expansion occurs after output composition and before client delivery. Macros do not
-expand in audit log entries. The macro set is fixed and documented; user-defined macros
-are not supported. Default: invisible; macros auto-expand with no configuration.
-_Check:_ T69.
+expand in audit log entries. _Check:_ T69.
 
 **REQ-086 — Audit compression.** The server provides a `compress_audit(max_entries)`
 tool that returns a formatted prompt containing the most recent audit log entries,
 structured for the calling LLM to produce a compact narrative summary. The tool does
 not modify the audit log (REQ-040). Output is persona-filtered: Player sees only
-own-entity entries; Game Master sees all. `max_entries` is a positive integer; values
-≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation (idempotent, no
-server-side state mutation). Default: no configuration needed; the tool works
-immediately. _Check:_ T70.
+own-entity entries; Game Master sees all. `max_entries` is a positive integer; values ≤ 0 return `[ERROR] [INVALID_INPUT]`.
+The tool is pure-generation (idempotent, no server-side state mutation).
+_Check:_ T70.
 
 **REQ-087 — Scene type tagging.** The Game Master may tag the current scene with a type
 via `set_scene_type(type)`. Valid types: `combat`, `social`, `exploration`, `neutral`.
 The type tag is guidance — it affects `persona_briefing` composition (the registry
 section orders tools by scene-type relevance: tools whose type annotation matches the
 current scene type appear first) and `suggest_actions` filtering, but does not alter
-tool behavior, dice results, or rules enforcement. The type persists across connections
-and is discarded on `end_novel`. Player persona attempts return `[ERROR] [FORBIDDEN]`.
+tool behavior, dice results, or rules enforcement. The type persists with the Novel.
+Player persona attempts return `[ERROR] [FORBIDDEN]`.
 Confrontation tools (REQ-043) operate identically regardless of scene type; the tag
-guides the GM and LLM toward appropriate moves. Default: `neutral` (no effect).
-_Check:_ T71.
+guides the GM and LLM toward appropriate moves. _Check:_ T71.
 
 ### 5.9 Novel Lifecycle and Generation
 
@@ -740,68 +709,11 @@ creation timestamp, last-modified timestamp, entity count, adventure source (mod
 `persona_briefing` under the `novel` section token (added to REQ-082's documented token
 set). `novel://current` and `novel://<slug>` resources return full metadata. _Check:_ T78.
 
-**REQ-094 — Lorebook export and import.** The Game Master may export the Novel's lore
-tier as a lorebook document via `export_lorebook(format)`. `format` accepts `"json"`
-(SillyTavern-compatible World Info array) or `"markdown"` (human-readable entry
-document; see Appendix L). The export includes every lore entry (key, content, triggers,
-persona_scope, priority, sticky, enabled, group), the current scene state and scene
-type tag, the narrative directive, entity personality summaries (name, personality
-description, up to 3 voice examples), and NPC descriptions (name, disposition,
-personality fields). Mechanical fields (stats, HP, AC, conditions, combat state,
-countdown ticks, audit log, roster baselines) are excluded. The GM may import a
-lorebook via `import_lorebook(source, mode)`. `source` is a lorebook document in JSON
-or Markdown format. `mode` accepts `"merge"` (add entries alongside existing, skipping
-key collisions with a `spec_health` note), `"replace"` (clear the lore tier and import
-all entries), or `"dry-run"` (preview imported entries and collision report without
-mutating state). Imported entries carry their original metadata; the GM may adjust
-priority, persona_scope, and sticky post-import via `set_lore_entry`. Import does not
-modify entities, NPCs, scene state, countdowns, combat, or any non-lore state. Export
-and import are idempotent: exporting twice produces identical output for unchanged
-state. Export and import are GM-only; Player persona attempts return `[ERROR]
-[FORBIDDEN]`. Default: no export/import state; the tools are always available. _Check:_
-T80.
-
-**REQ-095 — Lore grouping.** The Game Master may organize lore entries into named
-groups via `group_lore_entries(key, group_name)` and `ungroup_lore_entries(key)`. An
-entry may belong to exactly one group at a time; assigning to a new group removes it
-from the prior group. Groups are purely organizational — they do not affect activation,
-priority, persona scoping, or token budget allocation. When grouping is used, the
-`lore` section of `persona_briefing` renders entries under group headers in the format
-`[group: <name>]`; entries not in any group appear after all grouped entries. Group
-headers are omitted when no entries are grouped (the builder-determined default).
-`lore://groups` lists all groups and their member keys; `lore://groups/<name>` lists
-members of a single group. Groups persist across connections and are discarded on
-`end_novel`. Player persona group and ungroup attempts return `[ERROR] [FORBIDDEN]`.
-Default: no groups (entries ungrouped, no headers). _Check:_ T81.
-
-**REQ-096 — Lore suggestion.** The server provides a `suggest_lore(scene_text?)` tool
-that maps the current scene context to available enrich-seeded lore templates at
-`lore://templates`. With a `scene_text` argument, it scans that text against the
-template index; without one, it scans `scene://current`. It returns up to 5 matching
-templates (ranked by trigger keyword match count, then by enrich confidence), each with
-key, content preview (first 200 characters), triggers, persona_scope, confidence, and
-source_url. The tool is pure-resolution (idempotent, no state mutation). Results are
-persona-filtered: GM-scoped templates excluded from Player results. When no enrich has
-run (`lore://templates` is empty), `suggest_lore` returns an empty list with a note
-directing the GM to run the enrich job (§11.1). The tool does not fabricate
-templates — every suggestion maps to a stored enrich template. Default: no
-configuration needed; the tool works immediately. _Check:_ T82.
-
-**REQ-097 — Lore token budget.** The server may limit the total token footprint of
-activated lore entries in `persona_briefing` via the `TTRPG_MAX_LORE_TOKENS`
-environment variable. When unset or `0`, no budget is enforced (backward-compatible).
-When set to a positive integer, activated entries fill the budget in this order,
-stopping when the budget is exhausted: (1) sticky entries with a current trigger match
-(`sticky_remaining` was just refreshed), sorted by priority descending; (2) sticky
-entries in decay (no trigger match, `sticky_remaining` > 0), sorted by priority
-descending; (3) non-sticky entries with active triggers, sorted by priority descending.
-Entries that would exceed the budget are omitted from `persona_briefing`. `spec_health`
-reports the number of omitted entries and the budget consumed. Token counting uses a
-consistent estimator — the server's character-to-token ratio, recorded in
-DECISIONS.md; ratio drift across rulesets is acceptable (±15%). The budget is a
-guidance cap, not a hard guarantee — entries with content larger than the remaining
-budget are still included rather than truncated (one oversized entry permitted per
-assembly). Default: unset (no budget). _Check:_ T83.
+**REQ-094 — Lorebook interchange.** The Game Master may export Novel lore to and import
+lorebooks from interoperable formats. Export excludes mechanical state; import modifies
+only the lore tier with merge, replace, and dry-run modes. Round-trip preserves lore
+metadata. Formats are defined in Appendix L. Player persona attempts return `[ERROR]
+[FORBIDDEN]`. _Check:_ T80.
 
 ---
 
@@ -816,7 +728,7 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 | ------- | ----------------------------------------------------------- | ------------------------ |
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
-| Enrich  | Community play advice and structured enrichment (optional)   | §11.1, §11.1a            |
+| Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
 | Sheet   | Character sheet enhancement (optional)                       | §11.2                    |
 
 ### 6.2 Intake
@@ -1041,178 +953,43 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep.** Objective: verify every registered tool accepts valid input
-   without error. Method: from the Game Master session, call every tool in `tools/list` at
-   least once with valid parameters appropriate to its schema. Assert every response
-   carries `[OK]`, `[NEED_INPUT]`, or `[PARTIAL]` — no `[ERROR]` from valid input.
-   Skip tools whose only valid invocation requires game state not yet set up (combat
-   tools, undo) — those are exercised in later scenarios.
-
-2. **Character creation workflow.** Objective: verify the full creation decision chain
-   produces a correct entity. Method: from the player session, call the character
-   creation tool. Assert the server raises `[NEED_INPUT]` decisions sequentially.
-   Answer each decision with a valid option via `respond`. Assert the final `[OK]`
-   includes all derived statistics — every field the ruleset defines for the entity.
-   Assert the entity appears in the roster at `roster://<id>`. Assert
-   `import_character` brings a game copy into the active game. Assert the game
-   entity's fields match the roster baseline.
-
-3. **Encounter setup.** Objective: verify the Game Master can build and manage
-   encounters. Method: from the Game Master session, start a combat with the imported
-   player entity and at least one ruleset-defined danger or monster. Assert the
-   response includes the round counter (Round 1), turn order with all participants
-   listed, and participant classification (entity vs. danger). Assert `spec_health`
-   reflects the active combat.
-
-4. **Simulated combat session.** Objective: verify the combat pipeline — turn
-   resolution, HP tracking, condition effects, round advancement, and victory
-   conditions — under simulated play with deterministic sequencing. Method: all dice
-   rolls in this scenario use fixed per-call seeds so outcomes are reproducible on
-   re-run. Run at least 3 full rounds. For each round: (a) the player entity attacks a
-   danger — assert the response includes the full calculation path (dice, modifiers,
-   outcome) and HP changes to the danger; (b) call `advance_confrontation` — assert
-   the round counter increments numerically and turn passes to the next participant;
-   (c) between rounds, assert HP deltas are numeric and conditions are consistent with
-   resolved turns; (d) assert that at least one danger took damage from a player
-   attack during the encounter, and that `advance_confrontation` was called at least 3
-   times. After the final round, call `end_confrontation` with an outcome. Assert the
-   combat terminates cleanly and the outcome is recorded in the audit log.
-
-5. **Combat state survival.** Objective: verify combat state survives a server restart.
-   Method: start a new combat. Advance one round so state has mutated. Record the
-   exact HP values (numeric), condition list (ordered, case-sensitive), round counter
-   (integer), and turn order (entity ID sequence) for every participant. Restart the
-    server with the same `TTRPG_NOVEL`. Assert every recorded value is restored
-   identically — no field may differ. Advance another round to confirm the restored
-   state is operational.
-
-6. **Cross-persona boundary enforcement.** Objective: verify persona gating holds
-    during realistic workflows. Method: set persona to `player`. Attempt every
-    GM-only tool (combat init, combat advance, combat end, GM-only table
-    rolls, GM-only lookups). Assert every call returns `[ERROR] [FORBIDDEN]`
-    directing the caller to use `set_persona`. Switch to `game_master` persona via
-    `set_persona`. Assert the same GM tools now succeed. Switch back to `player` and
-    assert no GM-only content is exposed in player-visible search results, resource
-    listings, or guidance.
-
-7. **Table generation sweep.** Objective: verify every generation table produces valid
-   results. Method: for every table registered as a generation tool, roll with a fixed
-   seed. Assert the result matches a row from the corresponding ruleset table. Assert
-   mechanical properties embedded in table cells (damage dice, bonuses) are rendered.
-   For GM-only tables, verify the player session is blocked and the Game Master
-   session succeeds.
-
-8. **Search and canonical lookup.** Objective: verify search and lookup return correct,
-   self-contained results. Method: run `search_rules` with exact, prefix, and
-   substring queries for known terms. Assert the target section appears in the top 3
-   results for each query type. For every `lookup_<category>` tool, request a known
-   item by its canonical name and by a documented alias — assert both resolve to the
-   same item. Assert the full ruleset entry is returned with source quoting (REQ-061)
-   including the file path and a verbatim Markdown excerpt with original formatting
-   preserved. Assert the response is self-contained — a reader unfamiliar with the
-   ruleset can understand the result without cross-referencing. Assert a single-item
-   lookup response does not exceed 2,000 characters. Request a non-existent item and
-   assert `[ERROR] [NOT_FOUND]` with valid values enumerated.
-
-9. **Condition lifecycle.** Objective: verify conditions apply, affect mechanics, and
-   expire by the ruleset's own triggers. Method: apply a condition that has a
-   duration-based expiry (e.g., "until end of next turn"). Assert the condition
-   appears in the entity's state. Make a roll that the condition penalizes — assert
-   the penalty appears in the modifier list. Advance state past the expiry trigger
-   without calling `remove_condition` — assert the condition self-removes and
-   subsequent rolls no longer carry the penalty. Then apply a condition with no
-   automatic expiry, remove it manually via `remove_condition`, and assert removal. At
-   least one tested condition must expire via the ruleset's own trigger, not via
-   `remove_condition`.
-
-10. **Undo during combat.** Objective: verify undo restores combat state and is blocked
-    during pending decisions. Method: advance combat one round, then call `undo`.
-    Assert HP, conditions, and round counter revert to the pre-advance state. Assert
-    the audit log records both the advance and the undo. Start a workflow that raises
-    `[NEED_INPUT]`, then attempt `undo` — assert `[ERROR] [STATE_CONFLICT]`. Answer
-    the decision, then `undo` — assert the undo succeeds.
-
-11. **Workflow cancellation.** Objective: verify cancel restores pre-workflow state.
-    Method: start character creation. Answer the first decision. Call `respond` with
-    `cancel` on the next decision. Assert the entity was not created — no roster
-    entry, no game entity. Start creation again and complete it to confirm the tool
-    still works after cancellation.
-
-12. **Roster durability.** Objective: verify roster baselines are immutable and survive
-    game mutations. Method: record the roster baseline for the created character (all
-    fields, with numeric values where applicable). Import into a game. Apply damage
-    (reduce HP by a non-zero amount) and a condition. Assert the game entity reflects
-    the damage — its HP must differ from the baseline. Re-import the same roster ID
-    into a second game session. Call `character_sheet` on the re-imported entity.
-    Assert its HP matches the original baseline (not the damaged value) and no
-    conditions carried over. This proves the roster is immutable.
-
-13. **Novel isolation.** Objective: verify entities do not leak between Novels. Method:
-    create a second Novel with a different `TTRPG_NOVEL`. Create or import a
-    character in Novel B. Assert Novel A cannot see Novel B's entities. Assert
-    `entities://` listings are Novel-scoped.
-
-14. **Edge cases.** Objective: verify the server handles boundary inputs gracefully.
-    Method: (a) call `search_rules` with an empty string — assert no error, valid
-    counts returned; (b) call tools with missing required parameters — assert
-    `[ERROR] [INVALID_INPUT]` with corrective action string present; (c) call tools
-    with every boundary input below — each must return a valid response within 5
-    seconds without crash or hang: HP at 0, HP at max, empty name, name exceeding 100
-    characters, negative AC, AC 0; (d) make five rapid successive tool calls — assert
-    each returns independently without state corruption; (e) query a canonical lookup
-    with an ambiguous alias shared by two items — assert the server either resolves
-    correctly or returns `[PARTIAL]` listing both; (f) replay a roll with the same
-    per-call seed twice — assert identical results (REQ-050); (g) call `respond` with
-    an unknown decision name or option — assert `[ERROR] [NOT_FOUND]` with
-    session-visible valid values enumerated, the decision remains pending, and a
-    subsequent valid `respond` succeeds.
-
-15. **Stress and recovery.** Objective: verify the server handles adversarial input and
-    recovers from corruption. Method: (a) launch two server sessions sharing the same
-    `TTRPG_NOVEL`, advance combat in one while reading state in the other — assert
-    no deadlocks or state corruption; (b) manually corrupt a Novel state file on disk
-    (truncate JSON mid-field), restart the server — assert the server detects the
-    corruption and reports `[ERROR]` at startup, not silent data loss; (c) switch
-    persona 10 times in rapid succession — assert no stale gating or mixed-persona
-    state leaks; (d) create 20 entities and 10 dangers, start combat, run 10 rounds —
-    assert all entities survive, turn order remains consistent, undo works after
-    scale; (e) call `search_rules` with a 10,000-character query string — assert no
-    crash and no unbounded resource consumption. Scenario 15 failures are blocking
-    (see Exit criteria).
-
-16. **Narrative state.** Objective: verify scene, NPC, countdown, lore, and briefing
-    tools work end to end. Method: covered by existing test bindings; the builder
-    exercises scene/NPC/countdown/lore lifecycle and briefing order via targeted tool
-    calls with deterministic seeds. Assert each produces [OK] and state reflects changes.
-    Scenario 16 failures are non-blocking (see Exit criteria).
-
-17. **Novel lifecycle and persistence. (Blocking.)** Objective: verify Novel
-    create/resume/end cycle and disk persistence. Method: `create_novel("oce-novel-17")`.
-    Assert [OK] with slug and setup checklist. Import character, set scene, create NPC.
-    Assert state file exists at `.holonovel-state/novels/oce-novel-17.json`. Restart
-    server with `TTRPG_NOVEL=oce-novel-17`. Assert all state restored (entity, scene,
-    NPC). Call `end_novel` — assert persona deactivated, state file removed from disk.
-    Resume ended Novel — assert `[STATE_CONFLICT]`. Create Novel with same slug — assert
-    `[STATE_CONFLICT]`. Full access mode (no persona) — call `create_novel` — assert
-    succeeds.
-
-18. **Novel isolation and adventure generation. (Non-blocking.)** Objective: verify
-    entity isolation across Novels and generated adventure scoping. Method: create Novel
-    A, import character. Create Novel B — assert Novel A's entities invisible via
-    `entities://`. Generate adventure in Novel B with premise "A sunken temple." Assert
-    generated content appears in `search_rules` for Novel B, not Novel A. Assert GM-only
-    sections hidden from Player persona. Regenerate with same premise — assert replaced.
-    `load_adventure` in Novel A — assert generated content doesn't leak from Novel B.
-
-19. **Novel setup tracking and encounter generation. (Non-blocking.)** Objective: verify
-    setup metadata tracks completion and encounter generation produces batch state.
-    Method: create Novel. Assert `novel_setup` prompt shows no characters, adventure
-    source "none," all setup flags false. Create and import character — assert
-    characters_present → true. Call `generate_encounter("dark alley")` — assert
-    adventure_set → true. Verify three artifacts: scene state, NPC, and lore entry all
-    present in `persona_briefing`. Undo — assert all three removed (single undo). Player
-    attempt on `generate_encounter` — assert `[FORBIDDEN]`. Call `session_zero`
-    prompt — assert session_zero_completed → true. End Novel — assert cleanup.
+1. **Tool surface sweep.** Every registered tool accepts valid input without error.
+2. **Character creation workflow.** Full creation produces a correct entity with all
+   derived statistics; the entity appears in the roster and imports correctly.
+3. **Encounter setup.** Combat init with entities and dangers reports round counter, turn order, and participant classification.
+4. **Simulated combat session.** The combat pipeline — turn resolution, HP tracking,
+   condition effects, round advancement — produces correct results over at least 3 rounds
+   with deterministic seeds.
+5. **Combat state survival.** Combat state (HP, conditions, round counter, turn order)
+   is restored identically after server restart.
+6. **Cross-persona boundary enforcement.** GM-only tools are blocked from Player persona
+   and succeed for Game Master; no GM-only content leaks to Player-visible surfaces.
+7. **Table generation sweep.** Every generation table produces valid results matching
+   the ruleset; GM-only tables are blocked from Player.
+8. **Search and canonical lookup.** Exact, prefix, and substring search returns correct
+   sections; every lookup resolves by canonical name and documented aliases; source
+   quoting and self-contained results present; non-existent items return NOT_FOUND with
+   enumeration.
+9. **Condition lifecycle.** Conditions apply, affect mechanics, and expire by the
+   ruleset's own triggers; manual removal also works.
+10. **Undo during combat.** Undo reverts combat state; undo is blocked during pending workflows and succeeds after resolution.
+11. **Workflow cancellation.** Cancel restores pre-workflow state; the tool works after cancellation.
+12. **Roster durability.** Roster baselines are immutable; re-import produces a fresh copy matching the original baseline.
+13. **Novel isolation.** Entities, adventures, and generated content do not leak between Novels.
+14. **Edge cases.** Boundary inputs (empty strings, missing params, zero HP, max HP,
+    rapid calls, ambiguous aliases, unknown decisions, seed replay) all return correct
+    results without crashes.
+15. **Stress and recovery.** Adversarial conditions (concurrent sessions, corrupted
+    state, rapid persona switching, large-scale combat, long queries) handled without
+    data loss or deadlocks.
+16. **Narrative state.** Scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
+17. **Novel lifecycle and persistence.** Novel create/resume/end cycle works; state
+    persists to disk and restores after restart; end_novel removes file; ended Novel
+    cannot be resumed.
+18. **Novel isolation and adventure generation.** Generated adventures are Novel-scoped,
+    persona-filtered, searchable, and regeneratable.
+19. **Novel setup tracking and encounter generation.** Setup metadata tracks completion;
+    generate_encounter produces batch state (scene + NPC + lore) as a single undo target.
 
 **Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
 (6). The builder classifies the finding and creates a targeted convergence activity:
@@ -1239,45 +1016,13 @@ diagnostic trail, and the reason further convergence would not help.
 
 ### 6.7 Spec-driven updates
 
-When the specification is used to update an existing MCP server -- not the initial
-build, but a revision bringing the server into compliance with spec changes -- the
-following workflow is mandatory:
-
-1. **Full comparison.** Compare every requirement against the server's current
-   implementation. Audit the tool catalog, resource map, prompt list, state model,
-   persona gating, and behavioral contracts (output formats, audit logging,
-   snapshot/undo coverage, error taxonomies, macro expansion). Record every gap as
-   an actionable finding. The comparison must cover full source inspection, not
-   just the tool list.
-
-2. **Plan.** For each gap found, produce a plan identifying affected source files,
-   state types, and OCE scenarios. Plans must call out breaking changes explicitly:
-   persona gating changes, parameter schema expansions, resource URI changes,
-   tool-parameter renames or additions. The plan must itemize all new resources,
-   tools, and prompts that will be added.
-
-3. **Implement.** Apply changes per the plan. Run the server's typecheck and lint
-   gates. Rebuild the server index if discovery artifacts changed.
-
-4. **OCE re-verification.** Run the full OCE suite. Every scenario whose
-   assertions touch a changed tool, resource, state type, or behavioral contract
-   must be triaged and updated before the OCE is considered passing. Scenarios
-   exercising unchanged code may be skipped only if the comparison audit confirms
-   zero intersection. OCE scenarios defined in §6.6 but not yet implemented in
-   the server's OCE script must be implemented as part of the update.
-
-5. **Decisions record.** Update DECISIONS.md with a dated entry recording the spec
-   version, each gap found, its disposition (implemented / deferred / waived with
-   REQ-013 rationale), and the final OCE run result. Accepted limitations carry
-   the same rationale requirements as the initial Build.
-
-**REQ-098 -- Spec-driven update workflow.** When an existing MCP server is updated
-to match changes in this specification, the operator must perform a full comparison
-(tool catalog, resource map, prompt list, state model, persona gating, behavioral
-contracts), produce a documented gap plan identifying all changed files and affected
-OCE scenarios, implement the changes with passing typecheck/lint gates, run the full
-OCE suite with zero failures on changed code paths, implement any unimplemented OCE
+**REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
+to match changes in this specification, the operator must audit gaps, produce a
+documented plan, implement changes with passing verification gates, re-run the OCE
+suite with zero failures on changed code paths, implement any unimplemented OCE
 scenarios from §6.6, and record all gap dispositions in a dated DECISIONS.md entry.
+Gap audit must cover the tool catalog, resource map, prompt list, state model,
+persona gating, and behavioral contracts.
 
 _Check:_ A dated DECISIONS.md gap-disposition entry exists. The OCE run produces
 zero failures on all scenarios exercising changed code paths. `spec_health` reports
@@ -1399,37 +1144,10 @@ never influences tool behavior, search results, or model extraction.
 `guidance://shared` — each returning an index of guidance items visible to that persona.
 Individual items are at `guidance://<role>/<anchor>`.
 
-**Prompts.** `persona_briefing` composes these categories, persona-filtered: generic persona
-foundations (REQ-062, including anti-slop REQ-070 and voice examples REQ-071), persona
-switch guidance (`guidance://shared/persona-switch`), Novel metadata (REQ-093: slug, entity
-count, adventure source, setup-completion flags, surfaced under the `novel` section token),
-narrative directive (if set, REQ-081), scene state and scene type tag (if set, REQ-076,
-REQ-087), active adventure context (if loaded, REQ-079), entity summaries with personality
-fields and voice examples (REQ-077, tagged `[supplementary]` when enrich-sourced), active
-countdowns (REQ-073), activated lore entries (REQ-083, persona-filtered, sorted by
-priority descending with equal priorities breaking on key, sticky entries marked
-`[active]` or `[sticky: N remaining]`, grouped entries rendered under `[group: <name>]`
-headers per REQ-095), current player
-signals, ruleset-derived guidance (REQ-016), enrichment-derived supplementary guidance
-(tagged `[supplementary]`, §11.1), the tool and resource registry filtered by persona
-(REQ-023), context-sensitive tips (up to 3 one-line suggestions for available server
-features, each including the tool name in backticks, persona-filtered and gated behind usage
-thresholds; absent when no tips apply), enrich-derived prompt ordering recommendation
-(inert — visible in `spec_health`, never auto-applies), and pointers to the `intro`
-(REQ-063) and `session_zero` (REQ-078) prompts. The builder determines the optimal
-composition order for the specific ruleset and model, which is the sole default order. If
-the GM sets a custom order via `set_briefing_order` (REQ-082), sections are composed in
-that order. The convergence loop (§6.5) verifies completeness.
-`guidance://shared/persona-switch` provides common patterns for when to switch personas
-during play.
-
-When `TTRPG_MAX_LORE_TOKENS` is set and activated lore entries exceed the budget, the
-lore section includes a trailing note: `(N entries omitted — token budget: M/T)` per
-REQ-097.
-
-When no persona is active, `persona_briefing` returns all content unfiltered — both
-Game Master and Player sections are visible. Persona filtering applies only when a
-persona is active (REQ-031).
+**Prompts.** `persona_briefing` composes guidance, state, lore, and registry content
+persona-filtered per the requirements cited in §5.8. `persona_briefing` composition is
+determined by the builder with GM-overridable section ordering (REQ-082). The builder
+determines the optimal default order; the convergence loop (§6.5) verifies completeness.
 
 ---
 
@@ -1628,8 +1346,7 @@ A source type that returns zero results is recorded as a finding with the "empty
 disposition and does not block completion. Failure or empty results leave the server
 unchanged; all enrichment content is additive.
 
-**Structured outputs.** Enrich produces an enrichment manifest with six output modules
-(see §11.1a for the manifest format):
+**Structured outputs.** Enrich produces an enrichment manifest with six output modules:
 
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
    `text` (the dialogue), `context` (situation tag), `source_url`, and `confidence`.
@@ -1728,41 +1445,6 @@ DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
 **Reversion.** Re-running Build (without enrich) or using the `revert_enrichment` tool
 restores the pre-enrich server state. Enrichment manifest and verification results remain
 in DECISIONS.md for audit.
-
-### 11.1a Enrichment manifest format
-
-The enrichment manifest is written to the state directory alongside build state. Each
-output module is a JSON file conforming to the schema below.
-
-**`voice_examples.json`:** An object mapping entity type names to arrays of up to 5 voice
-example objects. Each object: `text` (string, the dialogue example), `context` (string,
-situation tag — e.g. "combat", "negotiation"), `source_url` (string), `confidence`
-(string, one of HIGH/MEDIUM/LOW), `persona_scope` (string, one of player/game_master).
-
-**`prompt_ordering.json`:** An object with a single `sections` field — an ordered array of
-section token strings.
-
-**`lore_templates.json`:** An object mapping keyword strings to arrays of up to 3 lore
-template objects. Each object: `key` (string, slug), `content` (string, Markdown),
-`triggers` (array of strings), `persona_scope` (string, one of game_master/shared),
-`source_url` (string), `confidence` (string).
-
-**`action_patterns.json`:** An array of up to 10 action pattern objects. Each object:
-`intent` (string), `suggested_actions` (array of strings — ruleset tool names),
-`source_url` (string), `confidence` (string).
-
-**`supplementary_guidance.json`:** An array of up to 20 guidance objects. Each object:
-`text` (string, the guidance content), `persona_scope` (string), `source_url` (string),
-`confidence` (string).
-
-**`adventure_advice.json`:** An array of up to 30 advice objects. Each object: `category`
-(string, one of adventure_templates/table_expansions/scenario_starters), `content`
-(string, Markdown), `source_url` (string), `confidence` (string), `persona_scope`
-(string, one of game_master/shared).
-
-All JSON files are UTF-8, no BOM. The manifest also records the build fingerprint
-(REQ-065) in a `fingerprint` field at the top level of each file. If the fingerprint is
-absent, the file is treated as corrupted and regenerated on the next enrich run.
 
 ### 11.2 Character sheet enhancement
 
@@ -2229,7 +1911,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-080 | Enrichment boundaries     | T63                            | 2026-08-04   |
 | REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
 | REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
-| REQ-083 | Dynamic lore entries      | T67, T79                       | 2026-08-04   |
+| REQ-083 | Dynamic lore              | T67, T79, T81, T82, T83       | 2026-08-05   |
 | REQ-084 | Action suggestions        | T68                            | 2026-08-04   |
 | REQ-085 | Macro system              | T69                            | 2026-08-04   |
 | REQ-086 | Audit compression         | T70                            | 2026-08-04   |
@@ -2240,10 +1922,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-091 | Enhanced encounter generation | T76                        | (today)      |
 | REQ-092 | Novel persistence         | T77                            | (today)      |
 | REQ-093 | Novel listing and metadata | T78                           | (today)      |
-| REQ-094 | Lorebook export and import | T80                            | (today)      |
-| REQ-095 | Lore grouping              | T81                            | (today)      |
-| REQ-096 | Lore suggestion            | T82                            | (today)      |
-| REQ-097 | Lore token budget          | T83                            | (today)      |
+| REQ-094 | Lorebook interchange      | T80                            | (today)      |
 | REQ-098 | Spec-driven update workflow | T84                            | (today)      |
 
 ---
@@ -2330,11 +2009,11 @@ diet.
 | T76   | Automated | Enhanced encounters: call `generate_encounter("dark alley")`. Assert output creates a scene_state entry, an NPC, and a lore entry — all snapshot-able. Call without context — assert generates from ruleset tables. Undo — assert all three artifacts removed (single undo). Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                           | REQ-091, REQ-041, REQ-032                   |
 | T77   | Automated | Novel persistence: create Novel, populate state (entity, NPC, scene, countdown, lore, adventure). Restart server — assert all state tiers restored. Modify the entity model (add/remove a field), rebuild, resume — assert graceful load (no errors, missing fields get defaults, extra fields preserved). Corrupt the on-disk JSON — assert stderr warning and `spec_health` flag.                                                                                                                                                                                                                                                                                                                  | REQ-092, REQ-065                            |
 | T78   | Automated | Novel metadata: create two Novels (A and B). Resume A — assert `spec_health` lists both Novels on disk, marks A as active. Verify Novel metadata in `persona_briefing` under `novel` token includes entity count, adventure source, and setup-completion flags.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-093                                     |
-| T79   | Automated | Extended lore lifecycle: create two lore entries with priority 100 and 10, both triggered — assert priority-100 entry appears first in `persona_briefing` lore section. Set sticky=3 on one entry, trigger it, advance scene state 3 times without trigger — assert entry remains active with `[sticky: N remaining]` markers decrementing, then deactivates on the 4th assembly. Disable an active entry — assert it disappears from `persona_briefing` but remains at `lore://<key>`. Re-enable it — assert reactivation. Disabled entries do not trigger. Player persona attempts on enable/disable return `[FORBIDDEN]`. Undo a sticky refresh — assert `sticky_remaining` restored. Default priority=0 and sticky=0 produce backward-compatible REQ-083 behavior.                                                                                                                                                                                                                                                                                  | REQ-083, REQ-041, REQ-032                   |
-| T80   | Automated | Lorebook export/import: create 3 lore entries with varied priority, sticky, persona_scope, and enable states. Export as JSON — assert output matches Appendix L schema; verify mechanical fields (entity stats, combat state) absent. Export as Markdown — assert Appendix L format. Re-export — assert idempotent. Import the JSON with mode "dry-run" — assert preview includes 3 entries and a collision report; state unchanged. Import with "replace" — assert lore tier contains exactly 3 entries (old entries gone). Create 2 more entries, import with "merge" — assert 5 entries total (duplicate keys skipped with `spec_health` note). Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                          | REQ-094, REQ-032                            |
-| T81   | Automated | Lore grouping: group 3 entries under "faction", 2 under "locations". Assert `lore://groups` lists both groups with correct members. Assert `lore://groups/faction` lists 3 entry keys. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Verify `persona_briefing` lore section renders grouped entries under `[group: <name>]` headers, ungrouped entries after. Player attempt → `[FORBIDDEN]`. Undo — assert group assignment restored.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-095, REQ-032                            |
-| T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore("crumbling temple")` — assert up to 5 matching templates returned with key, content preview (first 200 chars), triggers, confidence, and source_url. Call without argument in a scene containing matching text — assert same results. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication — every result maps to a stored enrich template. Switch to Player — assert GM-scoped templates excluded. Results are idempotent (same input, same output).                                                                                                                                                                                                                                                                                                                                        | REQ-096, REQ-032, REQ-080                   |
-| T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create 20 lore entries (each ~100 tokens estimated), all triggered. Assert `persona_briefing` lore section includes only the top-priority entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries with current trigger match are included before non-sticky entries regardless of priority. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear (backward-compatible default). One oversized entry permitted per assembly (included rather than truncated).                                                                                                                                                                                                                                                                                                                                                                                    | REQ-097                                     |
+| T79   | Automated | Extended lore lifecycle: create two lore entries with priority 100 and 10, both triggered — assert priority-100 entry appears first in `persona_briefing` lore section. Set sticky on one entry, trigger it, advance scene state without trigger — assert the entry persists for the sticky duration then deactivates. Disable an active entry — assert it disappears from `persona_briefing` but remains at `lore://<key>`. Re-enable it — assert reactivation. Disabled entries do not trigger. Player persona attempts on enable/disable return `[FORBIDDEN]`. Undo a sticky refresh — assert sticky count restored.                                                                                                                                                                                                                                                                                  | REQ-083, REQ-041, REQ-032                   |
+| T80   | Automated | Lorebook export/import: create 3 lore entries with varied metadata. Export as JSON — assert output matches Appendix L schema; verify mechanical fields absent. Export as Markdown — assert Appendix L format. Re-export — assert idempotent. Import with "dry-run" — assert preview and collision report; state unchanged. Import with "replace" — assert lore tier replaced. Import with "merge" — assert entries merged, duplicate keys skipped. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                          | REQ-094, REQ-032                            |
+| T81   | Automated | Lore grouping: group entries under named groups. Assert `lore://groups` lists groups with correct members. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032                            |
+| T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
+| T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create many lore entries, all triggered. Assert `persona_briefing` lore section includes only entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries included before non-sticky. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear. One oversized entry permitted per assembly.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
 | T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived). Assert `spec_health` includes `last_spec_review` and `last_oce` fields populated with ISO dates. Assert the OCE run covers all changed code paths with zero failures on those paths. Assert any unimplemented OCE scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 
 ---
@@ -2516,105 +2195,35 @@ the active adventure for the current game.
 
 ## Appendix L: Lorebook Interchange Format
 
-Holonovel lorebook export (REQ-094) produces documents in two formats.
+Lorebook export (REQ-094) produces JSON (SillyTavern-compatible World Info array) and
+Markdown (HTML-comment-annotated entry document) formats. Both carry priority, sticky,
+persona_scope, enabled, group, and trigger metadata. Import respects merge, replace, and
+dry-run modes; non-lore entries import as inert reference content. Format schemas are
+determined by the builder; the convergence loop enforces round-trip fidelity.
 
-### JSON Format
+---
 
-A JSON array of entry objects compatible with SillyTavern World Info:
+## Appendix M: REQ Authoring Conventions
 
-```json
-[
-  {
-    "key": ["black spider", "drow assassin", "nezznar"],
-    "content": "The Black Spider (Nezznar) is a drow assassin stalking the party…",
-    "comment": "holonovel-export -- key=black-spider -- priority=100 -- persona_scope=shared -- group=black-spider-faction",
-    "constant": false,
-    "selective": true,
-    "order": 100,
-    "position": "before_char",
-    "depth": null,
-    "group": "black-spider-faction",
-    "disable": false,
-    "probability": null,
-    "sticky": 5,
-    "cooldown": 0,
-    "delay": 0,
-    "holonovel": {
-      "key_slug": "black-spider",
-      "persona_scope": "shared",
-      "sticky": 5,
-      "enabled": true,
-      "group": "black-spider-faction",
-      "source": "lore_entry"
-    }
-  }
-]
-```
+This appendix defines what belongs in a requirement and what does not. It is not a
+build artifact — it is a spec-maintainer reference.
 
-Holonovel-specific metadata is nested under `"holonovel"` to avoid colliding with
-SillyTavern field semantics. `"key_slug"` is the canonical lore entry key in the
-Novel. `"order"` mirrors `priority`. `"sticky"` and `"group"` are carried in both
-the top-level (for ST compatibility) and the `"holonovel"` namespace (for
-round-trip fidelity). `"source"` identifies the entry type: `"lore_entry"`,
-`"scene_state"`, `"narrative_directive"`, `"entity_personality"`, or
-`"npc_description"`. Non-lore entries carry a `"holonovel"` block but have empty
-keys and `constant: false` (they are reference context only, not triggerable).
+**REQ anatomy.** One paragraph stating the *what*. Ends in `_Check:_` with test
+citations. Contains no parameter types, no algorithm descriptions, no default values,
+no catalog enumerations, no tool-name lists.
 
-### Markdown Format
+**What belongs elsewhere:**
 
-A single Markdown document with ATX headings. Each entry is a `###` section:
+- Parameter shapes and tool signatures → builder discovery + convergence loop
+- Sort orders, algorithms, and trigger-scan caps → builder's implementation judgment
+- Default starting values → builder determines; verified by gate thresholds
+- Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
+  live registries; the REQ states the category
+- State-machine transition rules → state model table (§7.7) is canonical
+- Worked examples and step-by-step procedures → golden transcript (§B.3) and OCE (§6.6)
+- JSON schemas and file format specifications → builder's implementation; gates verify
+  correctness
 
-```markdown
-# Novel: <novel-name>
-<!-- Holonovel export — <timestamp> — <ruleset> ruleset -->
-
-## scene-current
-<!-- source: scene_state -->
-You stand at the entrance to Wave Echo Cave…
-
-## narrative-directive
-<!-- source: narrative_directive -->
-<!-- persona_scope: game_master -->
-The mine is dark, wet, and dangerous…
-
-## entity:<entity-id>
-<!-- source: entity_personality -->
-- name: Thorin Battlehammer
-- personality: A gruff dwarf veteran…
-- voice: "By my beard…"
-
-## npc:<npc-id>
-<!-- source: npc_description -->
-- name: Sildar Hallwinter
-- disposition: friendly
-- personality: A knight of the Lords' Alliance…
-
-## lore:<key>
-<!-- source: lore_entry -->
-<!-- persona_scope: shared -->
-<!-- priority: 100 -->
-<!-- sticky: 5 -->
-<!-- group: black-spider-faction -->
-<!-- triggers: black spider, drow assassin, nezznar -->
-The Black Spider (Nezznar) is a drow assassin stalking the party…
-```
-
-Metadata lives in HTML comments (`<!-- ... -->`) — invisible to Markdown renders
-but machine-parseable. The `source` field distinguishes entry types during import.
-Non-lore entries (scene, directive, entity personality, NPC description) are
-imported as inert reference entries that the GM may activate as lore entries via
-`set_lore_entry`. Only `source: lore_entry` entries are auto-imported into the lore
-tier.
-
-### Round-Trip Guarantees
-
-- Export → import (same server, unchanged state between) restores the lore tier
-  identically. Priority, sticky, persona_scope, enabled, and group survive the
-  round-trip.
-- Import does not modify non-lore state: scene, entities, NPCs, countdowns, combat,
-  and audit log are never touched by import.
-- JSON format carries all metadata in structured fields; Markdown format carries it
-  in HTML comments. Both are lossless for lore tier data.
-- Unknown fields in imported JSON are preserved as inert data (consistent with
-  REQ-092 graceful-load). Unknown Markdown sections import as inert reference
-  entries.
+**The "trust the loop" test.** If a deviation from a requirement would be caught by
+Gate 2, Gate 4, the convergence loop, or an OCE scenario, do not specify the mechanism
+in the REQ — specify the outcome. The REQ ends at the contract boundary.

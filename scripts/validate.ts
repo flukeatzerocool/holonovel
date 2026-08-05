@@ -190,6 +190,48 @@ function checkReqBlocks(text: string): string[] {
   return issues;
 }
 
+function checkSpecViolations(text: string): string[] {
+  const issues: string[] = [];
+  const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
+  const bodyText = text;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const reqId = match[1].match(/^(REQ-\d{3}[a-z]?)/)![1];
+    const bodyStart = match.index + match[0].length;
+    const rest = bodyText.slice(bodyStart);
+    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
+    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
+
+    if (body.length > 800) {
+      issues.push(`${reqId}: body exceeds 800 chars (${body.length}) — may contain implementation detail`);
+    }
+    if (/\(string[,) ]|\(integer[,) ]|\(boolean[,) ]|\(float[,) ]|\(number[,) ]/.test(body)) {
+      issues.push(`${reqId}: contains parameter type annotations — consider removing`);
+    }
+    if (/Default:\s/.test(body)) {
+      issues.push(`${reqId}: contains 'Default:' clause — defaults are builder's domain`);
+    }
+
+    const enumerated = body.match(/`[^`]+`(,\s*`[^`]+`)*/g);
+    if (enumerated) {
+      for (const list of enumerated) {
+        const count = (list.match(/`/g) || []).length / 2;
+        if (count > 5) {
+          issues.push(`${reqId}: enumerated ${count} tokens — catalog-as-requirement`);
+          break;
+        }
+      }
+    }
+  }
+
+  const lifecycleMatches = text.match(/survives connection restarts|persists across connections and is discarded/g);
+  if (lifecycleMatches && lifecycleMatches.length > 3) {
+    issues.push(`lifecycle pattern 'survives connection restarts / discarded on end_novel' appears ${lifecycleMatches.length} times — consider consolidating`);
+  }
+
+  return issues;
+}
+
 function checkSeparators(text: string): string[] {
   const issues: string[] = [];
   let inBlock = false;
@@ -353,6 +395,16 @@ function main(): void {
     errors += versionIssues.length;
   } else {
     console.log("PASS: All REQ spec versions populated");
+  }
+
+  const specViolations = checkSpecViolations(text);
+  if (specViolations.length > 0) {
+    for (const issue of specViolations) {
+      console.log(`WARNING: ${issue}`);
+    }
+    warnings += specViolations.length;
+  } else {
+    console.log("PASS: No spec authoring violations detected");
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);
