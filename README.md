@@ -113,7 +113,7 @@ characters, your roster — still there.
 
 ## Build your own game server
 
-You don't code. You commission. This is specification-driven development:
+You don't code, you commission. This is specification-driven development:
 the spec is the permanent artifact, the implementation is disposable.
 An AI agent reads your rulebooks, builds an MCP server, and fights
 itself until it's right.
@@ -144,10 +144,10 @@ it anywhere. It's yours.
 
 > "Add the Monster Manual to my ruleset."
 
-The spec doesn't retire. Drop in a new sourcebook — the server learns
+**The spec doesn't retire.** Drop in a new sourcebook — the server learns
 creatures it didn't know yesterday. Load an adventure module for your
 next campaign. Rebuild against a newer spec — the spec defines a formal
-update workflow (§6.7): full comparison audit, gap plan, Gauntlet
+update workflow: full comparison audit, gap plan, Gauntlet
 re-verification. Point the Build job at your existing server directory
 and an updated ruleset — it discovers the gap between current
 implementation and the updated spec, fills it, and re-runs every
@@ -184,6 +184,8 @@ for rich clients.
 | rpg-mcp | D&D 5e MCP server | One ruleset vs. any ruleset. Feed it any TTRPG. |
 | Raw ChatGPT / local LLM | Improvised DM, forgets rules mid-combat | Can't forget. Can't invent. Survives sessions. A lorebook for rules. |
 | Consumer AI GM apps | Walled-garden subscriptions | Open-source. Local. Free. Works with any LLM through your MCP client. |
+
+(Note: Researched on August 4, 2026.)
 
 ## Get started
 
