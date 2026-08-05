@@ -1,14 +1,19 @@
 {
   "name": "holonovel-spec",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
     "lint": "markdownlint holonovel.md README.md",
     "validate": "npx tsx scripts/validate.ts",
+    "validate:traceability": "npx tsx scripts/validate.ts --traceability",
     "audit-assumptions": "npx tsx scripts/audit-assumptions.ts",
+    "scan-ambiguity": "npx tsx scripts/scan-ambiguity.ts",
+    "fmea": "npx tsx scripts/fmea.ts",
+    "graph-deps": "npx tsx scripts/graph-deps.ts",
+    "spec-health-trends": "npx tsx scripts/spec-health-trends.ts",
     "typecheck": "npx tsc --noEmit",
-    "check": "npm run lint && npm run validate && npm run audit-assumptions"
+    "check": "npm run lint && npm run validate && npm run audit-assumptions && npm run scan-ambiguity"
   },
   "keywords": [],
   "author": "",

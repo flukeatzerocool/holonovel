@@ -11,7 +11,8 @@ specification document, not an implementation.
 
 ```
 holonovel.md            The specification (standalone, copy-pasteable)
-  §1–5                  Mission, requirements, failure modes, standing rules,
+  §1–5                  Mission, requirements, failure modes (with fault trees),
+                          standing rules (including red-team discipline),
                           requirements (75 REQ blocks)
   §6                    Build process (jobs, intake, discovery, construction,
                           verification & convergence)
@@ -22,24 +23,30 @@ holonovel.md            The specification (standalone, copy-pasteable)
                           troubleshooting)
   §10                   Independent verification (includes adversarial round)
   §11                   Optional jobs (persona enrichment)
-  Appendices A–O        Parsing principles, golden fixture, injection fixture,
+  Appendices A–P        Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog,
                           anti-slop synopsis, adventure format, lorebook format,
                           REQ authoring conventions, complex fixture, behavioral
-                          contracts
+                          contracts, STRIDE security threat model
 README.md               Project orientation; see HTML comment at top for
                           README design conventions
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
 package.json            Task runner (lint, validate, audit-assumptions,
-                          typecheck)
+                          scan-ambiguity, typecheck)
 .markdownlint.json      Lint rules (120-char prose, ATX headings)
 tsconfig.json           TypeScript configuration
-scripts/validate.ts     Cross-reference checker (REQ citations, test IDs,
-                          TOC sync, heading separators, block shape)
+scripts/validate.ts     Cross-reference checker with --traceability flag
+                          (REQ citations, test IDs, TOC sync, heading separators,
+                          block shape, traceability matrix, coverage completeness)
 scripts/audit-assumptions.ts  Structural assumption auditor (citations,
                           magic numbers, absolute language, thresholds)
+scripts/scan-ambiguity.ts     Ambiguity scanner (hedging, vague qualifiers,
+                          indefinite language in REQ bodies)
+scripts/fmea.ts               REQ-level failure mode and effects skeleton
+scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
+scripts/spec-health-trends.ts Spec health metrics over revisions
 ```
 
 ## Conventions
