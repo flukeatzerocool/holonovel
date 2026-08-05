@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-05 — v1.4 "Lorebook"
+
+Holonovel's lore subsystem learns from lorebooks without becoming one. Eight
+new tools, four new REQ blocks, five new tests — all backward-compatible.
+
+- Extended REQ-083: lore entries gain `priority` (insertion ordering within
+  `persona_briefing`), `sticky` (persistence for N assemblies after last trigger
+  match, with audit-tracked decay), and `enabled` (per-entry toggle without
+  deletion). New tools `enable_lore_entry`/`disable_lore_entry`.
+- New tools: `export_lorebook`/`import_lorebook` (REQ-094, JSON and Markdown
+  interchange formats, merge/replace/dry-run modes), `group_lore_entries`/
+  `ungroup_lore_entries` (REQ-095, organizational grouping with `persona_briefing`
+  headers), `suggest_lore` (REQ-096, context-aware enrich template matching).
+- New server config: `TTRPG_MAX_LORE_TOKENS` (REQ-097, token budget with
+  priority-based fill and `spec_health` overflow reporting).
+- Spec: Appendix L (Lorebook Interchange Format), state model table extended,
+  `persona_briefing` lore section documented with sorting, sticky markers,
+  group headers, and budget overflow notes.
+- Five new automated tests (T79–T83).
+- README: lorebook export demo quote added to "Playing a Novel" section.
+
 ## 2026-08-05 — dnd5e v1.3 Novel migration + OCE re-verification requirement
 
 - Spec (§6.6, §11): OCE reclassified from "confidence check, not a requirement
