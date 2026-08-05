@@ -48,6 +48,22 @@
 - AGENTS.md: layer map updated (75 REQs, Gates 0–5+2b, Appendices A–O,
   new script).
 
+## 2026-08-05 — Complex Fixture authored (Captain Proton)
+
+- Appendix N: Complex Fixture drafted in full — synthetic pulp-sci-fi ruleset
+  "Captain Proton and the Static Prison" with 3 fixture files
+  (captain_proton_rules.md, captain_proton_gadgets.md, captain_proton_foes.md),
+  4 deliberate defects (broken cross-ref, mechanical contradiction, 2 content
+  gaps), a 24-interaction golden transcript, and a 4-seed RNG witness table.
+  The fixture exercises cross-file dedup, embedded stat blocks in prose,
+  GM-only sections, and condition/combat/countdown/undo/session_recap end-to-end.
+- Appendix B: Tin Lanterns framing note added — ties the golden fixture to the
+  Captain Proton holo-novel tradition.
+- Appendix N: synthetic-disclaimer footnote added — cites Appendix I as the
+  catalog of permissively-licensed production rulesets.
+- README: golden-transcript paragraph updated to reference both Tin Lanterns
+  and Captain Proton fixtures.
+
 ## 2026-08-05 — Convergence loop enhancements (6 improvements)
 
 - §6.5: Cross-model audit recommendation — audit subagent uses a different model
