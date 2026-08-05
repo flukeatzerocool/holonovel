@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-08-05 — v2.1 "Structured Analysis" — SATs applied to the spec
+
+- Researched Structured Analytic Techniques (Heuer & Pherson taxonomy: decomposition,
+  idea generation, scenarios & indicators, hypothesis testing, cause & effect, challenge
+  analysis, conflict management, decision support) and software design analysis methods
+  (STRIDE, FMEA, fault tree analysis, ATAM, requirements traceability, ambiguity
+  detection, coverage completeness). Identified 10 complementary analyses for Holonovel.
+- New `scripts/scan-ambiguity.ts` — ambiguity scanner detecting hedging language, vague
+  qualifiers, unbounded extensions, should-vs-must, and "or equivalent" patterns in REQ
+  bodies. Added to `npm run check` pipeline.
+- Extended `scripts/validate.ts` with `--traceability` flag — full REQ↔test↔gate
+  traceability matrix, failure mode preventive-REQ count, and coverage completeness
+  report (tool citations, state tier persistence/filtering, construction layer
+  acceptance checks). Available via `npm run validate:traceability`.
+- New `scripts/fmea.ts` — REQ-level failure mode and effects skeleton: severity
+  scoring (1–5), detection coverage from Check: citations, failure mode tags. Flags
+  high-severity REQs with no detection coverage.
+- New `scripts/graph-deps.ts` — REQ dependency graph outputting DOT/Graphviz format.
+  Identifies orphaned, source-only, and sink-only REQs.
+- New `scripts/spec-health-trends.ts` — reports REQ count, test count, line count,
+  heading/table/code-block counts, cross-reference density, and test-per-REQ ratio.
+  Designed for tracking complexity drift across spec revisions.
+- §3: Fault trees added for all six failure modes (F1–F6). Each tree traces root
+  causes to specific REQs or gates; leaves without guards are explicitly flagged.
+- §4: Standing Rule 8 added — "Red-team every REQ." Spec authoring discipline:
+  four questions per REQ to challenge ambiguity, edge cases, and paradigm assumptions
+  before finalizing.
+- New Appendix P: STRIDE Security Threat Model. Maps spoofing, tampering,
+  repudiation, information disclosure, denial of service, and elevation of privilege
+  threats to existing mitigations and identified gaps.
+- package.json: version 2.0.0 → 2.1.0; five new scripts: `scan-ambiguity`, `fmea`,
+  `graph-deps`, `spec-health-trends`, `validate:traceability`. Updated `check`
+  pipeline to include `scan-ambiguity`.
+- README: Contribute section expanded with analysis suite table, STRIDE reference,
+  and Gauntlet scenario count corrected (19 → 20).
+- AGENTS.md: layer map updated — 3 new appendices (now A–P, was A–O), 5 new scripts,
+  spec headings revised to reflect fault trees and red-team discipline.
+
 ## 2026-08-05 — v2.0 "Self Reflection" — Assumption audit remediation
 
 - Full 47-assumption audit conducted against the specification. 5 blockers, 28

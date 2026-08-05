@@ -45,6 +45,7 @@
 - [Appendix M: REQ Authoring Conventions](#appendix-m-req-authoring-conventions)
 - [Appendix N: Complex Fixture](#appendix-n-complex-fixture)
 - [Appendix O: Behavioral Contracts](#appendix-o-behavioral-contracts)
+- [Appendix P: STRIDE Security Threat Model](#appendix-p-stride-security-threat-model)
 
 ---
 
@@ -103,6 +104,99 @@ The spec is designed around six failure modes. Recognize them early.
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
 
+**Fault trees.** Each failure mode traces down to root causes. Every leaf terminates at a
+specific REQ or gate. If a leaf has no guard, the gap is explicit.
+
+**F1 — Server invents rules.**
+
+```
+F1: Server invents rules instead of extracting them
+├── Root: Extraction pipeline missed a section
+│     └── Guard: REQ-011 (confidence), Gate 0 (structural integrity)
+├── Root: Low-confidence section treated as canonical
+│     └── Guard: REQ-012 (fallback), convergence loop (§6.5)
+├── Root: LLM hallucination during tool construction
+│     └── Guard: Gate 2 (golden transcript replay), REQ-058 (no tool-result fabrication)
+├── Root: Truncated ruleset feeding incomplete model (F2 interaction)
+│     └── Guard: REQ-004 (truncation with output://), convergence thresholds
+└── Root: Missing convergence check — defect accepted as complete
+      └── Guard: §6.5 audit subagent, convergence loop
+```
+
+**F2 — Context exhaustion.**
+
+```
+F2: Context exhaustion — large rulesets exceed prompt-size limits
+├── Root: Single-pass ingestion of large ruleset
+│     └── Guard: §6.3 chunked reading, REQ-100 complexity tiers
+├── Root: Indexed items exceed model context window
+│     └── Guard: REQ-100 tier thresholds, confidence-adjusted floors (≥70%)
+├── Root: Golden transcript replay fails on large fixture
+│     └── Guard: Gate 2b (complex fixture), Appendix N
+└── Root: No complexity detection before build start
+      └── Guard: Gate 0 structural integrity pass reports item count
+```
+
+**F3 — MCP protocol errors.**
+
+```
+F3: Server speaks MCP incorrectly
+├── Root: Wrong method names in tool registration
+│     └── Guard: Gate 1 conformance checklist (Appendix D)
+├── Root: Malformed JSON in responses
+│     └── Guard: REQ-001 (response contract), Gate 2 (transcript replay)
+├── Root: Missing handshake fields
+│     └── Guard: Gate 1 initialize check, Appendix D
+├── Root: SDK-level schema errors (wrong parameter types)
+│     └── Guard: REQ-001 (JSON-RPC error code -32602), T39a (tool parameter validation)
+└── Root: Resource URI template mismatch
+      └── Guard: Gate 2 (resource retrieval), T16 (stable resource lists)
+```
+
+**F4 — Ruleset contamination.**
+
+```
+F4: Specific ruleset's content hardcoded into source tree
+├── Root: Builder embeds fixture-derived mechanics in server code
+│     └── Guard: H3 (hardcoded-mechanics scan), H4 (fixture isolation)
+├── Root: Waiver system abused — hardcoded table logged as acceptable
+│     └── Guard: H6 (waiver cross-reference scan), REQ-013 waiver criteria
+├── Root: Convergence loop too permissive — low confidence accepted
+│     └── Guard: REQ-011 (confidence thresholds), REQ-099 (operator acknowledgment)
+└── Root: Builder trained on same ruleset, hallucinates familiar content
+      └── Guard: T35 (fixture isolation), T42 (no fabrication), Gate 2 replay
+```
+
+**F5 — State loss.**
+
+```
+F5: Server-side state disappears on reconnect
+├── Root: State held in memory only, not persisted to disk
+│     └── Guard: REQ-092 (Novel persistence to .holonovel-state), T72 (on-disk verification)
+├── Root: State file corrupted on disk
+│     └── Guard: REQ-092 (atomic writes + .bak retention), T88
+├── Root: Rebuild changes entity model, state load fails
+│     └── Guard: REQ-065 (build fingerprint), T52 (graceful load with field mismatch)
+├── Root: Audit log entries lost on process restart
+│     └── Guard: REQ-040 (append-only audit log survives restarts), T8
+└── Root: end_novel executed prematurely or accidentally
+      └── Guard: REQ-088 (STATE_CONFLICT on resume of ended Novel), T31
+```
+
+**F6 — Client configuration errors.**
+
+```
+F6: Client config has wrong field names, paths, or values
+├── Root: README client config entry doesn't match actual server metadata
+│     └── Guard: H11 (client-config launch verification), §6.2 config-write validation
+├── Root: Server port/host mismatch between config and runtime
+│     └── Guard: Gate 0 live initialize from README instructions
+├── Root: Transport type wrong (stdio vs HTTP mismatch)
+│     └── Guard: REQ-001 (response contract requires correct transport init)
+└── Root: Config tested against different server build
+      └── Guard: H1 (edition/title match), build fingerprint (REQ-065)
+```
+
 ---
 
 ## 4. Standing Rules and Terminology
@@ -137,8 +231,18 @@ The spec is designed around six failure modes. Recognize them early.
    (d) Does the REQ end with a "Default:" clause specifying a starting value? If so,
    remove it — defaults are the builder's domain.
    (e) Would the REQ still be valid if the builder chose a different data structure, sort
-   algorithm, file format, or parameter signature? If not, it's locked to one
-   implementation.
+    algorithm, file format, or parameter signature? If not, it's locked to one
+    implementation.
+8. **Red-team every REQ.** Before finalizing a new or modified REQ, answer four
+   questions: (a) How could an AI builder misinterpret this requirement? Read each
+   sentence and list a plausible wrong reading. (b) What words in this REQ body are
+   ambiguous or context-dependent? Flag every hedge, every undefined term, every
+   ruleset-relative concept. (c) What edge case does this REQ not cover? Think across
+   ruleset paradigms — diceless, level-less, classless, single-stat. (d) What ruleset
+   paradigm would make this REQ inapplicable or contradictory? If any question
+   produces a concrete gap, tighten the REQ or record the gap in Appendix M. This is a
+   spec-authoring discipline — not a mechanical check — and is exercised by the author,
+   not the builder. No _Check:_ citation attaches.
 
 **Terminology.**
 
@@ -2869,3 +2973,30 @@ entity model loads state gracefully (absent fields preserved as inert data;
 missing fields receive ruleset-defined defaults).
 
 _Verify behavioral contracts with:_ T91.
+
+---
+
+## Appendix P: STRIDE Security Threat Model
+
+_This appendix is a spec-level security review, not a per-build check. It maps
+each STRIDE category to Holonovel-specific threats, existing mitigations, and
+identified gaps. Update this appendix on major spec revisions._
+
+STRIDE categorises threats as Spoofing, Tampering, Repudiation, Information
+Disclosure, Denial of Service, and Elevation of Privilege.
+
+| STRIDE | Threat | Existing mitigation | Gap |
+| ------ | ------ | ------------------- | --- |
+| **Spoofing** | Client impersonates GM via `set_persona` without authorization | `set_persona` is always callable (REQ-066) — no authentication mechanism exists; the spec assumes a single trusted operator | **Moderate.** The server trusts all callers. For solo play this is acceptable by design; for multi-operator scenarios it is a documented limitation. |
+| **Tampering** | Novel state file corrupted on disk | REQ-092: atomic writes + `.bak` retention, T88 verifies backup creation and recovery | **Minor.** No integrity hash or checksum on the on-disk state file. Corruption between writes and reads could silently degrade. |
+| **Tampering** | Audit log entries forged by direct file manipulation | REQ-040: append-only audit log, but append-only is enforced at the API level — the on-disk JSON is writable by the host process | **Minor.** No cryptographic integrity on audit log entries. Operator trust required. |
+| **Repudiation** | Mutations denied by operator claiming tools were never called | REQ-040: append-only audit log records every mutating call with timestamp, persona, tool name, arguments, and output prefix; T8 verifies logging | **Covered.** Audit log provides non-repudiation at the operator-trust level. |
+| **Information Disclosure** | Player persona sees GM-only lore through side channels in error messages | REQ-032: persona-filtered error values, REQ-002: curated valid-value enumerations, `[FORBIDDEN]` on GM-only requests | **Minor.** Error message verbosity (e.g., "Did you mean?" hints for GM-only terms) could leak existence of GM-only content. Not systematically audited. |
+| **Information Disclosure** | Player reads GM-only content through persona_briefing truncation or resource URI guessing | REQ-032: persona filtering on all surfaces, §10 adversarial round tests rapid persona switching | **Covered.** Tested at adversarial round. |
+| **Denial of Service** | State accumulation exceeds available memory (unbounded NPC count, lore entries, audit log) | §10 adversarial round (d): 500 NPCs in one Novel; S20: 50-round campaign endurance test | **Moderate.** No hard caps on NPC count, lore entry count, or audit log size beyond the adversarial test threshold. A determined operator could exceed tested limits. |
+| **Denial of Service** | Malformed input crashes the server | REQ-054: input validation on every tool, T20: path traversal and malformed input rejection | **Covered.** |
+| **Elevation of Privilege** | Player bypasses persona gating through rapid persona switching | §10 adversarial round (a): 20 rapid switches during combat, no state leak | **Covered.** Tested. |
+| **Elevation of Privilege** | Player accesses GM-only resources through direct URI crafting | REQ-032: server-side gating on every endpoint including resources, T44 verifies player boundary | **Covered.** |
+
+_Verify:_ None — this appendix is a reference analysis. Gaps identified here are
+candidates for future spec revisions, not per-build verification targets.

@@ -134,7 +134,7 @@ books.
 
 Then it verifies. A convergence loop measures quality across six metrics
 and re-verifies — up to three cycles, with cross-model auditing when
-multiple models are available. Six verification gates. The 19-scenario
+multiple models are available. Six verification gates. The 20-scenario
 Gauntlet — combat, stress, and persona endurance under live AI-simulated
 play. A golden transcript — built against a "Tin Lanterns" dark-fantasy
 holo-novel and a "Captain Proton" pulp-sci-fi complex fixture —
@@ -208,25 +208,37 @@ Your AI Game Master answers.
 ## Contribute to the spec
 
 ```sh
-npm install && npm run check       # lint + validate + assumption audit
+npm install && npm run check       # lint + validate + assumption audit + ambiguity scan
 ```
 
 `markdownlint` + cross-reference validator (REQ citations, test IDs, TOC
-sync, block shape) + structural assumption auditor (unverifiable citations,
-magic numbers, absolute language, untiered thresholds).
+sync, block shape, traceability matrix with `--traceability` flag) +
+structural assumption auditor (unverifiable citations, magic numbers,
+absolute language, untiered thresholds) + ambiguity scanner (hedging
+language, vague qualifiers, indefinite terms in REQ bodies).
 
-### Automated assumption audit
+### Automated analysis suite
 
-`npm run audit-assumptions` catches structural assumption patterns:
-unverifiable citations, hardcoded magic numbers without justification,
-absolute language, and untiered confidence thresholds. Warnings only —
-does not block the build.
+| Command | What it checks |
+|---------|---------------|
+| `npm run audit-assumptions` | Citations, magic numbers, absolute language, untiered thresholds |
+| `npm run scan-ambiguity` | Hedging language, vague qualifiers, indefinite terms in REQs |
+| `npm run fmea` | REQ-level failure mode and effects — severity, detection coverage |
+| `npm run validate --traceability` | Full REQ↔test↔gate traceability matrix + coverage gaps |
+| `npm run graph-deps` | REQ dependency graph (DOT/Graphviz output) |
+| `npm run spec-health-trends` | REQ count, test count, line count, cross-ref density |
 
-For a full qualitative audit (challenging assumptions against external
-evidence), invoke the `assumption_audit` prompt from the spec. The prompt
-guides an AI through a structured nine-category audit — technology,
-AI-as-builder, extraction, MCP ecosystem, state persistence, verification,
-build process, runtime guarantees, and spec process — producing an audit
-trail in DECISIONS.md.
+### Spec-level security
+
+Appendix P provides a STRIDE security threat model mapping spoofing,
+tampering, repudiation, information disclosure, denial of service, and
+elevation of privilege threats to existing mitigations and identified gaps.
+
+For a full qualitative assumption audit (challenging assumptions against
+external evidence), invoke the `assumption_audit` prompt from the spec.
+The prompt guides an AI through a structured nine-category audit —
+technology, AI-as-builder, extraction, MCP ecosystem, state persistence,
+verification, build process, runtime guarantees, and spec process —
+producing an audit trail in DECISIONS.md.
 
 License: MIT. [RSS](https://git.gay/flukeatzerocool/Holonovel).

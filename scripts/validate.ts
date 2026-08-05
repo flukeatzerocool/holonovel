@@ -302,6 +302,177 @@ function checkSpecVersionFormat(text: string): string[] {
   return issues;
 }
 
+const traceability = process.argv.includes("--traceability");
+
+function generateTraceability(text: string, reqIndex: Map<string, string>): void {
+  const reqs = [...reqIndex.keys()].sort();
+
+  const testIds = extractTestIds(text);
+  const citedTests = findTestCitations(text);
+
+  console.log("\n=== TRACEABILITY MATRIX ===\n");
+
+  const reqTests = new Map<string, Set<string>>();
+  for (const reqId of reqs) {
+    reqTests.set(reqId, new Set());
+  }
+
+  for (const [tid] of testIds) {
+    for (const reqId of reqs) {
+      if (text.includes(`${reqId}`) && text.includes(tid)) {
+        const reqBody = text.substring(
+          text.indexOf(`**${reqId}`),
+          text.indexOf(`**${reqId}`) + 500
+        );
+        if (reqBody.includes(tid)) {
+          reqTests.get(reqId)!.add(tid);
+        }
+      }
+    }
+  }
+
+  const reqsWithoutTests: string[] = [];
+  for (const reqId of reqs) {
+    const re = new RegExp(`\\*\\*${reqId.replace(/[a-z]$/, "")}[a-z]?\\s+—\\s+(.+?)\\.\\*\\*`);
+    const m = text.match(re);
+    const title = m ? m[1] : "";
+    const checkMatch = text.slice(text.indexOf(`**${reqId}`), text.indexOf(`**${reqId}`) + 2000).match(/[*_]Check:[*_]\s*(.+)/);
+    const checks = checkMatch ? checkMatch[1].trim() : "none";
+
+    if (checks === "none") {
+      reqsWithoutTests.push(`${reqId} (${title})`);
+    }
+  }
+
+  if (reqsWithoutTests.length > 0) {
+    console.log(`REQs with no Check: citations (${reqsWithoutTests.length}):`);
+    for (const r of reqsWithoutTests) {
+      console.log(`  - ${r}`);
+    }
+  } else {
+    console.log("PASS: All REQs have at least one Check: citation");
+  }
+
+  console.log("");
+
+  const testReqCount = new Map<string, number>();
+  for (const tid of testIds) {
+    testReqCount.set(tid, 0);
+  }
+  for (const [_reqId, tests] of reqTests) {
+    for (const tid of tests) {
+      testReqCount.set(tid, (testReqCount.get(tid) || 0) + 1);
+    }
+  }
+
+  const uncitedTestsList = [...testReqCount.entries()]
+    .filter(([_, count]) => count === 0)
+    .map(([tid]) => tid)
+    .sort();
+
+  if (uncitedTestsList.length > 0) {
+    console.log(`Test IDs not cited in any REQ body (${uncitedTestsList.length}):`);
+    for (const tid of uncitedTestsList) {
+      console.log(`  - ${tid}`);
+    }
+  } else {
+    console.log("PASS: All test IDs are cited in at least one REQ body");
+  }
+
+  console.log("");
+
+  const gateReqs = new Map<string, Set<string>>();
+  const gateNames = ["Gate 0", "Gate 1", "Gate 2", "Gate 2b", "Gate 3", "Gate 4", "Gate 5"];
+  const gateSections: { name: string; start: number; end: number }[] = [];
+
+  for (const gate of gateNames) {
+    const gateLabel = gate.replace(" ", " ");
+    const startIdx = text.indexOf(`**${gateLabel}`);
+    if (startIdx !== -1) {
+      const endIdx = text.indexOf("\n**Gate", startIdx + 1);
+      const effectiveEnd = endIdx !== -1 ? endIdx : text.indexOf("\n---", startIdx);
+      gateSections.push({ name: gate, start: startIdx, end: effectiveEnd !== -1 ? effectiveEnd : text.length });
+      gateReqs.set(gate, new Set());
+    }
+  }
+
+  for (const reqId of reqs) {
+    for (const { name, start, end } of gateSections) {
+      if (text.slice(start, end).includes(reqId)) {
+        gateReqs.get(name)!.add(reqId);
+      }
+    }
+  }
+
+  console.log("Gate → REQ coverage:");
+  for (const gate of gateNames) {
+    const covered = gateReqs.get(gate);
+    if (covered) {
+      console.log(`  ${gate}: ${covered.size} REQs — ${[...covered].sort().join(", ")}`);
+    }
+  }
+
+  console.log("");
+
+  const fmTags = [1, 2, 3, 4, 5, 6];
+  console.log("Failure mode → preventive REQ count:");
+  for (const fm of fmTags) {
+    const pattern = new RegExp(`\\(F${fm}\\)`);
+    const coveredReqs = reqs.filter((reqId) => pattern.test(text.slice(
+      text.indexOf(`**${reqId}`),
+      text.indexOf(`**${reqId}`) + 2000
+    )));
+    console.log(`  F${fm}: ${coveredReqs.length} REQs`);
+  }
+
+  console.log("\n=== END TRACEABILITY MATRIX ===\n");
+}
+
+function checkCoverageCompleteness(text: string): string[] {
+  const issues: string[] = [];
+
+  const toolSection = text.match(/### 5\.2 Tools and Resources[\s\S]*?### 5\.3/);
+  if (toolSection) {
+    const toolNames = toolSection[0].matchAll(/\b(lookup_\w+|roll_\w+|search_rules|spec_health|character_sheet|create_character|create_novel|end_novel|resume_novel|list_novels|import_character|set_persona|set_active_entity|apply_condition|remove_condition|init_combat|advance_combat|end_combat|set_countdown|advance_countdown|remove_countdown|set_lore_entry|toggle_lore_entry|remove_lore_entry|set_lore_group|suggest_lore|export_lorebook|import_lorebook|set_scene_state|set_scene_type|set_narrative_directive|set_briefing_order|set_personality|set_voice_examples|create_npc|update_npc|remove_npc|session_recap|suggest_actions|compress_audit|generate_adventure|generate_encounter|load_adventure|help|undo|respond|player_signal|roll_on_table|roll_save|roll_skill_check|roll_weapon_attack|roll_weapon_damage|make_panic_check)\b/g);
+    for (const tool of toolNames) {
+      const cited = text.match(new RegExp(`REQ-\\d{3}.*${tool[0]}`));
+      if (!cited) {
+        issues.push(`Tool '${tool[0]}' not explicitly cited in any REQ body`);
+      }
+    }
+  }
+
+  const stateTiers = [
+    "Roster", "Novel", "Connection", "NPC", "Scene", "Countdown", "Lore", "Enrichment", "Adventure"
+  ];
+  for (const tier of stateTiers) {
+    const inStateTable = text.match(new RegExp(`\\|\\s*${tier}\\s*\\|`));
+    if (inStateTable) {
+      const hasPersistenceReq = text.includes("REQ-092") || text.includes("REQ-055");
+      const hasFilteringReq = text.includes("REQ-032");
+      if (!hasPersistenceReq && tier !== "Connection") {
+        issues.push(`State tier '${tier}' — no persistence REQ citation found nearby`);
+      }
+      if (!hasFilteringReq && tier !== "Connection") {
+        issues.push(`State tier '${tier}' — no persona-filtering REQ citation found nearby`);
+      }
+    }
+  }
+
+  const layers = ["MCP skeleton", "Index", "Extraction pipeline", "Domain tools", "State", "Prompts"];
+  for (const layer of layers) {
+    const inLayerTable = text.match(new RegExp(`\\|\\s*\\d+\\s*\\|\\s*${layer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    if (inLayerTable) {
+      const hasAcceptance = text.slice(inLayerTable.index!).match(/Acceptance\s*\|/);
+      if (!hasAcceptance) {
+        issues.push(`Construction layer '${layer}' — no acceptance check in table`);
+      }
+    }
+  }
+
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -405,6 +576,21 @@ function main(): void {
     warnings += specViolations.length;
   } else {
     console.log("PASS: No spec authoring violations detected");
+  }
+
+  if (traceability) {
+    generateTraceability(text, reqIndex);
+
+    const coverageIssues = checkCoverageCompleteness(text);
+    if (coverageIssues.length > 0) {
+      console.log("\n=== COVERAGE COMPLETENESS ===\n");
+      for (const issue of coverageIssues) {
+        console.log(`WARNING: ${issue}`);
+      }
+      warnings += coverageIssues.length;
+    } else {
+      console.log("\n=== COVERAGE COMPLETENESS ===\nPASS: No coverage gaps detected");
+    }
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);
