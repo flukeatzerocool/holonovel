@@ -1,5 +1,55 @@
 # Changelog
 
+<!--
+  CHANGELOG WRITING STYLE
+
+  Every entry must be comprehensible to someone who hasn't read the spec
+  in a month. The changelog is for human readers, not for spec traceability.
+
+  Rules:
+
+  1. Human-readable description first. Open every bullet with what changed
+     and why it matters in plain English. The REQ reference follows in
+     parentheses — it's a traceability anchor, not the subject.
+
+     Yes: "Deleting a Novel is no longer irreversible — end_novel now
+          moves save files to a .trash/ directory with a configurable
+          retention period. (REQ-117)"
+
+     No:  "REQ-117: Added Novel retention period — end_novel moves files
+          to .trash/ with configurable TTRPG_NOVEL_RETENTION_DAYS..."
+
+  2. No internal diffs. Don't list appendix row additions, manifest count
+     changes, or test ID catalogue updates. Those are spec maintenance
+     records, not changelog content.
+
+     No:  "Appendix E: Added REQ-116 and REQ-117 rows; bumped spec-version
+          on REQ-040, REQ-041, REQ-065, REQ-088, REQ-092, REQ-097.
+          Manifest: 93 → 95 rows."
+
+  3. Group by what a user or builder experiences. Organize bullets under
+     each date heading by impact area (e.g., state persistence, combat,
+     character creation), not by REQ number order.
+
+  4. Reader test. Every bullet must pass: "Would someone who hasn't read
+     the spec in a month understand what changed and why it matters?"
+
+  5. Omit tool and environment variable names unless a reader needs the
+     exact name to use the feature. Describe what the feature does, not
+     what it's called.
+-->
+
+## 2026-08-06 — Changelog writing style guide
+
+- Every changelog entry must now describe what changed and why in plain
+  English first, with REQ references following parenthetically as
+  traceability anchors rather than bullet subjects. Internal diffs —
+  appendix row counts, manifest size changes, test ID catalogue updates —
+  no longer belong in the changelog; they're spec maintenance records,
+  not human-readable history.
+- The changelog-before-commit skill now enforces these style rules
+  automatically when writing new entries.
+
 ## 2026-08-06 — State and recovery hardening
 
 - REQ-041: Replaced "implementation-defined" undo stack depth with a 10-level minimum
