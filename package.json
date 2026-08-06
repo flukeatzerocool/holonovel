@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "2026.08.05",
+  "version": "2026.08.06",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {

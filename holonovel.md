@@ -99,7 +99,7 @@ The spec is designed around six failure modes. Recognize them early.
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | F1   | The server invents rules instead of extracting them.                                              | Golden transcript replay (Gate 2); no tool-result fabrication (REQ-058) |
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
-| F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | Gate 1 conformance (REQ-001, Appendix D)                           |
+| F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
@@ -132,7 +132,7 @@ F2: Context exhaustion — large rulesets exceed prompt-size limits
 ├── Root: Indexed items exceed model context window
 │     └── Guard: REQ-100 tier thresholds, confidence-adjusted floors (≥70%)
 ├── Root: Golden transcript replay fails on large fixture
-│     └── Guard: Gate 2b (complex fixture), Appendix N
+│     └── Guard: G2 (N fixture), Appendix N
 └── Root: No complexity detection before build start
       └── Guard: Gate 0 structural integrity pass reports item count
 ```
@@ -142,11 +142,11 @@ F2: Context exhaustion — large rulesets exceed prompt-size limits
 ```
 F3: Server speaks MCP incorrectly
 ├── Root: Wrong method names in tool registration
-│     └── Guard: Gate 1 conformance checklist (Appendix D)
+│     └── Guard: G0 step 2 (Appendix D)
 ├── Root: Malformed JSON in responses
 │     └── Guard: REQ-001 (response contract), Gate 2 (transcript replay)
 ├── Root: Missing handshake fields
-│     └── Guard: Gate 1 initialize check, Appendix D
+│     └── Guard: G0 step 2, Appendix D
 ├── Root: SDK-level schema errors (wrong parameter types)
 │     └── Guard: REQ-001 (JSON-RPC error code -32602), T39a (tool parameter validation)
 └── Root: Resource URI template mismatch
@@ -1196,7 +1196,7 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | G1 checklist pass (Appendix D)                  |
+| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
@@ -1225,33 +1225,59 @@ missing cross-reference, or an extra tool name in a registry entry — and verif
 audit subagent catches it. A subagent that misses a seeded defect is a
 process-compliance finding recorded in DECISIONS.md (6); the subagent is re-prompted.
 
-**Convergence loop.** The builder iterates up to 3 attempts per metric-targeted step. For each step,
-measure the metric, improve, and verify. If the metric meets its threshold, record and
-stop. Thresholds are tiered per REQ-100: Light (<100 indexed items), Standard (100–500),
-Heavy (500–2000), Huge (2000+).
+**Convergence loop.** The builder converges in two sequential phases —
+extraction quality, then construction quality. Each phase iterates up to 3
+attempts per metric-targeted step. For each step, measure the metric, improve,
+and verify. If the metric meets its threshold, record and stop. Thresholds are
+tiered per REQ-100: Light (<100 indexed items), Standard (100–500), Heavy
+(500–2000), Huge (2000+). No-delta detection (§6.5.1) applies independently to
+each phase.
 
-| Domain           | Metric                              | Threshold     | Improvement step                         |
-| ------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
-| Confidence          | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
-| MUST coverage       | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
-| Extraction fidelity | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
-| Mechanics fidelity  | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
-| Conversion fidelity | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
-| Process compliance  | Pre-build answers + verification workflow records    | All present   | Collect missing, re-verify               |
+**Phase 1 — Extraction quality.**
+Source-material quality: how completely the ruleset was read. Extraction
+problems are source-material problems — they are diagnosed and dispositioned
+before any server code is written.
 
-**No-delta detection.** If a step produces zero measurable improvement from
-one iteration to the next — the numeric metric is unchanged and no new findings are
-resolved — the builder aborts that step after one stalled iteration and logs the
-reason in DECISIONS.md (5). Remaining steps continue independently. A stalled
-step with no metric (process compliance) is declared stalled when it is
-unsatisfied and no new verification workflow records are collected on the repeated attempt.
+| Domain               | Metric                              | Threshold     | Improvement step                         |
+| -------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
+| Confidence           | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
+| Extraction fidelity  | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
+| Conversion fidelity  | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 
-The loop converges when all metrics meet their threshold or three iterations without
-improvement. At that point, record the current state with the residual gap logged in
-DECISIONS.md. For rulesets above 200 indexed items, verification continues with the
-complex fixture workflow (verification workflow G2b, §8; verified by T90).
+Phase 1 exit: all three metrics meet threshold, or an extraction stall (no-delta
+on all metrics) triggers the unbuildable disposition check (§6.5.3). An
+extraction stall after 3 iterations records residual gaps in DECISIONS.md (5).
+The build does not proceed to Phase 2 until Phase 1 exits.
 
-**Cross-model audit.** When the builder has access to more than one model, the audit
+**Phase 2 — Construction quality.**
+Builder implementation quality: whether the extracted model was faithfully
+translated into tools, resources, and state.
+
+| Domain               | Metric                              | Threshold     | Improvement step                         |
+| -------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
+| MUST coverage        | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
+| Mechanics fidelity   | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
+| Process compliance   | Pre-build answers + verification workflow records    | All present   | Collect missing, re-verify               |
+
+Phase 2 exit: all three metrics meet threshold, or 3 iterations without
+improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
+200 indexed items, verification continues with the scalable golden transcript
+workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
+(§6.5.2) and adjusted thresholds (§6.5.3) apply during Phase 2.
+
+### 6.5.1 No-delta detection
+
+If a step produces zero measurable improvement from one iteration to the next
+— the numeric metric is unchanged and no new findings are resolved — the
+builder aborts that step after one stalled iteration and logs the reason in
+DECISIONS.md (5). Remaining steps within the same phase continue independently.
+A stalled step with no metric (process compliance) is declared stalled when it
+is unsatisfied and no new verification workflow records are collected on the
+repeated attempt.
+
+### 6.5.2 Cross-model audit
+
+When the builder has access to more than one model, the audit
 subagent should use a different model from the builder's primary model. A cross-model
 audit surfaces defects that same-model audits miss. Different models detect different
 defect classes; cross-model auditing increases coverage. The builder
@@ -1261,6 +1287,8 @@ construction and audit — records a `single-model-audit` annotation in DECISION
 (6). This annotation is informational and does not block handoff; it alerts the
 operator that same-model auditing may miss defect classes a cross-model audit would
 catch.
+
+### 6.5.3 Adjusted thresholds and unbuildable disposition
 
 **Adjusted thresholds.** The builder may lower the confidence threshold specified in
 the handoff verification workflow (§9 H10) for rulesets whose indexed-item count exceeds 200. The
@@ -1299,13 +1327,23 @@ non-zero size. A missing or empty file is a convergence finding.
 
 ### 6.6 The Gauntlet
 
-**Timing.** After the convergence loop (§6.5) has converged and the ruleset-facing
-verification workflows (§8: G1 and G4) have passed, the builder runs the Gauntlet. Fixture workflows
-(G2 and G3 — see §8) are specification-level checks run once per builder
-implementation; they are independent of Gauntlet timing. The Gauntlet exercises the
-built server with AI-simulated personas in realistic play scenarios. It is a required
-quality check. Run after Build converges; findings feed back into the convergence loop.
-Its purpose is to surface bugs that structured verification missed.
+**Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
+ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
+builder runs the Gauntlet. Fixture workflows (G2 and G3 — see §8) are
+specification-level checks run once per builder implementation; they are
+independent of Gauntlet timing. The Gauntlet exercises the built server with
+AI-simulated personas in realistic play scenarios. It is a required quality
+check. Its purpose is to surface bugs that structured verification missed.
+
+**Convergence handshake.** After each Gauntlet execution, the builder maps
+every failure to the convergence-loop metric it affects: a MUST-coverage gap,
+a mechanics-fidelity defect, or a process-compliance omission. The builder then
+re-enters Phase 2 of the convergence loop (§6.5) for only those metrics,
+corrects the root cause, and re-runs the Gauntlet — up to 2 Gauntlet
+iterations total. The mapping is recorded in DECISIONS.md (6) alongside each
+failure artifact. A Gauntlet failure that maps to no convergence metric — a
+novel defect class — is logged as a process-compliance finding and re-enters
+Phase 2 with all metrics in scope.
 
 **Independent invocation.** The Gauntlet must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
@@ -1314,7 +1352,7 @@ fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
 **Workflow completion.** The Build workflow is not complete until the Gauntlet exits with all
 Gauntlet sub-workflows passing or the builder records 2 iterations without improvement (see Exit
-criteria below), and both ruleset-facing verification workflows (G1 and G4) pass. Marking a workflow complete
+criteria below), and both ruleset-facing verification workflows (G0 step 2 and G4) pass. Marking a workflow complete
 without a passing Gauntlet and passing applicable verification workflows is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
@@ -1475,6 +1513,20 @@ four items is incomplete and blocks handoff.
     doubled from the pre-Gauntlet baseline; snapshot stack depth equals mutation count
     minus undo count; the on-disk Novel file is ≤ 5 MB. (Blocking.)
 
+**REQ-108 — Gauntlet traceability.** The builder must ensure at least one
+Gauntlet sub-workflow exercises each requirement in §5.5 (Personas and Access),
+§5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and
+the error contracts of REQ-002 (Error taxonomy). The builder records a
+sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
+naming the sub-workflow(s) that exercise it. When a REQ in these sections
+changes during a spec-driven update (REQ-098), the builder re-examines every
+sub-workflow mapped to it. Gaps — a REQ in the covered sections with no mapped
+sub-workflow — are logged as process-compliance findings and must be resolved
+before handoff. New REQs added to the covered sections during a spec revision
+require the builder to propose at least one new Gauntlet sub-workflow
+exercising their contract; the proposal is a finding, not a blocker. _Check:_
+T107.
+
 A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
 the sub-workflow but is recorded with the actual duration. Three consecutive S22 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
@@ -1492,11 +1544,10 @@ descriptions above are the canonical source; the structured encoding is a lossle
 mechanical transcription of the same assertions. The dnd5e server's Gauntlet fixture is
 the reference implementation of the structured encoding.
 
-**Convergence integration.** Each sub-workflow failure produces a finding in DECISIONS.md
-(6). The builder classifies the finding and creates a targeted convergence step:
-diagnose the root cause, fix it, re-verify. The convergence loop (§6.5) re-engages for
-these steps. After convergence re-converges, the Gauntlet re-runs — up to 2
-Gauntlet iterations.
+**Convergence integration.** The convergence handshake (see Timing block
+above) governs the feedback loop between the Gauntlet and Phase 2 of the
+convergence loop. Improvement measurement and Gauntlet exit criteria remain as
+defined in the preceding paragraphs.
 
 **Improvement** is measured per iteration: (i) fewer total assertion failures than the
 prior Gauntlet run, or (ii) at least one previously-blocking sub-workflow downgraded to
@@ -1547,7 +1598,7 @@ record all gap dispositions in a dated DECISIONS.md entry.
 
 | Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 + G1 only; record version bump in DECISIONS.md; no Gauntlet |
+| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; blocking Gauntlet sub-workflows only |
 | Major   | State model changed, new tools/prompts/resources mandated, persona-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
 
@@ -1726,61 +1777,71 @@ determines the optimal default order; the convergence loop (§6.5) verifies comp
 
 ## 8. Verification Workflows
 
-Each verification workflow produces an evidence record: workflow name, timestamp, environment pins
-(Node version, OS, pinned protocol version), commands run and their output,
-pass/fail status, and findings. The record is embedded in DECISIONS.md item (6)
-(`@section evidence`).
+Each verification workflow produces an evidence record: workflow name, timestamp,
+environment pins (Node version, OS, pinned protocol version), commands run and
+their output, pass/fail status, and findings. The record is embedded in
+DECISIONS.md item (6) (`@section evidence`).
 
-**G2 and G3 are fixture verification workflows:** they test the builder against a known-correct
-specification fixture (Appendix B: Tin Lanterns) and an injection fixture
-(Appendix C). These workflows are run once per builder implementation — not once per
-ruleset. Their results apply to every ruleset served by that builder. G0, G1,
-G4, and G5 are ruleset-facing: each ruleset must pass them independently.
+Verification workflows are either **fixture workflows** (run once per builder
+implementation — their results apply to every ruleset served by that builder)
+or **ruleset-facing** (each ruleset must pass them independently).
 
-**Verification workflow G0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
-passes the Appendix H checklist: well-formed, all headings unique, tables regular,
-references resolvable. Run at intake.
+| Workflow | Scope  | What it verifies                                           |
+| -------- | ------ | ---------------------------------------------------------- |
+| G0       | Ruleset | Structural integrity + MCP conformance                   |
+| G2       | Fixture | Golden transcript replay (fixture scoped by complexity)   |
+| G3       | Fixture | Injection resistance                                      |
+| G4       | Ruleset | Derived test catalogue                                    |
+| G5       | Ruleset | The Gauntlet — operational verification                   |
 
-**Verification workflow G1 — MCP conformance.** Verify the running server against the Appendix D checklist.
-Every check must pass. Run the MCP Inspector or equivalent against a server built from the
-Appendix B fixture.
+**Verification workflow G0 — Intake integrity.** Two checks, run in order:
 
-**Verification workflow G2 — Golden transcript replay (fixture workflow).** Build a server from the Appendix B fixture and
-replay the Appendix B.3 transcript. Assert: status prefix and `isError` semantics
-(REQ-001), required fields in order, die values pinned by per-call seeds (REQ-050),
-gating decisions (REQ-032), and decision round-trips (REQ-042). Exact wording is not
-asserted.
+1. **Structural integrity.** Verify the ruleset Markdown (or converted source)
+   passes the Appendix H checklist: well-formed, all headings unique, tables
+   regular, references resolvable. Run at intake.
 
-Before handoff, re-run G2 once from a cold checkout of the four artifacts, following
-only README.md and AGENTS.md. A reproduction failure stops the line.
+2. **MCP conformance.** Verify the running server against the Appendix D
+   checklist. Every check must pass. Run the MCP Inspector or equivalent
+   against a server built from the active fixture (the Appendix B fixture for
+   rulesets ≤200 indexed items; Appendix N for larger rulesets).
 
-**Verification workflow G3 — Injection (fixture workflow).** Run discovery over the Appendix C fixture. Verify the capability
-surface, persona gating, and metadata filtering are unchanged. Tool registry and resource
-listings diff clean (identical except for the new section's anchor and its GM-only
-guidance items).
+**Verification workflow G2 — Golden transcript replay (fixture workflow).**
+Build a server from a fixture and replay its transcript. The fixture is
+selected by ruleset complexity per REQ-100 tier: the Appendix B fixture (Tin
+Lanterns) for Light-tier rulesets (≤200 indexed items); the Appendix N fixture
+(Captain Proton) for Standard, Heavy, and Huge tiers (>200 indexed items).
+Assert all contracts the selected fixture's transcript exercises: status prefix
+and `isError` semantics (REQ-001), required fields in order, die values pinned
+by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
+(REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
+session_recap correctness (REQ-072), and undo round-trip (REQ-041). Wording is
+not asserted.
 
-**Verification workflow G2b — Complex fixture replay (fixture workflow).** For rulesets above 200 indexed items
-(REQ-100 tiers Standard, Heavy, or Huge), build a server from the Appendix N fixture and
-replay the Appendix N.3 transcript. Assert: status prefixes and `isError` semantics
-(REQ-001), required fields in order, die values pinned (REQ-050), gating decisions
-(REQ-032), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
-session_recap correctness (REQ-072), and undo round-trip (REQ-041). Exact wording is not
-asserted. Before handoff for qualifying rulesets, re-run G2b once from a cold
-checkout following only README.md and AGENTS.md. A reproduction failure stops the line.
-_Verify:_ T90.
+Before handoff, re-run G2 once from a cold checkout of the four artifacts,
+following only README.md and AGENTS.md. A reproduction failure stops the line.
+_Verify:_ T90 (N fixture), Golden transcript replay (B fixture).
 
-**Verification workflow G4 — Derived tests.** Execute the tests in [Appendix F](#appendix-f-derived-test-catalogue).
-Tests run with networking disabled (REQ-051). Waivers are allowed only under REQ-013;
-log each with its reason in DECISIONS.md. Automated tests must ship a runnable script
-(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
-document the verification procedure and expected output shape in DECISIONS.md.
+**Verification workflow G3 — Injection (fixture workflow).** Run discovery
+over the Appendix C fixture. Verify the capability surface, persona gating, and
+metadata filtering are unchanged. Tool registry and resource listings diff
+clean (identical except for the new section's anchor and its GM-only guidance
+items).
 
-**Verification workflow G5 — The Gauntlet (operational verification).** Run the 22-sub-workflow Gauntlet
-defined in §6.6. All blocking sub-workflows (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass.
-Non-blocking failures are recorded as accepted limitations with re-activation
-conditions. The Gauntlet re-runs after every server code change: during Build
-completion, after Enrich (§11), after spec-driven updates (REQ-098), and
-after any manual code modification.
+**Verification workflow G4 — Derived tests.** Execute the tests in
+[Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
+disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
+reason in DECISIONS.md. Automated tests must ship a runnable script
+(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual
+tests must document the verification procedure and expected output shape in
+DECISIONS.md.
+
+**Verification workflow G5 — The Gauntlet (operational verification).** Run
+the 22-sub-workflow Gauntlet defined in §6.6. All blocking sub-workflows
+(S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass. Non-blocking
+failures are recorded as accepted limitations with re-activation conditions.
+The Gauntlet re-runs after every server code change: during Build completion,
+after Enrich (§11), after spec-driven updates (REQ-098), and after any manual
+code modification.
 
 **T18 anti-persona sub-workflows:**
 
@@ -1875,22 +1936,22 @@ do not request it before Phase 2.
 Phase 1 — blind re-execution, in order:
 1. Set up from a cold start, following only `README.md` and `AGENTS.md`; log every gap or
    ambiguity — each gap is a finding.
-2. Execute verification workflows G1–G4 and the smoke session; record one evidence entry per workflow in the
+2. Execute verification workflows G0 step 2 through G4 and the smoke session; record one evidence entry per workflow in the
    Section 8 format, with your own environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
 5. Run the automated handoff verification workflow and record the results; compare with the builder's
    verification record.
 6. Confirm the four-artifact diet: no stray files.
-7. (Adversarial) Execute 5 breakage attempts: (a) rapid persona switching (player↔GM 20
-   times during an active combat round, assert no state leaked across persona boundaries),
-   (b) simultaneous Novel create/end (create Novel A, create Novel B, end Novel A, assert
-   Novel B still active and Novel A state removed), (c) seed injection (call roll_move
-   with seed "", 0, and "NaN" — assert valid results or ERROR, no crash), (d) oversized
-   state (create 500 NPCs in one Novel, assert server remains responsive and on-disk file
-   parses correctly), and (e) path traversal (set NPC name to
-   "../../../etc/passwd" — assert the name is stored verbatim as inert data, no
-   file-system access outside the state directory).
+7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
+   and re-execute them with your own tool calls — do not replay the builder's
+   recorded calls. Use a different random seed for each re-execution. Assert
+   every assertion in each sub-workflow's pass criterion holds. Record any
+   discrepancy as `DISPUTED` with both your result and the builder's recorded
+   result. The five selected sub-workflows must span at least three distinct
+   REQ categories (persona gating, state survival, combat resolution, error
+   handling, undo, or novel lifecycle). Report the selection and the category
+   mapping.
 
 Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md`:
 7. Compare your evidence entries against the recorded ones field by field, on salient
@@ -1913,6 +1974,7 @@ Report in the format below.
 - Handoff verification workflow: H1–H12 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
+- Adversarial Gauntlet re-execution: sub-workflows selected → verdicts
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED
 ```
 
@@ -2619,6 +2681,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-105 | Spec resource            | T104                           | 2026-08-06   |
 | REQ-106 | Spec repository URL      | T105                           | 2026-08-06   |
 | REQ-107 | Version coordination     | T106                           | 2026-08-06   |
+| REQ-108 | Gauntlet traceability    | T107                           | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
@@ -2640,7 +2703,7 @@ diet.
 
 | #     | Type     | Test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Requirements                                |
 | ----- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| T3    | Manual   | Tool documentation complete; justification list matches registry; annotations match REQ-015 typing; each tool carries REQ-024 title; name uniqueness and schema validity per Gate 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-024, REQ-021                            |
+| T3    | Manual   | Tool documentation complete; justification list matches registry; annotations match REQ-015 typing; each tool carries REQ-024 title; name uniqueness and schema validity per G0 step 2 (MCP conformance)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-024, REQ-021                            |
 | T4    | Automated | Search returns the expected section in the top 3 results for exact, prefix, and substring queries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-012                                     |
 | T5    | Manual   | Entity lifecycle end to end: create, field mutation, and deletion where the ruleset defines it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-020                                     |
 | T8    | Automated | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-040                                     |
@@ -2735,6 +2798,7 @@ diet.
 | T104  | Automated | Spec resource: call `resources/read` on `spec://build` — assert full spec text returned as Markdown. Assert `spec://build` appears in `resources/list`. Switch to Player persona — assert `[FORBIDDEN]`. Compare embedded copy against the builder's copy — assert content hash matches DECISIONS.md (1).                                                                                                                                                                                                                                                                                                                                                                                           | REQ-105, REQ-032                            |
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player personas. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
 | T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Assert `spec_version` appears in `persona_briefing` for Game Master persona. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player persona sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
+| T107  | Automated | Gauntlet traceability: after a full Gauntlet run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Personas and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
 
 ---
 
@@ -2992,13 +3056,13 @@ _are selected from the permissively-licensed catalog in [Appendix I](#appendix-i
 
 This fixture exercises extraction, cross-file references, embedded stat blocks,
 and multi-file deduplication at a scale beyond Tin Lanterns (Appendix B).
-Gate 2b (§8) requires this fixture for rulesets above 200 indexed items (REQ-100
+G2 (§8) requires this fixture for rulesets above 200 indexed items (REQ-100
 tiers Standard, Heavy, Huge).
 
 ### N.1 Fixture files
 
-Each file is provided via `TTRPG_RULESET` as comma-separated paths. Gate 2b
-uses all three; the structural pass (Gate 0) runs against every file.
+Each file is provided via `TTRPG_RULESET` as comma-separated paths. G2 (N fixture)
+uses all three; the structural pass (G0 step 1) runs against every file.
 
 #### `captain_proton_rules.md`
 
@@ -3269,7 +3333,7 @@ A correct extraction of the fixture includes at least:
 Session persona: Hero of the Spaceways. Die values below are **prescriptive**: they
 are the reference randomizer's output under the transcript's per-call seeds
 (REQ-050; witness values in N.4). Replay asserts fields, prefixes, gating
-decisions, and die values — not exact wording (Gate 2b).
+decisions, and die values — not exact wording (G2 N-fixture path).
 
 ```
 → create_hero { "name": "Buster Kincaid" }
@@ -3364,7 +3428,7 @@ Ruleset version: matches intake snapshot
 ### N.4 RNG witness values
 
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify
-this table before running Gate 2b. The algorithm is the same 32-bit LCG defined in
+this table before running G2 (N fixture). The algorithm is the same 32-bit LCG defined in
 B.4. A d20 draw is `⌊next() × 20⌋ + 1`.
 
 | Seed   | First 10 d20 faces                |

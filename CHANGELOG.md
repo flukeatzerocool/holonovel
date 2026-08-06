@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-06 — Verification model restructuring
+
+- §6.5: Split converge:two sequential phases — extraction quality (confidence, extraction/conversion fidelity) before construction quality (MUST coverage, mechanics fidelity, process compliance). Added sub-section anchors for no-delta detection, cross-model audit, and adjusted thresholds.
+- §8: Collapsedverification workflows 7→5 — G0 absorbs MCP conformance (intake integrity), G2 absorbs complex fixture (scalable G2 scoped by REQ-100 tier). All cross-references updated.
+- §6.6: Added convergeGauntlet handshake — failures mapped to convergence metrics,re-enter Phase 2 for affected metrics only. Replaced implicit "feed back" with structured coupling.
+- New REQ-108: Gauntlet traceability — sub-workflow-to-REQ mapping recorded in DECISIONS.md,gapexercised REQs logged as findings,spec-driven updates re-examine mapped scenarios. _Check:_ T107 (new).
+- §10: Deduplicated independent verification adversarial rounds — replaced 5hardcoded breakage attempts with random selection of blocking Gauntlet sub-workflows spanning ≥3 REQ categories, preserving cross-model value without shadow-Gauntlet drift.
+- Version: Root bumped to 2026.08.06; dnd5e reference propagated.
+
 ## 2026-08-05 — README restructure: feature-driven, benefit-first
 
 - Replaced demo-quote-heavy playground sections with domain-grouped feature
