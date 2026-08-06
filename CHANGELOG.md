@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-06 — Rules access subsystem hardening
+
+- REQ-110: Added tool surface consolidation contract — functionally identical tools
+  differing only by ruleset category are exposed as a single parameterized tool.
+  _Check:_ T113.
+- REQ-111: Added search result quality contract — results include match context, are
+  ordered by relevance, and report suppressed-result counts. _Check:_ T114.
+- REQ-112: Added cross-reference discovery contract — canonical lookups include pointers
+  to related ruleset sections when the source text cross-references them. _Check:_ T115.
+- REQ-113: Added result count reporting contract — tools returning collections report both
+  returned and total matching count. _Check:_ T116.
+- REQ-114: Added suggestion coverage contract — builder tests action suggestion coverage
+  against a curated intent set spanning all action categories, with sub-80% coverage
+  recorded as a DECISIONS.md finding. _Check:_ T117.
+- Added suggestion-coverage convergence metric row to §6.5 Phase 2 table.
+- REQ-067: Added GM-overridable help task-map category assignments via Novel-scoped
+  mapping. _Check:_ T118.
+- Appendix E: Added REQ-110 through REQ-114 rows (92 REQ rows). Appendix F: Added T113
+  through T118 rows.
+
+## 2026-08-06 — Rename persona → hat; disambiguate "role"
+
+- Renamed "persona" to "hat" throughout holonovel.md, dnd5e/holonovel.md,
+  README.md, AGENTS.md, and dnd5e implementation files. Tool `set_persona`
+  becomes `set_hat`, env var `TTRPG_PERSONA` becomes `TTRPG_HAT`, prompt
+  `persona_briefing` becomes `hat_briefing`, guidance resource
+  `guidance://shared/persona-switch` becomes `guidance://shared/hat-switch`.
+  REQ titles updated: REQ-031 "Hat activation," REQ-062 "Hat foundations,"
+  REQ-064 "Hat behavioral boundaries," REQ-066 "set_hat tool," REQ-109
+  "Hat briefing composition." §5.5 "Hats and Access," §7.8 "Guidance and
+  hat knowledge," §11.1 "Hat enrichment," Appendix O.6 "Hat Gating."
+- Disambiguated "role" — REQ-002 "switch roles" → "switch hats," REQ-017
+  "Role stories" → "Hat stories," REQ-066 return token `<role>` → `<hat>`.
+  Guidance URI templates changed from `<role>` to `<hat>` for consistency.
+  Terminology table entry: "Hat — Active hat — player, game_master, or
+  none (full access)." MCP protocol terms ("user-role message") retained.
+- dnd5e server: `Persona` → `Hat` (type), `activePersona` → `activeHat`,
+  `setPersona()` → `setHat()`, `PERSONA_NAMES` → `HAT_NAMES`, `persona_scope`
+  → `hat_scope`, `persona_filter` → `hat_filter`. State serialization uses
+  `hat` key with backward-compat load (`data.hat ?? data.persona`).
+
 ## 2026-08-06 — Dice resolution subsystem hardening
 
 - REQ-003: Added outcome-band reporting requirement — when the ruleset defines named result bands, roll outcomes report which band applies. _Check:_ T47 (extended).
