@@ -10,6 +10,31 @@ README DESIGN:
     §3 is the universal play experience. §4 is for builders bringing
     their own rulebooks. §6 is for spec contributors.
   No tables for feature descriptions. No repetition. One story vector per section.
+  Feature blurbs: Each h3 blurb under §3 and §4 follows a four-beat
+    cadence — benefit hook, mechanics, competitive proof, closer. The
+    competitive-proof sentence contrasts Holonovel against the
+    current tool landscape without naming individual competitors; it
+    answers "why this beats what you're used to."
+  MCP server order: Features under §3 follow a natural RPG session
+    arc — Setup (campaign, characters, roles), Knowledge (rules,
+    available actions), World (scenes, NPCs, lore, generation),
+    Action (dice, combat), Feedback (player signals), Safety (rollback,
+    export). New features insert at the arc point they serve; reorder
+    the section to restore the arc after every addition or removal.
+  Comparison table: Three columns (Tool name | What you're used to |
+    How Holonovel differs). One row per competitor category, never
+    individual products. Prose paragraph below synthesizes the table;
+    it never repeats a row's content verbatim.
+  Hero: Exactly three elements — h1 heading, bold tagline, one prose
+    paragraph. No sub-headings, bullet lists, or preamble paragraphs.
+    The tagline uses short declarative fragments separated by periods
+    — never a sentence or question. The closing refrain "Your books.
+    Your server. Your table." and the game-system mention "D&D 5e
+    today. Mothership tomorrow." are echoed in the comparison section;
+    changing one requires updating the other. Three capability
+    exemplars preview the MCP server feature sections without
+    enumerating every tool category. Enforced maximum 200 words
+    (validate-readme).
 -->
 
 # Holonovel
@@ -25,7 +50,7 @@ someone to build your game. Your books. Your server. Your table.
 
 ## Try it now — D&D 5e
 
-This repo ships a pre-built D&D 5e SRD v5.1 server: 23 tools, 1,029
+This repo ships a pre-built D&D 5e SRD v5.1 server: 58 tools, 1,021
 indexed ruleset sections. Ten seconds to your first AI Game Master.
 
 ```sh
@@ -40,11 +65,10 @@ Add this to your MCP client's config (Opencode:
 ```json
 "dnd5e-holonovel": {
   "type": "local",
-  "command": ["node", "<path>/dnd5e/dist/index.js"],
+  "command": ["npx", "tsx", "src/index.ts"],
+  "cwd": "<path>/dnd5e",
   "environment": {
-    "TTRPG_NOVEL": "default",
-    "TTRPG_DATA_DIR": "<path>/dnd5e/.holonovel-state",
-    "TTRPG_RULESET_DIR": "<path>/dnd5e/ruleset"
+    "TTRPG_NOVEL": "default"
   },
   "enabled": true
 }
@@ -65,8 +89,12 @@ Your books become the referee. You run the table.
 Your game lives in one file on disk — party, NPCs, scenes, lore,
 combat state, everything. Restart the server. Rebuild it. Your Novel
 is right where you left it. Multiple campaigns coexist without leaks.
-Export and import with merge, replace, or dry-run modes. No cloud. No
-sync. One local file — copy it, back it up, share it.
+Export and import with merge, replace, or dry-run modes.
+Context-window-only tools lose your campaign the moment the chat
+resets. Holonovel writes everything — party, NPCs, scenes, lore,
+combat — to a single local file that survives every restart and
+rebuild. No cloud. No sync. One local file — copy it, back it up,
+share it.
 
 ### Character
 
@@ -76,38 +104,46 @@ sync. One local file — copy it, back it up, share it.
 Your characters are permanent. The roster survives every campaign and
 rebuild — create once, play forever. Build step by step with guided
 decisions, or in a single call. Switch characters between games.
-Advancement follows the ruleset's own progression tables. Sheet in
-markdown or ASCII.
+Advancement follows the ruleset's own progression tables. Sheet in Markdown or
+ASCII. No other RPG tool gives you a permanent roster that lives
+outside any single game — create once, import anywhere, the character
+survives every rebuild.
 
-### Persona
+### Hat
 
-> "Take over as Game Master. I'm ready."
-> "Switch to Game Master. I need to fix something."
+> "Put on the Game Master hat. I need to fix something."
+> "Switch to my Player hat. Let's play."
 
-Two enforced roles, switched without restart. The AI narrates and
-adjudicates as GM. Switch to player and GM secrets vanish — persona
+Two enforced hats, switched without restart. The AI narrates and
+adjudicates as GM. Switch to your Player hat and GM secrets vanish — hat
 gating is enforced server-side. You're never locked out of your own
-game. Jump behind the screen mid-session to tweak state, inject a
-complication, or add an NPC on the fly.
+game. Every other AI GM trusts a prompt to keep secrets between
+hats; Holonovel enforces hat boundaries server-side — switch
+hats and player-side secrets actually stay hidden. Jump behind the
+screen mid-session to tweak state, inject a complication, or add an
+NPC on the fly.
 
-### Combat
+### Rules Access
 
-> "Roll initiative. The goblins ambush from the treeline."
+> "Look up Fireball."
+> "Search the rules for grappling."
 
-You don't track initiative, conditions, or HP — the AI does, by the
-book. Bleeding stops when the rules say it does. Paralysis expires on
-schedule. Combat state survives server restarts. Undo bad rolls. You
-focus on tactics.
+Name it, get the rule. Every result cites a source page. Full-text
+search across the indexed ruleset. Look up spells, monsters,
+equipment, and classes by name and documented alias. Every other AI
+GM improvises mechanics from memory; Holonovel reads your books — by
+the page, with a citation.
 
-### Dice
+### Action Suggestions
 
-> "Make a Dexterity save to dodge the trap."
-> "Attack the ogre with my longsword."
+> "I want to sneak past the guards."
+> "What can I do in combat?"
 
-Every roll shows its work — the die faces, the modifiers, the target.
-Advantage flips two dice. Critical hits double damage. Seedable RNG
-makes every roll reproducible. Dispute an outcome, replay it, get the
-same result. The AI narrates. The dice decide.
+You describe what you want to do — the AI maps it to ruleset-legal
+tools. No memorizing command names. No guessing which tool handles
+what. Suggestions are context-sensitive: they know the scene type,
+your conditions, and your hat's visible tools. No other MCP RPG
+server bridges natural-language intent to its tool surface.
 
 ### Narrative Management
 
@@ -122,7 +158,10 @@ same result. The AI narrates. The dice decide.
 You build the world once. The AI remembers. Set scenes. Create NPCs
 with personality, disposition, and voice examples. Lore entries fire
 when keywords match the unfolding story. Countdowns escalate tension
-on cue. Standing GM directives shape every response.
+on cue. Context-window tools inject lore until the session ends;
+Holonovel writes your world — lore, countdowns, GM directives — to
+disk, where it survives every rebuild. Standing GM directives shape
+every response.
 
 ### Adventures & Encounters
 
@@ -132,16 +171,45 @@ on cue. Standing GM directives shape every response.
 One sentence becomes a campaign scaffold — scenes, NPCs, hooks.
 Generate the whole outline, or build encounters one at a time as
 single undoable steps. Load adventure modules from Markdown files.
+Freeform AI storytellers generate disconnected scenes with no
+through-line and no way back; Holonovel scaffolds a full campaign from
+one sentence and snapshots every encounter as a single undoable step.
 
-### Rules Access
+### Dice
 
-> "Look up Fireball."
-> "Search the rules for grappling."
+> "Make a Dexterity save to dodge the trap."
+> "Attack the ogre with my longsword."
 
-Name it, get the rule. Every result cites a source page. Full-text
-search across the indexed ruleset. Look up spells, monsters,
-equipment, and classes by name and documented alias. The AI never
-invents a rule — it reads your books.
+Every roll shows its work — the die faces, the modifiers, the target.
+Advantage flips two dice. Critical hits double damage. Seedable RNG
+makes every roll reproducible. Dispute an outcome, replay it, get the
+same result. Most AI RPG tools don't roll dice — they ask the LLM to
+invent an outcome; Holonovel's dice are real, seeded, and
+deterministic. The AI narrates. The dice decide.
+
+### Combat
+
+> "Roll initiative. The goblins ambush from the treeline."
+
+You don't track initiative, conditions, or HP — the AI does, by the
+book. Bleeding stops when the rules say it does. Paralysis expires on
+schedule. Combat state survives server restarts. Undo bad rolls.
+LLM-only AI DMs hallucinate conditions and forget whose turn it is;
+Holonovel tracks bleeding, paralysis, and exhaustion by the book —
+they expire when the rules say they do, not when the AI forgets. You
+focus on tactics.
+
+### Player Signal
+
+> "I want things to move faster."
+> "Boundary: no body horror."
+
+You don't have to hope the AI reads the room — you tell it. Send
+structured signals for pace, difficulty, tone, focus, and topic
+boundaries. Every signal persists in the GM's briefing, shaping every
+response until you change it. No other AI GM gives the player
+structured, persistent control over the game's direction — signals
+don't get buried in chat history.
 
 ### State & Recovery
 
@@ -152,7 +220,11 @@ invents a rule — it reads your books.
 Every mutation is a snapshot. Undo reverts the last step. Session
 recaps summarize play. Checksums detect corruption before you'd
 notice. Export your campaign as a single file. Import back with merge,
-replace, or dry-run. Nothing is permanent unless you want it to be.
+replace, or dry-run. No competitor offers snapshot-based rollback
+with corruption detection across a full campaign; Holonovel snapshots
+every mutation, detects file corruption on load, and exports your
+entire campaign as one file. Nothing is permanent unless you want it
+to be.
 
 ## The specification
 
@@ -166,8 +238,10 @@ Everything you build survives every rebuild.
 This is the hardest step — and the spec handles it. PDF, HTML, or web
 scrape → clean, well-structured Markdown. Tables reassembled across
 page breaks. Adornments stripped. Structure validated. Conversion
-fidelity tracked at 90% minimum. After clean Markdown, the rest is
-automatic.
+fidelity tracked at 90% minimum. Every existing MCP RPG server was
+built by a human transcribing rules from PDFs by hand; Holonovel
+automates the step every other tool skips. After clean Markdown, the
+rest is automatic.
 
 ### Build
 
@@ -179,7 +253,10 @@ chunks. Construction assembles a complete MCP server in six
 dependency-ordered steps. A convergence loop measures six quality
 metrics and iterates until every threshold is met. A second model
 cross-audits the first — catching defects a single model would miss.
-Your rules make it in.
+Every MCP RPG server today is hand-coded for a single system;
+Holonovel's spec reads your sourcebooks, assembles a complete server,
+and cross-audits with a second model — no hand-coding, no system
+lock-in. Your rules make it in.
 
 ### Enrich
 
@@ -189,20 +266,25 @@ Optional. Additive. Never touches mechanics. Web research across
 community forums, actual-play breakdowns, designer notes, and media
 influences. Produces voice examples, lore templates, action suggestion
 patterns, and adventure advice — all tagged with source URLs,
-confidence labels, and freshness timestamps. `revert_enrichment`
-removes everything in one call.
+confidence labels, and freshness timestamps. No other tool aggregates
+real community GM advice with source attribution and weaves it into
+your server's hat. `revert_enrichment` removes everything in one
+call.
 
 ### Gauntlet
 
 > "Run the gauntlet after the Build workflow."
 
 The Gauntlet finds what structure checks miss. Twenty-two adversarial
-scenarios. Two simulated personas — player and game master — share
-one server and one novel. Combat endurance. Persona boundary
+scenarios. Two simulated hats — player and game master — share
+one server and one novel. Combat endurance. Hat boundary
 enforcement. Corrupted state recovery. Campaign survival: 30 rounds
 of combat, 3 confrontations, over 100 audit log entries. Blocking
-scenarios must pass. Re-runs after every server change. If it breaks,
-the Gauntlet finds it before you do.
+scenarios must pass. Re-runs after every server change. No AI RPG
+tool ships with an adversarial test suite — users find the bugs;
+Holonovel's 22 scenarios with simulated hats test combat
+endurance, boundary enforcement, and state recovery before you ever
+see a defect. If it breaks, the Gauntlet finds it before you do.
 
 ### Spec Update
 
@@ -210,9 +292,10 @@ the Gauntlet finds it before you do.
 
 Your campaign outlives the build. The spec improves — your server
 follows. A full comparison audit finds every gap between your running
-server and the current specification. Implements changes. Re-verifies.
-State migration preserves your data. Your characters, worlds, and
-Novels survive every rebuild.
+server and the current specification, implements changes, and re-verifies. When a hand-coded
+server is updated, your campaign data may not survive the upgrade;
+Holonovel's comparison audit finds every gap and applies only what
+changed — your characters, worlds, and Novels survive every rebuild.
 
 ## How it compares
 

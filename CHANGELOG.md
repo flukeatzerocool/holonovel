@@ -51,6 +51,19 @@
 - Fixed stale "persona enrichment" reference in AGENTS.md (§11 description
   now reads "hat enrichment").
 
+## 2026-08-06 — README fact-check and polish
+
+- Tool count corrected from 23 to 58 and ruleset source count from 1,029 to
+  1,021 — both now match the live dnd5e server's `spec_health` output.
+- MCP client config example fixed — replaced stale `dist/index.js` (removed when
+  the server dropped the tsc compilation step) with `npx tsx src/index.ts` plus
+  a `cwd` field, matching the working config in `dnd5e/README.md`. Removed
+  non-default environment variables.
+- Spec Update prose smoothed — "a full comparison audit finds every gap...
+  implements changes, and re-verifies" replaces the choppy "Implements changes.
+  Re-verifies." sentence fragments. "When a hand-coded server improves" →
+  "When a hand-coded server is updated" (fixing a misleading verb).
+
 ## 2026-08-06 — Clarify enrichment survival across rebuilds
 
 - Enrichment content stored in a Novel now has a defined lifecycle across
