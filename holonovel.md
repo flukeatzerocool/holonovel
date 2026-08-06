@@ -370,12 +370,12 @@ with genre-specific examples from the `adventure_advice` module. Anti-slop guida
 hat-filtered and appears in `hat_briefing` after foundations and before scene state.
 _Check:_ T26.
 
-**REQ-071 — Example-of-play snippets.** `hat_briefing` includes up to three
-`[voice]`-tagged guidance items per hat — example-of-play prose extracted from the
-ruleset that demonstrates narrative tone, served at `guidance://<hat>/voice`. Each
+**REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
+`[narrative-tone]`-tagged guidance items per hat — example-of-play prose extracted from the
+ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<hat>/tone`. Each
 carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a
 guidance subcategory. When the ruleset provides none, the Enrich workflow (§11.1) may
-source community examples. Entity-level voice_examples (REQ-077) are distinct — these
+source community examples. Entity-level voice_examples (REQ-077) are distinct — those
 are dialogue snippets attached to specific characters. _Check:_ T26.
 
 **REQ-064 — Hat behavioral boundaries.** The server respects hat boundaries in
@@ -474,7 +474,7 @@ list matches the registry. _Check:_ T3, T35.
 
 **REQ-022 — Resources.** The server provides `ruleset://` (with hat filtering),
 `entities://`, `entity://<id>`, `audit://novel`, `roster://<type>`, `roster://<id>`,
-`guidance://<hat>`, `guidance://<hat>/anti-slop`, `guidance://<hat>/voice`,
+`guidance://<hat>`, `guidance://<hat>/anti-slop`, `guidance://<hat>/tone`,
 `guidance://<hat>/foundations`, `guidance://shared/hat-switch`, `scene://current`, `scene://history`,
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
@@ -684,19 +684,20 @@ T26, T44.
 
 **REQ-109 — Hat briefing composition.** `hat_briefing` surfaces
 these hat-filtered information groups: hat foundations (REQ-062),
-anti-slop guidance (REQ-070), example-of-play snippets (REQ-071), current scene state
+anti-slop guidance (REQ-070), narrative tone samples (REQ-071), current scene state
 (REQ-076), active entities with summary stats (REQ-074), active NPCs
 (REQ-075), active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries (REQ-083),
 active adventure content (REQ-079), registered tools relevant to the
 current scene type (REQ-087), active combat state — round, turn order, and
-current participant (if in-combat; REQ-043), the narrative directive (GM
+current participant (if in-combat; REQ-043), active entity personality fields and voice
+examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM
 only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
 (REQ-089, including a "Session zero not yet completed — run `session_zero` prompt" reminder when
 `session_zero_completed` is false), and a pointer to the intro prompt (REQ-063). Groups whose data
 source is empty may be omitted. The enumeration order above is the builder's required
 default section ordering for `hat_briefing`. Decision-critical groups (scene state,
 entities, combat state, triggered lore) precede the section boundary; supplementary
-guidance and navigation groups (anti-slop, example-of-play snippets, intro pointer)
+guidance and navigation groups (anti-slop, narrative tone samples, intro pointer)
 follow. The Game Master may override this order via `set_briefing_order` (REQ-082).
 _Check:_ T109, T110.
 
@@ -867,20 +868,70 @@ resolution. All fields persist with the Novel. The Player hat reads them via
 `hat_briefing` and `scene://current`; write access is Game Master only. _Check:_ T133.
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
-fields: `description` (physical appearance), `voice` (speech patterns and mannerisms),
-`background` (history and motivation), `goals` (current objectives), and `voice_examples`
-(up to 5 example dialogue snippets with context tags, settable via
-`set_voice_examples(entity_id, examples)` — Player-only for own entities, GM for all).
-These fields are
-narrative context — inert data, not mechanical. Voice examples sourced from enrichment
-carry a `[supplementary]` tag and source URL. They are stored at the roster level and
-are explicitly mutable (an exception to roster baseline immutability — narrative fields,
-unlike mechanical stats, may be edited after creation). Fields are surfaced in
-`hat_briefing` alongside entity stats and at `entity://<id>/personality`. Novel-level
-overrides: if personality fields are set on a Novel entity via `set_personality(entity_id,
-fields)`, they override the roster baseline for that Novel only. The `set_personality`
-tool is Player-only for own entities. On Novel entity import, roster personality fields
-are copied alongside mechanical stats. _Check:_ T58, T65.
+fields:
+
+- `description` — physical appearance.
+- `voice` — the entity's speech characteristics. Conveys at minimum pitch, pace,
+  vocabulary range, mannerisms, and formality register as a free-text description.
+- `background` — history and motivation.
+- `goals` — current objectives.
+- `voice_examples` — up to 5 example dialogue snippets, each recording `context`
+  (situation label), `dialogue` (verbatim speech), and `tag`
+  (scene-type or emotional-context label describing when the example dialogue would be
+  spoken — e.g., combat, social, exploration). These examples demonstrate
+  how the entity speaks in specific situations, sourced via `set_voice_examples(entity_id,
+  examples)` and stored at the roster level. Voice examples sourced from enrichment carry a
+  `[supplementary]` tag and source URL.
+
+These are narrative context — inert data, not mechanical. `set_personality(entity_id,
+fields)` sets description, voice, background, and goals (Player-only for own entities,
+GM for all). Personality fields are stored at the roster level and are explicitly
+mutable (an exception to roster baseline immutability — narrative fields, unlike
+mechanical stats, may be edited after creation). Novel-level overrides: if personality
+fields are set on a Novel entity via `set_personality`, they override the roster
+baseline for that Novel only. On Novel entity import, roster personality fields are
+copied alongside mechanical stats.
+
+Fields are surfaced in `hat_briefing` alongside entity stats and at
+`entity://<id>/personality`; voice_examples are surfaced under the entity personality
+group in `hat_briefing` per REQ-109. When an entity speaks in-character, voice_examples
+are rendered ahead of trait descriptions in the prompt context (REQ-126).
+
+**Authorship guidance.** Effective personality fields describe concrete behaviors rather
+than abstract traits. The `voice` field works best when it specifies how the entity
+speaks in practice — e.g., clipped sentences, reaches for sword before speaking when
+startled — rather than bare adjectives. Voice_examples should demonstrate the entity in
+emotionally distinct situations; they are the primary mechanism for dialogue
+consistency.
+
+_Check:_ T58, T65, T140.
+
+**REQ-126 — Voice examples rendering.** When an entity speaks in-character — whether a
+player entity or an NPC with set personality fields — the entity's voice_examples must
+be rendered in the prompt context alongside its personality trait fields. Voice examples
+must precede trait descriptions in the prompt ordering, reflecting the show-don't-tell
+principle: dialogue patterns give the model concrete behavior to imitate, while trait
+descriptions provide abstract reasoning cues. Voice examples are inert data — they never
+influence mechanical resolution or dice outcomes. The rendering contract applies to all
+prompts and resources that surface entity personality: `hat_briefing`,
+`entity://<id>/personality`, `npc://<id>/personality`, and the `character_sheet` tool.
+Voice examples sourced from enrichment are tagged `[supplementary]` alongside their
+source URL and are rendered after player-authored examples when both exist.
+_Check:_ T140.
+
+**REQ-127 — Ruleset-native personality mapping.** During discovery (§6.3), the builder
+must identify ruleset-native personality constructs — character traits, motivations,
+beliefs, flaws, bonds, or equivalent mechanics defined in the ruleset's characterization
+or player-facing sections. If the ruleset defines such constructs with distinct names and
+semantics, the builder must map each construct to the closest Holonovel personality field
+and record the mapping in RULESET_MODEL.md. When native constructs exist, the
+`set_personality` tool description and the `session_zero` prompt (REQ-078) must reference
+those constructs by their ruleset names. For example, a ruleset that defines "Traits,"
+"Ideals," "Bonds," and "Flaws" would see those terms in tool descriptions alongside the
+Holonovel field names. The mapping is advisory — it does not constrain which fields a
+player sets, only how the surface is presented. If the ruleset defines no native
+personality constructs, the builder records this finding and uses only the Holonovel
+field names. _Check:_ T141.
 
 **REQ-069 — Player feedback signal.** The server provides a `player_signal(signal, value)` tool —
 Player-only. Records a structured preference signal: `pace` (slower/faster), `difficulty`
@@ -1439,8 +1490,8 @@ Cross-chunk references are resolved at the end.
 5. **Resolution** — the core mechanic: dice notation, stat associations, result bands.
 6. **Roles** — Player and Game Master terms from the ruleset.
 7. **Guidance** — hat-addressed prose, verbatim, with attribution and hat scope.
-   **Voice examples** are a guidance subcategory: example-of-play passages that demonstrate
-   the ruleset's narrative tone, tagged `[voice]` and surfaced in `hat_briefing`
+   **Narrative tone samples** are a guidance subcategory: example-of-play passages that demonstrate
+   the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `hat_briefing`
    (REQ-071).
 
 **Outputs.** Discovery produces:
@@ -3023,14 +3074,14 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-055 | Durability and resume     | T9, T31                        | 2026-08-02   |
 | REQ-067 | Help and tool discovery   | T62                            | 2026-08-04   |
 | REQ-070 | Anti-slop guidance        | T26                            | 2026-08-04   |
-| REQ-071 | Voice examples            | T26                            | 2026-08-04   |
+| REQ-071 | Narrative tone samples    | T26                            | 2026-08-04   |
 | REQ-072 | Session recap             | T53                            | 2026-08-04   |
 | REQ-073 | Countdowns                | T54, T139                      | 2026-08-04   |
 | REQ-074 | Multi-entity support      | T55                            | 2026-08-04   |
 | REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
 | REQ-076 | Scene-state ledger        | T57, T112, T132, T137          | 2026-08-06   |
 | REQ-076a| Structured scene fields   | T133                           | 2026-08-06   |
-| REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
+| REQ-077 | Entity personality fields | T58, T65, T140                  | 2026-08-04   |
 | REQ-069 | Player feedback signal    | T8, T26                        | 2026-08-06   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
@@ -3079,6 +3130,8 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-123 | Builder-defined NPC stat fields | T130                      | 2026-08-06   |
 | REQ-124 | NPC damage resolution     | T131                           | 2026-08-06   |
 | REQ-125 | Scene transition hook     | T136                           | 2026-08-06   |
+| REQ-126 | Voice examples rendering | T140                           | 2026-08-06   |
+| REQ-127 | Ruleset-native personality mapping | T141                  | 2026-08-06   |
 
 ---
 
@@ -3223,6 +3276,8 @@ diet.
 | T137  | Automated | Scene pacing tick: create Novel — assert scene_tick = 0. Init combat with 2 participants, advance through one full round (wrap back to first) — assert scene_tick = 1. Advance through second full round — assert scene_tick = 2. Call `set_scene_state` with new description (triggering transition) — assert scene_tick resets to 0. Verify tick visible in GM `hat_briefing`, absent from Player `hat_briefing`.                                                                                                                                                                                                                                                                                          | REQ-076                                     |
 | T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with unrecognized decision returns `[ERROR] [NOT_FOUND]` enumerating the valid decision text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-066, REQ-041, REQ-092 |
 | T139  | Automated | Countdown lifecycle: set a shared increment countdown "tension" (3 ticks). Advance twice — assert remaining = 2/3, still active. Advance again — assert fires at 3/3, removed from active, audit log entry present, name slot free. Set a game-master decrement countdown "patrol" (2 ticks). Switch to Player — assert `hat_briefing` shows "tension" (shared) but not "patrol" (GM-only). Switch to GM — assert both. `remove_countdown("patrol")` — assert removed, no audit expiry. Set "patrol" again — assert new countdown (not reactivated).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-073, REQ-032                            |
+| T140  | Automated | Voice examples rendering: create entity with personality fields and voice_examples. Call `hat_briefing` — assert voice_examples appear alongside personality traits under the entity personality group, with dialogue examples before trait descriptions. Call `character_sheet` — assert voice_examples rendered under Personality section. Set Novel-level override for voice field — assert override voice renders alongside original voice_examples. Verify enrich-sourced voice_examples carry `[supplementary]` tag in all surfaces. Invoke `entity://<id>/personality` resource — assert rendering contract holds. NPC with personality fields: assert same rendering contract at `npc://<id>/personality`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-077, REQ-126, REQ-109                   |
+| T141  | Manual   | Ruleset-native personality mapping: build server for a ruleset with native personality constructs (e.g., D&D 5e Traits/Ideals/Bonds/Flaws). Assert RULESET_MODEL.md records a mapping from each native construct to a Holonovel personality field. Assert `set_personality` tool description references the ruleset-native construct names. Assert `session_zero` prompt includes both native and Holonovel field references. Build server for a ruleset without native constructs (e.g., Appendix B fixture) — assert tool descriptions use only Holonovel field names and no native construct names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-127, REQ-104, REQ-078                   |
 
 ---
 
