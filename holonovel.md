@@ -331,6 +331,16 @@ presented in the ruleset's baseline format, with all fields regardless of trunca
 **REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
 baseline format, with all fields regardless of truncation. _Check:_ T13.
 
+**REQ-118 — Prompt length budget.** Every prompt returned by `prompts/get`
+stays within a per-prompt token budget. When a prompt's constructed content
+exceeds its budget, sections are truncated in priority order (low-priority
+first) with `[truncated]` markers and pointers to the corresponding resource
+URIs where full content is retrievable. The truncation mechanism preserves the
+prompt's structural integrity — section headers remain, and required contract
+elements (intro pointer per REQ-063, `player_signal` directives per REQ-078)
+are never truncated. The per-prompt budget is configurable; exceeding it
+without truncation is a defect. _Check:_ T123.
+
 **REQ-113 — Result count reporting.** A tool that returns a collection of results
 reports both the count of items returned and the total count of matching items.
 When the total exceeds the returned count, the difference is explicit — the
@@ -473,12 +483,17 @@ list matches the registry. _Check:_ T3, T35.
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header. _Check:_ T16, T104.
 
-**REQ-023 — Prompts.** The server provides prompts covering tool use (mapping player
-intent to tool calls), rule lookup, multi-step workflows, hat briefing, connection
-introduction (REQ-063), session zero (REQ-078), and Novel setup (REQ-089). Prompts are
-dynamic: adding a tool, resource, or guidance item updates their output without restart.
-`prompts/get` returns exactly one user-role message. `prompts/list` carries a title on
-every prompt and a description on every argument. _Check:_ T22.
+**REQ-023 — Prompts.** The server provides prompts covering multi-step workflows,
+hat briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel
+setup (REQ-089). Tool-use intent mapping is handled by the `suggest_actions` tool
+(REQ-084) rather than a prompt — a dedicated prompt for this function is
+redundant. The remaining intent-mapping prompt (`run_workflow`) derives its tool
+associations from the registered tool catalog and the ruleset extraction model's
+action classifications (REQ-015) — not from hardcoded keyword strings that assume
+a specific ruleset's terminology. Prompts are dynamic: adding a tool, resource, or
+guidance item updates their output without restart. `prompts/get` returns exactly
+one user-role message. `prompts/list` carries a title on every prompt and a
+description on every argument. _Check:_ T22, T28.
 
 **REQ-024 — Tool documentation.** Every tool carries a `title` field with the ruleset's own
 term for that action. Annotations match action classification. _Check:_ T3, T35, T39.
@@ -490,13 +505,16 @@ when conversion was not selected), convergence summary (per-metric iterations ru
 findings per iteration, residual gaps for each of the six metrics in §6.5), indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
-spec_repo_url, verification workflow dispositions, and available Novels on disk (slug, name,
+spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
 last-modified, active — per
-REQ-093). Counts are derived from live registrations at call time — the running tool
-catalog, resource map, prompt list, search index, and extracted data arrays — not
-from hardcoded numeric literals. The player hat sees only player-filtered metrics.
-Output is filtered by hat. The convergence summary section is absent when the
-build is not yet complete. _Check:_ T15, T45, T93, T105.
+REQ-093), and prompt health — each registered prompt's name, presence
+(present/absent), length relative to its configured budget, and stale references
+(tool or resource names appearing in prompt text that do not match any registered
+tool or resource). Counts are derived from live registrations at call time — the
+running tool catalog, resource map, prompt list, search index, and extracted data
+arrays — not from hardcoded numeric literals. The player hat sees only
+player-filtered metrics. Output is filtered by hat. The convergence summary section
+is absent when the build is not yet complete. _Check:_ T15, T45, T93, T105.
 
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
@@ -542,7 +560,9 @@ in `prompts/list`. It takes no arguments, is visible to all hats, and serves as 
 conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
 actions a player can take. The tone is engaging and energetic; the anti-slop catalogue
 (REQ-070, Appendix J) governs in-game GM and Player narration, not server onboarding
-prompts. The `help` tool and `hat_briefing` each point to it.
+prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
+mapping, callers are directed to `suggest_actions` (REQ-084) — no
+`use_tool` or `lookup_rule` prompt is provided.
 _Check:_ T49, T50.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
@@ -550,10 +570,15 @@ arguments, is visible to all hats (unfiltered), and serves as a structured quest
 start of a new adventure. It gathers: character introductions (narrative fields, REQ-077),
 tone preference (lighter/darker/grittier), difficulty preference, pacing preference
 (more-action/more-exploration/more-dialogue), content boundaries (topics to avoid), and
-adventure confirmation. The prompt instructs the caller to record each player
-response via `player_signal` for tone, difficulty, pacing, and boundaries, and via
-`set_personality` for character introductions. `session_zero` is listed in `prompts/list` after `intro`. The `intro` prompt
-includes a concrete action to run the `session_zero` prompt before play. _Check:_ T22.
+adventure confirmation. For each preference category, the prompt includes an explicit
+directive to record the response — `player_signal("tone", <value>)` for tone,
+`player_signal("difficulty", <value>)` for difficulty, `player_signal("pace", <value>)`
+for pacing, and `player_signal("boundary", <value>)` for boundaries. Character introductions
+include the directive `set_personality(entity_id, description, voice, background, goals)`.
+Every recording directive names the specific tool and its expected arguments; a caller
+who follows the directive verbatim produces a valid tool call. `session_zero` is listed
+in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run
+the `session_zero` prompt before play. _Check:_ T22, T124.
 
 **REQ-057 — Canonical lookup tools.** For each category the ruleset defines as canonical
 content (equipment, spells, monsters/stat-blocks, conditions, feats, class features,
@@ -932,7 +957,11 @@ procedure. Enrich-derived action patterns (§11.1) may supplement the matching i
 They are **inert** — visible at `enrichment://action_patterns` for review but excluded
 from `suggest_actions` results until the GM activates them via the Novel-scoped action
 pattern toggle (REQ-115). Unactivated enrich patterns remain reference-only and do not
-influence tool output. _Check:_ T68, T96, T120.
+influence tool output. `suggest_actions` is the canonical mechanism for
+intent-to-tool mapping at runtime; the server provides no dedicated `use_tool` or
+`lookup_rule` prompt for this function — directing callers to this tool instead
+eliminates the redundancy of maintaining two surfaces for the same capability.
+_Check:_ T68, T96, T120.
 
 **REQ-115 — Action pattern activation.** The server provides a
 `toggle_action_patterns` tool — Game Master only. Calling it flips
@@ -1347,7 +1376,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
 | 5     | State: snapshots, undo, audit, hat gating, resource URIs | T9 pass (hat test)                                       |
-| 6     | Prompts: `use_tool`, `lookup_rule`, `run_workflow`, `hat_briefing`, `intro` | T22 pass (prompt registry test)            |
+| 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
@@ -1358,6 +1387,37 @@ material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
 `package.json`). The dnd5e server's `LICENSE.md` is the canonical
 template.
+
+### 6.4.1 Prompt composition
+
+Each server prompt is a user-role message composed at invocation time from
+live state. The builder constructs prompts from these sources, in this order:
+
+1. **Live index.** Counts and listings (available classes, races, spells,
+   adventures, roster characters) are drawn from the running index — never
+   hardcoded. A prompt whose source data changes regenerates on the next
+   invocation.
+
+2. **State snapshot.** Entity stats, NPC lists, countdown status, scene
+   description, and Novel metadata are drawn from the current Novel state at
+   invocation time.
+
+3. **Registration surfaces.** Tool names, parameter hints, and category
+   groupings are drawn from the live tool registry and the ruleset extraction
+   model's action classifications (REQ-015).
+
+4. **Hat-scoped guidance.** Foundations (REQ-062), anti-slop guidance
+   (REQ-070), and supplementary enrichment (REQ-080) are included per the
+   active hat's filter.
+
+5. **Required contract elements.** Every prompt that carries a specification
+   contract (intro pointer in `hat_briefing` per REQ-063, `player_signal`
+   and `set_personality` directives in `session_zero` per REQ-078) includes
+   those elements before any truncation.
+
+Prompts use the ruleset's own terminology for mechanics, tool names, and
+categories — the builder does not invent terms. The prompt length budget
+(REQ-118) applies to every prompt.
 
 ### 6.5 Verification and convergence
 
@@ -2749,9 +2809,9 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   `audit://novel`, `roster://<type>`, `roster://<id>`, and `guidance://<hat>` retrievable
   per hat gating rules (REQ-032). `resources/read` returns Markdown text with a small
   source header (REQ-022), not wrapped in a JSON envelope.
-- `prompts/list` and `prompts/get`: `use_tool`, `lookup_rule`, `run_workflow`,
-  `hat_briefing`, `intro`, `session_zero`, and `novel_setup`; the three
-  intent-mapping prompts each take a required `intent` argument with a description,
+- `prompts/list` and `prompts/get`: `run_workflow`, `hat_briefing`,
+  `intro`, `session_zero`, and `novel_setup`; the one intent-mapping prompt
+  (`run_workflow`) takes a required `intent` argument with a description;
   `hat_briefing`, `intro`, `session_zero`, and `novel_setup` take none; each
   `prompts/get` returns exactly one user-role message (REQ-023).
 - All operations function with networking disabled (REQ-051).
@@ -2872,6 +2932,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-115 | Action pattern activation  | T119                           | 2026-08-06   |
 | REQ-116 | Redo                      | T121                           | 2026-08-06   |
 | REQ-117 | Novel retention period    | T122                           | 2026-08-06   |
+| REQ-118 | Prompt length budget      | T123                           | 2026-08-06   |
 
 ---
 
@@ -2999,6 +3060,8 @@ diet.
 | T120  | Automated | Suggestion precision: call `suggest_actions("I want to convince the guard")` — assert at least one result maps to a social-resolution tool, not a combat or lookup tool. Call `suggest_actions("strike a bargain")` — assert results exclude weapon-attack tools. Call with a combat intent in a combat scene — assert combat tools appear and scene-type filtering excludes non-combat tools from the top results. Call with intent matching no plausible tool ("I want to become a sandwich") — assert empty list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-084                                     |
 | T121  | Automated | Redo: create Novel with entity. Apply condition → undo → assert condition removed → redo → assert condition restored. Undo twice then redo once → assert one step restored, one still undone. Redo on empty redo stack → `[STATE_CONFLICT]`. Mutate after undo → assert redo stack cleared and new undo target created. Redo blocked during pending `[NEED_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-116, REQ-041                            |
 | T122  | Automated | Retention: create Novel with state, end Novel confirming "yes." Assert primary `.json` and `.json.bak` moved to `.holonovel-state/novels/.trash/`. Assert `listNovels` excludes the slug. Assert `resume_novel(slug)` returns `[STATE_CONFLICT]`. Set `TTRPG_NOVEL_RETENTION_DAYS=0`, restart — assert trash files retained. Set `TTRPG_NOVEL_RETENTION_DAYS=1`, restart — assert files older than 1 day removed, recent files retained.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-117, REQ-088                            |
+| T123  | Automated | Prompt length budget: populate a Novel with the maximum expected NPCs, lore entries, countdowns, and entities (per REQ-097 default thresholds). Invoke `hat_briefing` — assert output length does not exceed the configured budget; assert truncated sections carry `[truncated]` markers with resource URI pointers; assert section headers and required contract elements (intro pointer, `player_signal` directives) are preserved untruncated. Invoke `session_zero` — assert output within budget. Invoke `novel_setup` with a full roster and indexed adventures — assert output within budget. Modify the budget config to a lower value, restart — assert truncation activates at the new threshold.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-118                                     |
+| T124  | Automated | Session zero recording directives: invoke the `session_zero` prompt on a running server. Assert the output includes the string `player_signal` for each of the four preference categories (tone, difficulty, pace, boundary) with the correct argument shapes. Assert the character introduction section includes the string `set_personality` with entity_id and field arguments. Assert the `intro` prompt output includes the string `session_zero` as a recommended next action.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-078, REQ-063                            |
 
 ---
 
