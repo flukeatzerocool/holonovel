@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "2.1.0",
+  "version": "2026.08.05",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,12 @@
     "graph-deps": "npx tsx scripts/graph-deps.ts",
     "spec-health-trends": "npx tsx scripts/spec-health-trends.ts",
     "typecheck": "npx tsc --noEmit",
-    "check": "npm run lint && npm run validate && npm run audit-assumptions && npm run scan-ambiguity"
+    "version-sync": "npx tsx scripts/version-check.ts",
+    "version-bump": "npx tsx scripts/version-bump.ts",
+    "spec-delta": "npx tsx scripts/spec-delta.ts",
+    "push": "npx tsx scripts/push.ts",
+    "validate-readme": "npx tsx scripts/validate-readme.ts",
+    "check": "npm run lint && npm run validate && npm run audit-assumptions && npm run scan-ambiguity && npm run validate-readme"
   },
   "keywords": [],
   "author": "",
