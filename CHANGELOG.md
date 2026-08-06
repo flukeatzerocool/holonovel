@@ -39,6 +39,22 @@
      what it's called.
 -->
 
+## 2026-08-06 — Player signals subsystem: pace/focus semantics, briefing surface, and staleness
+
+- Fixed a contradiction where session zero directed players to record
+  exploration/action balance under the `pace` signal, but the signal
+  specification defined `pace` as speed and `focus` as that balance.
+  Session zero now separates them: `pace` (slower/faster) and `focus`
+  (action/exploration/dialogue) are recorded independently, matching
+  the specification's five-axis semantics. (REQ-069, REQ-078)
+- Player signals now appear as a dedicated section in the GM briefing
+  with signal type, value, and age — how many connections ago each was
+  last set. Previously REQ-069 required briefing visibility but the
+  implementation surface contract was undefined. (REQ-128)
+- Signal entries now carry a `last_updated` timestamp, so a preference
+  set in session one is distinguishable from one refreshed mid-campaign.
+  (REQ-069)
+
 ## 2026-08-06 — Voice and personality subsystem: naming, composition, and rendering
 
 - Entity personality fields and voice examples are now formal members of
