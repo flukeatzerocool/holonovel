@@ -39,6 +39,18 @@
      what it's called.
 -->
 
+## 2026-08-06 — Add spec-engineering queue for cross-session task tracking
+
+- New `SPEC-QUEUE.md` file — a prioritized backlog of subsystems awaiting
+  spec-engineering loop review, organized by tier (Major features, Top
+  candidates, Tool-surface, Infrastructure). 23 items queued from today's
+  session-log audit. Items are deleted on completion; CHANGELOG and git
+  history provide the audit trail.
+- AGENTS.md Layer Map updated to include `SPEC-QUEUE.md` with its
+  `@SPEC-QUEUE.md next | add:` usage convention.
+- Fixed stale "persona enrichment" reference in AGENTS.md (§11 description
+  now reads "hat enrichment").
+
 ## 2026-08-06 — Clarify enrichment survival across rebuilds
 
 - Enrichment content stored in a Novel now has a defined lifecycle across
