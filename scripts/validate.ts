@@ -213,6 +213,9 @@ function checkSpecViolations(text: string): string[] {
     if (/Default:\s/.test(body)) {
       issues.push(`${reqId}: contains 'Default:' clause — defaults are builder's domain`);
     }
+    if (/\bdefault\s+\d[\d,]*\s*(?:bytes|seconds|minutes|entries|items|MB|KB|ms)\b/i.test(body)) {
+      issues.push(`${reqId}: contains bare default value with unit — defaults are builder's domain`);
+    }
 
     const enumerated = body.match(/`[^`]+`(,\s*`[^`]+`)*/g);
     if (enumerated) {
@@ -475,6 +478,62 @@ function checkCoverageCompleteness(text: string): string[] {
   return issues;
 }
 
+function checkAppendixRange(text: string): string[] {
+  const issues: string[] = [];
+  const appendixHeadings = [...text.matchAll(/^## Appendix ([A-Z]):/gm)];
+  if (appendixHeadings.length === 0) return issues;
+
+  const highestLetter = appendixHeadings
+    .map(h => h[1])
+    .sort()
+    .pop()!;
+
+  let inBlock = false;
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim().startsWith("```")) { inBlock = !inBlock; continue; }
+    if (inBlock) continue;
+    // skip line if it's the appendix heading itself or the TOC entry line
+    if (/^## Appendix [A-Z]/.test(line.trim())) continue;
+    if (/- \[Appendix [A-Z]/.test(line.trim())) continue;
+
+    const match = line.match(/Appendices\s+([A-Z])–([A-Z])\b/);
+    if (match && match[2] !== highestLetter) {
+      issues.push(
+        `Line ${i + 1}: stale appendix range "${match[0]}" — actual highest is "Appendix ${highestLetter}"`
+      );
+    }
+  }
+  return issues;
+}
+
+function checkStaleCounts(text: string): string[] {
+  const issues: string[] = [];
+  const words = "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve";
+  const nouns = "metric|phase|step|category|domain|subsection|workflow|property|group|verification";
+  const re = new RegExp(
+    `\\b(${words})\\s+(${nouns})s?\\s+in\\s+(§\\d|Section\\s+\\d|Appendix\\s+[A-Z])`,
+    "gi"
+  );
+
+  let inBlock = false;
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim().startsWith("```")) { inBlock = !inBlock; continue; }
+    if (inBlock) continue;
+
+    const matches = line.matchAll(re);
+    for (const m of matches) {
+      issues.push(
+        `Line ${i + 1}: hardcoded count "${m[0]}" — verify actual count matches referenced section`
+      );
+    }
+  }
+  return issues;
+}
+
 function checkStaleGateReferences(text: string): string[] {
   const issues: string[] = [];
 
@@ -647,6 +706,22 @@ function main(): void {
       console.log(`WARNING: ${issue}`);
     }
     warnings += staleRefIssues.length;
+  }
+
+  const appendixIssues = checkAppendixRange(text);
+  if (appendixIssues.length > 0) {
+    for (const issue of appendixIssues) {
+      console.log(`WARNING: ${issue}`);
+    }
+    warnings += appendixIssues.length;
+  }
+
+  const countIssues = checkStaleCounts(text);
+  if (countIssues.length > 0) {
+    for (const issue of countIssues) {
+      console.log(`WARNING: ${issue}`);
+    }
+    warnings += countIssues.length;
   }
 
   if (traceability) {
