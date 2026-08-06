@@ -19,6 +19,21 @@
   mapping. _Check:_ T118.
 - Appendix E: Added REQ-110 through REQ-114 rows (92 REQ rows). Appendix F: Added T113
   through T118 rows.
+- REQ-115: Added action pattern activation toggle — requires a GM-only
+  `toggle_action_patterns` tool to flip the Novel-scoped action pattern
+  activation state. Previously the toggle field existed in state but no tool
+  operated it, leaving enrichment action patterns permanently inaccessible.
+  _Check:_ T119.
+- REQ-084: Amended action suggestions — clarified that `suggest_actions` may
+  return multiple plausible tools per intent (natural-language ambiguity),
+  unrecognized intents return an empty list (not generic fallback), and
+  enrichment pattern integration references REQ-115. _Check:_ T68, T96, T120.
+- REQ-114: Amended suggestion coverage — defined concrete curated-intent-entry
+  format (intent text, expected action categories per REQ-015, derivation source)
+  and clarified that coverage is measured per-intent, with uncovered output
+  naming both categories and their intents. _Check:_ T117.
+- Appendix E: Added REQ-115 row (93 REQ rows). Appendix F: Updated T68 and T96,
+  added T119 and T120.
 
 ## 2026-08-06 — Rename persona → hat; disambiguate "role"
 
