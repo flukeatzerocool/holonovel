@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-06 — Character creation workflow hardening
+
+- REQ-104: Added dual-mode character creation — step-by-step (sequential `[NEED_INPUT]`
+  decisions) and quick (all parameters in one call). Both modes produce complete entities
+  with all ruleset-defined derived statistics. Creation without an active Novel returns
+  `[STATE_CONFLICT]`.
+- REQ-042: Tightened decision-key identity contract — the `decision` value accepted by
+  `respond` is the exact question text from the preceding `[NEED_INPUT]`.
+- Gauntlet S2: Strengthened pass criteria with quick-mode verification, Novel-scoping
+  enforcement, and creation undo checks.
+- T32: Added output completeness checks (starting inventory, Novel-scoping enforcement,
+  zeroed-field detection) and REQ-104 citation.
+- T103: Added character creation undo test covering both step-by-step and quick modes.
+- §7.5, O.5: Synced decision-key identity rule and dual-mode creation workflow.
+
 ## 2026-08-05 — Audit findings remediation
 
 - Appendix E: Populated 19 `(today)` spec-version placeholders with actual

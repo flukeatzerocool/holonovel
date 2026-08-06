@@ -532,11 +532,21 @@ Successful advancement is a snapshot point and an undo target. Validate every me
 choice against the ruleset's own progression tables. _Check:_ T38; T32 where applicable.
 
 **REQ-042 — Workflow decisions.** Multi-step procedures (character creation, advancement)
-that raise `[NEED_INPUT]` are completed by `respond(decision, option)`. Each decision
-enumerates options — limited to at most 25 entries, derived from the ruleset index, with
-empty-string and "cancel" always available. An unrecognized decision or option returns
-`[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the pre-workflow
-snapshot. _Check:_ T32; Gate 2.
+that raise `[NEED_INPUT]` are completed by `respond(decision, option)`. The `decision`
+value is the exact text presented as the question in the preceding `[NEED_INPUT]`. Each
+decision enumerates options — limited to at most 25 entries, derived from the ruleset
+index, with empty-string and "cancel" always available. An unrecognized decision or
+option returns `[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the
+pre-workflow snapshot. _Check:_ T32; Gate 2.
+
+**REQ-104 — Character creation workflow.** `create_character` supports two modes:
+step-by-step (called without parameters) and quick (called with all required creation
+parameters). Step-by-step produces sequential `[NEED_INPUT]` decisions covering every
+mandatory creation step the ruleset defines; quick creates the character in a single
+call. Both modes produce a complete entity with every ruleset-defined derived statistic
+and no ruleset-defined starting field zeroed out. Creation without an active Novel
+returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot.
+_Check:_ T32; T47; T103; Gate 2.
 
 ### 5.5 Personas and Access
 
@@ -1302,8 +1312,12 @@ four items is incomplete and blocks handoff.
    for `array` params. Each tool is called with its simplest valid input —
    default-resolvable parameters omitted, required parameters supplied inline. The pass
    criterion: no tool crashes, hangs, or returns an unexpected error code. (Blocking.)
-2. **Character creation workflow.** Full creation produces a correct entity with all
-   derived statistics; the entity appears in the roster and imports correctly. (Blocking.)
+2. **Character creation workflow.** Step-by-step creation walks every mandatory creation
+   step and produces a correct entity with all derived statistics; the entity appears in
+   the roster and imports correctly. Quick creation with all parameters supplied produces
+   a character in a single call with identical derived statistics. Creation without an
+   active Novel returns `[STATE_CONFLICT]`. Undoing a completed creation restores
+   roster and Novel to pre-creation state. (Blocking.)
 3. **Encounter setup.** Combat init with entities and dangers reports round counter, turn order, and participant classification.
 4. **Simulated combat session.** The combat pipeline — turn resolution, HP tracking,
    condition effects, round advancement — produces correct results over at least 3 rounds
@@ -1582,11 +1596,16 @@ Generation tools annotate both.
 
 ### 7.5 Decisions and workflows
 
-Character creation and advancement use sequential decision queues. Each decision presents
-a `[NEED_INPUT]` with a question, an option list (kebab-cased, capped at 25 entries,
-derived from the ruleset index), and `cancel`. Options represent the highest-order choice
-first (stat arrays, not individual stat values). `respond` drains one decision; the next
-fires. `cancel` restores the pre-workflow snapshot.
+Character creation and advancement use decision queues. Creation supports two modes:
+quick (all choices supplied as tool parameters — character produced in one call) and
+step-by-step (sequential `[NEED_INPUT]` decisions covering every mandatory ruleset step).
+In step-by-step mode, each decision presents a `[NEED_INPUT]` with a question, an option
+list (kebab-cased, capped at 25 entries, derived from the ruleset index), and `cancel`.
+The `decision` value passed to `respond` is the exact question text from the preceding
+`[NEED_INPUT]`. Options represent the highest-order choice first (stat arrays, not
+individual stat values). `respond` drains one decision; the next fires. `cancel`
+restores the pre-workflow snapshot. Creation without an active Novel returns
+`[STATE_CONFLICT]`.
 
 ### 7.6 Configuration surface
 
@@ -2537,6 +2556,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-096 | Novel interchange         | T100                           | 2026-08-05   |
 | REQ-097 | Novel health              | T101                           | 2026-08-05   |
 | REQ-103 | Enrichment reversion      | T94                            | 2026-08-05   |
+| REQ-104 | Character creation workflow | T32, T47, T103               | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
@@ -2580,7 +2600,7 @@ diet.
 | T28   | Manual   | Role stories: MUST-covering set maps intent prompts to expected tools/resources; GM-targeting stories fail FORBIDDEN; each persona's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
 | T29   | Automated | DECISIONS.md traceability table parses; every REQ in Appendix E appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                               | §9                                   |
 | T31   | Automated | Novel isolation: entities invisible across Novels; roster baselines immutable; `import_character` creates fresh copy; `end_novel` discards Novel; roster survives; resuming ended Novel fails                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-055                                     |
-| T32   | Manual   | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment; if leveling defined, verify class-table progression via REQ-056; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056          |
+| T32   | Manual   | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment, starting inventory; verify Novel-scoped enforcement — creation without active Novel returns `[STATE_CONFLICT]`; verify no ruleset-defined starting field is zeroed out; if leveling defined, verify class-table progression via REQ-056; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056, REQ-104          |
 | T33   | Manual   | Combat resolution uses ruleset: attack with named weapon/spell via ruleset-specific and canonical lookup tools; damage dice, type, and properties match ruleset entry; miss/save produces ruleset outcome, no HP change; H5 automates live invocation; waived if no attack procedure                                                                                                                                                                                                                                                                                                                                                                     | REQ-013, REQ-020, REQ-043, REQ-057          |
 | T35   | Automated | Fixture isolation: with the target ruleset (not the Appendix B fixture), verify that fixture-only tool names (`create_delver`, `roll_move`, `start_confrontation`) are absent from `tools/list`; when serving the fixture itself, verify they are present                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-021, REQ-024                            |
 | T36   | Automated | DECISIONS.md review: section (1) edition/title matches source; section (5) covers every hardcoded class, species, hit-dice, equipment, or spell table with waiver; missing waiver is failure                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-013, §9                                       |
@@ -2649,6 +2669,7 @@ diet.
 | T100  | Automated | Novel interchange: create a populated Novel with entities, NPCs, scene, countdowns, lore, and combat state. Export as JSON — assert output matches Appendix Q schema. Import as `dry-run` — assert preview and no side effects. Import as `replace` — assert state matches exported data. Import as `merge` — assert entities and NPCs added, duplicates skipped. Verify round-trip: export → import → export produces identical output. Player persona attempts return `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-096, REQ-032                            |
 | T101  | Automated | Novel health: populate a Novel to near-limit thresholds (NPCs, lore entries, snapshots, file size approaching 4 MB). Assert `spec_health` reports warnings for each threshold and `healthy` reports false. Remove items to clear thresholds — assert `healthy` reports true. Assert Player persona sees entity-level health only; GM sees all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-097, REQ-032                            |
 | T102  | Automated | Enrichment staleness: populate enrichment with `collected_at` timestamps past `TTRPG_ENRICH_STALE_DAYS`. Assert `[stale]` flag in `spec_health` for inactive items. Assert stale items excluded from enrichment resource surfaces. Activate one stale item — assert flag cleared. Re-run enrich — assert all timestamps refreshed and stale flags removed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-080                                     |
+| T103  | Automated | Character creation undo: create a character via step-by-step workflow and via quick mode. Call `undo` after each — assert roster returns to pre-creation state and the entity is no longer accessible. Assert undo blocked during pending `[NEED_INPUT]`. Assert empty undo stack returns `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-041, REQ-104                            |
 
 ---
 
@@ -3337,10 +3358,14 @@ Empty stack returns `[ERROR] [STATE_CONFLICT]`. Undo is blocked during pending
 
 ### O.5 Workflows
 
-Character creation and advancement use sequential `[NEED_INPUT]` decisions. Each
-decision presents a question, an option list (kebab-cased, ≤25 entries, derived
-from the ruleset index, with "cancel" always last). `respond` drains one
-decision. "cancel" restores pre-workflow state. No option is pre-selected.
+Character creation supports two modes: quick (all choices supplied as tool parameters,
+character produced in one call) and step-by-step (sequential `[NEED_INPUT]` decisions
+covering every mandatory ruleset creation step). Step-by-step decisions present a
+question, an option list (kebab-cased, ≤25 entries, derived from the ruleset index,
+with "cancel" always last). The `decision` value passed to `respond` is the exact
+question text from the preceding `[NEED_INPUT]`. `respond` drains one decision.
+"cancel" restores pre-workflow state. No option is pre-selected. Creation without an
+active Novel returns `[STATE_CONFLICT]`.
 
 ### O.6 Persona Gating
 
