@@ -39,6 +39,36 @@
      what it's called.
 -->
 
+## 2026-08-06 — Lore subsystem core contract enforcement
+
+- Lore entries now sort by priority in the GM briefing, so the most
+  important entries always surface first. (REQ-083)
+- Sticky lore entries now actually persist — an entry set with `sticky: 3`
+  remains visible for three briefings after its trigger keywords leave the
+  scene, then decays. Previously the field was stored but ignored.
+  (REQ-083)
+- Lore entries are now subject to a configurable token budget via
+  `TTRPG_MAX_LORE_TOKENS`. When triggered entries exceed the budget,
+  lower-priority entries are omitted from the briefing and reported in
+  `spec_health`. Without the config, lore is unbounded as before. (REQ-083)
+- `suggest_lore` now matches enrichment templates against the current
+  scene instead of returning a hardcoded placeholder. Results include
+  content previews, confidence scores, and source URLs. (REQ-083)
+- Markdown lorebook exports now embed metadata (triggers, scope, priority,
+  sticky, group) in HTML comments, making the Markdown format
+  round-trippable — export as Markdown and re-import to restore all
+  metadata.
+- `import_lorebook` now accepts both JSON and Markdown formats, auto-detecting
+  the format. (REQ-094)
+- New `update_lore_entry` tool for partial field updates without
+  reconstructing the entire entry — useful when an entry has accumulated
+  runtime state (sticky counters, enrichment provenance). (REQ-083)
+- Added three lore resource endpoints: `lore://groups` lists entries by
+  group, `lore://{key}` returns full metadata for a single entry,
+  `lore://templates` surfaces enrichment-derived templates. (REQ-022)
+- Appendix L now defines a minimum metadata contract for Markdown round-trip
+  fidelity, so two independent builders produce compatible lorebook formats.
+
 ## 2026-08-06 — Scene management subsystem hardening
 
 - Resolved a contradiction in REQ-076 — the "never influences tool behavior"
