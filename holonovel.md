@@ -667,16 +667,27 @@ _Check:_ T109, T110.
 **REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://novel`), including timestamp, hat, tool name,
-arguments, and output prefix. State queries are not logged. The log survives connection
+arguments, and output prefix. State queries are not logged. Each audit entry chains the hash of the preceding entry,
+producing a tamper-evident sequence. On load, the server verifies the chain end-to-end and
+reports a mismatch in `spec_health` and stderr. The log survives connection
 restarts for the same Novel. _Check:_ T8.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
-`undo` restores the most recent mutation from a LIFO snapshot stack. The stack depth is
-implementation-defined; at minimum one undo level is available. An empty stack returns
+`undo` restores the most recent mutation from a LIFO snapshot stack. The stack depth
+supports at least 10 undo levels per hat. Builders that cannot meet this floor must record
+the constraint and its justification in DECISIONS.md (5). An empty stack returns
 `[ERROR] [STATE_CONFLICT]`. `undo` is a pure-state tool — it itself is not snapshot-able,
 and the step it reverses is removed from the snapshot stack. A pending `[NEED_INPUT]`
 blocks undo. Cancelling a workflow restores the pre-workflow snapshot and discards the
 workflow's internal undo candidates. _Check:_ T10.
+
+**REQ-116 — Redo.** A `redo` tool re-applies the most recently undone mutation. After
+`undo` pops a snapshot from the undo stack, the popped snapshot is pushed onto a per-hat
+redo stack. `redo` pops from the redo stack, restores the snapshot to the active Novel, and
+pushes the pre-redo state back onto the undo stack. An empty redo stack returns
+`[ERROR] [STATE_CONFLICT]`. Any new mutating tool call clears the redo stack. `redo` is a
+pure-state tool — it is not snapshot-able. A pending `[NEED_INPUT]` blocks redo.
+_Check:_ T121.
 
 **REQ-043 — Conflict lifecycle.** If the ruleset defines a conflict procedure (combat,
 confrontation), it is modeled as Novel-scoped state: participants, round counter, turn
@@ -766,8 +777,9 @@ signal is recorded in the audit log and surfaced in `hat_briefing` as current pl
 preferences. When a signal type is sent more than once, the most recent value
 replaces the prior one. Sending an empty `value` removes the signal for that type.
 Player signals persist for the life of the Novel. Purely inert data — the server
-does not enforce preferences; the LLM reads them and adjusts narration. Adversarial free-text in `value` is stored verbatim as inert
-data (REQ-054). _Check:_ T8, T26.
+does not enforce preferences; the LLM reads them and adjusts narration.
+Adversarial free-text in `value` is stored verbatim as inert data
+(REQ-054). _Check:_ T8, T26.
 
 **REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
 Build workflow alongside the ruleset. Adventure content is indexed and served at
@@ -806,6 +818,8 @@ absent from existing state receive their ruleset-defined defaults. Roster baseli
 immutable across rebuilds. Unrecoverable state — state that cannot be parsed or
 structurally loaded — is reported to the operator via stderr and surfaced in `spec_health`;
 the server must not silently discard it. When unrecoverable state is detected, the
+server reports which top-level keys or entity/NPC identifiers could not be parsed,
+in addition to the stderr warning and `spec_health` flag. When unrecoverable state is detected, the
 server surfaces the error in `spec_health` and stderr. The server continues to operate
 with a clean state for the affected Novel — the corrupted state is not loaded; the
 Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines and
@@ -1002,6 +1016,14 @@ tools direct users to create or resume one. For backward compatibility, the buil
 accept `end_game` as a deprecated alias for `end_novel`; the alias is not required
 and may be logged as deprecated in `spec_health`. _Check:_ T72, T73, T98.
 
+**REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
+Novel's save file and its backup to a `.trash/` subdirectory within the state directory
+rather than deleting them immediately. Files in `.trash/` are excluded from `listNovels`
+and `resume_novel`. The operator may configure a retention duration via
+`TTRPG_NOVEL_RETENTION_DAYS`; files older than this duration are eligible for removal on
+next server startup. If `TTRPG_NOVEL_RETENTION_DAYS` is unset or set to zero, files in
+`.trash/` are retained indefinitely (manual cleanup required). _Check:_ T122.
+
 **REQ-095 — Novel switching.** `switch_novel(slug)` (always callable regardless of hat)
 deactivates the connection's current Novel and activates the target Novel identified by
 slug. The target must exist on disk and must not have been ended (file must be present at
@@ -1071,8 +1093,9 @@ a checksum field — a hash of the serialized state excluding the checksum field
 load, the server verifies the checksum against the loaded state. A mismatch follows the
 same recovery path as structural corruption: attempt backup restore, then surface the
 mismatch in `spec_health` and stderr if both are tainted. The checksum algorithm and field
-name are builder-determined; the convergence loop enforces that tainted state is detected.
-_Check:_ T77, T88.
+name are builder-determined; the convergence loop enforces that tainted state is detected. Undo snapshot stacks
+(REQ-041) persist with the Novel — they survive server restarts alongside all other
+Novel state tiers. _Check:_ T77, T88.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
@@ -1113,7 +1136,11 @@ the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configur
 entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log
 entry count, snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
 configured), on-disk file size in bytes (with warning if exceeding 4 MB), and a `healthy`
-flag — set to false if any warning is active). Health metrics are hat-filtered:
+flag — set to false if any warning is active). `spec_health` reports a sliding window of
+Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct
+`TTRPG_SESSION_ID` values in the audit log, bounded to the last 7 by default). A Novel
+whose growth trajectory projects an on-disk file size exceeding 4 MB within the next 3
+sessions is flagged with a `[size_growth]` warning. Health metrics are hat-filtered:
 Player sees entity-level health only; GM sees all. _Check:_ T101.
 
 ---
@@ -2784,12 +2811,12 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-031 | Hat activation        | T9                             | 2026-08-04   |
 | REQ-066 | set_hat tool          | T9                             | 2026-08-04   |
 | REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    | 2026-08-02   |
-| REQ-040 | Audit log                 | T8                             | 2026-08-02   |
-| REQ-041 | Snapshots and undo        | T10                            | 2026-08-02   |
+| REQ-040 | Audit log                 | T8                             | 2026-08-06   |
+| REQ-041 | Snapshots and undo        | T10, T121                      | 2026-08-06   |
 | REQ-042 | Workflow decisions        | T32; Gate 2                    | 2026-08-02   |
 | REQ-043 | Conflict lifecycle        | T25, T33, T110; Gate 2         | 2026-08-02   |
 | REQ-044 | Ruleset versioning        | T17                            | 2026-08-02   |
-| REQ-065 | Build fingerprint         | T52                            | 2026-08-04   |
+| REQ-065 | Build fingerprint         | T52                            | 2026-08-06   |
 | REQ-050 | Determinism               | Gate 2, T27, T111               | 2026-08-02   |
 | REQ-051 | No runtime network access | Appendix D; Gate 4 environment | 2026-08-02   |
 | REQ-052 | Path containment          | T20                            | 2026-08-02   |
@@ -2816,16 +2843,16 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-085 | Macro system              | T69                            | 2026-08-04   |
 | REQ-086 | Audit compression         | T70                            | 2026-08-04   |
 | REQ-087 | Scene type tagging        | T71                            | 2026-08-04   |
-| REQ-088 | Novel lifecycle           | T72, T73, T98                  | 2026-08-05   |
+| REQ-088 | Novel lifecycle           | T72, T73, T98, T122            | 2026-08-06   |
 | REQ-089 | Novel setup               | T74                            | 2026-08-05   |
 | REQ-090 | Adventure generation      | T75                            | 2026-08-05   |
 | REQ-091 | Enhanced encounter generation | T76                        | 2026-08-05   |
-| REQ-092 | Novel persistence         | T77, T88                       | 2026-08-05   |
+| REQ-092 | Novel persistence         | T77, T88                       | 2026-08-06   |
 | REQ-093 | Novel listing and metadata | T78, T99, T110                | 2026-08-05   |
 | REQ-094 | Lorebook interchange      | T80                            | 2026-08-05   |
 | REQ-095 | Novel switching           | T98                            | 2026-08-05   |
 | REQ-096 | Novel interchange         | T100                           | 2026-08-05   |
-| REQ-097 | Novel health              | T101                           | 2026-08-05   |
+| REQ-097 | Novel health              | T101                           | 2026-08-06   |
 | REQ-103 | Enrichment reversion      | T94                            | 2026-08-05   |
 | REQ-104 | Character creation workflow | T32, T47, T103               | 2026-08-06   |
 | REQ-105 | Spec resource            | T104                           | 2026-08-06   |
@@ -2843,6 +2870,8 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-113 | Result count reporting     | T116                           | 2026-08-06   |
 | REQ-114 | Suggestion coverage        | T117                           | 2026-08-06   |
 | REQ-115 | Action pattern activation  | T119                           | 2026-08-06   |
+| REQ-116 | Redo                      | T121                           | 2026-08-06   |
+| REQ-117 | Novel retention period    | T122                           | 2026-08-06   |
 
 ---
 
@@ -2968,6 +2997,8 @@ diet.
 | T118  | Automated | Help category override: as GM, reassign a tool from its builder-assigned category to a user-defined category via the Novel-scoped mapping. Call `help()` — assert tool appears under the user-defined category and is absent from the builder-assigned category. Reset mapping to empty — assert builder-assigned categories restored. Switch to Player hat — assert builder-assigned categories appear unchanged. Attempt reassignment of an unknown tool name — assert `[ERROR] [NOT_FOUND]` with valid tool names enumerated. Player hat attempt to modify mapping returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-067, REQ-032                            |
 | T119  | Automated | Action pattern toggle: novel has active enrich patterns. Call `suggest_actions` with a pattern-matching intent — assert patterns absent. Call `toggle_action_patterns` — assert "enabled" in response. Call `suggest_actions` with the same intent — assert patterns appear. Call `toggle_action_patterns` — assert "disabled." Call `suggest_actions` — assert patterns absent again. Player hat attempt on `toggle_action_patterns` returns `[FORBIDDEN]`. No novel active — assert `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-115, REQ-084, REQ-032                   |
 | T120  | Automated | Suggestion precision: call `suggest_actions("I want to convince the guard")` — assert at least one result maps to a social-resolution tool, not a combat or lookup tool. Call `suggest_actions("strike a bargain")` — assert results exclude weapon-attack tools. Call with a combat intent in a combat scene — assert combat tools appear and scene-type filtering excludes non-combat tools from the top results. Call with intent matching no plausible tool ("I want to become a sandwich") — assert empty list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-084                                     |
+| T121  | Automated | Redo: create Novel with entity. Apply condition → undo → assert condition removed → redo → assert condition restored. Undo twice then redo once → assert one step restored, one still undone. Redo on empty redo stack → `[STATE_CONFLICT]`. Mutate after undo → assert redo stack cleared and new undo target created. Redo blocked during pending `[NEED_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-116, REQ-041                            |
+| T122  | Automated | Retention: create Novel with state, end Novel confirming "yes." Assert primary `.json` and `.json.bak` moved to `.holonovel-state/novels/.trash/`. Assert `listNovels` excludes the slug. Assert `resume_novel(slug)` returns `[STATE_CONFLICT]`. Set `TTRPG_NOVEL_RETENTION_DAYS=0`, restart — assert trash files retained. Set `TTRPG_NOVEL_RETENTION_DAYS=1`, restart — assert files older than 1 day removed, recent files retained.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-117, REQ-088                            |
 
 ---
 
