@@ -9,52 +9,41 @@ reordering mid-tier. Check for duplicates before adding.
 **Add mid-session:** `@SPEC-QUEUE.md add: <item> to <tier>`
 **Start next session:** `@SPEC-QUEUE.md next`
 
-## Major features
-
-1. Lore subsystem — full lifecycle: create, trigger, group, suggest, toggle,
-   export/import lore entries (REQ-083, App L).
-2. NPC management — create, update, remove NPCs with stats, dispositions,
-   locations (REQ-075).
-3. Decision/workflow system — respond/NEED_INPUT lifecycle, conflict
-   resolution lifecycle (REQ-042, 043).
-
 ## Top candidates
 
-5. Countdowns — set, advance, remove countdowns; round vs narrative types
+1. Countdowns — set, advance, remove countdowns; round vs narrative types
    (REQ-073).
-6. Voice & personality — set_personality, set_voice_examples fields
+2. Voice & personality — set_personality, set_voice_examples fields
    (REQ-071, 077).
-7. Player signals — player_signal for pace, difficulty, tone, focus, boundary
+3. Player signals — player_signal for pace, difficulty, tone, focus, boundary
    (REQ-069).
-8. Character creation workflow — step-by-step and quick modes,
+4. Character creation workflow — step-by-step and quick modes,
    stats → race → class → background → name (REQ-104).
-9. GM session notes — real-life session prep structure, common patterns,
+5. GM session notes — real-life session prep structure, common patterns,
    integration points with narrative state management.
 
 ## Tool-surface features
 
-9. Session recap — session_recap summary output (REQ-072).
-10. Help & discovery — help tool, tool discovery, task-map categories
-    (REQ-067).
-11. Random tables — roll_on_table across ruleset tables.
-12. Macros — macro system (REQ-085).
-13. Audit compression — compress_audit summarization (REQ-086).
-14. Spec health reporting — spec_health output contract (REQ-025).
+6. Session recap — session_recap summary output (REQ-072).
+7. Help & discovery — help tool, tool discovery, task-map categories
+   (REQ-067).
+8. Random tables — roll_on_table across ruleset tables.
+9. Macros — macro system (REQ-085).
+10. Audit compression — compress_audit summarization (REQ-086).
+11. Spec health reporting — spec_health output contract (REQ-025).
 
 ## Infrastructure / plumbing
 
-15. Error taxonomy & output contracts — error codes, truncation,
+12. Error taxonomy & output contracts — error codes, truncation,
     verbose/compact modes (REQ-002, 004, 060, 061).
-16. Undo/redo — snapshot stacks, dual-stack semantics (REQ-041, 116).
-17. Audit log integrity — chained-hash, tamper evidence (REQ-040).
-18. Determinism & injection safety — RNG seeds, no-network-at-runtime, input
+13. Determinism & injection safety — RNG seeds, no-network-at-runtime, input
     sanitization (REQ-050-054).
-19. Runtime conventions — entity IDs, output contracts, config surface, state
+14. Runtime conventions — entity IDs, output contracts, config surface, state
     model (§7.1-7.8).
-20. Build process — intake questions, discovery, construction layers,
+15. Build process — intake questions, discovery, construction layers,
     convergence loop (§6.1-6.5).
-21. Verification gates — Gate 0-5 design, Gate 2b (§8).
-22. Artifacts & handoff — 4 artifacts, 12 checks (§9).
-23. Independent verification — adversarial round (§10).
-24. Six Novel property groups — structural review of NPC, Scene, Countdown,
+16. Verification gates — Gate 0-5 design, Gate 2b (§8).
+17. Artifacts & handoff — 4 artifacts, 12 checks (§9).
+18. Independent verification — adversarial round (§10).
+19. Six Novel property groups — structural review of NPC, Scene, Countdown,
     Lore, Enrichment, Adventure as architecturally coupled state tiers.

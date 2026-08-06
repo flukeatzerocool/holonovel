@@ -69,6 +69,27 @@
 - Appendix L now defines a minimum metadata contract for Markdown round-trip
   fidelity, so two independent builders produce compatible lorebook formats.
 
+## 2026-08-06 — Decision workflow subsystem hardening
+
+- Workflow decisions now have an explicit lifecycle — a workflow begins when a
+  tool returns `[NEED_INPUT]` and ends when `respond` drains the decision.
+  Only one workflow may be pending per Novel; a second `[NEED_INPUT]` returns
+  `[STATE_CONFLICT]`. (REQ-042)
+- Pending workflows now block undo, redo, and hat switching with clear
+  `[STATE_CONFLICT]` responses, closing a gap where these tools were blocked
+  by the spec but had no queryable pending-workflow state to enforce it.
+  (REQ-042, REQ-041, REQ-066)
+- `respond(cancel)` now correctly restores the pre-workflow snapshot even after
+  a server restart — the pending decision and its pre-workflow state survive
+  restarts. (REQ-042)
+- Added a Gauntlet sub-workflow S23 (workflow validation) covering rejected
+  decisions, rejected options, cancellation state restoration, concurrent
+  workflow rejection, restart survival, and blocked-tool assertions. (S23)
+- Added T138 (workflow lifecycle) to the test catalogue.
+- Removed Decision/workflow system from the spec-engineering queue.
+  Removed completed NPC management from the queue (pending from prior
+  session).
+
 ## 2026-08-06 — Scene management subsystem hardening
 
 - Resolved a contradiction in REQ-076 — the "never influences tool behavior"

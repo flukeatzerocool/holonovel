@@ -630,7 +630,19 @@ value is the exact text presented as the question in the preceding `[NEED_INPUT]
 decision enumerates options — limited to at most 25 entries, derived from the ruleset
 index, with empty-string and "cancel" always available. An unrecognized decision or
 option returns `[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the
-pre-workflow snapshot. _Check:_ T32; Gate 2.
+pre-workflow snapshot.
+
+A workflow begins when a tool returns `[NEED_INPUT]` and ends when `respond`
+successfully drains the decision. Only one workflow may be pending per Novel at a time
+— a tool that raises `[NEED_INPUT]` while a workflow is already pending returns
+`[ERROR] [STATE_CONFLICT]` identifying the pending decision. The server must be able to
+determine whether a workflow is pending, such that tools blocked during pending
+workflows (undo, redo, set_hat) can query the pending state without ambiguity. Pending
+workflow state survives server restarts — after restart the `[NEED_INPUT]` remains open
+and the server returns the same decision prompt on the next query. The Novel's pre-
+workflow snapshot is persisted alongside the pending decision so that `respond(cancel)`
+restores the correct pre-workflow state even after a restart. _Check:_ T32, T138;
+Gate 2; S23.
 
 **REQ-104 — Character creation workflow.** `create_character` supports two modes:
 step-by-step (called without parameters) and quick (called with all required creation
@@ -1826,6 +1838,20 @@ four items is incomplete and blocks handoff.
     doubled from the pre-Gauntlet baseline; snapshot stack depth equals mutation count
     minus undo count; the on-disk Novel file is ≤ 5 MB. (Blocking.)
 
+23. **Workflow validation.** Raise `[NEED_INPUT]` via step-by-step character
+    creation — assert `respond` with an unrecognized decision returns
+    `[ERROR] [NOT_FOUND]` enumerating the valid decision. Assert `respond`
+    with an unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid
+    options. Assert `respond("cancel")` restores pre-workflow Novel state (no
+    character created, no entity in roster). Assert a tool that raises
+    `[NEED_INPUT]` while a workflow is pending (call `create_character()` without
+    params a second time) returns `[STATE_CONFLICT]`. Assert `undo` and `redo`
+    return `[STATE_CONFLICT]` during a pending workflow. Assert `set_hat` returns
+    `[STATE_CONFLICT]` during a pending workflow. Assert `respond` with a valid
+    option drains the workflow and unblocks undo/set_hat. Assert the pending
+    workflow survives a server restart — same `[NEED_INPUT]` question is available
+    and `respond(cancel)` restores pre-workflow state. (Blocking.)
+
 **REQ-108 — Gauntlet traceability.** The builder must ensure at least one
 Gauntlet sub-workflow exercises each requirement in §5.5 (Hats and Access),
 §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and
@@ -2978,7 +3004,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-032 | Server-side gating        | T9, T13, T15, T18, T26, T44    | 2026-08-02   |
 | REQ-040 | Audit log                 | T8                             | 2026-08-06   |
 | REQ-041 | Snapshots and undo        | T10, T121                      | 2026-08-06   |
-| REQ-042 | Workflow decisions        | T32; Gate 2                    | 2026-08-02   |
+| REQ-042 | Workflow decisions        | T32, T138; Gate 2; S23         | 2026-08-06   |
 | REQ-043 | Conflict lifecycle        | T25, T33, T110; Gate 2         | 2026-08-02   |
 | REQ-044 | Ruleset versioning        | T17                            | 2026-08-02   |
 | REQ-065 | Build fingerprint         | T52                            | 2026-08-06   |
@@ -3188,6 +3214,7 @@ diet.
 | T135  | Automated | Compound scene types: set scene type to `["combat", "social"]` — assert GM `hat_briefing` orders both combat and social tools before exploration/neutral. Set to single string `"exploration"` — assert backward-compat behavior identical to current spec. Set to `["nonexistent"]` — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                           | REQ-087, REQ-032                            |
 | T136  | Automated | Scene transition hook: create Novel with scene state "forest". Call `set_scene_state` with "cave" — assert `[scene_transition]` audit entry with both descriptions. Set narrative countdown with `on_scene_transition=true`, 3 ticks. Call `set_scene_state` with "castle" — assert countdown decrements to 2. Call `set_scene_state` with "castle" (same description) — assert no transition (no audit entry, no countdown decrement). Call with `skip_transition_hook=true` — assert no audit entry, no countdown decrement. Player hat reads transitions in `scene://history`.                                                                                                                                       | REQ-125, REQ-073                            |
 | T137  | Automated | Scene pacing tick: create Novel — assert scene_tick = 0. Init combat with 2 participants, advance through one full round (wrap back to first) — assert scene_tick = 1. Advance through second full round — assert scene_tick = 2. Call `set_scene_state` with new description (triggering transition) — assert scene_tick resets to 0. Verify tick visible in GM `hat_briefing`, absent from Player `hat_briefing`.                                                                                                                                                                                                                                                                                          | REQ-076                                     |
+| T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with unrecognized decision returns `[ERROR] [NOT_FOUND]` enumerating the valid decision text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-066, REQ-041, REQ-092 |
 
 ---
 
@@ -3909,6 +3936,12 @@ question text from the preceding `[NEED_INPUT]`. `respond` drains one decision.
 "cancel" restores pre-workflow state. No option is pre-selected. Creation without an
 active Novel returns `[STATE_CONFLICT]`.
 
+A pending workflow blocks undo, redo, and hat switching — these tools return
+`[STATE_CONFLICT]`. Only one workflow may be pending per Novel; a second
+`[NEED_INPUT]` while a workflow is active returns `[STATE_CONFLICT]`. Pending
+workflow state persists across server restarts — the pre-workflow snapshot is
+retained so that `respond(cancel)` restores the correct state.
+
 ### O.6 Hat Gating
 
 When a hat is active, GM-only tools return `[ERROR] [FORBIDDEN]` for the
@@ -3924,7 +3957,7 @@ log, hat) are restored to their pre-restart values. A rebuild with a changed
 entity model loads state gracefully (absent fields preserved as inert data;
 missing fields receive ruleset-defined defaults).
 
-_Verify behavioral contracts with:_ T91.
+_Verify behavioral contracts with:_ T91, T138.
 
 ---
 
