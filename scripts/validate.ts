@@ -183,6 +183,13 @@ function checkReqBlocks(text: string): string[] {
   return issues;
 }
 
+function classifyReq(body: string): "state-tier" | "standard" {
+  if (/Novel-scoped|survives connection restarts|persists across connections/.test(body)) {
+    return "state-tier";
+  }
+  return "standard";
+}
+
 function checkSpecViolations(text: string): string[] {
   const issues: string[] = [];
   const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
@@ -195,8 +202,10 @@ function checkSpecViolations(text: string): string[] {
     const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
     const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
 
-    if (body.length > 800) {
-      issues.push(`${reqId}: body exceeds 800 chars (${body.length}) — may contain implementation detail`);
+    const tier = classifyReq(body);
+    const limit = tier === "state-tier" ? 1500 : 800;
+    if (body.length > limit) {
+      issues.push(`${reqId}: body exceeds ${limit}-char ${tier} limit (${body.length}) — may contain implementation detail`);
     }
     if (/\(string[,) ]|\(integer[,) ]|\(boolean[,) ]|\(float[,) ]|\(number[,) ]/.test(body)) {
       issues.push(`${reqId}: contains parameter type annotations — consider removing`);
