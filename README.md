@@ -4,13 +4,12 @@ README DESIGN:
   Demo: natural-language prompts ("Load the adventure."), never tool
     names (`load_adventure`). Show the reader how they'd talk to the
     server — the AI maps intent to tools.
-  Structure: Hero → Try it (D&D 5e) → Playing a Novel → Build your
-    own → Extend → Compare → Get started → Contribute → Footer.
+  Structure: Hero → Try it → Server features → Spec features →
+    Compare → Contribute → Footer.
   Audience split: §2 is for players who want the sample server now.
-    §3 is the universal play experience (shared by both audiences).
-    §4 is for builders bringing their own rulebooks. §8 is for spec
-    contributors.
-  No repetition. No feature lists. One excitement vector per section.
+    §3 is the universal play experience. §4 is for builders bringing
+    their own rulebooks. §6 is for spec contributors.
+  No tables for feature descriptions. No repetition. One story vector per section.
 -->
 
 # Holonovel
@@ -59,147 +58,193 @@ Add this to your MCP client's config (Opencode:
 SRD data: CC BY 4.0 + OGL 1.0a (Wizards of the Coast). Server code:
 MIT.
 
-## Playing a Novel
+## MCP server
 
-The Novel is your game — a named, persistent save file. Everything
-lives in one file on disk: your party, every NPC you've met, the scene,
-countdowns, lore, combat state, the audit log. Restart the server.
-Rebuild it. Your Novel is right where you left it.
+Your books become the referee. You run the table.
 
-You don't call tools. You say what you want.
+### Novel
 
 > "Start a new game called the Dragon Tomb."
+> "Switch to my other campaign."
 
-One sentence. The server shows you what's available — import characters,
-load an adventure module, generate one from a premise, or build your own
-from scene and NPC tools. You drive. The server recommends a path.
+Your game lives in one file on disk — party, NPCs, scenes, lore,
+combat state, everything. Restart the server. Rebuild it. Your Novel
+is right where you left it. Multiple campaigns coexist without leaks.
+Export and import with merge, replace, or dry-run modes. No cloud. No
+sync. One local file — copy it, back it up, share it.
 
-> "Here's my party. Set the scene: a flooded ossuary. The air is thick
-> with old incense and something darker."
+### Character
 
+> "Create a character."
+> "Import my fighter from the roster."
+
+Your characters are permanent. The roster survives every campaign and
+rebuild — create once, play forever. Build step by step with guided
+decisions, or in a single call. Switch characters between games.
+Advancement follows the ruleset's own progression tables. Sheet in
+markdown or ASCII.
+
+### Persona
+
+> "Take over as Game Master. I'm ready."
+> "Switch to Game Master. I need to fix something."
+
+Two enforced roles, switched without restart. The AI narrates and
+adjudicates as GM. Switch to player and GM secrets vanish — persona
+gating is enforced server-side. You're never locked out of your own
+game. Jump behind the screen mid-session to tweak state, inject a
+complication, or add an NPC on the fly.
+
+### Combat
+
+> "Roll initiative. The goblins ambush from the treeline."
+
+You don't track initiative, conditions, or HP — the AI does, by the
+book. Bleeding stops when the rules say it does. Paralysis expires on
+schedule. Combat state survives server restarts. Undo bad rolls. You
+focus on tactics.
+
+### Dice
+
+> "Make a Dexterity save to dodge the trap."
+> "Attack the ogre with my longsword."
+
+Every roll shows its work — the die faces, the modifiers, the target.
+Advantage flips two dice. Critical hits double damage. Seedable RNG
+makes every roll reproducible. Dispute an outcome, replay it, get the
+same result. The AI narrates. The dice decide.
+
+### Narrative Management
+
+> "Set the scene: a flooded ossuary. The air is thick with old
+> incense."
 > "When anyone mentions the ossuary, remind me: the drowned priests
 > still pray down here."
-
-> "Export all my lore. Save it — I'll use this world again."
-
 > "The ritual completes in five rounds. Start the countdown."
-
 > "An acolyte named Sister Mora steps out of the shadows. She's
 > terrified, not hostile."
 
-Setup is a freeform toolkit. Scenes, NPCs, countdowns, lore — you add
-what you need, when you need it.
+You build the world once. The AI remembers. Set scenes. Create NPCs
+with personality, disposition, and voice examples. Lore entries fire
+when keywords match the unfolding story. Countdowns escalate tension
+on cue. Standing GM directives shape every response.
 
-> "Take over as Game Master. I'm ready."
+### Adventures & Encounters
 
-The AI narrates. It adjudicates. It keeps GM-only secrets hidden from
-you — persona gating is enforced server-side. You act, you roll, you
-drive the story forward.
+> "Generate an adventure: a heist at the wizard's auction."
+> "Create an encounter: the party enters the flooded crypt."
 
-> "Switch to Game Master. I need to fix something."
+One sentence becomes a campaign scaffold — scenes, NPCs, hooks.
+Generate the whole outline, or build encounters one at a time as
+single undoable steps. Load adventure modules from Markdown files.
 
-Jump behind the screen anytime to course-correct, add an NPC on the fly,
-inject a complication, or tweak state. No restart. Never locked out.
+### Rules Access
+
+> "Look up Fireball."
+> "Search the rules for grappling."
+
+Name it, get the rule. Every result cites a source page. Full-text
+search across the indexed ruleset. Look up spells, monsters,
+equipment, and classes by name and documented alias. The AI never
+invents a rule — it reads your books.
+
+### State & Recovery
 
 > "Undo that."
+> "Recap the session."
+> "Export the entire campaign."
 
-Your characters are permanent — the roster survives every Novel. Novels
-come and go. Your party remains.
+Every mutation is a snapshot. Undo reverts the last step. Session
+recaps summarize play. Checksums detect corruption before you'd
+notice. Export your campaign as a single file. Import back with merge,
+replace, or dry-run. Nothing is permanent unless you want it to be.
 
-> "End the game."
+## The specification
 
-The server asks you to confirm. Say yes or cancel. The save file cleans up.
-Start a new Novel whenever you're ready. Your characters, your roster — still
-there.
+Your books become a server. The spec becomes your toolchain.
+Everything you build survives every rebuild.
 
-> "Switch to my other campaign."
-
-Multiple Novels coexist on disk. Switch between them without restarting. Each
-Novel is isolated — your Tomb of Horrors campaign and your Waterdeep game never
-leak into each other.
-
-> "Export the entire campaign. Save it for later."
-
-Export your Novel — characters, NPCs, scenes, countdowns, lore, combat state,
-everything — as a single file. Import it back with merge, replace, or dry-run
-modes. `spec_health` now reports per-Novel health metrics: NPC counts, lore
-entry counts, file size, snapshot depth, and a `healthy` flag.
-
-## Build your own game server
-
-You don't code, you commission. This is specification-driven development:
-the spec is the permanent artifact, the implementation is disposable.
-An AI agent reads your rulebooks, builds an MCP server, and fights
-itself until it's right.
+### Convert
 
 > "Convert my PDF to Markdown."
 
-PDF, HTML, or web SRD — the agent reassembles tables across page breaks,
-strips page furniture, and delivers clean Markdown. Stop here or keep
-going.
+This is the hardest step — and the spec handles it. PDF, HTML, or web
+scrape → clean, well-structured Markdown. Tables reassembled across
+page breaks. Adornments stripped. Structure validated. Conversion
+fidelity tracked at 90% minimum. After clean Markdown, the rest is
+automatic.
+
+### Build
 
 > "Build me a game server."
 
-The agent reads your ruleset and constructs a server around it. Dice
-with ruleset-correct modifiers. Combat with initiative and conditions.
-Monster, spell, and equipment lookups that cite page sources. Character
-creation with leveling. Random tables. Every mechanic traced to your
-books.
+No hallucinated spells. No invented armor classes. Discovery reads
+every mechanic, table, entity, and procedure from your books in
+chunks. Construction assembles a complete MCP server in six
+dependency-ordered steps. A convergence loop measures six quality
+metrics and iterates until every threshold is met. A second model
+cross-audits the first — catching defects a single model would miss.
+Your rules make it in.
 
-Then it verifies. A convergence loop measures quality across six metrics
-and re-verifies — up to three cycles, with cross-model auditing when
-multiple models are available. Six verification workflows. The 22-sub-workflow
-Gauntlet — combat, stress, and persona endurance under live AI-simulated
-play. A golden transcript — built against a "Tin Lanterns" dark-fantasy
-holo-novel and a "Captain Proton" pulp-sci-fi complex fixture —
-proves the server behaves correctly against known references. A blind second AI
-re-runs every verification workflow from a cold checkout.
-The spec bets its reputation on reproducibility.
+### Enrich
 
-Output: a self-contained MCP server with your ruleset baked inside. Move
-it anywhere. It's yours.
+> "Search the web for Pathfinder 2e GM advice."
 
-> "Add the Monster Manual to my ruleset."
+Optional. Additive. Never touches mechanics. Web research across
+community forums, actual-play breakdowns, designer notes, and media
+influences. Produces voice examples, lore templates, action suggestion
+patterns, and adventure advice — all tagged with source URLs,
+confidence labels, and freshness timestamps. `revert_enrichment`
+removes everything in one call.
 
-**The spec doesn't retire.** Drop in a new sourcebook — the server learns
-creatures it didn't know yesterday. Load an adventure module for your
-next campaign. Rebuild against a newer spec — the spec defines a formal
-update workflow: full comparison audit, gap plan, Gauntlet
-re-verification. Run the Update workflow against your existing server
-directory — it discovers the gap between current
-implementation and the updated spec, fills it, and re-runs every
-verification workflow including the Gauntlet. Fixes and features land
-without touching your Novels. That's spec-driven development: the spec
-is your long-term investment. The server is rebuilt whenever the spec
-changes. Everything you've created — characters, worlds, novels —
-survives every rebuild.
-Re-run Enrich to catch fresh community wisdom. Each enrichment item carries a
-`collected_at` timestamp so you know when advice is current. `revert_enrichment`
-removes all enrichment in one call — nothing is permanent. Drop in a new sourcebook —
-it joins the ruleset as reference material. You never start over. You add on.
+### Gauntlet
 
-## Extend with Enrich
+> "Run the gauntlet after the Build workflow."
 
-Optional. Idempotent. Never touch mechanics.
+The Gauntlet finds what structure checks miss. Twenty-two adversarial
+scenarios. Two simulated personas — player and game master — share
+one server and one novel. Combat endurance. Persona boundary
+enforcement. Corrupted state recovery. Campaign survival: 30 rounds
+of combat, 3 confrontations, over 100 audit log entries. Blocking
+scenarios must pass. Re-runs after every server change. If it breaks,
+the Gauntlet finds it before you do.
 
-> "Search the web for Pathfinder 2e GM advice and player strategy."
+### Spec Update
 
-The AI hunts down community wisdom — actual-play breakdowns, designer
-commentary, media influences. Your GM learns how the community plays the
-game, not just what the rulebook says.
+> "Update my server to the latest spec."
+
+Your campaign outlives the build. The spec improves — your server
+follows. A full comparison audit finds every gap between your running
+server and the current specification. Implements changes. Re-verifies.
+State migration preserves your data. Your characters, worlds, and
+Novels survive every rebuild.
 
 ## How it compares
 
-| Tool | What it is | Holonovel instead |
-|------|-----------|-------------------|
-| AI Dungeon | Freeform AI storyteller | Rules-literate. Real mechanics, no invented armor classes, no hallucinated saves. |
-| rpg-mcp | D&D 5e MCP server | One ruleset vs. any ruleset. Feed it any TTRPG. |
-| Raw ChatGPT / local LLM | Improvised DM, forgets rules mid-combat | Can't forget. Can't invent. Survives sessions. A lorebook for rules. |
-| Consumer AI GM apps | Walled-garden subscriptions | Open-source. Local. Free. Works with any LLM through your MCP client. |
+| Tool name | What you're used to | How Holonovel differs |
+|-----------|--------------------|-----------------------|
+| AI Dungeon | Freeform AI storyteller — invents rules, forgets consequences | Your rulebooks. Real dice. Real conditions. Not AI improv. |
+| First-generation MCP servers | Hand-built for one edition of one game. Rules lookup and nothing else. | Not locked to one system. D&D today. Mothership tomorrow. One spec reads any rulebook — no hand-coding, no waiting for someone to build your game. |
+| Raw ChatGPT / local LLM | Forgets conditions mid-combat, invents spells, drifts from the ruleset | The AI remembers every rule you gave it. Deterministic dice. Conditions that don't vanish mid-fight. |
+| SillyTavern | LLM roleplay frontend — character cards, context prompts, WorldInfo. No rules engine. | Mechanics aren't prompts. They're code. Your rulebooks enforce the rules — not the AI's best guess. |
+| NovelAI | Subscription AI storyteller and image generator — no enforced game mechanics | No subscription. No walled garden. Your books. Your server. Your table. |
 
-(Note: Researched on August 4, 2026.)
+Every tool in this space asks you to pick. Rules engines serve one system
+and stop there. AI storytellers improvise mechanics as they go. SillyTavern
+gives you perfect prompt controls — and still trusts a context window to
+remember what "poisoned" means three rounds later.
 
-## Get started
+Holonovel doesn't pick. It reads your rulebooks, builds a server that
+enforces every mechanic, and hands it to your LLM as a rules-literate GM.
+The specification is the permanent artifact. Rebuild the server whenever
+the spec evolves — your campaigns don't notice. New sourcebook? Drop
+it in. New system? Build it. One spec. Any game. Zero code.
+
+Last researched: August 5, 2026.
+
+## Contribute
+
+### Server build & run
 
 1. **Node.js 20+.** `node --version`. Get it at
    [nodejs.org](https://nodejs.org).
@@ -210,54 +255,28 @@ game, not just what the rulebook says.
    Pathfinder, Starfinder, Traveller, FATE, Blades in the Dark, Dungeon
    World, Old-School Essentials) — the agent can scrape one for you.
 4. **An MCP client.** Opencode, Claude Desktop, Continue.dev, Cursor —
-   anything with MCP support. The AI needs an LLM behind it (API key or
-   local model). Holonovel is built and tested with DeepSeek on Opencode
-   Go.
+   anything with MCP support. The AI needs an LLM behind it. Holonovel
+   is built and tested with DeepSeek on Opencode Go.
 5. **Point your client at the spec.** The agent reads `holonovel.md`,
-   asks what you want to build and which ruleset to use, then gets to
-   work — converting, building, verifying. It pauses between jobs so you
-   can review. Default answers work.
+   asks what you want to build, then gets to work — converting,
+   building, verifying. It pauses between workflows so you can review.
+   When the Build workflow finishes, the agent connects the server to
+   your client and verifies the handshake. Open a fresh conversation.
+   Your AI Game Master answers.
 
-When the Build workflow finishes, the agent connects the server to your
-client and verifies the handshake. Open a fresh conversation. Say hello.
-Your AI Game Master answers.
-
-## Contribute to the spec
+### Spec improvement
 
 ```sh
-npm install && npm run check       # lint + validate + assumption audit + ambiguity scan
+npm install && npm run check   # lint + validate + assumption audit + ambiguity scan
 ```
-
-`markdownlint` + cross-reference validator (REQ citations, test IDs, TOC
-sync, block shape, traceability matrix with `--traceability` flag) +
-structural assumption auditor (unverifiable citations, magic numbers,
-absolute language, untiered thresholds) + ambiguity scanner (hedging
-language, vague qualifiers, indefinite terms in REQ bodies).
-
-### Automated analysis suite
 
 | Command | What it checks |
 |---------|---------------|
-| `npm run audit-assumptions` | Citations, magic numbers, absolute language, untiered thresholds |
-| `npm run scan-ambiguity` | Hedging language, vague qualifiers, indefinite terms in REQs |
-| `npm run fmea` | REQ-level failure mode and effects — severity, detection coverage |
-| `npm run validate --traceability` | Full REQ↔test↔verification workflow traceability matrix + coverage gaps |
-| `npm run graph-deps` | REQ dependency graph (DOT/Graphviz output) |
-| `npm run spec-health-trends` | REQ count, test count, line count, cross-ref density |
+| `npm run fmea` | REQ-level failure mode and effects |
+| `npm run validate --traceability` | Full REQ↔test↔workflow traceability |
+| `npm run graph-deps` | REQ dependency graph (DOT/Graphviz) |
+| `npm run spec-health-trends` | REQ count, test count, cross-ref density |
 
 All scripts share parsing logic from `scripts/lib/parse-spec.ts`.
-
-### Spec-level security
-
-Appendix P provides a STRIDE security threat model mapping spoofing,
-tampering, repudiation, information disclosure, denial of service, and
-elevation of privilege threats to existing mitigations and identified gaps.
-
-For a full qualitative assumption audit (challenging assumptions against
-external evidence), invoke the `assumption_audit` prompt from the spec.
-The prompt guides an AI through a structured nine-category audit —
-technology, AI-as-builder, extraction, MCP ecosystem, state persistence,
-verification, build process, runtime guarantees, and spec process —
-producing an audit trail in DECISIONS.md.
 
 License: MIT. [RSS](https://git.gay/flukeatzerocool/Holonovel).
