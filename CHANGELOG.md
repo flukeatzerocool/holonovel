@@ -39,6 +39,35 @@
      what it's called.
 -->
 
+## 2026-08-06 — Server prompt hardening and surface reduction
+
+- Server prompts now carry a configurable length budget — when a prompt
+  exceeds its budget, low-priority sections are truncated with resource URI
+  pointers rather than silently overrunning context. Section headers and
+  required contract elements (intro pointer, player_signal directives) are
+  preserved regardless of truncation. (REQ-118)
+- Intent-mapping prompts must now derive their tool associations from the
+  registered tool catalog and extraction model, not from hardcoded keyword
+  strings that assume a specific ruleset's terminology. (REQ-023)
+- The `use_tool` and `lookup_rule` prompts have been removed — they
+  duplicated the `suggest_actions` tool, which is hat-filtered,
+  scene-context-aware, and provides structured output. Callers are directed
+  to `suggest_actions` for intent-to-tool mapping instead. The prompt
+  surface is now five prompts: `run_workflow`, `hat_briefing`, `intro`,
+  `session_zero`, and `novel_setup`. (REQ-023, REQ-063, REQ-084, §6.4,
+  Appendix D)
+- Session zero prompts now include explicit `player_signal` and
+  `set_personality` recording directives with concrete argument shapes — a
+  caller who follows the directives verbatim produces a valid tool call.
+  (REQ-078)
+- `spec_health` now reports prompt health — each registered prompt's
+  presence, length relative to budget, and stale tool or resource references
+  in prompt text. (REQ-025)
+- Builder guidance for prompt composition (§6.4.1) documents the five
+  sources from which prompt content is constructed: live index, state
+  snapshot, registration surfaces, hat-scoped guidance, and required
+  contract elements.
+
 ## 2026-08-06 — Changelog writing style guide
 
 - Every changelog entry must now describe what changed and why in plain
