@@ -1207,6 +1207,26 @@ section listing each signal type, value, and age delta; an empty-signal Novel
 shows the empty-state marker.
 _Check:_ T142.
 
+**REQ-129 — Property group cardinality.** Every Novel-scoped property
+group has an enforced maximum item count. Exceeding the maximum on a create
+or set operation SHALL return `[ERROR] [STATE_CONFLICT]` with the affected
+group named and the current and maximum counts reported. Maximums and their
+configuration sources are: NPCs — `TTRPG_MAX_NPCS` (default 500, also used
+by REQ-097 for health warnings; this REQ adds enforcement at the same
+threshold); Lore entries — `TTRPG_MAX_LORE_ENTRIES` (default 200, also
+used by REQ-097; the lore token budget per REQ-083 is an independent
+constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS` (default 50); Enrichment
+items per output module — `TTRPG_MAX_ENRICHMENT_ITEMS` (default 100).
+Scene history entries are capped per REQ-076. Setting a maximum to zero
+SHALL disable that group's mutating tools — create, set, and update
+operations return `[STATE_CONFLICT]`. `spec_health` SHALL report the
+current count and maximum for every group, with an `overflow` flag when at
+maximum. The builder records the configured maximums in DECISIONS.md (4).
+*Acceptance criterion:* Creating the 501st NPC returns `[STATE_CONFLICT]`
+with the group named; setting `TTRPG_MAX_NPCS=0` causes `create_npc` to
+fail; `spec_health` reports per-group counts and overflow status.
+_Check:_ T143.
+
 **REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
 Build workflow alongside the ruleset. Adventure content is indexed and served at
 `adventure://<adventure-slug>/<anchor>`. No mechanical extraction — all adventure content
@@ -1227,6 +1247,29 @@ adventures at startup.
 adventure; `hat_briefing` includes the adventure hook and current location;
 `search_rules("trap")` prioritizes active-adventure results.
 _Check:_ T59, T60, T61.
+
+**REQ-132 — Adventure generation lifecycle.** Adventure content produced by
+`generate_adventure(premise)` is a transient Novel-scoped artifact, distinct
+from build-time indexed adventure modules (REQ-079). Generated adventures are
+not indexed at build time — they exist only within the Novel that generated
+them, are discarded by `end_novel`, and are not persisted to the
+`TTRPG_ADVENTURE` directory. Generated adventure content SHALL be surfaced at
+`adventure://generated/<anchor>`, use the same heading, anchor, and
+hat-filtering conventions as indexed adventures (Appendix K), and appear in
+`hat_briefing` and `search_rules` results when the generating Novel is active.
+Calling `generate_adventure` when a generated adventure already exists in the
+Novel SHALL replace the prior generated content. `load_adventure` replaces the
+active indexed adventure but SHALL NOT affect the generated adventure; a
+generated adventure SHALL NOT replace the indexed adventure. A Novel may have
+both an indexed adventure and a generated adventure active simultaneously —
+`hat_briefing` SHALL surface the indexed adventure's content first, then the
+generated adventure's content, and `search_rules` SHALL distinguish generated
+results with a `[generated]` tag.
+*Acceptance criterion:* `generate_adventure("A haunted station")` produces
+adventure content at `adventure://generated/overview`; restarting the
+server preserves the generated adventure; `end_novel` discards it;
+a second `generate_adventure` replaces the first.
+_Check:_ T146.
 
 **REQ-044 — Ruleset versioning.** The server records the ruleset's intake hash and
 content fingerprint. A drift check at startup detects changes after intake; a mismatch
@@ -1474,6 +1517,29 @@ enrichment state.
 is empty; re-running Enrich repopulates all six modules; a second revert call
 changes nothing (idempotent).
 _Check:_ T94, T125.
+
+**REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow
+against a Novel that already contains enrichment state SHALL preserve every
+enrichment item that the Game Master has explicitly activated via a
+Novel-scoped tool (`set_lore_entry` for lore templates, `set_voice_examples`
+for voice examples, `toggle_action_patterns` for action patterns,
+`set_briefing_order` for ordering recommendations, `set_scene_state` with
+enrich-sourced guidance, and `load_adventure` with adventure advice). The
+builder may replace inactive enrichment items — those never activated and
+those whose only activation was the initial enrichment run — with fresh
+enrich output. Items activated by the GM SHALL NOT be removed, downgraded,
+or altered in their activated state by re-enrichment. The enriched state's
+foundational principle — additive, inert, never modifying mechanical fields
+— extends to replacement: replacing inactive items is not modifying;
+removing or downgrading activated items is modifying and is forbidden. The
+builder SHALL record whether replacement preserved activated items or
+performed a full replacement in DECISIONS.md (5). Full replacement —
+removing all enrichment including activated items — requires
+`revert_enrichment` (REQ-103) before re-running Enrich.
+*Acceptance criterion:* Create lore entry from enrich template, activate
+it. Re-run enrich — assert the activated entry persists unchanged. Revert
+enrichment, re-run enrich — assert fresh enrich state replaces all.
+_Check:_ T144.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
@@ -1728,6 +1794,27 @@ Player sees entity-level health only; GM sees all.
 reports a warning and `healthy` is false; a Novel at 3.9 MB with growth trajectory
 projects a `[size_growth]` warning.
 _Check:_ T101.
+
+**REQ-131 — Novel initialization order.** When a Novel is created or resumed
+from disk, its property groups SHALL be initialized such that cross-group
+dependencies are satisfied before dependents are loaded (see §7.7.1).
+Dependencies are: Adventure content before NPCs (NPCs may reference adventure
+stat block templates per REQ-119), NPCs before Lore entries (Lore content may
+reference NPCs), Scene state last among property groups (Scene changes trigger
+Lore matching and Countdown hooks per REQ-083, REQ-125). Combat state, pending
+workflows, enrichment state, and audit log entries SHALL be restored after all
+property groups. An out-of-order initialization that produces observable
+differences in `hat_briefing` content, resource URI output, or tool behavior
+between two invocations of the same Novel against the same builder is a
+convergence finding. The builder records the initialization order in
+DECISIONS.md (4).
+*Acceptance criterion:* Create a Novel with an adventure, an NPC referencing
+an adventure template, a lore entry mentioning the NPC, and a countdown with
+`on_scene_transition`. Restart. Assert `hat_briefing` surfaces adventure
+content, then the NPC (with template stats), then the triggered lore entry,
+then the countdown — in dependency order. The order IS stable across 3
+restarts.
+_Check:_ T145.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-game versioning beyond the checksum model, and Novel migration between
@@ -2425,8 +2512,8 @@ State tiers:
 | Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
-| Novel      | Active game state — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per connection |
-| Connection | One MCP transport                                                                   | Born at startup, dies at close                          | No persistent state — Novel state and audit log survive the connection |
+| Novel      | Active game state — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Session    | Active hat, active entity, pending workflow — ephemeral Holonovel scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
 **Novel properties.** Every Novel contains six property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
@@ -2438,8 +2525,8 @@ discarded by `end_novel`):
 | Scene       | read/write                                                         | read-only                                      |
 | Countdown   | read/write/create/delete                                            | read-only                                      |
 | Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (hat-filtered per REQ-083)        |
-| Enrichment  | read/write (replaced by re-enrich, reverted by `revert_enrichment`) | read-only (hat-filtered)                    |
-| Adventure   | read (indexed at build time; generated by `generate_adventure`)     | content hat-filtered; one active per Novel  |
+| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered)                    |
+| Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content hat-filtered; indexed and generated adventures coexist in the active Novel  |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -2447,6 +2534,40 @@ persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
 The build fingerprint — specification version, ruleset hash, and build
 timestamp — is stored in the state directory. On startup with existing state,
 the fingerprint determines compatibility (REQ-065).
+
+Session is a Holonovel concept, independent of the MCP transport layer. Session
+state exists only while the process holds an active Novel in memory; it is never
+written to disk, never persists across process restarts, and is reset to defaults
+when the active Novel changes via `switch_novel` or `end_novel`. The hat
+activation state — previously per-session — remains persistent with the Novel
+because it represents a player-facing state selection that must survive restarts
+(REQ-055). This is a naming clarification: the tier previously called "Connection"
+was always a Holonovel-level scoping construct, not the MCP protocol's session
+layer (which the 2026-07-28 MCP specification has removed). The behavioral contract
+is unchanged.
+
+#### 7.7.1 Cross-property coupling
+
+The six Novel property groups are not isolated — they interact through coupling
+contracts defined in the individual REQs below. This section enumerates every
+cross-group dependency so that builders initialize and maintain them in a
+consistent order.
+
+| Property pair        | Coupling                                                                                                              | Nature          | REQs                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
+| Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | Navigational    | REQ-083             |
+| Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | Mechanical      | REQ-125, REQ-073    |
+| Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | Mechanical      | REQ-043, REQ-075, REQ-124 |
+| Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | Navigational    | REQ-079, REQ-119    |
+| Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | Navigational    | REQ-080, REQ-083    |
+| Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Navigational   | REQ-080             |
+
+A coupling marked "Navigational" means it affects only guidance surfaces
+(`hat_briefing`, resource rendering, suggestion tools) and does not influence
+mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
+means it directly affects state mutation or tool behavior. When a source
+property changes, navigational couplings update on the next resource read;
+mechanical couplings take effect at the moment of the triggering mutation.
 
 ### 7.8 Guidance and hat knowledge
 
@@ -3409,6 +3530,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-126 | Voice examples rendering  | 2026-08-06   |
 | REQ-127 | Ruleset-native personality mapping | 2026-08-06   |
 | REQ-128 | Signal briefing surface   | 2026-08-06   |
+| REQ-129 | Property group cardinality | 2026-08-06   |
+| REQ-130 | Enrichment rebuild contract | 2026-08-06   |
+| REQ-131 | Novel initialization order | 2026-08-06   |
+| REQ-132 | Adventure generation lifecycle | 2026-08-06   |
 
 ---
 
@@ -3556,6 +3681,10 @@ diet.
 | T140  | Automated | Voice examples rendering: create entity with personality fields and voice_examples. Call `hat_briefing` — assert voice_examples appear alongside personality traits under the entity personality group, with dialogue examples before trait descriptions. Call `character_sheet` — assert voice_examples rendered under Personality section. Set Novel-level override for voice field — assert override voice renders alongside original voice_examples. Verify enrich-sourced voice_examples carry `[supplementary]` tag in all surfaces. Invoke `entity://<id>/personality` resource — assert rendering contract holds. NPC with personality fields: assert same rendering contract at `npc://<id>/personality`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-077, REQ-126, REQ-109                   |
 | T141  | Manual   | Ruleset-native personality mapping: build server for a ruleset with native personality constructs (e.g., D&D 5e Traits/Ideals/Bonds/Flaws). Assert RULESET_MODEL.md records a mapping from each native construct to a Holonovel personality field. Assert `set_personality` tool description references the ruleset-native construct names. Assert `session_zero` prompt includes both native and Holonovel field references. Build server for a ruleset without native constructs (e.g., Appendix B fixture) — assert tool descriptions use only Holonovel field names and no native construct names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-127, REQ-104, REQ-078                   |
 | T142  | Automated | Signal lifecycle: set five player signals (pace, difficulty, tone, focus, boundary) with distinct values. Assert all five appear in the audit log. Invoke `hat_briefing` as GM — assert a dedicated player-signals section with all five signals, each showing signal type, value, and age (timestamp delta). Invoke `hat_briefing` as Player — assert signals absent. Invoke `player_signal` from GM hat — assert `[FORBIDDEN]`. Set `player_signal("pace", "")` — assert pace removed, briefing section reflects removal. Set `player_signal("pace", "new_value")` — assert replaced with refreshed timestamp. Restart server — assert all signals persist. End Novel, resume — assert signals restored. | REQ-069, REQ-128, REQ-032                   |
+| T143  | Automated | Property group cardinality: create 3 NPCs, assert `spec_health` reports current=3/500. Configure `TTRPG_MAX_NPCS=3`, attempt to create a 4th NPC — assert `[ERROR] [STATE_CONFLICT]` with group named and counts reported. Set `TTRPG_MAX_NPCS=0` — assert `create_npc` returns `[STATE_CONFLICT]`. Restore to 500 — assert creation succeeds. Repeat for countdowns (max 3 via `TTRPG_MAX_COUNTDOWNS`) and lore entries (max 3 via `TTRPG_MAX_LORE_ENTRIES`). Assert `spec_health` `overflow` flag true when any group at maximum. | REQ-129                                     |
+| T144  | Automated | Enrichment rebuild contract: run enrich, activate one lore template via `set_lore_entry`, one action pattern via `toggle_action_patterns`. Re-run enrich — assert activated lore entry and action pattern persist exactly as activated. Verify an inactive enrich item's content may change (replaced by fresh output). Run `revert_enrichment`, re-run enrich — assert all fresh. Create Novel with enrichment from prior build, change ruleset hash, rebuild with same spec — assert activated items preserved, inactive items replaced. | REQ-130, REQ-080, REQ-103                   |
+| T145  | Automated | Novel initialization order: create a Novel with an adventure module (REQ-079), an NPC created from an adventure template reference (REQ-119), a lore entry whose content references the NPC name, and a countdown with `on_scene_transition=true` (REQ-125). Set scene state with text matching the lore trigger. Restart server. Assert `hat_briefing` surfaces content in dependency order: adventure hook before NPC, NPC before lore entry, lore entry active (triggered by scene), countdown with correct ticks. Assert the order is stable across 3 restarts. | REQ-131, REQ-079, REQ-119, REQ-083, REQ-073 |
+| T146  | Automated | Adventure generation lifecycle: call `generate_adventure("A haunted space station")` — assert content at `adventure://generated/overview` and `adventure://generated/hook`. Restart server — assert generated adventure preserved. Call `load_adventure("tomb-of-horrors")` — assert indexed and generated adventures coexist in `hat_briefing`, indexed first then generated. Call `generate_adventure("Sunken temple")` — assert old generated content replaced. `end_novel` — assert generated adventure discarded with the Novel, not present on disk in `TTRPG_ADVENTURE` directory. | REQ-132, REQ-079, REQ-090                |
 
 ---
 
