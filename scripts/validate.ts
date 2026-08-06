@@ -426,7 +426,7 @@ function checkCoverageCompleteness(text: string): string[] {
 
   const toolSection = text.match(/### 5\.2 Tools and Resources[\s\S]*?### 5\.3/);
   if (toolSection) {
-    const toolNames = toolSection[0].matchAll(/\b(lookup_\w+|roll_\w+|search_rules|spec_health|character_sheet|create_character|create_novel|end_novel|resume_novel|list_novels|import_character|set_persona|set_active_entity|apply_condition|remove_condition|init_combat|advance_combat|end_combat|set_countdown|advance_countdown|remove_countdown|set_lore_entry|toggle_lore_entry|remove_lore_entry|set_lore_group|suggest_lore|export_lorebook|import_lorebook|set_scene_state|set_scene_type|set_narrative_directive|set_briefing_order|set_personality|set_voice_examples|create_npc|update_npc|remove_npc|session_recap|suggest_actions|compress_audit|generate_adventure|generate_encounter|load_adventure|help|undo|respond|player_signal|roll_on_table|roll_save|roll_skill_check|roll_weapon_attack|roll_weapon_damage|make_panic_check)\b/g);
+    const toolNames = toolSection[0].matchAll(/\b(lookup_\w+|roll_\w+|search_rules|spec_health|character_sheet|create_character|create_novel|end_novel|resume_novel|list_novels|import_character|set_hat|set_active_entity|apply_condition|remove_condition|init_combat|advance_combat|end_combat|set_countdown|advance_countdown|remove_countdown|set_lore_entry|toggle_lore_entry|remove_lore_entry|set_lore_group|suggest_lore|export_lorebook|import_lorebook|set_scene_state|set_scene_type|set_narrative_directive|set_briefing_order|set_personality|set_voice_examples|create_npc|update_npc|remove_npc|session_recap|suggest_actions|compress_audit|generate_adventure|generate_encounter|load_adventure|help|undo|respond|player_signal|roll_on_table|roll_save|roll_skill_check|roll_weapon_attack|roll_weapon_damage|make_panic_check)\b/g);
     for (const tool of toolNames) {
       const cited = text.match(new RegExp(`REQ-\\d{3}.*${tool[0]}`));
       if (!cited) {
@@ -447,7 +447,7 @@ function checkCoverageCompleteness(text: string): string[] {
         issues.push(`State tier '${tier}' — no persistence REQ citation found nearby`);
       }
       if (!hasFilteringReq && tier !== "Connection") {
-        issues.push(`State tier '${tier}' — no persona-filtering REQ citation found nearby`);
+        issues.push(`State tier '${tier}' — no hat-filtering REQ citation found nearby`);
       }
     }
   }

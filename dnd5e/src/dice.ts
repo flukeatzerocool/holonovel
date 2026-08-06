@@ -1,56 +1,33 @@
-export class PRNG {
-  private state: number;
-  private initialSeed: string;
+// Deterministic PRNG — Linear Congruential Generator (1664525/1013904223)
+// REQ-050: same seed + same call sequence = same results
 
-  constructor(seed: string) {
-    this.initialSeed = seed;
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) {
-      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
-    }
-    this.state = (h >>> 0) || 1;
-  }
+let state: number = Date.now();
 
-  next(): number {
-    this.state = (Math.imul(1664525, this.state) + 1013904223) | 0;
-    return (this.state >>> 0) / 4294967296;
-  }
-
-  nextRange(min: number, max: number): number {
-    return Math.floor(this.next() * (max - min + 1)) + min;
-  }
-
-  reseed(seed: string): void {
-    this.initialSeed = seed;
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) {
-      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
-    }
-    this.state = (h >>> 0) || 1;
-  }
-
-  getSeed(): string {
-    return this.initialSeed;
-  }
+export function seed(rng_seed: number): void {
+  // unsigned 32-bit wrapping
+  state = rng_seed >>> 0;
 }
 
-export function seedFromString(s: string): PRNG {
-  return new PRNG(s);
+export function next(): number {
+  state = Math.imul(1664525, state) + 1013904223;
+  state >>>= 0;
+  return state;
 }
 
-export function rollD20(rng: PRNG, advantage: boolean = false): number {
-  if (advantage) {
-    return Math.max(rng.nextRange(1, 20), rng.nextRange(1, 20));
-  }
-  return rng.nextRange(1, 20);
+export function random(): number {
+  return (next() % 0x7fffffff) / 0x7fffffff;
 }
 
-export function rollDice(rng: PRNG, count: number, sides: number): number[] {
-  const results: number[] = [];
+export function rollD20(): number {
+  return 1 + Math.floor(random() * 20);
+}
+
+export function rollDice(count: number, sides: number): number {
+  let total = 0;
   for (let i = 0; i < count; i++) {
-    results.push(rng.nextRange(1, sides));
+    total += 1 + Math.floor(random() * sides);
   }
-  return results;
+  return total;
 }
 
 export function abilityModifier(score: number): number {
@@ -58,13 +35,23 @@ export function abilityModifier(score: number): number {
 }
 
 export function proficiencyBonus(level: number): number {
-  return Math.ceil(level / 4) + 1;
+  return Math.ceil(1 + level / 4);
 }
 
-export function formatRoll(dice: number[], modifier: number): { total: number; breakdown: string } {
-  const sum = dice.reduce((a, b) => a + b, 0);
-  const total = sum + modifier;
-  const sign = modifier >= 0 ? "+" : "";
-  const breakdown = `${dice.length}d${dice[0] !== undefined ? "?" : "?"} = [${dice.join(", ")}]${modifier !== 0 ? ` ${sign}${modifier}` : ""}`;
-  return { total, breakdown };
+export function getState(): number {
+  return state;
+}
+
+export function snapshotSeed(): number {
+  return state;
+}
+
+export function withIsolatedSeed<T>(perCallSeed: number, fn: () => T): T {
+  const saved = state;
+  seed(perCallSeed);
+  try {
+    return fn();
+  } finally {
+    state = saved;
+  }
 }

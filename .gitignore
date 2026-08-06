@@ -7,3 +7,4 @@ opencode-raw-*.log
 dnd5e/node_modules/
 dnd5e/.holonovel-state/
 dnd5e/.holonovel-oce-state/
+*.bak

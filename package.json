@@ -14,6 +14,7 @@
     "spec-health-trends": "npx tsx scripts/spec-health-trends.ts",
     "typecheck": "npx tsc --noEmit",
     "version-sync": "npx tsx scripts/version-check.ts",
+    "clean": "find . -name '*.bak' -delete",
     "version-bump": "npx tsx scripts/version-bump.ts",
     "spec-delta": "npx tsx scripts/spec-delta.ts",
     "push": "npx tsx scripts/push.ts",

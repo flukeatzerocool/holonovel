@@ -39,6 +39,23 @@
      what it's called.
 -->
 
+## 2026-08-06 — D&D 5e MCP server rebuild, terminology audit, and spec hardening
+
+- Rebuilt the dnd5e MCP server from the D&D 5e SRD v5.1 ruleset (1,021
+  Markdown files), producing 51 tools, 29 resources, 7 prompts, and 5
+  artifacts. All blocking Gauntlet sub-workflows pass.
+- Fixed persona→hat terminology drift: 11 renames across the server source
+  code so that tool descriptions, parameter names, and export fields all use
+  the current spec term "hat" (not the deprecated "persona"). (REQ-031,
+  REQ-066)
+- Added a Surface Terminology domain to the convergence loop and a
+  post-write terminology grep check to the builder workflow, so builders
+  automatically catch deprecated terms during construction. Added Appendix R
+  (Deprecated Terminology) and handoff check H13 (Gauntlet freshness) to
+  close the feedback loop. (REQ-074)
+- Updated DECISIONS.md with Gauntlet run evidence, terminology audit record,
+  and gap disposition.
+
 ## 2026-08-06 — Add spec-engineering queue for cross-session task tracking
 
 - New `SPEC-QUEUE.md` file — a prioritized backlog of subsystems awaiting
