@@ -466,6 +466,67 @@ function checkCoverageCompleteness(text: string): string[] {
   return issues;
 }
 
+function checkStaleGateReferences(text: string): string[] {
+  const issues: string[] = [];
+
+  const workflowsStart = text.indexOf("## 8. Verification Workflows");
+  if (workflowsStart === -1) return issues;
+
+  const workflowsEnd = text.indexOf("\n## ", workflowsStart + 1);
+  const workflowsSection = text.slice(
+    workflowsStart,
+    workflowsEnd !== -1 ? workflowsEnd : undefined
+  );
+
+  const canonicalWorkflows = new Set<string>();
+  const tableRe = /\|\s*(G\d+[a-z]?)\s*\|/g;
+  let tableMatch: RegExpExecArray | null;
+  while ((tableMatch = tableRe.exec(workflowsSection)) !== null) {
+    canonicalWorkflows.add(tableMatch[1]);
+  }
+  if (canonicalWorkflows.size === 0) return issues;
+
+  const lines = text.split("\n");
+  let inBlock = false;
+  let skip = false;
+  let staleCount = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim().startsWith("```")) {
+      inBlock = !inBlock;
+      continue;
+    }
+    if (inBlock) continue;
+
+    if (skip) {
+      if (/^##\s/.test(line)) skip = false;
+      continue;
+    }
+
+    if (line.trim() === "## 8. Verification Workflows") {
+      skip = true;
+      continue;
+    }
+
+    const gateMatches = line.matchAll(/Gate\s+(\d+[a-z]?)\b/gi);
+    for (const gm of gateMatches) {
+      const gateId = "G" + gm[1].toUpperCase();
+      if (!canonicalWorkflows.has(gateId)) {
+        if (staleCount === 0) {
+          issues.push("Stale verification workflow references found:");
+        }
+        issues.push(
+          `  - Line ${i + 1}: "${gm[0]}" — no matching workflow in §8 (canonical: ${[...canonicalWorkflows].sort().join(", ")})`
+        );
+        staleCount++;
+      }
+    }
+  }
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -569,6 +630,14 @@ function main(): void {
     warnings += specViolations.length;
   } else {
     console.log("PASS: No spec authoring violations detected");
+  }
+
+  const staleRefIssues = checkStaleGateReferences(text);
+  if (staleRefIssues.length > 0) {
+    for (const issue of staleRefIssues) {
+      console.log(`WARNING: ${issue}`);
+    }
+    warnings += staleRefIssues.length;
   }
 
   if (traceability) {
