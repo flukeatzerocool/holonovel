@@ -11,8 +11,8 @@ reordering mid-tier. Check for duplicates before adding.
 
 ## Top candidates
 
-1. Voice & personality — set_personality, set_voice_examples fields
-   (REQ-071, 077).
+1. ~~Voice & personality — set_personality, set_voice_examples fields
+   (REQ-071, 077).~~ ✓ 2026-08-06
 2. Player signals — player_signal for pace, difficulty, tone, focus, boundary
    (REQ-069).
 3. Character creation workflow — step-by-step and quick modes,

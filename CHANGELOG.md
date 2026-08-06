@@ -39,6 +39,33 @@
      what it's called.
 -->
 
+## 2026-08-06 — Voice and personality subsystem: naming, composition, and rendering
+
+- Entity personality fields and voice examples are now formal members of
+  the hat_briefing composition contract — previously REQ-077 required them
+  in hat_briefing but REQ-109 (the authoritative 16-group enumeration)
+  omitted them. The internal contradiction is resolved. (REQ-109, REQ-077)
+- The `voice` field now conveys the entity's speech characteristics across
+  pitch, pace, vocabulary range, mannerisms, and formality register — not
+  just a single free-text blob. Tag semantics on voice_examples are defined:
+  tags describe the scene type or emotional context of the dialogue snippet.
+  Authorship guidance helps GMs and players write personality fields that
+  actually work: concrete behaviors beat abstract adjectives. (REQ-077)
+- When an entity speaks in-character, their voice_examples must be rendered
+  in the prompt context alongside personality traits, with dialogue examples
+  ahead of trait descriptions. The show-don't-tell ordering comes from
+  community research showing dialogue imitation beats trait-list reasoning
+  for character consistency. (REQ-126)
+- Ruleset-native personality constructs — D&D 5e's Traits, Ideals, Bonds,
+  and Flaws, or whatever the ruleset provides — are now discovered and
+  mapped to Holonovel personality fields during build. The `set_personality`
+  tool and `session_zero` prompt reference ruleset-native terms when they
+  exist. (REQ-127)
+- REQ-071 renamed from "Example-of-play snippets" to "Narrative tone
+  samples" to eliminate the naming collision with entity voice_examples.
+  The `[voice]` tag is now `[narrative-tone]` and the resource moves to
+  `guidance://<hat>/tone`. (REQ-071)
+
 ## 2026-08-06 — Countdown subsystem: visibility, direction, and lifecycle
 
 - Countdowns now support two hat scopes — `game_master` for private
