@@ -39,6 +39,48 @@
      what it's called.
 -->
 
+## 2026-08-06 — Spec audit: defect fixes, structural tightening, and word-count reduction
+
+- Fixed a duplicate paragraph in REQ-065 (build fingerprint) where "When
+  unrecoverable state is detected…" appeared twice with slightly different
+  wording. The merged paragraph is one-third shorter and unambiguous.
+- Removed the hardcoded "six metrics" reference in REQ-025 — convergence
+  metrics are now referred to without a fixed count that drifts with spec
+  revisions. The builder determines metric count from §6.5.
+- Standardized inconsistent "Gate N" vs "GN" naming — all references now
+  use the G-prefix convention established in §8 (G0, G2, G3, G4, G5).
+  Also fixed a stale "Appendices A–R" reference to the correct "A–S".
+- Resolved the tension between §9's "Four documents. No more." and §6.4's
+  mandatory LICENSE.md requirement. The handoff now says "Four handoff
+  documents (plus LICENSE.md)" — the license is part of the server, not
+  a handoff artifact.
+- Collapsed the six ASCII-art fault trees in §3 to compact bullet lists,
+  reducing the section from ~90 lines to ~30 without losing any guard
+  citations. The summary table above the trees already carries the
+  primary mitigations.
+- Removed Appendix O (Behavioral Contracts) — all 93 lines of prose
+  duplicated contracts already defined in §5 and §7. Replaced with a
+  compact pointer to those sections. Roll-format examples live in §7.3.
+- Compressed all 23 Gauntlet sub-workflow descriptions from multi-line
+  prose paragraphs to single-line assertions, reducing the section by
+  over 100 lines. The structured encoding paragraph was compacted; the
+  convergence integration, improvement measurement, regression assertion,
+  assertion compression, and exit criteria paragraphs were halved.
+- Removed the "Verified by" column from Appendix E (requirements
+  manifest) — it duplicated the Check: citations in every REQ body.
+  The spec version pin remains as the table's unique value.
+- Merged Appendix S (builder glossary) into the §4 terminology table
+  and replaced the appendix with a two-line pointer. Standing Rule 7's
+  five-point REQ authoring checklist was moved to Appendix M where the
+  REQ anatomy rules live, replaced with a one-line pointer.
+- Restructured §7 (runtime conventions) — replaced prose subsections for
+  tool conventions, output contracts, decisions, and guidance with compact
+  reference tables that cross-reference their source REQs in §5.
+- Removed Levenshtein-distance and default-value language from REQ-002
+  and REQ-004 bodies (Appendix M violations). These remain verifiable
+  through tests without being hardcoded in REQ text.
+- Fixed AGENTS.md appendix range to match the current 19 appendices.
+
 ## 2026-08-06 — SDD conventions upgrade: authoring, navigation, and cross-reference health
 
 - The specification now opens with a reading guide teaching builders how to
