@@ -15,9 +15,7 @@ reordering mid-tier. Check for duplicates before adding.
    export/import lore entries (REQ-083, App L).
 2. NPC management — create, update, remove NPCs with stats, dispositions,
    locations (REQ-075).
-3. Scene management — set_scene_state, set_scene_type, set_narrative_directive
-   (REQ-076, 081, 087).
-4. Decision/workflow system — respond/NEED_INPUT lifecycle, conflict
+3. Decision/workflow system — respond/NEED_INPUT lifecycle, conflict
    resolution lifecycle (REQ-042, 043).
 
 ## Top candidates
@@ -30,6 +28,8 @@ reordering mid-tier. Check for duplicates before adding.
    (REQ-069).
 8. Character creation workflow — step-by-step and quick modes,
    stats → race → class → background → name (REQ-104).
+9. GM session notes — real-life session prep structure, common patterns,
+   integration points with narrative state management.
 
 ## Tool-surface features
 
@@ -56,3 +56,5 @@ reordering mid-tier. Check for duplicates before adding.
 21. Verification gates — Gate 0-5 design, Gate 2b (§8).
 22. Artifacts & handoff — 4 artifacts, 12 checks (§9).
 23. Independent verification — adversarial round (§10).
+24. Six Novel property groups — structural review of NPC, Scene, Countdown,
+    Lore, Enrichment, Adventure as architecturally coupled state tiers.

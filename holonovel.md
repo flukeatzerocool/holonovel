@@ -770,14 +770,83 @@ NPC fields; `remove_npc(id)` deletes an NPC. `npcs://` lists all active NPCs. NP
 persists with the Novel. All NPC tools are Game Master only; the Player hat reads
 NPC state via `hat_briefing` and resource URIs. _Check:_ T56.
 
+**REQ-119 — NPC stat block reference.** `create_npc` accepts an optional
+ruleset reference — the name of a monster, NPC template, or stat block entry from
+the indexed ruleset. When a reference matches a ruleset entry, the builder populates
+the NPC's stat fields from that entry's baseline values as defined by the ruleset.
+Any caller-supplied stat fields override the referenced values. A reference that
+does not match any ruleset entry returns `[ERROR] [NOT_FOUND]` with valid reference
+names enumerated. _Check:_ T126.
+
+**REQ-120 — NPC rendering.** The server renders NPC stat blocks through the
+same mechanism it uses for entity character sheets. An NPC identifier produces a
+stat block containing all populated stat fields, current conditions, and narrative
+fields (description, disposition, location, and any personality fields per REQ-122)
+in the ruleset's baseline stat-block format. An identifier that resolves to neither
+an entity nor an NPC returns `[ERROR] [NOT_FOUND]`. The Game Master hat sees all
+fields; the Player hat sees only fields visible in `hat_briefing`. _Check:_ T127.
+
+**REQ-121 — NPC resource URIs.** The server registers `npc://<id>` for each
+active NPC in the current Novel, returning the NPC's full stat block and narrative
+fields, and `npcs://` returning a list of all active NPCs with summary fields
+(name, disposition, location). Resources are hat-filtered: Game Master sees all
+fields; Player sees summary fields only. Resources are re-registered on Novel
+switch and removed on `end_novel`. _Check:_ T128.
+
+**REQ-122 — NPC narrative fields.** Named NPCs (REQ-075) may carry narrative
+personality fields following the same contract as entity personality fields
+(REQ-077): `description`, `voice`, `background`, `goals`, and `voice_examples`.
+These fields are set via `set_personality` and `set_voice_examples` accepting an
+NPC identifier alongside entity identifiers. NPC narrative fields are Novel-scoped
+— NPCs have no roster; fields persist only with the Novel. These fields are inert
+narrative context and do not influence mechanical resolution. Setting narrative
+fields on an NPC is Game Master only. Fields are surfaced in `hat_briefing` and at
+`npc://<id>/personality`. _Check:_ T129.
+
+**REQ-123 — Builder-defined NPC stat fields.** The stat fields exposed on NPCs
+are determined by the builder from the ruleset during discovery — not enumerated in
+the specification as a fixed set. The builder derives the NPC stat surface from the
+ruleset's own stat-block conventions. The `create_npc` and `update_npc` tools
+expose builder-determined fields as optional parameters. Every field is optional
+except `name` (per REQ-075). A ruleset with no discovered NPC stat conventions
+produces an NPC surface with only narrative fields. _Check:_ T130.
+
+**REQ-124 — NPC damage resolution.** Damage-resolution tools accept NPC
+identifiers as target parameters alongside entity identifiers. When an NPC is the
+target, the tool resolves damage against the NPC's defensive stats as defined by
+the ruleset, applies HP or equivalent state changes, and reports the result with
+full transparency (per REQ-003). An NPC reduced to or below the ruleset's
+zero-health threshold is marked with the ruleset-defined incapacitation condition.
+Damage resolution against NPCs is snapshot-able and audited. _Check:_ T131.
+
 **REQ-076 — Scene-state ledger.** The server maintains a Novel-scoped narrative scene
 description via `set_scene_state(description)`. Each call creates a timestamped entry in
 the audit log; previous entries are retained in audit history. `scene://current` returns
-the most recent scene state. `scene://history` returns all timestamped entries
-retained from prior `set_scene_state` calls, hat-filtered. Scene state is narrative context only — it never influences
-tool behavior, search results, or mechanical resolution. The `set_scene_state` tool is
-Game Master only; the Player hat reads scene state via `hat_briefing` and
-`scene://current`. Scene state persists with the Novel. _Check:_ T57, T112.
+the most recent scene state. `scene://history` returns up to a configurable maximum of
+the most recent entries (default 50). When the cap is exceeded, the most recent entries
+are returned with a count of suppressed entries and a `[truncated]` marker. The full
+scene history is available in the audit log (REQ-040). All entries are hat-filtered.
+Scene state is narrative context. It does not influence mechanical resolution or search
+results. Guidance surfaces (hat_briefing tool ordering, suggest_actions filtering per
+REQ-087, and lore trigger matching per REQ-083) may be informed by scene description
+and type — these are navigation and narrative reactivity, distinct from mechanical
+resolution. The server maintains a Novel-scoped `scene_tick` counter, initialized to
+zero when the Novel is created and reset to zero on each scene transition. The tick
+increments by one each time `advance_combat` resolves a full combat round (wraps from
+last participant to first). It appears in `hat_briefing` for the Game Master hat only,
+in the Scene section. The tick is a pacing aid — it does not trigger mechanics. The
+`set_scene_state` tool is Game Master only; the Player hat reads scene state via
+`hat_briefing` and `scene://current`. Scene state persists with the Novel.
+_Check:_ T57, T112, T132, T137.
+
+**REQ-076a — Structured scene fields.** `set_scene_state` accepts optional structured
+fields alongside the required `description`: `location` (a named place within the world),
+`time_of_day` (morning, afternoon, evening, night, or free-text), and `atmosphere` (mood,
+weather, sensory qualities — e.g., "tense, foggy, silent"). These fields are surfaced in
+`hat_briefing` alongside the description, in `scene://current`, and in `scene://history`
+entries. They are narrative context — inert data that does not influence mechanical
+resolution. All fields persist with the Novel. The Player hat reads them via
+`hat_briefing` and `scene://current`; write access is Game Master only. _Check:_ T133.
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields: `description` (physical appearance), `voice` (speech patterns and mannerisms),
@@ -916,13 +985,16 @@ hat_scope, confidence (derived from source authority, not mechanical completenes
 output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
 _Check:_ T63, T95, T97, T125.
 
-**REQ-081 — Narrative directive.** The Game Master may set a standing narrative
-instruction via `set_narrative_directive(instruction)`. The directive is a free-text
-string that appears in `hat_briefing` for the Game Master hat only and at
-`novel://current`. An empty
-string clears the directive. The directive is inert guidance — it does not affect tool
-behavior, dice results, or rules enforcement. It persists with the Novel. Player hat
-attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T64.
+**REQ-081 — Narrative directive.** The Game Master may set narrative directives via
+`set_narrative_directive(directives)`. Each directive has a `label` (non-empty, unique
+within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the
+prior entry. An empty array clears all directives. For backward compatibility,
+`set_narrative_directive` also accepts a single `directive` string — treated as
+`[{"label": "primary", "instruction": <string>}]`. Directives appear in `hat_briefing`
+for the Game Master hat only and at `novel://current`, grouped under "Narrative
+Directives" with their labels. Directives are inert guidance — they do not affect tool
+behavior, dice results, or rules enforcement. They persist with the Novel. Player hat
+attempts return `[ERROR] [FORBIDDEN]`. _Check:_ T64, T134.
 
 **REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
 `hat_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
@@ -1013,15 +1085,28 @@ own-entity entries; Game Master sees all. `max_entries` is a positive integer; v
 The tool is pure-generation (idempotent, no server-side state mutation).
 _Check:_ T70.
 
-**REQ-087 — Scene type tagging.** The Game Master may tag the current scene with a type
-via `set_scene_type(type)`. Valid types: `combat`, `social`, `exploration`, `neutral`.
-The type tag is guidance — it affects `hat_briefing` composition (the registry
-section orders tools by scene-type relevance: tools whose type annotation matches the
-current scene type appear first) and `suggest_actions` filtering, but does not alter
-tool behavior, dice results, or rules enforcement. The type persists with the Novel.
-Player hat attempts return `[ERROR] [FORBIDDEN]`.
-Confrontation tools (REQ-043) operate identically regardless of scene type; the tag
-guides the GM and LLM toward moves matching the scene type. _Check:_ T71.
+**REQ-087 — Scene type tagging.** The Game Master may tag the current scene with one or
+more types drawn from a canonical catalog: `combat`, `social`, `exploration`, `neutral`.
+Multiple types may be active simultaneously (e.g., "combat" and "social" for a duel
+amidst negotiation). `set_scene_type` accepts either a single type string or an array of
+type strings. The type tags are guidance — they affect `hat_briefing` composition (tools
+matching any active type are ordered before unmatched tools) and `suggest_actions`
+filtering (actions matching any active type are prioritized), but do not alter tool
+behavior, dice results, or rules enforcement. The types persist with the Novel. Player
+hat attempts return `[ERROR] [FORBIDDEN]`. Confrontation tools (REQ-043) operate
+identically regardless of scene type; the tag guides the GM and LLM toward moves
+matching the scene type. _Check:_ T71, T135.
+
+**REQ-125 — Scene transition hook.** When `set_scene_state` is called and the new
+description differs from the current `scene_description`, the server records a
+`[scene_transition]` audit entry with the old and new descriptions and a timestamp.
+This is automatic — no additional tool call is required. Narrative countdowns
+(REQ-073) whose `on_scene_transition` trigger flag is set decrement by one tick on
+transition. Calling `set_scene_state` with a `skip_transition_hook` parameter
+suppresses the audit entry and countdown decrement for cases where the GM is updating
+the same scene without transitioning it (e.g., adding descriptive detail). The Player
+hat sees scene transitions in `scene://history`; GM-only mechanics (audit entry,
+countdown decrement) are invisible to the Player hat. _Check:_ T136.
 
 ### 5.9 Novel Lifecycle and Generation
 
@@ -2910,19 +2995,20 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-073 | Countdowns                | T54                            | 2026-08-04   |
 | REQ-074 | Multi-entity support      | T55                            | 2026-08-04   |
 | REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
-| REQ-076 | Scene-state ledger        | T57, T112                      | 2026-08-04   |
+| REQ-076 | Scene-state ledger        | T57, T112, T132, T137          | 2026-08-06   |
+| REQ-076a| Structured scene fields   | T133                           | 2026-08-06   |
 | REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
 | REQ-069 | Player feedback signal    | T8, T26                        | 2026-08-06   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
 | REQ-080 | Enrichment boundaries     | T63, T97, T102, T125           | 2026-08-06   |
-| REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
+| REQ-081 | Narrative directive       | T64, T134                      | 2026-08-06   |
 | REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
 | REQ-083 | Dynamic lore              | T67, T79, T81, T82, T83       | 2026-08-05   |
 | REQ-084 | Action suggestions        | T68                            | 2026-08-04   |
 | REQ-085 | Macro system              | T69                            | 2026-08-04   |
 | REQ-086 | Audit compression         | T70                            | 2026-08-04   |
-| REQ-087 | Scene type tagging        | T71                            | 2026-08-04   |
+| REQ-087 | Scene type tagging        | T71, T135                      | 2026-08-06   |
 | REQ-088 | Novel lifecycle           | T72, T73, T98, T122            | 2026-08-06   |
 | REQ-089 | Novel setup               | T74                            | 2026-08-05   |
 | REQ-090 | Adventure generation      | T75                            | 2026-08-05   |
@@ -2953,6 +3039,13 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-116 | Redo                      | T121                           | 2026-08-06   |
 | REQ-117 | Novel retention period    | T122                           | 2026-08-06   |
 | REQ-118 | Prompt length budget      | T123                           | 2026-08-06   |
+| REQ-119 | NPC stat block reference  | T126                           | 2026-08-06   |
+| REQ-120 | NPC rendering             | T127                           | 2026-08-06   |
+| REQ-121 | NPC resource URIs         | T128                           | 2026-08-06   |
+| REQ-122 | NPC narrative fields      | T129                           | 2026-08-06   |
+| REQ-123 | Builder-defined NPC stat fields | T130                      | 2026-08-06   |
+| REQ-124 | NPC damage resolution     | T131                           | 2026-08-06   |
+| REQ-125 | Scene transition hook     | T136                           | 2026-08-06   |
 
 ---
 
@@ -3083,6 +3176,18 @@ diet.
 | T123  | Automated | Prompt length budget: populate a Novel with the maximum expected NPCs, lore entries, countdowns, and entities (per REQ-097 default thresholds). Invoke `hat_briefing` — assert output length does not exceed the configured budget; assert truncated sections carry `[truncated]` markers with resource URI pointers; assert section headers and required contract elements (intro pointer, `player_signal` directives) are preserved untruncated. Invoke `session_zero` — assert output within budget. Invoke `novel_setup` with a full roster and indexed adventures — assert output within budget. Modify the budget config to a lower value, restart — assert truncation activates at the new threshold.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-118                                     |
 | T124  | Automated | Session zero recording directives: invoke the `session_zero` prompt on a running server. Assert the output includes the string `player_signal` for each of the four preference categories (tone, difficulty, pace, boundary) with the correct argument shapes. Assert the character introduction section includes the string `set_personality` with entity_id and field arguments. Assert the `intro` prompt output includes the string `session_zero` as a recommended next action.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-078, REQ-063                            |
 | T125  | Automated | Enrichment rebuild survival: create Novel, populate enrichment across all six modules. Restart server — assert enrichment restored unchanged. Rebuild with same ruleset — assert enrichment preserved, all items still tagged `[supplementary]`. Change ruleset hash, rebuild, resume — assert `spec_health` reports fingerprint mismatch with enrichment retained from prior build. Run Build + Enrich against new hash — assert new enrichment manifest generated, old enrichment replaced. Delete state directory, rebuild without enrich — assert no enrichment present. Build + Enrich with matching fingerprint — assert no-op with enriched state unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-080, REQ-103, REQ-092, REQ-065 |
+| T126  | Automated | NPC stat block reference: call `lookup_monster("goblin")`, capture its stats. Call `create_npc("Goblin Scout", reference="goblin")` — assert NPC created with stats matching the goblin entry. Call `create_npc("Goblin Chief", reference="goblin", hp=21)` — assert HP overridden to 21, other stats from reference. Call `create_npc("Fake", reference="nonexistent")` — assert `[ERROR] [NOT_FOUND]` with valid reference names enumerated. Assert reference parameter is optional — calling without reference succeeds.                                                                                                                                                                                                                               | REQ-119                                     |
+| T127  | Automated | NPC rendering: create NPC with stat fields and narrative fields (per REQ-075, REQ-122). Call `character_sheet(npc_id)` — assert output contains NPC name, populated stat fields, conditions, and narrative fields in ruleset baseline format. Call with a non-existent ID — assert `[ERROR] [NOT_FOUND]`. Switch to Player hat — assert stat fields visible, GM-only narrative fields hidden. Verify output format matches entity `character_sheet` format.                                                                                                                                                                                                                                                  | REQ-120, REQ-032                            |
+| T128  | Automated | NPC resource URIs: create NPC, assert `npc://<id>` resource returns full stat block and narrative fields. Assert `npcs://` resource lists all active NPCs with name, disposition, location. Assert resources re-registered on `switch_novel`. Assert resources removed after `end_novel`. Switch to Player hat — assert `npc://<id>` returns summary fields only, `npcs://` returns summary list.                                                                                                                                                                                                                                                      | REQ-121, REQ-032                            |
+| T129  | Automated | NPC narrative fields: create NPC. Call `set_personality(npc_id, description, voice, background, goals)` — assert fields set and surfaced in `hat_briefing` and at `npc://<id>/personality`. Call `set_voice_examples(npc_id, [...])` — assert examples set. Verify NPC narrative fields are Novel-scoped — `end_novel` removes them, no roster backing. Assert Player hat attempt on `set_personality` for NPC returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                            | REQ-122, REQ-075, REQ-032                   |
+| T130  | Automated | Builder-defined NPC stat fields: build server for a ruleset with stat-block conventions. Assert `create_npc` exposes stat fields matching that ruleset's stat-block schema (not hardcoded ac/hp/speed). Build with a ruleset that has no NPC stat conventions — assert NPC surface exposes only narrative fields. Assert all stat fields are optional. Assert `name` is the only required field.                                                                                                                                                                                                                                                                                              | REQ-123, REQ-075                            |
+| T131  | Automated | NPC damage resolution: create NPC with ac and hp. Initiate combat with NPC as participant. Call `advance_combat` through NPC's turn — assert turn resolves. Call damage-resolution tool with NPC as target — assert HP decreased by damage amount, result transparent per REQ-003. Reduce NPC to zero HP — assert incapacitation condition applied per ruleset convention. Assert damage against NPC is audited and snapshot-able. Call damage-resolution tool with unknown NPC ID — assert `[ERROR] [NOT_FOUND]`.                                                                                                                                                                                                                    | REQ-124, REQ-043, REQ-003                   |
+| T132  | Automated | Scene history cap: call `set_scene_state` N+1 times (N = configured max). Assert `scene://history` returns exactly N entries (most recent). Assert output includes count of suppressed entries and `[truncated]` marker. Assert audit log contains all N+1 entries.                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-076                                     |
+| T133  | Automated | Structured scene fields: set scene state with description, location, time_of_day, atmosphere. Assert all fields appear in `scene://current` and `hat_briefing`. Set scene state with only description — assert optional fields empty or absent. Attempt `set_scene_state` with structured fields as Player hat — assert `[FORBIDDEN]`. Restart — verify fields persist.                                                                                                                                                                                                                                                                           | REQ-076a, REQ-032                            |
+| T134  | Automated | Stacked directives: set directive via single string — assert appears as `primary` label. Set directives via array with three labels — assert all three appear grouped in GM `hat_briefing` and absent from Player `hat_briefing`. Set duplicate label — assert replaced. Pass empty array — assert all directives cleared. Player attempt returns `[FORBIDDEN]`. Restart — verify directives persist.                                                                                                                                                                                                                                                                   | REQ-081, REQ-032                            |
+| T135  | Automated | Compound scene types: set scene type to `["combat", "social"]` — assert GM `hat_briefing` orders both combat and social tools before exploration/neutral. Set to single string `"exploration"` — assert backward-compat behavior identical to current spec. Set to `["nonexistent"]` — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                           | REQ-087, REQ-032                            |
+| T136  | Automated | Scene transition hook: create Novel with scene state "forest". Call `set_scene_state` with "cave" — assert `[scene_transition]` audit entry with both descriptions. Set narrative countdown with `on_scene_transition=true`, 3 ticks. Call `set_scene_state` with "castle" — assert countdown decrements to 2. Call `set_scene_state` with "castle" (same description) — assert no transition (no audit entry, no countdown decrement). Call with `skip_transition_hook=true` — assert no audit entry, no countdown decrement. Player hat reads transitions in `scene://history`.                                                                                                                                       | REQ-125, REQ-073                            |
+| T137  | Automated | Scene pacing tick: create Novel — assert scene_tick = 0. Init combat with 2 participants, advance through one full round (wrap back to first) — assert scene_tick = 1. Advance through second full round — assert scene_tick = 2. Call `set_scene_state` with new description (triggering transition) — assert scene_tick resets to 0. Verify tick visible in GM `hat_briefing`, absent from Player `hat_briefing`.                                                                                                                                                                                                                                                                                          | REQ-076                                     |
 
 ---
 
@@ -3289,11 +3394,19 @@ the active adventure for the current game.
 
 ## Appendix L: Lorebook Interchange Format
 
-Lorebook export (REQ-094) produces JSON (SillyTavern-compatible World Info array) and
-Markdown (HTML-comment-annotated entry document) formats. Both carry priority, sticky,
-hat_scope, enabled, group, and trigger metadata. Import respects merge, replace, and
-dry-run modes; non-lore entries import as inert reference content. Format schemas are
-determined by the builder; the convergence loop enforces round-trip fidelity.
+Lorebook export (REQ-094) produces JSON (SillyTavern-compatible World Info array)
+and Markdown (HTML-comment-annotated entry document) formats. Both must carry these
+metadata fields on every entry such that round-trip fidelity is preserved: `key`,
+`content`, `triggers`, `hat_scope`, `priority`, `sticky`, `enabled`, and `group`.
+Export excludes mechanical state (HP, conditions, combat position). Import respects
+merge, replace, and dry-run modes per REQ-094. Markdown export embeds metadata as a
+JSON object within an HTML comment on the line immediately following each entry
+heading (`<!-- holonovel-meta: { ... } -->`), such that
+`export_lorebook(markdown) → import_lorebook` produces lore entries indistinguishable
+from the `export_lorebook(json) → import_lorebook` round-trip. Non-lore entries
+found during import are preserved as inert reference content. Format schemas are
+determined by the builder; the convergence loop (§6.5) enforces round-trip fidelity
+against this metadata contract.
 
 ---
 

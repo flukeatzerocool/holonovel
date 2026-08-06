@@ -39,6 +39,37 @@
      what it's called.
 -->
 
+## 2026-08-06 — Scene management subsystem hardening
+
+- Resolved a contradiction in REQ-076 — the "never influences tool behavior"
+  claim now explicitly permits guidance-surface influences (hat_briefing tool
+  ordering, suggest_actions filtering, lore trigger matching) while
+  continuing to prohibit mechanical-resolution influence. (REQ-076)
+- Added configurable scene history cap (default 50) with `[truncated]`
+  markers when exceeded, preventing unbounded growth of `scene://history` in
+  long campaigns. Full history remains in the audit log. (REQ-076, T132)
+- Added structured scene fields — `location`, `time_of_day`, and
+  `atmosphere` — to `set_scene_state`, surfaced in `hat_briefing`,
+  `scene://current`, and `scene://history`. (REQ-076a, T133)
+- Changed narrative directives from a singleton free-text field to a stacked
+  array of `{label, instruction}` entries with backward-compatible
+  single-string input. Duplicate labels replace the prior entry.
+  (REQ-081, T134)
+- Scene types now accept compound tags — the GM may set multiple types (e.g.,
+  "combat" and "social" for a duel amidst negotiation). Tools matching any
+  active type are prioritized in hat_briefing and suggest_actions. Single
+  string input remains valid for backward compatibility. (REQ-087, T135)
+- Added scene transition hook — every scene change records a
+  `[scene_transition]` audit entry with old and new descriptions. Narrative
+  countdowns with an `on_scene_transition` flag decrement automatically.
+  A `skip_transition_hook` parameter suppresses the hook for detail updates
+  within the same scene. (REQ-125, T136)
+- Added a Novel-scoped `scene_tick` pacing counter, recording the number of
+  combat rounds elapsed in the current scene (resets on transition). Visible
+  in GM hat_briefing as a pacing aid. (REQ-076, T137)
+- Added "GM session notes — real-life session prep" to the spec-engineering
+  queue. Removed scene management from the queue (completed).
+
 ## 2026-08-06 — D&D 5e MCP server rebuild, terminology audit, and spec hardening
 
 - Rebuilt the dnd5e MCP server from the D&D 5e SRD v5.1 ruleset (1,021
