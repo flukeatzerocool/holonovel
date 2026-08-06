@@ -20,6 +20,10 @@
 - H10: Clarified tier-adjusted confidence thresholds for Heavy and Huge tiers.
 - REQ-088: Added `end_game` deprecated alias note for backward compatibility.
 - Appendix E: Added REQ-069 row (85 REQ rows).
+- T63: Clarified "six enumerated enrichment verification checks" — now references the six
+  enrichment output modules defined in §11.1.
+- T80: Changed "matches Appendix L schema" to "includes all Appendix L metadata fields"
+  — Appendix L explicitly states schemas are builder-determined.
 
 ## 2026-08-06 — Spec embedding and upstream tracking
 
