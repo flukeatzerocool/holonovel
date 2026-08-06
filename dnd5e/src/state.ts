@@ -62,6 +62,7 @@ export interface LoreEntry {
   hat_scope: "game_master" | "shared";
   priority: number;
   sticky: number;
+  sticky_remaining: number;
   enabled: boolean;
   group?: string;
 }
@@ -105,6 +106,7 @@ export interface NovelState {
   combat: CombatState | null;
   countdowns: Map<string, Countdown>;
   lore: Map<string, LoreEntry>;
+  briefing_assembly_count: number;
   player_signals: Record<string, string>;
   adventure_slug: string | null;
   generated_adventure: any | null;
@@ -147,6 +149,7 @@ export class StateManager {
 
   enriched = false;
   enrichmentManifest: any = null;
+  maxLoreTokens: number | null = null;
 
   private npcCounter = 0;
   private entityCounter = 0;
@@ -160,6 +163,11 @@ export class StateManager {
       rulesetHash: this.computeRulesetHash() ?? "unknown",
       buildTimestamp: new Date().toISOString(),
     };
+    const budgetRaw = process.env.TTRPG_MAX_LORE_TOKENS;
+    if (budgetRaw) {
+      const budget = parseInt(budgetRaw, 10);
+      if (!isNaN(budget) && budget > 0) this.maxLoreTokens = budget;
+    }
   }
 
   private computeRulesetHash(): string {
@@ -243,6 +251,7 @@ export class StateManager {
       combat: null,
       countdowns: new Map(),
       lore: new Map(),
+      briefing_assembly_count: 0,
       player_signals: {},
       adventure_slug: null,
       generated_adventure: null,
@@ -320,6 +329,7 @@ export class StateManager {
       combat: data.combat ?? null,
       countdowns: new Map(Object.entries(data.countdowns ?? {}) as any),
       lore: new Map(Object.entries(data.lore ?? {}) as any),
+      briefing_assembly_count: data.briefing_assembly_count ?? 0,
       player_signals: data.player_signals ?? {},
       adventure_slug: data.adventure_slug ?? null,
       generated_adventure: data.generated_adventure ?? null,
@@ -411,6 +421,7 @@ export class StateManager {
     novel.lore = restored.lore;
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
+    novel.briefing_assembly_count = restored.briefing_assembly_count;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -438,6 +449,7 @@ export class StateManager {
     novel.lore = restored.lore;
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
+    novel.briefing_assembly_count = restored.briefing_assembly_count;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -684,6 +696,7 @@ function novelToJSON(novel: NovelState): any {
     combat: novel.combat,
     countdowns: Object.fromEntries(novel.countdowns),
     lore: Object.fromEntries(novel.lore),
+    briefing_assembly_count: novel.briefing_assembly_count,
     player_signals: novel.player_signals,
     adventure_slug: novel.adventure_slug,
     generated_adventure: novel.generated_adventure,
@@ -714,6 +727,7 @@ function novelFromJSON(data: any): NovelState {
     combat: data.combat ?? null,
     countdowns: new Map(Object.entries(data.countdowns ?? {})),
     lore: new Map(Object.entries(data.lore ?? {})),
+    briefing_assembly_count: data.briefing_assembly_count ?? 0,
     player_signals: data.player_signals ?? {},
     adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,

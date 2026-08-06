@@ -2,7 +2,7 @@
 // D&D 5e MCP Server — Holonovel Build
 // REQ-001 through REQ-104
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as fs from "fs";
@@ -17,8 +17,9 @@ import {
   lookupWeapon, lookupArmor, lookupEquipment, listWeapons, listArmor,
   listRaces, listClasses, WeaponData, ArmorData,
 } from "./data.js";
-import { StateManager, Hat, NovelState } from "./state.js";
+import { StateManager, Hat, NovelState, LoreEntry } from "./state.js";
 import { expandMacros } from "./macros.js";
+import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -705,12 +706,29 @@ server.registerTool("spec_health", {
   const active = state.activeNovel;
   let novelHealth: any = null;
   if (active) {
+    const budget = state.maxLoreTokens;
+    let loreBudgetConsumed = 0;
+    let loreBudgetOmitted = 0;
+    if (budget) {
+      const sceneText = (active.scene_description ?? "").toLowerCase();
+      const activeEntries = Array.from(active.lore.values())
+        .filter(l => l.enabled)
+        .sort((a, b) => b.priority - a.priority || a.key.localeCompare(b.key));
+      let chars = 0;
+      for (const e of activeEntries) {
+        const line = `- **${e.key}:** ${e.content}\n`;
+        if (chars + line.length > budget) { loreBudgetOmitted++; continue; }
+        chars += line.length;
+      }
+      loreBudgetConsumed = chars;
+    }
     novelHealth = {
       npcs: active.npcs.size,
       lore_entries: active.lore.size,
+      lore_budget: budget ? { consumed: loreBudgetConsumed, ceiling: budget, omitted: loreBudgetOmitted } : undefined,
       audit_entries: active.audit_log.length,
       snapshot_depth: Object.values(active.undo_stacks).reduce((sum, s) => sum + s.length, 0),
-      healthy: true,
+      healthy: !(budget && loreBudgetOmitted > 0),
     };
   }
 
@@ -1024,11 +1042,39 @@ server.registerTool("set_lore_entry", {
     hat_scope: hat_scope ?? "game_master",
     priority: priority ?? 0,
     sticky: sticky ?? 0,
+    sticky_remaining: sticky ?? 0,
     enabled: true,
     group,
   });
   state.saveNovel(novel);
   return ok(`Lore entry '${key}' set.`);
+});
+
+server.registerTool("update_lore_entry", {
+  title: "Update Lore Entry",
+  description: "Update fields of an existing lore entry. Game Master only.",
+  inputSchema: {
+    key: z.string(),
+    content: z.string().optional(),
+    triggers: z.array(z.string()).optional(),
+    hat_scope: z.enum(["game_master", "shared"]).optional(),
+    priority: z.number().optional(),
+    sticky: z.number().optional(),
+    group: z.string().nullable().optional(),
+  },
+}, async ({ key, content, triggers, hat_scope, priority, sticky, group }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const entry = novel.lore.get(key);
+  if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
+  if (content !== undefined) entry.content = content;
+  if (triggers !== undefined) entry.triggers = triggers;
+  if (hat_scope !== undefined) entry.hat_scope = hat_scope;
+  if (priority !== undefined) entry.priority = priority;
+  if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
+  if (group !== undefined) entry.group = group ?? undefined;
+  state.saveNovel(novel);
+  return ok(`Lore entry '${key}' updated.`);
 });
 
 server.registerTool("remove_lore_entry", {
@@ -1080,7 +1126,44 @@ server.registerTool("suggest_lore", {
   requireGM();
   const novel = state.activeNovel;
   if (!novel) return err("STATE_CONFLICT", "No active novel.");
-  return ok("Lore templates: environment-based lore, NPC prompts, hidden dangers, treasure descriptions. Use set_lore_entry to add.");
+
+  const manifest = state.enrichmentManifest ?? DEFAULT_ENRICHMENT;
+  const templates = (manifest.lore_templates ?? []) as any[];
+  if (templates.length === 0) {
+    return ok(JSON.stringify({
+      templates: [],
+      note: "No enrichment templates available. Run the Enrich workflow to populate lore templates.",
+    }));
+  }
+
+  const sceneText = (novel.scene_description ?? "").toLowerCase();
+  const scored: { template: any; score: number }[] = [];
+
+  for (const t of templates) {
+    if (t.hat_scope === "game_master") {
+      let score = 0;
+      if (t.category && sceneText.includes(t.category.toLowerCase())) score += 3;
+      const words = (t.content ?? "").toLowerCase().split(/\s+/);
+      const sceneWords = new Set(sceneText.split(/\s+/));
+      for (const w of words) {
+        if (w.length > 3 && sceneWords.has(w)) score++;
+      }
+      scored.push({ template: t, score });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, 5);
+  const results = top.map(({ template: t, score }) => ({
+    category: t.category ?? "general",
+    content_preview: (t.content ?? "").substring(0, 120),
+    triggers: t.category ? [t.category] : [],
+    confidence: t.confidence ?? "MEDIUM",
+    source_url: t.source_url ?? null,
+    match_score: score,
+  }));
+
+  return ok(JSON.stringify(results, null, 2));
 });
 
 server.registerTool("export_lorebook", {
@@ -1095,21 +1178,26 @@ server.registerTool("export_lorebook", {
   if (format === "markdown") {
     let md = `# Lorebook — ${novel.name}\n\n`;
     for (const [key, entry] of novel.lore) {
-      md += `## ${key}\n${entry.content}\n\n`;
+      const meta = JSON.stringify({
+        hat_scope: entry.hat_scope, priority: entry.priority, sticky: entry.sticky,
+        enabled: entry.enabled, group: entry.group, triggers: entry.triggers,
+      });
+      md += `## ${key}\n<!-- holonovel-meta: ${meta} -->\n${entry.content}\n\n`;
     }
     return ok(md);
   }
 
   const entries = Array.from(novel.lore.values()).map(e => ({
     key: e.key, content: e.content, triggers: e.triggers,
-    hat_scope: e.hat_scope, priority: e.priority, sticky: e.sticky, group: e.group,
+    hat_scope: e.hat_scope, priority: e.priority, sticky: e.sticky,
+    sticky_remaining: e.sticky_remaining, group: e.group, enabled: e.enabled,
   }));
   return ok(JSON.stringify(entries, null, 2));
 });
 
 server.registerTool("import_lorebook", {
   title: "Import Lorebook",
-  description: "Import lore entries from JSON. Modes: dry-run, merge, or replace. Game Master only.",
+  description: "Import lore entries from JSON or Markdown. Modes: dry-run, merge, or replace. Game Master only.",
   inputSchema: {
     data: z.string(),
     mode: z.enum(["dry-run", "merge", "replace"]).optional(),
@@ -1119,7 +1207,26 @@ server.registerTool("import_lorebook", {
   const novel = state.activeNovel;
   if (!novel) return err("STATE_CONFLICT", "No active novel.");
 
-  const entries = JSON.parse(data);
+  let entries: any[];
+  if (data.trim().startsWith("# ")) {
+    entries = [];
+    const sections = data.split(/^## /m).slice(1);
+    for (const section of sections) {
+      const keyEnd = section.indexOf("\n");
+      const key = section.substring(0, keyEnd).trim();
+      const rest = section.substring(keyEnd + 1);
+      const metaMatch = rest.match(/^<!-- holonovel-meta: (.+?) -->/);
+      let content = rest;
+      let meta: any = {};
+      if (metaMatch) {
+        try { meta = JSON.parse(metaMatch[1]); } catch {}
+        content = rest.substring(metaMatch[0].length).trim();
+      }
+      entries.push({ key, content, ...meta });
+    }
+  } else {
+    entries = JSON.parse(data);
+  }
   const mode_ = mode ?? "dry-run";
 
   if (mode_ === "dry-run") {
@@ -1139,7 +1246,8 @@ server.registerTool("import_lorebook", {
       hat_scope: entry.hat_scope ?? "game_master",
       priority: entry.priority ?? 0,
       sticky: entry.sticky ?? 0,
-      enabled: true,
+      sticky_remaining: entry.sticky_remaining ?? entry.sticky ?? 0,
+      enabled: entry.enabled ?? true,
       group: entry.group,
     });
   }
@@ -1244,6 +1352,7 @@ server.registerTool("generate_encounter", {
     hat_scope: "game_master",
     priority: 0,
     sticky: 0,
+    sticky_remaining: 0,
     enabled: true,
   });
 
@@ -1400,6 +1509,46 @@ server.registerResource("spec://build", "spec://build", { title: "Specification 
   contents: [{ uri: "spec://build", text: specContent, mimeType: "text/markdown" }],
 }));
 
+server.registerResource("lore://groups", "lore://groups", { title: "Lore Groups" }, async () => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: "lore://groups", text: "{}", mimeType: "application/json" }] };
+  const groups: Record<string, string[]> = {};
+  for (const [key, entry] of novel.lore) {
+    const g = entry.group ?? "_ungrouped";
+    (groups[g] ??= []).push(key);
+  }
+  return { contents: [{ uri: "lore://groups", text: JSON.stringify(groups, null, 2), mimeType: "application/json" }] };
+});
+
+server.registerResource("lore://templates", "lore://templates", { title: "Lore Templates" }, async () => {
+  const manifest = state.enrichmentManifest ?? DEFAULT_ENRICHMENT;
+  const templates = (manifest.lore_templates ?? []) as any[];
+  const hat = getHat();
+  const visible = hat === "game_master" ? templates : templates.filter((t: any) => t.hat_scope !== "game_master");
+  return { contents: [{ uri: "lore://templates", text: JSON.stringify(visible, null, 2), mimeType: "application/json" }] };
+});
+
+server.registerResource("lore-single", new ResourceTemplate("lore://{key}", {
+  list: async () => {
+    const novel = state.activeNovel;
+    if (!novel) return { resources: [] };
+    return { resources: Array.from(novel.lore.keys()).map(k => ({
+      uri: `lore://${k}`, name: k,
+    })) };
+  },
+}), { title: "Lore Entry" }, async (uri) => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: uri.href, text: "{}", mimeType: "application/json" }] };
+  const key = uri.searchParams.get("key") ?? "";
+  const entry = novel.lore.get(key);
+  if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  const hat = getHat();
+  if (entry.hat_scope === "game_master" && hat !== "game_master") {
+    return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "forbidden" }), mimeType: "application/json" }] };
+  }
+  return { contents: [{ uri: uri.href, text: JSON.stringify({ key: entry.key, content: entry.content, triggers: entry.triggers, hat_scope: entry.hat_scope, priority: entry.priority, sticky: entry.sticky, sticky_remaining: entry.sticky_remaining, enabled: entry.enabled, group: entry.group }, null, 2), mimeType: "application/json" }] };
+});
+
 // ── Prompts ────────────────────────────────────────────────────────
 
 server.registerPrompt("intro", { description: "Connection introduction and getting started" }, async () => ({
@@ -1438,8 +1587,84 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 
   const entities = Array.from(novel.entities.values()).map(e => `- **${e.name}** — HP: ${e.hp}/${e.max_hp} AC: ${e.ac}${e.conditions?.length ? ` (${e.conditions.join(", ")})` : ""}`);
   const npcs = Array.from(novel.npcs.values()).map(n => `- **${n.name}** — ${n.disposition ?? "neutral"}${n.location ? ` @ ${n.location}` : ""}`);
-  const lore = Array.from(novel.lore.values()).filter(l => l.enabled && (l.hat_scope === "shared" || hat === "game_master"));
-  const triggered = lore.filter(l => l.triggers.some(t => novel.scene_description.toLowerCase().includes(t.toLowerCase())));
+
+  const sceneText = (novel.scene_description ?? "").toLowerCase();
+  const hatScope = (hat === "game_master") ? ["game_master", "shared"] : ["shared"];
+  const allLore = Array.from(novel.lore.values()).filter(l => l.enabled && hatScope.includes(l.hat_scope));
+  const maxTokens = state.maxLoreTokens;
+
+  if (allLore.length > 0) {
+    novel.briefing_assembly_count++;
+  }
+
+  const triggered: LoreEntry[] = [];
+  const sticking: LoreEntry[] = [];
+
+  for (const l of allLore) {
+    const matched = sceneText && l.triggers.some(t => sceneText.includes(t.toLowerCase()));
+    if (matched) {
+      l.sticky_remaining = l.sticky;
+      triggered.push(l);
+    } else if (l.sticky_remaining > 0) {
+      l.sticky_remaining--;
+      sticking.push(l);
+    }
+  }
+
+  const activeLore = [...triggered, ...sticking];
+  activeLore.sort((a, b) => b.priority - a.priority || a.key.localeCompare(b.key));
+
+  const groups: Map<string, LoreEntry[]> = new Map();
+  const ungrouped: LoreEntry[] = [];
+  for (const l of activeLore) {
+    if (l.group) {
+      const g = groups.get(l.group);
+      if (g) g.push(l); else groups.set(l.group, [l]);
+    } else {
+      ungrouped.push(l);
+    }
+  }
+
+  let loreText = "";
+  let totalChars = 0;
+  let included = 0;
+  let omitted = 0;
+
+  const renderEntry = (l: LoreEntry): string => {
+    const stickyMark = l.sticky_remaining > 0 && !triggered.includes(l) ? ` [sticky:${l.sticky_remaining}]` : "";
+    return `- **${l.key}:** ${l.content}${stickyMark}`;
+  };
+
+  const addSection = (header: string, entries: LoreEntry[]) => {
+    if (entries.length === 0) return;
+    if (maxTokens && totalChars >= maxTokens) { omitted += entries.length; return; }
+    let section = `### Lore: ${header}\n`;
+    let entryIncluded = 0;
+    for (const l of entries) {
+      const line = renderEntry(l) + "\n";
+      if (maxTokens && totalChars + section.length + line.length > maxTokens) {
+        omitted += (entries.length - entryIncluded);
+        break;
+      }
+      section += line;
+      entryIncluded++;
+      included++;
+    }
+    totalChars += section.length;
+    loreText += section;
+  };
+
+  for (const [group, entries] of groups) {
+    addSection(group, entries);
+  }
+  addSection("Triggered", ungrouped);
+
+  if (omitted > 0) {
+    loreText += `\n*[${omitted} lore entries omitted — token budget exceeded]*\n`;
+  }
+
+  if (!loreText) loreText = "None";
+
   const countdowns = Array.from(novel.countdowns.values()).filter(c => c.ticks > 0);
 
   let briefing = `## Hat Briefing — ${hat === "player" ? "Player" : hat === "game_master" ? "Game Master" : "No Hat"}
@@ -1458,7 +1683,7 @@ ${npcs.join("\n") || "None"}
 ${countdowns.length ? countdowns.map(c => `- **${c.name}:** ${c.ticks}/${c.total} ticks`).join("\n") : "None"}
 
 ### Lore (Triggered)
-${triggered.length ? triggered.map(l => `- **${l.key}:** ${l.content}`).join("\n") : "None"}
+${loreText}
 
 ${!novel.session_zero_completed ? "**Session zero not yet completed — run session_zero prompt.**\n" : ""}
 
