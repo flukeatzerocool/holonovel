@@ -315,7 +315,9 @@ ended game, undo while a workflow is pending). Corrective actions are a separate
 
 **REQ-003 — Roll transparency.** _(F1)_ Every dice-roll tool returns the full calculation
 path: dice notation, individual die results, modifiers, total, and outcome. Every modifier's
-source and contribution is reported. _Check:_ Gate 2.
+source and contribution is reported. When the ruleset defines named result bands
+(e.g., critical success, partial success, failure), the roll outcome reports which
+band applies to the total. _Check:_ Gate 2, T47.
 
 **REQ-004 — Truncation.** Tool output longer than a configurable limit (default 32,000 bytes)
 is truncated with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
@@ -770,8 +772,12 @@ is a match. _Check:_ T52.
 **REQ-050 — Determinism.** All random draws come from a single deterministic PRNG, seedable
 via `TTRPG_SEED`. Dice-roll tools accept an optional per-call seed. Same seed + same call
 sequence = same results across sessions and games. Seed conflict (a tool-call seed when a
-session seed is active) is a `[WARNING]` and the per-call seed wins for that draw. The
-session seed persists across draws unless explicitly reseeded. _Check:_ Gate 2, T27.
+session seed is active) is a `[WARNING]` and the per-call seed wins for that draw.
+During a per-call seed override, the override uses an isolated draw that does not
+advance the session PRNG position — after the override completes, the next
+session-seeded draw produces the same result it would have produced had the
+override never occurred. The session seed persists across draws unless explicitly
+reseeded. _Check:_ Gate 2, T27, T111.
 
 **REQ-051 — No runtime network access.** The server makes no outbound network requests
 after startup. All ruleset content, prompts, and tool implementations run entirely
@@ -2535,14 +2541,14 @@ table before running Gate 2. Draw consumption and seeding are as defined in REQ-
 
 The witness values were generated using a 32-bit linear congruential generator:
 `state ← (state × 1664525 + 1013904223) mod 2³²` with initial state
-`parseInt(seed, 10)` and d6 draw `⌊next() × 6⌋ + 1`. The builder may use any
-deterministic PRNG that reproduces these witness sequences exactly; the table
-below is the contract.
+`parseInt(seed, 10)`, d6 draw `⌊next() × 6⌋ + 1`, and d20 draw `⌊next() × 20⌋ + 1`.
+The builder may use any deterministic PRNG that reproduces these witness sequences
+exactly; the table below is the contract.
 
-| Seed | First 10 d6 faces            |
-| ---- | ---------------------------- |
-| 42   | 2, 1, 4, 2, 3, 1, 3, 1, 6, 6 |
-| 7    | 2, 6, 4, 6, 1, 6, 3, 1, 1, 6 |
+| Seed | First 10 d6 faces            | First 10 d20 faces                          |
+| ---- | ---------------------------- | ------------------------------------------- |
+| 42   | 2, 1, 4, 2, 3, 1, 3, 1, 6, 6 | 6, 2, 12, 5, 8, 1, 9, 3, 18, 20            |
+| 7    | 2, 6, 4, 6, 1, 6, 3, 1, 1, 6 | 5, 19, 13, 19, 1, 18, 8, 2, 2, 20           |
 
 ### B.5 Cross-file fixture (`tin_lanterns_gear.md`)
 
@@ -2665,7 +2671,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | ------- | ------------------------- | ------------------------------ | ------------ |
 | REQ-001 | Response contract         | Gate 2; Appendix D             | 2026-08-02   |
 | REQ-002 | Error taxonomy            | T18                            | 2026-08-02   |
-| REQ-003 | Roll transparency         | Gate 2                         | 2026-08-02   |
+| REQ-003 | Roll transparency         | Gate 2, T47                    | 2026-08-02   |
 | REQ-004 | Truncation                | T13                            | 2026-08-02   |
 | REQ-004a| Statblock baseline view   | T13                            | 2026-08-02   |
 | REQ-060 | Verbose output            | T47                            | 2026-08-02   |
@@ -2703,7 +2709,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-043 | Conflict lifecycle        | T25, T33, T110; Gate 2         | 2026-08-02   |
 | REQ-044 | Ruleset versioning        | T17                            | 2026-08-02   |
 | REQ-065 | Build fingerprint         | T52                            | 2026-08-04   |
-| REQ-050 | Determinism               | Gate 2, T27                    | 2026-08-02   |
+| REQ-050 | Determinism               | Gate 2, T27, T111               | 2026-08-02   |
 | REQ-051 | No runtime network access | Appendix D; Gate 4 environment | 2026-08-02   |
 | REQ-052 | Path containment          | T20                            | 2026-08-02   |
 | REQ-053 | Performance               | T23                            | 2026-08-02   |
@@ -2784,7 +2790,7 @@ diet.
 | T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
 | T25   | Automated | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, the conflict tools are waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
 | T26   | Manual   | Guidance items cited, confidence-labeled, attributed; GM-scoped items hidden from player; inferred-attribution items visible to all; `persona_briefing` differs per persona; persona foundations present in `persona_briefing`; Player briefing excludes GM-tagged foundations; Player read of `guidance://<gm-role>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
-| T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; witness values from Appendix B.4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-050, REQ-055                            |
+| T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; seed stream position preserved during per-call override; witness values from Appendix B.4 (d6 and d20)                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-050, REQ-055                            |
 | T28   | Manual   | Role stories: MUST-covering set maps intent prompts to expected tools/resources; GM-targeting stories fail FORBIDDEN; each persona's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
 | T29   | Automated | DECISIONS.md traceability table parses; every REQ in Appendix E appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                               | §9                                   |
 | T31   | Automated | Novel isolation: entities invisible across Novels; roster baselines immutable; `import_character` creates fresh copy; `end_novel` discards Novel; roster survives; resuming ended Novel fails                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-055                                     |
@@ -2802,7 +2808,7 @@ diet.
 | T44   | Automated | Player persona boundary: with `player` active, request GM-only content — returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_persona`; switch to `game_master` — same request succeeds; no hidden row revealed                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-032, REQ-058                            |
 | T45   | Automated | spec_health threshold: assert overall confidence is at least 80% and MUST-action coverage is 100% after waivers; if the score is below threshold, assert the build stops and `DECISIONS.md` records a remediation plan                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-025, REQ-011                            |
 | T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Waiver: may only be waived when the structural pass confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` with the single-source-file evidence from the structural pass. | REQ-013         |
-| T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-060                                     |
+| T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; roll results report the result band when the ruleset defines one; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                            | REQ-060, REQ-003                            |
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `persona_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any persona (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `persona_briefing` for each persona (switch via `set_persona`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of persona)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
@@ -2865,6 +2871,7 @@ diet.
 | T108  | Automated | Persona precedence: activate GM persona in Novel A, set `TTRPG_PERSONA=player`, resume Novel A — assert GM persona active (Novel persisted state wins). Create Novel B without activating persona, resume B with `TTRPG_PERSONA=player` — assert player persona active (env var applied to Novel with no persisted persona). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted persona independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
 | T109  | Automated | Persona briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, adventure content, and active combat state (init_combat). Invoke `persona_briefing` as GM — assert all groups from REQ-109 present including combat state (round, turn order, current participant). Invoke as Player — assert GM-only groups excluded and all player-visible groups present. End combat — assert combat group omitted. Remove entities — assert entity group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
 | T110  | Automated | Combat state lifecycle: create a Novel with 2 entities (equal initiative), 1 NPC, 1 danger. Call `init_combat` — assert turn order follows entity > NPC > danger then alphabetical by name. Assert `persona_briefing` (GM) includes combat state group (round, turn order, current participant). Advance combat through one full round — assert briefing reflects updated round and current participant. End combat — assert briefing omits combat group, `spec_health` reports total combat rounds incremented by rounds played. Switch to Player persona — assert combat state group visible (entity turn positions only). | REQ-043, REQ-093, REQ-109, REQ-032         |
+| T111  | Automated | RNG seed isolation: per-call seed override does not advance session PRNG position — after override, the next session-seeded draw matches the sequence the session would have produced without the override. Assert d20 witness values from Appendix B.4 column 2 reproduce exactly under the LCG formula.                                                                                                                                                                                                                                                                                                                                       | REQ-050                                     |
 
 ---
 
@@ -3516,8 +3523,10 @@ _Builders may exceed these contracts; the convergence loop enforces the minimum.
 ### O.1 Dice and Resolution
 
 Every roll result includes: dice notation, individual die faces, every modifier
-with its source and signed contribution, the total, and a prose outcome.
-Example shape (wording is not asserted):
+with its source and signed contribution, the total, a prose outcome describing
+the mechanical consequence, and the result band when the ruleset defines one.
+The prose outcome states the in-fiction result of the roll (e.g., "The attack
+lands", "The lock clicks open") — not a bare success/failure label.
 
 ```
 [OK] Total: 14 — success
@@ -3525,6 +3534,16 @@ Dice: 1d20 = [12]
 Modifiers: Strength +2
 Outcome: The attack lands.
 ```
+
+### O.1a Multi-Die Resolution
+
+For resolution mechanics that roll more than one die in combination (dice pools
+where successes are counted, keep-N-highest, exploding dice, percentile, Fudge
+dice, or other multi-die procedures), every roll result reports: (a) the dice
+notation as defined by the ruleset, (b) each individual die face rolled, (c) the
+evaluation rule applied — the procedure that produces the outcome from the
+individual results, (d) the final total or success count, and (e) the outcome
+band. The same modifier-transparency and prose-outcome contracts from O.1 apply.
 
 ### O.2 Canonical Lookups
 
