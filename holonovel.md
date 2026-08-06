@@ -913,7 +913,7 @@ on disk and reactivate if the GM explicitly activates them. Re-running Enrich re
 timestamps for all items. Every enrich finding carries source_url, quoted_excerpt,
 hat_scope, confidence (derived from source authority, not mechanical completeness),
 output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
-_Check:_ T63, T95, T97.
+_Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set a standing narrative
 instruction via `set_narrative_directive(instruction)`. The directive is a free-text
@@ -990,10 +990,10 @@ tool — Game Master only. Removes all enrichment state (six output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
 content. Does not modify DECISIONS.md — the enrichment manifest and verification
-results remain for audit. Re-running Build (without enrich) achieves the same result
-for the next build cycle. Player hat returns `[ERROR] [FORBIDDEN]`. Pure-state
+results remain for audit. Build-rebuild enrichment behavior is defined in §11.1
+(Rebuild scenarios). Player hat returns `[ERROR] [FORBIDDEN]`. Pure-state
 tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
-enrichment state. _Check:_ T94.
+enrichment state. _Check:_ T94, T125.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
@@ -2385,6 +2385,12 @@ results in DECISIONS.md:
 8. Content relevance: every enrichment item references the ruleset by name or by a term
    drawn from the ruleset's index. Generic RPG advice without a ruleset-specific anchor
    is flagged in DECISIONS.md with the "generic" disposition and does not block handoff.
+9. Surface connection: every enrichment item that references a build surface
+   (action pattern tool names, lore template keywords, adventure advice ruleset
+   terms) is cross-referenced against the live tool registry, ruleset index, and
+   resource map. Orphan references — items pointing to tools, sections, or
+   keywords absent from the current build — are recorded in DECISIONS.md with
+   the "orphan" disposition and their source URLs.
 
 These are verification steps, not new verification workflows. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
@@ -2394,9 +2400,18 @@ responsible for ensuring all sourced content is used in compliance with the sour
 of service and copyright license. Enrich records `source_url` for attribution; it does not
 redistribute source content beyond the Novel's local state.
 
-**Reversion.** Re-running Build (without enrich) or calling `revert_enrichment`
-(REQ-103) restores the pre-enrich server state. Enrichment manifest and verification
-results remain in DECISIONS.md for audit.
+**Rebuild scenarios.** Enrichment is stored in the Novel alongside all other
+Novel properties and follows the Novel's persistence contract (REQ-092) — it
+survives server restarts and same-ruleset rebuilds unchanged. The enrichment
+fingerprint (above) controls re-enrich: unchanged fingerprint → no-op, changed
+fingerprint → replacement. A nuclear rebuild — a build from scratch where the
+state directory is absent — produces no enrichment unless the Enrich workflow
+is selected at intake. The builder surfaces enrichment status after build in
+`spec_health`.
+
+**Reversion.** Calling `revert_enrichment` (REQ-103) removes all enrichment
+state at runtime without requiring a rebuild. Enrichment manifest and
+verification results remain in DECISIONS.md for audit.
 
 ---
 
@@ -2895,7 +2910,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-069 | Player feedback signal    | T8, T26                        | 2026-08-06   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
-| REQ-080 | Enrichment boundaries     | T63, T97, T102                 | 2026-08-05   |
+| REQ-080 | Enrichment boundaries     | T63, T97, T102, T125           | 2026-08-06   |
 | REQ-081 | Narrative directive       | T64                            | 2026-08-04   |
 | REQ-082 | Prompt section ordering   | T66                            | 2026-08-04   |
 | REQ-083 | Dynamic lore              | T67, T79, T81, T82, T83       | 2026-08-05   |
@@ -2913,7 +2928,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-095 | Novel switching           | T98                            | 2026-08-05   |
 | REQ-096 | Novel interchange         | T100                           | 2026-08-05   |
 | REQ-097 | Novel health              | T101                           | 2026-08-06   |
-| REQ-103 | Enrichment reversion      | T94                            | 2026-08-05   |
+| REQ-103 | Enrichment reversion      | T94, T125                      | 2026-08-06   |
 | REQ-104 | Character creation workflow | T32, T47, T103               | 2026-08-06   |
 | REQ-105 | Spec resource            | T104                           | 2026-08-06   |
 | REQ-106 | Spec repository URL      | T105                           | 2026-08-06   |
@@ -3062,6 +3077,7 @@ diet.
 | T122  | Automated | Retention: create Novel with state, end Novel confirming "yes." Assert primary `.json` and `.json.bak` moved to `.holonovel-state/novels/.trash/`. Assert `listNovels` excludes the slug. Assert `resume_novel(slug)` returns `[STATE_CONFLICT]`. Set `TTRPG_NOVEL_RETENTION_DAYS=0`, restart — assert trash files retained. Set `TTRPG_NOVEL_RETENTION_DAYS=1`, restart — assert files older than 1 day removed, recent files retained.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-117, REQ-088                            |
 | T123  | Automated | Prompt length budget: populate a Novel with the maximum expected NPCs, lore entries, countdowns, and entities (per REQ-097 default thresholds). Invoke `hat_briefing` — assert output length does not exceed the configured budget; assert truncated sections carry `[truncated]` markers with resource URI pointers; assert section headers and required contract elements (intro pointer, `player_signal` directives) are preserved untruncated. Invoke `session_zero` — assert output within budget. Invoke `novel_setup` with a full roster and indexed adventures — assert output within budget. Modify the budget config to a lower value, restart — assert truncation activates at the new threshold.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-118                                     |
 | T124  | Automated | Session zero recording directives: invoke the `session_zero` prompt on a running server. Assert the output includes the string `player_signal` for each of the four preference categories (tone, difficulty, pace, boundary) with the correct argument shapes. Assert the character introduction section includes the string `set_personality` with entity_id and field arguments. Assert the `intro` prompt output includes the string `session_zero` as a recommended next action.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-078, REQ-063                            |
+| T125  | Automated | Enrichment rebuild survival: create Novel, populate enrichment across all six modules. Restart server — assert enrichment restored unchanged. Rebuild with same ruleset — assert enrichment preserved, all items still tagged `[supplementary]`. Change ruleset hash, rebuild, resume — assert `spec_health` reports fingerprint mismatch with enrichment retained from prior build. Run Build + Enrich against new hash — assert new enrichment manifest generated, old enrichment replaced. Delete state directory, rebuild without enrich — assert no enrichment present. Build + Enrich with matching fingerprint — assert no-op with enriched state unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-080, REQ-103, REQ-092, REQ-065 |
 
 ---
 
