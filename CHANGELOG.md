@@ -39,6 +39,28 @@
      what it's called.
 -->
 
+## 2026-08-06 — Countdown subsystem: visibility, direction, and lifecycle
+
+- Countdowns now support two hat scopes — `game_master` for private
+  threats (reinforcements, faction schemes, hidden poison timers) and
+  `shared` for player-visible tension (ritual completion, torch burnout,
+  environmental collapse). Shared countdowns appear in both hats' briefings.
+  (REQ-073)
+- Countdowns now support two directions — `decrement` (counts down to zero,
+  the existing behavior) and `increment` (counts up to total, for progress
+  clocks and accumulating threats). Both fire an audit log entry on reaching
+  their endpoint. (REQ-073)
+- Expired countdowns are now explicitly removed from the active set and
+  their name slot freed for reuse. A new countdown with the same name
+  creates a fresh timer, not a reactivation of the expired one. (REQ-073)
+- The `on_scene_transition` flag is now available on both round and
+  narrative countdowns, not just narrative — a round countdown on a
+  collapsing cavern can now tick on scene changes as the party moves.
+  (REQ-125)
+- New macro tokens `{{countdown.<name>.scope}}` and
+  `{{countdown.<name>.direction}}` let narrative prompts introspect
+  countdown properties. (REQ-085)
+
 ## 2026-08-06 — Lore subsystem core contract enforcement
 
 - Lore entries now sort by priority in the GM briefing, so the most
