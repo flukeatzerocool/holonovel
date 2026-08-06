@@ -18,6 +18,7 @@
   - B5: Config = `~/.config/opencode/opencode.json`
   - B6: Server name = `dnd5e-holonovel`
   - B7: Connect after build = yes
+  - B8: Spec repo = https://github.com/anomalyco/Holonovel
   - E1: Server path = `dnd5e/`
   - E2: Source types = all (community forums, actual plays, strategy guides, genre advice, designer notes)
   - E3: Minimum confidence = MEDIUM
@@ -51,9 +52,9 @@
 | REQ-015 | Action classification | RULESET_MODEL.md — Resolution/Command/Generation |
 | REQ-016 | Guidance extraction | `src/enrichment.ts` — supplementary guidance, voice examples |
 | REQ-018 | Extraction evidence | RULESET_MODEL.md — confidence labels per section |
-| REQ-020 | Tools | `src/index.ts` — 54 registered tools |
+| REQ-020 | Tools | `src/index.ts` — 58 registered tools |
 | REQ-021 | Tool-surface economy | `src/index.ts` — no fixture-only tools |
-| REQ-022 | Resources | `src/index.ts` — 31 resources |
+| REQ-022 | Resources | `src/index.ts` — 33 resources |
 | REQ-023 | Prompts | `src/index.ts` — 7 prompts (intro, persona_briefing, use_tool, lookup_rule, run_workflow, session_zero, novel_setup) |
 | REQ-024 | Tool documentation | `src/index.ts` — every tool has title and description |
 | REQ-025 | spec_health | `src/index.ts` — reports indexed counts, tool count, novel listing, gate dispositions |
@@ -108,6 +109,16 @@
 | REQ-099 | Confidence-floor acknowledgment | Overall 85%, >80% Standard tier threshold |
 | REQ-100 | Performance benchmark | Standard tier (>500 indexed items), D&D at ~2000 items but mostly HIGH confidence structured data |
 | REQ-101 | Assumption audit trail | This DECISIONS.md entry |
+| REQ-104 | Character creation workflow | `src/index.ts` — create_character (step-by-step + quick mode) |
+| REQ-105 | Spec resource | `src/index.ts` — spec://build resource (GM-filtered) |
+| REQ-106 | Spec repository URL | `src/state.ts` — specRepoUrl in buildFingerprint; `src/index.ts` — spec_health + intro |
+| REQ-107 | Version coordination | `src/state.ts` — specVersion in buildFingerprint; `src/index.ts` — spec_health |
+| REQ-095 | Novel switching | `src/index.ts` — switch_novel tool |
+| REQ-096 | Novel interchange | `src/index.ts` — export_novel, import_novel (dry-run/replace/merge) |
+| REQ-097 | Novel health | `src/index.ts` — spec_health per-Novel metrics, healthy flag |
+| REQ-103 | Enrichment reversion | `src/index.ts` — revert_enrichment; `src/state.ts` — revertEnrichment() |
+| REQ-069 | Player signal | `src/index.ts` — player_signal tool (Player-only) |
+| REQ-004a | Stat block baseline view | `src/index.ts` — character_sheet renders full entity with all fields |
 
 <!-- @section normalizations -->
 ## 4. Assumptions, Normalizations, and Capabilities
@@ -118,7 +129,7 @@
 - **RNG:** LCG algorithm (1664525/1013904223), seedable per session or per call.
 - **Persona model:** null = full access; explicit player/game_master with server-side gating.
 - **Novel lifecycle:** One active Novel per server instance. Persists to `.holonovel-state/novels/<slug>.json`.
-- **Capabilities inventory:** 54 tools, 31 resources, 7 prompts, 5 lookup categories, 15 conditions, 12 classes, 9 races.
+- **Capabilities inventory:** 58 tools, 33 resources, 7 prompts, 5 lookup categories, 15 conditions, 12 classes, 9 races.
 
 <!-- @section waivers -->
 ## 5. Waivers and Accepted Limitations
@@ -163,6 +174,34 @@
 - **Changes applied:** specVersion → 2026.08.05, CalVer migration (date-based versioning per REQ-107), atomic persistence (REQ-092), compress_audit idempotency (REQ-086), novel listing in spec_health (REQ-093)
 - **Gauntlet:** Pending re-run on changed code paths
 - **Verification:** typecheck (0 errors), test suite (113 assertions, 0 failures), build-index (clean regeneration)
+
+### Spec-Driven Update Gap Disposition (REQ-098) — 2026-08-06
+- **Date:** 2026-08-06
+- **Spec version:** 2026.08.05 → 2026.08.06
+- **Delta class:** Major (new tools, resources, state model changes)
+- **Gaps addressed (16):**
+
+| Gap | REQ | Disposition | Implementation |
+|-----|-----|-------------|---------------|
+| spec://build resource | REQ-105 | Implemented | `src/index.ts` — GM-filtered resource, reads embedded holonovel.md |
+| spec_repo_url | REQ-106 | Implemented | `src/state.ts` — buildFingerprint.specRepoUrl; `spec_health` + `intro` |
+| spec_version in spec_health | REQ-107 | Implemented | Already in buildFingerprint; now surfaced in `spec_health` |
+| Character quick creation | REQ-104 | Implemented | `create_character` accepts all params for single-call creation |
+| end_novel confirmation | REQ-088 | Implemented | `[NEED_INPUT]` workflow with yes/cancel |
+| switch_novel | REQ-095 | Implemented | New tool, always callable, restores target persona |
+| Novel interchange | REQ-096 | Implemented | `export_novel`/`import_novel` with dry-run/replace/merge |
+| Novel health metrics | REQ-097 | Implemented | Per-Novel NPC/lore/audit/snapshot/size + healthy flag in spec_health |
+| Novel checksum | REQ-092 | Implemented | SHA-256 checksum in save file, verified on load, backup restore |
+| Extended metadata | REQ-093 | Implemented | Session count, play time, scene anchor, combat rounds in spec_health |
+| Enrichment staleness | REQ-080 | Implemented | `collected_at` field, stale detection against TTRPG_ENRICH_STALE_DAYS |
+| revert_enrichment | REQ-103 | Implemented | New GM-only tool, idempotent, pure-state |
+| Inert action patterns | REQ-084 | Implemented | Enrichment patterns inert by default; actionPatternsEnabled toggle |
+| spec://build resource URI | REQ-022 | Implemented | Registered in resource catalog |
+| enrichment://action_patterns URI | REQ-022 | Implemented | Registered in resource catalog |
+| spec_repo_url + spec_version in spec_health | REQ-025 | Implemented | Added to spec_health report output |
+
+- **Verification:** typecheck (0 errors), test suite pending
+- **Gauntlet:** Pending re-run on all changed code paths (Major delta)
 
 ### Enrichment Job (REQ-080, §11)
 - **Date:** 2026-08-05

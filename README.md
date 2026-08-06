@@ -148,11 +148,12 @@ books.
 
 Then it verifies. A convergence loop measures quality across six metrics
 and re-verifies — up to three cycles, with cross-model auditing when
-multiple models are available. Six verification gates. The 22-scenario
+multiple models are available. Six verification workflows. The 22-sub-workflow
 Gauntlet — combat, stress, and persona endurance under live AI-simulated
 play. A golden transcript — built against a "Tin Lanterns" dark-fantasy
 holo-novel and a "Captain Proton" pulp-sci-fi complex fixture —
-proves the server behaves correctly against known references. A blind second AI re-runs every gate from a cold checkout.
+proves the server behaves correctly against known references. A blind second AI
+re-runs every verification workflow from a cold checkout.
 The spec bets its reputation on reproducibility.
 
 Output: a self-contained MCP server with your ruleset baked inside. Move
@@ -164,10 +165,10 @@ it anywhere. It's yours.
 creatures it didn't know yesterday. Load an adventure module for your
 next campaign. Rebuild against a newer spec — the spec defines a formal
 update workflow: full comparison audit, gap plan, Gauntlet
-re-verification. Run the Update job against your existing server
+re-verification. Run the Update workflow against your existing server
 directory — it discovers the gap between current
 implementation and the updated spec, fills it, and re-runs every
-verification gate including the Gauntlet. Fixes and features land
+verification workflow including the Gauntlet. Fixes and features land
 without touching your Novels. That's spec-driven development: the spec
 is your long-term investment. The server is rebuilt whenever the spec
 changes. Everything you've created — characters, worlds, novels —
@@ -217,7 +218,7 @@ game, not just what the rulebook says.
    work — converting, building, verifying. It pauses between jobs so you
    can review. Default answers work.
 
-When the Build job finishes, the agent connects the server to your
+When the Build workflow finishes, the agent connects the server to your
 client and verifies the handshake. Open a fresh conversation. Say hello.
 Your AI Game Master answers.
 
@@ -240,7 +241,7 @@ language, vague qualifiers, indefinite terms in REQ bodies).
 | `npm run audit-assumptions` | Citations, magic numbers, absolute language, untiered thresholds |
 | `npm run scan-ambiguity` | Hedging language, vague qualifiers, indefinite terms in REQs |
 | `npm run fmea` | REQ-level failure mode and effects — severity, detection coverage |
-| `npm run validate --traceability` | Full REQ↔test↔gate traceability matrix + coverage gaps |
+| `npm run validate --traceability` | Full REQ↔test↔verification workflow traceability matrix + coverage gaps |
 | `npm run graph-deps` | REQ dependency graph (DOT/Graphviz output) |
 | `npm run spec-health-trends` | REQ count, test count, line count, cross-ref density |
 

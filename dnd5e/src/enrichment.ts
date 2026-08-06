@@ -3,7 +3,9 @@ import { NovelState, EnrichmentRecord } from "./state.js";
 export function applyEnrichment(novel: NovelState, buildHash: string): void {
   if (novel.enrichment.length > 0) return;
 
+  const now = new Date().toISOString();
   const items: EnrichmentRecord[] = [];
+  const R = (rec: EnrichmentRecord): EnrichmentRecord => ({ ...rec, collected_at: now });
 
   // ─── 1. Voice examples (5 per entity type) ─────────────────────────────
 
@@ -136,5 +138,5 @@ export function applyEnrichment(novel: NovelState, buildHash: string): void {
     });
   }
 
-  novel.enrichment = items;
+  novel.enrichment = items.map(R);
 }

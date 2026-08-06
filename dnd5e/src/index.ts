@@ -7,7 +7,7 @@ import { state, Persona } from "./state.js";
 import { PRNG, rollD20, rollDice, abilityModifier, proficiencyBonus } from "./dice.js";
 import {
   ABILITY_SCORES, AbilityScore, SKILLS, SKILL_MAP, CONDITIONS, DIFFICULTY_CLASSES, LEVELS,
-  RACES, RACE_MODIFIERS, CLASS_NAMES, CLASS_HIT_DIE, CLASS_SAVES, BACKGROUNDS, ALIGNMENTS,
+  RACES, RACE_MODIFIERS, CLASS_NAMES, CLASS_HIT_DIE, CLASS_SAVES, BACKGROUNDS, ALIGNMENTS, ABILITY_LABELS,
   buildSearchIndex, searchRules, TABLES,
   WEAPONS, ARMOR, SPELLS, MONSTERS, MAGIC_ITEMS,
   lookupWeapon, lookupArmor, lookupSpell, lookupMonster, lookupMagicItem, lookupEquipment,
@@ -96,7 +96,7 @@ const ALL_TOOLS = [
   "apply_condition", "remove_condition",
   "roll_on_table",
   "init_combat", "advance_combat", "end_combat",
-  "session_recap", "end_novel", "end_game", "create_novel", "resume_novel",
+  "session_recap", "end_novel", "end_game", "create_novel", "resume_novel", "switch_novel",
   "generate_adventure", "generate_encounter",
   "set_active_entity", "set_personality", "set_voice_examples", "player_signal",
   "set_scene_state", "set_scene_type", "set_narrative_directive",
@@ -105,6 +105,7 @@ const ALL_TOOLS = [
   "set_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore",
   "export_lorebook", "import_lorebook",
   "set_briefing_order", "suggest_actions", "compress_audit", "load_adventure",
+  "export_novel", "import_novel", "revert_enrichment",
 ];
 
 const server = new McpServer({
@@ -180,48 +181,62 @@ server.registerTool("respond", {
       queue.push({ question: "Choose a name for your character.", options: ["[Type a name]", "cancel"] });
       return needInput("Choose a name for your character.", ["[Type a name]", "cancel"]);
     }
-    if (decision === "name_choice" || current.options.some((o: string) => o.startsWith("[Type"))) {
-      const e = draft as Partial<import("./state.js").DnDEntity>;
-      if (!e.name && decision === "name_choice") (draft as any).name = option;
-      if (!e.race || !e.className || !e.stats) return err("STATE_CONFLICT", "Character draft incomplete.");
-      const className = e.className!;
-      const hitDie = CLASS_HIT_DIE[className] || 8;
-      const conMod = abilityModifier(e.stats!.constitution);
-      const maxHp = hitDie + conMod;
-      const saves = CLASS_SAVES[className] || ["strength", "constitution"];
-      const ra = e.race || "";
-      const raceName = (ra as string).toLowerCase();
-      let racModifiers: Partial<Record<AbilityScore, number>> = {};
-      for (const [rk, rm] of Object.entries(RACE_MODIFIERS)) {
-        if (raceName.includes(rk)) { racModifiers = rm; break; }
-        if (raceName === rk) { racModifiers = rm; break; }
-      }
-      const finalStats: Record<string, number> = {};
-      for (const s of ABILITY_SCORES) finalStats[s] = e.stats![s as keyof typeof e.stats] ?? 10;
-      for (const [s, v] of Object.entries(racModifiers)) { if (finalStats[s] !== undefined) finalStats[s] += v; }
-
-      const conM = abilityModifier(finalStats.constitution);
-      const finalHp = hitDie + conM;
-      const id = state.generateNextEntityId();
-      const entity: import("./state.js").DnDEntity = {
-        id, name: e.name || option, race: e.race!, className: className,
-        level: 1, stats: finalStats as Record<AbilityScore, number>,
-        maxHp: finalHp, currentHp: finalHp, tempHp: 0,
-        hitDice: { total: 1, remaining: 1, size: hitDie },
-        armorClass: 10 + abilityModifier(finalStats.dexterity),
-        speed: className === "dwarf" ? 25 : 30, initiative: abilityModifier(finalStats.dexterity),
-        skills: [], saveProficiencies: saves as AbilityScore[],
-        conditions: [], inventory: [], equippedWeapons: [], equippedArmor: "",
-        spellSlots: {}, personality: draft.personality || {},
-      };
-      const rosterResult = state.addToRoster(entity);
-      if (!rosterResult.addedToNovel) {
-        return partial(`Character created: ${entity.name} (roster://${id}) — but no active novel. The character is saved to the roster only. Use create_novel to start a game, then import_character("${id}") to add them.`);
-      }
-      state.workflow = null;
-      state.audit(personaStr(), "respond", { decision, option }, `Created ${entity.name}`);
-      return ok(`Character created: ${entity.name} (roster://${id})\nClass: ${className}, Race: ${entity.race}, Level: 1\nHP: ${entity.currentHp}/${entity.maxHp}, AC: ${entity.armorClass}\nStats: ${ABILITY_SCORES.map(s => `${ABILITY_SCORES[s as any]?.slice(0, 3)?.toUpperCase() ?? s.slice(0, 3).toUpperCase()}: ${finalStats[s]}`).join(", ")}`);
+  if (decision === "name_choice" || current.options.some((o: string) => o.startsWith("[Type"))) {
+    const e = draft as Partial<import("./state.js").DnDEntity>;
+    if (!e.name && decision === "name_choice") (draft as any).name = option;
+    if (!e.race || !e.className || !e.stats) return err("STATE_CONFLICT", "Character draft incomplete.");
+    const className = e.className!;
+    const hitDie = CLASS_HIT_DIE[className] || 8;
+    const conMod = abilityModifier(e.stats!.constitution);
+    const maxHp = hitDie + conMod;
+    const saves = CLASS_SAVES[className] || ["strength", "constitution"];
+    const ra = e.race || "";
+    const raceName = (ra as string).toLowerCase();
+    let racModifiers: Partial<Record<AbilityScore, number>> = {};
+    for (const [rk, rm] of Object.entries(RACE_MODIFIERS)) {
+      if (raceName.includes(rk)) { racModifiers = rm; break; }
+      if (raceName === rk) { racModifiers = rm; break; }
     }
+    const finalStats: Record<string, number> = {};
+    for (const s of ABILITY_SCORES) finalStats[s] = e.stats![s as keyof typeof e.stats] ?? 10;
+    for (const [s, v] of Object.entries(racModifiers)) { if (finalStats[s] !== undefined) finalStats[s] += v; }
+
+    const conM = abilityModifier(finalStats.constitution);
+    const finalHp = hitDie + conM;
+    const id = state.generateNextEntityId();
+    const entity: import("./state.js").DnDEntity = {
+      id, name: e.name || option, race: e.race!, className: className,
+      level: 1, stats: finalStats as Record<AbilityScore, number>,
+      maxHp: finalHp, currentHp: finalHp, tempHp: 0,
+      hitDice: { total: 1, remaining: 1, size: hitDie },
+      armorClass: 10 + abilityModifier(finalStats.dexterity),
+      speed: className === "dwarf" ? 25 : 30, initiative: abilityModifier(finalStats.dexterity),
+      skills: [], saveProficiencies: saves as AbilityScore[],
+      conditions: [], inventory: [], equippedWeapons: [], equippedArmor: "",
+      spellSlots: {}, personality: draft.personality || {},
+    };
+    const rosterResult = state.addToRoster(entity);
+    if (!rosterResult.addedToNovel) {
+      return partial(`Character created: ${entity.name} (roster://${id}) — but no active novel. The character is saved to the roster only. Use create_novel to start a game, then import_character("${id}") to add them.`);
+    }
+    state.workflow = null;
+    state.audit(personaStr(), "respond", { decision, option }, `Created ${entity.name}`);
+    return ok(`Character created: ${entity.name} (roster://${id})\nClass: ${className}, Race: ${entity.race}, Level: 1\nHP: ${entity.currentHp}/${entity.maxHp}, AC: ${entity.armorClass}\nStats: ${ABILITY_SCORES.map(s => `${ABILITY_LABELS[s as keyof typeof ABILITY_LABELS]}: ${finalStats[s]}`).join(", ")}`);
+  }
+
+  // end_novel confirmation
+  if (decision.startsWith("End Novel ")) {
+    state.workflow = null;
+    if (option === "yes") {
+      state.endNovel();
+      state.saveRoster();
+      state.audit(personaStr(), "respond", { decision, option }, "Novel ended");
+      return ok("Novel ended. Roster preserved. Use create_novel or resume_novel to continue.");
+    }
+    state.audit(personaStr(), "respond", { decision, option }, "End cancelled");
+    return ok("Novel end cancelled. Novel remains active.");
+  }
+
   }
   return ok("Proceeding...");
 });
@@ -242,11 +257,11 @@ server.registerTool("help", {
   inputSchema: { query: z.string().optional() },
 }, async ({ query }) => {
   const isPlayer = state.activePersona === "player";
-  const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore", "export_lorebook", "import_lorebook", "set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter", "end_novel", "end_game"];
+  const gmOnly = ["init_combat", "advance_combat", "end_combat", "set_personality", "set_voice_examples", "set_scene_state", "set_scene_type", "set_narrative_directive", "create_npc", "update_npc", "remove_npc", "set_countdown", "advance_countdown", "remove_countdown", "set_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore", "export_lorebook", "import_lorebook", "set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter", "end_novel", "end_game", "export_novel", "import_novel", "revert_enrichment"];
   const visible = ALL_TOOLS.filter(t => !isPlayer || !gmOnly.includes(t));
 
   const categories: Record<string, string[]> = {
-    "Novel & Persona": ["set_persona", "respond", "undo", "help", "spec_health", "end_novel", "end_game", "create_novel", "resume_novel", "set_active_entity"],
+    "Novel & Persona": ["set_persona", "respond", "undo", "help", "spec_health", "end_novel", "end_game", "create_novel", "resume_novel", "switch_novel", "set_active_entity"],
     "Characters": ["create_character", "import_character", "character_sheet", "set_personality", "set_voice_examples", "player_signal"],
     "Dice & Resolution": ["roll_save", "roll_skill_check", "roll_weapon_attack", "roll_weapon_damage", "roll_on_table"],
     "Combat": ["init_combat", "advance_combat", "end_combat", "apply_condition", "remove_condition"],
@@ -255,7 +270,8 @@ server.registerTool("help", {
     "NPCs": ["create_npc", "update_npc", "remove_npc"],
     "Countdowns": ["set_countdown", "advance_countdown", "remove_countdown"],
     "Lore": ["set_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore", "export_lorebook", "import_lorebook"],
-    "Guidance": ["set_briefing_order", "suggest_actions", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter"],
+    "Guidance": ["set_briefing_order", "suggest_actions", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter", "revert_enrichment"],
+    "Interchange": ["export_novel", "import_novel"],
     "Session": ["session_recap"],
   };
 
@@ -288,10 +304,12 @@ server.registerTool("spec_health", {
   const fp = state.buildFingerprint;
   const isPlayer = state.activePersona === "player";
   const novels = state.listNovels();
+  const activeNovel = state.getActiveNovel();
 
   let out = "[OK] Build health report\n\n";
   out += "## Build\n";
   out += `  Spec version: ${fp.specVersion}\n`;
+  if (fp.specRepoUrl) out += `  Spec repo: ${fp.specRepoUrl}\n`;
   out += `  Build timestamp: ${fp.buildTimestamp.slice(0, 10)}\n`;
   out += `  Ruleset hash: ${fp.rulesetHash}\n`;
   if (fp.lastSpecReview) out += `  Last spec review: ${fp.lastSpecReview}\n`;
@@ -311,7 +329,7 @@ server.registerTool("spec_health", {
   out += `  Monsters: ${MONSTERS.length}\n`;
   out += `  Magic Items: ${MAGIC_ITEMS.length}\n`;
   out += `  Registered tools: ${ALL_TOOLS.length}\n`;
-  out += `  Resources: 31\n\n`;
+  out += `  Resources: 33\n\n`;
   out += "## Confidence\n";
   out += `  Overall: 85%\n`;
   out += `  HIGH: 87%, MEDIUM: 10%, LOW: 3%\n`;
@@ -332,6 +350,64 @@ server.registerTool("spec_health", {
         out += `  - ${n.name} (${n.slug})${n.active ? " [ACTIVE]" : ""} — ${n.lastModified.slice(0, 10)}\n`;
       }
     }
+    out += "\n";
+  }
+
+  // Per-Novel health (REQ-097)
+  if (activeNovel) {
+    out += "## Active Novel Health\n";
+    const npcCount = Object.keys(activeNovel.npcs).length;
+    const loreCount = Object.keys(activeNovel.loreEntries).filter(k => activeNovel.loreEntries[k].enabled !== false).length;
+    const auditCount = activeNovel.auditLog.length;
+    const snapDepth = Object.values(state.getPersonaSnapshots() || {}).length;
+    const fileSize = state.getNovelFileSize(activeNovel.slug);
+    const maxNpcs = parseInt(process.env["TTRPG_MAX_NPCS"] || "0") || 0;
+    const maxLore = parseInt(process.env["TTRPG_MAX_LORE_ENTRIES"] || "0") || 0;
+    const maxSnap = parseInt(process.env["TTRPG_MAX_SNAPSHOT_DEPTH"] || "0") || 0;
+    const npcWarn = maxNpcs > 0 && npcCount > maxNpcs;
+    const loreWarn = maxLore > 0 && loreCount > maxLore;
+    const snapWarn = maxSnap > 0 && snapDepth > maxSnap;
+    const sizeWarn = fileSize > 4 * 1024 * 1024;
+    const healthy = !(npcWarn || loreWarn || snapWarn || sizeWarn);
+    out += `  NPCs: ${npcCount}${npcWarn ? " [WARNING]" : ""}\n`;
+    out += `  Lore entries: ${loreCount}${loreWarn ? " [WARNING]" : ""}\n`;
+    out += `  Audit log: ${auditCount} entries\n`;
+    out += `  Snapshot depth: ${snapDepth}${snapWarn ? " [WARNING]" : ""}\n`;
+    out += `  File size: ${(fileSize / 1024).toFixed(1)} KB${sizeWarn ? " [WARNING: exceeds 4MB]" : ""}\n`;
+    out += `  Healthy: ${healthy ? "yes" : "no"}\n\n`;
+
+    // Extended metadata (REQ-093)
+    const log = activeNovel.auditLog;
+    if (log.length > 0) {
+      const earliest = log[0].timestamp;
+      const latest = log[log.length - 1].timestamp;
+      const playTimeMs = new Date(latest).getTime() - new Date(earliest).getTime();
+      const playHours = (playTimeMs / 3600000).toFixed(1);
+      out += "## Novel Metadata\n";
+      out += `  Created: ${activeNovel.createdAt.slice(0, 10)}\n`;
+      out += `  Last modified: ${activeNovel.lastModified.slice(0, 19)}\n`;
+      out += `  Entity count: ${Object.keys(activeNovel.entities).length}\n`;
+      out += `  Adventure: ${activeNovel.activeAdventureId || "none"}\n`;
+      out += `  Setup: characters ${activeNovel.charactersPresent ? "present" : "missing"}, adventure ${activeNovel.adventureSet ? "set" : "not set"}, session zero ${activeNovel.sessionZeroCompleted ? "completed" : "pending"}\n`;
+      out += `  Sessions: ${activeNovel.sessionCount}\n`;
+      out += `  Cumulative play time: ${playHours}h\n`;
+      out += `  Last active scene: ${activeNovel.lastActiveSceneAnchor || "none"}\n`;
+      out += `  Total combat rounds: ${activeNovel.totalCombatRounds}\n`;
+      if (activeNovel.combat?.active) out += `  Current combat round: ${activeNovel.combat.round}\n`;
+      out += "\n";
+    }
+
+    // Stale enrichment detection (REQ-080)
+    const staleDays = parseInt(process.env["TTRPG_ENRICH_STALE_DAYS"] || "180") || 180;
+    const now = Date.now();
+    let staleCount = 0;
+    for (const e of activeNovel.enrichment) {
+      if (e.collected_at) {
+        const ageMs = now - new Date(e.collected_at).getTime();
+        if (ageMs / 86400000 > staleDays) staleCount++;
+      }
+    }
+    if (staleCount > 0) out += `[WARNING] Stale enrichment items: ${staleCount}/${activeNovel.enrichment.length} exceed ${staleDays} days\n`;
   }
 
   if (state.corruptStates.length > 0) {
@@ -394,9 +470,65 @@ server.registerTool("lookup_class", {
 // create_character
 server.registerTool("create_character", {
   title: "Create Character",
-  description: "Start character creation workflow for D&D 5e (stats → race → class → background → name).",
-  inputSchema: {},
-}, async () => {
+  description: "Start character creation workflow for D&D 5e (stats → race → class → background → name). Call with all parameters for quick creation.",
+  inputSchema: {
+    name: z.string().optional(),
+    race: z.string().optional(),
+    class_name: z.string().optional(),
+    background: z.string().optional(),
+    stat_method: z.enum(["roll_4d6", "standard_array"]).optional(),
+  },
+}, async (args) => {
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+
+  // Quick mode: all required fields present
+  if (args.name && args.race && args.class_name && args.background) {
+    const raceName = args.race.toLowerCase();
+    if (!(RACES as readonly string[]).includes(raceName)) return err("INVALID_INPUT", `"${args.race}" is not a valid race.`, `Valid: ${(RACES as readonly string[]).join(", ")}`);
+    if (!CLASS_NAMES.includes(args.class_name)) return err("INVALID_INPUT", `"${args.class_name}" is not a valid class.`, `Valid: ${CLASS_NAMES.join(", ")}`);
+    if (!BACKGROUNDS.includes(args.background.toLowerCase())) return err("INVALID_INPUT", `"${args.background}" is not a valid background.`, `Valid: ${BACKGROUNDS.join(", ")}`);
+
+    const stats: Record<string, number> = {};
+    if (args.stat_method === "roll_4d6") {
+      for (const stat of ABILITY_SCORES) {
+        const sorted = [state.prng.nextRange(1, 6), state.prng.nextRange(1, 6), state.prng.nextRange(1, 6), state.prng.nextRange(1, 6)].sort((a, b) => b - a);
+        stats[stat] = sorted[0] + sorted[1] + sorted[2];
+      }
+    } else {
+      Object.assign(stats, { strength: 15, dexterity: 14, constitution: 13, intelligence: 12, wisdom: 10, charisma: 8 });
+    }
+
+    const className = args.class_name;
+    const hitDie = CLASS_HIT_DIE[className] || 8;
+    let racModifiers: Partial<Record<AbilityScore, number>> = {};
+    for (const [rk, rm] of Object.entries(RACE_MODIFIERS)) {
+      if (raceName.includes(rk)) { racModifiers = rm; break; }
+      if (raceName === rk) { racModifiers = rm; break; }
+    }
+    const finalStats: Record<string, number> = {};
+    for (const s of ABILITY_SCORES) finalStats[s] = (stats as Record<string, number>)[s] ?? 10;
+    for (const [s, v] of Object.entries(racModifiers)) { if (finalStats[s] !== undefined) finalStats[s] += v; }
+
+    const saves = CLASS_SAVES[className] || ["strength", "constitution"];
+    const finalHp = hitDie + abilityModifier(finalStats.constitution);
+    const id = state.generateNextEntityId();
+    const entity: import("./state.js").DnDEntity = {
+      id, name: args.name, race: args.race, className: className,
+      level: 1, stats: finalStats as Record<AbilityScore, number>,
+      maxHp: finalHp, currentHp: finalHp, tempHp: 0,
+      hitDice: { total: 1, remaining: 1, size: hitDie },
+      armorClass: 10 + abilityModifier(finalStats.dexterity),
+      speed: raceName === "dwarf" ? 25 : 30, initiative: abilityModifier(finalStats.dexterity),
+      skills: [], saveProficiencies: saves as AbilityScore[],
+      conditions: [], inventory: [], equippedWeapons: [], equippedArmor: "",
+      spellSlots: {}, personality: { background: args.background },
+    };
+    const rosterResult = state.addToRoster(entity);
+    state.audit(personaStr(), "create_character", args, `Quick-created ${entity.name}`);
+    return ok(`Character created: ${entity.name} (roster://${id})\nClass: ${className}, Race: ${entity.race}, Level: 1\nHP: ${entity.currentHp}/${entity.maxHp}, AC: ${entity.armorClass}\nStats: ${ABILITY_SCORES.map(s => `${ABILITY_LABELS[s]}: ${finalStats[s]}`).join(", ")}`);
+  }
+
+  // Step-by-step mode
   state.workflow = {
     persona: state.activePersona,
     decisionQueue: [
@@ -771,9 +903,15 @@ server.registerTool("end_novel", {
 }, async () => {
   const novel = state.getActiveNovel();
   if (!novel) return err("STATE_CONFLICT", "No active novel.");
-  state.endNovel();
-  state.saveRoster();
-  return ok("Novel ended. Roster preserved. Use create_novel or resume_novel to continue.");
+  if (state.workflow) return err("STATE_CONFLICT", "Cannot end novel during pending workflow.");
+  state.workflow = {
+    persona: state.activePersona,
+    decisionQueue: [{ question: `End Novel "${novel.name}"?`, options: ["yes", "cancel"] }],
+    preWorkflowSnapshot: null,
+    characterDraft: null,
+  };
+  state.audit(personaStr(), "end_novel", {}, "Confirmation requested");
+  return needInput(`End Novel "${novel.name}"?`, ["yes", "cancel"]);
 });
 
 // end_game (deprecated alias)
@@ -1295,6 +1433,139 @@ server.registerTool("load_adventure", {
   return ok(`Adventure loaded: "${slug}".`);
 });
 
+// switch_novel
+server.registerTool("switch_novel", {
+  title: "Switch Novel",
+  description: "Switch the active novel for this connection. Always callable.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }) => {
+  const novel = state.resumeNovel(slug);
+  if (!novel) return err("STATE_CONFLICT", `Novel "${slug}" not found or has been ended.`, `Available: ${state.listNovels().map(n => n.slug).join(", ") || "none"}`);
+  state.audit(personaStr(), "switch_novel", { slug }, `Switched to ${novel.name}`);
+  return ok(`Switched to novel: "${novel.name}" (slug: ${novel.slug}).`);
+});
+
+// export_novel
+server.registerTool("export_novel", {
+  title: "Export Novel",
+  description: "Export the active novel in interchange format (JSON or Markdown). GM only.",
+  inputSchema: { format: z.enum(["json", "markdown"]).default("json") },
+}, async ({ format = "json" }) => {
+  const gmErr = requireGM(); if (gmErr) return gmErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+
+  const metadata = {
+    slug: novel.slug, name: novel.name, created_at: novel.createdAt,
+    last_modified_at: novel.lastModified, spec_version: state.buildFingerprint.specVersion,
+  };
+
+  if (format === "markdown") {
+    const sections: string[] = [];
+    sections.push(`<!-- @section novel_metadata -->\n# ${novel.name}\n\nSlug: ${novel.slug}\nCreated: ${novel.createdAt}\nLast modified: ${novel.lastModified}\nSpec version: ${state.buildFingerprint.specVersion}`);
+    sections.push(`<!-- @section entities -->\n## Entities\n\n${JSON.stringify(Object.values(novel.entities), null, 2)}`);
+    sections.push(`<!-- @section npcs -->\n## NPCs\n\n${JSON.stringify(Object.values(novel.npcs), null, 2)}`);
+    sections.push(`<!-- @section scene -->\n## Scene\n\n${novel.scene.description || "_No scene set._"}\nType: ${novel.scene.type}`);
+    sections.push(`<!-- @section countdowns -->\n## Countdowns\n\n${JSON.stringify(Object.values(novel.countdowns), null, 2)}`);
+    sections.push(`<!-- @section lore -->\n## Lore\n\n${JSON.stringify(Object.values(novel.loreEntries), null, 2)}`);
+    sections.push(`<!-- @section enrichment -->\n## Enrichment\n\n${JSON.stringify(novel.enrichment, null, 2)}`);
+    sections.push(`<!-- @section adventure -->\n## Adventure\n\nActive: ${novel.activeAdventureId ?? "none"}\n${JSON.stringify(novel.adventureModules, null, 2)}`);
+    sections.push(`<!-- @section audit_log -->\n## Audit Log\n\n${JSON.stringify(novel.auditLog, null, 2)}`);
+    sections.push(`<!-- @section persona_state -->\n## Persona State\n\nActive persona: ${state.activePersona ?? "none"}`);
+    return ok(sections.join("\n\n---\n\n"));
+  }
+
+  const exported = {
+    novel_metadata: metadata,
+    entities: Object.values(novel.entities),
+    npcs: Object.values(novel.npcs),
+    scene: { description: novel.scene.description, type: novel.scene.type },
+    countdowns: Object.values(novel.countdowns),
+    lore: Object.values(novel.loreEntries),
+    enrichment: novel.enrichment,
+    adventure: { active: novel.activeAdventureId, modules: novel.adventureModules },
+    audit_log: novel.auditLog,
+    persona_state: { active_persona: state.activePersona },
+  };
+  state.audit(personaStr(), "export_novel", { format }, "OK");
+  return ok(JSON.stringify(exported, null, 2));
+});
+
+// import_novel
+server.registerTool("import_novel", {
+  title: "Import Novel",
+  description: "Import a previously exported novel. Modes: dry-run, merge, or replace. GM only.",
+  inputSchema: { data: z.string(), mode: z.enum(["dry-run", "merge", "replace"]).default("dry-run") },
+}, async ({ data, mode = "dry-run" }) => {
+  const gmErr = requireGM(); if (gmErr) return gmErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  const novel = state.getActiveNovel()!;
+
+  let imported: Record<string, unknown>;
+  try { imported = JSON.parse(data); } catch { return err("INVALID_INPUT", "Could not parse JSON data."); }
+
+  const importEntities = (imported.entities as Record<string, unknown>[]) || [];
+  const importNpcs = (imported.npcs as Record<string, unknown>[]) || [];
+  const importLore = (imported.lore as Record<string, unknown>[]) || [];
+  const importCountdowns = (imported.countdowns as Record<string, unknown>[]) || [];
+  const importEnrichment = (imported.enrichment as Record<string, unknown>[]) || [];
+  const importAuditLog = (imported.audit_log as Record<string, unknown>[]) || [];
+
+  if (mode === "dry-run") {
+    return ok(`Dry run: ${importEntities.length} entities, ${importNpcs.length} npcs, ${importLore.length} lore entries, ${importCountdowns.length} countdowns. No changes made.`);
+  }
+
+  if (mode === "replace") {
+    state.snapshot();
+    novel.entities = {};
+    novel.npcs = {};
+    novel.loreEntries = {};
+    novel.countdowns = {};
+    novel.enrichment = [];
+    novel.auditLog = [];
+    for (const e of importEntities) { novel.entities[(e as any).id || String(Object.keys(novel.entities).length)] = e as any; }
+    for (const n of importNpcs) { novel.npcs[(n as any).id || String(Object.keys(novel.npcs).length)] = n as any; }
+    for (const l of importLore) { const key = (l as any).key || String(Object.keys(novel.loreEntries).length); novel.loreEntries[key] = l as any; }
+    for (const c of importCountdowns) { novel.countdowns[(c as any).name || String(Object.keys(novel.countdowns).length)] = c as any; }
+    novel.enrichment = importEnrichment as any;
+    novel.auditLog = importAuditLog as any;
+    state.audit(personaStr(), "import_novel", { mode }, `Replaced with ${importEntities.length} entities, ${importNpcs.length} npcs`);
+    return ok(`Novel imported (replace): ${importEntities.length} entities, ${importNpcs.length} npcs, ${importLore.length} lore entries.`);
+  }
+
+  let mergedEntities = 0, mergedNpcs = 0;
+  for (const e of importEntities) {
+    const id = (e as any).id;
+    if (!id || novel.entities[id]) continue;
+    novel.entities[id] = e as any;
+    mergedEntities++;
+  }
+  for (const n of importNpcs) {
+    const id = (n as any).id;
+    if (!id || novel.npcs[id]) continue;
+    novel.npcs[id] = n as any;
+    mergedNpcs++;
+  }
+  state.snapshot();
+  state.audit(personaStr(), "import_novel", { mode }, `Merged ${mergedEntities} entities, ${mergedNpcs} npcs`);
+  return ok(`Novel imported (merge): ${mergedEntities} new entities, ${mergedNpcs} new npcs added.`);
+});
+
+// revert_enrichment
+server.registerTool("revert_enrichment", {
+  title: "Revert Enrichment",
+  description: "Remove all enrichment state, restoring pre-enrich server state. GM only.",
+  inputSchema: {},
+}, async () => {
+  const gmErr = requireGM(); if (gmErr) return gmErr;
+  const novelErr = requireNovel(); if (novelErr) return novelErr;
+  state.snapshot();
+  const ok_ = state.revertEnrichment();
+  if (!ok_) return err("STATE_CONFLICT", "Could not revert enrichment.");
+  state.audit(personaStr(), "revert_enrichment", {}, "Enrichment reverted");
+  return ok("Enrichment reverted. All enrichment state removed. Roster and mechanics unchanged.");
+});
+
 // ─── Resources ──────────────────────────────────────────────────────────────
 
 server.registerResource("ruleset_list", "ruleset://", { title: "Ruleset Index" }, async () => {
@@ -1562,6 +1833,33 @@ server.registerResource("novel_detail", "novel://{slug}", { title: "Novel Detail
   return { contents: [{ uri: uri.href, mimeType: "text/markdown", text: `# Novel: ${n.name}\n\n**Slug:** ${n.slug}\n**Last modified:** ${n.lastModified.slice(0, 10)}\n**Active:** ${n.active ? "yes" : "no"}` }] };
 });
 
+// spec://build (REQ-105)
+server.registerResource("spec_build", "spec://build", { title: "Specification" }, async () => {
+  if (state.activePersona === "player") {
+    return { contents: [{ uri: "spec://build", mimeType: "text/markdown", text: "[FORBIDDEN] spec://build is GM-only. Use set_persona(\"game_master\") to switch." }] };
+  }
+  let text = "# Specification\n\n_Embedded spec not available — copy holonovel.md to the server directory._\n";
+  try {
+    const fs = await import("node:fs");
+    const specPath = new URL("../holonovel.md", import.meta.url).pathname;
+    if (fs.existsSync(specPath)) {
+      text = fs.readFileSync(specPath, "utf-8");
+    }
+  } catch (_) {}
+  return { contents: [{ uri: "spec://build", mimeType: "text/markdown", text }] };
+});
+
+// enrichment://action_patterns (REQ-022)
+server.registerResource("enrichment_action_patterns", "enrichment://action_patterns", { title: "Enrichment Action Patterns" }, async () => {
+  const novel = state.getActiveNovel();
+  const items = novel?.enrichment.filter(e => e.output_module === "action_patterns") || [];
+  let text = "# Action Patterns\n\n";
+  if (items.length === 0) { text += "_No enrichment action patterns available._\n"; }
+  else { for (const item of items) text += `- ${item.quoted_excerpt}\n  Source: ${item.source_url}\n  Active: ${novel?.actionPatternsEnabled ? "yes" : "no"}\n\n`; }
+  text += "\nEnrichment action patterns are inert by default. GM must explicitly activate them.\n";
+  return { contents: [{ uri: "enrichment://action_patterns", mimeType: "text/markdown", text }] };
+});
+
 // ─── Prompts ────────────────────────────────────────────────────────────────
 
 server.registerPrompt("intro", {
@@ -1569,6 +1867,7 @@ server.registerPrompt("intro", {
   description: "Welcome prompt for new players. No arguments.",
   argsSchema: {},
 }, async () => {
+  const repoUrl = state.buildFingerprint.specRepoUrl || "https://github.com/anomalyco/Holonovel";
   return { messages: [{ role: "user", content: { type: "text", text: `# Welcome to D&D 5e!
 
 You are playing **Dungeons & Dragons 5th Edition** (SRD v5.1). I am your AI Dungeon Master.
@@ -1583,7 +1882,9 @@ Create one with \`create_character\` or import from your roster with \`import_ch
 4. \`roll_skill_check({skill:"perception"})\` — test your luck
 
 All 12 classes and 9 races from the SRD are available. 319 spells, 318 monsters, and 239 magic items.
-Use \`help\` for all tools, \`session_zero\` for campaign setup.` } }] };
+Use \`help\` for all tools, \`session_zero\` for campaign setup.
+
+Built by Holonovel — spec: ${repoUrl} (see spec://build).` } }] };
 });
 
 server.registerPrompt("persona_briefing", {

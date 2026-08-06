@@ -109,6 +109,7 @@ export interface EnrichmentRecord {
   persona_scope: "game_master" | "shared" | "player";
   confidence: "HIGH" | "MEDIUM" | "LOW";
   output_module: "voice_examples" | "briefing_order" | "lore_templates" | "action_patterns" | "supplementary_guidance" | "adventure_advice";
+  collected_at?: string;
 }
 
 export interface AdventureState {
@@ -124,6 +125,7 @@ export interface BuildFingerprint {
   lastSpecReview?: string;
   lastGauntlet?: string;
   gauntletScenariosPassed?: number;
+  specRepoUrl?: string;
 }
 
 export interface NovelMetadata {
@@ -157,6 +159,11 @@ export interface NovelState {
   briefingOrder: string[];
   activeEntityId: string | null;
   ended: boolean;
+  actionPatternsEnabled: boolean;
+  combatRoundsPlayed: number;
+  totalCombatRounds: number;
+  lastActiveSceneAnchor: string;
+  sessionCount: number;
 }
 
 export interface Snapshot {
@@ -192,7 +199,8 @@ function defaultNovel(): NovelState {
     scene: defaultScene(), countdowns: {}, loreEntries: {},
     enrichment: [], adventureModules: {}, activeAdventureId: null,
     narrativeDirective: "", briefingOrder: [], activeEntityId: null,
-    ended: false,
+    ended: false, actionPatternsEnabled: false, combatRoundsPlayed: 0,
+    totalCombatRounds: 0, lastActiveSceneAnchor: "", sessionCount: 0,
   };
 }
 
@@ -239,6 +247,7 @@ export class StateManager {
       buildTimestamp: new Date().toISOString(),
       rulesetHash: computeRulesetHash(),
       lastSpecReview: new Date().toISOString(),
+      specRepoUrl: "https://github.com/anomalyco/Holonovel",
     };
     fs.mkdirSync(dataDir, { recursive: true });
     this.loadRoster();
@@ -551,7 +560,7 @@ export class StateManager {
     const novel = this._novels[novelSlug];
     if (!novel) return;
     novel.lastModified = new Date().toISOString();
-    const state = {
+    const state: Record<string, unknown> = {
       roster: this._roster,
       novel,
       seed: this.sessionSeed,
@@ -560,6 +569,8 @@ export class StateManager {
       persona: this.activePersona,
       fp: this.buildFingerprint,
     };
+    const checksum = crypto.createHash("sha256").update(JSON.stringify(state, null, 2)).digest("hex").slice(0, 16);
+    state.checksum = checksum;
     const dir = path.join(this.dataDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
     const target = path.join(dir, `${novelSlug}.json`);
@@ -585,6 +596,7 @@ export class StateManager {
     const file = path.join(dir, `${novelSlug}.json`);
     const bak = path.join(dir, `${novelSlug}.json.bak`);
     let raw: string | null = null;
+    let sourceName = file;
 
     try {
       if (fs.existsSync(file)) raw = fs.readFileSync(file, "utf-8");
@@ -592,74 +604,152 @@ export class StateManager {
 
     if (!raw && fs.existsSync(bak)) {
       console.warn(`[WARNING] Novel ${novelSlug} corrupted, loading backup.`);
-      try { raw = fs.readFileSync(bak, "utf-8"); } catch (_) {}
+      try { raw = fs.readFileSync(bak, "utf-8"); sourceName = bak; } catch (_) {}
     }
 
     if (!raw) return false;
 
     try {
       const data = JSON.parse(raw);
-      this._roster = data.roster ?? {};
 
-      const novelData = data.novel || data.game;
-      if (novelData) {
-        const n = defaultNovel();
-        n.slug = novelData.slug ?? novelSlug;
-        n.name = novelData.name ?? "";
-        n.createdAt = novelData.createdAt ?? new Date().toISOString();
-        n.lastModified = novelData.lastModified ?? n.createdAt;
-        n.charactersPresent = novelData.charactersPresent ?? false;
-        n.adventureSet = novelData.adventureSet ?? false;
-        n.sessionZeroCompleted = novelData.sessionZeroCompleted ?? false;
-        n.entities = novelData.entities ?? {};
-        n.npcs = novelData.npcs ?? {};
-        n.combat = novelData.combat ?? null;
-        n.auditLog = novelData.auditLog ?? [];
-        n.scene = novelData.scene ?? defaultScene();
-        n.countdowns = novelData.countdowns ?? {};
-        n.loreEntries = novelData.loreEntries ?? {};
-        n.enrichment = novelData.enrichment ?? [];
-        n.adventureModules = novelData.adventureModules ?? {};
-        n.activeAdventureId = novelData.activeAdventureId ?? null;
-        n.narrativeDirective = novelData.narrativeDirective ?? "";
-        n.briefingOrder = novelData.briefingOrder ?? [];
-        n.activeEntityId = novelData.activeEntityId ?? null;
-        n.ended = novelData.ended ?? false;
-
-        this._novels[novelSlug] = n;
-        this._activeNovelSlug = novelSlug;
-
-        if (n.enrichment.length === 0) {
-          applyEnrichment(n, this.buildFingerprint.rulesetHash);
+      if (data.checksum) {
+        const storedChecksum = data.checksum as string;
+        const { checksum: _, ...dataForHash } = data;
+        const computed = crypto.createHash("sha256").update(JSON.stringify(dataForHash, null, 2)).digest("hex").slice(0, 16);
+        if (storedChecksum !== computed) {
+          if (sourceName === file && fs.existsSync(bak)) {
+            console.warn(`[WARNING] Checksum mismatch for Novel ${novelSlug}. Attempting backup restore.`);
+            try { raw = fs.readFileSync(bak, "utf-8"); sourceName = bak; } catch (_) { raw = null; }
+            if (raw) {
+              try {
+                const bakData = JSON.parse(raw);
+                if (bakData.checksum) {
+                  const { checksum: _, ...bakForHash } = bakData;
+                  const bakComputed = crypto.createHash("sha256").update(JSON.stringify(bakForHash, null, 2)).digest("hex").slice(0, 16);
+                  if (bakData.checksum !== bakComputed) {
+                    raw = null;
+                  }
+                }
+              } catch { raw = null; }
+            }
+            if (raw) {
+              return this.loadStateFromData(JSON.parse(raw), novelSlug, "restored_from_backup");
+            }
+          }
+          if (!this.corruptStates.includes(novelSlug)) this.corruptStates.push(novelSlug);
+          console.warn(`[WARNING] Checksum mismatch for Novel ${novelSlug}. Both primary and backup are tainted or missing.`);
+          return false;
         }
       }
 
-      this.sessionSeed = data.seed ?? null;
-      if (data.seed) this.prng.reseed(data.seed);
-      this.entityCounter = data.counter ?? 0;
-      this.npcCounter = data.npcCounter ?? 0;
-      if (data.persona !== undefined) this.activePersona = data.persona;
-
-      if (data.fp) {
-        const stored = data.fp;
-        if (stored.rulesetHash && stored.rulesetHash !== this.buildFingerprint.rulesetHash) {
-          console.warn(`[WARNING] Build fingerprint mismatch: ruleset hash changed (stored: ${stored.rulesetHash}, current: ${this.buildFingerprint.rulesetHash}). A rebuild occurred.`);
-        }
-        this.buildFingerprint = { ...stored, ...this.buildFingerprint };
-      }
-
-      this.corruptStates = this.corruptStates.filter(s => s !== novelSlug);
-      return true;
+      return this.loadStateFromData(data, novelSlug);
     } catch {
+      if (sourceName === file && fs.existsSync(bak)) {
+        console.warn(`[WARNING] Novel ${novelSlug} structurally corrupt. Attempting backup restore.`);
+        try {
+          raw = fs.readFileSync(bak, "utf-8");
+          const bakData = JSON.parse(raw);
+          return this.loadStateFromData(bakData, novelSlug, "restored_from_backup");
+        } catch { raw = null; }
+      }
       if (!this.corruptStates.includes(novelSlug)) this.corruptStates.push(novelSlug);
       return false;
     }
+  }
+
+  private loadStateFromData(data: Record<string, unknown>, novelSlug: string, restoreTag?: string): boolean {
+    this._roster = data.roster as Record<string, DnDEntity> ?? {};
+
+    const novelData = (data.novel || data.game) as Record<string, unknown> | undefined;
+    if (novelData) {
+      const n = defaultNovel();
+      n.slug = novelData.slug as string ?? novelSlug;
+      n.name = novelData.name as string ?? "";
+      n.createdAt = novelData.createdAt as string ?? new Date().toISOString();
+      n.lastModified = novelData.lastModified as string ?? n.createdAt;
+      n.charactersPresent = novelData.charactersPresent as boolean ?? false;
+      n.adventureSet = novelData.adventureSet as boolean ?? false;
+      n.sessionZeroCompleted = novelData.sessionZeroCompleted as boolean ?? false;
+      n.entities = (novelData.entities as Record<string, DnDEntity>) ?? {};
+      n.npcs = (novelData.npcs as Record<string, NPCEntity>) ?? {};
+      n.combat = (novelData.combat as CombatState | null) ?? null;
+      n.auditLog = (novelData.auditLog as AuditEntry[]) ?? [];
+      n.scene = (novelData.scene as SceneState) ?? defaultScene();
+      n.countdowns = (novelData.countdowns as Record<string, CountdownState>) ?? {};
+      n.loreEntries = (novelData.loreEntries as Record<string, LoreEntry>) ?? {};
+      n.enrichment = (novelData.enrichment as EnrichmentRecord[]) ?? [];
+      n.adventureModules = (novelData.adventureModules as Record<string, AdventureState>) ?? {};
+      n.activeAdventureId = novelData.activeAdventureId as string | null ?? null;
+      n.narrativeDirective = novelData.narrativeDirective as string ?? "";
+      n.briefingOrder = novelData.briefingOrder as string[] ?? [];
+      n.activeEntityId = novelData.activeEntityId as string | null ?? null;
+      n.ended = novelData.ended as boolean ?? false;
+      n.actionPatternsEnabled = novelData.actionPatternsEnabled as boolean ?? false;
+      n.combatRoundsPlayed = novelData.combatRoundsPlayed as number ?? 0;
+      n.totalCombatRounds = novelData.totalCombatRounds as number ?? 0;
+      n.lastActiveSceneAnchor = novelData.lastActiveSceneAnchor as string ?? "";
+      n.sessionCount = novelData.sessionCount as number ?? 0;
+
+      for (const e of n.enrichment) {
+        if (!e.collected_at) e.collected_at = n.createdAt;
+      }
+
+      this._novels[novelSlug] = n;
+      this._activeNovelSlug = novelSlug;
+
+      if (n.enrichment.length === 0) {
+        applyEnrichment(n, this.buildFingerprint.rulesetHash);
+      }
+
+      if (restoreTag) {
+        n.auditLog.push({
+          timestamp: new Date().toISOString(),
+          persona: "system",
+          tool: restoreTag,
+          args: {},
+          result: `Novel ${novelSlug} restored from backup`,
+        });
+      }
+    }
+
+    this.sessionSeed = data.seed as string ?? null;
+    if (data.seed) this.prng.reseed(data.seed as string);
+    this.entityCounter = data.counter as number ?? 0;
+    this.npcCounter = data.npcCounter as number ?? 0;
+    if (data.persona !== undefined) this.activePersona = data.persona as Persona | null;
+
+    if (data.fp) {
+      const stored = data.fp as Record<string, unknown>;
+      if (stored.rulesetHash && stored.rulesetHash !== this.buildFingerprint.rulesetHash) {
+        console.warn(`[WARNING] Build fingerprint mismatch: ruleset hash changed (stored: ${stored.rulesetHash}, current: ${this.buildFingerprint.rulesetHash}). A rebuild occurred.`);
+      }
+      this.buildFingerprint = { ...stored, ...this.buildFingerprint } as BuildFingerprint;
+    }
+
+    this.corruptStates = this.corruptStates.filter(s => s !== novelSlug);
+    return true;
   }
 
   saveRoster(): void {
     const dir = this.dataDir;
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(this._roster, null, 2));
+  }
+
+  revertEnrichment(): boolean {
+    const novel = this.getActiveNovel();
+    if (!novel) return false;
+    novel.enrichment = [];
+    novel.briefingOrder = [];
+    novel.actionPatternsEnabled = false;
+    return true;
+  }
+
+  getNovelFileSize(slug: string): number {
+    try {
+      const file = path.join(this.dataDir, "novels", `${slug}.json`);
+      return fs.statSync(file).size;
+    } catch { return 0; }
   }
 
   loadRoster(): void {

@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-05 — D&D 5e spec update: 16 gaps from latest revision
+
+- REQ-105: Added `spec://build` resource (GM-filtered, reads embedded
+  `holonovel.md`).
+- REQ-106: Added `spec_repo_url` to `spec_health` and `intro` prompt.
+- REQ-107: Surfaced `spec_version` in `spec_health` output.
+- REQ-104: Added quick-mode character creation — all parameters in one call
+  produce complete entity without step-by-step workflow. Both modes require
+  active Novel (STATE_CONFLICT otherwise).
+- REQ-088: `end_novel` now emits `[NEED_INPUT]` confirmation workflow (yes/cancel)
+  instead of removing state immediately. Cancel restores pre-invocation state.
+- REQ-095: New `switch_novel(slug)` tool — always callable, restores target
+  persona state, STATE_CONFLICT on missing/ended Novel.
+- REQ-096: New `export_novel` and `import_novel` tools (GM-only). Modes:
+  dry-run/replace/merge. JSON and Markdown formats per Appendix Q.
+- REQ-097: Per-Novel health metrics in `spec_health` — NPC count, lore count,
+  audit log size, snapshot depth, file size, `healthy` flag. Persona-filtered.
+- REQ-092: Novel JSON now includes SHA-256 checksum field. Verified on load;
+  mismatch triggers structured recovery (backup restore, then dual-corruption
+  diagnostic with `spec_health` warning).
+- REQ-093: Extended metadata in `spec_health` — session count, cumulative play
+  time, last-active scene anchor, combat round tracking.
+- REQ-080: Added `collected_at` ISO 8601 timestamp to all enrichment items.
+  Staleness detection against `TTRPG_ENRICH_STALE_DAYS` env var (default 180
+  days). Missing timestamps on loaded Novels backfilled to Novel creation date.
+- REQ-103: New `revert_enrichment` tool (GM-only) — removes all enrichment
+  state (enrichment items, briefing order, action pattern toggle).
+  Idempotent, pure-state.
+- REQ-084: Enrichment-derived action patterns are now inert by default. GM
+  must explicitly activate via Novel-scoped `actionPatternsEnabled` toggle.
+- REQ-022: Registered `spec://build` (GM-filtered) and
+  `enrichment://action_patterns` resources.
+- REQ-025: Added `spec_repo_url`, `spec_version`, per-Novel health, and
+  stale enrichment detection to `spec_health` output.
+- Tool count: 54 → 58. Resource count: 31 → 33. 8/8 test suites pass,
+  typecheck clean, root spec validation 0 errors.
+- README: Terminology tightened — "verification gates" → "verification
+  workflows", "jobs" → "workflows" in Build workflow section.
+
 ## 2026-08-05 — Spec audit remediation (16 findings)
 
 - REQ-004a: Added standalone requirement body for stat block baseline view.
