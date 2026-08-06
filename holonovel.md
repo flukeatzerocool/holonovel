@@ -47,6 +47,7 @@
 - [Appendix O: Behavioral Contracts](#appendix-o-behavioral-contracts)
 - [Appendix P: STRIDE Security Threat Model](#appendix-p-stride-security-threat-model)
 - [Appendix Q: Novel Interchange Format](#appendix-q-novel-interchange-format)
+- [Appendix R: Deprecated Terminology](#appendix-r-deprecated-terminology)
 
 ---
 
@@ -1466,10 +1467,11 @@ translated into tools, resources, and state.
 | -------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
 | MUST coverage        | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
 | Mechanics fidelity   | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
-| Process compliance   | Pre-build answers + verification workflow records    | All present   | Collect missing, re-verify               |
+| Process compliance   | Pre-build answers present; verification workflow records present with timestamps after the most recent source-file modification | All present and fresh | Collect missing or re-run stale workflow, re-verify |
 | Suggestion coverage  | Curated intents producing ≥1 match     | ≥ 80%         | Re-extract action patterns, review mapping |
+| Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
 
-Phase 2 exit: all four metrics meet threshold, or 3 iterations without
+Phase 2 exit: all five metrics meet threshold, or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 200 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
@@ -1539,6 +1541,8 @@ Novel state file. (d) **completeness** — the builder maintains a file manifest
 (list of expected output files recorded after construction planning). The
 manifest is checked during post-write verification: every file in the manifest
 must exist and have non-zero size. A missing or empty file is a convergence
+finding. (e) **terminology** — no deprecated term from Appendix R appears in the
+written file. Grep for each deprecated term; any match is a convergence
 finding.
 
 ### 6.6 The Gauntlet
@@ -2128,6 +2132,7 @@ have a recorded result in DECISIONS.md.
 | H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | —        | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with non-empty command, PASS result, and exit-status evidence.                     |
+| H13   | —        | Check Gauntlet evidence timestamp in DECISIONS.md (6) against most recent source file modification | Gauntlet was re-run (G5 record present) with timestamp after the most recent source file modification timestamp. |
 
 A verification step may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
 DECISIONS.md (5). Every chain Markdown → REQ → code → test must be traceable. Any gap is a
@@ -3872,3 +3877,23 @@ determines the exact schema and serialization; the convergence loop enforces
 round-trip fidelity as a verification check.
 
 _Verify with:_ T100.
+
+---
+
+## Appendix R: Deprecated Terminology
+
+Terms listed here must not appear in implementation surfaces — tool names,
+tool descriptions, parameter names, resource URIs, prompt names, field names,
+error messages, or state-model property names. The canonical term is the one
+used in the citing REQ body. An audit subagent greps for each deprecated
+term during Convergence Phase 2's Surface Terminology domain and flags every
+match as a finding.
+
+| Deprecated term | Canonical term | Citing REQ |
+|----------------|---------------|------------|
+| persona (as parameter name, field name, or description text — excluding "personality" which is correct per REQ-077) | hat | REQ-031, REQ-066 |
+| persona_scope | hat_scope | REQ-032, REQ-083 |
+| persona_filter | hat_filter | REQ-086 |
+| persona_briefing | hat_briefing | REQ-109 |
+| oce, oce-state | `.holonovel-state` | REQ-055 |
+| oce connection | MCP connection | REQ-030 |
