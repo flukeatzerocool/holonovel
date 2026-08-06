@@ -48,6 +48,37 @@
 - [Appendix P: STRIDE Security Threat Model](#appendix-p-stride-security-threat-model)
 - [Appendix Q: Novel Interchange Format](#appendix-q-novel-interchange-format)
 - [Appendix R: Deprecated Terminology](#appendix-r-deprecated-terminology)
+- [Appendix S: Builder Glossary](#appendix-s-builder-glossary)
+
+---
+
+### How to read this specification
+
+This document is 4,100 lines. Read it in layers — not front to back.
+
+**If you are a builder implementing a server for the first time:**
+Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
+these), then §6 (Build Process — this is your workflow). Consult §5 (Requirements)
+by subsection as each build phase demands it. Skip the appendices until Gate 0.
+
+**If you are updating an existing server:**
+Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
+then the §5 subsections cited by the gap audit.
+
+**If you are a spec maintainer:**
+Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
+contracts-over-implementations and red-team disciplines), then the CHANGELOG for
+recent revision patterns. The SPEC-QUEUE.md tracks subsystems awaiting review.
+
+**If you are verifying a build:**
+§8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
+The verification workflows are executable — follow them in order.
+
+**Reference material** (Appendices A–R) is supplementary. Glance at Appendix E
+(Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
+Test Catalogue) to understand test coverage, and Appendix S (Builder Glossary) for
+domain terminology. The remaining appendices are consulted on demand during specific
+build phases or verification workflows.
 
 ---
 
@@ -295,12 +326,17 @@ challenged assumption per category — technology, AI-as-builder, extraction and
 MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec
 process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a
 diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+*Acceptance criterion:* DECISIONS.md (0) contains at least one challenged assumption
+per category with justification, or a diff-only audit note for spec revisions.
 _Check:_ T89.
 
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
 `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`. Tool-level failures use
 `isError: true` with the prefix in `content[0].text`; protocol-level failures use JSON-RPC
 error code `-32000` with the prefix in `message`. SDK-level schema errors use `-32602`.
+*Acceptance criterion:* Every tool response from a running server uses exactly one
+of the five prefixes; protocol-level errors use JSON-RPC error code -32000 with the
+prefix in `message`.
 _Check:_ Gate 2; Appendix D.
 
 **REQ-002 — Error taxonomy.** _(F1)_ Every error carries a category: `[FORBIDDEN]`,
@@ -314,23 +350,38 @@ empty-string search returns no results — not an error — with valid-value enu
 `[FORBIDDEN]` directs callers to use `set_hat` to switch hats. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
 ended game, undo while a workflow is pending). Corrective actions are a separate line:
-`Corrective action: <action>`. _Check:_ T18.
+`Corrective action: <action>`.
+*Acceptance criterion:* A `[NOT_FOUND]` error on an unknown spell name returns the
+category, a "Did you mean?" hint when a close match exists, and a session-visible
+list of valid spell names.
+_Check:_ T18.
 
 **REQ-003 — Roll transparency.** _(F1)_ Every dice-roll tool returns the full calculation
 path: dice notation, individual die results, modifiers, total, and outcome. Every modifier's
 source and contribution is reported. When the ruleset defines named result bands
 (e.g., critical success, partial success, failure), the roll outcome reports which
-band applies to the total. _Check:_ Gate 2, T47.
+band applies to the total.
+*Acceptance criterion:* A d20 attack roll output includes the d20 face, every
+modifier with its source and signed contribution, the total, a prose outcome, and
+the result band when the ruleset defines one.
+_Check:_ Gate 2, T47.
 
 **REQ-004 — Truncation.** Tool output longer than a configurable limit (default 32,000 bytes)
 is truncated with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
 payloads are session-local, hat-filtered, and evict the oldest when exceeding the session
 limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks are
 presented in the ruleset's baseline format, with all fields regardless of truncation
-(see REQ-004a). _Check:_ T13.
+(see REQ-004a).
+*Acceptance criterion:* A tool output exceeding 32,000 bytes is truncated with an
+`output://` pointer; retrieving the pointer returns the full content, hat-filtered.
+_Check:_ T13.
 
 **REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
-baseline format, with all fields regardless of truncation. _Check:_ T13.
+baseline format, with all fields regardless of truncation.
+*Acceptance criterion:* A character-sheet rendering includes every stat field the
+ruleset defines, in the ruleset's baseline format and order, regardless of whether
+the output exceeds the truncation limit.
+_Check:_ T13.
 
 **REQ-118 — Prompt length budget.** Every prompt returned by `prompts/get`
 stays within a per-prompt token budget. When a prompt's constructed content
@@ -340,27 +391,45 @@ URIs where full content is retrievable. The truncation mechanism preserves the
 prompt's structural integrity — section headers remain, and required contract
 elements (intro pointer per REQ-063, `player_signal` directives per REQ-078)
 are never truncated. The per-prompt budget is configurable; exceeding it
-without truncation is a defect. _Check:_ T123.
+without truncation is a defect.
+*Acceptance criterion:* When a prompt's content exceeds its token budget,
+low-priority sections are replaced with `[truncated]` markers and resource URI
+pointers; section headers and required contract elements are never truncated.
+_Check:_ T123.
 
 **REQ-113 — Result count reporting.** A tool that returns a collection of results
 reports both the count of items returned and the total count of matching items.
 When the total exceeds the returned count, the difference is explicit — the
 caller is not required to infer how many results were suppressed. The segment
-size is configurable. _Check:_ T116.
+size is configurable.
+*Acceptance criterion:* A lookup returning 3 of 42 matching items reports both
+counts — "3 of 42 results" — so the caller knows 39 results are suppressed.
+_Check:_ T116.
 
 **REQ-060 — Verbose output.** Tool output is comprehensive — every field the ruleset defines
 for the item or action is returned. Combat results include every modifier with its
 contribution, the calculation path, and the outcome in prose. Character creation and
-advancement results include all derived statistics alongside inputs. _Check:_ T47.
+advancement results include all derived statistics alongside inputs.
+*Acceptance criterion:* A weapon lookup returns every field the ruleset defines
+for that weapon — damage dice, damage type, properties, weight, cost, range —
+not a summary.
+_Check:_ T47.
 
 **REQ-061 — Source quoting.** Lookup results, search results, and rule-derived tool
 responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim
 Markdown excerpt preserving original formatting. Pure-state tools (undo, state queries,
-condition queries, audit reads) are exempt. _Check:_ T48.
+condition queries, audit reads) are exempt.
+*Acceptance criterion:* A spell lookup result ends with a `---`-separated block
+containing `<file>#<anchor>` and the verbatim Markdown text from the source; an
+undo result contains no source block.
+_Check:_ T48.
 
 **REQ-062 — Hat foundations.** `hat_briefing` includes ruleset-agnostic best-practice
 foundations for each hat. The Enrich workflow (§11.1) supplies the expanded foundations
-catalogue at `guidance://<hat>/foundations` as supplementary guidance. _Check:_ T26.
+catalogue at `guidance://<hat>/foundations` as supplementary guidance.
+*Acceptance criterion:* `hat_briefing` for the Player hat includes ruleset-agnostic
+foundations guidance; the Game Master briefing includes both player and GM foundations.
+_Check:_ T26.
 
 **REQ-070 — Anti-slop guidance.** Hat foundations include anti-slop guidance — concrete
 examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]`
@@ -368,6 +437,9 @@ and served at `guidance://<hat>/anti-slop`. The spec carries a synopsis in Appen
 full anti-slop catalogue is sourced from the Enrich workflow (§11.1) as supplementary guidance,
 with genre-specific examples from the `adventure_advice` module. Anti-slop guidance is
 hat-filtered and appears in `hat_briefing` after foundations and before scene state.
+*Acceptance criterion:* `hat_briefing` includes at least one `[anti-slop]`-tagged
+item per hat with a forbidden narrative pattern and a corrected alternative; the
+content is hat-filtered and appears after foundations.
 _Check:_ T26.
 
 **REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
@@ -376,13 +448,25 @@ ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<h
 carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a
 guidance subcategory. When the ruleset provides none, the Enrich workflow (§11.1) may
 source community examples. Entity-level voice_examples (REQ-077) are distinct — those
-are dialogue snippets attached to specific characters. _Check:_ T26.
+are dialogue snippets attached to specific characters.
+*Acceptance criterion:* `hat_briefing` includes at least one `[narrative-tone]`-tagged
+item per hat — a prose excerpt from the ruleset demonstrating its narrative
+voice, with source anchor and confidence.
+_Check:_ T26.
 
 **REQ-064 — Hat behavioral boundaries.** The server respects hat boundaries in
 all tool output. The Game Master hat describes situations and surfaces information; it
 never takes action or makes decisions on behalf of the player. The Player hat describes
 character intent; it never prescribes world facts or narrative outcomes without Game
-Master confirmation. _Check:_ T51.
+Master confirmation.
+*Acceptance criterion:* A Game Master hat `hat_briefing` describes situations without
+prescribing player actions; a Player hat briefing describes character intent without
+stating world facts the GM has not established.
+_Check:_ T51.
+
+*Out of scope:* transport-layer error handling, client-side error formatting,
+error localization or internationalization, and error recovery strategies beyond the
+corrective-action model defined in REQ-002.
 
 ### 5.2 Extraction and Confidence
 
@@ -458,6 +542,10 @@ protocol in Appendix G; a rate below 90% for any content type blocks the batch. 
 converter and its version are pinned in DECISIONS.md. Flagged artifacts receive a
 disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity
 rates appear in `spec_health` (REQ-025). _Check:_ T93.
+
+*Out of scope:* extraction from non-Markdown sources without prior conversion
+(§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
+system, and semantic interpretation of image-only content.
 
 ### 5.3 Tools, Resources, and Lookups
 
@@ -617,6 +705,10 @@ index at call time. An unknown value returns `[ERROR] [NOT_FOUND]` with session-
 valid values enumerated. A valid value returns `[OK]` with transparent dice results.
 _Check:_ T39, T39a.
 
+*Out of scope:* real-time collaboration tools, streaming resource endpoints,
+tools that modify the ruleset source, and MCP protocol features beyond the standard
+tool/resource/prompt surface.
+
 ### 5.4 Decision workflows
 
 **REQ-056 — Advancement workflow.** If the ruleset defines character advancement (leveling,
@@ -654,6 +746,9 @@ call. Both modes produce a complete entity with every ruleset-defined derived st
 and no ruleset-defined starting field zeroed out. Creation without an active Novel
 returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot.
 _Check:_ T32; T47; T103; Gate 2.
+
+*Out of scope:* branching narrative trees, puzzle-solving workflows, and decision
+workflows that span multiple Novels or connections.
 
 ### 5.5 Hats and Access
 
@@ -702,6 +797,10 @@ entities, combat state, triggered lore) precede the section boundary; supplement
 guidance and navigation groups (anti-slop, narrative tone samples, intro pointer)
 follow. The Game Master may override this order via `set_briefing_order` (REQ-082).
 _Check:_ T109, T110.
+
+*Out of scope:* role-based access control beyond the two-hat model, authentication
+or authorization mechanisms, multi-connection hat synchronization, and hat inheritance
+across Novels.
 
 ### 5.6 State and Lifecycle
 
@@ -1000,6 +1099,10 @@ Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines 
 other intact Novels are unaffected. A fresh start against an empty state directory
 is a match. _Check:_ T52.
 
+*Out of scope:* relational database backends, distributed state across processes,
+cloud synchronization, and state migration between incompatible specification versions
+without the Update workflow (§6.7).
+
 ### 5.7 Determinism, Safety, and Performance
 
 **REQ-050 — Determinism.** All random draws come from a single deterministic PRNG, seedable
@@ -1045,6 +1148,10 @@ precedence over `TTRPG_HAT`. `TTRPG_HAT` sets the initial active hat only
 when the starting Novel has no persisted hat state — either because the Novel is
 newly created, or because no hat was activated during a prior session.
 _Check:_ T9, T31, T108.
+
+*Out of scope:* hardware-level RNG, cryptographic security guarantees, formal
+verification of input safety, and performance under adversarial load beyond the tier
+benchmarks defined in REQ-100.
 
 ### 5.8 Narrative, Guidance, and Enrichment
 
@@ -1187,6 +1294,10 @@ suppresses the audit entry and countdown decrement for cases where the GM is upd
 the same scene without transitioning it (e.g., adding descriptive detail). The Player
 hat sees scene transitions in `scene://history`; GM-only mechanics (audit entry,
 countdown decrement) are invisible to the Player hat. _Check:_ T136.
+
+*Out of scope:* AI content generation at runtime (all generation is build-time),
+real-time web enrichment, and narrative quality assessment beyond the anti-slop
+guidance catalog.
 
 ### 5.9 Novel Lifecycle and Generation
 
@@ -1337,6 +1448,10 @@ Novel file-size deltas and snapshot depth deltas over the most recent sessions (
 whose growth trajectory projects an on-disk file size exceeding 4 MB within the next 3
 sessions is flagged with a `[size_growth]` warning. Health metrics are hat-filtered:
 Player sees entity-level health only; GM sees all. _Check:_ T101.
+
+*Out of scope:* multiplayer synchronization, real-time collaborative editing,
+save-game versioning beyond the checksum model, and Novel migration between
+different rulesets.
 
 ---
 
@@ -3537,6 +3652,23 @@ no catalog enumerations, no tool-name lists.
 Gate 2, Gate 4, Gate 5, the convergence loop, or a Gauntlet sub-workflow, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
 
+**EARS notation.** REQ authors are encouraged — but not required — to structure
+requirement bodies using the Easy Approach to Requirements Syntax (EARS). EARS
+collapses ambiguity by making trigger, condition, and response explicit in machine-parseable
+clauses. The five EARS patterns are:
+
+- **Ubiquitous:** "THE system SHALL <behavior>." — always-true constraints.
+- **Event-driven:** "WHEN <trigger> THE system SHALL <response>."
+- **State-driven:** "WHILE <state> THE system SHALL <behavior>."
+- **Unwanted behavior:** "IF <condition> THEN THE system SHALL <response>."
+- **Optional feature:** "WHERE <feature is included> THE system SHALL <behavior>."
+
+A REQ body that embeds EARS clauses alongside its narrative prose is easier for AI
+builders to parse and harder to misinterpret. The narrative REQ body remains the
+canonical contract; EARS clauses are supplementary precision tools, not replacements.
+Appendix M's existing rules — no parameter types, no default values, no algorithm
+descriptions — still apply to EARS clauses.
+
 **Convergence-driven REQ review.** When the convergence loop produces more than two
 findings of the same class across two or more ruleset builds, the builder flags the
 pattern in DECISIONS.md (5) as a candidate for REQ revision. Common classes include:
@@ -4117,4 +4249,32 @@ match as a finding.
 | persona_filter | hat_filter | REQ-086 |
 | persona_briefing | hat_briefing | REQ-109 |
 | oce, oce-state | `.holonovel-state` | REQ-055 |
+
+---
+
+## Appendix S: Builder Glossary
+
+*This appendix defines domain terms used across the specification. Each entry
+provides a definition and at least one citing REQ. It is a reference for builders
+encountering a term mid-spec, not a build artifact.*
+
+| Term | Definition | Citing REQ(s) |
+|------|-----------|---------------|
+| Builder | The AI executing this specification to produce a running MCP server. | §1 |
+| Convergence loop | The iterative quality-enforcement process (§6.5) that measures extraction quality, MUST coverage, and process compliance, feeding findings back into discovery and construction. | §6.5 |
+| Danger | A non-entity combat participant with no persistent ID, URI, or state — resolved automatically during `advance_combat`. | REQ-043, §7.7 |
+| Discovery | The builder's process of reading the ruleset Markdown and extracting a semantic model (RULESET_MODEL.md) with citations and confidence labels. | §6.3 |
+| Extraction model | The structured representation of ruleset mechanics — entities, actions, tables, guidance, and procedures — produced by Discovery. | REQ-010, REQ-018 |
+| Gauntlet | The operational verification suite (§6.6) — 22 sub-workflows exercising every tool, resource, and prompt against a running server. | §6.6, REQ-108 |
+| Golden transcript | The canonical expected-session transcript (§B.3) replayed during Gate 2 to verify the server produces correct output for known inputs. | §B.3, Gate 2 |
+| Hat | Active role — `player`, `game_master`, or none (full access). Determines tool visibility, resource filtering, and briefing content. | REQ-031, REQ-066 |
+| Hat briefing | The `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered for the active hat. | REQ-109 |
+| Macro | A token of the form `{{<path>}}` expanded to live state values before delivery to the client. | REQ-085 |
+| MUST-covering set | A set of intent prompts (hat stories) that collectively exercises every tool and resource visible to a given hat. | REQ-017 |
+| Novel | One named, persistent save file at `.holonovel-state/novels/<slug>.json` holding all entities, NPCs, scene, countdowns, lore, enrichment, adventure, audit log, snapshots, and hat state for a single ruleset playthrough. | REQ-088, REQ-092 |
+| Operator | The human running the build. | §4 |
+| Roster | Persistent character store surviving all Novels; baseline values immutable. | §7.7 |
+| Ruleset | The TTRPG source material — Markdown, or converted to Markdown. | §6.2 |
+| Verifier | A second, independent AI that re-runs the verification suite from a cold checkout. | §10 |
+| Waiver | A recorded acceptance of a deviation from a REQ, with justification, impact assessment, and re-activation condition. | REQ-013 |
 | oce connection | MCP connection | REQ-030 |
