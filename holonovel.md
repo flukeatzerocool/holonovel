@@ -1570,8 +1570,9 @@ builder encodes each sub-workflow internally as a structured record — `scenari
 string, e.g., `S1`, `S14a`), `objective` (one line), `blocking` (boolean), and `steps`
 (ordered array of tool calls with `tool`, `params`, and `assert` fields). The prose
 descriptions above are the canonical source; the structured encoding is a lossless
-mechanical transcription of the same assertions. The dnd5e server's Gauntlet fixture is
-the reference implementation of the structured encoding.
+mechanical transcription of the same assertions. The dnd5e server provides an
+example of the structured encoding; the prose sub-workflow descriptions above
+are the canonical source.
 
 **Convergence integration.** The convergence handshake (see Timing block
 above) governs the feedback loop between the Gauntlet and Phase 2 of the
@@ -2508,9 +2509,11 @@ Ruleset version: matches intake snapshot
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify this
 table before running Gate 2. Draw consumption and seeding are as defined in REQ-050.
 
-The reference algorithm is a 32-bit linear congruential generator:
-`state ← (state × 1664525 + 1013904223) mod 2³²`. The initial state is the numeric
-value of the seed string (`parseInt(seed, 10)`). A d6 draw is `⌊next() × 6⌋ + 1`.
+The witness values were generated using a 32-bit linear congruential generator:
+`state ← (state × 1664525 + 1013904223) mod 2³²` with initial state
+`parseInt(seed, 10)` and d6 draw `⌊next() × 6⌋ + 1`. The builder may use any
+deterministic PRNG that reproduces these witness sequences exactly; the table
+below is the contract.
 
 | Seed | First 10 d6 faces            |
 | ---- | ---------------------------- |
@@ -3464,7 +3467,8 @@ Ruleset version: matches intake snapshot
 ### N.4 RNG witness values
 
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify
-this table before running G2 (N fixture). The algorithm is the same 32-bit LCG defined in
+this table before running G2 (N fixture). The witness table below is the
+contract; the generator used to produce it is the same 32-bit LCG documented in
 B.4. A d20 draw is `⌊next() × 20⌋ + 1`.
 
 | Seed   | First 10 d20 faces                |
