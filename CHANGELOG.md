@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-05 — Spec audit remediation (16 findings)
+
+- REQ-004a: Added standalone requirement body for stat block baseline view.
+- REQ-069: Added requirement number for `player_signal` tool (was orphaned
+  without a REQ identifier). Check citations: T8, T26.
+- REQ-022: Added `enrichment://action_patterns` to the resource URI catalog.
+- REQ-084: Removed implementation-detail output field enumeration (deferred to
+  convergence loop per Appendix M).
+- REQ-101: Clarified `assumption_audit` prompt is spec-level, not a server prompt.
+- T83: Rewrote from stale token-budget mechanics (referencing
+  `TTRPG_MAX_LORE_TOKENS`, removed during spec compression) to
+  contract-preserving behavioral test matching current REQ-083.
+- B.3: Added note explaining dual combat naming conventions (confrontation /
+  combat) in the golden transcript.
+- S14d: Fixed ambiguous term — "same session" → "same connection."
+- REQ-065: Added operational behavior clause after unrecoverable state detection
+  (Novel treated as ended, roster and other Novels unaffected).
+- H10: Clarified tier-adjusted confidence thresholds for Heavy and Huge tiers.
+- REQ-088: Added `end_game` deprecated alias note for backward compatibility.
+- Appendix E: Added REQ-069 row (85 REQ rows).
+
 ## 2026-08-06 — Spec embedding and upstream tracking
 
 - REQ-105: Added `spec://build` resource — GM-filtered, returns embedded holonovel.md
@@ -35,6 +56,26 @@
   zeroed-field detection) and REQ-104 citation.
 - T103: Added character creation undo test covering both step-by-step and quick modes.
 - §7.5, O.5: Synced decision-key identity rule and dual-mode creation workflow.
+
+## 2026-08-05 — CalVer migration: date-based versioning and push discipline
+
+- Versioning: Migrated from semver (2.1.0) to CalVer date stamps (YYYY.MM.DD).
+  Root `package.json`, `dnd5e/package.json`, `dnd5e/DECISIONS.md`,
+  `dnd5e/AGENTS.md`, `dnd5e/README.md`, and `dnd5e/src/state.ts` all carry
+  `2026.08.05`. `state.ts` now reads the version dynamically from its own
+  `package.json` at module load instead of hardcoding.
+- REQ-107: Added version coordination contract — build fingerprint carries spec
+  version surfaced via `spec_health.spec_version`; gap audit short-circuits when
+  spec version is unchanged.
+- Push discipline: New `.githooks/pre-push` hook runs `npm run version-sync`
+  + `npm run check` before every push. New `scripts/version-check.ts` verifies
+  version consistency across all 6 tracked files. New `scripts/push.ts` wraps
+  checks + git tag `vYYYY.MM.DD` + push with `--tags`.
+- §1 Mission: Updated "major increment" language to reflect CalVer (any spec
+  version change may trigger full rebuild).
+- Note: npm may emit a deprecation warning for leading zeros in `2026.08.05`
+  (non-semver). This is intentional CalVer — the version is a date, not a
+  semver triple. No functional impact on installs or scripts.
 
 ## 2026-08-05 — Audit findings remediation
 

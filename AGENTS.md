@@ -48,6 +48,8 @@ scripts/fmea.ts               REQ-level failure mode and effects skeleton
 scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
 scripts/spec-health-trends.ts Spec health metrics over revisions
 scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies)
+scripts/lib/parse-readme.ts   README structural parsers (headings, links, blockquotes)
+scripts/validate-readme.ts    README guardrail (structure, voice, links, comparison table)
 ```
 
 ## Conventions
@@ -97,6 +99,8 @@ This runs:
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)  |
 | `npm run validate`         | Cross-references, TOC sync, REQ blocks, separators, spec violations |
 | `npm run audit-assumptions`| Structural assumption patterns (citations, magic numbers, absolute language) |
+| `npm run scan-ambiguity`   | Hedging, vague qualifiers, indefinite language in REQ bodies |
+| `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 
 Also available separately:
 

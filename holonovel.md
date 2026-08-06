@@ -26,10 +26,10 @@
 - [5. Requirements](#5-requirements)
 - [6. The Build Process](#6-the-build-process)
 - [7. Runtime Conventions](#7-runtime-conventions)
-- [8. Verification Gates](#8-verification-gates)
+- [8. Verification Workflows](#8-verification-workflows)
 - [9. Artifacts and Handoff](#9-artifacts-and-handoff)
 - [10. Independent Verification](#10-independent-verification)
-- [11. Optional Jobs](#11-optional-jobs)
+- [11. Optional Workflows](#11-optional-workflows)
 - [Appendix A: Markdown Parsing Principles](#appendix-a-markdown-parsing-principles)
 - [Appendix B: Golden Fixture](#appendix-b-golden-fixture)
 - [Appendix C: Injection Fixture](#appendix-c-injection-fixture)
@@ -59,7 +59,7 @@ coding — the AI reads the ruleset and builds. The specification is the permane
 artifact; implementations are disposable and rebuilt on demand. Full rebuilds have
 token and time costs. The builder prefers incremental updates when the spec delta is
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
-model changes, or the spec version changes by a major increment.
+model changes, or the spec version changes.
 
 **The play model.** Two personas, enforced server-side during play. The Novel is the
 container — a named, persistent save file on disk. Create a Novel, set up characters
@@ -285,7 +285,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 ### 5.1 Output and Error Contracts
 
 **REQ-101 — Assumption audit trail.** Before the Convert job begins, the builder invokes the
-`assumption_audit` prompt against the current spec revision and records at least one
+`assumption_audit` prompt (a spec-level prompt shipped with the specification — not a
+server prompt) against the current spec revision and records at least one
 challenged assumption per category — technology, AI-as-builder, extraction and confidence,
 MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec
 process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a
@@ -320,7 +321,10 @@ is truncated with `… [truncated — full content: output://<tool>/<counter>]`.
 payloads are session-local, persona-filtered, and evict the oldest when exceeding the session
 limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks are
 presented in the ruleset's baseline format, with all fields regardless of truncation
-(REQ-004a). _Check:_ T13.
+(see REQ-004a). _Check:_ T13.
+
+**REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
+baseline format, with all fields regardless of truncation. _Check:_ T13.
 
 **REQ-060 — Verbose output.** Tool output is comprehensive — every field the ruleset defines
 for the item or action is returned. Combat results include every modifier with its
@@ -445,7 +449,7 @@ list matches the registry. _Check:_ T3, T35.
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
-`enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
+`enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
 `novel://<slug>`, `novel://setup`, and `spec://build` (GM-filtered). `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header. _Check:_ T16, T104.
@@ -489,6 +493,16 @@ surfaces it under a `spec_repo_url` field. The `intro` prompt includes the URL a
 pointer for operators who want the latest version. The URL is informational — the
 embedded spec copy (REQ-105) is authoritative for the server's build-time contract.
 _Check:_ T105.
+
+**REQ-107 — Version coordination.** The server carries its build-time specification
+version in the build fingerprint, surfaced through `spec_health` under a `spec_version`
+field. The version is a CalVer date-stamp (YYYY.MM.DD) matching the CHANGELOG entry date
+at which the specification was last substantively changed. The builder records the spec
+version in DECISIONS.md at intake (see §2 Pinned Versions). During a spec-driven update
+(REQ-098), the builder compares the current spec version against the server's recorded
+version: when the spec version has advanced, the gap audit proceeds; when unchanged, the
+builder reports the server is current and exits without mutation. The version string is
+informational — it does not gate runtime behavior beyond reporting. _Check:_ T106.
 
 **REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
 required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_health`.
@@ -538,7 +552,7 @@ index at call time. An unknown value returns `[ERROR] [NOT_FOUND]` with session-
 valid values enumerated. A valid value returns `[OK]` with transparent dice results.
 _Check:_ T39, T39a.
 
-### 5.4 Workflows
+### 5.4 Decision workflows
 
 **REQ-056 — Advancement workflow.** If the ruleset defines character advancement (leveling,
 class progression, feat acquisition), it is modeled as a server-side workflow — a sequential
@@ -681,14 +695,14 @@ fields)`, they override the roster baseline for that Novel only. The `set_person
 tool is Player-only for own entities. On Novel entity import, roster personality fields
 are copied alongside mechanical stats. _Check:_ T58, T65.
 
-**Player feedback signal.** The server provides a `player_signal(signal, value)` tool —
+**REQ-069 — Player feedback signal.** The server provides a `player_signal(signal, value)` tool —
 Player-only. Records a structured preference signal: `pace` (slower/faster), `difficulty`
 (easier/harder), `tone` (lighter/darker/grittier), `focus`
 (more-action/more-exploration/more-dialogue), or `boundary` (avoid a topic string). The
 signal is recorded in the audit log and surfaced in `persona_briefing` as current player
 preferences. Purely inert data — the server does not enforce preferences; the LLM reads
 them and adjusts narration. Adversarial free-text in `value` is stored verbatim as inert
-data (REQ-054).
+data (REQ-054). _Check:_ T8, T26.
 
 **REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
 Build job alongside the ruleset. Adventure content is indexed and served at
@@ -726,7 +740,11 @@ preserved as inert data and cause no errors; fields required by the current mode
 absent from existing state receive their ruleset-defined defaults. Roster baselines remain
 immutable across rebuilds. Unrecoverable state — state that cannot be parsed or
 structurally loaded — is reported to the operator via stderr and surfaced in `spec_health`;
-the server must not silently discard it. A fresh start against an empty state directory
+the server must not silently discard it. When unrecoverable state is detected, the
+server surfaces the error in `spec_health` and stderr. The server continues to operate
+with a clean state for the affected Novel — the corrupted state is not loaded; the
+Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines and
+other intact Novels are unaffected. A fresh start against an empty state directory
 is a match. _Check:_ T52.
 
 ### 5.7 Determinism, Safety, and Performance
@@ -811,8 +829,8 @@ T83.
 
 **REQ-084 — Action suggestions.** The server provides a `suggest_actions(intent)` tool
 that maps a player's natural-language intent to ruleset-legal tool invocations. With an
-intent string, it returns up to 5 matching actions from the ruleset registry, each with
-tool name, required parameters, stat requirements, and a one-line description. Without
+intent string, it returns matching actions from the ruleset registry mapped to
+the player's intent. Without
 an intent, it returns contextually relevant actions based on current scene type
 (REQ-087), scene_state, entity conditions, and active countdowns. The tool is
 pure-resolution (idempotent, no state mutation). Results are persona-filtered: GM-only
@@ -879,7 +897,9 @@ require an active Novel. Without one, they return `[STATE_CONFLICT]` directing t
 to `create_novel`. Silent orphan creation — adding an entity to the roster without a Novel
 association — is a defect. `[STATE_CONFLICT]` if no Novel active when a Novel-scoped tool is
 called. Server start without `TTRPG_NOVEL` operates with no Novel active — Novel-scoped
-tools direct users to create or resume one. _Check:_ T72, T73, T98.
+tools direct users to create or resume one. For backward compatibility, the builder may
+accept `end_game` as a deprecated alias for `end_novel`; the alias is not required
+and may be logged as deprecated in `spec_health`. _Check:_ T72, T73, T98.
 
 **REQ-095 — Novel switching.** `switch_novel(slug)` (always callable regardless of persona)
 deactivates the connection's current Novel and activates the target Novel identified by
@@ -992,12 +1012,12 @@ Player sees entity-level health only; GM sees all. _Check:_ T101.
 
 ## 6. The Build Process
 
-### 6.1 Job overview
+### 6.1 Workflow overview
 
-The build is organized into four independently selectable jobs. The operator picks one or
-more jobs; the builder asks only the questions those jobs need and proceeds accordingly.
+The build is organized into four independently selectable workflows. The operator picks one or
+more workflows; the builder asks only the questions those workflows need and proceeds accordingly.
 
-| Job     | What it does                                                | Required sections        |
+| Workflow | What it does                                                | Required sections        |
 | ------- | ----------------------------------------------------------- | ------------------------ |
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
@@ -1007,36 +1027,36 @@ more jobs; the builder asks only the questions those jobs need and proceeds acco
 ### 6.2 Intake
 
 Ask the operator pre-build questions up front, as a single batch. The builder asks the
-job-selection question first, then all questions relevant to the selected jobs. Each job's
+workflow-selection question first, then all questions relevant to the selected workflows. Each workflow's
 questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
 runs use defaults from the tables below (defaults: `build` when offline, `build + enrich` when network detected).
 
-The builder MUST NOT begin any job until the operator has answered Q0 and all
-questions for the selected jobs. Answers are recorded in DECISIONS.md (1). A
+The builder MUST NOT begin any workflow until the operator has answered Q0 and all
+questions for the selected workflows. Answers are recorded in DECISIONS.md (1). A
 build that begins without recorded answers fails the process-compliance
 convergence metric (§6.5). The builder presents all questions in one batch; if the
-operator selects jobs at different times, the builder re-asks only the new job's
+operator selects workflows at different times, the builder re-asks only the new workflow's
 questions. After recording answers, the builder confirms back in one message:
-selected jobs, all answers, and the first job to execute.
+selected workflows, all answers, and the first workflow to execute.
 
-**Q0 — Job selection.** Asked first, at most one answer.
+**Q0 — Workflow selection.** Asked first, at most one answer.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What job(s) should Holonovel run? | convert / build / enrich / update (select one or more) | build + enrich (when network detected), build (when offline) |
+| Q0  | What workflow(s) should Holonovel run? | convert / build / enrich / update (select one or more) | build + enrich (when network detected), build (when offline) |
 
-**Q1 — Pause between jobs.** Asked when two or more jobs are selected.
+**Q1 — Pause between workflows.** Asked when two or more workflows are selected.
 
 | #   | Question                     | Options       | Default |
 | --- | ---------------------------- | ------------- | ------- |
-| Q1  | Pause between jobs for operator review? | yes / no | yes |
+| Q1  | Pause between workflows for operator review? | yes / no | yes |
 
-If Q1 is `no`, the builder runs all jobs back-to-back without pausing and MUST NOT
-produce any completion summary, AAR, or final-status table until all jobs are
-finished and all gates have run. Intermediate progress notes are permitted but must
-not read as completion. If `yes`, the builder pauses after each job, reports its
+If Q1 is `no`, the builder runs all workflows back-to-back without pausing and MUST NOT
+produce any completion summary, AAR, or final-status table until all workflows are
+finished and all verification workflows have run. Intermediate progress notes are permitted but must
+not read as completion. If `yes`, the builder pauses after each workflow, reports its
 outcome and verification results, and asks the operator whether to continue to the
-next job.
+next workflow.
 
 Auto-detection for Q0 default. When the default option specifies "when network
 detected," the builder probes connectivity to at least one known-public host before
@@ -1044,7 +1064,7 @@ presenting questions. If the probe fails, the builder falls back to `build` only
 records the failure in DECISIONS.md. If the probe succeeds, the default includes
 `enrich`; the operator may still deselect it.
 
-**Convert job.** Asked when `convert` is selected.
+**Convert workflow.** Asked when `convert` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -1052,7 +1072,7 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | C2  | Source path(s) or URL(s)     | Paths or URLs                    | —                   |
 | C3  | Ruleset identifier (name, edition) | String                      | derived from source |
 
-**Build job.** Asked when `build` is selected.
+**Build workflow.** Asked when `build` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -1076,7 +1096,7 @@ H11 check: launch the server via the client's documented invocation, assert the
 initialize handshake succeeds, and confirm `serverInfo.name` matches the
 `mcpServers` key. A `server unavailable` error stops the line.
 
-**Enrich job.** Asked when `enrich` is selected.
+**Enrich workflow.** Asked when `enrich` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -1085,7 +1105,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
 
-**Update job.** Asked when `update` is selected.
+**Update workflow.** Asked when `update` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -1093,20 +1113,20 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | U2  | How should the spec version delta be detected? | auto (compare DECISIONS.md to current spec) / manual (operator states the previous spec version) | auto |
 | U3  | Fetch latest spec from repo before update? | yes / no                       | yes                 |
 
-**Cross-job deduplication.** When the operator selects multiple jobs, questions
+**Cross-workflow deduplication.** When the operator selects multiple workflows, questions
 identical in wording and semantics are asked once. If Convert produces the Markdown sources
 Build uses, C2's resolved paths answer B1 implicitly; B1 is still asked so the
 operator can override. The builder records the shared answer under each
-applicable job's entry in DECISIONS.md (1) with a `(shared with <job>)`
+applicable workflow's entry in DECISIONS.md (1) with a `(shared with <workflow>)`
 annotation.
 
-**Gate 0.** Run at intake: verify the source is readable, well-formed, structurally sound.
+**Verification workflow G0.** Run at intake: verify the source is readable, well-formed, structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
-are converted per [Appendix G](#appendix-g-source-conversion). Gate 0 is a ruleset-facing
-gate — per §8, Gates 2 and 3 are fixture gates run once per builder implementation.
+are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing
+verification workflow — per §8, verification workflows G2 and G3 are fixture workflows run once per builder implementation.
 
-**Viability pre-check.** After Gate 0 but before chunked discovery, the builder
+**Viability pre-check.** After G0 but before chunked discovery, the builder
 counts mechanical sections — headings containing procedures, tables,
 bold-labeled fields, or definition lists — as a proportion of total
 `##`-level sections. If mechanical sections are below 30% of total sections,
@@ -1167,19 +1187,19 @@ document (`holonovel.md`) into the server's installation directory. The copy
 establishes the `spec://build` resource (REQ-105). The builder records the
 specification's content hash in DECISIONS.md (1) alongside the ruleset intake hash.
 
-The six-layer order below is a recommended construction sequence, not a
+The six-step order below is a recommended construction sequence, not a
 requirement. A builder that organizes its work differently and passes the same
-acceptance checks (third column) is compliant. The layers are
+acceptance checks (third column) is compliant. The steps are
 dependency-ordered — each builds on the previous — and skipping or reordering
-a layer without an alternative acceptance check is a process-compliance
-finding. The server is built in six layers, each with an acceptance check:
+a step without an alternative acceptance check is a process-compliance
+finding. The server is built in six steps, each with an acceptance check:
 
-| Layer | What it does                                                | Acceptance                                                   |
+| Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | Gate 1 checklist pass (Appendix D)                  |
+| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | G1 checklist pass (Appendix D)                  |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
-| 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run Gate 2 against the fixture                           |
+| 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
 | 5     | State: snapshots, undo, audit, persona gating, resource URIs | T9 pass (persona test)                                       |
 | 6     | Prompts: `use_tool`, `lookup_rule`, `run_workflow`, `persona_briefing`, `intro` | T22 pass (prompt registry test)            |
 
@@ -1195,9 +1215,9 @@ template.
 
 ### 6.5 Verification and convergence
 
-**Checkpoints.** After each job completion and each layer build, the builder spawns a
-subagent (fresh context) that audits the work against the requirements cited by that stage.
-The subagent reports findings; the builder resolves each before the next stage.
+**Audit steps.** After each workflow completion and each construction step, the builder spawns a
+subagent (fresh context) that audits the work against the requirements cited by that step.
+The subagent reports findings; the builder resolves each before the next step.
 
 **Auditor pre-flight.** Before the first checkpoint audit of a build session, the
 builder seeds one deliberate defect in its own output — a mislabeled anchor, a
@@ -1205,7 +1225,7 @@ missing cross-reference, or an extra tool name in a registry entry — and verif
 audit subagent catches it. A subagent that misses a seeded defect is a
 process-compliance finding recorded in DECISIONS.md (6); the subagent is re-prompted.
 
-**Convergence loop.** The builder iterates up to 3 attempts per activity. For each activity,
+**Convergence loop.** The builder iterates up to 3 attempts per metric-targeted step. For each step,
 measure the metric, improve, and verify. If the metric meets its threshold, record and
 stop. Thresholds are tiered per REQ-100: Light (<100 indexed items), Standard (100–500),
 Heavy (500–2000), Huge (2000+).
@@ -1217,19 +1237,19 @@ Heavy (500–2000), Huge (2000+).
 | Extraction fidelity | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
 | Mechanics fidelity  | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
 | Conversion fidelity | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
-| Process compliance  | Pre-build answers + gate records    | All present   | Collect missing, re-verify               |
+| Process compliance  | Pre-build answers + verification workflow records    | All present   | Collect missing, re-verify               |
 
-**No-delta detection.** If an activity produces zero measurable improvement from
-one cycle to the next — the numeric metric is unchanged and no new findings are
-resolved — the builder aborts that activity after one stalled cycle and logs the
-reason in DECISIONS.md (5). Remaining activities continue independently. A stalled
-activity with no metric (process compliance) is declared stalled when it is
-unsatisfied and no new gate records are collected on the repeated attempt.
+**No-delta detection.** If a step produces zero measurable improvement from
+one iteration to the next — the numeric metric is unchanged and no new findings are
+resolved — the builder aborts that step after one stalled iteration and logs the
+reason in DECISIONS.md (5). Remaining steps continue independently. A stalled
+step with no metric (process compliance) is declared stalled when it is
+unsatisfied and no new verification workflow records are collected on the repeated attempt.
 
-The loop converges when all metrics meet their threshold or three cycles without
+The loop converges when all metrics meet their threshold or three iterations without
 improvement. At that point, record the current state with the residual gap logged in
 DECISIONS.md. For rulesets above 200 indexed items, verification continues with the
-complex fixture gate (Gate 2b, §8; verified by T90).
+complex fixture workflow (verification workflow G2b, §8; verified by T90).
 
 **Cross-model audit.** When the builder has access to more than one model, the audit
 subagent should use a different model from the builder's primary model. A cross-model
@@ -1243,10 +1263,10 @@ operator that same-model auditing may miss defect classes a cross-model audit wo
 catch.
 
 **Adjusted thresholds.** The builder may lower the confidence threshold specified in
-the handoff checks (§9 H10) for rulesets whose indexed-item count exceeds 200. The
+the handoff verification workflow (§9 H10) for rulesets whose indexed-item count exceeds 200. The
 adjusted threshold is documented in DECISIONS.md (5) with the complexity metric used
 and the justification. The floor is 70%. The convergence loop enforces the chosen
-threshold in the same cycle as the standard threshold. The core resolution
+threshold in the same iteration as the standard threshold. The core resolution
 mechanic — the ruleset's primary dice/outcome procedure, identified by the builder
 during discovery — must maintain at least 85% confidence independently. If the core
 mechanic falls below 85% after convergence (including any adjusted thresholds), the
@@ -1270,7 +1290,7 @@ verification, the builder re-reads the written file and verifies: (a) heading
 structure matches the plan — confirm the expected `##` and `###` headings appear in
 order; (b) no path corruption — search for doubled directory components and missing
 slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
-convergence finding and triggers a fix + re-read cycle. This check applies to every
+convergence finding and triggers a fix + re-read iteration. This check applies to every
 file write: source code, test scripts, README, DECISIONS.md, and MCP client
 configuration. (d) **completeness** — the builder maintains a file manifest (list of
 expected output files recorded after construction planning). The manifest is checked
@@ -1280,8 +1300,8 @@ non-zero size. A missing or empty file is a convergence finding.
 ### 6.6 The Gauntlet
 
 **Timing.** After the convergence loop (§6.5) has converged and the ruleset-facing
-gates (§8: Gates 1 and 4) have passed, the builder runs the Gauntlet. Fixture gates
-(Gates 2 and 3 — see §8) are specification-level checks run once per builder
+verification workflows (§8: G1 and G4) have passed, the builder runs the Gauntlet. Fixture workflows
+(G2 and G3 — see §8) are specification-level checks run once per builder
 implementation; they are independent of Gauntlet timing. The Gauntlet exercises the
 built server with AI-simulated personas in realistic play scenarios. It is a required
 quality check. Run after Build converges; findings feed back into the convergence loop.
@@ -1292,10 +1312,10 @@ code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking scenario that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
-**Job completion.** The Build job is not complete until the Gauntlet exits with all
-scenarios passing or the builder records 2 cycles without improvement (see Exit
-criteria below), and both ruleset-facing gates (1 and 4) pass. Marking a job complete
-without a passing Gauntlet and passing applicable gates is a process defect. The
+**Workflow completion.** The Build workflow is not complete until the Gauntlet exits with all
+Gauntlet sub-workflows passing or the builder records 2 iterations without improvement (see Exit
+criteria below), and both ruleset-facing verification workflows (G1 and G4) pass. Marking a workflow complete
+without a passing Gauntlet and passing applicable verification workflows is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts two MCP client connections to the same server process
@@ -1307,21 +1327,21 @@ calls between the two connections to simulate realistic turn-taking: the Player 
 manages state). Every scenario states its objective, the tool calls to make, which
 persona calls each, and the pass criterion.
 
-**Verification principle.** Gauntlet scenarios verify state through tool-observable
+**Verification principle.** Gauntlet sub-workflows verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `persona_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
-on-disk state format is tested by Gate 4 (Appendix F derived tests, T72/T77) and
-is an implementation detail. A Gauntlet scenario that reads raw state files to
+on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
+is an implementation detail. A Gauntlet sub-workflow that reads raw state files to
 verify behavior observable through tools will become stale when the state model
 changes during a spec-driven update (REQ-098). Direct file reads remain valid in
 S17 (file removal) and S15 (corruption) where the pass criterion is a
 file-system-level assertion.
 
-**Scenarios.** The builder must execute all scenarios. A scenario passes when every
+**Gauntlet sub-workflows.** The builder must execute all sub-workflows. A sub-workflow passes when every
 assertion in its pass criterion holds. A failure is recorded as a finding in
 DECISIONS.md (6).
 
-**Failure artifacts.** When a scenario fails, the builder records in DECISIONS.md (6):
+**Failure artifacts.** When a sub-workflow fails, the builder records in DECISIONS.md (6):
 (i) the specific assertion that failed, with expected and actual values; (ii) the
 full tool request and response that triggered the failure; (iii) a server state
 snapshot captured immediately after the failure; (iv) a diagnostic trail showing the
@@ -1374,8 +1394,8 @@ four items is incomplete and blocks handoff.
        — not the builder's invention.
     c. **Boundary HP — max.** An entity healed above max HP caps at max — no overflow,
        no negative-wrapping.
-    d. **Rapid calls.** Five consecutive tool calls in rapid succession (same session,
-       no delay) all complete without timeout, state corruption, or lost updates.
+    d. **Rapid calls.** Five consecutive tool calls in rapid succession (same connection,
+        no delay) all complete without timeout, state corruption, or lost updates.
     e. **Ambiguous aliases.** A canonical lookup with an ambiguous alias (matches two
        or more entries) returns `[ERROR] [AMBIGUOUS]` enumerating the matched entries —
        not a silent pick.
@@ -1456,57 +1476,57 @@ four items is incomplete and blocks handoff.
     minus undo count; the on-disk Novel file is ≤ 5 MB. (Blocking.)
 
 A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
-the scenario but is recorded with the actual duration. Three consecutive S22 runs
+the sub-workflow but is recorded with the actual duration. Three consecutive S22 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
-**Global budget.** The full Gauntlet run of all scenarios must complete within 60
+**Global budget.** The full Gauntlet run of all sub-workflows must complete within 60
 minutes of wall-clock time. A run exceeding the budget is recorded with actual
-duration and per-scenario timings in DECISIONS.md (6). The operator may increase
+duration and per-sub-workflow timings in DECISIONS.md (6). The operator may increase
 the budget for rulesets exceeding 2,000 indexed items (REQ-100 Huge tier).
 
 **Structured encoding.** For mechanical consumption during Gauntlet execution, the
-builder encodes each scenario internally as a structured record — `scenario_id` (stable
+builder encodes each sub-workflow internally as a structured record — `scenario_id` (stable
 string, e.g., `S1`, `S14a`), `objective` (one line), `blocking` (boolean), and `steps`
 (ordered array of tool calls with `tool`, `params`, and `assert` fields). The prose
 descriptions above are the canonical source; the structured encoding is a lossless
 mechanical transcription of the same assertions. The dnd5e server's Gauntlet fixture is
 the reference implementation of the structured encoding.
 
-**Convergence integration.** Each scenario failure produces a finding in DECISIONS.md
-(6). The builder classifies the finding and creates a targeted convergence activity:
+**Convergence integration.** Each sub-workflow failure produces a finding in DECISIONS.md
+(6). The builder classifies the finding and creates a targeted convergence step:
 diagnose the root cause, fix it, re-verify. The convergence loop (§6.5) re-engages for
-these activities. After convergence re-converges, the Gauntlet re-runs — up to 2
-Gauntlet cycles.
+these steps. After convergence re-converges, the Gauntlet re-runs — up to 2
+Gauntlet iterations.
 
-**Improvement** is measured per cycle: (i) fewer total assertion failures than the
-prior Gauntlet run, or (ii) at least one previously-blocking scenario downgraded to
-non-blocking. A run with no improvement on either measure is a stalled cycle. Residual
-failures after 2 stalled cycles are logged in DECISIONS.md (5) as accepted limitations
+**Improvement** is measured per iteration: (i) fewer total assertion failures than the
+prior Gauntlet run, or (ii) at least one previously-blocking sub-workflow downgraded to
+non-blocking. A run with no improvement on either measure is a stalled iteration. Residual
+failures after 2 stalled iterations are logged in DECISIONS.md (5) as accepted limitations
 with re-activation conditions.
 
-When a bug is discovered through a Gauntlet scenario failure and subsequently fixed via
-convergence, the builder adds at least one new assertion to the scenario that
-triggered the discovery — or a new sub-scenario if the fix spans multiple scenarios —
+When a bug is discovered through a Gauntlet sub-workflow failure and subsequently fixed via
+convergence, the builder adds at least one new assertion to the sub-workflow that
+triggered the discovery — or a new sub-workflow if the fix spans multiple sub-workflows —
 to prevent regression. This assertion must fail when the original bug is
 reintroduced. The new assertion is recorded in DECISIONS.md (6) with a cross-reference
 to the original finding.
 
 **Assertion compression.** After every spec-driven update (REQ-098) or after five
-Gauntlet cycles, the builder audits accumulated regression assertions for redundancy.
+Gauntlet iterations, the builder audits accumulated regression assertions for redundancy.
 Assertions subsumed by newer assertions or testing behavior now covered by a
-verification gate are removed. Removed assertions are logged in DECISIONS.md (6) with
-the subsuming assertion or gate cited. This keeps Gauntlet scenarios lean without
+verification workflow are removed. Removed assertions are logged in DECISIONS.md (6) with
+the subsuming assertion or verification workflow cited. This keeps Gauntlet sub-workflows lean without
 weakening regression coverage.
 
-**Exit criteria.** The Gauntlet completes when all scenarios pass and all blocking
-failures are resolved. Failures are severity-gated: (a) failures in scenarios 1
+**Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
+failures are resolved. Failures are severity-gated: (a) failures in sub-workflows 1
 (tool sweep), 2 (character creation), 4 (simulated combat), 5 (state survival),
 6 (persona boundary), 12 (roster durability), 15 (stress and recovery),
 17 (Novel lifecycle and persistence), 20 (persona briefing), 21 (lorebook
 interchange), or 22 (campaign endurance)
-are blocking — the Build job is incomplete and the operator is notified; (b) failures
-in other scenarios are logged in DECISIONS.md (5) as accepted limitations with
-re-activation conditions after 2 stalled cycles. All failures are recorded
+are blocking — the Build workflow is incomplete and the operator is notified; (b) failures
+in other sub-workflows are logged in DECISIONS.md (5) as accepted limitations with
+re-activation conditions after 2 stalled iterations. All failures are recorded
 with their severity classification, the diagnostic trail, and the reason further
 convergence would not help.
 
@@ -1517,19 +1537,19 @@ to match changes in this specification, the operator must audit gaps across the 
 catalog, resource map, prompt list, state model, persona gating, and behavioral
 contracts; produce a documented plan with gap dispositions (implemented / deferred /
 waived) each citing the relevant REQ; implement changes with passing verification
-gates; restart the MCP server process and confirm `spec_health` reports the updated
-specification version; re-run all blocking Gauntlet scenarios and any non-blocking
-scenarios exercising gap-audit-implemented tools, resources, or prompts, with zero
-failures on both; implement any unimplemented Gauntlet scenarios from §6.6; and
+workflows; restart the MCP server process and confirm `spec_health` reports the updated
+specification version; re-run all blocking Gauntlet sub-workflows and any non-blocking
+sub-workflows exercising gap-audit-implemented tools, resources, or prompts, with zero
+failures on both; implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
 
 **Delta classes.**
 
-| Class   | Trigger                                                       | Workflow                                                  |
+| Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | Gate 0 + Gate 1 only; record version bump in DECISIONS.md; no Gauntlet |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; blocking Gauntlet only |
-| Major   | State model changed, new tools/prompts/resources mandated, persona-gating contract altered | Full gap audit; full 22-scenario Gauntlet |
+| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 + G1 only; record version bump in DECISIONS.md; no Gauntlet |
+| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; blocking Gauntlet sub-workflows only |
+| Major   | State model changed, new tools/prompts/resources mandated, persona-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -1555,7 +1575,7 @@ No budget set → no limit.
 
 _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing its
 relevant REQ and disposition reason. `spec_health` reports the updated specification
-version. All blocking Gauntlet scenarios pass; non-blocking scenarios exercising
+version. All blocking Gauntlet sub-workflows pass; non-blocking sub-workflows exercising
 gap-audit-implemented tools, resources, or prompts pass. `spec_health` reports
 `last_spec_review` and `last_gauntlet` fields populated with ISO dates.
 
@@ -1565,7 +1585,7 @@ fetched copy is compared against the embedded `spec://build` copy; a diff
 summary is reported. The embedded copy is updated to the fetched version.
 A successful fetch records the new content hash in DECISIONS.md. An unreachable
 remote records a fetch-failure notice and does not block the update — the gap
-audit proceeds against the embedded copy. Network access during the Update job
+audit proceeds against the embedded copy. Network access during the Update workflow
 is a build-time operation and does not violate REQ-051.
 
 ---
@@ -1704,65 +1724,65 @@ determines the optimal default order; the convergence loop (§6.5) verifies comp
 
 ---
 
-## 8. Verification Gates
+## 8. Verification Workflows
 
-Each gate produces an evidence record: gate name, timestamp, environment pins
+Each verification workflow produces an evidence record: workflow name, timestamp, environment pins
 (Node version, OS, pinned protocol version), commands run and their output,
 pass/fail status, and findings. The record is embedded in DECISIONS.md item (6)
 (`@section evidence`).
 
-**Gates 2 and 3 are fixture gates:** they test the builder against a known-correct
+**G2 and G3 are fixture verification workflows:** they test the builder against a known-correct
 specification fixture (Appendix B: Tin Lanterns) and an injection fixture
-(Appendix C). These gates are run once per builder implementation — not once per
-ruleset. Their results apply to every ruleset served by that builder. Gates 0, 1,
-4, and 5 are ruleset-facing: each ruleset must pass them independently.
+(Appendix C). These workflows are run once per builder implementation — not once per
+ruleset. Their results apply to every ruleset served by that builder. G0, G1,
+G4, and G5 are ruleset-facing: each ruleset must pass them independently.
 
-**Gate 0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
+**Verification workflow G0 — Structural integrity.** Verify the ruleset Markdown (or converted source)
 passes the Appendix H checklist: well-formed, all headings unique, tables regular,
 references resolvable. Run at intake.
 
-**Gate 1 — MCP conformance.** Verify the running server against the Appendix D checklist.
+**Verification workflow G1 — MCP conformance.** Verify the running server against the Appendix D checklist.
 Every check must pass. Run the MCP Inspector or equivalent against a server built from the
 Appendix B fixture.
 
-**Gate 2 — Golden transcript replay (fixture gate).** Build a server from the Appendix B fixture and
+**Verification workflow G2 — Golden transcript replay (fixture workflow).** Build a server from the Appendix B fixture and
 replay the Appendix B.3 transcript. Assert: status prefix and `isError` semantics
 (REQ-001), required fields in order, die values pinned by per-call seeds (REQ-050),
 gating decisions (REQ-032), and decision round-trips (REQ-042). Exact wording is not
 asserted.
 
-Before handoff, re-run Gate 2 once from a cold checkout of the four artifacts, following
+Before handoff, re-run G2 once from a cold checkout of the four artifacts, following
 only README.md and AGENTS.md. A reproduction failure stops the line.
 
-**Gate 3 — Injection (fixture gate).** Run discovery over the Appendix C fixture. Verify the capability
+**Verification workflow G3 — Injection (fixture workflow).** Run discovery over the Appendix C fixture. Verify the capability
 surface, persona gating, and metadata filtering are unchanged. Tool registry and resource
 listings diff clean (identical except for the new section's anchor and its GM-only
 guidance items).
 
-**Gate 2b — Complex fixture replay (fixture gate).** For rulesets above 200 indexed items
+**Verification workflow G2b — Complex fixture replay (fixture workflow).** For rulesets above 200 indexed items
 (REQ-100 tiers Standard, Heavy, or Huge), build a server from the Appendix N fixture and
 replay the Appendix N.3 transcript. Assert: status prefixes and `isError` semantics
 (REQ-001), required fields in order, die values pinned (REQ-050), gating decisions
 (REQ-032), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
 session_recap correctness (REQ-072), and undo round-trip (REQ-041). Exact wording is not
-asserted. Before handoff for qualifying rulesets, re-run Gate 2b once from a cold
+asserted. Before handoff for qualifying rulesets, re-run G2b once from a cold
 checkout following only README.md and AGENTS.md. A reproduction failure stops the line.
 _Verify:_ T90.
 
-**Gate 4 — Derived tests.** Execute the tests in [Appendix F](#appendix-f-derived-test-catalogue).
+**Verification workflow G4 — Derived tests.** Execute the tests in [Appendix F](#appendix-f-derived-test-catalogue).
 Tests run with networking disabled (REQ-051). Waivers are allowed only under REQ-013;
 log each with its reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual tests must
 document the verification procedure and expected output shape in DECISIONS.md.
 
-**Gate 5 — The Gauntlet (operational verification).** Run the 22-scenario Gauntlet
-defined in §6.6. All blocking scenarios (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass.
+**Verification workflow G5 — The Gauntlet (operational verification).** Run the 22-sub-workflow Gauntlet
+defined in §6.6. All blocking sub-workflows (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and
 after any manual code modification.
 
-**T18 anti-persona scenarios:**
+**T18 anti-persona sub-workflows:**
 
 | Persona                       | Behavior                                                                       | Expected result                                                                                                                         |
 | ----------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1777,7 +1797,7 @@ after any manual code modification.
 
 ## 9. Artifacts and Handoff
 
-Four documents. No more. Gate evidence is embedded in DECISIONS.md, never stored as
+Four documents. No more. Verification workflow evidence is embedded in DECISIONS.md, never stored as
 separate files.
 
 - **RULESET_MODEL.md** — the semantic model with citations, confidence labels, and
@@ -1789,16 +1809,16 @@ separate files.
   normalizations, and capabilities inventory; `<!-- @section waivers -->` (5) waivers and
   accepted limitations — including mechanics-deviation entries for every hardcoded table,
   each with justification, impact, and re-activation condition; `<!-- @section evidence
-  -->` (6) gate evidence, checkpoint findings, verification record, and structured task
+  -->` (6) verification workflow evidence, audit findings, verification record, and structured task
   list.
 - **README.md** — setup, usage, persona model, state model, RNG continuity, and
   copy-paste MCP client configuration entry verified against the build-time client target.
-- **AGENTS.md** — orientation for future AI maintainers: layer map, where each requirement
-  lives in the code, gate commands, and a `## Troubleshooting` section covering common
+- **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
+  lives in the code, verification commands, and a `## Troubleshooting` section covering common
   operator-reported failure modes (config mismatch, corrupted state, persona confusion,
   missing environment variables).
 
-**Handoff checks.** Before declaring done, run these checks in order. Every check must
+**Handoff verification workflow.** Before declaring done, run these verification steps in order. Every step must
 have a recorded result in DECISIONS.md.
 
 | Check | Covers   | Procedure                                              | Pass criterion                                                                                                       |
@@ -1812,9 +1832,9 @@ have a recorded result in DECISIONS.md.
 | H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model. |
 | H8    | T43      | Start a workflow, verify no auto-completion            | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.           |
 | H9    | T44      | Player-persona request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_persona`; no hidden content exposed.           |
-| H10   | T45      | Run `spec_health`                                      | Overall confidence ≥ 80% (Standard tier floor per REQ-100; other tiers adjust via convergence loop) and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
+| H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
-| H12   | —        | Cold-checkout Gate 2 replay                            | Evidence entry in DECISIONS.md (6) with non-empty command, PASS result, and exit-status evidence.                     |
+| H12   | —        | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with non-empty command, PASS result, and exit-status evidence.                     |
 
 A check may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
 DECISIONS.md (5). Every chain Markdown → REQ → code → test must be traceable. Any gap is a
@@ -1828,14 +1848,14 @@ _This section binds the operator's review process. It is not part of the Definit
 Done and adds no requirements on the builder. Its presence alone disciplines the build._
 
 Independent verification breaks the last self-grading link: a second AI — the **verifier**
-— re-executes the full gate suite from a cold checkout and compares its results against
+— re-executes the full verification workflow suite from a cold checkout and compares its results against
 the recorded evidence.
 
 The operator:
 
-1. Confirms handoff checks (§9) have passed; collects the four artifacts.
+1. Confirms the handoff verification workflow (§9) has passed; collects the four artifacts.
 2. Copies the artifacts to a clean directory and redacts DECISIONS.md's item (6)
-   (6) evidence (replaced with a withheld marker).
+   (6) verification workflow evidence (replaced with a withheld marker).
 3. Launches a fresh agent session — a different model from the builder — with the clean
    directory, this document, and the verifier prompt below.
 4. When the verifier completes Phase 1, supplies the unredacted DECISIONS.md for Phase 2.
@@ -1846,20 +1866,20 @@ The operator:
 ```
 You are the verifier for a completed TTRPG MCP server build; you have no prior knowledge
 of the build. Load these parts of the build specification first: Sections 1, 3, 7, and 8;
-Appendices B–G. Pull cited requirements and conventions as the gates demand.
+Appendices B–G. Pull cited requirements and conventions as the verification workflows demand.
 
 Constraints: modify nothing in the artifacts; install only what `README.md` specifies;
-a failed gate stops the line; the evidence section of `DECISIONS.md` has been withheld —
+a failed verification workflow stops the line; the verification workflow evidence section of `DECISIONS.md` has been withheld —
 do not request it before Phase 2.
 
 Phase 1 — blind re-execution, in order:
 1. Set up from a cold start, following only `README.md` and `AGENTS.md`; log every gap or
    ambiguity — each gap is a finding.
-2. Execute Gates 1–4 and the smoke session; record one evidence entry per gate in the
+2. Execute verification workflows G1–G4 and the smoke session; record one evidence entry per workflow in the
    Section 8 format, with your own environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
-5. Run the automated handoff gate and record the results; compare with the builder's
+5. Run the automated handoff verification workflow and record the results; compare with the builder's
    verification record.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Execute 5 breakage attempts: (a) rapid persona switching (player↔GM 20
@@ -1887,11 +1907,11 @@ Report in the format below.
 
 ```
 # Independent Verification Report
-- Per-gate verdict: PASS | FAIL | DISPUTED, with basis
+- Per-workflow verdict: PASS | FAIL | DISPUTED, with basis
 - Documentation gaps found during cold-start setup
 - Waiver audit: REQ-013 fields present or missing, per waiver
-- Handoff gate: H1–H12 results and comparison with the builder's verification record
-- Evidence comparison: per-gate salient fields — match, discrepancy, or pin drift
+- Handoff verification workflow: H1–H12 results and comparison with the builder's verification record
+- Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED
 ```
@@ -1901,18 +1921,18 @@ report is review evidence, not a build artifact.
 
 ---
 
-## 11. Optional Jobs
+## 11. Optional Workflows
 
-_This job does not gate the Definition of Done. It extends the Build job._
+_This workflow does not gate the Definition of Done. It extends the Build workflow._
 
-After Enrich completes, re-run the Gauntlet blocking scenarios (§6.6 exit criteria) and verify no regression. A
-previously-passing blocking scenario that now fails is a defect that must be resolved
+After Enrich completes, re-run the Gauntlet blocking sub-workflows (§6.6 exit criteria) and verify no regression. A
+previously-passing blocking sub-workflow that now fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Persona enrichment
 
-Pre-build questions are collected in §6.2 when the `enrich` job is selected. Enrich runs
-after Build completes and all verification gates pass (§8), enhancing the server with community-sourced play
+Pre-build questions are collected in §6.2 when the `enrich` workflow is selected. Enrich runs
+after Build completes and all verification workflows pass (§8), enhancing the server with community-sourced play
 advice. Build alone produces a fully working server; enrichment makes a good server better.
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
@@ -2339,6 +2359,12 @@ Corrective action: ask the Keeper to roll, or switch to game_master persona via 
 → end_confrontation { "outcome": "hollow man fled" }
 [OK] Confrontation ended. Outcome recorded in audit log.
 
+The first combat block uses the ruleset term "confrontation" for tool names
+(`start_confrontation`, `advance_confrontation`, `end_confrontation`). The later
+block demonstrates the generic combat API (`init_combat`, `advance_combat`,
+`end_combat`). Both naming conventions are valid for the same ruleset
+(REQ-020).
+
 → spec_health {}
 [OK] Confidence: <per-file and overall percentages>
 Indexed: <counts of anchors, concepts, entity types, actions, tables, procedures, guidance items>
@@ -2567,6 +2593,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
 | REQ-076 | Scene-state ledger        | T57                            | 2026-08-04   |
 | REQ-077 | Entity personality fields | T58, T65                        | 2026-08-04   |
+| REQ-069 | Player feedback signal    | T8, T26                        | 2026-08-06   |
 | REQ-078 | Session zero prompt       | T22                            | 2026-08-04   |
 | REQ-079 | Adventure modules         | T59, T60, T61                  | 2026-08-04   |
 | REQ-080 | Enrichment boundaries     | T63, T97, T102                 | 2026-08-05   |
@@ -2591,6 +2618,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-104 | Character creation workflow | T32, T47, T103               | 2026-08-06   |
 | REQ-105 | Spec resource            | T104                           | 2026-08-06   |
 | REQ-106 | Spec repository URL      | T105                           | 2026-08-06   |
+| REQ-107 | Version coordination     | T106                           | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
@@ -2684,7 +2712,7 @@ diet.
 | T80   | Automated | Lorebook export/import: create 3 lore entries with varied metadata. Export as JSON — assert output matches Appendix L schema; verify mechanical fields absent. Export as Markdown — assert Appendix L format. Re-export — assert idempotent. Import with "dry-run" — assert preview and collision report; state unchanged. Import with "replace" — assert lore tier replaced. Import with "merge" — assert entries merged, duplicate keys skipped. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                          | REQ-094, REQ-032                            |
 | T81   | Automated | Lore grouping: group entries under named groups. Assert `lore://groups` lists groups with correct members. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032                            |
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
-| T83   | Automated | Lore token budget: set `TTRPG_MAX_LORE_TOKENS=500`. Create many lore entries, all triggered. Assert `persona_briefing` lore section includes only entries that fit the budget; assert `spec_health` reports omitted count and budget consumed. Sticky entries included before non-sticky. Unset `TTRPG_MAX_LORE_TOKENS` — assert all entries appear. One oversized entry permitted per assembly.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
+| T83   | Automated | Lore entry budget: configure a token budget for triggered lore entries in persona_briefing via the builder's configuration mechanism. Create enough triggered lore entries to exceed the budget. Assert persona_briefing lore section respects the configured budget — only entries that fit the budget appear. Assert spec_health reports budget consumption and entries omitted. Assert the budget is adjustable at runtime. Assert all triggered entries appear when the budget is removed or set above the entry count.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
 | T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run includes all blocking scenarios and any non-blocking scenarios exercising gap-audit-implemented tools, resources, or prompts, with zero failures on both. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
 | T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert measurements recorded in DECISIONS.md (4) and `spec_health`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-100                                     |
@@ -2706,6 +2734,7 @@ diet.
 | T103  | Automated | Character creation undo: create a character via step-by-step workflow and via quick mode. Call `undo` after each — assert roster returns to pre-creation state and the entity is no longer accessible. Assert undo blocked during pending `[NEED_INPUT]`. Assert empty undo stack returns `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-041, REQ-104                            |
 | T104  | Automated | Spec resource: call `resources/read` on `spec://build` — assert full spec text returned as Markdown. Assert `spec://build` appears in `resources/list`. Switch to Player persona — assert `[FORBIDDEN]`. Compare embedded copy against the builder's copy — assert content hash matches DECISIONS.md (1).                                                                                                                                                                                                                                                                                                                                                                                           | REQ-105, REQ-032                            |
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player personas. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
+| T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Assert `spec_version` appears in `persona_briefing` for Game Master persona. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player persona sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
 
 ---
 
@@ -3392,7 +3421,7 @@ countdowns, lore) and removes the reversed mutation from the snapshot stack.
 Empty stack returns `[ERROR] [STATE_CONFLICT]`. Undo is blocked during pending
 `[NEED_INPUT]` workflows. `undo` itself is not snapshot-able.
 
-### O.5 Workflows
+### O.5 Decision workflows
 
 Character creation supports two modes: quick (all choices supplied as tool parameters,
 character produced in one call) and step-by-step (sequential `[NEED_INPUT]` decisions

@@ -4,6 +4,12 @@ import { applyEnrichment } from "./enrichment.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
+
+const __stateDirname = path.dirname(fileURLToPath(import.meta.url));
+const SPEC_VERSION: string = JSON.parse(
+  fs.readFileSync(path.join(__stateDirname, "..", "package.json"), "utf-8")
+).version;
 
 export interface DnDEntity {
   id: string;
@@ -229,7 +235,7 @@ export class StateManager {
     this.prng = new PRNG(seed);
     this.dataDir = dataDir;
     this.buildFingerprint = {
-      specVersion: "2.1.0",
+      specVersion: SPEC_VERSION,
       buildTimestamp: new Date().toISOString(),
       rulesetHash: computeRulesetHash(),
       lastSpecReview: new Date().toISOString(),

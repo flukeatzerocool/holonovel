@@ -30,7 +30,8 @@
 - **TypeScript:** 7.x (dev dependency)
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
-- **Spec version:** 2.1.0
+- **Spec version:** 2026.08.05
+- **Spec hash:** a78cdbe245c27b8249315fecf81302583ee2bdebf5113264a8990b98a50e4cd9
 - **Ruleset fingerprint:** sha256 first 16 chars of combined ruleset Markdown
 
 <!-- @section traceability -->
@@ -157,9 +158,9 @@
 
 ### Spec-Driven Update Gap Disposition (REQ-098)
 - **Date:** 2026-08-05
-- **Spec version:** 2.0.0 → 2.1.0
+- **Spec version:** 2.0.0 → 2026.08.05
 - **Gap audit:** Tool catalog (54 tools match spec), resource map (31 resources), prompt list (7 prompts), state model (Novel lifecycle, atomic persistence), persona gating (server-side), behavioral contracts (tool-level enforcement)
-- **Changes applied:** specVersion → 2.1.0, atomic persistence (REQ-092), compress_audit idempotency (REQ-086), novel listing in spec_health (REQ-093)
+- **Changes applied:** specVersion → 2026.08.05, CalVer migration (date-based versioning per REQ-107), atomic persistence (REQ-092), compress_audit idempotency (REQ-086), novel listing in spec_health (REQ-093)
 - **Gauntlet:** Pending re-run on changed code paths
 - **Verification:** typecheck (0 errors), test suite (113 assertions, 0 failures), build-index (clean regeneration)
 

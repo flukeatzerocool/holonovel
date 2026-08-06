@@ -17,7 +17,7 @@ function assert(label: string, condition: boolean, detail?: string) {
 const DATA_DIR = ".holonovel-state-test-state";
 const sm = new StateManager("test-state-seed", DATA_DIR);
 
-assert("build fingerprint has specVersion 2.1.0", sm.buildFingerprint.specVersion === "2.1.0");
+assert("build fingerprint has specVersion", typeof sm.buildFingerprint.specVersion === "string" && sm.buildFingerprint.specVersion.length > 0);
 assert("build fingerprint has rulesetHash", typeof sm.buildFingerprint.rulesetHash === "string" && sm.buildFingerprint.rulesetHash.length > 0);
 assert("build fingerprint has buildTimestamp", typeof sm.buildFingerprint.buildTimestamp === "string");
 

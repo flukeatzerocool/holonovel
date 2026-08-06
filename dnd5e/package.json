@@ -1,6 +1,6 @@
 {
   "name": "dnd5e-holonovel",
-  "version": "1.0.0",
+  "version": "2026.08.05",
   "description": "D&D 5e SRD MCP Server — built by Holonovel",
   "type": "module",
   "main": "src/index.ts",
