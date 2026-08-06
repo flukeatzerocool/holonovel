@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-06 — Dice resolution subsystem hardening
+
+- REQ-003: Added outcome-band reporting requirement — when the ruleset defines named result bands, roll outcomes report which band applies. _Check:_ T47 (extended).
+- REQ-050: Clarified seed stream behavior — per-call seed override uses an isolated draw; after override, the next session-seeded draw matches the sequence it would have produced without the override. _Check:_ T111 (new).
+- Appendix B.4: Extended RNG witness table with d20 column (seeds 42 and 7) for validating non-d6 draws. Updated draw formula description to include d20.
+- Appendix O.1: Strengthened behavioral contract — removed unasserted "wording is not asserted" caveat, mandated prose outcome, required result-band reporting when ruleset-defined.
+- New Appendix O.1a: Multi-Die Resolution behavioral contract — transparency requirements for dice pools, keep-N-highest, exploding dice, percentile, Fudge dice, and other multi-die procedures.
+- Appendix E: Updated REQ-003 (Verified by → Gate 2, T47), REQ-050 (Verified by → Gate 2, T27, T111).
+- Appendix F: Added T111 (RNG seed isolation and d20 witness verification). Extended T27 (seed stream position) and T47 (outcome-band reporting).
+
 ## 2026-08-06 — Combat pipeline contract hardening
 
 - REQ-043: Added turn resolution output contract (participant name, action taken, roll result with full transparency, and any resulting state changes), automatic-advancement output clause for dangers and statless NPCs, initiative tie-break rule (entity before NPC before danger, then alphabetical by name), and total combat rounds counter increment on `end_combat`. _Check:_ T110 (new).
