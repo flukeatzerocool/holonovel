@@ -12,7 +12,7 @@ reordering mid-tier. Check for duplicates before adding.
 ## Top candidates
 
 1. Countdowns — set, advance, remove countdowns; round vs narrative types
-   (REQ-073).
+   (REQ-073). **→ COMPLETED 2026-08-06**
 2. Voice & personality — set_personality, set_voice_examples fields
    (REQ-071, 077).
 3. Player signals — player_signal for pace, difficulty, tone, focus, boundary
