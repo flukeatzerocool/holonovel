@@ -6,9 +6,9 @@
 > management, rules lookup, narrative directives, dynamic lore, action suggestions,
 > voice examples, macros, scene-type tagging, audit compression, scene-state tracking,
 > NPC management, countdowns, and session recap — plus four artifacts
-> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment job adds
-> community-sourced play advice. Quality enforced by five verification gates, 12 handoff
-> checks, and a golden-transcript replay. One server per ruleset. No network at runtime
+> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
+> community-sourced play advice. Quality enforced by verification workflows, 12 handoff
+> verification steps, and a golden-transcript replay. One server per ruleset. No network at runtime
 > (REQ-051). The Player persona is the human at the table; the Game Master persona is the
 > AI narrator (REQ-032), switchable via `set_persona` (REQ-066). Multi-character support:
 > one player may control multiple entities (REQ-074). Adventures load as indexed reference
@@ -72,10 +72,10 @@ Game Master. Multiplayer (multiple human connections sharing one Novel) is out o
 scope for the current specification. One player may control multiple characters
 (REQ-074).
 
-**Definition of done.** The server must: (1) pass all five verification gates (§8), (2)
+**Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
 play with a real LLM, (3) hand off four specified artifacts and nothing else (§9), and (4)
-survive an independent verification (§10) where a second AI re-runs the gates blind from a
+survive an independent verification (§10) where a second AI re-runs the verification workflows blind from a
 cold checkout, comparing its results against the builder's own.
 
 ---
@@ -105,7 +105,7 @@ The spec is designed around six failure modes. Recognize them early.
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
 
 **Fault trees.** Each failure mode traces down to root causes. Every leaf terminates at a
-specific REQ or gate. If a leaf has no guard, the gap is explicit.
+specific REQ or verification workflow. If a leaf has no guard, the gap is explicit.
 
 **F1 — Server invents rules.**
 
@@ -215,7 +215,7 @@ F6: Client config has wrong field names, paths, or values
    server-side by persona gating (REQ-032), tool-result fidelity (REQ-058),
    and parameter canon validation (REQ-059).
 7. **Contracts, not implementations.** Requirements state what the server must do. The
-   convergence loop (§6.5) and verification gates (§8) enforce quality. Do not prescribe
+   convergence loop (§6.5) and verification workflows (§8) enforce quality. Do not prescribe
    how the builder achieves it — no output format catalogues, no tool-name enumerations,
    no specific architecture decisions, no worked examples disguised as requirements. If
    the convergence loop catches a deviation, trust the loop.
@@ -250,7 +250,7 @@ F6: Client config has wrong field names, paths, or values
 | -------------- | ---------------------------------------------------------------------------------------- |
 | Operator       | The human running the build.                                                             |
 | Builder        | The AI executing this specification.                                                     |
-| Verifier       | A second, independent AI that re-runs the gate suite (§10).                               |
+| Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
 | Persona        | Active role — `player`, `game_master`, or none (full access) (REQ-031, REQ-066).         |
@@ -267,7 +267,7 @@ F6: Client config has wrong field names, paths, or values
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e reference
 implementation uses it. Builders may select an alternative language, runtime, or
-transport if the resulting server passes every verification gate and the full Gauntlet
+transport if the resulting server passes every verification workflow and the full Gauntlet
 — the alternative choice must be recorded with justification in DECISIONS.md (2).
 _Check:_ T92.
 
@@ -284,7 +284,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 
 ### 5.1 Output and Error Contracts
 
-**REQ-101 — Assumption audit trail.** Before the Convert job begins, the builder invokes the
+**REQ-101 — Assumption audit trail.** Before the Convert workflow begins, the builder invokes the
 `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a
 server prompt) against the current spec revision and records at least one
 challenged assumption per category — technology, AI-as-builder, extraction and confidence,
@@ -337,13 +337,13 @@ Markdown excerpt preserving original formatting. Pure-state tools (undo, state q
 condition queries, audit reads) are exempt. _Check:_ T48.
 
 **REQ-062 — Persona foundations.** `persona_briefing` includes ruleset-agnostic best-practice
-foundations for each persona. The Enrich job (§11.1) supplies the expanded foundations
+foundations for each persona. The Enrich workflow (§11.1) supplies the expanded foundations
 catalogue at `guidance://<role>/foundations` as supplementary guidance. _Check:_ T26.
 
 **REQ-070 — Anti-slop guidance.** Persona foundations include anti-slop guidance — concrete
 examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]`
 and served at `guidance://<role>/anti-slop`. The spec carries a synopsis in Appendix J; the
-full anti-slop catalogue is sourced from the Enrich job (§11.1) as supplementary guidance,
+full anti-slop catalogue is sourced from the Enrich workflow (§11.1) as supplementary guidance,
 with genre-specific examples from the `adventure_advice` module. Anti-slop guidance is
 persona-filtered and appears in `persona_briefing` after foundations and before scene state.
 _Check:_ T26.
@@ -352,7 +352,7 @@ _Check:_ T26.
 guidance items per persona — example-of-play prose extracted from the ruleset that
 demonstrates narrative tone, served at `guidance://<role>/voice`. Each carries source
 anchor and confidence. Discovery (§6.3) extracts voice examples as a guidance subcategory.
-When the ruleset provides none, the Enrich job (§11.1) may source community voice
+When the ruleset provides none, the Enrich workflow (§11.1) may source community voice
 examples. _Check:_ T26.
 
 **REQ-064 — Persona behavioral boundaries.** The server respects persona boundaries in
@@ -420,7 +420,7 @@ achievable from its visible registry. _Check:_ T28.
 accompanied by the verbatim source text on which it was based. _Check:_ T15; Discovery
 checkpoint.
 
-**REQ-102 — Source conversion contract.** When the Convert job is selected (§6.2),
+**REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G: layout-aware extraction,
 table reassembly with merged-cell handling, page-furniture stripping, and artifact
 flagging. A fidelity sample of 3–5 representative pages is diffed per the fidelity
@@ -467,11 +467,11 @@ term for that action. Annotations match action classification. _Check:_ T3, T35,
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
 (per-file and overall), conversion fidelity (per-content-type rates, overall rate,
 sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absent
-when conversion was not selected), convergence summary (per-activity cycles run,
-findings per cycle, residual gaps for each of the six activities in §6.5), indexed
+when conversion was not selected), convergence summary (per-metric iterations run,
+findings per iteration, residual gaps for each of the six metrics in §6.5), indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
-spec_repo_url, gate dispositions, and available Novels on disk (slug, name,
+spec_repo_url, verification workflow dispositions, and available Novels on disk (slug, name,
 last-modified, active — per
 REQ-093). Counts are derived from live registrations at call time — the running tool
 catalog, resource map, prompt list, search index, and extracted data arrays — not
@@ -705,7 +705,7 @@ them and adjusts narration. Adversarial free-text in `value` is stored verbatim 
 data (REQ-054). _Check:_ T8, T26.
 
 **REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
-Build job alongside the ruleset. Adventure content is indexed and served at
+Build workflow alongside the ruleset. Adventure content is indexed and served at
 `adventure://<adventure-slug>/<anchor>`. No mechanical extraction — all adventure content
 is guidance-category. One adventure is active per Novel, set via `load_adventure(adventure)`
 (Game Master only). `search_rules` includes adventure content; active-adventure results are
@@ -1022,7 +1022,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
-| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet scenarios. | §6.7, §6.2      |
+| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet sub-workflows. | §6.7, §6.2      |
 
 ### 6.2 Intake
 
@@ -1092,7 +1092,7 @@ differences include: `workdir` vs `cwd`, `env` vs `environment`, `args` as a
 separate array vs appended to `command`. An incorrect key is a client-config
 defect (F6) and blocks the build until remedied. If B7 is `yes`, the builder
 writes the server entry into the client's config file, then immediately runs the
-H11 check: launch the server via the client's documented invocation, assert the
+H11 verification step: launch the server via the client's documented invocation, assert the
 initialize handshake succeeds, and confirm `serverInfo.name` matches the
 `mcpServers` key. A `server unavailable` error stops the line.
 
@@ -1230,7 +1230,7 @@ measure the metric, improve, and verify. If the metric meets its threshold, reco
 stop. Thresholds are tiered per REQ-100: Light (<100 indexed items), Standard (100–500),
 Heavy (500–2000), Huge (2000+).
 
-| Activity            | Metric                              | Threshold     | Improvement step                         |
+| Domain           | Metric                              | Threshold     | Improvement step                         |
 | ------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
 | Confidence          | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
 | MUST coverage       | Registered MUST tools / total MUST  | 100%          | Register missing tool or log REQ-013 waiver |
@@ -1309,7 +1309,7 @@ Its purpose is to surface bugs that structured verification missed.
 
 **Independent invocation.** The Gauntlet must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
-and after any manual code modification. A previously-passing blocking scenario that now
+and after any manual code modification. A previously-passing blocking sub-workflow that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
 **Workflow completion.** The Build workflow is not complete until the Gauntlet exits with all
@@ -1821,7 +1821,7 @@ separate files.
 **Handoff verification workflow.** Before declaring done, run these verification steps in order. Every step must
 have a recorded result in DECISIONS.md.
 
-| Check | Covers   | Procedure                                              | Pass criterion                                                                                                       |
+| Step | Covers   | Procedure                                              | Pass criterion                                                                                                       |
 | ----- | -------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | H1    | T36      | Compare DECISIONS.md (1) edition/title to source       | Ruleset edition/title matches the source header and document title.                                                   |
 | H2    | T29      | Parse traceability table, cross-reference REQs/tests   | Every REQ in Appendix E appears exactly once in (3); every test ID cited in (3) exists in Appendix F.                 |
@@ -1836,7 +1836,7 @@ have a recorded result in DECISIONS.md.
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | —        | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with non-empty command, PASS result, and exit-status evidence.                     |
 
-A check may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
+A verification step may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
 DECISIONS.md (5). Every chain Markdown → REQ → code → test must be traceable. Any gap is a
 defect; record it in DECISIONS.md.
 
@@ -2089,7 +2089,7 @@ results in DECISIONS.md:
    drawn from the ruleset's index. Generic RPG advice without a ruleset-specific anchor
    is flagged in DECISIONS.md with the "generic" disposition and does not block handoff.
 
-These are verification steps, not new gates. Failures are enrichment defects recorded in
+These are verification steps, not new verification workflows. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
 
 **Copyright.** Enrichment content is supplementary reference material. The operator is
@@ -2650,7 +2650,7 @@ diet.
 | T15   | Automated | `spec_health` reports confidence, convergence_summary, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
 | T16   | Automated | Rules index loads; anchor count matches structural pass; resource retrieval returns expected Markdown for major anchors; re-index twice and diff URI lists; `resources/list` stable across entity creation; entity, roster-record, and `output://` templates appear in `resources/templates/list`; resources declare REQ-022 media type and title                                                                                                                                                                                                                                                                                                        | REQ-022                                     |
 | T17   | Automated | Ruleset drift after intake — simulated on a copy of the ruleset so T21's byte-identity holds — → stderr warning + `spec_health` flag                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-044                                     |
-| T18   | Manual   | Anti-persona scenarios (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-002, REQ-032                            |
+| T18   | Manual   | Anti-persona sub-workflows (§8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-002, REQ-032                            |
 | T20   | Automated | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
 | T21   | Automated | Original Markdown — and, where conversion applied (Appendix G), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
 | T22   | Automated | Register a stub tool, restart: `prompts/get` output reflects it; each `prompts/get` returns exactly one user-role message; `prompts/list` carries a title on every prompt and a description on every argument                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-023                                     |
@@ -2692,7 +2692,7 @@ diet.
 | T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as game entities but adventure A's content no longer appears in `persona_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
 | T61   | Automated | Adventure continuity: load adventure, create NPCs, set scene state within the adventure. Restart the server with the same `TTRPG_NOVEL`. Assert the active adventure, NPCs, and scene state are restored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-079, REQ-055                            |
 | T62   | Automated | Help and tool discovery: invoke `help()` with no query — assert output includes a categorized task map and all registered tools. Invoke `help("combat")` — assert results include combat tools. Invoke as Player persona — assert GM-only tools are not listed.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-067, REQ-032                            |
-| T63   | Automated | Enrichment boundaries: run enrich, diff entity stat fields (stats/saves/HP) before and after — assert no changes. Diff `tools/list` — assert no changes. Assert all voice_examples, lore templates, and action patterns carry `[supplementary]` tag. Assert six enumerated enrichment verification checks pass. Re-run enrich — assert idempotent. Switch to player persona — assert GM-scoped enrich content hidden.                                                                                                                                                                                                                                                                                                                     | REQ-080, REQ-077, REQ-032                   |
+| T63   | Automated | Enrichment boundaries: run enrich, diff entity stat fields (stats/saves/HP) before and after — assert no changes. Diff `tools/list` — assert no changes. Assert all voice_examples, lore templates, and action patterns carry `[supplementary]` tag. Assert all six enrichment output modules (§11.1) are populated with non-empty content. Re-run enrich — assert idempotent. Switch to player persona — assert GM-scoped enrich content hidden.                                                                                                                                                                                                                                                                                                                     | REQ-080, REQ-077, REQ-032                   |
 | T64   | Automated | Narrative directive: set directive, verify it appears in GM `persona_briefing` and is absent from Player `persona_briefing`. Clear directive, verify absent from both. Player attempt to set returns `[FORBIDDEN]`. Restart connection, verify directive persists.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-081, REQ-032                            |
 | T65   | Automated | Entity voice examples: set voice_examples, verify they appear in `entity://<id>/personality` and `persona_briefing` tagged `[supplementary]` when enrich-sourced. Set game-level overrides — assert they replace roster baseline for that game. Verify mechanical stats remain immutable. Player attempt on another player's entity returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                            | REQ-077, REQ-032                            |
 | T66   | Automated | Prompt section ordering: set custom order, invoke `persona_briefing` for GM — assert sections appear in specified order. Omit a section token — assert section absent from briefing. Set empty array — assert builder default order restored. Unknown token — assert `[ERROR] [INVALID_INPUT]` with valid token list. Token for absent ruleset feature accepted (empty section). Player attempt returns `[FORBIDDEN]`. Restart — verify ordering persists.                                                                                                                                                                                                                                              | REQ-082, REQ-032                            |
@@ -2701,7 +2701,7 @@ diet.
 | T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
 | T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains exactly 3 formatted audit entries with summarization instructions. Switch to Player persona — assert only own-entity entries visible. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                            | REQ-086, REQ-032, REQ-040                   |
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `persona_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
-| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (Gate 4). Gauntlet scenarios (Gate 5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
+| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Gauntlet sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
 | T73   | Automated | Novel isolation: create Novel A with entities. Create Novel B — assert Novel A's entities not visible via `entities://`. Resume Novel A — assert entities restored. Generated adventure content scoped to the Novel that generated it.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-088, REQ-074, REQ-090                   |
 | T74   | Manual   | Novel setup: invoke `novel_setup` prompt on a fresh Novel. Assert output lists the setup checklist, available roster characters, indexed adventures, and generation tools. Create a character — assert "characters_present" step marked complete. Load an adventure — assert "adventure_set" step marked complete. Verify metadata in `persona_briefing` under `novel` token.                                                                                                                                                                                                                                                                                                                            | REQ-089                                     |
 | T75   | Automated | Adventure generation: call `generate_adventure("A haunted space station")`. Assert output contains title, Overview (GM-only), Adventure Hook, 2–6 locations, NPC entries. Assert generated content retrievable at `adventure://<slug>/<anchor>`. Assert GM-only sections hidden from Player. Assert appears in `search_rules` results. Regenerate — assert old content replaced.                                                                                                                                                                                                                                                                                                                       | REQ-090, REQ-032                            |
@@ -2709,18 +2709,18 @@ diet.
 | T77   | Automated | Novel persistence: create Novel, populate state (entity, NPC, scene, countdown, lore, adventure). Restart server — assert all state tiers restored. Modify the entity model (add/remove a field), rebuild, resume — assert graceful load (no errors, missing fields get defaults, extra fields preserved). Corrupt the on-disk JSON — assert stderr warning and `spec_health` flag.                                                                                                                                                                                                                                                                                                                  | REQ-092, REQ-065                            |
 | T78   | Automated | Novel metadata: create two Novels (A and B). Resume A — assert `spec_health` lists both Novels on disk, marks A as active. Verify Novel metadata in `persona_briefing` under `novel` token includes entity count, adventure source, and setup-completion flags.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-093                                     |
 | T79   | Automated | Extended lore lifecycle: create two lore entries with priority 100 and 10, both triggered — assert priority-100 entry appears first in `persona_briefing` lore section. Set sticky on one entry, trigger it, advance scene state without trigger — assert the entry persists for the sticky duration then deactivates. Disable an active entry — assert it disappears from `persona_briefing` but remains at `lore://<key>`. Re-enable it — assert reactivation. Disabled entries do not trigger. Player persona attempts on enable/disable return `[FORBIDDEN]`. Undo a sticky refresh — assert sticky count restored.                                                                                                                                                                                                                                                                                  | REQ-083, REQ-041, REQ-032                   |
-| T80   | Automated | Lorebook export/import: create 3 lore entries with varied metadata. Export as JSON — assert output matches Appendix L schema; verify mechanical fields absent. Export as Markdown — assert Appendix L format. Re-export — assert idempotent. Import with "dry-run" — assert preview and collision report; state unchanged. Import with "replace" — assert lore tier replaced. Import with "merge" — assert entries merged, duplicate keys skipped. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                          | REQ-094, REQ-032                            |
+| T80   | Automated | Lorebook export/import: create 3 lore entries with varied metadata. Export as JSON — assert output includes all Appendix L metadata fields; verify mechanical fields absent. Export as Markdown — assert Appendix L format. Re-export — assert idempotent. Import with "dry-run" — assert preview and collision report; state unchanged. Import with "replace" — assert lore tier replaced. Import with "merge" — assert entries merged, duplicate keys skipped. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                          | REQ-094, REQ-032                            |
 | T81   | Automated | Lore grouping: group entries under named groups. Assert `lore://groups` lists groups with correct members. Assign an entry to a new group — assert it leaves the old group. Ungroup an entry — assert it no longer appears in any group. Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032                            |
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded.                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
 | T83   | Automated | Lore entry budget: configure a token budget for triggered lore entries in persona_briefing via the builder's configuration mechanism. Create enough triggered lore entries to exceed the budget. Assert persona_briefing lore section respects the configured budget — only entries that fit the budget appear. Assert spec_health reports budget consumption and entries omitted. Assert the budget is adjustable at runtime. Assert all triggered entries appear when the budget is removed or set above the entry count.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
-| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run includes all blocking scenarios and any non-blocking scenarios exercising gap-audit-implemented tools, resources, or prompts, with zero failures on both. Assert any unimplemented Gauntlet scenarios from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet run includes all blocking sub-workflows and any non-blocking sub-workflows exercising gap-audit-implemented tools, resources, or prompts, with zero failures on both. Assert any unimplemented Gauntlet sub-workflows from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
 | T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert measurements recorded in DECISIONS.md (4) and `spec_health`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-100                                     |
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
 | T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (0) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
-| T90   | Manual   | Complex fixture gate: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and persona enforcement. Required for rulesets above 200 indexed items (REQ-100 tiers Standard, Heavy, Huge).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
+| T90   | Manual   | Complex fixture verification workflow: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and persona enforcement. Required for rulesets above 200 indexed items (REQ-100 tiers Standard, Heavy, Huge).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
 | T91   | Manual   | Behavioral contracts: for a running server, invoke one tool from each contract category (O.1–O.7) and assert the output shape matches Appendix O. For the dice tool, assert full roll transparency (notation, faces, modifiers, total, prose outcome). For a lookup tool, assert source attribution with `---` separator. For combat, assert round counter and turn order visibility. For undo, assert full state restoration and audit append-only behavior.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032, REQ-060, REQ-061                                   |
-| T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification gates pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
+| T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
 | T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all modules empty, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained. Re-run enrich — assert repopulation succeeds. Player persona attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-103, REQ-080                            |
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `persona_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
@@ -2740,12 +2740,12 @@ diet.
 
 ## Appendix G: Source Conversion
 
-**Scope.** When the ruleset's sources are not Markdown (the Convert job is selected), conversion is a build stage
+**Scope.** When the ruleset's sources are not Markdown (the Convert workflow is selected), conversion is a build step
 of its own and completes before discovery. When the sources are Markdown, this appendix
 does not apply.
 
 **Freeze.** Intake hashes the original sources (REQ-014). The converted Markdown becomes
-the ruleset for every downstream purpose — parsing, extraction, citations, gates — and is
+the ruleset for every downstream purpose — parsing, extraction, citations, verification workflows — and is
 itself hashed and frozen at the conversion checkpoint. Conversion never modifies the
 originals.
 
@@ -2827,7 +2827,7 @@ Before declaring the ruleset ready for discovery, confirm:
 
 This catalog lists TTRPG rulesets published under open licenses (OGL, CC BY, CC BY-SA,
 ORC, or equivalent) for which a full SRD or ruleset is freely available online. The
-operator may select from this list when the Convert job web-scrape path is chosen, or suggest their
+operator may select from this list when the Convert workflow web-scrape path is chosen, or suggest their
 own URL.
 
 | #    | Ruleset                    | License                           | Key SRD URL                | Notes                                                       |
@@ -2849,7 +2849,7 @@ own URL.
 
 _Spec-embedded narrative quality guardrails. The full catalogue — with elaborated
 forbidden/correct examples, pacing advice, and genre-specific patterns — is sourced from
-the Enrich job (§11.1) as supplementary guidance, served at `guidance://<role>/anti-slop`
+the Enrich workflow (§11.1) as supplementary guidance, served at `guidance://<role>/anti-slop`
 (REQ-070)._
 
 | #  | Role   | Pattern                  | Forbidden                                        | Correct                                                     |
@@ -2866,7 +2866,7 @@ the Enrich job (§11.1) as supplementary guidance, served at `guidance://<role>/
 
 ## Appendix K: Adventure Module Format
 
-_Adventure modules are supplementary Markdown loaded during the Build job (REQ-079).
+_Adventure modules are supplementary Markdown loaded during the Build workflow (REQ-079).
 Same heading, anchor, role-marker, table, and bold-labeled-field conventions as the ruleset
 (Appendix A, H). No mechanical extraction — all content is guidance-category._
 
@@ -2962,16 +2962,16 @@ no catalog enumerations, no tool-name lists.
 
 - Parameter shapes and tool signatures → builder discovery + convergence loop
 - Sort orders, algorithms, and trigger-scan caps → builder's implementation judgment
-- Default starting values → builder determines; verified by gate thresholds
+- Default starting values → builder determines; verified by verification workflow thresholds
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
 - Worked examples and step-by-step procedures → golden transcript (§B.3) and the Gauntlet (§6.6)
-- JSON schemas and file format specifications → builder's implementation; gates verify
+- JSON schemas and file format specifications → builder's implementation; verification workflows verify
   correctness
 
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
-Gate 2, Gate 4, Gate 5, the convergence loop, or a Gauntlet scenario, do not specify the mechanism
+Gate 2, Gate 4, Gate 5, the convergence loop, or a Gauntlet sub-workflow, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
 
 **Convergence-driven REQ review.** When the convergence loop produces more than two
