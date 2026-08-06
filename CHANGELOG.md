@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-06 — Spec embedding and upstream tracking
+
+- REQ-105: Added `spec://build` resource — GM-filtered, returns embedded holonovel.md
+  via `resources/read`. Player persona returns `[FORBIDDEN]` (per REQ-002).
+- REQ-106: Added spec repository URL tracked in `spec_health` and surfaced in the
+  `intro` prompt. The URL is informational; the embedded copy (REQ-105) is
+  authoritative.
+- REQ-022: Added `spec://build` (GM-filtered) to the resource URI catalog.
+- REQ-025: Added `spec_repo_url` field to `spec_health` reporting.
+- §6.2: Added B8 (spec repository URL at intake) and U3 (fetch latest spec from repo
+  before update) to build and update job questions.
+- §6.4: Added spec copy step during Layer 1 construction — the builder copies
+  holonovel.md into the server directory and records its content hash.
+- §6.7: Added spec fetch step to the Update workflow — fetches latest spec from the
+  repo URL before gap audit; fetch failure does not block the update.
+- T104: Added automated test for `spec://build` resource retrieval and persona gating.
+- T105: Added automated test for `spec_repo_url` presence in `spec_health` and `intro`.
+- Appendix E: Added REQ-105, REQ-106; updated REQ-022, REQ-025 check citations with
+  T104, T105, T93.
+- Appendix F: Added T104, T105.
+
 ## 2026-08-06 — Character creation workflow hardening
 
 - REQ-104: Added dual-mode character creation — step-by-step (sequential `[NEED_INPUT]`

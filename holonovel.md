@@ -446,9 +446,9 @@ list matches the registry. _Check:_ T3, T35.
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, and `novel://setup`. `resources/templates/list` advertises entity,
+`novel://<slug>`, `novel://setup`, and `spec://build` (GM-filtered). `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
-source header. _Check:_ T16.
+source header. _Check:_ T16, T104.
 
 **REQ-023 — Prompts.** The server provides prompts covering tool use (mapping player
 intent to tool calls), rule lookup, multi-step workflows, persona briefing, connection
@@ -466,13 +466,29 @@ sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absen
 when conversion was not selected), convergence summary (per-activity cycles run,
 findings per cycle, residual gaps for each of the six activities in §6.5), indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
-pending sections, MUST-action coverage, defect count, ruleset-version status, gate
-dispositions, and available Novels on disk (slug, name, last-modified, active — per
+pending sections, MUST-action coverage, defect count, ruleset-version status,
+spec_repo_url, gate dispositions, and available Novels on disk (slug, name,
+last-modified, active — per
 REQ-093). Counts are derived from live registrations at call time — the running tool
 catalog, resource map, prompt list, search index, and extracted data arrays — not
 from hardcoded numeric literals. The player persona sees only player-filtered metrics.
 Output is filtered by persona. The convergence summary section is absent when the
-build is not yet complete. _Check:_ T15, T45, T93.
+build is not yet complete. _Check:_ T15, T45, T93, T105.
+
+**REQ-105 — Spec resource.** The server provides a `spec://build` resource,
+retrievable via `resources/read` and listed in `resources/list`. It returns the
+full text of the specification that built the server as Markdown, embedded in the
+server directory at build time. The resource is GM-filtered: the Game Master persona
+sees the full text; Player persona attempts return `[FORBIDDEN]` (per REQ-002). The
+embedded copy is a snapshot — it may differ from the current upstream revision.
+_Check:_ T104.
+
+**REQ-106 — Spec repository URL.** The server records a canonical URL for the
+upstream specification repository, recorded in DECISIONS.md at intake. `spec_health`
+surfaces it under a `spec_repo_url` field. The `intro` prompt includes the URL as a
+pointer for operators who want the latest version. The URL is informational — the
+embedded spec copy (REQ-105) is authoritative for the server's build-time contract.
+_Check:_ T105.
 
 **REQ-067 — Help and tool discovery.** The server provides a `help` tool, listed in the
 required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_health`.
@@ -1047,6 +1063,7 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
+| B8  | Where is the spec repository? | URL                            | <https://git.gay/flukeatzerocool/Holonovel> |
 
 **Config verification.** After writing the MCP client configuration, the builder
 fetches the target client's documentation for its MCP server config schema (from
@@ -1074,6 +1091,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | --- | ---------------------------- | -------------------------------- | ------------------- |
 | U1  | Where is the server to update? | Folder path                    | —                   |
 | U2  | How should the spec version delta be detected? | auto (compare DECISIONS.md to current spec) / manual (operator states the previous spec version) | auto |
+| U3  | Fetch latest spec from repo before update? | yes / no                       | yes                 |
 
 **Cross-job deduplication.** When the operator selects multiple jobs, questions
 identical in wording and semantics are asked once. If Convert produces the Markdown sources
@@ -1143,6 +1161,11 @@ procedure and a summary table disagree), every source is recorded. The most auth
 section is canonical; others are LOW confidence. Ambiguity is flagged as a defect.
 
 ### 6.4 Server construction
+
+**Spec copy.** During Layer 1 (MCP skeleton), the builder copies the specification
+document (`holonovel.md`) into the server's installation directory. The copy
+establishes the `spec://build` resource (REQ-105). The builder records the
+specification's content hash in DECISIONS.md (1) alongside the ruleset intake hash.
 
 The six-layer order below is a recommended construction sequence, not a
 requirement. A builder that organizes its work differently and passes the same
@@ -1535,6 +1558,15 @@ relevant REQ and disposition reason. `spec_health` reports the updated specifica
 version. All blocking Gauntlet scenarios pass; non-blocking scenarios exercising
 gap-audit-implemented tools, resources, or prompts pass. `spec_health` reports
 `last_spec_review` and `last_gauntlet` fields populated with ISO dates.
+
+**Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
+from the repo URL recorded at build time before beginning the gap audit. The
+fetched copy is compared against the embedded `spec://build` copy; a diff
+summary is reported. The embedded copy is updated to the fetched version.
+A successful fetch records the new content hash in DECISIONS.md. An unreachable
+remote records a fetch-failure notice and does not block the update — the gap
+audit proceeds against the embedded copy. Network access during the Update job
+is a build-time operation and does not violate REQ-051.
 
 ---
 
@@ -2501,10 +2533,10 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-102 | Source conversion contract | T93                            | 2026-08-05   |
 | REQ-020 | Tools                     | T3, T5, T32, T33; Gate 2       | 2026-08-02   |
 | REQ-021 | Tool-surface economy      | T3, T35                        | 2026-08-02   |
-| REQ-022 | Resources                 | T16                            | 2026-08-02   |
+| REQ-022 | Resources                 | T16, T104                      | 2026-08-02   |
 | REQ-023 | Prompts                   | T22, T22a                      | 2026-08-02   |
 | REQ-024 | Tool documentation        | T3, T35, T39                   | 2026-08-02   |
-| REQ-025 | spec_health               | T15, T45                       | 2026-08-02   |
+| REQ-025 | spec_health               | T15, T45, T93, T105            | 2026-08-02   |
 | REQ-063 | Connection introduction   | T49, T50                       | 2026-08-03   |
 | REQ-056 | Advancement workflow      | T38; T32 where applicable      | 2026-08-02   |
 | REQ-057 | Canonical lookup tools    | T39, T40                       | 2026-08-02   |
@@ -2557,6 +2589,8 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-097 | Novel health              | T101                           | 2026-08-05   |
 | REQ-103 | Enrichment reversion      | T94                            | 2026-08-05   |
 | REQ-104 | Character creation workflow | T32, T47, T103               | 2026-08-06   |
+| REQ-105 | Spec resource            | T104                           | 2026-08-06   |
+| REQ-106 | Spec repository URL      | T105                           | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
@@ -2670,6 +2704,8 @@ diet.
 | T101  | Automated | Novel health: populate a Novel to near-limit thresholds (NPCs, lore entries, snapshots, file size approaching 4 MB). Assert `spec_health` reports warnings for each threshold and `healthy` reports false. Remove items to clear thresholds — assert `healthy` reports true. Assert Player persona sees entity-level health only; GM sees all.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-097, REQ-032                            |
 | T102  | Automated | Enrichment staleness: populate enrichment with `collected_at` timestamps past `TTRPG_ENRICH_STALE_DAYS`. Assert `[stale]` flag in `spec_health` for inactive items. Assert stale items excluded from enrichment resource surfaces. Activate one stale item — assert flag cleared. Re-run enrich — assert all timestamps refreshed and stale flags removed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-080                                     |
 | T103  | Automated | Character creation undo: create a character via step-by-step workflow and via quick mode. Call `undo` after each — assert roster returns to pre-creation state and the entity is no longer accessible. Assert undo blocked during pending `[NEED_INPUT]`. Assert empty undo stack returns `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-041, REQ-104                            |
+| T104  | Automated | Spec resource: call `resources/read` on `spec://build` — assert full spec text returned as Markdown. Assert `spec://build` appears in `resources/list`. Switch to Player persona — assert `[FORBIDDEN]`. Compare embedded copy against the builder's copy — assert content hash matches DECISIONS.md (1).                                                                                                                                                                                                                                                                                                                                                                                           | REQ-105, REQ-032                            |
+| T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player personas. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
 
 ---
 
