@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-05 — README restructure: feature-driven, benefit-first
+
+- Replaced demo-quote-heavy playground sections with domain-grouped feature
+  descriptions (16 features across MCP server, specification, contribute).
+- Added benefit-first feature copy — every description opens with what the
+  user gains, not what the system does.
+- Rewrote comparison table with 5 verified competitors, new column headers
+  ("What you're used to" / "How Holonovel differs"), and game-changer prose.
+- Updated README design comment and validate-readme.ts canonical headings.
+
 ## 2026-08-05 — D&D 5e spec update: 16 gaps from latest revision
 
 - REQ-105: Added `spec://build` resource (GM-filtered, reads embedded
