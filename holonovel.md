@@ -2480,6 +2480,10 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G4       | Ruleset | Derived test catalogue                                    |
 | G5       | Ruleset | The Gauntlet — operational verification                   |
 
+In prose, verification workflows are referred to by their canonical `GN` form
+(G0, G2, etc.), established in this table. The legacy "Gate N" form is
+deprecated outside this section.
+
 **Verification workflow G0 — Intake integrity.** Two checks, run in order:
 
 1. **Structural integrity.** Verify the ruleset Markdown (or converted source)
@@ -3787,6 +3791,11 @@ build artifact — it is a spec-maintainer reference.
 - [ ] No worked examples disguised as requirements
 - [ ] Trust-the-loop test: would the convergence loop catch this deviation?
 - [ ] Red-team test: answered four questions from §4 Standing Rule 8
+
+These checks are mechanically enforced by `npm run validate` — parameter type
+annotations, Default: clauses, body-length violations, enumerated catalogs,
+lifecycle repetition, stale appendix ranges, and hardcoded cross-section counts
+all surface as warnings before commit.
 
 **REQ anatomy.** One paragraph stating the *what*. Ends in `_Check:_` with test
 citations. Contains no parameter types, no algorithm descriptions, no default values,

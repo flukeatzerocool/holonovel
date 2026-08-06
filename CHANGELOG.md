@@ -39,6 +39,25 @@
      what it's called.
 -->
 
+## 2026-08-06 — Spec review automation: validation guardrails and pre-commit checklist
+
+- Added three new checks to `scripts/validate.ts`: bare default-value detection
+  in REQ bodies (flags `default 32,000 bytes` patterns that the existing
+  `Default:` clause check missed), stale appendix-range detection (flags
+  "Appendices A–R" when the actual count differs), and hardcoded cross-section
+  count detection (flags "six metrics in §6.5" type drifts for human review).
+- Created `scripts/detect-near-dupes.ts` — a near-duplicate paragraph detector
+  that slides a 40-sentence window across the spec and reports paragraphs with
+  >75% word overlap. Integrated into the `npm run check` pipeline.
+- Documented the `GN` gate naming convention in §8 (the canonical form is
+  G0/G2/etc.; "Gate N" is deprecated in body text).
+- Updated Appendix M to note that REQ authoring violations are mechanically
+  checked by `npm run validate` before commit.
+- Added a pre-commit checklist to AGENTS.md covering cross-section counts,
+  appendix ranges, REQ quality, stale references, and gate naming.
+- Updated AGENTS.md layer map and gates table to reflect the new scripts
+  and naming conventions.
+
 ## 2026-08-06 — Spec audit: defect fixes, structural tightening, and word-count reduction
 
 - Fixed a duplicate paragraph in REQ-065 (build fingerprint) where "When

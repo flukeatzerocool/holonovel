@@ -18,7 +18,7 @@ holonovel.md            The specification (standalone, copy-pasteable)
                           verification & convergence)
   §7                    Runtime conventions (anchors, IDs, output contracts,
                           tool conventions, state model, guidance)
-  §8                    Verification gates (Gate 0–5, Gate 2b)
+  §8                    Verification gates (G0–G5, G2b)
   §9                    Artifacts and handoff (4 artifacts, 12 checks,
                           troubleshooting)
   §10                   Independent verification (includes adversarial round)
@@ -52,6 +52,7 @@ scripts/spec-health-trends.ts Spec health metrics over revisions
 scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies)
 scripts/lib/parse-readme.ts   README structural parsers (headings, links, blockquotes)
 scripts/validate-readme.ts    README guardrail (structure, voice, links, comparison table)
+scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
 ```
 
 ## Conventions
@@ -76,10 +77,8 @@ Push to origin: `git push origin main`.
   `*Check:*` or `_Check:_`.
 - The spec states contracts, not implementations. Before adding detail, ask:
   could the convergence loop catch this? If yes, cut it.
-- Apply the authoring checklist in §4 Standing Rule 7 before committing any
-  new or modified REQ. Key tests: (a) no parameter types, default values,
-  sort orders, or algorithms in REQ prose; (b) no Default: clauses; (c) no
-  enumerated catalogs (>5 tokens); (d) no lifecycles restated across REQs.
+- Apply the authoring checklist in Appendix M before committing any
+  new or modified REQ.
 - Appendix M defines what belongs in a REQ vs. what belongs elsewhere
   (builder, convergence loop, gates).
 - `npm run validate` checks for spec-level violations — long REQ bodies,
@@ -102,6 +101,8 @@ This runs:
 | `npm run validate`         | Cross-references, TOC sync, REQ blocks, separators, spec violations |
 | `npm run audit-assumptions`| Structural assumption patterns (citations, magic numbers, absolute language) |
 | `npm run scan-ambiguity`   | Hedging, vague qualifiers, indefinite language in REQ bodies |
+| `npm run check-cross-refs`  | Dead citations, orphan REQs, divergent scope |
+| `npm run detect-dupes`      | Near-duplicate paragraphs within 40-sentence window |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 
 Also available separately:
@@ -112,6 +113,21 @@ Also available separately:
 
 All must pass. `npm run validate` exits non-zero on errors (uncited REQs,
 undefined test IDs, TOC discrepancies, or malformed blocks). Warnings
-(uncited test IDs, missing separators) are informational.
+(uncited test IDs, missing separators, stale appendix ranges, hardcoded
+cross-section counts) are informational.
+
+## Before committing spec changes
+
+When you change `holonovel.md`, verify before committing:
+
+- [ ] `npm run check` passes with 0 errors (warnings are informational)
+- [ ] All cross-section counts match their targets (e.g., §6.5 metric count
+      matches REQ-025 text)
+- [ ] Appendix ranges like "Appendices A–X" match actual appendix count
+- [ ] No REQ body contains parameter types, Default: clauses, or enumerated
+      catalogs (>5 tokens) — `npm run validate` flags these
+- [ ] Renamed headings or appendices are followed by a spec-wide grep
+      for stale references
+- [ ] Gate/workflow references use `GN` form (not "Gate N") outside §8
 
 Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).
