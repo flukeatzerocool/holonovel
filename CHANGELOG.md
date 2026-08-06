@@ -70,6 +70,11 @@
   a term mid-spec have a single lookup point.
 - AGENTS.md now reflects the current REQ count (107, up from the stale 75)
   and appendix range (A–R, not A–P).
+- The remaining 91 requirements across §§5.2–5.9 — extraction, tools,
+  decision workflows, hats, state, determinism, narrative, and Novel
+  lifecycle — now carry one-sentence acceptance criteria between the body
+  and the Check: line. A builder or reviewer can verify what a REQ demands
+  without following the test citation.
 
 ## 2026-08-06 — Player signals subsystem: pace/focus semantics, briefing surface, and staleness
 
