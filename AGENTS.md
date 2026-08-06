@@ -22,7 +22,7 @@ holonovel.md            The specification (standalone, copy-pasteable)
   §9                    Artifacts and handoff (4 artifacts, 12 checks,
                           troubleshooting)
   §10                   Independent verification (includes adversarial round)
-  §11                   Optional jobs (persona enrichment)
+  §11                   Optional jobs (hat enrichment)
   Appendices A–P        Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog,
@@ -32,6 +32,8 @@ holonovel.md            The specification (standalone, copy-pasteable)
 README.md               Project orientation; see HTML comment at top for
                           README design conventions
 CHANGELOG.md            Revision history (date-headed, bulleted)
+SPEC-QUEUE.md           Cross-session spec-engineering task tracker —
+                          @SPEC-QUEUE.md next | add: <item> to <tier>
 AGENTS.md               This file — AI maintainer orientation
 package.json            Task runner (lint, validate, audit-assumptions,
                           scan-ambiguity, typecheck)
