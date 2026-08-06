@@ -1,4 +1,4 @@
-# AGENTS.md — D&D 5e Holonovel MCP Server (v2026.08.05)
+# AGENTS.md — D&D 5e Holonovel MCP Server (v2026.08.06)
 
 AI maintainer orientation for the D&D 5e Holonovel MCP server implementation.
 

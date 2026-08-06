@@ -2,7 +2,7 @@
 
 An MCP server that serves the D&D 5e SRD v5.1 ruleset — 1,021 Markdown files extracted into structured data (37 weapons, 14 armor, 319 spells, 318 monsters, 239 magic items) and exposed as a conversational tabletop RPG engine.
 
-Built by [Holonovel](https://github.com/anomalyco/Holonovel) v2026.08.05.
+Built by [Holonovel](https://github.com/anomalyco/Holonovel) v2026.08.06.
 
 ## Setup
 
