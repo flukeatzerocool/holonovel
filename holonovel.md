@@ -810,11 +810,15 @@ workflows that span multiple Novels or connections.
 
 ### 5.5 Hats and Access
 
-**REQ-030 — Single user.** One connection serves one active hat at a time — the hat
-most recently set via `set_hat` or `TTRPG_HAT`. No concurrency, no multiplayer
-state sharing within a connection.
-*Acceptance criterion:* Starting a second MCP connection to the same Novel
-succeeds; each connection maintains its own independent active hat and entity.
+**REQ-030 — Single-user connection.** Each MCP connection serves one active hat at a
+time — the hat most recently set via `set_hat` or `TTRPG_HAT`. No concurrency,
+no multiplayer state sharing within a connection. The active hat and active entity
+are Novel-scoped: two connections to the same Novel share the same hat and entity
+state (REQ-031, REQ-074). Each connection may independently switch between Novels
+via `switch_novel` (REQ-095), and each Novel stores its own hat independently.
+*Acceptance criterion:* Starting a second MCP connection to the same Novel succeeds
+and inherits the Novel's current hat and active entity; switching hats on one
+connection is visible on the other.
 _Check:_ Appendix D.
 
 **REQ-031 — Hat activation.** By default, no hat is active — the server operates
@@ -828,7 +832,7 @@ hat and returns to full-access mode.
 *Acceptance criterion:* On startup with no hat active, `tools/list` returns all
 tools unfiltered; after `set_hat("player")`, GM-only tools are excluded from
 `tools/list` and return `[FORBIDDEN]` on invocation.
-_Check:_ T9.
+_Check:_ T9, T150.
 
 **REQ-066 — set_hat tool.** The server provides a `set_hat` tool accepting
 `player` or `game_master`. Returns `[OK] Active hat: <hat>` on
@@ -850,7 +854,30 @@ endpoints return full content and all tools are callable.
 `[FORBIDDEN]`; switching to Game Master hat makes the same call succeed;
 switching back and calling again returns `[FORBIDDEN]`.
 _Check:_ T9, T13, T15, T18,
-T26, T44.
+T26, T44, T148, T151.
+
+**REQ-133 — Forbidden-call audit.** Every tool invocation that returns
+`[FORBIDDEN]` is recorded in the audit log with timestamp, active hat, tool
+name, and arguments — matching the fields recorded for mutating calls
+(REQ-040). Forbidden-call entries carry a boundary-violation marker
+distinct from the mutating-entry format.
+*Acceptance criterion:* Invoking a GM-only tool under the Player hat produces
+an audit entry with hat `player`, tool name, arguments, and a
+boundary-violation marker; the entry is visible at `audit://novel` and is
+distinguishable from mutating entries.
+_Check:_ T147.
+
+**REQ-134 — Minimum Player tool surface.** When the Player hat is active,
+the server guarantees that tools in these functional groups are callable:
+dice-resolution (rolls and checks), ruleset lookups, character sheet
+rendering, action suggestions, player signals, help, undo/redo of the Player
+hat's own mutations, and hat switching. The builder records the gate
+classification for every tool in DECISIONS.md in a format that can be
+diffed against each hat's filtered `tools/list` output.
+*Acceptance criterion:* Under the Player hat, each Player-guaranteed group
+defined in the body has at least one tool callable by the Player; a tool
+known to be GM-exclusive returns `[FORBIDDEN]`.
+_Check:_ T148.
 
 **REQ-109 — Hat briefing composition.** `hat_briefing` surfaces
 these hat-filtered information groups: hat foundations (REQ-062),
@@ -864,19 +891,66 @@ examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM
 only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
 (REQ-089, including a "Session zero not yet completed — run `session_zero` prompt" reminder when
 `session_zero_completed` is false), and a pointer to the intro prompt (REQ-063). Groups whose data
-source is empty may be omitted. The enumeration order above is the builder's required
-default section ordering for `hat_briefing`. Decision-critical groups (scene state,
-entities, combat state, triggered lore) precede the section boundary; supplementary
-guidance and navigation groups (anti-slop, narrative tone samples, intro pointer)
-follow. The Game Master may override this order via `set_briefing_order` (REQ-082).
+source is empty SHALL include an explicit empty-state marker describing which
+category is empty. Markers preserve the expected briefing structure and prevent the
+caller from inferring non-existent content. The enumeration order above is the
+builder's required default section ordering for `hat_briefing`. Decision-critical
+groups (scene state, entities, combat state, triggered lore) precede the section
+boundary; supplementary guidance and navigation groups (anti-slop, narrative tone
+samples, intro pointer) follow. The Game Master may override this order via
+`set_briefing_order` (REQ-082).
 *Acceptance criterion:* `hat_briefing` for a Novel with entities, combat,
-countdowns, and lore includes all mandatory groups; an empty data source omits
-its group; decision-critical groups appear before supplementary groups.
-_Check:_ T109, T110.
+countdowns, and lore includes all mandatory groups; an empty data source displays
+its empty-state marker; decision-critical groups appear before supplementary groups.
+_Check:_ T109, T110, T149.
 
-*Out of scope:* role-based access control beyond the two-hat model, authentication
-or authorization mechanisms, multi-connection hat synchronization, and hat inheritance
-across Novels.
+*Out of scope:* role-based access control beyond the two-hat model,
+authentication or authorization mechanisms, multi-connection hat
+synchronization, and hat inheritance across Novels. The spec assumes a
+single trusted operator — `set_hat` is always callable without
+authentication. The hat model is a convenience and narrative-integrity
+feature, not a security boundary (see Appendix P for threat model).
+
+**REQ-135 — Hat briefing size budget.** The total size of `hat_briefing`
+output is bounded by a configurable limit. When the briefing would exceed
+this limit, content is truncated from lowest-priority sections first.
+Sections are truncated in full — no section is partially rendered. Each
+truncated section includes a marker and a resource URI pointer for full
+retrieval. Hat foundations (REQ-062) and the intro pointer (REQ-063) are
+never truncated. The builder records the truncation priority order and the
+default limit in DECISIONS.md.
+*Acceptance criterion:* With a small briefing budget, invoke `hat_briefing` —
+assert some low-priority sections are truncated with resource URI pointers;
+assert hat foundations and the intro pointer are always present regardless
+of budget.
+_Check:_ T149.
+
+**REQ-136 — Null-hat briefing.** When no hat is active (REQ-031),
+`hat_briefing` returns setup-oriented content: a list of available Novels
+(REQ-093), the current active Novel name if one exists, and a pointer to
+the `intro` prompt (REQ-063). No gated content is accessible — the briefing
+presents the same full-access view as all other null-hat surfaces but
+structured for initial orientation rather than ongoing play.
+*Acceptance criterion:* On startup with no Novel active, `hat_briefing`
+returns a setup-oriented message with the intro pointer and Novel-creation
+guidance; with a Novel active but no hat set, the briefing includes the
+active Novel name and guidance to activate a hat via `set_hat`.
+_Check:_ T150.
+
+**REQ-137 — Gate classification auditability.** Every tool registered on
+the server is assigned to one of three gate classifications: callable
+only under the Player hat, callable only under the Game Master hat, or
+callable under any hat (un-gated). The gate classification for every
+tool is enumerable at build verification time from the tool registration
+source without invoking the running server. The builder records the
+classification for every tool in DECISIONS.md. Tool-category
+reassignment (REQ-067) does not alter gate classification.
+*Acceptance criterion:* The Player-filtered `tools/list` output contains
+exactly the tools classified as Player or un-gated in DECISIONS.md; the
+GM-filtered output contains exactly the tools classified as GM or un-gated;
+`set_hat` is always present in both lists. No tool is classified as both
+Player-only and GM-only.
+_Check:_ T151.
 
 ### 5.6 State and Lifecycle
 
@@ -890,7 +964,7 @@ restarts for the same Novel.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
 hat, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
-_Check:_ T8.
+_Check:_ T8, T147.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
 `undo` restores the most recent mutation from a LIFO snapshot stack. The stack depth
@@ -3449,7 +3523,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-057 | Canonical lookup tools    | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | 2026-08-02   |
 | REQ-059 | Parameter canon validation | 2026-08-02   |
-| REQ-030 | One user per connection   | 2026-08-02   |
+| REQ-030 | Single-user connection    | 2026-08-02   |
 | REQ-031 | Full access — no hat active | 2026-08-02   |
 | REQ-032 | Hat gating                | 2026-08-02   |
 | REQ-033 | Adjudicator term          | 2026-08-02   |
@@ -3534,6 +3608,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-130 | Enrichment rebuild contract | 2026-08-06   |
 | REQ-131 | Novel initialization order | 2026-08-06   |
 | REQ-132 | Adventure generation lifecycle | 2026-08-06   |
+| REQ-133 | Forbidden-call audit      | 2026-08-06   |
+| REQ-134 | Minimum Player tool surface | 2026-08-06   |
+| REQ-135 | Hat briefing size budget  | 2026-08-06   |
+| REQ-136 | Null-hat briefing         | 2026-08-06   |
+| REQ-137 | Gate classification auditability | 2026-08-06   |
 
 ---
 
@@ -3685,6 +3764,11 @@ diet.
 | T144  | Automated | Enrichment rebuild contract: run enrich, activate one lore template via `set_lore_entry`, one action pattern via `toggle_action_patterns`. Re-run enrich — assert activated lore entry and action pattern persist exactly as activated. Verify an inactive enrich item's content may change (replaced by fresh output). Run `revert_enrichment`, re-run enrich — assert all fresh. Create Novel with enrichment from prior build, change ruleset hash, rebuild with same spec — assert activated items preserved, inactive items replaced. | REQ-130, REQ-080, REQ-103                   |
 | T145  | Automated | Novel initialization order: create a Novel with an adventure module (REQ-079), an NPC created from an adventure template reference (REQ-119), a lore entry whose content references the NPC name, and a countdown with `on_scene_transition=true` (REQ-125). Set scene state with text matching the lore trigger. Restart server. Assert `hat_briefing` surfaces content in dependency order: adventure hook before NPC, NPC before lore entry, lore entry active (triggered by scene), countdown with correct ticks. Assert the order is stable across 3 restarts. | REQ-131, REQ-079, REQ-119, REQ-083, REQ-073 |
 | T146  | Automated | Adventure generation lifecycle: call `generate_adventure("A haunted space station")` — assert content at `adventure://generated/overview` and `adventure://generated/hook`. Restart server — assert generated adventure preserved. Call `load_adventure("tomb-of-horrors")` — assert indexed and generated adventures coexist in `hat_briefing`, indexed first then generated. Call `generate_adventure("Sunken temple")` — assert old generated content replaced. `end_novel` — assert generated adventure discarded with the Novel, not present on disk in `TTRPG_ADVENTURE` directory. | REQ-132, REQ-079, REQ-090                |
+| T147  | Automated | Forbidden-call audit: create a Novel, invoke a GM-only tool under the Player hat — assert `[FORBIDDEN]` audit entry recorded with hat `player`, tool name, arguments, and a boundary-violation marker distinguishable from mutating entries. Invoke a Player-only tool under the GM hat — assert another `[FORBIDDEN]` audit entry. Verify entries visible at `audit://novel` and chained with correct hashes (REQ-040). Verify state queries do not produce audit entries. | REQ-133, REQ-040 |
+| T148  | Automated | Minimum Player tool surface: set Player hat, invoke one tool from each Player-guaranteed group (dice-resolution, ruleset lookup, character_sheet, suggest_actions, player_signal, help, undo, set_hat) — assert all succeed. Invoke a GM-exclusive tool (create_npc, init_combat, set_scene_state, set_lore_entry) — assert each returns `[FORBIDDEN]`. Switch to Game Master — assert all tools succeed. Verify `tools/list` filtered by each hat matches the DECISIONS.md classification table. | REQ-134, REQ-032 |
+| T149  | Automated | Hat briefing size budget: configure a small `TTRPG_MAX_BRIEFING_TOKENS`, invoke `hat_briefing` with populated Novel — assert some low-priority sections are truncated with resource URI pointers; assert hat foundations and intro pointer are always present regardless of budget. Configure a very large budget — assert no truncation markers. Verify truncated sections are full (not partial) and each carries a retrieval pointer. | REQ-135, REQ-109 |
+| T150  | Automated | Null-hat briefing: restart with no Novel active, invoke `hat_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set hat, invoke `hat_briefing` — assert active Novel name and guidance to activate hat. Verify no gated content appears in either case. Set hat to Player — assert full Player briefing (not setup mode). | REQ-136, REQ-031 |
+| T151  | Automated | Gate classification auditability: build server, inspect DECISIONS.md gate-classification table — assert every registered tool appears in exactly one of {Player-only, GM-only, un-gated}. Assert `tools/list` filtered by Player hat contains exactly the tools classified as Player + un-gated. Assert `tools/list` filtered by GM hat contains exactly the tools classified as GM + un-gated. Assert `set_hat` is classified un-gated and appears in both lists. Assert no tool is classified as both Player-only and GM-only. | REQ-137, REQ-032 |
 
 ---
 

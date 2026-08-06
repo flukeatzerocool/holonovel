@@ -13,7 +13,7 @@ specification document, not an implementation.
 holonovel.md            The specification (standalone, copy-pasteable)
   §1–5                  Mission, requirements, failure modes (with fault trees),
                           standing rules (including red-team discipline),
-                          requirements (107 REQ blocks)
+                          requirements (117 REQ blocks)
   §6                    Build process (jobs, intake, discovery, construction,
                           verification & convergence)
   §7                    Runtime conventions (anchors, IDs, output contracts,
