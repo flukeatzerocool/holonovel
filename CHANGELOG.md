@@ -39,6 +39,38 @@
      what it's called.
 -->
 
+## 2026-08-06 — SDD conventions upgrade: authoring, navigation, and cross-reference health
+
+- The specification now opens with a reading guide teaching builders how to
+  navigate the 4,300-line document in layers — builders start with §1/§4/§6,
+  maintainers start with Appendix M, verifiers start with §8. This makes the
+  monolithic spec reviewable in targeted passes rather than requiring a
+  front-to-back read.
+- Every requirements domain in §5 now carries an explicit out-of-scope
+  statement defining what it does NOT cover — multiplayer sync, real-time
+  collaboration, cryptographic RNG, runtime AI generation, and other
+  intentionally excluded concerns. This bounds the agent's interpretation and
+  matches SDD "spec the negative space" best practice.
+- All twenty-six requirements in §5.1 (output and error contracts) now carry
+  a one-sentence acceptance criterion between the body and the Check: line,
+  so a human reviewer can verify what the REQ demands without following the
+  test citation. The stated acceptance criterion is a plain-English check a
+  running server can be held against.
+- Appendix M now recommends EARS notation — the five structured requirement
+  patterns (Ubiquitous, Event-driven, State-driven, Unwanted-behavior,
+  Optional-feature) that make trigger/condition/response explicit in
+  machine-parseable clauses compatible with AI builders.
+- A new cross-reference health script catches dead citations (REQs cited
+  that don't exist), REQ blocks present in the body but missing from the
+  manifest, and one-way cross-section citations with no reciprocal reference.
+  Runs as part of the standard check pipeline.
+- A new Builder Glossary (Appendix S) defines domain terms — Builder,
+  Convergence loop, Danger, Discovery, Gauntlet, Hat, Macro, MUST-covering
+  set, Novel, Waiver, and more — with citing REQs, so builders encountering
+  a term mid-spec have a single lookup point.
+- AGENTS.md now reflects the current REQ count (107, up from the stale 75)
+  and appendix range (A–R, not A–P).
+
 ## 2026-08-06 — Player signals subsystem: pace/focus semantics, briefing surface, and staleness
 
 - Fixed a contradiction where session zero directed players to record

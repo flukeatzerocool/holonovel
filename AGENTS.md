@@ -13,7 +13,7 @@ specification document, not an implementation.
 holonovel.md            The specification (standalone, copy-pasteable)
   §1–5                  Mission, requirements, failure modes (with fault trees),
                           standing rules (including red-team discipline),
-                          requirements (75 REQ blocks)
+                          requirements (107 REQ blocks)
   §6                    Build process (jobs, intake, discovery, construction,
                           verification & convergence)
   §7                    Runtime conventions (anchors, IDs, output contracts,
@@ -23,7 +23,7 @@ holonovel.md            The specification (standalone, copy-pasteable)
                           troubleshooting)
   §10                   Independent verification (includes adversarial round)
   §11                   Optional jobs (hat enrichment)
-  Appendices A–P        Parsing principles, golden fixture, injection fixture,
+  Appendices A–R        Parsing principles, golden fixture, injection fixture,
                           MCP conformance, requirements manifest, derived tests,
                           source conversion, ruleset prep, permissive catalog,
                           anti-slop synopsis, adventure format, lorebook format,

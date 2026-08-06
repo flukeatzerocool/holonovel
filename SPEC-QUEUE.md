@@ -11,13 +11,9 @@ reordering mid-tier. Check for duplicates before adding.
 
 ## Top candidates
 
-1. ~~Voice & personality — set_personality, set_voice_examples fields
-   (REQ-071, 077).~~ ✓ 2026-08-06
-2. Player signals — player_signal for pace, difficulty, tone, focus, boundary
-   (REQ-069).
-3. Character creation workflow — step-by-step and quick modes,
+1. Character creation workflow — step-by-step and quick modes,
    stats → race → class → background → name (REQ-104).
-4. GM session notes — real-life session prep structure, common patterns,
+2. GM session notes — real-life session prep structure, common patterns,
    integration points with narrative state management.
 
 ## Tool-surface features
