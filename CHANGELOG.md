@@ -39,6 +39,46 @@
      what it's called.
 -->
 
+## 2026-08-06 — State model: deep research and 6 improvements applied
+
+- The Novel's property groups now carry configurable cardinality limits
+  enforced at mutation time — NPCs, countdowns, lore entries, and enrichment
+  items each have a maximum with per-group `[STATE_CONFLICT]` enforcement.
+  `spec_health` reports counts and overflow flags for every group.
+  (REQ-129)
+
+- Re-running the Enrich workflow now preserves every enrichment item the GM
+  has explicitly activated, replacing only inactive items. Full replacement
+  of all enrichment — including activated items — requires an explicit
+  `revert_enrichment` first. The enrichment property table row reflects this
+  contract. (REQ-130)
+
+- Novel property groups now have a defined initialization order that respects
+  cross-group dependencies: Adventure loads first (provides NPC templates),
+  then NPCs, Lore, Countdowns, and Scene state last. The order is stable and
+  verifiable across restarts. (REQ-131)
+
+- Generated adventure content from `generate_adventure` is now a formally
+  scoped transient Novel artifact, distinct from build-time indexed adventure
+  modules. A Novel may hold both an indexed adventure and a generated adventure
+  simultaneously, with `hat_briefing` surfacing indexed first and
+  `search_rules` tagging generated results. (REQ-132)
+
+- All six cross-property group couplings — Scene→Lore trigger matching,
+  Scene→Countdown hook decrement, Combat↔NPC participation, Adventure→NPC
+  templates, Enrichment→Lore suggest, and Enrichment→Scene/Entity/NPC content
+  — are now documented in a single table (§7.7.1) enumerating pair, coupling,
+  nature (Navigational/Mechanical), and REQ citations.
+
+- The "Connection" state tier is now "Session" — a Holonovel-level concept
+  independent of the MCP transport layer. This aligns the spec with the MCP
+  2026-07-28 specification's removal of protocol-level sessions. The
+  behavioral contract is unchanged; the renaming clarifies that Session state
+  is scoped within the Holonovel process, not the MCP channel.
+
+- The completed "State model & 6 property groups" research item was removed
+  from SPEC-QUEUE.md and the remaining 55 items renumbered.
+
 ## 2026-08-06 — Spec queue: full feature inventory with multi-axis prioritization
 
 - Rewrote the spec-engineering queue from a 19-item sketch to a complete
