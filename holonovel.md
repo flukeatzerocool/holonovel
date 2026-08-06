@@ -284,7 +284,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 
 ### 5.1 Output and Error Contracts
 
-**REQ-101 — Assumption audit trail.** Before the Convert workflow begins, the builder invokes the
+**REQ-101 — Assumption audit trail.** In `production` mode, before the Convert
+workflow begins, the builder invokes the
 `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a
 server prompt) against the current spec revision and records at least one
 challenged assumption per category — technology, AI-as-builder, extraction and confidence,
@@ -1083,7 +1084,18 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B8  | Where is the spec repository? | URL                            | <https://git.gay/flukeatzerocool/Holonovel> |
+| B9  | Build mode                   | production / quick                | production          |
+
+**Build mode profiles.** `production` (default) runs the full quality suite:
+assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
+verification on every file, cross-model auditing when available, and the full
+Gauntlet (§6.6). The Gauntlet gates both modes. `quick` mode narrows the
+overhead rituals: skips the assumption audit and auditor pre-flight, scopes
+post-write verification to critical files (DECISIONS.md, MCP client config,
+on-disk Novel state), and accepts same-model audits. The Gauntlet still gates
+— any build that creates or modifies tools must pass it. Quick mode is for
+inner-loop iteration; the server is runnable but not handoff-ready. A
+quick-mode build records a `quick-build` annotation in DECISIONS.md (6).
 
 **Config verification.** After writing the MCP client configuration, the builder
 fetches the target client's documentation for its MCP server config schema (from
@@ -1219,11 +1231,14 @@ template.
 subagent (fresh context) that audits the work against the requirements cited by that step.
 The subagent reports findings; the builder resolves each before the next step.
 
-**Auditor pre-flight.** Before the first checkpoint audit of a build session, the
-builder seeds one deliberate defect in its own output — a mislabeled anchor, a
-missing cross-reference, or an extra tool name in a registry entry — and verifies the
-audit subagent catches it. A subagent that misses a seeded defect is a
-process-compliance finding recorded in DECISIONS.md (6); the subagent is re-prompted.
+**Auditor pre-flight.** In `production` mode, before the first checkpoint audit
+for a ruleset (the first build session only), the builder seeds one deliberate
+defect in its own output — a mislabeled anchor, a missing cross-reference, or an
+extra tool name in a registry entry — and verifies the audit subagent catches
+it. Subsequent build sessions for the same ruleset skip the pre-flight. A
+subagent that misses a seeded defect is a process-compliance finding recorded
+in DECISIONS.md (6); the subagent is re-prompted. Quick-mode builds skip the
+pre-flight entirely.
 
 **Convergence loop.** The builder converges in two sequential phases —
 extraction quality, then construction quality. Each phase iterates up to 3
@@ -1277,16 +1292,19 @@ repeated attempt.
 
 ### 6.5.2 Cross-model audit
 
-When the builder has access to more than one model, the audit
-subagent should use a different model from the builder's primary model. A cross-model
-audit surfaces defects that same-model audits miss. Different models detect different
-defect classes; cross-model auditing increases coverage. The builder
-detects cross-model availability; a single-model audit is valid when only one model is
-available. A single-model build — where only one model is available for both
-construction and audit — records a `single-model-audit` annotation in DECISIONS.md
-(6). This annotation is informational and does not block handoff; it alerts the
-operator that same-model auditing may miss defect classes a cross-model audit would
-catch.
+In `production` mode, when the builder has access to more than one model, the
+audit subagent must use a different model from the builder's primary model. A
+cross-model audit surfaces defects that same-model audits miss. Different
+models detect different defect classes; cross-model auditing increases
+coverage. The builder detects cross-model availability; a single-model audit
+is valid when only one model is available. A single-model build — where only
+one model is available for both construction and audit — records a
+`single-model-audit` annotation in DECISIONS.md (6). This annotation is
+informational and does not block handoff; it alerts the operator that
+same-model auditing may miss defect classes a cross-model audit would catch.
+In `quick` mode, same-model audits are acceptable; the builder records a
+`quick-build` annotation in DECISIONS.md (6) in place of any cross-model
+requirement.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
 
@@ -1318,12 +1336,15 @@ verification, the builder re-reads the written file and verifies: (a) heading
 structure matches the plan — confirm the expected `##` and `###` headings appear in
 order; (b) no path corruption — search for doubled directory components and missing
 slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
-convergence finding and triggers a fix + re-read iteration. This check applies to every
-file write: source code, test scripts, README, DECISIONS.md, and MCP client
-configuration. (d) **completeness** — the builder maintains a file manifest (list of
-expected output files recorded after construction planning). The manifest is checked
-during post-write verification: every file in the manifest must exist and have
-non-zero size. A missing or empty file is a convergence finding.
+convergence finding and triggers a fix + re-read iteration. In `production` mode
+this check applies to every file write: source code, test scripts, README,
+DECISIONS.md, and MCP client configuration. In `quick` mode it applies to
+critical files only: DECISIONS.md, the MCP client configuration, and the on-disk
+Novel state file. (d) **completeness** — the builder maintains a file manifest
+(list of expected output files recorded after construction planning). The
+manifest is checked during post-write verification: every file in the manifest
+must exist and have non-zero size. A missing or empty file is a convergence
+finding.
 
 ### 6.6 The Gauntlet
 
@@ -1350,10 +1371,18 @@ code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
-**Workflow completion.** The Build workflow is not complete until the Gauntlet exits with all
-Gauntlet sub-workflows passing or the builder records 2 iterations without improvement (see Exit
-criteria below), and both ruleset-facing verification workflows (G0 step 2 and G4) pass. Marking a workflow complete
-without a passing Gauntlet and passing applicable verification workflows is a process defect. The
+**Workflow completion.** The Build workflow is not complete until the Gauntlet
+exits with all Gauntlet sub-workflows passing or the builder records 2
+iterations without improvement (see Exit criteria below), and both
+ruleset-facing verification workflows (G0 step 2 and G4) pass. The Gauntlet
+gates both `production` and `quick` builds — any build that creates or modifies
+tools must pass the Gauntlet before marking complete. In `production` mode
+the build additionally requires the assumption audit (REQ-101), the audit steps
+with auditor pre-flight (§6.5), full post-write verification on every file
+(§6.5), and cross-model auditing when available (§6.5.2). These are optional in
+`quick` mode; a quick-mode build records a `quick-build` annotation in
+DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
+Marking a workflow complete without a passing Gauntlet is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts two MCP client connections to the same server process
