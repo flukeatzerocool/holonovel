@@ -686,7 +686,7 @@ T26, T44.
 these hat-filtered information groups: hat foundations (REQ-062),
 anti-slop guidance (REQ-070), example-of-play snippets (REQ-071), current scene state
 (REQ-076), active entities with summary stats (REQ-074), active NPCs
-(REQ-075), active countdowns (REQ-073), active lore entries (REQ-083),
+(REQ-075), active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries (REQ-083),
 active adventure content (REQ-079), registered tools relevant to the
 current scene type (REQ-087), active combat state — round, turn order, and
 current participant (if in-combat; REQ-043), the narrative directive (GM
@@ -752,16 +752,22 @@ sees all. Session recap does not produce prose — it returns structured data th
 to narrate the recap. _Check:_ T53.
 
 **REQ-073 — Countdowns.** The server supports named Novel-scoped countdowns via
-`set_countdown(name, ticks, trigger)`. A `round` countdown decrements automatically at the
-end of each combat round. A `narrative` countdown decrements only when the Game Master
-calls `advance_countdown(name)` (for in-world events: time until sunrise, enemy army
-arrival, ritual completion, torch burnout, poison timers). `remove_countdown(name)` deletes
-a countdown. When a countdown reaches zero, it fires: recorded in the audit log with a
-timestamp. Expired countdowns are retained in the log but removed from active countdowns
-in `hat_briefing`. `countdown://active` lists all active countdowns with remaining
-ticks. Countdowns are Novel-scoped — they survive connection restarts, are discarded by
-`end_novel`. Countdown tools are Game Master only; the Player hat reads active
-countdowns via `hat_briefing`. _Check:_ T54.
+`set_countdown(name, ticks, type, options)`. A `round` countdown decrements automatically
+at the end of each combat round. A `narrative` countdown decrements only when the Game
+Master calls `advance_countdown(name)` (for in-world events: time until sunrise, enemy
+army arrival, ritual completion, torch burnout, poison timers). Either type may carry an
+`on_scene_transition` flag (decrements on scene transition per REQ-125). Every countdown
+has a `hat_scope` — `game_master` or `shared` — and a `direction` — `decrement` (fires at
+`ticks <= 0`) or `increment` (fires at `ticks >= total`). Both carry an unambiguous
+default preserving backward compatibility. `advance_countdown(name)` adjusts one tick in
+the countdown's direction. `remove_countdown(name)` deletes a countdown before it fires.
+When a countdown fires, it is recorded in the audit log with a timestamp and removed from
+active countdowns — its name slot freed for reuse. Expired countdowns remain in the audit
+log. `countdown://active` lists all active countdowns with remaining ticks, type,
+hat_scope, and direction, hat-filtered: only shared countdowns are visible to the Player
+hat. Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`.
+Countdown tools are Game Master only; the Player hat reads active countdowns via
+`hat_briefing` and resource URIs. _Check:_ T54, T139.
 
 **REQ-074 — Multi-entity support.** A Novel may contain multiple game entities under the
 same hat. The roster may hold multiple entities for the player. `entities://` lists
@@ -1084,7 +1090,8 @@ enrichment state. _Check:_ T94, T125.
 in all tool output, resource text, and prompt text before delivery. Supported macros:
 `{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
 `{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`,
-`{{countdown.<name>.total}}`, `{{novel.slug}}`, `{{hat.active}}`, `{{party.size}}`.
+`{{countdown.<name>.total}}`, `{{countdown.<name>.scope}}`,
+`{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{hat.active}}`, `{{party.size}}`.
 Macros referencing nonexistent state expand to the literal token unchanged. Macro
 expansion occurs after output composition and before client delivery. Macros do not
 expand in audit log entries. _Check:_ T69.
@@ -1112,9 +1119,9 @@ matching the scene type. _Check:_ T71, T135.
 **REQ-125 — Scene transition hook.** When `set_scene_state` is called and the new
 description differs from the current `scene_description`, the server records a
 `[scene_transition]` audit entry with the old and new descriptions and a timestamp.
-This is automatic — no additional tool call is required. Narrative countdowns
-(REQ-073) whose `on_scene_transition` trigger flag is set decrement by one tick on
-transition. Calling `set_scene_state` with a `skip_transition_hook` parameter
+This is automatic — no additional tool call is required. Countdowns of either type
+(`round` or `narrative`) carrying the `on_scene_transition` flag (REQ-073) decrement
+by one tick on transition. Calling `set_scene_state` with a `skip_transition_hook` parameter
 suppresses the audit entry and countdown decrement for cases where the GM is updating
 the same scene without transitioning it (e.g., adding descriptive detail). The Player
 hat sees scene transitions in `scene://history`; GM-only mechanics (audit entry,
@@ -3018,7 +3025,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-070 | Anti-slop guidance        | T26                            | 2026-08-04   |
 | REQ-071 | Voice examples            | T26                            | 2026-08-04   |
 | REQ-072 | Session recap             | T53                            | 2026-08-04   |
-| REQ-073 | Countdowns                | T54                            | 2026-08-04   |
+| REQ-073 | Countdowns                | T54, T139                      | 2026-08-04   |
 | REQ-074 | Multi-entity support      | T55                            | 2026-08-04   |
 | REQ-075 | Named-NPC state           | T56                            | 2026-08-04   |
 | REQ-076 | Scene-state ledger        | T57, T112, T132, T137          | 2026-08-06   |
@@ -3215,6 +3222,7 @@ diet.
 | T136  | Automated | Scene transition hook: create Novel with scene state "forest". Call `set_scene_state` with "cave" — assert `[scene_transition]` audit entry with both descriptions. Set narrative countdown with `on_scene_transition=true`, 3 ticks. Call `set_scene_state` with "castle" — assert countdown decrements to 2. Call `set_scene_state` with "castle" (same description) — assert no transition (no audit entry, no countdown decrement). Call with `skip_transition_hook=true` — assert no audit entry, no countdown decrement. Player hat reads transitions in `scene://history`.                                                                                                                                       | REQ-125, REQ-073                            |
 | T137  | Automated | Scene pacing tick: create Novel — assert scene_tick = 0. Init combat with 2 participants, advance through one full round (wrap back to first) — assert scene_tick = 1. Advance through second full round — assert scene_tick = 2. Call `set_scene_state` with new description (triggering transition) — assert scene_tick resets to 0. Verify tick visible in GM `hat_briefing`, absent from Player `hat_briefing`.                                                                                                                                                                                                                                                                                          | REQ-076                                     |
 | T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with unrecognized decision returns `[ERROR] [NOT_FOUND]` enumerating the valid decision text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-066, REQ-041, REQ-092 |
+| T139  | Automated | Countdown lifecycle: set a shared increment countdown "tension" (3 ticks). Advance twice — assert remaining = 2/3, still active. Advance again — assert fires at 3/3, removed from active, audit log entry present, name slot free. Set a game-master decrement countdown "patrol" (2 ticks). Switch to Player — assert `hat_briefing` shows "tension" (shared) but not "patrol" (GM-only). Switch to GM — assert both. `remove_countdown("patrol")` — assert removed, no audit expiry. Set "patrol" again — assert new countdown (not reactivated).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-073, REQ-032                            |
 
 ---
 
