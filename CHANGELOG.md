@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-06 — Combat pipeline contract hardening
+
+- REQ-043: Added turn resolution output contract (participant name, action taken, roll result with full transparency, and any resulting state changes), automatic-advancement output clause for dangers and statless NPCs, initiative tie-break rule (entity before NPC before danger, then alphabetical by name), and total combat rounds counter increment on `end_combat`. _Check:_ T110 (new).
+- REQ-109: Added active combat state group — round, turn order, and current participant (if in-combat) — to the mandatory `persona_briefing` information groups. Omitted when no combat active. Group count: 14 → 15. _Check:_ T110 (new).
+- Appendix O.3: Synced behavioral contract with REQ-043 amendments (tie-break, automatic-advancement output, round-counter increment on `end_combat`).
+- Appendix E: Updated REQ-043, REQ-093, and REQ-109 check citations with T110.
+- Appendix F: Added T110 (combat state lifecycle: turn order tie-break, persona_briefing visibility, round-counter increment). Updated T109 to cover combat state group assertion.
+
 ## 2026-08-06 — Personas subsystem hardening
 
 - REQ-055: Clarified `TTRPG_PERSONA` precedence — Novel persisted persona state wins on resume/switch; env var sets initial persona only when no persisted state exists. _Check:_ T108 (new).

@@ -614,10 +614,11 @@ anti-slop guidance (REQ-070), voice examples (REQ-071), current scene state
 (REQ-076), active entities with summary stats (REQ-074), active NPCs
 (REQ-075), active countdowns (REQ-073), active lore entries (REQ-083),
 active adventure content (REQ-079), registered tools relevant to the
-current scene type (REQ-087), the narrative directive (GM only, REQ-081),
-player signals (GM only, REQ-069), Novel setup metadata (REQ-089), and a
-pointer to the intro prompt (REQ-063). Groups whose data source is empty
-may be omitted. _Check:_ T109.
+current scene type (REQ-087), active combat state — round, turn order, and
+current participant (if in-combat; REQ-043), the narrative directive (GM
+only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
+(REQ-089), and a pointer to the intro prompt (REQ-063). Groups whose data
+source is empty may be omitted. _Check:_ T109, T110.
 
 ### 5.6 State and Lifecycle
 
@@ -639,9 +640,14 @@ workflow's internal undo candidates. _Check:_ T10.
 confrontation), it is modeled as Novel-scoped state: participants, round counter, turn
 order. `init_combat` starts; `advance_combat` resolves one participant's turn and advances
 the turn order, incrementing the round when wrapping around; `end_combat` terminates.
-Participants may be entities, named NPCs (REQ-075), or dangers. A turn for a participant
-with no turn-defining stats (a danger or a statless NPC) advances automatically.
-Snapshot/load operations work within one connection. _Check:_ T25, T33; Gate 2.
+Participants may be entities, named NPCs (REQ-075), or dangers. Turn resolution reports
+the participant name, the action taken (if any), the roll result with full transparency,
+and any resulting state changes (HP, conditions). A turn for a participant with no
+turn-defining stats (a danger or a statless NPC) advances automatically, reporting what
+the participant did. Initiative ties resolve by participant type (entity before NPC before
+danger), then alphabetically by name. When `end_combat` terminates a conflict, the
+Novel's total combat rounds counter increases by the rounds played. Snapshot/load
+operations work within one connection. _Check:_ T25, T33, T110; Gate 2.
 
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
 that returns a structured summary of the active Novel: session timespan (earliest to latest
@@ -2694,7 +2700,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-040 | Audit log                 | T8                             | 2026-08-02   |
 | REQ-041 | Snapshots and undo        | T10                            | 2026-08-02   |
 | REQ-042 | Workflow decisions        | T32; Gate 2                    | 2026-08-02   |
-| REQ-043 | Conflict lifecycle        | T25, T33; Gate 2               | 2026-08-02   |
+| REQ-043 | Conflict lifecycle        | T25, T33, T110; Gate 2         | 2026-08-02   |
 | REQ-044 | Ruleset versioning        | T17                            | 2026-08-02   |
 | REQ-065 | Build fingerprint         | T52                            | 2026-08-04   |
 | REQ-050 | Determinism               | Gate 2, T27                    | 2026-08-02   |
@@ -2728,7 +2734,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-090 | Adventure generation      | T75                            | 2026-08-05   |
 | REQ-091 | Enhanced encounter generation | T76                        | 2026-08-05   |
 | REQ-092 | Novel persistence         | T77, T88                       | 2026-08-05   |
-| REQ-093 | Novel listing and metadata | T78, T99                      | 2026-08-05   |
+| REQ-093 | Novel listing and metadata | T78, T99, T110                | 2026-08-05   |
 | REQ-094 | Lorebook interchange      | T80                            | 2026-08-05   |
 | REQ-095 | Novel switching           | T98                            | 2026-08-05   |
 | REQ-096 | Novel interchange         | T100                           | 2026-08-05   |
@@ -2740,7 +2746,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-107 | Version coordination     | T106                           | 2026-08-06   |
 | REQ-108 | Gauntlet traceability    | T107                           | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
-| REQ-109 | Persona briefing composition | T109                        | 2026-08-06   |
+| REQ-109 | Persona briefing composition | T109, T110                  | 2026-08-06   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
 | REQ-101 | Assumption audit trail    | T89                            | 2026-08-05   |
@@ -2857,7 +2863,8 @@ diet.
 | T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Assert `spec_version` appears in `persona_briefing` for Game Master persona. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player persona sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
 | T107  | Automated | Gauntlet traceability: after a full Gauntlet run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Personas and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
 | T108  | Automated | Persona precedence: activate GM persona in Novel A, set `TTRPG_PERSONA=player`, resume Novel A — assert GM persona active (Novel persisted state wins). Create Novel B without activating persona, resume B with `TTRPG_PERSONA=player` — assert player persona active (env var applied to Novel with no persisted persona). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted persona independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
-| T109  | Automated | Persona briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, and adventure content. Invoke `persona_briefing` as GM — assert all groups from REQ-109 present. Invoke as Player — assert GM-only groups excluded and all player-visible groups present. Remove entities — assert group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
+| T109  | Automated | Persona briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, adventure content, and active combat state (init_combat). Invoke `persona_briefing` as GM — assert all groups from REQ-109 present including combat state (round, turn order, current participant). Invoke as Player — assert GM-only groups excluded and all player-visible groups present. End combat — assert combat group omitted. Remove entities — assert entity group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
+| T110  | Automated | Combat state lifecycle: create a Novel with 2 entities (equal initiative), 1 NPC, 1 danger. Call `init_combat` — assert turn order follows entity > NPC > danger then alphabetical by name. Assert `persona_briefing` (GM) includes combat state group (round, turn order, current participant). Advance combat through one full round — assert briefing reflects updated round and current participant. End combat — assert briefing omits combat group, `spec_health` reports total combat rounds incremented by rounds played. Switch to Player persona — assert combat state group visible (entity turn positions only). | REQ-043, REQ-093, REQ-109, REQ-032         |
 
 ---
 
@@ -3530,13 +3537,16 @@ includes a "Did you mean?" hint before the enumeration.
 ### O.3 Combat
 
 `init_combat` starts a Novel-scoped conflict with participants, round counter
-(starting at 1), and turn order. `advance_combat` resolves the current
-participant's turn (one significant action), advances the turn order, and
-increments the round when wrapping around. Turn resolution reports: the
-participant, the action taken, the roll result with full transparency, and
-any resulting state changes (HP, conditions). `end_combat` terminates the
-conflict and records the outcome in the audit log. Round countdowns decrement
-on round wrap.
+(starting at 1), and turn order — initiative ties broken by participant type
+(entity before NPC before danger) then alphabetically by name. `advance_combat`
+resolves the current participant's turn (one significant action), advances
+the turn order, and increments the round when wrapping around. Turn resolution
+reports: the participant name, the action taken, the roll result with full
+transparency, and any resulting state changes (HP, conditions). Automatic
+advancement for dangers and statless NPCs reports what the participant did.
+`end_combat` terminates the conflict, records the outcome in the audit log,
+and increases the Novel's total combat rounds counter by the rounds played.
+Round countdowns decrement on round wrap.
 
 ### O.4 State Management
 
