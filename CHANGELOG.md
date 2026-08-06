@@ -39,6 +39,29 @@
      what it's called.
 -->
 
+## 2026-08-06 — Clarify enrichment survival across rebuilds
+
+- Enrichment content stored in a Novel now has a defined lifecycle across
+  rebuild scenarios: it survives server restarts and same-ruleset rebuilds
+  unchanged, is replaced when the ruleset hash changes and Enrich re-runs,
+  and is absent after a nuclear rebuild (deleting the state directory and
+  building from scratch) unless the Enrich workflow is selected at intake.
+  The enrichment fingerprint model already encoded this behavior; the spec
+  now states it explicitly in §11.1 (Rebuild scenarios).
+- Removed the overbroad claim in REQ-103 that re-running Build without
+  Enrich strips enrichment — this contradicted the Novel's "survives
+  rebuilds" persistence contract. `revert_enrichment` remains the runtime
+  tool for stripping enrichment; build-time behavior is defined by the
+  rebuild scenario taxonomy.
+- Added enrichment surface connection validation to the §11.1 verification
+  checklist — enrichment items that reference build surfaces (action pattern
+  tool names, lore template keywords, adventure advice ruleset terms) are
+  now cross-referenced against the live tool registry, ruleset index, and
+  resource map, with orphan references recorded in DECISIONS.md.
+- Appendix F: Added T125 (enrichment rebuild survival across all four
+  scenarios). Appendices E/F: Updated REQ-080 and REQ-103 manifest rows
+  and check citations.
+
 ## 2026-08-06 — Server prompt hardening and surface reduction
 
 - Server prompts now carry a configurable length budget — when a prompt
