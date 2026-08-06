@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-06 — State and recovery hardening
+
+- REQ-041: Replaced "implementation-defined" undo stack depth with a 10-level minimum
+  per hat, with DECISIONS.md constraint recording for builders that cannot meet it.
+  _Check:_ T10, T121.
+- REQ-116: Added redo contract — companion to `undo` with dual-stack semantics
+  (undo stack → redo stack on undo, mutation clears redo). _Check:_ T121.
+- REQ-092: Added undo snapshot stack persistence across server restarts, closing the
+  "undo stack empty after restart" gap. _Check:_ T77, T88.
+- REQ-065: Added key-level corruption reporting — when unrecoverable state is detected,
+  the server reports which top-level keys or entity/NPC identifiers could not be parsed.
+  _Check:_ T52.
+- REQ-117: Added Novel retention period — `end_novel` moves files to `.trash/` with
+  configurable `TTRPG_NOVEL_RETENTION_DAYS`, preventing irreversible accidental deletion.
+  _Check:_ T122.
+- REQ-040: Added audit log integrity chain — chained-hash sequence for tamper-evidence
+  with mismatch reporting in `spec_health`. _Check:_ T8.
+- REQ-097: Added health trend reporting — sliding window of file-size and snapshot-depth
+  deltas with `[size_growth]` predictive warning. _Check:_ T101.
+- Appendix E: Added REQ-116 and REQ-117 rows; bumped spec-version on REQ-040, REQ-041,
+  REQ-065, REQ-088, REQ-092, REQ-097. Manifest: 93 → 95 rows.
+- Appendix F: Added T121 (redo) and T122 (retention) test catalogue entries.
+
 ## 2026-08-06 — Rules access subsystem hardening
 
 - REQ-110: Added tool surface consolidation contract — functionally identical tools
