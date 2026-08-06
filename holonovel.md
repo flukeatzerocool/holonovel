@@ -608,6 +608,17 @@ to use `set_persona` to switch roles. When no persona is active, no gating appli
 endpoints return full content and all tools are callable. _Check:_ T9, T13, T15, T18,
 T26, T44.
 
+**REQ-109 — Persona briefing composition.** `persona_briefing` surfaces
+these persona-filtered information groups: persona foundations (REQ-062),
+anti-slop guidance (REQ-070), voice examples (REQ-071), current scene state
+(REQ-076), active entities with summary stats (REQ-074), active NPCs
+(REQ-075), active countdowns (REQ-073), active lore entries (REQ-083),
+active adventure content (REQ-079), registered tools relevant to the
+current scene type (REQ-087), the narrative directive (GM only, REQ-081),
+player signals (GM only, REQ-069), Novel setup metadata (REQ-089), and a
+pointer to the intro prompt (REQ-063). Groups whose data source is empty
+may be omitted. _Check:_ T109.
+
 ### 5.6 State and Lifecycle
 
 **REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
@@ -784,7 +795,11 @@ entities, HP, conditions, slots, turn order persist. The roster is permanent and
 at baseline. `import_character` brings a fresh copy of a roster entry into a Novel. Session
 audit logs survive. `end_novel` discards the Novel; the roster survives. Resuming an ended
 Novel fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with the Novel.
-_Check:_ T9, T31.
+When a Novel is resumed or switched to, the Novel's persisted persona state takes
+precedence over `TTRPG_PERSONA`. `TTRPG_PERSONA` sets the initial active persona only
+when the starting Novel has no persisted persona state — either because the Novel is
+newly created, or because no persona was activated during a prior session.
+_Check:_ T9, T31, T108.
 
 ### 5.8 Narrative, Guidance, and Enrichment
 
@@ -1882,14 +1897,14 @@ code modification.
 
 **T18 anti-persona sub-workflows:**
 
-| Persona                       | Behavior                                                                       | Expected result                                                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Power Gamer                   | Stacks non-stacking bonuses                                                    | `[ERROR] [RULE_VIOLATION]`, or `[PARTIAL]` with explanation                                                                             |
-| New Player                    | Calls a tool with missing or vague parameters                                  | `[ERROR] [INVALID_INPUT]` with a helpful correction                                                                                     |
-| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           |
-| Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        |
-| Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      |
-| Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               |
+| Persona                       | Behavior                                                                       | Expected result                                                                                                                         | Example invocation                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Power Gamer                   | Stacks non-stacking bonuses                                                    | `[ERROR] [RULE_VIOLATION]`, or `[PARTIAL]` with explanation                                                                             | As Player, calls `apply_condition` with a condition already active on the target entity.                                          |
+| New Player                    | Calls a tool with missing or vague parameters                                  | `[ERROR] [INVALID_INPUT]` with a helpful correction                                                                                     | Calls `roll_skill_check` with `skill:""` (empty string).                                                                          |
+| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           | As Player persona, calls `init_combat`.                                                                                          |
+| Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        | Calls `search_rules` on a topic the ruleset defines in two conflicting sections.                                                  |
+| Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
+| Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
 
 ---
 
@@ -2108,6 +2123,9 @@ the monster"), scope is `game_master`; (2) if addressed to players ("your charac
 "at the table," "talk to your DM"), scope is `player`; (3) if the advice applies to all
 participants or is ambiguous, scope is `shared`. Scope assignment is recorded as a
 verification check — every item's scope must match one of these three rules.
+The GM may override an item's assigned persona scope post-collection.
+Overridden items retain the original lexical scope as `auto_scope` for
+audit. The builder records scope overrides in the enrichment manifest.
 
 **Budgets.** Caps prevent unbounded state growth:
 
@@ -2722,6 +2740,7 @@ rows from this table, then fill in its `Code` and `Tests` columns from the build
 | REQ-107 | Version coordination     | T106                           | 2026-08-06   |
 | REQ-108 | Gauntlet traceability    | T107                           | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | T84                            | 2026-08-05   |
+| REQ-109 | Persona briefing composition | T109                        | 2026-08-06   |
 | REQ-099 | Confidence-floor acknowledgment | T86                    | 2026-08-05   |
 | REQ-100 | Performance benchmark     | T87                            | 2026-08-05   |
 | REQ-101 | Assumption audit trail    | T89                            | 2026-08-05   |
@@ -2837,6 +2856,8 @@ diet.
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player personas. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
 | T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Assert `spec_version` appears in `persona_briefing` for Game Master persona. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player persona sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
 | T107  | Automated | Gauntlet traceability: after a full Gauntlet run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Personas and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
+| T108  | Automated | Persona precedence: activate GM persona in Novel A, set `TTRPG_PERSONA=player`, resume Novel A — assert GM persona active (Novel persisted state wins). Create Novel B without activating persona, resume B with `TTRPG_PERSONA=player` — assert player persona active (env var applied to Novel with no persisted persona). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted persona independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
+| T109  | Automated | Persona briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, and adventure content. Invoke `persona_briefing` as GM — assert all groups from REQ-109 present. Invoke as Player — assert GM-only groups excluded and all player-visible groups present. Remove entities — assert group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
 
 ---
 

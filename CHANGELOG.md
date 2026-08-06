@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-06 — Personas subsystem hardening
+
+- REQ-055: Clarified `TTRPG_PERSONA` precedence — Novel persisted persona state wins on resume/switch; env var sets initial persona only when no persisted state exists. _Check:_ T108 (new).
+- New REQ-109: Persona briefing composition — enumerates 14 mandatory information groups `persona_briefing` must surface, with empty-group omission clause. _Check:_ T109 (new).
+- §8 T18 anti-persona table: Added "Example invocation" column with concrete tool-call examples per persona archetype (Power Gamer, New Player, Curious Player, Rules Lawyer, Forgetful Player ×2).
+- §11.1 Enrichment persona scope: Added GM override mechanism — overridden items retain original `auto_scope` for audit.
+- Appendix E: Added REQ-109 row (88 REQ rows). Appendix F: Added T108, T109.
+
 ## 2026-08-06 — README opener: tagline-first rewrite
 
 - Replaced problem/solution opener with capability-forward prose built around
