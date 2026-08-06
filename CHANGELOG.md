@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-06 — README opener: tagline-first rewrite
+
+- Replaced problem/solution opener with capability-forward prose built around
+  "One spec. Any game. Zero code."
+- Dropped pain-point paragraph — matches the confident declaration style used
+  in every other section.
+- §7.7: Simplified state model — collapsed 9-tier table into 3 primary tiers
+  (Roster, Novel, Connection) with a Novel properties sub-table grouping NPC,
+  Scene, Countdown, Lore, Enrichment, and Adventure under the shared Novel
+  lifecycle. Access permissions preserved per property.
+
 ## 2026-08-06 — Verification model restructuring
 
 - §6.5: Split converge:two sequential phases — extraction quality (confidence, extraction/conversion fidelity) before construction quality (MUST coverage, mechanics fidelity, process compliance). Added sub-section anchors for no-delta detection, cross-model audit, and adjusted thresholds.

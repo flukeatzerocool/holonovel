@@ -14,19 +14,14 @@ README DESIGN:
 
 # Holonovel
 
-Turn your RPG rulebooks into an AI Game Master.
-
 **One spec. Any game. Zero code.**
 
-Every time you pause to look up a spell, track initiative on scratch
-paper, or flip pages for a saving throw, the story loses momentum.
-Tabletop RPGs are at their best when the rules fade into the background
-— but managing them takes work.
-
-Holonovel closes that gap. Feed your rulebooks — Markdown, PDF, HTML,
-or a scraped SRD — to an AI agent. It reads every mechanic, extracts
-every table, and builds you a complete MCP game server. Your books
-become interactive. The AI runs the rules. You run the story.
+You have the books. You know the rules. Holonovel makes your AI know
+them too — a single specification reads every mechanic, extracts every
+table, and builds you a complete MCP game server. Look up spells by
+name. Roll dice that show their work. Track conditions on schedule.
+D&D 5e today. Mothership tomorrow. No hand-coding, no waiting for
+someone to build your game. Your books. Your server. Your table.
 
 ## Try it now — D&D 5e
 
