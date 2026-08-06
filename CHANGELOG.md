@@ -39,6 +39,20 @@
      what it's called.
 -->
 
+## 2026-08-06 — Spec queue: full feature inventory with multi-axis prioritization
+
+- Rewrote the spec-engineering queue from a 19-item sketch to a complete
+  56-feature inventory, covering every REQ, subsystem, and convention in
+  holonovel.md. Every item carries a priority score derived from six axes:
+  use frequency, criticality, implementation complexity, coupling,
+  specification maturity, and existing verification coverage.
+- Organized into three tiers — 19 top candidates (state model, hat gating,
+  combat, Gauntlet, convergence), 18 tool-surface features (action
+  suggestions, lore, scene state, enrichment), and 19 infrastructure items
+  (help, macros, truncation, runtime conventions) — each tier ordered by
+  weighted priority score so the most critical and frequently-exercised
+  features are reviewed first.
+
 ## 2026-08-06 — Spec review automation: validation guardrails and pre-commit checklist
 
 - Added three new checks to `scripts/validate.ts`: bare default-value detection
