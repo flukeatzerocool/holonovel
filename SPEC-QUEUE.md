@@ -19,10 +19,6 @@ reordering mid-tier. Check for duplicates before adding. Score = (freq×3) +
 Tier 1 — foundation-critical. Score ≥33. These carry architectural
 dependencies; a failure here blocks everything downstream.
 
-1. Server-side hat gating & access — hat activation, set_hat, enforced
-   server-side on every endpoint, hat_briefing composition (REQ-030/031/032/
-   066/109). Score: 55 (freq=5, crit=5, cplx=4, coupling=5, maturity=4,
-   coverage=4). Every tool call gated; wrong = catastrophic.
 2. Novel lifecycle & persistence — create, resume, end, switch, atomic writes,
    checksum, backup recovery, .trash retention (REQ-088/092/093/095/097/
    117). Score: 53 (freq=4, crit=5, cplx=5, coupling=5, maturity=4,

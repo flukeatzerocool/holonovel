@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-06 — Hat gating hardening: audit logging, surface contracts, and scope clarification
+
+- Fixed a spec bug in REQ-030 that claimed hats were per-connection when
+  they're actually per-Novel — two connections to the same Novel now
+  explicitly share hat and entity state. (REQ-030)
+- Forbidden tool calls are now audited — every boundary violation produces a
+  log entry so probing for GM-only content is detectable. (REQ-133)
+- The Player hat now has a guaranteed tool surface — dice resolution,
+  lookups, character sheet, action suggestions, signals, help, undo, and
+  hat switching are always callable. (REQ-134)
+- `hat_briefing` output is now size-budgeted with configurable truncation,
+  ensuring hat foundations and the intro pointer always survive trimming.
+  (REQ-135)
+- When no hat is active, `hat_briefing` now returns setup-oriented content
+  instead of an undefined state. (REQ-136)
+- Every tool's gate classification is now explicitly recorded in
+  DECISIONS.md and enumerable at build time — no more guessing which tools
+  are GM-only. (REQ-137)
+- Empty briefing groups now carry explicit markers ("No active NPCs")
+  instead of silently omitting, preventing the caller from hallucinating
+  missing content. (REQ-109)
+- Documented that the hat model is a narrative-integrity feature, not a
+  security boundary — `set_hat` remains always callable without
+  authentication, by design for solo play. (REQ-109, Appendix P)
+- Completed spec-engineering loop on the server-side hat gating subsystem
+  — removed from SPEC-QUEUE.
+
 <!--
   CHANGELOG WRITING STYLE
 
