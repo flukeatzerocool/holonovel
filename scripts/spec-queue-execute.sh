@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # spec-queue-execute.sh — Phase 3: apply a research plan to holonovel.md.
-# Reads .queue-plans/item-<N>-output.txt, verifies plan delimiters, and
-# launches an opencode build session to apply all changes. Runs npm run check
-# after each change. Does NOT commit — the cycle script handles batch commits.
+# Reads .holonovel-state/queue-plans/item-<N>-output.txt, verifies plan
+# delimiters, and launches an opencode build session to apply all changes.
+# Includes an AAR-based retry loop: if the first attempt fails and produces
+# an after-action report, a recovery session is launched to fix the issue
+# before retrying. Maximum 3 execute attempts (§6.5 convergence budget).
 #
 # Usage:
 #   ./scripts/spec-queue-execute.sh <item-number> [--dry-run]
@@ -46,7 +48,7 @@ if ! grep -q "PLAN_END" "$PLAN_FILE"; then
   exit 1
 fi
 
-CHANGE_COUNT=$(grep -c "CHANGE_BEGIN" "$PLAN_FILE" || true)
+CHANGE_COUNT=$(grep -c "<!-- CHANGE_BEGIN" "$PLAN_FILE" || true)
 echo -e "${GREEN}Plan file valid:${NC} $CHANGE_COUNT change(s) detected"
 
 if $DRY_RUN; then
@@ -54,9 +56,22 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# ── execute ───────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────
 
-EXECUTE_PROMPT="Apply every \`### Change N:\` block in the attached plan file
+EXEC_OUT="$PLANS_DIR/item-${ITEM}-execute-output.txt"
+EXEC_LOG="$PLANS_DIR/item-${ITEM}-execute-log.txt"
+RECOVERY_OUT="$PLANS_DIR/item-${ITEM}-recovery-output.txt"
+RECOVERY_LOG="$PLANS_DIR/item-${ITEM}-recovery-log.txt"
+
+has_aar() {
+  grep -qiE "after.action.report|after-action|## After Action" "$EXEC_OUT" 2>/dev/null
+}
+
+run_execute_session() {
+  local label="$1"
+  echo -e "${YELLOW}Launching build session ($label)...${NC}"
+
+  local prompt="Apply every \`### Change N:\` block in the attached plan file
 ($(basename "$PLAN_FILE")) to the specification. Use the exact prose in each
 \`**Prose:**\` block — that text replaces or inserts into holonovel.md as
 specified by the \`**File:**\` directive.
@@ -65,36 +80,113 @@ After each change, run \`npm run check\`. If any check fails, stop immediately
 and report the failing change and the error output. If all checks pass, report
 a summary: which changes were applied, any REQ numbers added, and new test IDs.
 
-Do NOT commit. Do NOT modify any file other than holonovel.md. After all
-changes are applied, report \"ALL CHANGES APPLIED.\""
+Do NOT commit. Do NOT modify any file other than holonovel.md. If a change
+must touch other files, flag it and stop — the plan may need revision.
 
-echo -e "${YELLOW}Launching build session for item $ITEM...${NC}"
+After all changes are applied, run the after-action-report skill and include
+a structured AAR in your output. The AAR must cover: what was planned, what
+happened, any unexpected issues, and verification results. The AAR block is
+required — it enables automated recovery if something goes wrong.
 
-EXEC_LOG="$PLANS_DIR/item-${ITEM}-execute-log.txt"
+End with: \"ALL CHANGES APPLIED.\" followed by the AAR block."
 
-  nohup opencode run \
-    "$EXECUTE_PROMPT" \
+  set +e
+  opencode run \
+    "$prompt" \
     --agent build \
+    --auto \
     --title "spec-execute-${ITEM}" \
     --dir "$PROJECT_DIR" \
     --file "$PLAN_FILE" \
-    > "$PLANS_DIR/item-${ITEM}-execute-output.txt" 2> "$EXEC_LOG" &
+    > "$EXEC_OUT" 2> "$EXEC_LOG"
+  local rc=$?
+  set -e
 
-EXEC_PID=$!
-echo "  PID: $EXEC_PID"
-echo "  Output: $PLANS_DIR/item-${ITEM}-execute-output.txt"
-echo "  Log: $EXEC_LOG"
+  if [[ $rc -eq 0 ]] && grep -q "ALL CHANGES APPLIED" "$EXEC_OUT" 2>/dev/null; then
+    echo -e "${GREEN}Execute: DONE${NC}"
+    return 0
+  fi
 
-# ── wait for completion ───────────────────────────────────────────────────
+  echo -e "${RED}Execute: FAILED (exit $rc)${NC}"
+  return 1
+}
 
-echo -e "${YELLOW}Waiting for build session to complete...${NC}"
+run_recovery_session() {
+  echo ""
+  echo -e "${YELLOW}AAR found — launching recovery session...${NC}"
 
-if wait "$EXEC_PID" 2>/dev/null; then
-  echo -e "${GREEN}Item $ITEM execute: DONE${NC}"
-  exit 0
-else
-  rc=$?
-  echo -e "${RED}Item $ITEM execute: FAILED (exit code $rc)${NC}"
-  echo "Check log: $EXEC_LOG"
-  exit $rc
-fi
+  local recovery_prompt="The previous execution attempt for item $ITEM failed.
+Read the after-action report in the attached execute output file
+($(basename "$EXEC_OUT")). Identify what went wrong and apply a targeted fix.
+
+Constraints:
+- Fix only the issue described in the AAR. Do not make unrelated changes.
+- Run \`npm run check\` after applying the fix.
+- Do NOT modify any file other than holonovel.md unless the AAR explicitly
+  identifies a different file as the root cause.
+- Do NOT commit.
+
+End with: \"RECOVERY COMPLETE.\" if the fix was applied successfully.
+End with: \"RECOVERY FAILED.\" if the issue cannot be fixed automatically
+and needs human intervention. Include a brief explanation of what's wrong."
+
+  set +e
+  opencode run \
+    "$recovery_prompt" \
+    --agent build \
+    --auto \
+    --title "spec-recover-${ITEM}" \
+    --dir "$PROJECT_DIR" \
+    --file "$EXEC_OUT" \
+    > "$RECOVERY_OUT" 2> "$RECOVERY_LOG"
+  local rc=$?
+  set -e
+
+  if [[ $rc -eq 0 ]] && grep -q "RECOVERY COMPLETE" "$RECOVERY_OUT" 2>/dev/null; then
+    echo -e "${GREEN}Recovery: DONE${NC}"
+    return 0
+  fi
+
+  echo -e "${RED}Recovery: FAILED (exit $rc) — see $RECOVERY_OUT${NC}"
+  return 1
+}
+
+# ── execute with retry ────────────────────────────────────────────────────
+
+MAX_ATTEMPTS=3  # matches §6.5 convergence budget (3 attempts per metric-targeted step)
+echo ""
+
+for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+  echo -e "${YELLOW}── Execute attempt $attempt/$MAX_ATTEMPTS ──${NC}"
+
+  # Clear previous output files
+  : > "$EXEC_OUT"
+  : > "$EXEC_LOG"
+
+  if run_execute_session "attempt $attempt"; then
+    exit 0
+  fi
+
+  # Check for AAR to enable recovery
+  if has_aar; then
+    echo -e "${GREEN}AAR detected in output.${NC}"
+
+    if [[ $attempt -lt $MAX_ATTEMPTS ]]; then
+      if run_recovery_session; then
+        # Recovery succeeded — loop back for another execute attempt
+        continue
+      fi
+      echo -e "${YELLOW}Recovery failed — no further attempts.${NC}"
+      break
+    fi
+  else
+    echo -e "${RED}No AAR found — cannot auto-recover.${NC}"
+    break
+  fi
+done
+
+echo -e "${RED}Item $ITEM: all $MAX_ATTEMPTS attempt(s) exhausted.${NC}"
+echo "  Execute output: $EXEC_OUT"
+echo "  Execute log:    $EXEC_LOG"
+echo "  Recovery log:   $RECOVERY_LOG"
+exit 1
