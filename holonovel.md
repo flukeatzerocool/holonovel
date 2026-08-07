@@ -239,7 +239,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 22 sub-workflows against a running server. |
+| Gauntlet         | Operational verification suite (§6.6) — 23 sub-workflows against a running server. |
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
@@ -595,7 +595,13 @@ _Check:_ T3, T35, T39.
 (per-file and overall), conversion fidelity (per-content-type rates, overall rate,
 sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absent
 when conversion was not selected), convergence summary (per-metric iterations run,
-findings per iteration, residual gaps for each metric in §6.5), indexed
+findings per iteration, residual gaps for each metric in §6.5), including a per-category confidence breakdown —
+for each of the seven extraction categories (§6.3: concepts, entities, actions, tables, resolution, roles, guidance),
+the count and percentage of HIGH, MEDIUM, and LOW items, and per-metric velocity —
+for each quantitative metric in both Phase 1 and Phase 2, the per-iteration delta (Δ)
+from the previous measurement, recorded as a signed value. Velocity is
+diagnostic: it does not change exit criteria but is reported alongside each metric's iteration
+count so the operator can recognize when diminishing returns have set in, indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
@@ -616,6 +622,14 @@ comparison (prompt count and names from live registry vs REQ-023 contract, with
 per-prompt title and argument-description presence), and a hat-gating summary
 (tool count per gate classification per REQ-136). The `gap_audit` section
 SHALL be absent when the build is not yet complete.
+
+`spec_health` must report a `gauntlet_scenarios` field containing
+`passed` (count of sub-workflows that passed on the most recent run),
+`total` (total sub-workflow count per §6.6), and `last_run` (ISO 8601
+timestamp of the most recent Gauntlet execution, absent if never run).
+When `last_run` is absent, `passed` and `total` are absent. The field is
+hat-filtered: Player hat sees this field; no GM-only content is exposed.
+
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
 a tool, resource, or prompt increments the count immediately; counts are derived
 from arrays at call time, not hardcoded.
@@ -2145,7 +2159,43 @@ per chunk reduce false merges at the cost of more round-trips; 10 is the calibra
 compromise under REQ-100 tier benchmarks. The builder
 reads each chunk, extracts models (see below), then requests the next 10. Guidance-only
 sections are read in a background pass and don't count against the 10-section budget.
+
+**Guidance pass budget.** The background guidance pass SHALL not exceed 50
+guidance-only sections. If the ruleset contains more than 50 guidance-only
+sections, the builder processes them in batches of 50, interleaving each
+batch with the next chunk read to prevent context-window exhaustion. The
+builder records the total guidance-section count and batch count in
+DECISIONS.md (4). A ruleset whose guidance-section count exceeds the
+mechanical-section count by more than 3× SHALL log a `[guidance-heavy]`
+finding in the defect log — informational, not blocking.
+*Acceptance criterion:* A ruleset with 120 guidance-only sections is
+processed in 3 batches of 50 interleaved with chunk reads; DECISIONS.md
+(4) records total guidance sections = 120, batches = 3; the defect log
+carries a `[guidance-heavy]` finding. A ruleset with 30 guidance sections
+is processed in a single pass.
+_Check:_ T171.
+
 Cross-chunk references are resolved at the end.
+
+**Cross-chunk reference resolution.** After all chunks have been read, the builder
+SHALL perform a resolution pass over all deferred cross-chunk references. A
+reference is resolved when it maps to a source anchor present in
+RULESET_MODEL.md. Unresolved references — those whose target does not appear
+in any chunk's extractions — are classified: (a) target exists in ruleset but
+was not extracted (MEDIUM-confidence defect, the builder re-reads the target
+section); (b) target is in a section the builder classified as non-mechanical
+(LOW-confidence, logged as informational); (c) target does not exist in the
+ruleset (LOW-confidence, logged as broken cross-reference defect per
+REQ-012). Resolution SHALL complete within one additional pass — a reference
+still unresolved after the builder re-reads its target section is logged as a
+HIGH-severity defect. The builder records the total cross-chunk reference
+count, resolved count, and unresolved count in DECISIONS.md (4).
+*Acceptance criterion:* A ruleset with 15 cross-chunk references produces a
+DECISIONS.md (4) entry with resolved/unresolved counts; every resolveable
+reference maps to a source anchor in RULESET_MODEL.md; an unresolvable
+broken reference appears in the defect log with severity and source
+location.
+_Check:_ T172.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -2161,7 +2211,24 @@ Cross-chunk references are resolved at the end.
 7. **Guidance** — hat-addressed prose, verbatim, with attribution and hat scope.
    **Narrative tone samples** are a guidance subcategory: example-of-play passages that demonstrate
    the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `hat_briefing`
-   (REQ-071).
+    (REQ-071).
+
+**Category extraction order.** Within each chunk, the builder SHALL extract categories
+in dependency order — Concepts first (they define terms other categories reference),
+then Entities (they may reference Concept terms), then Tables, then Actions (classified
+per REQ-015 against the chunk's Concept inventory), then Resolution (the core mechanic
+as derived from Actions and Tables), then Roles (hat-addressed as extracted from
+guidance signals), then Guidance (prose and tone samples, extracted last as inert data).
+A cross-category reference in a later extraction that cannot be resolved against the
+inventory of earlier extractions within the same chunk SHALL be recorded as a
+MEDIUM-confidence finding in the defect log with a deferred-reference annotation.
+Deferred references are resolved during cross-chunk reference resolution.
+*Acceptance criterion:* A ruleset chunk whose Actions reference a Concept
+term defined within the same chunk resolves that reference against the
+Concept inventory. A reference to a Concept term not yet extracted within
+the chunk produces a deferred-reference annotation in the defect log; the
+reference is resolved correctly after cross-chunk resolution.
+_Check:_ T173.
 
 **Outputs.** Discovery produces:
 
@@ -2179,6 +2246,32 @@ recorded in the defect log, and must be resolved before construction begins.
 **Reconciliation.** When the ruleset restates a mechanic across multiple sections (e.g., a
 procedure and a summary table disagree), every source is recorded. The most authoritative
 section is canonical; others are LOW confidence. Ambiguity is flagged as a defect.
+
+**Reconciliation authority criteria.** When the ruleset restates a mechanic
+across multiple sections, authority SHALL be determined by applying these
+criteria in order, stopping at the first that yields a single candidate:
+
+1. The section the ruleset's own index or table of contents designates as
+   the primary reference for that mechanic.
+2. The section whose heading text is the most specific match to the mechanic name.
+3. The section within the ruleset's core-mechanics chapter (the chapter
+   at the shallowest heading depth containing the highest proportion of
+   mechanical sections, identified by the builder during viability pre-check).
+4. The section with the most explicit procedural text — measured as the
+   highest count of imperative verbs (roll, add, subtract, compare, apply)
+   within the section's mechanics paragraphs.
+If criteria 1–4 produce a tie, all tied sections are recorded as
+co-canonical (MEDIUM confidence for each) and the ambiguity is flagged
+as an `[authority-tie]` defect. The builder records which criterion
+resolved each reconciliation in RULESET_MODEL.md's defect log.
+*Acceptance criterion:* A mechanic restated in three sections — one in
+the core-mechanics chapter, one in a summary table, and one in a
+supplement — assigns canonical status to the core-mechanics section
+(via criterion 3). If the ruleset's index points to the summary table
+as the primary reference, criterion 1 overrides and the summary table
+is canonical. An `[authority-tie]` is produced when criteria 1–4 all
+produce a tie.
+_Check:_ T174.
 
 ### 6.4 Server construction
 
@@ -2277,8 +2370,18 @@ before any server code is written.
 | Confidence           | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
 | Extraction fidelity  | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
 | Conversion fidelity  | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
+| Extraction completeness | Mechanical sections with ≥1 extraction / total mechanical sections | ≥ 95% | Re-read missed sections, re-extract |
 
-Phase 1 exit: all three metrics meet threshold, or an extraction stall (no-delta
+**Extraction completeness** measures coverage — whether every mechanical section
+identified at intake produced at least one extracted item. A section is considered
+extracted when it contributes at least one concept, entity, action, table, or
+resolution entry to RULESET_MODEL.md. The denominator is the mechanical-section
+count recorded during the viability pre-check (§6.2). Guidance-only sections are
+excluded from both numerator and denominator. Completeness below 95% triggers
+re-reading of the highest-priority missed sections (those with the most mechanical
+indicators — procedures, tables, definition lists per §6.3).
+
+Phase 1 exit: all four metrics meet threshold, or an extraction stall (no-delta
 on all metrics) triggers the unbuildable disposition check (§6.5.3). An
 extraction stall after 3 iterations records residual gaps in DECISIONS.md (5).
 The build does not proceed to Phase 2 until Phase 1 exits.
@@ -2294,8 +2397,19 @@ translated into tools, resources, and state.
 | Process compliance   | Pre-build answers present; verification workflow records present with timestamps after the most recent source-file modification | All present and fresh | Collect missing or re-run stale workflow, re-verify |
 | Suggestion coverage  | Curated intents producing ≥1 match     | ≥ 80%         | Re-extract action patterns, review mapping |
 | Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
+| Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
+| Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 
-Phase 2 exit: all five metrics meet threshold, or 3 iterations without
+**Prompt health** measures whether prompts contain references to tools or resources
+that are no longer registered — a stale reference is a construction defect that
+produces broken output at runtime. The metric uses the same stale-reference detection
+defined in REQ-138. A single stale reference across any prompt fails the metric.
+
+**Resource URI completeness** measures whether every URI template catalogued in
+REQ-022 has a corresponding live registration. The metric uses the same presence
+detection defined in REQ-139. An absent URI template is a construction defect.
+
+Phase 2 exit: all seven metrics meet threshold, or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 200 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
@@ -2385,9 +2499,16 @@ a mechanics-fidelity defect, or a process-compliance omission. The builder then
 re-enters Phase 2 of the convergence loop (§6.5) for only those metrics,
 corrects the root cause, and re-runs the Gauntlet — up to 2 Gauntlet
 iterations total. The mapping is recorded in DECISIONS.md (6) alongside each
-failure artifact. A Gauntlet failure that maps to no convergence metric — a
-novel defect class — is logged as a process-compliance finding and re-enters
-Phase 2 with all metrics in scope.
+failure artifact. A Gauntlet failure that maps to no convergence metric is logged as a process-compliance
+finding. The builder traces the root cause: if the failure originates from an extraction
+defect (a misread rule, a miscategorized action, a missing conceptual term), the builder
+records the specific Phase 1 metric affected and re-enters Phase 1 for only that metric's
+domain — following the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
+Gauntlet failures that re-enter Phase 1 count against the Phase 1 iteration budget (3 attempts
+per metric-targeted step) independently of Phase 2 budgets. If the root cause is a
+construction defect that maps to no existing Phase 2 metric, the builder re-enters Phase 2
+with all metrics in scope and records the novel defect class in DECISIONS.md (6) with a
+proposed metric mapping for future builds.
 
 **Independent invocation.** The Gauntlet must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
@@ -2506,14 +2627,42 @@ require the builder to propose at least one new Gauntlet sub-workflow
 exercising their contract; the proposal is a finding, not a blocker. _Check:_
 T107.
 
+**REQ-141 — Input-validation convergence metric.** The convergence handshake
+in §6.6 must map Gauntlet failures to four convergence metrics, adding
+"input-validation gap" to the existing three (MUST-coverage gap,
+mechanics-fidelity defect, process-compliance omission). A sub-workflow
+failure attributable to incorrect input handling — malformed parameters
+accepted without error, valid inputs rejected, error categories
+misclassified, or corrective-action text missing — maps to the
+input-validation metric. The builder re-enters Phase 2 of the convergence
+loop (§6.5) for only the affected metric. A failure that maps to no metric
+is a novel defect class and re-enters Phase 2 with all four metrics in
+scope.
+
+An input-validation failure is recorded in DECISIONS.md (6) with the
+failing input value, the error category returned (or absent), and the
+expected error category per REQ-002.
+
+This metric covers Gauntlet sub-workflow S14 (Edge cases) and any other
+sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
+taxonomy) through their input contracts. _Check:_ T163.
+
 A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
 the sub-workflow but is recorded with the actual duration. Three consecutive S22 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
-**Global budget.** The full Gauntlet run of all sub-workflows must complete within 60
-minutes of wall-clock time. A run exceeding the budget is recorded with actual
-duration and per-sub-workflow timings in DECISIONS.md (6). The operator may increase
-the budget for rulesets exceeding 2,000 indexed items (REQ-100 Huge tier).
+**Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
+wall-clock time, except S15 (10 minutes), S22 (10 minutes), and S23 (3
+minutes). A sub-workflow exceeding its individual budget does not fail but
+is recorded with actual duration in DECISIONS.md (6). Three consecutive
+runs of the same sub-workflow exceeding its budget trigger a scope
+re-evaluation recorded in DECISIONS.md (5).
+
+**Global budget.** The full Gauntlet run of all sub-workflows must complete
+within 60 minutes of wall-clock time. A run exceeding the budget is
+recorded with actual duration and per-sub-workflow timings in
+DECISIONS.md (6). The operator may increase the budget for rulesets
+exceeding 2,000 indexed items (REQ-100 Huge tier).
 
 **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
 as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
@@ -2535,9 +2684,26 @@ and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 15, 17, 20,
-21, and 22 are blocking — Build is incomplete until they pass. Other failures are
+21, 22, and 23 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
+
+**REQ-142 — Blocking classification principle.** A Gauntlet sub-workflow is
+classified as blocking when it exercises a correctness property whose
+failure would make the server unsafe to use in any play session — state
+loss, hat-boundary violation, data corruption, unrecoverable crash, or
+undetectable incorrect results in core play mechanics. A sub-workflow is
+non-blocking when it tests a property whose failure degrades experience but
+does not make the server unsafe — graceful-degradation edge cases, cosmetic
+output issues, or features documented as deferred in DECISIONS.md (5).
+
+The blocking classification of every sub-workflow is recorded in
+DECISIONS.md (6) with the safety property it protects and the REQ(s) it
+derives that classification from. When a new sub-workflow is added, the
+builder classifies it against this principle and records the rationale.
+When a sub-workflow's classification changes, the builder records the
+trigger — a spec revision, a discovered defect class, or an operator
+override. _Check:_ T164.
 
 **Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
 selects Gauntlet sub-workflows based on which surfaces changed — not the blanket
@@ -2853,8 +3019,8 @@ tests must document the verification procedure and expected output shape in
 DECISIONS.md.
 
 **Verification workflow G5 — The Gauntlet (operational verification).** Run
-the 22-sub-workflow Gauntlet defined in §6.6. All blocking sub-workflows
-(S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22) must pass. Non-blocking
+the 23-sub-workflow Gauntlet defined in §6.6. All blocking sub-workflows
+(S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22, S23) must pass. Non-blocking
 failures are recorded as accepted limitations with re-activation conditions.
 The Gauntlet re-runs after every server code change: during Build completion,
 after Enrich (§11), after spec-driven updates (REQ-098), and after any manual
@@ -3651,7 +3817,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-022 | Resources                 | 2026-08-02   |
 | REQ-023 | Prompts                   | 2026-08-02   |
 | REQ-024 | Tool documentation        | 2026-08-02   |
-| REQ-025 | spec_health               | 2026-08-02   |
+| REQ-025 | spec_health               | 2026-08-06   |
 | REQ-057 | Canonical lookup tools    | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | 2026-08-02   |
 | REQ-059 | Parameter canon validation | 2026-08-02   |
@@ -3748,6 +3914,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-138 | Prompt health reporting      | 2026-08-06   |
 | REQ-139 | Resource URI completeness reporting | 2026-08-06   |
 | REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
+| REQ-141 | Input-validation convergence metric | 2026-08-06   |
+| REQ-142 | Blocking classification principle | 2026-08-06   |
+| REQ-143 | Category extraction order          | 2026-08-06   |
+| REQ-144 | Cross-chunk reference resolution   | 2026-08-06   |
+| REQ-145 | Guidance pass budget               | 2026-08-06   |
+| REQ-146 | Reconciliation authority criteria  | 2026-08-06   |
 
 ---
 
@@ -3915,6 +4087,18 @@ diet.
 | T160  | Automated | Novel file-size accuracy: invoke `spec_health` — assert on-disk file size metric matches OS-reported size within 1%. Mismatch > 1% — assert `[size_mismatch]` warning in `spec_health`. Assert growth trajectory uses on-disk size. | REQ-097 |
 | T161  | Automated | advance_combat audit-log-derived output: init combat with entity, perform weapon-damage against target, advance_combat — assert output includes participant name, weapon used, damage roll transparency, target HP change. advance_combat with no prior mutations — assert reports participant took no action. | REQ-043 |
 | T162  | Automated | Auto turn advancement for statless: init combat with entity, NPC (no stats), and danger. Advance through NPC turn — assert `[AUTO]` marker, narrative action from NPC description, no mechanical changes, immediate turn advance. Advance through danger turn — assert `[AUTO]` marker, narrative action from danger name. | REQ-043 |
+| T163  | Automated | Input-validation convergence: trigger an S14a failure (empty string accepted without [INVALID_INPUT]), assert the builder maps it to the input-validation metric, assert Phase 2 re-enters for input-validation only (other three metrics unchanged), assert DECISIONS.md (6) records the failing input value and error category mismatch. | REQ-141 |
+| T164  | Automated | Blocking classification: after a full Gauntlet run, assert DECISIONS.md (6) contains a blocking classification record for every sub-workflow with the safety property it protects and the citing REQ(s). Assert every sub-workflow marked blocking in the exit criteria is classified blocking in the record. Assert every sub-workflow not in the exit criteria is classified non-blocking. | REQ-142 |
+| T165  | Automated | Extraction completeness: after build with ≥20 mechanical sections, assert `spec_health.convergence_summary.extractionCompleteness` ≥ 95% and ≤ 100%. Assert the completeness count matches the viability pre-check mechanical-section count less guidance-only sections. | REQ-025 |
+| T166  | Automated | Per-category confidence: after build, assert `spec_health.convergence_summary.category_confidence` contains an entry for each of the 7 extraction categories, each with counts and percentages for HIGH, MEDIUM, and LOW. Assert the sum of category counts matches the total indexed count. | REQ-025 |
+| T167  | Automated | Prompt health convergence: after build, assert `spec_health.convergence_summary.prompt_health.stale_reference_count` = 0 for each registered prompt. Assert the prompt health section of convergence_summary lists every prompt from REQ-023. | REQ-138 |
+| T168  | Automated | Resource URI convergence: after build, assert `spec_health.convergence_summary.resource_uri_completeness` = 100%. Assert every REQ-022 URI template has a `present` entry in the convergence_summary. | REQ-139 |
+| T169  | Manual   | Gauntlet→Phase 1 re-entry: induce an extraction defect (miscategorized action) that survives Phase 1 and Phase 2 convergence but produces a Gauntlet failure. Assert the builder traces the root cause to Phase 1, records the affected Phase 1 metric, and re-enters Phase 1 for that metric. Assert the re-entry counts against the Phase 1 iteration budget. Assert DECISIONS.md (6) records the root-cause trace. | §6.6 |
+| T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
+| T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-145 |
+| T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-144 |
+| T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143 |
+| T174  | Automated | Reconciliation authority criteria: after a build with a mechanic restated in three sections (core-mechanics chapter, summary table, supplement), assert canonical status is assigned to the core-mechanics section via criterion 3. With a ruleset whose index points to the summary table, assert criterion 1 overrides. Assert an `[authority-tie]` defect is produced when criteria 1–4 all produce a tie, and assert the defect log records which criterion resolved each reconciliation. | REQ-146 |
 
 ---
 
