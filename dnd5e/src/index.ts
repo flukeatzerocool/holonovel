@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "3ab2435ed3256df9f3842334ef071011cfb0b8e19c78b904ae8e24ac0f98439d";
+const SPEC_HASH = "5f99049418d713ccd22e35f2b51049c84a761b60ff4b22fde89d5ffe5a579ab1";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
