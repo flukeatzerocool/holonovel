@@ -56,7 +56,15 @@ Smoke test: After all changes, call the server's \`spec_health\` tool and verify
   If any check fails, report the failure before declaring sync complete.
 
 Gauntlet: Run only the sub-workflows selected by the surface-to-scenario
-mapping in holonovel.md §6.6. Zero failures required on selected scenarios.
+mapping in holonovel.md §6.6. Maximum 2 iterations per §6.6 convergence
+handshake:
+  - Iteration 1: Run selected scenarios. If all pass → done.
+  - If any fail: map each failure to its convergence metric (MUST-coverage,
+    mechanics-fidelity, input-validation, process-compliance), fix the root
+    cause, record the mapping in DECISIONS.md, re-run.
+  - Iteration 2: Re-run selected scenarios. If all pass → done.
+  - If still failing: log residual gaps to DECISIONS.md, report SYNC FAILED.
+    Do not retry beyond 2 iterations.
 
 Report completion: gaps implemented/deferred/waived, verification results,
 Gauntlet pass/fail. End with 'SYNC COMPLETE.' if all steps pass."

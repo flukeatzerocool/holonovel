@@ -55,6 +55,52 @@ echo ""
 echo -e "${GREEN}Spec audit: PASSED${NC}"
 echo ""
 
+# ── step 1b: full spec read-through (style conformance) ──────────────────
+
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo -e "${GREEN}Step 1b/7: Full spec read-through — style conformance${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo ""
+
+WRAP_READTHROUGH_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/wrapup-readthrough-$(date +%Y%m%d-%H%M%S)-output.txt"
+
+READTHROUGH_PROMPT="Read the assembled holonovel.md end to end. Load and apply the
+proofreading skill in spec mode. Verify every REQ body in §5 conforms to
+Appendix M: states *what* not *how*, no parameter types, no Default: clauses,
+no enumerated catalogs, no algorithm descriptions. Flag any violation with the
+REQ number, the offending text, and the rule violated.
+
+The spec mode activates automatically when the document contains **REQ- blocks.
+Run all 7 spec-mode checks (REQ block hygiene, manifest completeness, test ID
+consistency, tool name consistency, authoring conventions, term definition
+hygiene, golden transcript coverage). Report findings with severity tiers
+(critical / warning / info).
+
+End with 'READTHROUGH COMPLETE. N violations found.' (N=0 means clean)."
+
+echo -e "${YELLOW}Launching read-through session...${NC}"
+mkdir -p "$PROJECT_DIR/.holonovel-state/queue-plans"
+set +e
+opencode run \
+  --agent plan \
+  --auto \
+  --title "spec-wrapup-readthrough" \
+  --dir "$PROJECT_DIR" \
+  "$READTHROUGH_PROMPT" \
+  > "$WRAP_READTHROUGH_OUT" 2>> "$WRAP_LOG"
+READTHROUGH_RC=$?
+set -e
+
+if [[ $READTHROUGH_RC -ne 0 ]]; then
+  echo -e "${RED}Read-through FAILED. Check $WRAP_READTHROUGH_OUT.${NC}"
+  exit 1
+fi
+
+violations=$(grep -oP '\d+ violations found' "$WRAP_READTHROUGH_OUT" 2>/dev/null | grep -oP '\d+' || echo "?")
+echo ""
+echo -e "${GREEN}Read-through: DONE — ${violations} violation(s) found${NC}"
+echo ""
+
 # ── step 2: full server rebuild ──────────────────────────────────────────
 
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
@@ -123,9 +169,9 @@ echo -e "${GREEN}Step 4/7: Update README.md${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
 echo ""
 
-README_PROMPT="Read README.md and holonovel.md. The specification has been
-updated through a full queue cycle. Update README.md to reflect the current
-state of the project.
+README_PROMPT="Load and apply the proofreading skill. Read README.md and
+holonovel.md. The specification has been updated through a full queue cycle.
+Update README.md to reflect the current state of the project.
 
 1. Check the 'Try it now' section (§2 in README) — are the install/setup
    instructions still correct against dnd5e/? Update if needed.
@@ -179,9 +225,10 @@ else
 fi
 echo ""
 
-WIKI_PROMPT="You are updating the Holonovel project wiki at .holonovel-state/wiki/.
-The specification (holonovel.md) and README.md have been updated through a full
-spec queue cycle. Read the wiki pages and update them to reflect the current
+WIKI_PROMPT="Load and apply the technical-writing skill. You are updating the
+Holonovel project wiki at .holonovel-state/wiki/. The specification
+(holonovel.md) and README.md have been updated through a full spec queue cycle.
+Read the wiki pages and update them to reflect the current
 project state.
 
 Pages that likely need updates (check each):
@@ -229,7 +276,9 @@ echo -e "${GREEN}Step 6/7: Commit all changes${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
 echo ""
 
-git -C "$PROJECT_DIR" add holonovel.md README.md SPEC-QUEUE.md CHANGELOG.md dnd5e/ 2>/dev/null || true
+git -C "$PROJECT_DIR" add holonovel.md README.md SPEC-QUEUE.md CHANGELOG.md AGENTS.md \
+  package.json tsconfig.json .markdownlint.json \
+  spec/ scripts/ dnd5e/ 2>/dev/null || true
 
 if git -C "$PROJECT_DIR" diff --staged --quiet 2>/dev/null; then
   echo -e "${YELLOW}No changes to commit in main repo.${NC}"

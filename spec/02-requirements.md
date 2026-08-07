@@ -5,10 +5,10 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154               | 15    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215           | 18    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152                         | 6     |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159            | 14    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216            | 15    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156 | 27    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
@@ -403,6 +403,21 @@ the adjusted threshold, justification, and explicit operator approval before
 construction continues.
 _Check:_ T86.
 
+**REQ-207 — Core-mechanic identification.** The builder SHALL identify the ruleset's core
+resolution mechanic — the primary dice/outcome procedure — by applying these criteria in
+order, stopping at the first that yields a single candidate: (a) the mechanic the ruleset's
+own introduction or "how to play" section designates as the central resolution procedure;
+(b) the mechanic cited by the most other sections in cross-references; (c) the mechanic
+with the most distinct dice-roll invocations across the ruleset's examples of play. The
+criterion used SHALL be recorded in DECISIONS.md (5) alongside the identified mechanic. If
+(a)–(c) produce a tie, the builder SHALL record all tied candidates and flag an
+`[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain at least 85%
+confidence independently of the overall threshold.
+*Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs
+target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md
+(5) records the criterion used and the mechanic's confidence meets ≥85%.
+_Check:_ T251.
+
 **REQ-012 — Graceful fallback.** A section that cannot be modeled as a tool or state remains
 searchable via `search_rules` and retrievable as a `ruleset://` resource.
 The builder never fabricates mechanics to fill a gap. Missing triggers do not invalidate the modeled portion.
@@ -421,10 +436,28 @@ confidence of the matched section. HIGH match confidence requires a non-stop
 query token in the section title or first heading; MEDIUM requires a match in
 section body text; LOW indicates peripheral or single-word matches. This is
 distinct from extraction confidence (REQ-011).
-*Acceptance criterion:* A multi-match search returns context snippets for each
-result, ordered by relevance, with a suppressed-result count when the display
-limit is exceeded.
+*Acceptance criterion:* Each result carries a confidence label (`[HIGH]`,
+`[MEDIUM]`, or `[LOW]`) on the same line as the heading; a multi-match search
+returns context snippets for each result, ordered by relevance, with a
+suppressed-result count when the display limit is exceeded.
 _Check:_ T114.
+
+**REQ-212 — Generation table rolling.** `roll_on_table(table, seed?)` accepts a
+table name drawn from the build's indexed generation tables (§6.3 extraction
+category 4). It SHALL roll the dice notation embedded in the selected table's
+definition — including nested table references — and return the result row with
+dice breakdown per REQ-003. A deterministic seed parameter SHALL produce
+identical results across calls and sessions (per REQ-050). Tables tagged as
+GM-only during extraction SHALL return `[FORBIDDEN]` when called under the
+Player hat. When the ruleset contains zero generation tables, `roll_on_table`
+SHALL return a clear "no tables indexed" message — the tool is not
+unregistered, per the content-absent tool contract (REQ-020, infrastructure
+tools clause). The tool is classified as generation (REQ-015).
+*Acceptance criterion:* `roll_on_table("gear")` with seed `42` returns the table
+row for the gear table exactly; the same call without a seed returns a different
+row; `roll_on_table("gm-only-table")` under Player hat returns `[FORBIDDEN]`;
+a ruleset with zero tables returns "No generation tables indexed."
+_Check:_ T46, T210.
 
 **REQ-013 — No assumed mechanics.** Nothing enters the model that is not traceable to the
 ruleset text. A mechanic present in one edition or supplement but absent from the source is
@@ -447,13 +480,57 @@ hash stored in DECISIONS.md; the source files on disk are byte-identical to the 
 hashed at intake.
 _Check:_ T21.
 
-**REQ-015 — Action classification.** Every modeled action is classified: Resolution (dice
-rolls), Command (state mutation), or Generation (content creation from tables). The
-classification determines tool annotations.
-*Acceptance criterion:* Every tool in `tools/list` carries annotations matching
-one of three classifications — `idempotentHint` for Resolution, `destructiveHint`
-for Command, both for Generation.
+**REQ-015 — Action classification.** Every modeled action is classified into one of
+five types: read-only (no state access), state-reading (inspects but does not
+mutate), command (state mutation), generation (content creation from tables or
+prompts), or hybrid (both command and generation). The classification determines
+tool annotations per §7.4.
+*Acceptance criterion:* Every tool in `tools/list` carries annotations matching its
+classification — `idempotentHint` for read-only and state-reading, `destructiveHint`
+for command, both for generation and hybrid.
 _Check:_ T15.
+
+The builder SHALL classify every registered tool according to the following
+table. Every tool in `tools/list` falls into exactly one classification row.
+When a tool's behavior spans two rows, the builder SHALL apply the higher-impact
+classification (command overrides state-reading, hybrid overrides generation).
+
+| Classification   | Tool examples                              | `idempotentHint` | `destructiveHint` | `readOnlyHint` | `openWorldHint` |
+|------------------|--------------------------------------------|-------------------|--------------------|----------------|-----------------|
+| read-only        | `help`, `spec_health`                     | `true`            | `false`            | `true`         | `false`         |
+| state-reading    | `character_sheet`, `session_recap`        | `true`            | `false`            | `false`        | `false`         |
+| command          | `create_character`, `set_scene_state`     | `false`           | `true`             | `false`        | `false`         |
+| generation       | `generate_adventure`, `roll_on_table`     | `false`           | `false`            | `false`        | `false`         |
+| hybrid           | `generate_encounter`, `roll_weapon_damage`| `false`           | `true`             | `false`        | `false`         |
+
+The `openWorldHint` is `false` for all tools when the server operates without
+network access (the default per REQ-051). A server configured with network
+access SHALL set `openWorldHint: true` on tools whose output depends on
+external content.
+
+**REQ-214 — Table classification.** Every table extracted from the ruleset SHALL
+carry a `type` field of `generation` or `lookup`. A generation table contains at
+least one dice-range-to-result row and is registered under `roll_on_table`. A
+lookup table contains only deterministic reference data and is registered as a
+`lookup_<category>` tool or served via `ruleset://` resources. A table containing
+any dice-range row is a generation table — generation and lookup rows SHALL NOT
+coexist in the same registered tool entry.
+
+When the ruleset contains zero generation tables, `roll_on_table` SHALL be
+registered with an empty domain and return `[NOT_FOUND]` with a clear "no random
+generation tables in this ruleset" message on any call. The tool description
+SHALL reflect this — it SHALL NOT advertise canonical table names that resolve to
+nothing. When the ruleset contains at least one generation table, `roll_on_table`
+SHALL enumerate valid table names in its input schema dynamically from the
+ruleset model.
+
+*Acceptance criterion:* Building for D&D 5e produces a `roll_on_table` whose
+`table` parameter enumerates only generation tables (trinkets, madness tables,
+wand of wonder, etc.) — not lookup tables (ability_modifiers, difficulty_classes).
+Building for a ruleset with zero generation tables registers `roll_on_table` with
+an empty domain and a "no tables" response.
+
+*Check:* T255.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
@@ -479,6 +556,79 @@ every extraction decision; a reviewer can trace any modeled mechanic to its
 original text without opening the ruleset.
 _Check:_ T15; Discovery
 checkpoint.
+
+**REQ-146 — Reconciliation authority.** When the ruleset restates a mechanic across
+multiple sections (e.g., a procedure and a summary table disagree), every source SHALL be
+recorded. Authority SHALL be determined by applying these criteria in order, stopping at the
+first that yields a single candidate: (a) the section the ruleset's own index or table of
+contents designates as the primary reference; (b) the section whose heading text is the most
+specific match to the mechanic name; (c) the section within the ruleset's core-mechanics
+chapter (the chapter at the shallowest heading depth containing the highest proportion of
+mechanical sections); (d) the section with the most explicit procedural text — measured as
+the highest count of imperative verbs (roll, add, subtract, compare, apply) within the
+section's mechanics paragraphs. If (a)–(d) produce a tie, all tied sections SHALL be
+recorded as co-canonical (MEDIUM confidence) and the ambiguity flagged as an
+`[authority-tie]` defect. The builder SHALL record which criterion resolved each
+reconciliation in the defect log. The most authoritative section SHALL be treated as
+canonical; other sources SHALL be LOW confidence.
+*Acceptance criterion:* A mechanic restated in three sections — one in the core-mechanics
+chapter, one in a summary table, and one in a supplement — assigns canonical status via
+criterion (c). With a ruleset whose index points to the summary table, criterion (a)
+overrides. An `[authority-tie]` defect is produced when (a)–(d) all produce a tie.
+_Check:_ T174.
+
+**REQ-209 — Cross-format consistency.** Before server construction begins, the builder
+SHALL sample 10 items at random from the extraction model, spanning at least three of the
+seven extraction categories (§6.3), and verify that RULESET_MODEL.md and ruleset_model.json
+agree on: name, source anchor, confidence label, and action classification for each sampled
+item. A mismatch is a discovery defect, recorded in the defect log with both values, and
+SHALL be resolved before construction begins.
+*Acceptance criterion:* After extraction, RULESET_MODEL.md and ruleset_model.json agree on
+all four fields for 100% of sampled items. A single mismatch blocks construction until
+resolved.
+_Check:_ T252.
+
+**REQ-210 — Extraction categories.** The builder SHALL extract ruleset content into seven
+categories in dependency order within each chunk: Concepts (named ruleset terms: stats,
+moves, conditions, statuses), Entities (character types, monsters, NPCs with fields and
+lifecycle), Tables (lookup tables and generation tables with dice notation), Actions
+(resolution mechanics, commands, generation — classified per REQ-015), Resolution (the core
+mechanic: dice notation, stat associations, result bands), Roles (Player and Game Master
+terms from the ruleset), and Guidance (hat-addressed prose, verbatim with attribution and
+hat scope). A cross-category reference that cannot be resolved against the inventory of
+earlier extractions within the same chunk SHALL be recorded as a MEDIUM-confidence finding
+in the defect log with a deferred-reference annotation.
+*Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined
+within the same chunk resolves that reference against the Concept inventory. A reference to
+a Concept term not yet extracted produces a deferred-reference annotation which resolves
+after cross-chunk resolution.
+_Check:_ T173.
+
+**REQ-215 — Table content extraction.** The builder SHALL extract generation table
+content from the ruleset and register it as `roll_on_table` entries. For each
+generation table, the builder SHALL produce: a canonical `key` (snake_case slug
+derived from the source heading), a `dice_expression`, a `ranges` array
+(min/max/result tuples), a `hat_scope` (derived from source location — tables in
+GM-only chapters are `game_master`, otherwise `shared`), and a `source_anchor`
+(heading and file path). Table content extraction follows the same confidence
+labeling and traceability rules as other extraction categories (REQ-011,
+REQ-010).
+
+The builder SHALL detect dice-range tables from Markdown table cells containing
+`d100`, `d%`, `d8`, `d20`, or explicit numeric ranges (`01-10`, `11-25`). A row
+whose first column is a numeric range is a generation result row. A row whose
+first column is a name or label (not a numeric range) is a lookup row. Each
+generation table entry SHALL be stored in the ruleset model under
+`generation_tables` with its full content, and the server SHALL serve it via
+`roll_on_table` at runtime.
+
+*Acceptance criterion:* The D&D 5e build extracts at minimum the Short-Term
+Madness, Long-Term Madness, Indefinite Madness, Reincarnate Race, Wand of Wonder,
+and Trinkets tables. Each table entry includes dice_expression, ranges with
+result text, and a source_anchor. `spec_health` reports the count of extracted
+generation tables.
+
+*Check:* T256.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G: layout-aware extraction,
@@ -510,7 +660,17 @@ narrative state, NPC management, countdowns, dynamic lore, entity and roster
 management, personality, briefing ordering, export and import (Novel and
 lorebook), search and action suggestions, adventure and encounter generation,
 session tools, utility (`help`, `spec_health`), and enrichment reversion. These
-categories are never waived. Tools whose results depend on indexed ruleset
+categories are never waived.
+
+The `help` tool SHALL present these infrastructure categories as the base
+grouping for its task map. The builder MAY subdivide or rename categories for
+runtime display, but every tool in the infrastructure enumeration SHALL appear
+under exactly one help category. The mapping from infrastructure category to
+help category name SHALL be recorded in DECISIONS.md. Help category names are
+advisory — the GM may override them (REQ-067) — but the infrastructure
+classification is immutable.
+
+Tools whose results depend on indexed ruleset
 content (`search_rules`, `suggest_actions`, `generate_adventure`,
 `generate_encounter`) produce empty or context-only results when that content is
 absent — they are not absent from the tool surface.
@@ -570,6 +730,19 @@ for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not
 "lookup_weapon."
 _Check:_ T3, T35, T39.
 
+The `description` field SHALL follow a three-clause structure: a one-line summary
+of the tool's action (verb + object), a "Use when:" clause naming concrete
+scenarios that select this tool, and a "Do NOT use when:" clause naming sibling
+tools the caller should prefer for similar-sounding requests. Descriptions longer
+than three sentences are truncated in `tools/list`; the full text remains
+available at `resources/read`.
+
+*Acceptance criterion:* Every tool's description contains all three clauses;
+overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name
+each other in their disambiguation clauses; a verifier can map a natural-language
+player intent to the correct tool using only the tool descriptions.
+_Check:_ T3, T49.
+
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
 (per-file and overall), conversion fidelity (per-content-type rates, overall rate,
 sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absent
@@ -578,9 +751,14 @@ findings per iteration, residual gaps for each metric in §6.5), including a per
 for each of the seven extraction categories (§6.3: concepts, entities, actions, tables, resolution, roles, guidance),
 the count and percentage of HIGH, MEDIUM, and LOW items, and per-metric velocity —
 for each quantitative metric in both Phase 1 and Phase 2, the per-iteration delta (Δ)
-from the previous measurement, recorded as a signed value. Velocity is
-diagnostic: it does not change exit criteria but is reported alongside each metric's iteration
-count so the operator can recognize when diminishing returns have set in, indexed
+from the previous measurement, recorded as a signed value. Velocity
+SHALL be reported alongside each metric's iteration count. When a metric's
+velocity drops to zero for two consecutive iterations while the metric remains
+below threshold, the builder SHALL record a `[velocity-stall]` finding in
+DECISIONS.md (5) and the metric's step is aborted per §6.5.1 no-delta
+detection — the velocity stall counts as the stalled iteration. This
+integrates velocity into the existing no-delta detection mechanism without
+adding a separate exit criterion, indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
@@ -968,8 +1146,16 @@ under LLM-mediated tool calls. A `decision` that differs in non-whitespace
 characters returns `[ERROR] [NOT_FOUND]` with the canonical text. Each
 decision enumerates options — limited to at most 25 entries, derived from the ruleset
 index, with empty-string and "cancel" always available. An unrecognized decision or
-option returns `[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the
-pre-workflow snapshot.
+option returns `[ERROR] [NOT_FOUND]` with valid values.
+`respond(cancel)` SHALL restore the pre-workflow snapshot from the persisted
+`pending_workflow.snapshot` field. Restoration SHALL overwrite all
+Novel-tier fields with the snapshot values, clear `pending_workflow` to
+null, and reset `pending_staleness_counter` to zero. The restored state
+SHALL be audited with a `[workflow_cancelled]` audit entry recording the
+decision text and the pre-workflow snapshot timestamp. After restoration,
+all blocked tools (undo, redo, set_hat) are callable. Cancel restoration
+works after a server restart — the persisted snapshot covers the full
+pre-workflow Novel state.
 
 A workflow begins when a tool returns `[NEED_INPUT]` and ends when `respond`
 successfully drains the decision. Only one workflow may be pending per Novel at a time
@@ -992,6 +1178,54 @@ second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
 _Check:_ T32, T138, T157;
 Gate 2; S23.
+
+**REQ-190 — Respond drain result.** WHEN `respond(decision, option)` drains a
+pending workflow decision, THE system SHALL return `[OK]` with the decision
+text, the selected option, and the resulting state change (if any) in a
+single response. A drained workflow SHALL clear the `pending_workflow` field
+on the Novel, restoring all blocked tools (undo, redo, set_hat) to callable
+state. The drain is atomic — a partial drain where the workflow is cleared
+but the state change is not applied is a defect.
+*Acceptance criterion:* After `respond("stat-array", "grit-forward")` drains
+a character creation step, `undo` is callable (no longer returns
+`[STATE_CONFLICT]`), `pending_workflow` is null, and the next
+`create_character()` call starts a fresh workflow.
+_Check:_ T138.
+
+**REQ-191 — Option display-label pairs.** Every option in a `[NEED_INPUT]`
+decision SHALL be presented as a display-label pair: a kebab-cased option
+value and a human-readable label. The `option` parameter passed to `respond`
+is the kebab-cased value. Labels are ruleset-derived (e.g., class names,
+equipment names) and SHALL NOT exceed 60 characters. The display-label
+mapping SHALL be stable within a ruleset version — the same option value
+always maps to the same label. `cancel` is always last with label "Cancel".
+*Acceptance criterion:* A `[NEED_INPUT]` for skill selection renders as
+`acrobatics (Acrobatics), arcana (Arcana), ...` and `respond("arcana")`
+matches the kebab-cased value.
+_Check:_ T32.
+
+**REQ-192 — Batch-respond collision.** WHEN two `respond` calls arrive for
+the same pending workflow (e.g., from concurrent connections), the first
+call drains the decision and the second SHALL return `[ERROR] [STATE_CONFLICT]`
+identifying that the workflow has already been drained. The server SHALL
+NOT apply the same decision twice or leave the Novel in an inconsistent state
+where the workflow appears both drained and pending.
+*Acceptance criterion:* Two concurrent `respond` calls to the same decision —
+first succeeds, second returns `[STATE_CONFLICT]` with "no pending workflow".
+_Check:_ S23.
+
+**REQ-193 — Pending workflow staleness detection.** THE server SHALL track
+a staleness counter for open pending workflows, incremented on each new
+connection to the Novel. When the counter reaches 3 or more connections
+without drainage, `spec_health` SHALL include a `pending_workflow_warning`
+object containing the decision text and connection count. The warning signals
+that a workflow has been abandoned across multiple sessions — an operator
+can drain or cancel it. Staleness tracking is informational only; it does
+not auto-cancel or auto-drain.
+*Acceptance criterion:* Start a character creation workflow, restart the
+server (connection 1), connect twice more (connections 2, 3) — on the third
+connection, `spec_health` includes `pending_workflow_warning`.
+_Check:_ spec_health output assertion.
 
 **REQ-104 — Character creation workflow.** `create_character` supports two modes:
 step-by-step (called without parameters) and quick-create (called with all required
@@ -1122,6 +1356,22 @@ endpoints return full content and all tools are callable.
 switching back and calling again returns `[FORBIDDEN]`.
 _Check:_ T9, T13, T15, T18,
 T26, T44, T148, T151.
+
+**REQ-216 — Generation table hat filtering.** `roll_on_table` SHALL be callable
+from both hats, but tables with `hat_scope: "game_master"` SHALL return
+`[FORBIDDEN]` when called from the Player hat — the error SHALL enumerate the
+full table name but SHALL NOT reveal table content. The `hat_scope` value SHALL
+be visible in `spec_health` per-table metadata but the table content SHALL NOT.
+The `hat_briefing` SHALL enumerate available table names with their hat_scope,
+filtered per the active hat's access level. The error message SHALL direct the
+caller to `hat_briefing` for a non-revealing list of accessible tables.
+
+*Acceptance criterion:* `roll_on_table("madness_short_term")` called from the
+Player hat returns `[FORBIDDEN]` with the table name visible but no content; the
+same call from the Game Master hat returns the table result. `hat_briefing` under
+the Player hat lists only `hat_scope: "shared"` table names.
+
+*Check:* T257.
 
 **REQ-133 — Forbidden-call audit.** Every tool invocation that returns
 `[FORBIDDEN]` is recorded in the audit log with timestamp, active hat, tool
@@ -1262,6 +1512,21 @@ GM-filtered output contains exactly the tools classified as GM or un-gated;
 Player-only and GM-only.
 _Check:_ T151.
 
+The classification table in DECISIONS.md SHALL enumerate every registered tool
+with the format:
+
+| Tool name          | Gate       | Hat visibility         |
+|--------------------|------------|------------------------|
+| `set_hat`          | un-gated   | Player, Game Master    |
+| `init_combat`      | GM-only    | Game Master            |
+| `character_sheet`  | Player     | Player                 |
+
+The `tools/list` output filtered by each hat SHALL match the Gate column of
+this table. A tool added after the initial build SHALL append a new row within
+the same DECISIONS.md section before the server restarts. Helper tools that
+exist solely to support other tools (e.g., `respond`) inherit the gate of
+the tool they service.
+
 **REQ-148 — Structural integrity gate.** _(F1)_ The ruleset source SHALL pass all
 blocking items in the Appendix H checklist before discovery proceeds. A failed
 blocking item stops the line; informational items produce findings logged in
@@ -1295,6 +1560,22 @@ contract is exercised by at least one interaction. Mask an interaction from the
 transcript — assert the unexercised REQ is recorded as a coverage gap without
 blocking the build.
 _Check:_ G2; T185.
+
+**REQ-211 — Evidence record field contract.** Every evidence record embedded in
+DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0, G2, G3, G4, G5,
+or H1–H14), timestamp, environment pins (runtime version, OS, and spec hash at time
+of execution), pass/fail status, and a findings section enumerating each sub-check with
+its individual result. Per-workflow extension fields: G0 records enumerate Appendix H
+and Appendix D checklist items with individual pass/fail; G2 records include the
+per-contract coverage enumeration defined in §8; G3 records include registry/resource
+diff summary; G4 records include per-test pass/fail counts; G5 (Gauntlet) records
+include per-sub-workflow verdict and blocking/non-blocking classification. A verifier
+following §10 SHALL produce evidence records with the same minimum field set for
+Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
+*Acceptance criterion:* A DECISIONS.md (6) evidence record for any workflow can be
+parsed to extract workflow identifier, timestamp, environment pins, pass/fail status,
+and sub-check enumeration without depending on prose interpretation.
+_Check:_ T253, T188.
 
 ### 5.6 State and Lifecycle
 
@@ -1396,6 +1677,65 @@ mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
 _Check:_ T25, T33, T110, T161, T162; Gate 2.
+
+**REQ-203 — Combat-init guard.** When `init_combat` is called while combat is already
+active, the server SHALL return `[ERROR] [STATE_CONFLICT]` with the text "Combat already
+active — call `end_combat` first." No combat state is modified and the existing combat
+continues unchanged.
+*Acceptance criterion:* `init_combat` followed by a second `init_combat` call returns
+`[STATE_CONFLICT]` and the active combat's round and turn order are unchanged by the
+rejected call.
+_Check:_ T246.
+
+**REQ-204 — Combat participant validation.** `init_combat` SHALL validate every
+participant ID against the Novel's known entities and named NPCs. Participants that resolve
+are added to the turn order normally. Participants that do not resolve to any known entity
+or NPC SHALL produce `[ERROR] [NOT_FOUND]` enumerating the unresolvable IDs and the
+complete list of valid entity and NPC identifiers. Validation occurs before any initiative
+rolls or turn-order construction — a rejected `init_combat` call leaves no combat state
+active. Danger entries (which have no persistent IDs) are exempt from this validation.
+*Acceptance criterion:* `init_combat(participants=["nonexistent"])` with no entities
+imported returns `[NOT_FOUND]` enumerating "nonexistent" and listing valid entity/NPC IDs;
+no combat state is created; `session_recap` reports no pending confrontation.
+_Check:_ T247.
+
+**REQ-205 — Mid-combat participant changes.** The Game Master may add or remove
+participants during active combat via `add_combat_participant` and
+`remove_combat_participant` tools. Both are Game Master only. Participants added during
+combat are inserted into the turn order immediately after the current turn position,
+preserving the existing turn order for all other participants. Added participants that do
+not resolve to a known entity or NPC SHALL produce `[ERROR] [NOT_FOUND]` with valid
+identifiers enumerated. The current turn pointer does not advance — the added participant
+will act in the same round, after the current participant's turn. Removing the current
+participant SHALL advance the turn pointer to the next participant before removal. Removing
+the last participant SHALL auto-trigger `end_combat` with the outcome "All participants
+removed." These tools are mutating operations for undo/redo purposes and SHALL appear in
+the audit log.
+*Acceptance criterion:* During active combat with participants ["hero", "goblin"],
+`add_combat_participant("wizard")` inserts wizard after hero in turn order;
+`remove_combat_participant("goblin")` removes goblin from turn order and advances pointer
+if goblin was current; removing the last participant from a 1-participant combat ends it
+with "All participants removed"; undo reverts the participant change; Player hat returns
+`[FORBIDDEN]`.
+_Check:_ T248.
+
+**REQ-206 — Combat-round condition expiry.** When the ruleset defines conditions that last
+for a fixed number of rounds or turns, the server SHALL track the remaining duration on the
+entity. Conditions with a round-based duration SHALL decrement their remaining counter when
+the affected entity's turn resolves via `advance_combat`. Conditions reaching zero
+remaining rounds SHALL be automatically removed, recorded in the audit log as a
+`[condition_expired]` entry with the entity ID, condition name, and the triggering combat
+round. The expiry occurs after the turn's actions and before the turn pointer advances — an
+entity's last-round effect is active for its final turn. Conditions without a declared
+duration are exempt from automatic expiry. The builder records the ruleset's
+condition-duration convention in RULESET_MODEL.md under `condition_durations`.
+*Acceptance criterion:* Apply a condition with `rounds: 1` to a participant, call
+`advance_combat` once — assert the condition is removed after the turn and the audit log
+contains a `[condition_expired]` entry. Apply a condition with `rounds: 0` (instant) —
+assert it does not decrement. Apply a condition with no `rounds` field — assert no
+auto-expiry occurs. Apply a condition with `rounds: 2` — assert it decrements to 1 after
+the first `advance_combat` and expires after the second.
+_Check:_ T249.
 
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
 that returns a structured summary of the active Novel: session timespan (earliest to latest
@@ -2105,6 +2445,28 @@ d20 face on two separate server restarts; a per-call seed does not advance the
 session PRNG position.
 _Check:_ Gate 2, T27, T111.
 
+**REQ-213 — Weighted table result mapping.** When a generation table defines a
+dice-range-to-result mapping, `roll_on_table` SHALL roll the specified dice
+expression, match the result against the defined ranges, and return the matched
+result row. The output SHALL include: (a) the dice notation (e.g., `d100`),
+(b) the individual die face rolled, and (c) the matched range with its result
+text. When a roll falls outside all defined ranges, the tool SHALL return
+`[WARNING]` with the raw roll and a "no range matched" message — the tool SHALL
+NOT silently return a bare number.
+
+A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a
+list of `ranges` (each with `min`, `max`, `result`), and an optional `hat_scope`
+(`game_master` or `shared`, default `shared`). A generation table SHALL NOT
+interleave dice-range rows with static lookup rows — tables are classified as
+either generation or lookup at extraction; a table containing any dice-range row
+is a generation table.
+
+*Acceptance criterion:* `roll_on_table(table="wand_of_wonder", seed="42")`
+produces the same result row on two separate server restarts, with output
+including dice notation, individual die face, matched range, and result text.
+
+*Check:* T254.
+
 **REQ-157 — Combat determinism.** Combat initiative for dangers is drawn from the
 same PRNG as all other random draws (REQ-050). `init_combat` accepts an optional
 per-call seed. When a per-call seed is provided, every danger initiative roll
@@ -2333,7 +2695,11 @@ when the build is claimed as complete.
 _Check:_ H12, §10 Phase 1 execuability.
 
 **REQ-084 — Action suggestions.** The server provides a `suggest_actions(intent)` tool
-that maps a player's natural-language intent to ruleset-legal tool invocations. With an
+that maps a player's natural-language intent to ruleset-legal tool invocations.
+Each suggestion entry carries three fields: the registered tool name, its REQ-015
+action classification, and a one-sentence rationale connecting the intent to the
+mechanic. Freeform prose without tool-name references is insufficient — the
+LLM must be able to map a suggestion directly to a tool call. With an
 intent string, it returns all matching actions from the ruleset registry that plausibly
 correspond to the expressed intent. Because a single natural-language intent may
 resolve to different mechanical approaches — a player declaring intent to persuade a
@@ -2458,7 +2824,10 @@ tool that returns a Markdown-formatted prompt with a header line — "Compressed
 `[timestamp] [hat] tool_name — output_prefix` for mutating entries or
 `[timestamp] [hat] tool_name — [BOUNDARY_VIOLATION]` for forbidden-call entries
 (REQ-133). The tool does not modify the audit log (REQ-040). Output is hat-filtered:
-Player sees only own-entity entries; Game Master sees all. `max_entries` is a positive
+Player sees entries where the recorded hat is
+`player` or where the entity affected by the entry is owned by the current
+player (per the entity-ownership filter defined in REQ-168, applied to
+compress_audit output); Game Master sees all. `max_entries` is a positive
 integer; values ≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation
 (idempotent, no server-side state mutation).
 *Acceptance criterion:* `compress_audit(50)` returns a formatted prompt of the
