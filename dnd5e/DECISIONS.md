@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 93dd837cdd86eb7b50ee83084db768351ca0b6557da785795412df91396c6529
+- **Spec hash:** 3ab2435ed3256df9f3842334ef071011cfb0b8e19c78b904ae8e24ac0f98439d
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -85,6 +85,7 @@
 | REQ-074 | Multi-entity support | `src/index.ts` — set_active_entity |
 | REQ-075 | Named-NPC state | `src/index.ts` — create_npc, update_npc, remove_npc |
 | REQ-076 | Scene-state ledger | `src/index.ts` — set_scene_state, scene_history |
+| REQ-076a | Structured scene fields | `src/index.ts` — set_scene_state location/time_of_day/atmosphere; `src/state.ts` — NovelState fields; `src/macros.ts` — scene macros |
 | REQ-077 | Entity personality fields | `src/index.ts` — set_personality, set_voice_examples |
 | REQ-078 | Session zero prompt | `src/index.ts` — session_zero prompt |
 | REQ-079 | Adventure modules | `src/index.ts` — load_adventure |
@@ -132,6 +133,7 @@
 | REQ-209 | Cross-format consistency | Waived — build-time REQ; not server runtime |
 | REQ-210 | Extraction categories | Waived — build-time REQ; not server runtime |
 | REQ-211 | Evidence record field contract | Waived — build-time REQ; documentation convention |
+| REQ-212 | Generation table rolling | `src/index.ts` — roll_on_table gen table registry, hat-filtered, seeded dice notation |
 
 <!-- @section normalizations -->
 ## 4. Assumptions, Normalizations, and Capabilities
@@ -439,5 +441,24 @@
 - **Changed code paths:** src/index.ts (SPEC_HASH), dnd5e/holonovel.md (regenerated from canonical)
 - **Gauntlet:** No implemented gaps map to runtime surfaces — no Gauntlet scenarios selected per §6.6 surface-to-scenario mapping
 - **Spec hash:** 93dd837cdd86eb7b50ee83084db768351ca0b6557da785795412df91396c6529
+
+### Spec-Driven Update (REQ-098) — Structured Scene Fields + Parameterized Tables
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — new REQ-076a (structured scene fields), new REQ-212 (generation table rolling), updated REQ-025 (spec_health additions)
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | SPEC_HASH | `93dd837c...` stale vs `3ab2435e...` | implemented | Updated in src/index.ts |
+  | REQ-076a | `set_scene_state` missing `location`, `time_of_day`, `atmosphere` | implemented | Added optional fields to inputSchema, NovelState, serialization, hat_briefing, macros, scene_history, export |
+  | REQ-212 | `roll_on_table` hardcoded enum, no dynamic tables/dice notation/hat filtering | implemented | Built gen table registry with dice_notation, hat_scope, seed support; 8 tables (2 GM-only); NOT_FOUND + valid enumeration |
+  | REQ-025 | `spec_health` missing `last_gauntlet`, `indexed_counts` | implemented | Added both fields; `lastSpecReview` set at startup |
+  | REQ-025 | `spec_health` missing `confidence`, `convergence_summary`, coverage/defects | deferred | Build-time metrics requiring extraction model data |
+  | dnd5e/holonovel.md | Local spec copy stale | implemented | Regenerated from canonical holonovel.md |
+  | REQ-001a–004a, 015, 061, 113, 118, 168, 174–184, 195–202 | Various sub-REQs | deferred | Previously deferred; not in scope for this cycle |
+- **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
+- **Changed code paths:** src/index.ts (SPEC_HASH, set_scene_state inputSchema/handler, roll_on_table rewrite with gen table registry, hat_briefing scene fields, scene_history entries, spec_health additions, lastSpecReview startup, macro context, export_novel markdown), src/state.ts (NovelState scene_location/time_of_day/atmosphere fields, createNovel/loadNovelFromData/novelToJSON/novelFromJSON/undo/redo serialization), src/macros.ts (scene location/time_of_day/atmosphere macros), dnd5e/holonovel.md (regenerated)
+- **Gauntlet:** Per §6.6 surface-to-scenario mapping: tool signature change (set_scene_state, roll_on_table) → S1; scene state surface (REQ-076a) → S20; table generation (REQ-212) → S7; hat gating (GM-only tables) → S6
+- **Spec hash:** 3ab2435ed3256df9f3842334ef071011cfb0b8e19c78b904ae8e24ac0f98439d
 
 (End of file - total 435 lines)

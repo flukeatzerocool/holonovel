@@ -7,6 +7,9 @@ interface MacroContext {
   entityMaxHp?: number;
   entityStats?: Record<string, number>;
   sceneCurrent?: string;
+  sceneLocation?: string;
+  sceneTimeOfDay?: string;
+  sceneAtmosphere?: string;
   sceneType?: string;
   countdowns?: Record<string, { remaining: number; total: number; scope?: string; direction?: string }>;
   novelSlug?: string;
@@ -31,6 +34,9 @@ export function expandMacros(text: string, ctx: MacroContext): string {
     if (parts[0] === "scene") {
       if (parts[1] === "current" && ctx.sceneCurrent) return ctx.sceneCurrent;
       if (parts[1] === "type" && ctx.sceneType) return ctx.sceneType;
+      if (parts[1] === "location" && ctx.sceneLocation) return ctx.sceneLocation;
+      if (parts[1] === "time_of_day" && ctx.sceneTimeOfDay) return ctx.sceneTimeOfDay;
+      if (parts[1] === "atmosphere" && ctx.sceneAtmosphere) return ctx.sceneAtmosphere;
     }
 
     if (parts[0] === "countdown") {

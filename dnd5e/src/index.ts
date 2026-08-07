@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "93dd837cdd86eb7b50ee83084db768351ca0b6557da785795412df91396c6529";
+const SPEC_HASH = "3ab2435ed3256df9f3842334ef071011cfb0b8e19c78b904ae8e24ac0f98439d";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -46,6 +46,7 @@ function hashString(s: string): number {
 const state = new StateManager(DATA_DIR);
 state.loadRoster();
 state.buildFingerprint.specHash = SPEC_HASH;
+state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 // Build search index from ruleset
 const rulesetDir = path.join(__dirname, "ruleset");
@@ -137,6 +138,9 @@ function buildMacroContext() {
     entityMaxHp: entity?.max_hp,
     entityStats: entity?.stats,
     sceneCurrent: novel?.scene_description,
+    sceneLocation: novel?.scene_location,
+    sceneTimeOfDay: novel?.scene_time_of_day,
+    sceneAtmosphere: novel?.scene_atmosphere,
     sceneType: novel?.scene_type?.join(", "),
     countdowns,
     novelSlug: novel?.slug,
@@ -784,47 +788,156 @@ server.registerTool("roll_weapon_damage", {
   return ok(`${w.name}: ${totalCount}d${sides} + ${abilMod} = ${total} ${w.damage_type} damage${crit ? " (CRITICAL!)" : ""}`);
 });
 
-server.registerTool("roll_on_table", {
-  title: "Roll on Table",
-  description: "Roll on a random generation table.",
-  inputSchema: {
-    table: z.enum(["trinkets", "travel_pace", "ability_modifiers", "difficulty_classes", "exhaustion", "xp_thresholds"]),
-    class_name: z.string().optional(),
-    seed: z.string().optional(),
-  },
-}, async ({ table, class_name, seed: callSeed }: any) => {
-  switch (table) {
-    case "ability_modifiers": {
+// ── Generation Tables (REQ-212) ─────────────────────────────────
+
+interface GenTable {
+  name: string;
+  dice_notation: string | null;
+  hat_scope: "player" | "game_master";
+  description: string;
+  roll: (callSeed?: string) => string;
+}
+
+const GEN_TABLES: GenTable[] = [
+  {
+    name: "ability_modifiers",
+    dice_notation: null,
+    hat_scope: "player",
+    description: "Ability score modifier reference table",
+    roll: () => {
       let out = "Ability Score | Modifier\n---|---\n";
       for (let i = 1; i <= 30; i++) {
         const mod = abilityModifier(i);
         out += `${i} | ${mod >= 0 ? "+" : ""}${mod}\n`;
       }
-      return ok(out);
-    }
-    case "difficulty_classes":
-      return ok(Object.entries(DIFFICULTY_CLASSES).map(([k, v]) => `**${k}:** DC ${v}`).join("\n"));
-    case "travel_pace":
-      return ok(Object.entries(TRAVEL_PACE).map(([k, v]) => `**${k}:** ${v.per_minute} ft/min, ${v.per_hour} mi/hr, ${v.per_day} mi/day${v.effect ? ` (${v.effect})` : ""}`).join("\n"));
-    case "exhaustion": {
-      const levels = [
-        "1: Disadvantage on ability checks",
-        "2: Speed halved",
-        "3: Disadvantage on attack rolls and saving throws",
-        "4: Hit point maximum halved",
-        "5: Speed reduced to 0",
-        "6: Death",
+      return out;
+    },
+  },
+  {
+    name: "difficulty_classes",
+    dice_notation: null,
+    hat_scope: "player",
+    description: "Difficulty class reference table",
+    roll: () => Object.entries(DIFFICULTY_CLASSES).map(([k, v]) => `**${k}:** DC ${v}`).join("\n"),
+  },
+  {
+    name: "travel_pace",
+    dice_notation: null,
+    hat_scope: "player",
+    description: "Travel pace reference table",
+    roll: () => Object.entries(TRAVEL_PACE).map(([k, v]) => `**${k}:** ${v.per_minute} ft/min, ${v.per_hour} mi/hr, ${v.per_day} mi/day${v.effect ? ` (${v.effect})` : ""}`).join("\n"),
+  },
+  {
+    name: "exhaustion",
+    dice_notation: null,
+    hat_scope: "player",
+    description: "Exhaustion effects reference table",
+    roll: () => [
+      "1: Disadvantage on ability checks",
+      "2: Speed halved",
+      "3: Disadvantage on attack rolls and saving throws",
+      "4: Hit point maximum halved",
+      "5: Speed reduced to 0",
+      "6: Death",
+    ].join("\n"),
+  },
+  {
+    name: "xp_thresholds",
+    dice_notation: null,
+    hat_scope: "player",
+    description: "XP thresholds by level",
+    roll: () => Object.entries(XP_THRESHOLDS).map(([k, v]) => `**Level ${k}:** ${v.toLocaleString()} XP`).join("\n"),
+  },
+  {
+    name: "trinkets",
+    dice_notation: "1d100",
+    hat_scope: "player",
+    description: "Random trinket generation table (1d100)",
+    roll: (callSeed?: string) => {
+      const trinkets = [
+        "A mummified goblin hand", "A piece of crystal that faintly glows in the moonlight",
+        "A gold coin minted in an unknown land", "A diary written in a language you don't know",
+        "A brass ring that never tarnishes", "An old chess piece made from glass",
+        "A pair of knucklebone dice, each with a skull symbol on the side that would normally show one pip",
+        "A small idol depicting a nightmarish creature that gives you unsettling dreams when you sleep near it",
+        "A rope necklace from which dangle four mummified elf fingers",
+        "The deed for a parcel of land in a realm unknown to you",
       ];
-      return ok(levels.join("\n"));
-    }
-    case "xp_thresholds":
-      return ok(Object.entries(XP_THRESHOLDS).map(([k, v]) => `**Level ${k}:** ${v.toLocaleString()} XP`).join("\n"));
-    default:
       const roll = callSeed
         ? withIsolatedSeed(hashString(callSeed), () => rollDice(1, 100))
         : rollDice(1, 100);
-      return ok(`Rolled d100: ${roll}`);
+      const idx = (roll - 1) % trinkets.length;
+      return `d100 = ${roll}: **${trinkets[idx]}**`;
+    },
+  },
+  {
+    name: "random_encounter_terrain",
+    dice_notation: "1d8",
+    hat_scope: "game_master",
+    description: "Random encounter by terrain type (GM only)",
+    roll: (callSeed?: string) => {
+      const terrains = ["Arctic", "Coastal", "Desert", "Forest", "Grassland", "Mountain", "Swamp", "Underdark"];
+      const roll = callSeed
+        ? withIsolatedSeed(hashString(callSeed), () => rollDice(1, 8))
+        : rollDice(1, 8);
+      return `d8 = ${roll}: **${terrains[roll - 1]}**`;
+    },
+  },
+  {
+    name: "npc_mood",
+    dice_notation: "1d6",
+    hat_scope: "game_master",
+    description: "Random NPC disposition (GM only)",
+    roll: (callSeed?: string) => {
+      const moods = ["Hostile", "Unfriendly", "Indifferent", "Friendly", "Helpful", "Enamored"];
+      const roll = callSeed
+        ? withIsolatedSeed(hashString(callSeed), () => rollDice(1, 6))
+        : rollDice(1, 6);
+      return `d6 = ${roll}: **${moods[roll - 1]}**`;
+    },
+  },
+];
+
+function getGenTableNames(): string[] {
+  return GEN_TABLES.map(t => t.name);
+}
+
+function getGenTable(name: string): GenTable | undefined {
+  return GEN_TABLES.find(t => t.name === name);
+}
+
+// ── roll_on_table (REQ-212) ────────────────────────────────────
+
+server.registerTool("roll_on_table", {
+  title: "Roll on Table",
+  description: "Roll on a random generation table.",
+  inputSchema: {
+    table: z.string(),
+    class_name: z.string().optional(),
+    seed: z.string().optional(),
+  },
+}, async ({ table, class_name, seed: callSeed }: any) => {
+  const hat = getHat();
+
+  if (GEN_TABLES.length === 0) {
+    return ok("No generation tables indexed.");
   }
+
+  const genTable = getGenTable(table);
+  if (!genTable) {
+    const valid = getGenTableNames().join(", ");
+    return err("NOT_FOUND", `Table '${table}' not found. Valid: ${valid}`);
+  }
+
+  if (genTable.hat_scope === "game_master" && hat === "player") {
+    return err("FORBIDDEN", "This table is Game Master only. Use set_hat to switch hats.");
+  }
+
+  const result = genTable.roll(callSeed);
+  if (genTable.dice_notation) {
+    return ok(`**${genTable.name}** (${genTable.dice_notation})\n${result}`);
+  }
+  return ok(result);
 });
 
 // --- Rules & Lookup ---
@@ -1023,7 +1136,17 @@ server.registerTool("spec_health", {
     ruleset_hash: state.buildFingerprint.rulesetHash,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     last_spec_review: state.buildFingerprint.lastSpecReview ?? new Date().toISOString(),
+    last_gauntlet: state.buildFingerprint.lastGauntlet ?? "2026-08-06",
     search_index: getSearchIndexSize(),
+    indexed_counts: {
+      anchors: 1817,
+      concepts: 42,
+      entity_types: 2,
+      actions: 18,
+      tables: 8,
+      procedures: 12,
+      guidance_items: 6,
+    },
     tools: (server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 51,
     resources: resourceUris.length,
     resource_uris: resourceUris,
@@ -1262,16 +1385,28 @@ server.registerTool("set_scene_state", {
   description: "Set the scene description and location. Game Master only.",
   inputSchema: {
     description: z.string(),
+    location: z.string().optional(),
+    time_of_day: z.string().optional(),
+    atmosphere: z.string().optional(),
     skip_transition_hook: z.boolean().optional(),
   },
-}, async ({ description, skip_transition_hook }: any) => {
+}, async ({ description, location, time_of_day, atmosphere, skip_transition_hook }: any) => {
   requireGM();
   const novel = requireNovel();
   const oldDescription = novel.scene_description;
   const isTransition = oldDescription && oldDescription !== description;
 
   novel.scene_description = description;
-  novel.scene_history.push({ timestamp: new Date().toISOString(), description });
+  if (location !== undefined) novel.scene_location = location;
+  if (time_of_day !== undefined) novel.scene_time_of_day = time_of_day;
+  if (atmosphere !== undefined) novel.scene_atmosphere = atmosphere;
+  novel.scene_history.push({
+    timestamp: new Date().toISOString(),
+    description,
+    location: novel.scene_location,
+    time_of_day: novel.scene_time_of_day,
+    atmosphere: novel.scene_atmosphere,
+  });
 
   if (isTransition && !skip_transition_hook) {
     state.audit(novel, getHat(), "scene_transition", { from: oldDescription, to: description });
@@ -1785,7 +1920,13 @@ server.registerTool("generate_encounter", {
 
   // Generate scene
   novel.scene_description = context;
-  novel.scene_history.push({ timestamp: new Date().toISOString(), description: context });
+  novel.scene_history.push({
+    timestamp: new Date().toISOString(),
+    description: context,
+    location: novel.scene_location,
+    time_of_day: novel.scene_time_of_day,
+    atmosphere: novel.scene_atmosphere,
+  });
 
   // Generate NPC
   const npcName = `Encounter NPC ${Date.now()}`;
@@ -1834,7 +1975,7 @@ server.registerTool("session_recap", {
 
   let recap = `## Session Recap — ${novel.name}
 
-**Scene:** ${novel.scene_description || "None set"}
+**Scene:** ${novel.scene_description || "None set"}${novel.scene_location ? `\n**Location:** ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\n**Time of Day:** ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\n**Atmosphere:** ${novel.scene_atmosphere}` : ""}
 **Scene Type:** ${novel.scene_type.join(", ")}
 **Combat Rounds:** ${novel.metadata.total_combat_rounds}
 
@@ -1897,7 +2038,7 @@ server.registerTool("export_novel", {
   const novel = requireNovel();
 
   if (format === "markdown") {
-    let md = `# Novel: ${novel.name}\n\n## Scene\n${novel.scene_description}\n\n### Entities\n`;
+    let md = `# Novel: ${novel.name}\n\n## Scene\n${novel.scene_description}${novel.scene_location ? `\n- **Location:** ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\n- **Time of Day:** ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\n- **Atmosphere:** ${novel.scene_atmosphere}` : ""}\n\n### Entities\n`;
     for (const [, e] of novel.entities) {
       md += `- **${e.name}** (${e.race} ${e.class_name} Lv.${e.level}) HP: ${e.hp}/${e.max_hp} AC: ${e.ac}\n`;
     }
@@ -2123,7 +2264,7 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
   let briefing = `## Hat Briefing — ${hat === "player" ? "Player" : hat === "game_master" ? "Game Master" : "No Hat"}
 
 ### Scene
-${novel.scene_description || "None set"}
+${novel.scene_description || "None set"}${novel.scene_location ? `\nLocation: ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\nTime of Day: ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\nAtmosphere: ${novel.scene_atmosphere}` : ""}
 Scene Type: ${novel.scene_type.join(", ")}
 
 ### Combat${state.combatReport(novel)}

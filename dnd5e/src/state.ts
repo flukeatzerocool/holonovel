@@ -106,7 +106,10 @@ export interface NovelState {
   active_entity_id: string | null;
   npcs: Map<string, NpcState>;
   scene_description: string;
-  scene_history: { timestamp: string; description: string }[];
+  scene_location?: string;
+  scene_time_of_day?: string;
+  scene_atmosphere?: string;
+  scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string }[];
   scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
   combat: CombatState | null;
@@ -271,6 +274,9 @@ export class StateManager {
       active_entity_id: null,
       npcs: new Map(),
       scene_description: "",
+      scene_location: undefined,
+      scene_time_of_day: undefined,
+      scene_atmosphere: undefined,
       scene_history: [],
       scene_type: ["neutral"],
       narrative_directive: "",
@@ -353,6 +359,9 @@ export class StateManager {
       active_entity_id: data.active_entity_id ?? null,
       npcs: new Map(Object.entries(data.npcs ?? {}) as any),
       scene_description: data.scene_description ?? "",
+      scene_location: data.scene_location,
+      scene_time_of_day: data.scene_time_of_day,
+      scene_atmosphere: data.scene_atmosphere,
       scene_history: data.scene_history ?? [],
       scene_type: normalizeSceneType(data.scene_type),
       narrative_directive: data.narrative_directive ?? "",
@@ -462,6 +471,9 @@ export class StateManager {
     novel.active_entity_id = restored.active_entity_id;
     novel.npcs = restored.npcs;
     novel.scene_description = restored.scene_description;
+    novel.scene_location = restored.scene_location;
+    novel.scene_time_of_day = restored.scene_time_of_day;
+    novel.scene_atmosphere = restored.scene_atmosphere;
     novel.scene_history = restored.scene_history;
     novel.scene_type = restored.scene_type;
     novel.narrative_directive = restored.narrative_directive;
@@ -490,6 +502,9 @@ export class StateManager {
     novel.active_entity_id = restored.active_entity_id;
     novel.npcs = restored.npcs;
     novel.scene_description = restored.scene_description;
+    novel.scene_location = restored.scene_location;
+    novel.scene_time_of_day = restored.scene_time_of_day;
+    novel.scene_atmosphere = restored.scene_atmosphere;
     novel.scene_history = restored.scene_history;
     novel.scene_type = restored.scene_type;
     novel.narrative_directive = restored.narrative_directive;
@@ -937,6 +952,9 @@ function novelToJSON(novel: NovelState): any {
     active_entity_id: novel.active_entity_id,
     npcs: Object.fromEntries(novel.npcs),
     scene_description: novel.scene_description,
+    scene_location: novel.scene_location,
+    scene_time_of_day: novel.scene_time_of_day,
+    scene_atmosphere: novel.scene_atmosphere,
     scene_history: novel.scene_history,
     scene_type: novel.scene_type,
     narrative_directive: novel.narrative_directive,
@@ -972,6 +990,9 @@ function novelFromJSON(data: any): NovelState {
     active_entity_id: data.active_entity_id ?? null,
     npcs: new Map(Object.entries(data.npcs ?? {})),
     scene_description: data.scene_description ?? "",
+    scene_location: data.scene_location,
+    scene_time_of_day: data.scene_time_of_day,
+    scene_atmosphere: data.scene_atmosphere,
     scene_history: data.scene_history ?? [],
     scene_type: normalizeSceneType(data.scene_type),
     narrative_directive: data.narrative_directive ?? "",

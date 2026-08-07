@@ -269,7 +269,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154               | 15    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212           | 16    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152                         | 6     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159            | 14    |
@@ -700,10 +700,28 @@ confidence of the matched section. HIGH match confidence requires a non-stop
 query token in the section title or first heading; MEDIUM requires a match in
 section body text; LOW indicates peripheral or single-word matches. This is
 distinct from extraction confidence (REQ-011).
-*Acceptance criterion:* A multi-match search returns context snippets for each
-result, ordered by relevance, with a suppressed-result count when the display
-limit is exceeded.
+*Acceptance criterion:* Each result carries a confidence label (`[HIGH]`,
+`[MEDIUM]`, or `[LOW]`) on the same line as the heading; a multi-match search
+returns context snippets for each result, ordered by relevance, with a
+suppressed-result count when the display limit is exceeded.
 _Check:_ T114.
+
+**REQ-212 — Generation table rolling.** `roll_on_table(table, seed?)` accepts a
+table name drawn from the build's indexed generation tables (§6.3 extraction
+category 4). It SHALL roll the dice notation embedded in the selected table's
+definition — including nested table references — and return the result row with
+dice breakdown per REQ-003. A deterministic seed parameter SHALL produce
+identical results across calls and sessions (per REQ-050). Tables tagged as
+GM-only during extraction SHALL return `[FORBIDDEN]` when called under the
+Player hat. When the ruleset contains zero generation tables, `roll_on_table`
+SHALL return a clear "no tables indexed" message — the tool is not
+unregistered, per the content-absent tool contract (REQ-020, infrastructure
+tools clause). The tool is classified as generation (REQ-015).
+*Acceptance criterion:* `roll_on_table("gear")` with seed `42` returns the table
+row for the gear table exactly; the same call without a seed returns a different
+row; `roll_on_table("gm-only-table")` under Player hat returns `[FORBIDDEN]`;
+a ruleset with zero tables returns "No generation tables indexed."
+_Check:_ T46, T210.
 
 **REQ-013 — No assumed mechanics.** Nothing enters the model that is not traceable to the
 ruleset text. A mechanic present in one edition or supplement but absent from the source is
@@ -735,6 +753,24 @@ tool annotations per §7.4.
 classification — `idempotentHint` for read-only and state-reading, `destructiveHint`
 for command, both for generation and hybrid.
 _Check:_ T15.
+
+The builder SHALL classify every registered tool according to the following
+table. Every tool in `tools/list` falls into exactly one classification row.
+When a tool's behavior spans two rows, the builder SHALL apply the higher-impact
+classification (command overrides state-reading, hybrid overrides generation).
+
+| Classification   | Tool examples                              | `idempotentHint` | `destructiveHint` | `readOnlyHint` | `openWorldHint` |
+|------------------|--------------------------------------------|-------------------|--------------------|----------------|-----------------|
+| read-only        | `help`, `spec_health`                     | `true`            | `false`            | `true`         | `false`         |
+| state-reading    | `character_sheet`, `session_recap`        | `true`            | `false`            | `false`        | `false`         |
+| command          | `create_character`, `set_scene_state`     | `false`           | `true`             | `false`        | `false`         |
+| generation       | `generate_adventure`, `roll_on_table`     | `false`           | `false`            | `false`        | `false`         |
+| hybrid           | `generate_encounter`, `roll_weapon_damage`| `false`           | `true`             | `false`        | `false`         |
+
+The `openWorldHint` is `false` for all tools when the server operates without
+network access (the default per REQ-051). A server configured with network
+access SHALL set `openWorldHint: true` on tools whose output depends on
+external content.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
@@ -838,7 +874,17 @@ narrative state, NPC management, countdowns, dynamic lore, entity and roster
 management, personality, briefing ordering, export and import (Novel and
 lorebook), search and action suggestions, adventure and encounter generation,
 session tools, utility (`help`, `spec_health`), and enrichment reversion. These
-categories are never waived. Tools whose results depend on indexed ruleset
+categories are never waived.
+
+The `help` tool SHALL present these infrastructure categories as the base
+grouping for its task map. The builder MAY subdivide or rename categories for
+runtime display, but every tool in the infrastructure enumeration SHALL appear
+under exactly one help category. The mapping from infrastructure category to
+help category name SHALL be recorded in DECISIONS.md. Help category names are
+advisory — the GM may override them (REQ-067) — but the infrastructure
+classification is immutable.
+
+Tools whose results depend on indexed ruleset
 content (`search_rules`, `suggest_actions`, `generate_adventure`,
 `generate_encounter`) produce empty or context-only results when that content is
 absent — they are not absent from the tool surface.
@@ -897,6 +943,19 @@ term for that action. Annotations match action classification.
 for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not
 "lookup_weapon."
 _Check:_ T3, T35, T39.
+
+The `description` field SHALL follow a three-clause structure: a one-line summary
+of the tool's action (verb + object), a "Use when:" clause naming concrete
+scenarios that select this tool, and a "Do NOT use when:" clause naming sibling
+tools the caller should prefer for similar-sounding requests. Descriptions longer
+than three sentences are truncated in `tools/list`; the full text remains
+available at `resources/read`.
+
+*Acceptance criterion:* Every tool's description contains all three clauses;
+overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name
+each other in their disambiguation clauses; a verifier can map a natural-language
+player intent to the correct tool using only the tool descriptions.
+_Check:_ T3, T49.
 
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
 (per-file and overall), conversion fidelity (per-content-type rates, overall rate,
@@ -1650,6 +1709,21 @@ GM-filtered output contains exactly the tools classified as GM or un-gated;
 `set_hat` is always present in both lists. No tool is classified as both
 Player-only and GM-only.
 _Check:_ T151.
+
+The classification table in DECISIONS.md SHALL enumerate every registered tool
+with the format:
+
+| Tool name          | Gate       | Hat visibility         |
+|--------------------|------------|------------------------|
+| `set_hat`          | un-gated   | Player, Game Master    |
+| `init_combat`      | GM-only    | Game Master            |
+| `character_sheet`  | Player     | Player                 |
+
+The `tools/list` output filtered by each hat SHALL match the Gate column of
+this table. A tool added after the initial build SHALL append a new row within
+the same DECISIONS.md section before the server restarts. Helper tools that
+exist solely to support other tools (e.g., `respond`) inherit the gate of
+the tool they service.
 
 **REQ-148 — Structural integrity gate.** _(F1)_ The ruleset source SHALL pass all
 blocking items in the Appendix H checklist before discovery proceeds. A failed
@@ -2926,7 +3000,10 @@ tool that returns a Markdown-formatted prompt with a header line — "Compressed
 `[timestamp] [hat] tool_name — output_prefix` for mutating entries or
 `[timestamp] [hat] tool_name — [BOUNDARY_VIOLATION]` for forbidden-call entries
 (REQ-133). The tool does not modify the audit log (REQ-040). Output is hat-filtered:
-Player sees only own-entity entries; Game Master sees all. `max_entries` is a positive
+Player sees entries where the recorded hat is
+`player` or where the entity affected by the entry is owned by the current
+player (per the entity-ownership filter defined in REQ-168, applied to
+compress_audit output); Game Master sees all. `max_entries` is a positive
 integer; values ≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation
 (idempotent, no server-side state mutation).
 *Acceptance criterion:* `compress_audit(50)` returns a formatted prompt of the
@@ -4305,7 +4382,7 @@ Corrective action: <action>
 
 | Convention | Rule | Source |
 |-----------|------|--------|
-| Naming | `snake_case`, ruleset terminology, one verb per category | REQ-020, REQ-024 |
+| Naming | `snake_case`, ruleset terminology, one verb per category — every tool in a related operation set shares the same verb prefix (e.g., all dice-resolution tools use `roll_`, all state-setting tools use `set_`). When the ruleset uses an abbreviated term (e.g., "save" for "saving throw"), the tool name SHALL use the ruleset's most common form of that term. Display titles are human-readable expansions. | REQ-020, REQ-024 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
 | Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
@@ -5394,7 +5471,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-083 | Dynamic lore              | 2026-08-05   |
 | REQ-084 | Action suggestions        | 2026-08-04   |
 | REQ-085 | Macro system              | 2026-08-04   |
-| REQ-086 | Audit compression         | 2026-08-04   |
+| REQ-086 | Audit compression         | 2026-08-07   |
 | REQ-087 | Scene type tagging        | 2026-08-06   |
 | REQ-088 | Novel lifecycle           | 2026-08-06   |
 | REQ-089 | Novel setup               | 2026-08-05   |
@@ -5423,7 +5500,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-100 | Performance benchmark     | 2026-08-07   |
 | REQ-101 | Assumption audit trail    | 2026-08-05   |
 | REQ-110 | Tool surface consolidation | 2026-08-06   |
-| REQ-111 | Search result quality     | 2026-08-06   |
+| REQ-111 | Search result quality     | 2026-08-07   |
+| REQ-212 | Generation table rolling  | 2026-08-07   |
 | REQ-112 | Cross-reference discovery | 2026-08-06   |
 | REQ-113 | Result count reporting    | 2026-08-06   |
 | REQ-114 | Suggestion coverage       | 2026-08-06   |
@@ -5570,7 +5648,7 @@ diet.
 | T43   | Automated | Decision auto-completion blocked: start a workflow that raises `[NEED_INPUT]` and verify the server does not emit a chosen option or complete the workflow without a `respond` call; a client or LLM must not supply a default                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-042, REQ-058                            |
 | T44   | Automated | Player hat boundary: with `player` active, request GM-only content — returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_hat`; switch to `game_master` — same request succeeds; no hidden row revealed                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-032, REQ-058                            |
 | T45   | Automated | spec_health threshold: assert overall confidence is at least 80% and MUST-action coverage is 100% after waivers; if the score is below threshold, assert the build stops and `DECISIONS.md` records a remediation plan                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-025, REQ-011                            |
-| T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Waiver: may only be waived when the structural pass confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` with the single-source-file evidence from the structural pass. | REQ-013         |
+| T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Assert `roll_on_table` with a fixed seed returns identical results; assert different seeds produce different results; assert GM-only table returns `[FORBIDDEN]` under Player hat. Waiver: may only be waived when the structural pass confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` with the single-source-file evidence from the structural pass. | REQ-013         |
 | T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; roll results report the result band when the ruleset defines one; roll results report all rolled faces with selected/discarded distinction when only a subset is selected (advantage, disadvantage, drop-lowest); modifiers are decomposed by source with signed per-source contributions, never collapsed to a bare aggregate; spell lookups return level, school, casting time, range, components, duration, description, and at-higher-level effects; monster lookups return full stat block including AC, HP, speed, ability scores, saves, skills, senses, traits, and actions; class lookups return hit dice, HP formula, proficiencies, features by level, and archetype paths; character creation and advancement results include all derived statistics alongside inputs (see REQ-181 for minimum output surface)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-060, REQ-003, REQ-043, REQ-181 |
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `hat_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any hat (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
@@ -5585,7 +5663,7 @@ diet.
 | T56   | Automated | Named-NPC: create an NPC with partial stats (only name + Grit), verify at `npc://<id>`. Include NPC in a confrontation — assert NPC gets a turn. Update NPC stats, verify changes persist across connection restart. Update NPC with a stat field not previously set — assert field is added and persists across restart.                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-075, REQ-043                            |
 | T57   | Automated | Scene state: set scene state, verify it appears in `scene://current` and `hat_briefing`. Update scene state, verify old entry in audit log and new entry as current. Attempt `set_scene_state` as Player hat — assert `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-076, REQ-032                            |
 | T58   | Automated | Entity personality: create a character, set personality fields, verify they appear in `hat_briefing` and `entity://<id>/personality`. Set game-level overrides — assert they replace roster baseline in `hat_briefing` for that game. Verify mechanical stats remain immutable (baseline unchanged).                                                                                                                                                                                                                                                                                                                                                                                         | REQ-077                                     |
-| T59   | Automated | Adventure load: load an adventure, verify `adventure://<slug>/<anchor>` resources are retrievable. Assert `*Keeper only*` sections return content for Game Master hat and are hidden from Player hat. Assert `search_rules` with a query matching a section heading assigns HIGH confidence; matching body text assigns MEDIUM confidence. Assert `[generated]` tag does not affect sort order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-079, REQ-032                            |
+| T59   | Automated | Adventure load: load an adventure, verify `adventure://<slug>/<anchor>` resources are retrievable. Assert `*Keeper only*` sections return content for Game Master hat and are hidden from Player hat. Assert `search_rules` with a query matching a section heading assigns HIGH confidence; matching body text assigns MEDIUM confidence. Assert each result line begins with a bracketed confidence label matching the query-token location rule. Assert `[generated]` tag does not affect sort order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-079, REQ-032                            |
 | T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as game entities but adventure A's content no longer appears in `hat_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
 | T61   | Automated | Adventure continuity: load adventure, create NPCs, set scene state within the adventure. Restart the server with the same `TTRPG_NOVEL`. Assert the active adventure, NPCs, and scene state are restored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-079, REQ-055                            |
 | T62   | Automated | Help and tool discovery: invoke `help()` with no query — assert output includes a categorized task map and all registered tools. Invoke `help("combat")` — assert results include combat tools. Invoke as Player hat — assert GM-only tools are not listed.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-067, REQ-032                            |
@@ -5596,7 +5674,7 @@ diet.
 | T67   | Automated | Dynamic lore: create lore entry with trigger "vault". Set scene_state containing "vault" — assert entry in GM `hat_briefing`. Change scene_state without trigger — assert entry deactivated. Create GM-only lore entry — switch to Player, assert GM-only entry hidden, shared entry visible. Remove entry — assert absent. Player create attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                           | REQ-083, REQ-032                            |
 | T68   | Automated | Action suggestions: call `suggest_actions("I want to attack")` in combat context — assert results include combat tools with correct tool names and parameter hints. Call with empty intent — assert context-relevant suggestions based on scene type and entity state. Call with nonsense intent — assert empty list (no tool matches). Verify no GM-only tools in Player results. Call with ambiguous social intent ("I want to convince the guard") — assert multiple plausible tools returned. With enrich and toggle activated, call an intent matching an enrich-derived pattern — assert that pattern's tools appear in results alongside registry matches.                                                                                                                                                                                                  | REQ-084, REQ-032                            |
 | T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
-| T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains Markdown header "Compressed audit log (summarize into a single paragraph):" followed by per-entry lines in format `[timestamp] [hat] tool_name — output_prefix`. Assert forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix. Switch to Player hat — assert only own-entity entries visible; the hat column distinguishes entries. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                          | REQ-086, REQ-032, REQ-040                   |
+| T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains Markdown header "Compressed audit log (summarize into a single paragraph):" followed by per-entry lines in format `[timestamp] [hat] tool_name — output_prefix`. Assert forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix. Switch to Player hat — assert entries affecting a player-owned entity are visible even when the recorded hat is `game_master`. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                          | REQ-086, REQ-032, REQ-040                   |
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `hat_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
 | T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Gauntlet sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
 | T73   | Automated | Novel isolation: create Novel A with entities. Create Novel B — assert Novel A's entities not visible via `entities://`. Resume Novel A — assert entities restored. Generated adventure content scoped to the Novel that generated it.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-088, REQ-074, REQ-090                   |
