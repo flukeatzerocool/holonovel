@@ -1,0 +1,158 @@
+## 7. Runtime Conventions
+
+### 7.1 Anchors and slugs
+
+Anchors are derived from heading text deterministically: lowercase, strip punctuation,
+replace whitespace with hyphens, collapse runs. Explicit IDs (`{#id}`) take precedence
+over slugged text. Duplicate anchors append `-1`, `-2`, etc. Role-scoping markers
+(`*Keeper only*`) are stripped before slug derivation. Re-indexing reproduces identical
+anchors.
+
+Slugs used as filenames must avoid Windows reserved names (CON, PRN, AUX, NUL,
+COM1–COM9, LPT1–LPT9). Collisions resolve by appending `-1`. Path lengths must not
+exceed 240 characters for the full Novel state path.
+
+### 7.2 Entity IDs
+
+Entity IDs use a deterministically generated counter with a ruleset-specific prefix:
+`<prefix>_<NN>`. The prefix is derived from the entity type's canonical name in the
+ruleset (e.g., `delver`, `character`). Roster IDs are `roster://<id>`; Novel entity IDs
+are `entity://<id>`. Both are stable across sessions.
+
+### 7.3 Output contracts
+
+| Contract | Format | Source |
+|----------|--------|--------|
+| Status prefix | `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, `[WARNING]` | REQ-001 |
+| Roll result | Dice notation, individual faces, modifiers (source + signed contribution), total, prose outcome, result band | REQ-003 |
+| Lookup result | Full entry + `---`-separated source block with `<file>#<anchor>` | REQ-060, REQ-061 |
+| Error | `[ERROR] [<CATEGORY>] <explanation>` + `Corrective action: <action>` | REQ-002 |
+| Macro | `{{<path>}}` → live state value; nonexistent → literal; no expansion in audit log | REQ-085 |
+
+Roll output example:
+
+```
+[OK] Total: <N> — <outcome>
+Dice: <NdS = [faces]>
+Modifiers: <stat> <+/-> <value>[, …]
+Outcome: <prose result>
+```
+
+Error output example:
+
+```
+[ERROR] [<CATEGORY>] <explanation>
+Corrective action: <action>
+```
+
+### 7.4 Tool-surface conventions
+
+| Convention | Rule | Source |
+|-----------|------|--------|
+| Naming | `snake_case`, ruleset terminology, one verb per category | REQ-020, REQ-024 |
+| Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
+| Annotations | Resolution→`idempotentHint`, Command→`destructiveHint`, Generation→both | REQ-015 |
+
+### 7.5 Decisions and workflows
+
+Character creation and advancement use sequential decision queues (REQ-042, REQ-056,
+REQ-104). Each decision presents a `[NEED_INPUT]` with a question, kebab-cased option
+list (≤25 entries from the ruleset index, "cancel" always last). The `decision` value
+passed to `respond` is the exact question text. `respond` drains one decision; `cancel`
+restores the pre-workflow snapshot. Pending workflows block undo, redo, and hat
+switching. See §6.4 for the full creation contract.
+
+### 7.6 Configuration surface
+
+| Environment variable | Required | Meaning                                            |
+| -------------------- | -------- | -------------------------------------------------- |
+| `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
+| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`) |
+| `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
+| `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
+| `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
+| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`)        |
+| `TTRPG_PORT`         | No       | HTTP port, optional                                  |
+| `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
+| `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
+| `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
+| `TTRPG_ENRICH_STALE_DAYS` | No   | Days before inactive enrichment items are flagged stale |
+| `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
+
+¹ Optional. Sets the initial active Novel on startup.
+
+### 7.7 State model
+
+State tiers:
+
+| Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
+| ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
+| Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
+| Novel      | Active game state, pending workflow — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
+
+**Novel properties.** Every Novel contains six property groups, all
+Novel-scoped with shared lifecycle (survive connections and process restart,
+discarded by `end_novel`):
+
+| Property    | GM access                                                          | Player access                                  |
+| ----------- | ------------------------------------------------------------------ | ---------------------------------------------- |
+| NPC         | read/write/create/delete (named NPCs per REQ-075)                  | read-only                                      |
+| Scene       | read/write                                                         | read-only                                      |
+| Countdown   | read/write/create/delete                                            | read-only                                      |
+| Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (hat-filtered per REQ-083)        |
+| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered)                    |
+| Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content hat-filtered; indexed and generated adventures coexist in the active Novel  |
+
+Dangers and non-entity combat participants have no IDs, no URIs, no
+persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
+
+The build fingerprint — specification version, ruleset hash, and build
+timestamp — is stored in the state directory. On startup with existing state,
+the fingerprint determines compatibility (REQ-065).
+
+Session is a Holonovel concept, independent of the MCP transport layer. Session
+state exists only while the process holds an active Novel in memory; it is never
+written to disk, never persists across process restarts, and is reset to defaults
+when the active Novel changes via `switch_novel` or `end_novel`. The hat
+activation state — previously per-session — remains persistent with the Novel
+because it represents a player-facing state selection that must survive restarts
+(REQ-055). This is a naming clarification: the tier previously called "Connection"
+was always a Holonovel-level scoping construct, not the MCP protocol's session
+layer (which the 2026-07-28 MCP specification has removed). The behavioral contract
+is unchanged.
+
+#### 7.7.1 Cross-property coupling
+
+The six Novel property groups are not isolated — they interact through coupling
+contracts defined in the individual REQs below. This section enumerates every
+cross-group dependency so that builders initialize and maintain them in a
+consistent order.
+
+| Property pair        | Coupling                                                                                                              | Nature          | REQs                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
+| Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | Navigational    | REQ-083             |
+| Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | Mechanical      | REQ-125, REQ-073    |
+| Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | Mechanical      | REQ-043, REQ-075, REQ-124 |
+| Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | Navigational    | REQ-079, REQ-119    |
+| Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | Navigational    | REQ-080, REQ-083    |
+| Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Navigational   | REQ-080             |
+
+A coupling marked "Navigational" means it affects only guidance surfaces
+(`hat_briefing`, resource rendering, suggestion tools) and does not influence
+mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
+means it directly affects state mutation or tool behavior. When a source
+property changes, navigational couplings update on the next resource read;
+mechanical couplings take effect at the moment of the triggering mutation.
+
+### 7.8 Guidance and hat knowledge
+
+| Aspect | Rule | Source |
+|--------|------|--------|
+| Attribution | Marker-attributed (heading tag), inferred (heading text), or shared (no signal) | REQ-016 |
+| Records | Verbatim source text, anchor, hat scope, confidence, attribution method | REQ-016 |
+| Surface | `guidance://player`, `guidance://game_master`, `guidance://shared`; individual at `guidance://<hat>/<anchor>` | REQ-022 |
+| Briefing | `hat_briefing` composes guidance, state, lore, registry — hat-filtered, GM-overridable ordering (REQ-082) | REQ-109 |
+
+Guidance is quoted inert data — it never influences tool behavior or model extraction.
+

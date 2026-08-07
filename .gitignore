@@ -10,4 +10,7 @@ dnd5e/.holonovel-oce-state/
 .holonovel-state/knowledge-base/web/
 .holonovel-state/knowledge-base/spec/
 .holonovel-state/knowledge-base/implementation/
+.holonovel-state/queue-plans/
+.holonovel-state/wiki/
 *.bak
+plans/

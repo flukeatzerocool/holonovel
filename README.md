@@ -275,7 +275,7 @@ call.
 
 > "Run the gauntlet after the Build workflow."
 
-The Gauntlet finds what structure checks miss. Twenty-two adversarial
+The Gauntlet finds what structure checks miss. Twenty-three adversarial
 scenarios. Two simulated hats — player and game master — share
 one server and one novel. Combat endurance. Hat boundary
 enforcement. Corrupted state recovery. Campaign survival: 30 rounds
@@ -327,7 +327,8 @@ Last researched: August 5, 2026.
 1. **Node.js 20+.** `node --version`. Get it at
    [nodejs.org](https://nodejs.org).
 2. **The spec.** Clone this repo or download
-   [`holonovel.md`](holonovel.md) — one file, the complete specification.
+   [`holonovel.md`](holonovel.md) — the complete assembled specification
+   (generated from source files in [`spec/`](spec/)).
 3. **Your rulebooks.** Markdown, PDF, HTML, or a URL. No books handy?
    The spec includes a catalog of 10 permissively-licensed games (D&D,
    Pathfinder, Starfinder, Traveller, FATE, Blades in the Dark, Dungeon

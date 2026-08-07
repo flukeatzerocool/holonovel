@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-07 — Split spec into 10 source files with per-phase builder loading
+
+- Split the monolithic `holonovel.md` (5,300+ lines) into 10 source files
+  under `spec/`, assembled via `npm run assemble`. The assembled file remains
+  the distribution artifact for builders, verifiers, and REQ-105. Source files
+  follow canonical load order numbering.
+- Added `spec/build-phase-map.md` — a per-build-phase file dependency table
+  that lets builders load only the files needed for each phase, reducing
+  per-phase context by ~73%. Each §6 subsection now carries a `*Prepare:*`
+  directive pointing to the relevant map rows.
+- Appendices split into fixtures (`appendices-fixtures.md`: B, C, N — test
+  instruments) and reference (`appendices-reference.md`: A, D–S). The
+  assemble script interleaves them in canonical appendix order.
+- Added a §5 subsection → REQ range mapping table at the top of
+  `02-requirements.md` so readers can navigate the 145 REQs by function area.
+- Renamed §5.8 (Narrative, Guidance, and Enrichment) to "Enrichment, Lore, and
+  Macros" and §5.9 (Novel Lifecycle and Generation) to "Novel Persistence and
+  Transport" for clarity and reduced overlap with other subsections.
+- Fixed stale references and counts across the spec: §6.8 → §6.6 S4, handoff
+  verification step count (12 → 14), §5 subsection count (7 → 9), Gauntlet
+  sub-workflow count (22 → 23), phase-loading hint range (§5.3–§5.7 →
+  §5.3–§5.9), and updated the reading guide to describe the multi-file
+  architecture.
+- Updated `.githooks/pre-commit` to run `npm run assemble` before checks,
+  the `AGENTS.md` layer map to document file numbering conventions, and the
+  `README.md` spec description to reflect the source/build split.
+
 ## 2026-08-06 — First spec-queue research cycle: 13 spec improvements across 3 subsystems
 
 - `spec_health` now carries a `gap_audit` section for the spec-driven update
