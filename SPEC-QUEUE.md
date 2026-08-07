@@ -19,32 +19,33 @@ reordering mid-tier. Check for duplicates before adding. Score = (freq×3) +
 Tier 1 — foundation-critical. Score ≥33. These carry architectural
 dependencies; a failure here blocks everything downstream.
 
-2. Novel lifecycle & persistence — create, resume, end, switch, atomic writes,
+2. Spec-driven updates — gap audit across tool catalog, resource map, prompt
+   list, state model, hat gating, behavioral contracts; delta classification
+   (patch/minor/major); state migration; Gauntlet re-run (§6.7, REQ-098).
+   Score: 47 (freq=2, crit=5, cplx=5, coupling=5, maturity=3, coverage=2).
+   Delta class wrong = silent regressions. **Promoted above original position:
+   runs first so downstream items compare against a synced dnd5e server.**
+3. Novel lifecycle & persistence — create, resume, end, switch, atomic writes,
    checksum, backup recovery, .trash retention (REQ-088/092/093/095/097/
    117). Score: 53 (freq=4, crit=5, cplx=5, coupling=5, maturity=4,
    coverage=4). All state depends on save/load; corruption = lost games.
-3. Combat/conflict lifecycle — init_combat, advance_combat, end_combat, round
+4. Combat/conflict lifecycle — init_combat, advance_combat, end_combat, round
    tracking, turn order, participant classification (REQ-043). Score: 51
    (freq=4, crit=5, cplx=4, coupling=4, maturity=4, coverage=4). Core play
    loop; wrong = unplayable.
-4. The Gauntlet — 22 sub-workflows, convergence handshake, blocking/non-blocking
+5. The Gauntlet — 22 sub-workflows, convergence handshake, blocking/non-blocking
    classification, failure artifacts, regression assertions (§6.6, REQ-108).
    Score: 51 (freq=3, crit=5, cplx=5, coupling=5, maturity=4, coverage=3).
    Gates every build; 22 scenarios exercising the full surface.
-5. Convergence loop — extraction quality (Phase 1), construction quality
+6. Convergence loop — extraction quality (Phase 1), construction quality
    (Phase 2), no-delta detection, cross-model audit, unbuildable disposition
    (§6.5, REQ-099). Score: 51 (freq=3, crit=5, cplx=5, coupling=5,
    maturity=4, coverage=3). Quality engine; failure = broken server shipped.
-6. Discovery — chunked reading, 7 extraction categories (concepts, entities,
+7. Discovery — chunked reading, 7 extraction categories (concepts, entities,
    actions, tables, resolution, roles, guidance), cross-format consistency
    (§6.3, REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5,
    coupling=5, maturity=4, coverage=3). Everything extracted flows from here;
    garbage in = garbage out.
-7. Spec-driven updates — gap audit across tool catalog, resource map, prompt
-   list, state model, hat gating, behavioral contracts; delta classification
-   (patch/minor/major); state migration; Gauntlet re-run (§6.7, REQ-098).
-   Score: 47 (freq=2, crit=5, cplx=5, coupling=5, maturity=3, coverage=2).
-   Delta class wrong = silent regressions.
 8. Snapshots, undo, redo — LIFO snapshot stack, min-10 undo depth, redo stack
    clearing on new mutation, persistence across restarts (REQ-041/116).
    Score: 47 (freq=4, crit=5, cplx=3, coupling=4, maturity=4, coverage=3).
