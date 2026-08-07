@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-06 — Spec-driven update efficiency: Gauntlet scoping and queue automation
+
+- REQ-098 no longer requires blanket Gauntlet re-run during spec-driven updates
+  — the builder now selects only sub-workflows exercising the surfaces changed
+  by the gap audit. (REQ-098, §6.6)
+- Added a surface-to-scenario mapping table in §6.6 that connects each changed
+  surface (character creation, combat, conditions, search, etc.) to the specific
+  Gauntlet scenarios that exercise it, plus overrides for out-of-mapping cases
+  like new tools or prompts.
+- The SPEC-QUEUE now runs Spec-driven updates (formerly item 7) as item 2, so
+  the dnd5e server gets synced to the current spec before downstream items
+  compare their implementation against it — eliminating false-drift findings.
+- New `scripts/spec-queue-runner.sh` launches detached, parallel `opencode`
+  research sessions for SPEC-QUEUE items using `nohup` + `disown` so the
+  launcher exits immediately. Supports `--status` (check progress, auto-cleanup
+  completion markers) and `--cleanup` (revert stale [IN PROGRESS] markers).
+  Each session runs Phases 0-2 of the spec-engineering-loop: discovery,
+  research with web calibration, and a concrete implementation plan output.
+
 ## 2026-08-06 — Hat gating hardening: audit logging, surface contracts, and scope clarification
 
 - Fixed a spec bug in REQ-030 that claimed hats were per-connection when

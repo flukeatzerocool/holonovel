@@ -2436,6 +2436,30 @@ failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 15, 17, 20,
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
+**Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
+selects Gauntlet sub-workflows based on which surfaces changed — not the blanket
+set. The gap audit identifies the changed tools, resources, and prompts; the
+builder maps each to scenarios via the table below. A sub-workflow is selected when
+any surface it exercises appears in the gap audit's implemented-disposition rows.
+S1 is always selected when new tools are added or existing tool signatures changed.
+
+| Changed surface                                             | Gauntlet scenarios selected |
+|-------------------------------------------------------------|-----------------------------|
+| Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S11, S12, S23 |
+| Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
+| Conditions, condition management                            | S9 |
+| Search, canonical lookups (REQ-057, REQ-060, REQ-061)      | S8 |
+| Table generation                                            | S7 |
+| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S20 |
+| Undo, redo, snapshots (REQ-041, REQ-116)                   | S10, S11 |
+| State model, Novel persistence (REQ-065, REQ-092)          | S5, S13, S15, S16 |
+| Novel lifecycle (create/resume/end/switch)                  | S17 |
+| Lore, enrichment, adventure generation                     | S18, S19, S21 |
+| New tool added or tool signature changed                    | S1 + category-mapped scenarios |
+| New prompt, resource, or hat-scoped content                 | S6, S20 + content-specific |
+| Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
+| Campaign endurance, stress (REQ-052)                        | S15, S22 |
+
 ### 6.7 Spec-driven updates
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
@@ -2444,9 +2468,14 @@ catalog, resource map, prompt list, state model, hat gating, and behavioral
 contracts; produce a documented plan with gap dispositions (implemented / deferred /
 waived) each citing the relevant REQ; implement changes with passing verification
 workflows; restart the MCP server process and confirm `spec_health` reports the updated
-specification version; re-run all blocking Gauntlet sub-workflows and any non-blocking
-sub-workflows exercising gap-audit-implemented tools, resources, or prompts, with zero
-failures on both; implement any unimplemented Gauntlet sub-workflows from §6.6; and
+specification version; re-run only those Gauntlet sub-workflows that exercise the tools, resources,
+or prompts identified as changed by the gap audit. The builder selects scenarios
+from the surface-to-scenario mapping in §6.6: a sub-workflow is selected when any
+tool, resource, or prompt it exercises appears in the gap audit's
+implemented-disposition rows. Sub-workflows not exercised by the changed surfaces
+are skipped. S1 (tool surface sweep) is always selected when new tools are added
+or existing tool signatures changed. Zero failures on all selected sub-workflows;
+implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
 
 **Delta classes.**
@@ -2454,7 +2483,7 @@ record all gap dispositions in a dated DECISIONS.md entry.
 | Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; blocking Gauntlet sub-workflows only |
+| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
 | Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
@@ -2481,8 +2510,8 @@ No budget set → no limit.
 
 _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing its
 relevant REQ and disposition reason. `spec_health` reports the updated specification
-version. All blocking Gauntlet sub-workflows pass; non-blocking sub-workflows exercising
-gap-audit-implemented tools, resources, or prompts pass. `spec_health` reports
+version. Gauntlet sub-workflows selected per the surface-to-scenario mapping in §6.6
+pass with zero failures. `spec_health` reports
 `last_spec_review` and `last_gauntlet` fields populated with ISO dates.
 
 **Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
