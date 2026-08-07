@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 966955c7aab88df49a24fd23c9c6e852b9796a72d929cc77259c8edfd7666db4
+- **Spec hash:** 93dd837cdd86eb7b50ee83084db768351ca0b6557da785795412df91396c6529
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -129,6 +129,9 @@
 | REQ-183 | Live-index enumerations | Deferred — error enumerations from data tables, not live ruleset index |
 | REQ-184 | Anti-slop resource | Deferred — `guidance://<hat>/anti-slop` resource not yet registered |
 | REQ-194 | Anchor derivation | Waived — build-time/documentation concern, not server runtime |
+| REQ-209 | Cross-format consistency | Waived — build-time REQ; not server runtime |
+| REQ-210 | Extraction categories | Waived — build-time REQ; not server runtime |
+| REQ-211 | Evidence record field contract | Waived — build-time REQ; documentation convention |
 
 <!-- @section normalizations -->
 ## 4. Assumptions, Normalizations, and Capabilities
@@ -420,4 +423,21 @@
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: combat lifecycle changes (REQ-043 surface) → S3, S4, S5; condition management (REQ-206) → S9; new tool added (REQ-205) → S1
 - **Spec hash:** 966955c7aab88df49a24fd23c9c6e852b9796a72d929cc77259c8edfd7666db4
 
-(End of file - total 395 lines)
+### Spec-Driven Update (REQ-098) — Spec Revision Sync (REQ-209/210/211, World-Model Prose)
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — spec prose updated with world-model layer references, new build-time REQs 209/210/211, F7 failure mode, multiplayer clarification
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | SPEC_HASH | Stored hash `966955c7...` stale vs current `93dd837c...` | implemented | Updated in src/index.ts |
+  | dnd5e/holonovel.md | Stale copy — missing REQ-209/210/211, world-model prose, F7, test catalogue updates, multiplayer clarification | implemented | Regenerated from canonical holonovel.md |
+  | REQ-209 | Cross-format consistency not in traceability | waived | Build-time REQ; not server runtime concern |
+  | REQ-210 | Extraction categories not in traceability | waived | Build-time REQ; not server runtime concern |
+  | REQ-211 | Evidence record field contract not in traceability | waived | Documentation convention; build-time REQ |
+- **Verification:** typecheck 0 errors, test_scripts/ empty (no automated test suite)
+- **Changed code paths:** src/index.ts (SPEC_HASH), dnd5e/holonovel.md (regenerated from canonical)
+- **Gauntlet:** No implemented gaps map to runtime surfaces — no Gauntlet scenarios selected per §6.6 surface-to-scenario mapping
+- **Spec hash:** 93dd837cdd86eb7b50ee83084db768351ca0b6557da785795412df91396c6529
+
+(End of file - total 435 lines)

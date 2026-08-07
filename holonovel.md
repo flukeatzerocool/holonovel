@@ -1685,6 +1685,22 @@ transcript — assert the unexercised REQ is recorded as a coverage gap without
 blocking the build.
 _Check:_ G2; T185.
 
+**REQ-211 — Evidence record field contract.** Every evidence record embedded in
+DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0, G2, G3, G4, G5,
+or H1–H14), timestamp, environment pins (runtime version, OS, and spec hash at time
+of execution), pass/fail status, and a findings section enumerating each sub-check with
+its individual result. Per-workflow extension fields: G0 records enumerate Appendix H
+and Appendix D checklist items with individual pass/fail; G2 records include the
+per-contract coverage enumeration defined in §8; G3 records include registry/resource
+diff summary; G4 records include per-test pass/fail counts; G5 (Gauntlet) records
+include per-sub-workflow verdict and blocking/non-blocking classification. A verifier
+following §10 SHALL produce evidence records with the same minimum field set for
+Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
+*Acceptance criterion:* A DECISIONS.md (6) evidence record for any workflow can be
+parsed to extract workflow identifier, timestamp, environment pins, pass/fail status,
+and sub-check enumeration without depending on prose interpretation.
+_Check:_ T253, T188.
+
 ### 5.6 State and Lifecycle
 
 **REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
@@ -4593,8 +4609,7 @@ Phase 1 — blind re-execution, in order:
    environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
-5. Run the automated handoff verification workflow and record the results; compare with the builder's
-   verification record.
+5. Run the automated handoff verification workflow (H1–H14) and record the results.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
    and re-execute them with your own tool calls — do not replay the builder's
@@ -4605,16 +4620,46 @@ Phase 1 — blind re-execution, in order:
    REQ categories (hat gating, state survival, combat resolution, error
    handling, undo, or novel lifecycle). Report the selection and the category
    mapping.
+   Document the random selection mechanism and seed used. If the operator re-runs
+   a DISPUTED adversarial item, the operator SHALL use the documented seed to
+   reproduce the same sub-workflow selection. If the documented mechanism cannot
+   select five blocking sub-workflows spanning ≥3 REQ categories (e.g., fewer than
+   three categories have blocking sub-workflows), the verifier SHALL select all
+   available blocking sub-workflows and record the shortfall as a finding.
 
 Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md`:
 8. Compare your evidence entries against the recorded ones field by field, on salient
    values only — commands, pins, exit statuses, diff summaries, determinate counts;
-   never wording or timestamps.
-9. Classify every mismatch: a discrepancy (the recorded evidence does not match reality)
-   or pin drift (the world moved).
+   never wording or timestamps. Per-workflow salient values:
+   - G0 step 2: per-checklist-item pass/fail status; Appendix D check count.
+   - G2: die values pinned by per-call seeds (REQ-050); coverage gap enumeration
+     (which REQs are flagged as unexercised); status prefix assertions.
+   - G3: registry diff line count; resource listing diff line count; whether the
+     diff is clean (identical except for the new section's anchor and GM-only items).
+   - G4: per-test pass/fail count; automated vs. manual test counts; any waived
+     test IDs and their REQ-013 grounds.
+   - S4 simulated combat: dice totals, outcomes, state transitions, character sheet
+     diffs (as step 10).
+   - Gauntlet sub-workflows re-executed in step 7: per-sub-workflow pass/fail,
+     per-assertion results.
+9. Classify every mismatch:
+   - Discrepancy: a field in the builder's evidence record contradicts the verifier's
+     independently produced evidence for the same input conditions — identical
+     pinned seeds, identical fixture, identical workflow parameters produce different
+     outputs.
+   - Pin drift: a field differs because the execution environment changed between
+     builder and verifier — runtime version, OS kernel, protocol version, or any
+     other environment pin differed at execution time. Differences in outputs
+     attributable to different pinned seeds (step 7 adversarial re-execution) are
+     pin drift — the verifier used a different seed by design.
+   - Unclassifiable: record the mismatch and both parties' values; flag for operator
+     adjudication. The operator's classification is binding.
  10. Compare the simulated-combat-session transcripts on salient events only —
     dice totals, outcomes, state transitions, character sheet diffs;
-    ignore prose wording, timestamps, and turn-by-turn narration.
+     ignore prose wording, timestamps, and turn-by-turn narration.
+ 11. Compare your handoff verification workflow results (from Phase 1 step 5) against
+     the builder's recorded H1–H14 results field by field; classify any mismatch as a
+     discrepancy or pin drift per step 9.
 
 Report in the format below.
 ```
@@ -5472,6 +5517,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-208 | Gauntlet convergence metric mapping | 2026-08-07 |
 | REQ-209 | Cross-format consistency     | 2026-08-07 |
 | REQ-210 | Extraction categories        | 2026-08-07 |
+| REQ-211 | Evidence record field contract | 2026-08-07 |
 
 ---
 
@@ -5723,6 +5769,7 @@ diet.
 | T250  | Automated | Gauntlet convergence metric mapping: induce a missing-tool Gauntlet failure — assert it maps to MUST-coverage with the classification rule cited in DECISIONS.md (6). Induce a mechanics-fidelity failure — assert it maps to mechanics-fidelity. Induce a novel defect class — assert it is logged as process-compliance with a proposed metric mapping. Assert every mapped failure records the classification rule applied. | REQ-208 |
 | T251  | Automated | Core-mechanic identification: build against the Captain Proton fixture (known core mechanic: d20 + stat vs target number). Assert the builder correctly identifies the core resolution mechanic. Assert DECISIONS.md (5) records the criterion used (a, b, or c from REQ-207) alongside the identified mechanic. Assert the core mechanic's confidence meets the ≥85% threshold. | REQ-207 |
 | T252  | Automated | Cross-format consistency: after extraction, sample 10 items at random from RULESET_MODEL.md and ruleset_model.json — spanning at least three extraction categories. Assert all 10 items agree on name, source anchor, confidence label, and action classification across both formats. Introduce a deliberate mismatch — assert it is flagged as a discovery defect and recorded in the defect log with both values. Assert the build does not proceed to construction until the mismatch is resolved. | REQ-209 |
+| T253  | Automated | Evidence record field contract: parse DECISIONS.md (6). Assert every evidence record contains workflow identifier, timestamp, environment pins (runtime version, OS, spec hash), pass/fail status, and a findings section with per-sub-check enumeration. Assert G0 records enumerate Appendix H and Appendix D items individually. Assert G2 records include per-contract coverage enumeration. Assert G4 records include per-test pass/fail counts. Assert G5 records include per-sub-workflow verdicts with blocking/non-blocking classification. | REQ-211 |
 
 ---
 

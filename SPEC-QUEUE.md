@@ -244,7 +244,7 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: No comparable self-auditing tool exists. Convergence quality is invisible to players but determines whether the server is trustworthy.
     Score: 24 (friction=2, crit=4, freq=1). Cplx: 5, Coupling: 5.
 
-33. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Gauntlet — 23 sub-workflows, blocking classification, convergent handshake, regression assertions.
+33. [FAILED] Gauntlet — 23 sub-workflows, blocking classification, convergent handshake, regression assertions.
     Spec: §6.6, REQ-108, REQ-141, REQ-142.
     Research: Inform 7's "TEST" command — IF authors write test scripts (`test me with "n / e / take lamp / light lamp / n"`) and replay them to verify behavior. How does IF's regression-testing pattern (declare inputs, assert outcomes) compare to Holonovel's Gauntlet sub-workflows? What makes a test feel like it covers the right things?
     Benchmark: No comparable automated game-testing tool exists for TTRPG servers. The Gauntlet is Holonovel-unique — does its 23-scenario coverage give confidence, or does it miss edge cases a human tester would catch?
@@ -274,7 +274,6 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: No comparable build-handoff exists for AI-generated servers. The handoff is the operator's receipt — does it give confidence, or is it paperwork?
     Score: 16 (friction=1, crit=3, freq=1). Cplx: 4, Coupling: 3.
 
-38. Independent verification — verifier re-execution, cold checkout, evidence comparison, DISPUTED classification.
     Spec: §10.
     Research: Inform 7's "Release for Testing" — the compiler can generate a testable game file that a second person verifies. How does IF's playtesting model (structured test scripts, bug reports) inform Holonovel's independent verification? What makes a verification feel thorough vs perfunctory?
     Benchmark: No comparable self-verifying build exists. Independent verification is Holonovel-unique — it's the final trust layer. Does it catch real defects, or is it ceremonial?
