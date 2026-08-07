@@ -42,9 +42,14 @@ output. Enrich produces an enrichment manifest with six output modules:
    Stored at `enrichment://voice_examples`. The GM activates them via `set_voice_examples`
    (REQ-077).
 
-2. **Prompt ordering.** A single recommended ordering of `hat_briefing` section tokens.
-   Stored at `enrichment://briefing_order`. **Inert** — visible in `spec_health`, never
-   auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to use it.
+2. **Prompt ordering.** A single recommended ordering of `hat_briefing` section
+   tokens. Every token in the recommendation SHALL appear in the builder-documented
+   section token vocabulary (REQ-185). The recommendation MAY omit tokens — omitted
+   tokens follow their builder-default position after the listed tokens. Tokens not
+   in the vocabulary are invalid and the enrichment module SHALL NOT produce them.
+   Stored at `enrichment://briefing_order`. **Inert** — visible in `spec_health`,
+   never auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to
+   use it.
 
 3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries
    total. Each records: `key` (slug), `content` (Markdown), `triggers` (keyword array),
