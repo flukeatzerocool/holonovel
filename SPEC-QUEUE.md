@@ -102,19 +102,16 @@ dependencies; a failure here blocks everything downstream.
     budget, groups, toggle, templates from enrichment (REQ-083). Score: 41
     (freq=4, crit=4, cplx=4, coupling=4, maturity=4, coverage=3). Every scene;
     wrong keywords = silent narrative drift.
-15. [PLAN_READY] Countdowns — round (auto-decrement on combat round) and
     narrative (GM advance), hat_scope (gm/shared), direction
     (decrement/increment), fire
     at threshold, remove, on_scene_transition flag (REQ-073/125). Score: 39
     (freq=4, crit=4, cplx=3, coupling=4, maturity=4, coverage=3). Pacing
     backbone; fire condition wrong = broken tension.
-16. Named-NPC state — create, update, remove, stat block reference from
     ruleset, rendering via character_sheet, resource URIs (npc://<id>,
     npcs://), narrative personality fields, builder-defined stat fields,
     damage resolution targeting NPCs (REQ-075/119/120/121/122/123/124).
     Score: 38 (freq=4, crit=4, cplx=4, coupling=3, maturity=3, coverage=3).
     Combat + narrative backbone; wrong = broken encounters.
-17. [PLAN_READY] Determinism & RNG — single PRNG, seedable via TTRPG_SEED,
     per-call seeds, session seed vs per-call seed isolation (override doesn't
     advance session PRNG position), same-seed reproducibility (REQ-050).
     Score: 38 (freq=5, crit=4, cplx=3, coupling=3, maturity=4, coverage=3).
@@ -136,21 +133,18 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     via toggle_action_patterns, curated intent coverage ≥80% (REQ-084/114/
     115). Score: 35 (freq=5, crit=3, cplx=4, coupling=3, maturity=3,
     coverage=3).
-21. Scene-state ledger — scene://current, scene://history, structured fields
     (location, time_of_day, atmosphere), scene_tick counter, scene transition
     hook with automatic audit entry and countdown decrement (REQ-076/076a/
     125). Score: 33 (freq=5, crit=3, cplx=3, coupling=3, maturity=3,
     coverage=3).
-22. Post-write verification — heading structure check, path corruption scan,
     URL validity, file manifest completeness, deprecated terminology grep
     (§6.5 convergence sub-process). Score: 33 (freq=2, crit=4, cplx=3,
     coupling=4, maturity=3, coverage=2).
-23. Intake workflow — Q0 (workflow selection), build-mode profiles
+23. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Intake workflow — Q0 (workflow selection), build-mode profiles
     (production/quick), config verification against target client schema,
     viability pre-check (30% mechanical density threshold), cross-workflow
     deduplication (§6.2, REQ-101). Score: 31 (freq=2, crit=4, cplx=3,
     coupling=3, maturity=4, coverage=2).
-24. Safety & containment — no runtime network access (REQ-051), path
     containment (../../etc/passwd rejected, REQ-052), input safety (verbatim
     free-text, no SQL execution, REQ-054). Score: 31 (freq=5, crit=4, cplx=2,
     coupling=1, maturity=4, coverage=3).
