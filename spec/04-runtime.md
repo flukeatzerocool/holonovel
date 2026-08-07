@@ -1,16 +1,27 @@
 ## 7. Runtime Conventions
 
-### 7.1 Anchors and slugs
+### 7.1 Anchors
 
-Anchors are derived from heading text deterministically: lowercase, strip punctuation,
-replace whitespace with hyphens, collapse runs. Explicit IDs (`{#id}`) take precedence
-over slugged text. Duplicate anchors append `-1`, `-2`, etc. Role-scoping markers
-(`*Keeper only*`) are stripped before slug derivation. Re-indexing reproduces identical
-anchors.
+Anchors are derived from heading text per REQ-194. They serve as cross-reference
+identifiers for ruleset content in the following surfaces:
 
-Slugs used as filenames must avoid Windows reserved names (CON, PRN, AUX, NUL,
-COM1–COM9, LPT1–LPT9). Collisions resolve by appending `-1`. Path lengths must not
-exceed 240 characters for the full Novel state path.
+| Surface | Format | Source |
+|---|---|---|
+| Source quoting | `<file>#<anchor>` | REQ-060, REQ-061 |
+| Guidance resource URIs | `guidance://<hat>/<anchor>` | REQ-022 |
+| Adventure resource URIs | `adventure://<slug>/<anchor>` | REQ-079 |
+
+### 7.1a Slugs (filename-safe identifiers)
+
+Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
+hyphenate) and additionally:
+
+- SHALL avoid Windows reserved names (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9).
+  Collisions with reserved names resolve by appending `-1`.
+- SHALL NOT result in full Novel state paths exceeding 240 characters.
+  Consider: prepend a short hash if the slug alone would produce a path
+  exceeding the limit.
+- Leading and trailing hyphens are stripped.
 
 ### 7.2 Entity IDs
 

@@ -23,7 +23,10 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 
-const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
+const __filename = new URL(import.meta.url).pathname;
+const __dirname = path.dirname(__filename);
+
+const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
 const SPEC_HASH = "2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0";
 
@@ -45,7 +48,7 @@ state.loadRoster();
 state.buildFingerprint.specHash = SPEC_HASH;
 
 // Build search index from ruleset
-const rulesetDir = path.join(process.cwd(), "ruleset");
+const rulesetDir = path.join(__dirname, "ruleset");
 if (fs.existsSync(rulesetDir)) buildSearchIndex(rulesetDir);
 
 // ── Server ─────────────────────────────────────────────────────────
@@ -1050,7 +1053,7 @@ server.registerTool("spec_health", {
           stored_spec_hash: storedHash.substring(0, 16),
           in_sync: currentHash === storedHash,
         },
-        tool_catalog: { registered: toolCount, expected_minimum: 62 },
+        tool_catalog: { registered: toolCount, expected_minimum: 61 },
         resource_map: { registered: resourceUris.length, expected_minimum: resourceUris.length },
         prompt_list: { registered: promptHealth.length },
         hat_gating: {

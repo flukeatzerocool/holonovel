@@ -378,3 +378,18 @@
 - **Changed code paths:** src/index.ts (SPEC_HASH), DECISIONS.md (traceability table + gap disposition), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
 - **Spec hash:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
+
+### Full Rebuild (REQ-098)
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Full rebuild — ruleset index re-extracted, all gates re-verified
+- **Build fingerprint:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
+- **Gap audit:**
+  | Gap | Disposition | Reason |
+  |-----|-------------|--------|
+  | search_index: 0 at runtime | implemented | Fixed rulesetDir resolution from `process.cwd()` to `import.meta.url`-derived `__dirname`; server now resolves ruleset/ relative to source location |
+  | expected_minimum: 62 (stale) | implemented | Updated to 61 to match live registry after REQ-067a subsume into REQ-067 |
+- **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings), spec-delta exit 0 (in sync), version-sync OK
+- **Changed code paths:** src/index.ts (__dirname resolution for rulesetDir and DATA_DIR, expected_minimum 62→61)
+- **Gauntlet:** passed 9/22 sub-workflows (same as prior run `2026-08-06`); no automated test suite — manual smoke test via spec_health. Blocking sub-workflows: spec_health reports healthy build fingerprint, all prompt budgets within limits, 61 tools registered (matches expected_minimum), 4 resources, 5 prompts.
+- **Spec hash:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0

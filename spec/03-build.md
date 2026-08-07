@@ -407,6 +407,7 @@ translated into tools, resources, and state.
 | Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
+| Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
 
 **Prompt health** measures whether prompts contain references to tools or resources
 that are no longer registered — a stale reference is a construction defect that
@@ -773,8 +774,13 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
-**Gap audit method.** The builder compares the server's live registrations — tool
-catalog (tools/list), resource map (resources/list), prompt list (prompts/list),
+**Gap audit method.** The builder first compares the server's recorded spec version
+(`spec_health.spec_version`) against the current spec version. When the
+current version is unchanged, the builder reports `[OK] Server is current
+(spec version <version>)` and exits without mutation. When the current version
+has advanced, the builder proceeds to compare live registrations as follows:
+the builder compares the server's live registrations — tool catalog
+(tools/list), resource map (resources/list), prompt list (prompts/list),
 and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
 conventions (§7.4), state model (§7.7), and REQ-032 hat gating. Behavioral
 contracts are verified by Gauntlet re-run. The audit produces one row per identified
