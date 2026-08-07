@@ -362,13 +362,12 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: MCP tools inherently validate parameters. Holonovel's hat-filtered error enumerations add a security layer — does this prevent frustration or create it when a Player can't see something they "know" exists?
     Score: 22 (friction=2, crit=2, freq=3). Cplx: 1, Coupling: 3.
 
-53. Table rolling — generation tables (trinkets, names, etc.), ruleset-derived content, deterministic seeds.
+53. [FAILED] Table rolling — generation tables (trinkets, names, etc.), ruleset-derived content, deterministic seeds.
     Spec: roll_on_table tool, Appendix generation tables.
     Research: Inform 7's "table" data structure — IF has built-in table lookups that can be random or sequential. How does IF's table model (define the table, then `choose row` or `random row`) compare to Holonovel's roll_on_table? What makes random tables feel like a game mechanic vs filler content?
     Benchmark: Mythic GME's oracle tables vs AI Dungeon's freeform generation. Holonovel's table rolling is mechanical (dice + ruleset content) — does it produce more consistent results than freeform generation, or does it feel constrained?
     Score: 20 (friction=2, crit=2, freq=2). Cplx: 1, Coupling: 1.
 
-54. Roll on table, search rules, compress audit — peripheral utility tools.
     Spec: roll_on_table, search_rules, compress_audit, roll_save, roll_skill_check.
     Research: Inform 7's "out of world" actions — commands like SAVE, RESTORE, SCORE, and SCRIPT that aren't part of the game world but support play. How does IF's separation of "in-world" vs "out-of-world" commands inform Holonovel's utility tools? Should utility tools feel invisible or be prominent?
     Benchmark: ChatGPT's inline capabilities (translate, calculate) vs Holonovel's discrete utility tools. Do players use roll_on_table mid-session, or is it a GM prep tool?
