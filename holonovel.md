@@ -711,12 +711,14 @@ hash stored in DECISIONS.md; the source files on disk are byte-identical to the 
 hashed at intake.
 _Check:_ T21.
 
-**REQ-015 — Action classification.** Every modeled action is classified: Resolution (dice
-rolls), Command (state mutation), or Generation (content creation from tables). The
-classification determines tool annotations.
-*Acceptance criterion:* Every tool in `tools/list` carries annotations matching
-one of three classifications — `idempotentHint` for Resolution, `destructiveHint`
-for Command, both for Generation.
+**REQ-015 — Action classification.** Every modeled action is classified into one of
+five types: read-only (no state access), state-reading (inspects but does not
+mutate), command (state mutation), generation (content creation from tables or
+prompts), or hybrid (both command and generation). The classification determines
+tool annotations per §7.4.
+*Acceptance criterion:* Every tool in `tools/list` carries annotations matching its
+classification — `idempotentHint` for read-only and state-reading, `destructiveHint`
+for command, both for generation and hybrid.
 _Check:_ T15.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
@@ -1232,8 +1234,16 @@ under LLM-mediated tool calls. A `decision` that differs in non-whitespace
 characters returns `[ERROR] [NOT_FOUND]` with the canonical text. Each
 decision enumerates options — limited to at most 25 entries, derived from the ruleset
 index, with empty-string and "cancel" always available. An unrecognized decision or
-option returns `[ERROR] [NOT_FOUND]` with valid values. `respond(cancel)` restores the
-pre-workflow snapshot.
+option returns `[ERROR] [NOT_FOUND]` with valid values.
+`respond(cancel)` SHALL restore the pre-workflow snapshot from the persisted
+`pending_workflow.snapshot` field. Restoration SHALL overwrite all
+Novel-tier fields with the snapshot values, clear `pending_workflow` to
+null, and reset `pending_staleness_counter` to zero. The restored state
+SHALL be audited with a `[workflow_cancelled]` audit entry recording the
+decision text and the pre-workflow snapshot timestamp. After restoration,
+all blocked tools (undo, redo, set_hat) are callable. Cancel restoration
+works after a server restart — the persisted snapshot covers the full
+pre-workflow Novel state.
 
 A workflow begins when a tool returns `[NEED_INPUT]` and ends when `respond`
 successfully drains the decision. Only one workflow may be pending per Novel at a time
@@ -1256,6 +1266,54 @@ second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
 _Check:_ T32, T138, T157;
 Gate 2; S23.
+
+**REQ-190 — Respond drain result.** WHEN `respond(decision, option)` drains a
+pending workflow decision, THE system SHALL return `[OK]` with the decision
+text, the selected option, and the resulting state change (if any) in a
+single response. A drained workflow SHALL clear the `pending_workflow` field
+on the Novel, restoring all blocked tools (undo, redo, set_hat) to callable
+state. The drain is atomic — a partial drain where the workflow is cleared
+but the state change is not applied is a defect.
+*Acceptance criterion:* After `respond("stat-array", "grit-forward")` drains
+a character creation step, `undo` is callable (no longer returns
+`[STATE_CONFLICT]`), `pending_workflow` is null, and the next
+`create_character()` call starts a fresh workflow.
+_Check:_ T138.
+
+**REQ-191 — Option display-label pairs.** Every option in a `[NEED_INPUT]`
+decision SHALL be presented as a display-label pair: a kebab-cased option
+value and a human-readable label. The `option` parameter passed to `respond`
+is the kebab-cased value. Labels are ruleset-derived (e.g., class names,
+equipment names) and SHALL NOT exceed 60 characters. The display-label
+mapping SHALL be stable within a ruleset version — the same option value
+always maps to the same label. `cancel` is always last with label "Cancel".
+*Acceptance criterion:* A `[NEED_INPUT]` for skill selection renders as
+`acrobatics (Acrobatics), arcana (Arcana), ...` and `respond("arcana")`
+matches the kebab-cased value.
+_Check:_ T32.
+
+**REQ-192 — Batch-respond collision.** WHEN two `respond` calls arrive for
+the same pending workflow (e.g., from concurrent connections), the first
+call drains the decision and the second SHALL return `[ERROR] [STATE_CONFLICT]`
+identifying that the workflow has already been drained. The server SHALL
+NOT apply the same decision twice or leave the Novel in an inconsistent state
+where the workflow appears both drained and pending.
+*Acceptance criterion:* Two concurrent `respond` calls to the same decision —
+first succeeds, second returns `[STATE_CONFLICT]` with "no pending workflow".
+_Check:_ S23.
+
+**REQ-193 — Pending workflow staleness detection.** THE server SHALL track
+a staleness counter for open pending workflows, incremented on each new
+connection to the Novel. When the counter reaches 3 or more connections
+without drainage, `spec_health` SHALL include a `pending_workflow_warning`
+object containing the decision text and connection count. The warning signals
+that a workflow has been abandoned across multiple sessions — an operator
+can drain or cancel it. Staleness tracking is informational only; it does
+not auto-cancel or auto-drain.
+*Acceptance criterion:* Start a character creation workflow, restart the
+server (connection 1), connect twice more (connections 2, 3) — on the third
+connection, `spec_health` includes `pending_workflow_warning`.
+_Check:_ spec_health output assertion.
 
 **REQ-104 — Character creation workflow.** `create_character` supports two modes:
 step-by-step (called without parameters) and quick-create (called with all required
@@ -1660,6 +1718,65 @@ mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
 _Check:_ T25, T33, T110, T161, T162; Gate 2.
+
+**REQ-203 — Combat-init guard.** When `init_combat` is called while combat is already
+active, the server SHALL return `[ERROR] [STATE_CONFLICT]` with the text "Combat already
+active — call `end_combat` first." No combat state is modified and the existing combat
+continues unchanged.
+*Acceptance criterion:* `init_combat` followed by a second `init_combat` call returns
+`[STATE_CONFLICT]` and the active combat's round and turn order are unchanged by the
+rejected call.
+_Check:_ T246.
+
+**REQ-204 — Combat participant validation.** `init_combat` SHALL validate every
+participant ID against the Novel's known entities and named NPCs. Participants that resolve
+are added to the turn order normally. Participants that do not resolve to any known entity
+or NPC SHALL produce `[ERROR] [NOT_FOUND]` enumerating the unresolvable IDs and the
+complete list of valid entity and NPC identifiers. Validation occurs before any initiative
+rolls or turn-order construction — a rejected `init_combat` call leaves no combat state
+active. Danger entries (which have no persistent IDs) are exempt from this validation.
+*Acceptance criterion:* `init_combat(participants=["nonexistent"])` with no entities
+imported returns `[NOT_FOUND]` enumerating "nonexistent" and listing valid entity/NPC IDs;
+no combat state is created; `session_recap` reports no pending confrontation.
+_Check:_ T247.
+
+**REQ-205 — Mid-combat participant changes.** The Game Master may add or remove
+participants during active combat via `add_combat_participant` and
+`remove_combat_participant` tools. Both are Game Master only. Participants added during
+combat are inserted into the turn order immediately after the current turn position,
+preserving the existing turn order for all other participants. Added participants that do
+not resolve to a known entity or NPC SHALL produce `[ERROR] [NOT_FOUND]` with valid
+identifiers enumerated. The current turn pointer does not advance — the added participant
+will act in the same round, after the current participant's turn. Removing the current
+participant SHALL advance the turn pointer to the next participant before removal. Removing
+the last participant SHALL auto-trigger `end_combat` with the outcome "All participants
+removed." These tools are mutating operations for undo/redo purposes and SHALL appear in
+the audit log.
+*Acceptance criterion:* During active combat with participants ["hero", "goblin"],
+`add_combat_participant("wizard")` inserts wizard after hero in turn order;
+`remove_combat_participant("goblin")` removes goblin from turn order and advances pointer
+if goblin was current; removing the last participant from a 1-participant combat ends it
+with "All participants removed"; undo reverts the participant change; Player hat returns
+`[FORBIDDEN]`.
+_Check:_ T248.
+
+**REQ-206 — Combat-round condition expiry.** When the ruleset defines conditions that last
+for a fixed number of rounds or turns, the server SHALL track the remaining duration on the
+entity. Conditions with a round-based duration SHALL decrement their remaining counter when
+the affected entity's turn resolves via `advance_combat`. Conditions reaching zero
+remaining rounds SHALL be automatically removed, recorded in the audit log as a
+`[condition_expired]` entry with the entity ID, condition name, and the triggering combat
+round. The expiry occurs after the turn's actions and before the turn pointer advances — an
+entity's last-round effect is active for its final turn. Conditions without a declared
+duration are exempt from automatic expiry. The builder records the ruleset's
+condition-duration convention in RULESET_MODEL.md under `condition_durations`.
+*Acceptance criterion:* Apply a condition with `rounds: 1` to a participant, call
+`advance_combat` once — assert the condition is removed after the turn and the audit log
+contains a `[condition_expired]` entry. Apply a condition with `rounds: 0` (instant) —
+assert it does not decrement. Apply a condition with no `rounds` field — assert no
+auto-expiry occurs. Apply a condition with `rounds: 2` — assert it decrements to 1 after
+the first `advance_combat` and expires after the second.
+_Check:_ T249.
 
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
 that returns a structured summary of the active Novel: session timespan (earliest to latest
@@ -2597,7 +2714,11 @@ when the build is claimed as complete.
 _Check:_ H12, §10 Phase 1 execuability.
 
 **REQ-084 — Action suggestions.** The server provides a `suggest_actions(intent)` tool
-that maps a player's natural-language intent to ruleset-legal tool invocations. With an
+that maps a player's natural-language intent to ruleset-legal tool invocations.
+Each suggestion entry carries three fields: the registered tool name, its REQ-015
+action classification, and a one-sentence rationale connecting the intent to the
+mechanic. Freeform prose without tool-name references is insufficient — the
+LLM must be able to map a suggestion directly to a tool call. With an
 intent string, it returns all matching actions from the ruleset registry that plausibly
 correspond to the expressed intent. Because a single natural-language intent may
 resolve to different mechanical approaches — a player declaring intent to persuade a
@@ -4044,7 +4165,7 @@ Corrective action: <action>
 |-----------|------|--------|
 | Naming | `snake_case`, ruleset terminology, one verb per category | REQ-020, REQ-024 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
-| Annotations | Resolution→`idempotentHint`, Command→`destructiveHint`, Generation→both | REQ-015 |
+| Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
 ### 7.5 Decisions and workflows
 
@@ -5072,6 +5193,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-040 | Audit log                 | 2026-08-02   |
 | REQ-041 | State snapshotting        | 2026-08-02   |
 | REQ-042 | Decision workflows        | 2026-08-02   |
+| REQ-190 | Respond drain result      | 2026-08-07   |
+| REQ-191 | Option display-label pairs | 2026-08-07   |
+| REQ-192 | Batch-respond collision   | 2026-08-07   |
+| REQ-193 | Pending workflow staleness detection | 2026-08-07   |
 | REQ-043 | Combat state              | 2026-08-02   |
 | REQ-044 | Ruleset hash recording    | 2026-08-07   |
 | REQ-050 | Determinism               | 2026-08-06   |
@@ -5213,6 +5338,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-200 | Kind mechanical contracts | 2026-08-07 |
 | REQ-201 | Hybrid source conversion | 2026-08-07 |
 | REQ-202 | World-model resources | 2026-08-07 |
+| REQ-203 | Combat-init guard       | 2026-08-07 |
+| REQ-204 | Combat participant validation | 2026-08-07 |
+| REQ-205 | Mid-combat participant changes | 2026-08-07 |
+| REQ-206 | Combat-round condition expiry | 2026-08-07 |
 
 ---
 
@@ -5251,7 +5380,7 @@ diet.
 | T28   | Manual   | Hat stories: MUST-covering set maps intent prompts to expected tools/resources; GM-targeting stories fail FORBIDDEN; each hat's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
 | T29   | Automated | DECISIONS.md traceability table parses; every REQ in Appendix E appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                               | §9                                   |
 | T31   | Automated | Novel isolation: entities invisible across Novels; roster baselines immutable; `import_character` creates fresh copy; `end_novel` discards Novel; roster survives; resuming ended Novel fails                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-055                                     |
-| T32   | Manual   | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment, starting inventory; verify step-by-step mode presents stat assignment as a `[NEED_INPUT]` decision rather than auto-assigning; verify RULESET_MODEL.md step enumeration matches the number of `[NEED_INPUT]` decisions produced; verify Novel-scoped enforcement — creation without active Novel returns `[STATE_CONFLICT]`; verify no ruleset-defined starting field is zeroed out; if leveling defined, verify class-table progression via REQ-056; verify §7.7 places pending workflow in the Novel tier, not Session tier; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056, REQ-104, REQ-151, REQ-152          |
+| T32   | Manual   | Character creation matches ruleset: verify class, species, ability scores, HP, saves, skills, equipment, starting inventory; verify step-by-step mode presents stat assignment as a `[NEED_INPUT]` decision rather than auto-assigning; verify `[NEED_INPUT]` options are display-label pairs with kebab-cased values and human-readable labels, `cancel` always last; verify RULESET_MODEL.md step enumeration matches the number of `[NEED_INPUT]` decisions produced; verify Novel-scoped enforcement — creation without active Novel returns `[STATE_CONFLICT]`; verify no ruleset-defined starting field is zeroed out; if leveling defined, verify class-table progression via REQ-056; verify §7.7 places pending workflow in the Novel tier, not Session tier; waived under REQ-013 if no advancement                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-013, REQ-020, REQ-042, REQ-056, REQ-104, REQ-151, REQ-152, REQ-191          |
 | T33   | Manual   | Combat resolution uses ruleset: attack with named weapon/spell via ruleset-specific and canonical lookup tools; damage dice, type, and properties match ruleset entry; miss/save produces ruleset outcome, no HP change; H5 automates live invocation; waived if no attack procedure                                                                                                                                                                                                                                                                                                                                                                     | REQ-013, REQ-020, REQ-043, REQ-057          |
 | T35   | Automated | Fixture isolation: with the target ruleset (not the Appendix B fixture), verify that fixture-only tool names (`create_delver`, `roll_move`, `start_confrontation`) are absent from `tools/list`; when serving the fixture itself, verify they are present                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-021, REQ-024                            |
 | T36   | Automated | DECISIONS.md review: section (1) edition/title matches source; section (5) covers every hardcoded class, species, hit-dice, equipment, or spell table with waiver; missing waiver is failure                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-013, §9                                       |
@@ -5389,7 +5518,7 @@ diet.
 | T135  | Automated | Compound scene types: set scene type to `["combat", "social"]` — assert GM `hat_briefing` orders both combat and social tools before exploration/neutral. Set to single string `"exploration"` — assert backward-compat behavior identical to current spec. Set to `["nonexistent"]` — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                           | REQ-087, REQ-032                            |
 | T136  | Automated | Scene transition hook: create Novel with scene state "forest". Call `set_scene_state` with "cave" — assert `[scene_transition]` audit entry with both descriptions. Set narrative countdown with `on_scene_transition=true`, 3 ticks. Call `set_scene_state` with "castle" — assert countdown decrements to 2. Call `set_scene_state` with "castle" (same description) — assert no transition (no audit entry, no countdown decrement). Call with `skip_transition_hook=true` — assert no audit entry, no countdown decrement. Player hat reads transitions in `scene://history`.                                                                                                                                       | REQ-125, REQ-073                            |
 | T137  | Automated | Scene pacing tick: create Novel — assert scene_tick = 0. Init combat with 2 participants, advance through one full round (wrap back to first) — assert scene_tick = 1. Advance through second full round — assert scene_tick = 2. Call `set_scene_state` with new description (triggering transition) — assert scene_tick resets to 0. Verify tick visible in GM `hat_briefing`, absent from Player `hat_briefing`.                                                                                                                                                                                                                                                                                          | REQ-076                                     |
-| T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with whitespace-only variation of the decision text (leading/trailing whitespace, collapsed internal whitespace) is accepted and drains the decision. Assert `respond` with non-whitespace difference returns `[ERROR] [NOT_FOUND]` with the canonical text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-066, REQ-041, REQ-092 |
+| T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with whitespace-only variation of the decision text (leading/trailing whitespace, collapsed internal whitespace) is accepted and drains the decision — `undo` becomes callable (no longer returns `[STATE_CONFLICT]`). Assert `respond` with non-whitespace difference returns `[ERROR] [NOT_FOUND]` with the canonical text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster, `[workflow_cancelled]` audit entry recorded with decision text, `undo` callable. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-190, REQ-066, REQ-041, REQ-092 |
 | T139  | Automated | Countdown lifecycle: set a shared increment countdown "tension" (3 ticks). Advance twice — assert remaining = 2/3, still active. Advance again — assert fires at 3/3, removed from active, audit log entry present, name slot free. Set a game-master decrement countdown "patrol" (2 ticks). Switch to Player — assert `hat_briefing` shows "tension" (shared) but not "patrol" (GM-only). Switch to GM — assert both. `remove_countdown("patrol")` — assert removed, no audit expiry. Set "patrol" again — assert new countdown (not reactivated).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-073, REQ-032                            |
 | T140  | Automated | Voice examples rendering: create entity with personality fields and voice_examples. Call `hat_briefing` — assert voice_examples appear alongside personality traits under the entity personality group, with dialogue examples before trait descriptions. Call `character_sheet` — assert voice_examples rendered under Personality section. Set Novel-level override for voice field — assert override voice renders alongside original voice_examples. Verify enrich-sourced voice_examples carry `[supplementary]` tag in all surfaces. Invoke `entity://<id>/personality` resource — assert rendering contract holds. NPC with personality fields: assert same rendering contract at `npc://<id>/personality`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-077, REQ-126, REQ-109                   |
 | T141  | Manual   | Ruleset-native personality mapping: build server for a ruleset with native personality constructs (e.g., D&D 5e Traits/Ideals/Bonds/Flaws). Assert RULESET_MODEL.md records a mapping from each native construct to a Holonovel personality field. Assert `set_personality` tool description references the ruleset-native construct names. Assert `session_zero` prompt includes both native and Holonovel field references. Build server for a ruleset without native constructs (e.g., Appendix B fixture) — assert tool descriptions use only Holonovel field names and no native construct names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-127, REQ-104, REQ-078                   |
@@ -5457,6 +5586,10 @@ diet.
 | T243  | Automated | Kind mechanical contracts: create a container thing (openable), a supporter thing, a door between two rooms, and a person in a room. Assert the container blocks content access when closed. Assert the supporter's surface things are visible without taking the supporter. Assert the door blocks passage when closed and permits passage when open. Assert a backdrop declared in a region is visible from every room in that region. Assert taking a supporter returns rule-violation (fixed by default). | REQ-200 |
 | T244  | Automated | Hybrid source conversion: call `convert_source` with the Appendix K fixture example. Assert `[OK]` with object counts: 3+ rooms, 1+ things, exits. Assert linked annotation counts. Assert `command("look")` shows Entrance Chamber with murals lore reference. Assert `@npc(Serpent King Ghost)` created a Novel NPC in the Throne Room. Assert `@encounter` and `@trap` annotations are retrievable via `search_rules`. Call `convert_source` again on the same Novel — assert `[STATE_CONFLICT]`. Run `convert_source` with an assertion referencing an unknown kind — assert not-implemented warning with line number, and recognized assertions still populated. | REQ-201 |
 | T245  | Automated | World-model resources: populate a world model with 3 rooms, 4 things, and exits. Read `room://<id>` — assert name, description, visible things, exits. Read `thing://<id>` — assert name, description, location, properties. Read `world://map` — assert adjacency list with all rooms and directional exits. Switch to Player hat — assert room and thing descriptions still visible but GM-only metadata (property values, containment chains) excluded. Read `world://map` as Player — assert room connectivity visible but GM-only annotations absent. | REQ-202 |
+| T246  | Automated | Combat-init guard: call `init_combat` with valid participants — assert `[OK]` and combat is active. Call `init_combat` again — assert `[STATE_CONFLICT]` with the message "Combat already active — call `end_combat` first." Assert the active combat's round and turn order are unchanged by the rejected call. | REQ-203 |
+| T247  | Automated | Combat participant validation: call `init_combat(participants=["nonexistent"])` with no entities imported — assert `[NOT_FOUND]` enumerating "nonexistent" and listing valid entity/NPC IDs; assert no combat state is created; assert `session_recap` reports no pending confrontation. Call `init_combat` with a mix of valid and invalid participant IDs — assert `[NOT_FOUND]` enumerating only the invalid IDs; turn-order construction does not begin. | REQ-204 |
+| T248  | Automated | Mid-combat participant changes: during active combat with participants ["hero", "goblin"], call `add_combat_participant("wizard")` — assert wizard inserted after hero in turn order. Call `remove_combat_participant("goblin")` — assert goblin removed and pointer advances if goblin was current. Remove last participant from a 1-participant combat — assert auto-`end_combat` with outcome "All participants removed." Assert undo reverts the participant change. Assert Player hat returns `[FORBIDDEN]`. | REQ-205 |
+| T249  | Automated | Combat-round condition expiry: apply a condition with `rounds: 1` to a participant, call `advance_combat` once — assert condition removed after turn and audit log contains `[condition_expired]`. Apply condition with `rounds: 0` — assert no decrement. Apply condition with no `rounds` field — assert no auto-expiry. Apply condition with `rounds: 2` — assert decrements to 1 after first `advance_combat` and expires after second. | REQ-206 |
 
 ---
 
