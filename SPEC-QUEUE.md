@@ -37,6 +37,11 @@ usage in subsequent cycles.
 **Add mid-session:** `@SPEC-QUEUE.md add: <item> to <tier>`
 **Start next session:** `./scripts/spec-queue-cycle.sh research`
 
+**Recovery if the pipeline hangs or crashes:**
+1. Run health check:    `./scripts/spec-queue-health.sh`
+2. Kill stale sessions: `./scripts/spec-queue-runner.sh --cleanup`
+3. Resume from queue state: `./scripts/spec-queue-cycle.sh run-all`
+
 <!-- markdownlint-disable MD029 — continuous global item numbering across tiers -->
 
 ## Top candidates
@@ -140,7 +145,7 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     URL validity, file manifest completeness, deprecated terminology grep
     (§6.5 convergence sub-process). Score: 33 (freq=2, crit=4, cplx=3,
     coupling=4, maturity=3, coverage=2).
-23. [FAILED] Intake workflow — Q0 (workflow selection), build-mode profiles
+23. [DONE] Intake workflow — Q0 (workflow selection), build-mode profiles
     (production/quick), config verification against target client schema,
     viability pre-check (30% mechanical density threshold), cross-workflow
     deduplication (§6.2, REQ-101). Score: 31 (freq=2, crit=4, cplx=3,
@@ -148,48 +153,48 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     containment (../../etc/passwd rejected, REQ-052), input safety (verbatim
     free-text, no SQL execution, REQ-054). Score: 31 (freq=5, crit=4, cplx=2,
     coupling=1, maturity=4, coverage=3).
-25. [FAILED] Entity personality fields — description, voice, background, goals,
+25. [DONE] Entity personality fields — description, voice, background, goals,
     voice_examples (up to 5 dialogue snippets), ruleset-native mapping
     (traits/ideals/bonds/flaws → Holonovel fields), voice examples rendering
     before trait descriptions, roster-level storage with Novel overrides
     (REQ-077/126/127). Score: 30 (freq=4, crit=3, cplx=3, coupling=3,
     maturity=4, coverage=3).
-26. [FAILED] Audit log — append-only, tamper-evident (chained hashes), records every
+26. [DONE] Audit log — append-only, tamper-evident (chained hashes), records every
     mutating call (timestamp, hat, tool, args, output prefix), chain
     verification on load, mismatch in spec_health and stderr, survives
     connection restarts (REQ-040). Score: 30 (freq=5, crit=3, cplx=3,
     coupling=4, maturity=3, coverage=2).
-27. [FAILED] Hat briefing composition — ordered section groups (foundations → anti-slop
+27. [DONE] Hat briefing composition — ordered section groups (foundations → anti-slop
     → tone → scene → entities → NPCs → countdowns → lore → adventure →
     tools → combat → personality → directive → signals → setup → intro),
     decision-critical boundary, GM-overridable ordering via set_briefing_order,
     empty-source omission (REQ-109/082/062/063/070/071). Score: 29 (freq=5,
     crit=3, cplx=3, coupling=4, maturity=4, coverage=3).
-28. [FAILED] Adventure modules & generation — load_adventure, indexed adventure content
+28. [DONE] Adventure modules & generation — load_adventure, indexed adventure content
     at adventure://<slug>/<anchor>, hat-filtered (*Keeper only* hidden from
     Player), generate_adventure (premise → title/overview/hook/locations/NPCs/
     encounters), generate_encounter (scene+NPC+lore batch, single undo target),
     novel_setup prompt integration (REQ-079/089/090/091). Score: 29 (freq=3,
     crit=3, cplx=4, coupling=3, maturity=3, coverage=3).
-29. [FAILED] Roll transparency — full calculation path (dice notation, individual faces,
+29. [DONE] Roll transparency — full calculation path (dice notation, individual faces,
     every modifier with source and signed contribution, total, prose outcome,
     result band when ruleset defines one) (REQ-003). Score: 27 (freq=5,
     crit=3, cplx=2, coupling=2, maturity=4, coverage=3).
-30. [FAILED] Player signals & briefing — player_signal (pace/difficulty/tone/focus/
+30. [DONE] Player signals & briefing — player_signal (pace/difficulty/tone/focus/
     boundary), most-recent-value replacement, empty-value removal, GM-only
     briefing section with age delta ("set N connections ago"), empty-state
     marker (REQ-069/128). Score: 27 (freq=3, crit=3, cplx=2, coupling=3,
     maturity=4, coverage=3).
-31. [FAILED] Session recap — structured summary (timespan, entity states, confrontations,
+31. [DONE] Session recap — structured summary (timespan, entity states, confrontations,
     scene, lore triggers, directive, scene_type, last-N transitions, roster
     changes, condition changes, last-N rolls), hat-filtered, configurable N
     (REQ-072). Score: 25 (freq=4, crit=3, cplx=3, coupling=2, maturity=4,
     coverage=2).
-32. [PLAN_READY] Multi-entity support — multiple entities per Novel, roster holds multiple,
+32. [DONE] Multi-entity support — multiple entities per Novel, roster holds multiple,
     active_entity as default target, set_active_entity switching, party://
     current listing with summary stats, import_character from roster (REQ-074).
     Score: 25 (freq=5, crit=3, cplx=2, coupling=3, maturity=4, coverage=2).
-33. [FAILED] Source conversion — PDF/HTML/web scrape → Markdown per Appendix G,
+33. [PLAN_READY] Source conversion — PDF/HTML/web scrape → Markdown per Appendix G,
     fidelity sampling (3–5 pages, ≥90% per content type), artifact flagging
     with dispositions (fixed/waived/pending), converter version pinned in
     DECISIONS.md (REQ-102, App G). Score: 25 (freq=2, crit=3, cplx=4,
@@ -250,29 +255,29 @@ peripheral features. Score ≤21.
     Novel health metrics, prompt health, hat-filtered, counts derived from
     live registrations at call time (REQ-025/093/097). Score: 19 (freq=3,
     crit=3, cplx=2, coupling=2, maturity=4, coverage=3).
-43. [RESEARCH] Help & tool discovery — help tool with optional query, no-query returns
+43. Help & tool discovery — help tool with optional query, no-query returns
     intro pointer + categorized task map + hat_briefing pointer, query mode
     searches tool descriptions/prompts/guidance for matches with example
     invocations, GM-customizable category assignments (Player always sees
     builder defaults), hat-filtered (REQ-067). Score: 17 (freq=2, crit=2,
     cplx=2, coupling=2, maturity=3, coverage=2).
-44. [RESEARCH] Audit compression — compress_audit(max_entries) returns formatted prompt of
+44. Audit compression — compress_audit(max_entries) returns formatted prompt of
     most recent audit entries for LLM summarization, does not modify audit
     log, hat-filtered (Player sees own entities only), max_entries ≤ 0 returns
     INVALID_INPUT, pure-generation tool (REQ-086). Score: 16 (freq=2, crit=2,
     cplx=2, coupling=2, maturity=4, coverage=2).
-45. [RESEARCH] Macro system — {{<path>}} token expansion in tool output, resource text,
+45. Macro system — {{<path>}} token expansion in tool output, resource text,
     and prompt text before client delivery; supported paths (entity.*, scene.*,
     countdown.*, novel.slug, hat.active, party.size); nonexistent paths expand
     to literal unchanged; no expansion in audit log entries (REQ-085).
     Score: 16 (freq=3, crit=2, cplx=2, coupling=2, maturity=3, coverage=2).
-46. [RESEARCH] Truncation & result counting — output:// pointers for output exceeding
+46. Truncation & result counting — output:// pointers for output exceeding
     configurable limit, session-local hat-filtered payloads, oldest-first
     eviction, stat block baseline view (all fields regardless of truncation),
     "3 of 42 results" counting, configurable display limit (REQ-004/004a/
     113). Score: 16 (freq=2, crit=3, cplx=2, coupling=1, maturity=4,
     coverage=2).
-47. [RESEARCH] Verbose output — every ruleset-defined field returned (not summaries),
+47. Verbose output — every ruleset-defined field returned (not summaries),
     full combat calculation path with every modifier contribution, complete
     derived statistics in creation/advancement (REQ-060). Score: 16 (freq=5,
     crit=2, cplx=1, coupling=1, maturity=4, coverage=2).
