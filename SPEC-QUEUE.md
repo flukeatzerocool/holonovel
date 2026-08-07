@@ -140,7 +140,7 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     URL validity, file manifest completeness, deprecated terminology grep
     (§6.5 convergence sub-process). Score: 33 (freq=2, crit=4, cplx=3,
     coupling=4, maturity=3, coverage=2).
-23. [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Intake workflow — Q0 (workflow selection), build-mode profiles
+23. [FAILED] [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Intake workflow — Q0 (workflow selection), build-mode profiles
     (production/quick), config verification against target client schema,
     viability pre-check (30% mechanical density threshold), cross-workflow
     deduplication (§6.2, REQ-101). Score: 31 (freq=2, crit=4, cplx=3,
@@ -148,39 +148,39 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     containment (../../etc/passwd rejected, REQ-052), input safety (verbatim
     free-text, no SQL execution, REQ-054). Score: 31 (freq=5, crit=4, cplx=2,
     coupling=1, maturity=4, coverage=3).
-25. [FAILED] [PLAN_READY] [PLAN_READY] Entity personality fields — description, voice, background, goals,
+25. [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] Entity personality fields — description, voice, background, goals,
     voice_examples (up to 5 dialogue snippets), ruleset-native mapping
     (traits/ideals/bonds/flaws → Holonovel fields), voice examples rendering
     before trait descriptions, roster-level storage with Novel overrides
     (REQ-077/126/127). Score: 30 (freq=4, crit=3, cplx=3, coupling=3,
     maturity=4, coverage=3).
-26. Audit log — append-only, tamper-evident (chained hashes), records every
+26. [FAILED] [PLAN_READY] [PLAN_READY] Audit log — append-only, tamper-evident (chained hashes), records every
     mutating call (timestamp, hat, tool, args, output prefix), chain
     verification on load, mismatch in spec_health and stderr, survives
     connection restarts (REQ-040). Score: 30 (freq=5, crit=3, cplx=3,
     coupling=4, maturity=3, coverage=2).
-27. [FAILED] [PLAN_READY] Hat briefing composition — ordered section groups (foundations → anti-slop
+27. [FAILED] [FAILED] [PLAN_READY] Hat briefing composition — ordered section groups (foundations → anti-slop
     → tone → scene → entities → NPCs → countdowns → lore → adventure →
     tools → combat → personality → directive → signals → setup → intro),
     decision-critical boundary, GM-overridable ordering via set_briefing_order,
     empty-source omission (REQ-109/082/062/063/070/071). Score: 29 (freq=5,
     crit=3, cplx=3, coupling=4, maturity=4, coverage=3).
-28. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] Adventure modules & generation — load_adventure, indexed adventure content
+28. [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] Adventure modules & generation — load_adventure, indexed adventure content
     at adventure://<slug>/<anchor>, hat-filtered (*Keeper only* hidden from
     Player), generate_adventure (premise → title/overview/hook/locations/NPCs/
     encounters), generate_encounter (scene+NPC+lore batch, single undo target),
     novel_setup prompt integration (REQ-079/089/090/091). Score: 29 (freq=3,
     crit=3, cplx=4, coupling=3, maturity=3, coverage=3).
-29. [FAILED] [PLAN_READY] [PLAN_READY] Roll transparency — full calculation path (dice notation, individual faces,
+29. [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] Roll transparency — full calculation path (dice notation, individual faces,
     every modifier with source and signed contribution, total, prose outcome,
     result band when ruleset defines one) (REQ-003). Score: 27 (freq=5,
     crit=3, cplx=2, coupling=2, maturity=4, coverage=3).
-30. Player signals & briefing — player_signal (pace/difficulty/tone/focus/
+30. [FAILED] [PLAN_READY] Player signals & briefing — player_signal (pace/difficulty/tone/focus/
     boundary), most-recent-value replacement, empty-value removal, GM-only
     briefing section with age delta ("set N connections ago"), empty-state
     marker (REQ-069/128). Score: 27 (freq=3, crit=3, cplx=2, coupling=3,
     maturity=4, coverage=3).
-31. Session recap — structured summary (timespan, entity states, confrontations,
+31. [FAILED] [PLAN_READY] Session recap — structured summary (timespan, entity states, confrontations,
     scene, lore triggers, directive, scene_type, last-N transitions, roster
     changes, condition changes, last-N rolls), hat-filtered, configurable N
     (REQ-072). Score: 25 (freq=4, crit=3, cplx=3, coupling=2, maturity=4,
@@ -189,7 +189,7 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     active_entity as default target, set_active_entity switching, party://
     current listing with summary stats, import_character from roster (REQ-074).
     Score: 25 (freq=5, crit=3, cplx=2, coupling=3, maturity=4, coverage=2).
-33. Source conversion — PDF/HTML/web scrape → Markdown per Appendix G,
+33. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] Source conversion — PDF/HTML/web scrape → Markdown per Appendix G,
     fidelity sampling (3–5 pages, ≥90% per content type), artifact flagging
     with dispositions (fixed/waived/pending), converter version pinned in
     DECISIONS.md (REQ-102, App G). Score: 25 (freq=2, crit=3, cplx=4,
