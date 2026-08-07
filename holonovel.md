@@ -8,7 +8,7 @@
 > NPC management, countdowns, and session recap — plus four handoff artifacts
 > (plus LICENSE.md)
 > (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
-> community-sourced play advice. Quality enforced by verification workflows, 12 handoff
+> community-sourced play advice. Quality enforced by verification workflows, 14 handoff
 > verification steps, and a golden-transcript replay. One server per ruleset. No network at runtime
 > (REQ-051). The Player hat is the human at the table; the Game Master hat is the
 > AI narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support:
@@ -31,49 +31,40 @@
 - [9. Artifacts and Handoff](#9-artifacts-and-handoff)
 - [10. Independent Verification](#10-independent-verification)
 - [11. Optional Workflows](#11-optional-workflows)
-- [Appendix A: Markdown Parsing Principles](#appendix-a-markdown-parsing-principles)
-- [Appendix B: Golden Fixture](#appendix-b-golden-fixture)
-- [Appendix C: Injection Fixture](#appendix-c-injection-fixture)
-- [Appendix D: MCP Conformance Checklist](#appendix-d-mcp-conformance-checklist)
-- [Appendix E: Requirements Manifest](#appendix-e-requirements-manifest)
-- [Appendix F: Derived Test Catalogue](#appendix-f-derived-test-catalogue)
-- [Appendix G: Source Conversion](#appendix-g-source-conversion)
-- [Appendix H: Ruleset Preparation Checklist](#appendix-h-ruleset-preparation-checklist)
-- [Appendix I: Permissively-Licensed Ruleset Catalog](#appendix-i-permissively-licensed-ruleset-catalog)
-- [Appendix J: Anti-Slop Synopsis](#appendix-j-anti-slop-synopsis)
-- [Appendix K: Adventure Module Format](#appendix-k-adventure-module-format)
-- [Appendix L: Lorebook Interchange Format](#appendix-l-lorebook-interchange-format)
-- [Appendix M: REQ Authoring Conventions](#appendix-m-req-authoring-conventions)
-- [Appendix N: Complex Fixture](#appendix-n-complex-fixture)
-- [Appendix O: Behavioral Contracts — Reference](#appendix-o-behavioral-contracts--reference)
-- [Appendix P: STRIDE Security Threat Model](#appendix-p-stride-security-threat-model)
-- [Appendix Q: Novel Interchange Format](#appendix-q-novel-interchange-format)
-- [Appendix R: Deprecated Terminology](#appendix-r-deprecated-terminology)
-- [Appendix S: Builder Glossary](#appendix-s-builder-glossary)
+- [Appendices](#appendices)
 
 ---
 
 ### How to read this specification
 
-This document is 4,100 lines. Read it in layers — not front to back.
+Read this specification in layers — not front to back.
+
+This specification is maintained as 10 source files under `spec/`, assembled into
+this document via `npm run assemble`. For per-phase loading during an AI build,
+the builder consults `build-phase-map.md` to load only the files needed for the
+current phase — reducing per-phase context by ~73% vs. loading the full specification.
 
 **If you are a builder implementing a server for the first time:**
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
-these), then §6 (Build Process — this is your workflow). Consult §5 (Requirements)
-by subsection as each build phase demands it. Skip the appendices until Gate 0.
+these), then §6 (Build Process — this is your workflow). Use `build-phase-map.md`
+for per-phase file loading. Consult §5 (Requirements) by subsection as each build
+phase demands it. Skip the appendices until Gate 0.
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
-then the §5 subsections cited by the gap audit.
+then the §5 subsections cited by the gap audit. The `build-phase-map.md` identifies
+which files to load for the gap audit.
 
 **If you are a spec maintainer:**
 Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
 contracts-over-implementations and red-team disciplines), then the CHANGELOG for
-recent revision patterns. The SPEC-QUEUE.md tracks subsystems awaiting review.
+recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
+before committing. The SPEC-QUEUE.md tracks subsystems awaiting review.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
-The verification workflows are executable — follow them in order.
+The verification workflows are executable — follow them in order. Use the assembled
+`holonovel.md` or load spec files per `build-phase-map.md`.
 
 **Reference material** (Appendices A–S) is supplementary. Glance at Appendix E
 (Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
@@ -261,6 +252,18 @@ toolchain beyond the MCP client's runtime.
 ## 5. Requirements
 
 _The normative core. Each requirement is one paragraph followed by its check citations._
+
+| §       | Title                               | REQs                                                | Count |
+|---------|-------------------------------------|-----------------------------------------------------|-------|
+| 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154               | 15    |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152                         | 6     |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159            | 14    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156 | 27    |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
 
 ### 5.1 Output and Error Contracts
 
@@ -1866,7 +1869,7 @@ _Check:_ T9, T31, T108.
 verification of input safety, and performance under adversarial load beyond the tier
 benchmarks defined in REQ-100.
 
-### 5.8 Narrative, Guidance, and Enrichment
+### 5.8 Enrichment, Lore, and Macros
 
 **REQ-080 — Enrichment boundaries.** Enrich may ADD content to entity
 voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
@@ -2118,7 +2121,7 @@ _Check:_ T136.
 real-time web enrichment, and narrative quality assessment beyond the anti-slop
 guidance catalog.
 
-### 5.9 Novel Lifecycle and Generation
+### 5.9 Novel Persistence and Transport
 
 **REQ-088 — Novel lifecycle.** A Novel is a named, persistent save file on disk.
 `create_novel(name)` creates a new Novel at `.holonovel-state/novels/<slug>.json` and
@@ -2508,6 +2511,9 @@ DECISIONS.md (4).
 
 ### 6.3 Discovery
 
+*Prepare:* Load files from `build-phase-map.md` Discovery row: 03-build.md §6.3,
+02-requirements.md §5.2.
+
 **Chunked reading.** The ruleset is read in fixed-size chunks of 10 mechanical sections
 (headings with procedures, tables, bold-labeled fields, or definition lists). The budget
 of 10 sections balances discovery depth against context-collapse risk — fewer sections
@@ -2631,6 +2637,9 @@ _Check:_ T174.
 
 ### 6.4 Server construction
 
+*Prepare:* Load files from `build-phase-map.md` Construction row: 03-build.md §6.4,
+ 02-requirements.md §5.3–§5.9, 04-runtime.md.
+
 **Spec copy.** During Layer 1 (MCP skeleton), the builder copies the specification
 document (`holonovel.md`) into the server's installation directory. The copy
 establishes the `spec://build` resource (REQ-105). The builder records the
@@ -2694,6 +2703,9 @@ categories — the builder does not invent terms. The prompt length budget
 (REQ-118) applies to every prompt.
 
 ### 6.5 Verification and convergence
+
+*Prepare:* Load files from `build-phase-map.md` Convergence row: 03-build.md §6.5,
+02-requirements.md (all), 05-verification.md.
 
 **Audit steps.** After each workflow completion and each construction step, the builder spawns a
 subagent (fresh context) that audits the work against the requirements cited by that step.
@@ -2853,6 +2865,9 @@ written file. Grep for each deprecated term; any match is a convergence
 finding.
 
 ### 6.6 The Gauntlet
+
+*Prepare:* Load files from `build-phase-map.md` Gauntlet row: 03-build.md §6.6,
+05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
 ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
@@ -3100,6 +3115,9 @@ S1 is always selected when new tools are added or existing tool signatures chang
 
 ### 6.7 Spec-driven updates
 
+*Prepare:* Load files from `build-phase-map.md` Spec-driven update row:
+03-build.md §6.7 plus files changed per git diff.
+
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps across the tool
 catalog, resource map, prompt list, state model, hat gating, and behavioral
@@ -3122,7 +3140,7 @@ record all gap dispositions in a dated DECISIONS.md entry.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 23-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -3512,8 +3530,9 @@ Phase 1 — blind re-execution, in order:
 1. Set up from a cold start, following only `README.md` and `AGENTS.md`; log every gap or
    ambiguity — each gap is a finding.
 2. Execute verification workflows G0 step 2 through G4; record one evidence entry per workflow in the
-   Section 8 format, with your own environment pins. Execute the smoke session as defined in §6.8
-   (Cooperative Play Harness); record the transcript in the Section 8 evidence format with your own
+    Section 8 format, with your own environment pins. Execute the simulated combat session
+    as defined in §6.6 (S4 — Simulated combat session); record the transcript in the
+    Section 8 evidence format with your own
    environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
@@ -3536,7 +3555,9 @@ Phase 2 — comparison, only after the operator supplies the unredacted `DECISIO
    never wording or timestamps.
 9. Classify every mismatch: a discrepancy (the recorded evidence does not match reality)
    or pin drift (the world moved).
-10. Compare the smoke-session transcripts on salient events only, as defined in §6.8.
+ 10. Compare the simulated-combat-session transcripts on salient events only —
+    dice totals, outcomes, state transitions, character sheet diffs;
+    ignore prose wording, timestamps, and turn-by-turn narration.
 
 Report in the format below.
 ```

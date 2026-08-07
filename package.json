@@ -21,7 +21,8 @@
     "validate-readme": "npx tsx scripts/validate-readme.ts",
     "detect-dupes": "npx tsx scripts/detect-near-dupes.ts",
     "check": "npm run lint && npm run validate && npm run audit-assumptions && npm run scan-ambiguity && npm run check-cross-refs && npm run validate-readme && npm run detect-dupes",
-    "check-cross-refs": "npx tsx scripts/check-cross-refs.ts"
+    "check-cross-refs": "npx tsx scripts/check-cross-refs.ts",
+    "assemble": "npx tsx scripts/assemble.ts"
   },
   "keywords": [],
   "author": "",
