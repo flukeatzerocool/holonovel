@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 69ebbe8c356c4d12680f342ccbee90f3ae6ce444703e67ab8d9f7896d8317cfe
+- **Spec hash:** 966955c7aab88df49a24fd23c9c6e852b9796a72d929cc77259c8edfd7666db4
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -393,3 +393,31 @@
 - **Changed code paths:** src/index.ts (__dirname resolution for rulesetDir and DATA_DIR, expected_minimum 62→61)
 - **Gauntlet:** passed 9/22 sub-workflows (same as prior run `2026-08-06`); no automated test suite — manual smoke test via spec_health. Blocking sub-workflows: spec_health reports healthy build fingerprint, all prompt budgets within limits, 61 tools registered (matches expected_minimum), 4 resources, 5 prompts.
 - **Spec hash:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
+
+### Spec-Driven Update (REQ-098) — Combat Enhancements + World-Model Layer (195-208)
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — new REQs 195-208: world-model layer (195-202) plus combat enhancements (203-206), build-time REQs (207-208)
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-203 | Missing combat-init guard (STATE_CONFLICT when combat already active) | implemented | Added guard at top of init_combat handler |
+  | REQ-204 | Missing combat participant validation | implemented | Validate all participant IDs against entities + NPCs; enumerate valid IDs in NOT_FOUND |
+  | REQ-205 | Missing add_combat_participant / remove_combat_participant tools | implemented | New tools registered in index.ts; state methods in state.ts; auto-end_combat on last participant removal |
+  | REQ-206 | Missing combat-round condition expiry | implemented | condition_rounds tracking on entities/NPCs; processConditionExpiry in advanceCombat; audit log condition_expired entries |
+  | REQ-195 | World-model state tier | deferred | Major architectural subsystem (rooms, things, exits, properties) requiring separate implementation pass |
+  | REQ-196 | Parser command dispatch (command tool) | deferred | Requires world-model tier populated; major new tool |
+  | REQ-197 | Room description generation | deferred | Depends on REQ-195 world-model tier |
+  | REQ-198 | World-model CRUD (create_room, create_thing, create_exit, remove_room) | deferred | Major new tool surface requiring world-model state |
+  | REQ-199 | Property state tracking (open/closed, locked/unlocked) | deferred | Depends on REQ-195 world-model tier |
+  | REQ-200 | Kind mechanical contracts (container, supporter, door, etc.) | deferred | Depends on REQ-195 world-model tier |
+  | REQ-201 | Hybrid source conversion (convert_source tool) | deferred | Requires world-model tier + kind hierarchy; major new tool |
+  | REQ-202 | World-model resources (room://, thing://, world://map, world://kinds) | deferred | Requires world-model tier populated |
+  | REQ-207 | Core-mechanic identification | waived | Build-time concern; not server runtime |
+  | REQ-208 | Gauntlet convergence metric mapping | waived | Build-time/documentation convention; applied herein |
+- **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings)
+- **Changed code paths:** src/index.ts (SPEC_HASH, init_combat guard + validation, apply_condition rounds param, add_combat_participant, remove_combat_participant, BUILDER_CATEGORIES, GMToolsSet), src/state.ts (NovelEntity.condition_rounds, NpcState.condition_rounds, advanceCombat condition expiry, processConditionExpiry helper, addCombatParticipant, removeCombatParticipant)
+- **Gauntlet:** Per §6.6 surface-to-scenario mapping: combat lifecycle changes (REQ-043 surface) → S3, S4, S5; condition management (REQ-206) → S9; new tool added (REQ-205) → S1
+- **Spec hash:** 966955c7aab88df49a24fd23c9c6e852b9796a72d929cc77259c8edfd7666db4
+
+(End of file - total 395 lines)

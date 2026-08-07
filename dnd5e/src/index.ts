@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0";
+const SPEC_HASH = "966955c7aab88df49a24fd23c9c6e852b9796a72d929cc77259c8edfd7666db4";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -211,7 +211,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Characters": ["create_character", "import_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal"],
   "Dice & Resolution": ["roll_save", "roll_skill_check", "roll_weapon_attack", "roll_weapon_damage", "roll_on_table"],
   "Lookups": ["search_rules", "lookup_equipment", "lookup_spell", "lookup_monster", "lookup_class", "suggest_actions", "spec_health"],
-  "Combat (GM)": ["init_combat", "advance_combat", "end_combat"],
+  "Combat (GM)": ["init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant"],
   "Conditions": ["apply_condition", "remove_condition"],
   "Narrative (GM)": ["set_scene_state", "set_scene_type", "set_narrative_directive"],
   "NPCs (GM)": ["create_npc", "update_npc", "remove_npc"],
@@ -224,7 +224,8 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 };
 
 const GMToolsSet = new Set([
-  "init_combat", "advance_combat", "end_combat", "apply_condition", "remove_condition",
+  "init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant",
+  "apply_condition", "remove_condition",
   "set_scene_state", "set_scene_type", "set_narrative_directive",
   "create_npc", "update_npc", "remove_npc",
   "set_countdown", "advance_countdown", "remove_countdown",
@@ -1053,7 +1054,7 @@ server.registerTool("spec_health", {
           stored_spec_hash: storedHash.substring(0, 16),
           in_sync: currentHash === storedHash,
         },
-        tool_catalog: { registered: toolCount, expected_minimum: 61 },
+        tool_catalog: { registered: toolCount, expected_minimum: 63 },
         resource_map: { registered: resourceUris.length, expected_minimum: resourceUris.length },
         prompt_list: { registered: promptHealth.length },
         hat_gating: {
@@ -1086,6 +1087,24 @@ server.registerTool("init_combat", {
 }, async ({ participants, dangers, seed: combatSeed }: any) => {
   requireGM();
   const novel = requireNovel();
+
+  // REQ-203: combat-init guard
+  if (novel.combat?.active) {
+    return err("STATE_CONFLICT", "Combat already active — call `end_combat` first.");
+  }
+
+  // REQ-204: participant validation (before any state changes)
+  const validIds = [...novel.entities.keys(), ...novel.npcs.keys()];
+  const unresolved: string[] = [];
+  for (const pid of participants) {
+    if (!novel.entities.has(pid) && !novel.npcs.has(pid)) {
+      unresolved.push(pid);
+    }
+  }
+  if (unresolved.length > 0) {
+    return err("NOT_FOUND", `Participants not found: ${unresolved.join(", ")}. Valid: ${validIds.length > 0 ? validIds.join(", ") : "(none — create entities or NPCs first)"}`);
+  }
+
   novelSnapshot();
 
   const combat = state.initCombat(novel, participants, dangers ?? [], combatSeed);
@@ -1156,6 +1175,45 @@ server.registerTool("end_combat", {
   return ok(`Combat ended. Total rounds: ${novel.metadata.total_combat_rounds}${outcome ? ` — ${outcome}` : ""}`);
 });
 
+server.registerTool("add_combat_participant", {
+  title: "Add Combat Participant",
+  description: "Add a participant to active combat. Game Master only.",
+  inputSchema: { participant_id: z.string() },
+}, async ({ participant_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  novelSnapshot();
+
+  try {
+    state.addCombatParticipant(novel, participant_id);
+    state.saveNovel(novel);
+    return ok(`Participant '${participant_id}' added to combat.`);
+  } catch (e: any) {
+    return err(e.message.startsWith("[NOT_FOUND]") ? "NOT_FOUND" : "STATE_CONFLICT", e.message.replace(/^\[(?:NOT_FOUND|STATE_CONFLICT)\]\s*/, ""));
+  }
+});
+
+server.registerTool("remove_combat_participant", {
+  title: "Remove Combat Participant",
+  description: "Remove a participant from active combat. Game Master only.",
+  inputSchema: { participant_id: z.string() },
+}, async ({ participant_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  novelSnapshot();
+
+  try {
+    const result = state.removeCombatParticipant(novel, participant_id);
+    state.saveNovel(novel);
+    if (result.ended) {
+      return ok(`Combat ended: ${result.outcome}`);
+    }
+    return ok(`Participant '${participant_id}' removed from combat.`);
+  } catch (e: any) {
+    return err(e.message.startsWith("[NOT_FOUND]") ? "NOT_FOUND" : "STATE_CONFLICT", e.message.replace(/^\[(?:NOT_FOUND|STATE_CONFLICT)\]\s*/, ""));
+  }
+});
+
 // --- Conditions ---
 
 server.registerTool("apply_condition", {
@@ -1164,16 +1222,20 @@ server.registerTool("apply_condition", {
   inputSchema: {
     entity_id: z.string(),
     condition: z.string(),
+    rounds: z.number().optional(),
   },
-}, async ({ entity_id, condition }: any) => {
+}, async ({ entity_id, condition, rounds }: any) => {
   requireGM();
   const novel = requireNovel();
   const entity = novel.entities.get(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
   if (!CONDITIONS.includes(condition)) return err("INVALID_INPUT", `Unknown condition '${condition}'. Valid: ${CONDITIONS.join(", ")}`);
   if (!entity.conditions.includes(condition)) entity.conditions.push(condition);
+  if (rounds && rounds > 0) {
+    entity.condition_rounds[condition] = rounds;
+  }
   state.saveNovel(novel);
-  return ok(`${condition} applied to ${entity.name}.`);
+  return ok(`${condition} applied to ${entity.name}${rounds && rounds > 0 ? ` (${rounds} rounds)` : ""}.`);
 });
 
 server.registerTool("remove_condition", {

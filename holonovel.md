@@ -844,9 +844,14 @@ findings per iteration, residual gaps for each metric in §6.5), including a per
 for each of the seven extraction categories (§6.3: concepts, entities, actions, tables, resolution, roles, guidance),
 the count and percentage of HIGH, MEDIUM, and LOW items, and per-metric velocity —
 for each quantitative metric in both Phase 1 and Phase 2, the per-iteration delta (Δ)
-from the previous measurement, recorded as a signed value. Velocity is
-diagnostic: it does not change exit criteria but is reported alongside each metric's iteration
-count so the operator can recognize when diminishing returns have set in, indexed
+from the previous measurement, recorded as a signed value. Velocity
+SHALL be reported alongside each metric's iteration count. When a metric's
+velocity drops to zero for two consecutive iterations while the metric remains
+below threshold, the builder SHALL record a `[velocity-stall]` finding in
+DECISIONS.md (5) and the metric's step is aborted per §6.5.1 no-delta
+detection — the velocity stall counts as the stalled iteration. This
+integrates velocity into the existing no-delta detection mechanism without
+adding a separate exit criterion, indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
@@ -3672,10 +3677,16 @@ recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit. The guidance category is
 exempt from this floor — LOW guidance does not affect tool behavior.
 
-Phase 1 exit: all four metrics meet threshold, or an extraction stall (no-delta
-on all metrics) triggers the unbuildable disposition check (§6.5.3). An
-extraction stall after 3 iterations records residual gaps in DECISIONS.md (5).
-The build does not proceed to Phase 2 until Phase 1 exits.
+Phase 1 exit: all five metrics meet threshold (conversion-fidelity conditional —
+five when conversion was selected, four otherwise), or an extraction stall
+(no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
+An extraction stall after 3 iterations records residual gaps in DECISIONS.md
+(5). The build does not proceed to Phase 2 until Phase 1 exits.
+
+NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
+metric exists only when the Convert workflow (§6.2) was selected. When
+conversion was not selected, the table contains four metrics and the exit
+condition is four metrics meeting threshold.
 
 **Phase 2 — Construction quality.**
 Builder implementation quality: whether the extracted model was faithfully
@@ -3701,11 +3712,19 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all seven metrics meet threshold, or 3 iterations without
+Phase 2 exit: all eight metrics meet threshold (input-validation conditional —
+eight when REQ-141 is in scope, seven otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
 (§6.5.2) and adjusted thresholds (§6.5.3) apply during Phase 2.
+Cross-model auditing is RECOMMENDED during Phase 1 when multiple models are
+available — different models detect different extraction defect classes —
+but a single-model Phase 1 audit does not block handoff.
+
+NOTE: Phase 2 row count varies with scope. The input-validation metric exists
+only when REQ-141 is in scope. When REQ-141 is not in scope, the table contains
+seven metrics and the exit condition is seven metrics meeting threshold.
 
 ### 6.5.1 No-delta detection
 
@@ -3740,8 +3759,16 @@ the handoff verification workflow (§9 H10) for rulesets whose indexed-item coun
 adjusted threshold is documented in DECISIONS.md (5) with the complexity metric used
 and the justification. The floor is 70%. The convergence loop enforces the chosen
 threshold in the same iteration as the standard threshold. The core resolution
-mechanic — the ruleset's primary dice/outcome procedure, identified by the builder
-during discovery — must maintain at least 85% confidence independently. If the core
+mechanic — the ruleset's primary dice/outcome procedure — must maintain at least
+85% confidence independently. The builder SHALL identify the core resolution
+mechanic by applying these criteria in order, stopping at the first that yields a
+single candidate (see REQ-207): (a) the mechanic the ruleset's own introduction
+or "how to play" section designates as the central resolution procedure; (b) the
+mechanic cited by the most other sections in cross-references; (c) the mechanic
+with the most distinct dice-roll invocations across the ruleset's examples of
+play. The criterion used SHALL be recorded in DECISIONS.md (5) alongside the
+identified mechanic. If criteria (a)-(c) produce a tie, the builder records all
+tied candidates and flags an `[ambiguous-core-mechanic]` finding. If the core
 mechanic falls below 85% after convergence (including any adjusted thresholds), the
 builder records a `[core-mechanic-block]` finding in DECISIONS.md (5). The operator
 is notified and may accept, reject, or request targeted re-extraction. The build does
@@ -3775,6 +3802,18 @@ finding. (e) **terminology** — no deprecated term from Appendix R appears in t
 written file. Grep for each deprecated term; any match is a convergence
 finding.
 
+### 6.5.4 Finding taxonomy
+
+Every convergence finding SHALL carry a standardized class prefix. The
+taxonomy is: `[C-CONF]` confidence gap, `[C-XREF]` extraction fidelity,
+`[C-CONV]` conversion fidelity, `[C-COMP]` extraction completeness, `[C-CAT]`
+category floor, `[C-MUST]` MUST-coverage gap, `[C-MECH]` mechanics-fidelity
+defect, `[C-PROC]` process-compliance omission, `[C-SUGG]` suggestion-coverage
+gap, `[C-TERM]` surface terminology, `[C-PROMPT]` prompt health, `[C-URI]`
+resource URI completeness, `[C-TRUNC]` truncation accuracy, `[C-INPUT]`
+input-validation gap. The prefix enables cross-build pattern detection;
+findings without a prefix are process-compliance defects.
+
 ### 6.6 The Gauntlet
 
 *Prepare:* Load files from `build-phase-map.md` Gauntlet row: 03-build.md §6.6,
@@ -3789,21 +3828,30 @@ AI-simulated hats in realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
 **Convergence handshake.** After each Gauntlet execution, the builder maps
-every failure to the convergence-loop metric it affects: a MUST-coverage gap,
-a mechanics-fidelity defect, or a process-compliance omission. The builder then
+every failure to the convergence-loop metric it affects per REQ-208. The builder then
 re-enters Phase 2 of the convergence loop (§6.5) for only those metrics,
 corrects the root cause, and re-runs the Gauntlet — up to 2 Gauntlet
-iterations total. The mapping is recorded in DECISIONS.md (6) alongside each
-failure artifact. A Gauntlet failure that maps to no convergence metric is logged as a process-compliance
-finding. The builder traces the root cause: if the failure originates from an extraction
-defect (a misread rule, a miscategorized action, a missing conceptual term), the builder
-records the specific Phase 1 metric affected and re-enters Phase 1 for only that metric's
-domain — following the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
-Gauntlet failures that re-enter Phase 1 count against the Phase 1 iteration budget (3 attempts
-per metric-targeted step) independently of Phase 2 budgets. If the root cause is a
-construction defect that maps to no existing Phase 2 metric, the builder re-enters Phase 2
-with all metrics in scope and records the novel defect class in DECISIONS.md (6) with a
-proposed metric mapping for future builds.
+iterations total. Each Gauntlet-triggered re-entry receives a fresh 3-attempt
+budget for the affected metric, independent of any previous Phase 2 iterations
+for that metric. The re-entry budget is recorded in DECISIONS.md (6) alongside
+the failure mapping. The re-entry's no-delta detection (§6.5.1) applies
+independently within the re-entry budget. If a metric that converged in Phase 2
+is re-entered via Gauntlet and fails to re-converge within its re-entry budget,
+the builder records the residual gap in DECISIONS.md (5) and proceeds — the
+original convergence is not invalidated, but the Gauntlet-surfaced defect
+persists as a known limitation. The mapping is recorded in DECISIONS.md (6) alongside each
+failure artifact. A Gauntlet failure that maps to no convergence metric under
+REQ-208 is logged as a process-compliance finding. The builder traces the root cause: if the
+failure originates from an extraction defect (a misread rule, a miscategorized
+action, a missing conceptual term), the builder records the specific Phase 1
+metric affected and re-enters Phase 1 for only that metric's domain — following
+the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
+Gauntlet failures that re-enter Phase 1 count against the Phase 1 iteration
+budget (3 attempts per metric-targeted step) independently of Phase 2 budgets.
+If the root cause is a construction defect that maps to no existing Phase 2
+metric, the builder re-enters Phase 2 with all metrics in scope and records the
+novel defect class in DECISIONS.md (6) with a proposed metric mapping for
+future builds.
 
 **Independent invocation.** The Gauntlet must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
@@ -3999,6 +4047,19 @@ builder classifies it against this principle and records the rationale.
 When a sub-workflow's classification changes, the builder records the
 trigger — a spec revision, a discovered defect class, or an operator
 override. _Check:_ T164.
+
+**REQ-208 — Gauntlet convergence metric mapping.** The builder SHALL
+classify each Gauntlet failure by applying these rules: a failure from a
+missing tool or resource maps to MUST-coverage; a failure from incorrect
+tool output or behavior maps to mechanics-fidelity; a failure from missing
+or stale pre-build answers or verification records maps to
+process-compliance; a failure from incorrect input handling maps to
+input-validation (REQ-141). When a failure matches multiple rules, the most
+specific rule applies. The classification rule applied SHALL be recorded
+alongside each mapping in DECISIONS.md (6). A Gauntlet failure that maps to
+no convergence metric under these rules is logged as a process-compliance
+finding — the builder records the novel defect class in DECISIONS.md (6)
+with a proposed metric mapping for future builds. _Check:_ T250.
 
 **Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
 selects Gauntlet sub-workflows based on which surfaces changed — not the blanket
@@ -5342,6 +5403,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-204 | Combat participant validation | 2026-08-07 |
 | REQ-205 | Mid-combat participant changes | 2026-08-07 |
 | REQ-206 | Combat-round condition expiry | 2026-08-07 |
+| REQ-207 | Core-mechanic identification     | 2026-08-07 |
+| REQ-208 | Gauntlet convergence metric mapping | 2026-08-07 |
 
 ---
 
@@ -5543,14 +5606,14 @@ diet.
 | T160  | Automated | Novel file-size accuracy: invoke `spec_health` — assert on-disk file size metric matches OS-reported size within 1%. Mismatch > 1% — assert `[size_mismatch]` warning in `spec_health`. Assert growth trajectory uses on-disk size. | REQ-097 |
 | T161  | Automated | advance_combat audit-log-derived output: init combat with entity, perform weapon-damage against target, advance_combat — assert output includes participant name, weapon used, damage roll transparency, target HP change. advance_combat with no prior mutations — assert reports participant took no action. | REQ-043 |
 | T162  | Automated | Auto turn advancement for statless: init combat with entity, NPC (no stats), and danger. Advance through NPC turn — assert `[AUTO]` marker, narrative action from NPC description, no mechanical changes, immediate turn advance. Advance through danger turn — assert `[AUTO]` marker, narrative action from danger name. | REQ-043 |
-| T163  | Automated | Input-validation convergence: trigger an S14a failure (empty string accepted without [INVALID_INPUT]), assert the builder maps it to the input-validation metric, assert Phase 2 re-enters for input-validation only (other three metrics unchanged), assert DECISIONS.md (6) records the failing input value and error category mismatch. | REQ-141 |
+| T163  | Automated | Input-validation convergence: trigger an S14a failure (empty string accepted without [INVALID_INPUT]), assert the builder maps it to the input-validation metric, assert Phase 2 re-enters for input-validation only (other three metrics unchanged), assert DECISIONS.md (6) records the failing input value and error category mismatch. After Gauntlet re-entry for input-validation, assert DECISIONS.md (6) records a fresh 3-attempt budget independent of the original Phase 2 budget. Assert the re-entry's iteration count does not accumulate with original Phase 2 iterations. | REQ-141, REQ-208 |
 | T164  | Automated | Blocking classification: after a full Gauntlet run, assert DECISIONS.md (6) contains a blocking classification record for every sub-workflow with the safety property it protects and the citing REQ(s). Assert every sub-workflow marked blocking in the exit criteria is classified blocking in the record. Assert every sub-workflow not in the exit criteria is classified non-blocking. | REQ-142 |
 | T165  | Automated | Extraction completeness: after build with ≥20 mechanical sections, assert `spec_health.convergence_summary.extractionCompleteness` ≥ 95% and ≤ 100%. Assert the completeness count matches the viability pre-check mechanical-section count less guidance-only sections. | REQ-025 |
 | T166  | Automated | Per-category confidence: after build, assert `spec_health.convergence_summary.category_confidence` contains an entry for each of the 7 extraction categories, each with counts and percentages for HIGH, MEDIUM, and LOW. Assert the sum of category counts matches the total indexed count. | REQ-025 |
 | T167  | Automated | Prompt health convergence: after build, assert `spec_health.convergence_summary.prompt_health.stale_reference_count` = 0 for each registered prompt. Assert the prompt health section of convergence_summary lists every prompt from REQ-023. | REQ-138 |
 | T168  | Automated | Resource URI convergence: after build, assert `spec_health.convergence_summary.resource_uri_completeness` = 100%. Assert every REQ-022 URI template has a `present` entry in the convergence_summary. | REQ-139 |
 | T169  | Manual   | Gauntlet→Phase 1 re-entry: induce an extraction defect (miscategorized action) that survives Phase 1 and Phase 2 convergence but produces a Gauntlet failure. Assert the builder traces the root cause to Phase 1, records the affected Phase 1 metric, and re-enters Phase 1 for that metric. Assert the re-entry counts against the Phase 1 iteration budget. Assert DECISIONS.md (6) records the root-cause trace. | §6.6 |
-| T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
+| T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. After a build requiring ≥2 iterations with zero velocity on iteration 3 while below threshold, assert a `[velocity-stall]` finding in DECISIONS.md (5) and assert the metric's step count does not increment beyond the stall. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
 | T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-145 |
 | T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-144 |
 | T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143 |
@@ -5590,6 +5653,8 @@ diet.
 | T247  | Automated | Combat participant validation: call `init_combat(participants=["nonexistent"])` with no entities imported — assert `[NOT_FOUND]` enumerating "nonexistent" and listing valid entity/NPC IDs; assert no combat state is created; assert `session_recap` reports no pending confrontation. Call `init_combat` with a mix of valid and invalid participant IDs — assert `[NOT_FOUND]` enumerating only the invalid IDs; turn-order construction does not begin. | REQ-204 |
 | T248  | Automated | Mid-combat participant changes: during active combat with participants ["hero", "goblin"], call `add_combat_participant("wizard")` — assert wizard inserted after hero in turn order. Call `remove_combat_participant("goblin")` — assert goblin removed and pointer advances if goblin was current. Remove last participant from a 1-participant combat — assert auto-`end_combat` with outcome "All participants removed." Assert undo reverts the participant change. Assert Player hat returns `[FORBIDDEN]`. | REQ-205 |
 | T249  | Automated | Combat-round condition expiry: apply a condition with `rounds: 1` to a participant, call `advance_combat` once — assert condition removed after turn and audit log contains `[condition_expired]`. Apply condition with `rounds: 0` — assert no decrement. Apply condition with no `rounds` field — assert no auto-expiry. Apply condition with `rounds: 2` — assert decrements to 1 after first `advance_combat` and expires after second. | REQ-206 |
+| T250  | Automated | Gauntlet convergence metric mapping: induce a missing-tool Gauntlet failure — assert it maps to MUST-coverage with the classification rule cited in DECISIONS.md (6). Induce a mechanics-fidelity failure — assert it maps to mechanics-fidelity. Induce a novel defect class — assert it is logged as process-compliance with a proposed metric mapping. Assert every mapped failure records the classification rule applied. | REQ-208 |
+| T251  | Automated | Core-mechanic identification: build against the Captain Proton fixture (known core mechanic: d20 + stat vs target number). Assert the builder correctly identifies the core resolution mechanic. Assert DECISIONS.md (5) records the criterion used (a, b, or c from REQ-207) alongside the identified mechanic. Assert the core mechanic's confidence meets the ≥85% threshold. | REQ-207 |
 
 ---
 
@@ -5908,7 +5973,8 @@ descriptions — still apply to EARS clauses.
 
 **Convergence-driven REQ review.** When the convergence loop produces more than two
 findings of the same class across two or more ruleset builds, the builder flags the
-pattern in DECISIONS.md (5) as a candidate for REQ revision. Common classes include:
+pattern in DECISIONS.md (5) as a candidate for REQ revision. Common prefix classes
+(see §6.5.4 Finding taxonomy) include:
 consistently low extraction confidence in a section type not covered by existing
 heuristics, repeated MUST-coverage gaps from an unmodeled mechanic present in multiple
 rulesets, or repeated Gauntlet failures from an undertested contract. The flag cites

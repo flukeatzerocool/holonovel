@@ -234,13 +234,12 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: No competitor has keyword-triggered lore. This is Holonovel-unique. Does dynamic lore feel like the GM remembering relevant details, or like pop-up ads?
     Score: 24 (friction=2, crit=3, freq=3). Cplx: 3, Coupling: 4.
 
-31. Discovery quality — chunked reading, 7 extraction categories, cross-format consistency, reconciliation authority.
+31. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] Discovery quality — chunked reading, 7 extraction categories, cross-format consistency, reconciliation authority.
     Spec: REQ-010, REQ-011, REQ-012, REQ-015, REQ-016, REQ-017, REQ-018, REQ-099, REQ-100, REQ-147, REQ-194, §6.3.
     Research: Inform 7's world-model compilation — the compiler reads source text and builds an internal model of rooms, objects, relations, and rules. How does Inform's compilation pipeline (scan → parse → resolve → generate) compare to Holonovel's discovery → extraction → construction? What compilation errors (undefined objects, ambiguous references) are analogous to discovery defects?
     Benchmark: No comparable AI-build tool exists. Discovery quality determines whether the server even works — but it's a build-time concern, not a runtime UX concern.
     Score: 24 (friction=2, crit=4, freq=1). Cplx: 5, Coupling: 5.
 
-32. Convergence & quality enforcement — two-phase loop, no-delta detection, cross-model audit, adjusted thresholds.
     Spec: §6.5, REQ-099, REQ-100.
     Research: Inform 7's "Problem" messages — the compiler reports specific, actionable errors with source locations. How does Inform's error-reporting philosophy (be specific, cite the source line, suggest a fix) inform Holonovel's convergence loop? Should convergence findings read like compiler errors or like code review comments?
     Benchmark: No comparable self-auditing tool exists. Convergence quality is invisible to players but determines whether the server is trustworthy.

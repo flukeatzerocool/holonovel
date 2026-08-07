@@ -34,6 +34,7 @@ export interface NovelEntity {
   speed: number;
   initiative: number;
   conditions: string[];
+  condition_rounds: Record<string, number>;
   hit_dice: { total: number; remaining: number; die: number };
   proficiencies: { armor: string[]; weapons: string[]; tools: string[]; saves: string[]; skills: string[] };
   features: string[];
@@ -52,6 +53,7 @@ export interface NpcState {
   max_hp?: number;
   speed?: number;
   conditions?: string[];
+  condition_rounds?: Record<string, number>;
   stats?: Record<string, number>;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
@@ -639,6 +641,15 @@ export class StateManager {
     const isNpc = novel.npcs.has(currentName);
     const isDanger = combat.dangers.some(d => d.name === currentName);
 
+    // REQ-206: condition expiry on the participant whose turn just resolved
+    if (isEntity) {
+      const entity = novel.entities.get(currentName)!;
+      processConditionExpiry(novel, entity, currentName, combat.round);
+    } else if (isNpc) {
+      const npc = novel.npcs.get(currentName)!;
+      processConditionExpiry(novel, npc, currentName, combat.round);
+    }
+
     // Statless NPCs (no ac/hp set) and dangers auto-advance
     const npcData = isNpc ? novel.npcs.get(currentName) : null;
     const isStatless = isDanger || (isNpc && npcData && npcData.ac === undefined && npcData.hp === undefined);
@@ -674,6 +685,52 @@ export class StateManager {
     novel.combat.active = false;
     this.audit(novel, novel.hat, "end_combat", { outcome, rounds_played: novel.combat.round });
     novel.combat = null;
+  }
+
+  addCombatParticipant(novel: NovelState, participantId: string): CombatState {
+    if (!novel.combat || !novel.combat.active) throw new Error("[STATE_CONFLICT] No active combat.");
+    if (!novel.entities.has(participantId) && !novel.npcs.has(participantId)) {
+      const valid = [...novel.entities.keys(), ...novel.npcs.keys()];
+      throw new Error(`[NOT_FOUND] Participant '${participantId}' not found. Valid: ${valid.join(", ") || "(none)"}`);
+    }
+    if (novel.combat.turn_order.includes(participantId)) {
+      throw new Error(`[STATE_CONFLICT] Participant '${participantId}' is already in combat.`);
+    }
+    const combat = novel.combat;
+    const insertIdx = combat.current_turn + 1;
+    combat.turn_order.splice(insertIdx, 0, participantId);
+    if (combat.current_turn >= insertIdx) {
+      combat.current_turn++;
+    }
+    this.audit(novel, novel.hat, "add_combat_participant", { participant_id: participantId });
+    return combat;
+  }
+
+  removeCombatParticipant(novel: NovelState, participantId: string): { combat: CombatState | null; ended: boolean; outcome?: string } {
+    if (!novel.combat || !novel.combat.active) throw new Error("[STATE_CONFLICT] No active combat.");
+    const combat = novel.combat;
+    const idx = combat.turn_order.indexOf(participantId);
+    if (idx === -1) {
+      throw new Error(`[NOT_FOUND] Participant '${participantId}' is not in combat.`);
+    }
+    if (combat.turn_order.length <= 1) {
+      combat.active = false;
+      this.audit(novel, novel.hat, "end_combat", { outcome: "All participants removed.", rounds_played: combat.round });
+      novel.combat = null;
+      return { combat: null, ended: true, outcome: "All participants removed." };
+    }
+    if (idx === combat.current_turn) {
+      combat.current_turn = (combat.current_turn + 1) % combat.turn_order.length;
+    }
+    combat.turn_order.splice(idx, 1);
+    if (combat.current_turn >= combat.turn_order.length) {
+      combat.current_turn = 0;
+    }
+    if (idx < combat.current_turn) {
+      combat.current_turn--;
+    }
+    this.audit(novel, novel.hat, "remove_combat_participant", { participant_id: participantId });
+    return { combat, ended: false };
   }
 
   combatReport(novel: NovelState): string {
@@ -769,6 +826,7 @@ ${turnOrder}`;
       speed: raceData.speed,
       initiative: dexMod,
       conditions: [],
+      condition_rounds: {},
       hit_dice: { total: 1, remaining: 1, die: classData.hit_dice },
       proficiencies: {
         armor: classData.proficiencies.armor,
@@ -793,6 +851,42 @@ ${turnOrder}`;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
+
+function processConditionExpiry(
+  novel: NovelState,
+  entity: { conditions?: string[]; condition_rounds?: Record<string, number> },
+  name: string,
+  round: number
+): void {
+  if (!entity.condition_rounds || Object.keys(entity.condition_rounds).length === 0) return;
+  if (!entity.conditions) return;
+
+  const expired: string[] = [];
+  for (const [condition, remaining] of Object.entries(entity.condition_rounds)) {
+    if (remaining <= 0) continue;
+    const newRemaining = remaining - 1;
+    if (newRemaining <= 0) {
+      delete entity.condition_rounds[condition];
+      entity.conditions = entity.conditions.filter(c => c !== condition);
+      expired.push(condition);
+    } else {
+      entity.condition_rounds[condition] = newRemaining;
+    }
+  }
+
+  for (const condition of expired) {
+    novel.audit_log.push({
+      timestamp: new Date().toISOString(),
+      hat: novel.hat,
+      tool: "condition_expired",
+      args: JSON.stringify({ entity_id: name, condition, round }),
+      output_prefix: "",
+      hash: novel.audit_log.length > 0
+        ? crypto.createHash("sha256").update(novel.audit_log[novel.audit_log.length - 1].hash + "condition_expired" + JSON.stringify({ entity_id: name, condition })).digest("hex").substring(0, 8)
+        : crypto.createHash("sha256").update("00000000" + "condition_expired" + JSON.stringify({ entity_id: name, condition })).digest("hex").substring(0, 8),
+    });
+  }
+}
 
 function hashStringSeed(s: string): number {
   let h = 0;
