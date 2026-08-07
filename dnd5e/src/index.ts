@@ -25,7 +25,7 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584";
+const SPEC_HASH = "2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 

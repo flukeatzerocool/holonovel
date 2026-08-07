@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584
+- **Spec hash:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -113,6 +113,22 @@
 | REQ-106 | Spec repository URL | `src/state.ts` — specRepoUrl; `src/index.ts` — spec_health + intro |
 | REQ-107 | Version coordination | `src/state.ts` — specVersion; `src/index.ts` — spec_health |
 | REQ-116 | Redo | `src/state.ts` — redo stacks; `src/index.ts` — redo tool |
+| REQ-001a | Warning and Partial semantics | Deferred — `src/index.ts` ok/err/raw helpers; WARNING/PARTIAL status prefixes not yet implemented |
+| REQ-001b | Error boundary | Deferred — SDK-layer validation via Zod; REQ-002 category strings not yet separated from protocol errors |
+| REQ-002a | Extended error categories | Deferred — RULE_VIOLATION and UNIMPLEMENTED categories not yet implemented |
+| REQ-002b | Corrective-action contract | Deferred — `Corrective action:` line format not yet in error responses |
+| REQ-002c | Hat-filtered error values | Deferred — enumerations from data tables; hat-aware filtering not yet applied |
+| REQ-004a | Stat block baseline view | Deferred — `character_sheet` renders all fields; ruleset-anchor mapping not yet integrated |
+| REQ-168 | Audit resource | Deferred — `audit://novel` resource not yet registered |
+| REQ-174 | Significant-roll criterion | Deferred — `session_recap` shows all audit entries; significance filter not yet applied |
+| REQ-175 | Confrontation summary | Deferred — `session_recap` not yet summarizing combat rounds |
+| REQ-179 | Output pointer resource | Deferred — `output://` resource template not yet registered (previously deferred) |
+| REQ-180 | Truncation budget unit | Deferred — CHARS_PER_TOKEN heuristic not yet recorded (previously deferred) |
+| REQ-181 | Character creation output | Deferred — `create_character` returns derived stats; full minimum surface deferred |
+| REQ-182 | Bounded-domain documentation | Deferred — DECISIONS.md (5) parameter domain mappings TBD |
+| REQ-183 | Live-index enumerations | Deferred — error enumerations from data tables, not live ruleset index |
+| REQ-184 | Anti-slop resource | Deferred — `guidance://<hat>/anti-slop` resource not yet registered |
+| REQ-194 | Anchor derivation | Waived — build-time/documentation concern, not server runtime |
 
 <!-- @section normalizations -->
 ## 4. Assumptions, Normalizations, and Capabilities
@@ -333,3 +349,32 @@
 - **Changed code paths:** src/index.ts (SPEC_HASH, create_character quick-mode response, compress_audit simplified)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
 - **Spec hash:** 3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584
+
+### Spec-Driven Update (REQ-098) — Spec File Structure Reorganization Sync
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — spec restructured into numbered source files (01-foundations through appendices); all sections rewritten, REQ-053 removed, sub-REQs added (001a, 001b, 002a, 002b, 002c, 004a), new REQs 168/174/175/184/194 added
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | SPEC_HASH | Stored hash stale (`3e3a55...` → `2e5362c4...`) | implemented | Updated in src/index.ts and DECISIONS.md |
+  | REQ-053 | Removed from spec, stale in dnd5e/holonovel.md | implemented | Regenerated dnd5e/holonovel.md from canonical assembled spec |
+  | REQ-001a | WARNING/PARTIAL semantics not implemented | deferred | Requires error taxonomy refactoring across all tool handlers |
+  | REQ-001b | Error boundary (tool vs protocol vs SDK errors) | deferred | Partially correct via Zod validation; full compliance needs handler audit |
+  | REQ-002a | RULE_VIOLATION/UNIMPLEMENTED categories missing | deferred | Requires error taxonomy expansion + ruleset anchor citations |
+  | REQ-002b | Corrective-action contract line not present | deferred | Every error response needs restructured format |
+  | REQ-002c | Hat-filtered error values not implemented | deferred | Requires hat-aware enumeration on all NOT_FOUND paths |
+  | REQ-004a | Stat block baseline view not implemented | deferred | Requires ruleset-anchor data model changes |
+  | REQ-168 | audit://novel resource not registered | deferred | New resource with hat-filtering |
+  | REQ-174 | Significant-roll criterion for recap | deferred | New filtering logic needed in session_recap |
+  | REQ-175 | Confrontation summary derivation | deferred | New summary logic needed in session_recap |
+  | REQ-179/180 | Output pointer + truncation budget | deferred | Previously deferred — significant architectural change |
+  | REQ-181 | Character creation output surface | deferred | Full minimum output surface not yet implemented |
+  | REQ-182/183 | Parameter documentation + live-index | deferred | Requires DECISIONS.md documentation + ruleset-index integration |
+  | REQ-184 | Anti-slop resource | deferred | New guidance:// resource not yet registered |
+  | REQ-194 | Anchor derivation | waived | Build-time/documentation concern, not server runtime |
+  | REQ-101,102,147,153,154,161-164,185-186 | Build-time artifact REQs | waived | Not server runtime concerns |
+- **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests), spec-delta exit 0 confirmed
+- **Changed code paths:** src/index.ts (SPEC_HASH), DECISIONS.md (traceability table + gap disposition), dnd5e/holonovel.md (regenerated)
+- **Gauntlet:** test suite directory empty — manual smoke test via spec_health
+- **Spec hash:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
