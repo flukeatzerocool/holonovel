@@ -285,9 +285,25 @@ of the five prefixes; protocol-level errors use JSON-RPC error code -32000 with 
 prefix in `message`.
 _Check:_ Gate 2; Appendix D.
 
+**REQ-001a — Warning and Partial semantics.** `[WARNING]` is raised when the
+requested operation succeeds but encounters a condition requiring operator
+attention — corrupted-but-unused state, seed conflict where a per-call seed
+overrides the session seed, or speculative operations where the server cannot
+guarantee the outcome's correctness. `[PARTIAL]` is raised when the requested
+operation can produce a partial result but cannot fully satisfy the request —
+contradictory ruleset citations where both texts are returned with the conflict
+explained, or a canonical lookup that resolves to a section the ruleset marks as
+incomplete or placeholder. Neither `[WARNING]` nor `[PARTIAL]` uses `isError:
+true`.
+*Acceptance criterion:* A corrupted Novel on disk produces `[WARNING]` in
+`spec_health` with the Novel slug enumerated; a search returning contradictory
+ruleset texts produces `[PARTIAL]` with both texts cited.
+_Check:_ T175.
+
 **REQ-002 — Error taxonomy.** _(F1)_ Every error carries a category: `[FORBIDDEN]`,
-`[NOT_FOUND]`, `[INVALID_INPUT]`, `[STATE_CONFLICT]`, `[RULE_VIOLATION]`, or
-`[UNIMPLEMENTED]`. `[NOT_FOUND]` and `[INVALID_INPUT]` must enumerate session-visible valid
+`[NOT_FOUND]`, `[INVALID_INPUT]`, `[STATE_CONFLICT]`, `[RULE_VIOLATION]`,
+`[UNIMPLEMENTED]`, `[AMBIGUOUS]`, or `[MISSING_PARAM]`.
+`[NOT_FOUND]` and `[INVALID_INPUT]` must enumerate session-visible valid
 values in the corrective action, derived from the ruleset index and filtered by hat.
 When a single close match exists (fuzzy match), include a
 "Did you mean?" hint above the enumeration (e.g. `Did you mean 'longsword'?`). When
@@ -295,12 +311,59 @@ multiple close matches exist, list them all ("Did you mean one of…"). An
 empty-string search returns no results — not an error — with valid-value enumeration.
 `[FORBIDDEN]` directs callers to use `set_hat` to switch hats. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
-ended game, undo while a workflow is pending). Corrective actions are a separate line:
+ended game, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
+matches multiple entries — an alias that resolves to more than one canonical
+name. The response enumerates the matching entries with their distinguishing
+fields. `[MISSING_PARAM]` is raised when a required parameter is absent or empty
+and no default is defined. The response names the missing parameter and its
+expected format. Corrective actions are a separate line:
 `Corrective action: <action>`.
 *Acceptance criterion:* A `[NOT_FOUND]` error on an unknown spell name returns the
 category, a "Did you mean?" hint when a close match exists, and a session-visible
 list of valid spell names.
-_Check:_ T18.
+_Check:_ T18, T177.
+
+**REQ-002a — Extended error category semantics.** `[RULE_VIOLATION]` is raised
+when the input is well-formed and within the tool's domain but violates a
+ruleset constraint — a non-stacking bonus applied when already present, a
+character creation choice that conflicts with prerequisites, or an action
+prohibited by the ruleset's own restrictions. The response cites the ruleset
+anchor that forbids the action. `[UNIMPLEMENTED]` is raised when the tool
+recognizes the input as valid but the feature is not yet modeled — a subsystem
+the ruleset defines but the builder could not extract, recorded as a DECISIONS.md
+waiver. The response names the unimplemented subsystem and cites the waiver
+entry.
+*Acceptance criterion:* Applying a condition already active on the target
+returns `[ERROR] [RULE_VIOLATION]` citing the ruleset anchor; calling a tool for
+a waived subsystem returns `[ERROR] [UNIMPLEMENTED]` with the waiver reference.
+_Check:_ T176.
+
+**REQ-002b — Corrective-action contract.** The `Corrective action:` line is a
+single imperative sentence describing what the caller must do to resolve the
+error — switching hats for `[FORBIDDEN]`, providing a valid value from the
+enumeration for `[NOT_FOUND]`, or waiting for a state change for
+`[STATE_CONFLICT]`. It is not a prompt, not a suggestion, and not a
+multi-sentence explanation. For `[UNIMPLEMENTED]`, the corrective action names
+the waiver entry in DECISIONS.md (5). For `[SYSTEM]` errors (JSON-RPC
+`-32000`), the corrective action is absent — these are unrecoverable at the
+tool layer.
+*Acceptance criterion:* Every tool-level error response contains exactly one
+`Corrective action:` line matching its category; protocol-level errors carry
+no corrective action.
+_Check:_ T178.
+
+**REQ-002c — Hat-filtered error values.** Valid-value enumerations in
+`[NOT_FOUND]` and `[INVALID_INPUT]` errors exclude values the caller's current
+hat cannot access — a Player hat sees only player-accessible spell names in a
+`[NOT_FOUND]` on `lookup_spell`; a Game Master hat sees the full catalogue.
+"Did you mean?" hints follow the same hat filter. A value that exists in the
+ruleset but is invisible to the caller's hat is treated as absent for
+enumeration purposes — it is neither enumerated nor hinted. This prevents
+side-channel disclosure of GM-only content through error message verbosity.
+*Acceptance criterion:* A Player-hat `[NOT_FOUND]` on `lookup_spell` with a
+GM-only spell name lists only player-visible spell names and provides no
+"Did you mean?" hint for the GM-only name.
+_Check:_ T179.
 
 **REQ-003 — Roll transparency.** _(F1)_ Every dice-roll tool returns the full calculation
 path: dice notation, individual die results, modifiers, total, and outcome. Every modifier's
@@ -414,6 +477,22 @@ _Check:_ T51.
 error localization or internationalization, and error recovery strategies beyond the
 corrective-action model defined in REQ-002.
 
+**REQ-001b — Error boundary.** Tool-level errors (all `[ERROR]` responses with
+a category from REQ-002) use `isError: true` and are normal `result` objects —
+the calling model receives the error text and can react. Protocol-level errors
+are for failures at the transport or request-routing layer — unknown methods,
+unparseable requests, or transport disconnection — and use standard JSON-RPC
+error codes per Appendix D. SDK-level schema validation failures (bad parameter
+types, missing required fields) surface as `-32602` before the tool handler runs
+and carry no REQ-002 taxonomy. A conformant server never emits a protocol-level
+error with a REQ-002 category string embedded.
+*Acceptance criterion:* A tool called with a structurally invalid parameter
+returns an SDK-level `-32602` response before the handler — this response does
+not contain `[ERROR] [INVALID_INPUT]` or a REQ-002 category. A tool called with
+a semantically invalid parameter returns a result with `isError: true` and
+`[ERROR] [INVALID_INPUT]`.
+_Check:_ T180.
+
 ### 5.2 Extraction and Confidence
 
 **REQ-010 — Traceability.** Every modeled mechanic cites the ruleset anchor(s) from which it
@@ -427,13 +506,39 @@ _Check:_ T15.
 directly from ruleset text), MEDIUM (interpretable but not explicit, or missing a discoverable
 trigger), or LOW (contradictory, image-conveyed, broken-link, or structurally defective).
 Book-level headings, source-converted sections, and callout types tagged non-normative cap at
-MEDIUM. Structured content extracted as formal tables (stat blocks, equipment, spells) — where
-the extraction was stable and not restructured — is HIGH above the book-level cap. Sections
+MEDIUM. Structured content — formal tables, definition lists (bold-labeled
+terms with values), and ordered procedural sequences (at least three consecutive
+imperative-verb sentences describing a mechanic's resolution steps) — where the
+extraction was stable and not restructured, is HIGH above the book-level cap.
+The builder identifies structured-procedural sequences using the same
+mechanical-indicator heuristics as the viability pre-check (§6.2): bold-labeled
+fields, imperative verbs, and definition-list markup. Sections
 flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is
-computed per-section and aggregated, with the player-filtered view as the gating metric.
+computed per-section and aggregated per REQ-147, with the player-filtered view as the gating metric. The player filter excludes:
+guidance items with GM-only hat scope (REQ-016), mechanics extracted from
+GM-only ruleset sections (REQ-032), and enrichment content tagged `[gm_only]`
+(REQ-080). The builder computes player-filtered confidence by applying these
+exclusions before aggregation per REQ-147.
 *Acceptance criterion:* A spell extracted from a table cell at a ruleset-normative
 heading carries HIGH confidence; an image-conveyed mechanic carries LOW.
 _Check:_ T15.
+
+**REQ-147 — Confidence aggregation.** Per-section confidence is the
+percentage of extracted items in that section carrying HIGH or MEDIUM labels,
+excluding items marked as guidance (REQ-016) from the per-section count. The
+overall player-filtered confidence — the Phase 1 gate metric — is the mean of
+per-section confidence scores, weighted by each section's extracted item count.
+LOW items count against the section total but do not contribute positively. A
+section with zero extracted mechanical items is excluded from the mean. The
+formula is: Σ(section_items × section_score) / Σ(section_items) where
+section_score = (HIGH + MEDIUM items) / total extracted items in section. The
+overall score is expressed as a percentage in `spec_health`.
+*Acceptance criterion:* A ruleset with three sections — Section A: 8 HIGH, 2
+MEDIUM, 0 LOW; Section B: 3 HIGH, 3 MEDIUM, 4 LOW; Section C (guidance-only, 5
+extracted guidance items) — produces per-section scores of Section A = 100%,
+Section B = 60%. Section C's guidance items are excluded from the mean per
+REQ-016. Overall = ((10 × 1.0) + (10 × 0.6)) / 20 = 80%.
+_Check:_ T181.
 
 **REQ-099 — Confidence-floor acknowledgment.** When the overall confidence threshold drops
 below 80% — whether via the convergence loop's adjusted-threshold provision or acceptance of
@@ -459,6 +564,11 @@ surrounding text from which each match was drawn — sufficient for the caller t
 distinguish the match's relevance to the query. Results are ordered by
 relevance to the query terms. A search that returns more results than a
 configurable display limit includes a count of suppressed results.
+`search_rules` confidence reflects query-term match strength, not the extraction
+confidence of the matched section. HIGH match confidence requires a non-stop
+query token in the section title or first heading; MEDIUM requires a match in
+section body text; LOW indicates peripheral or single-word matches. This is
+distinct from extraction confidence (REQ-011).
 *Acceptance criterion:* A multi-match search returns context snippets for each
 result, ordered by relevance, with a suppressed-result count when the display
 limit is exceeded.
@@ -1038,13 +1148,20 @@ append order with chained hashes.
 _Check:_ T8, T147.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
-`undo` restores the most recent mutation from a LIFO snapshot stack. The stack depth
+`undo` restores the most recent mutation from a LIFO snapshot stack. Stacks are
+keyed by the hat under which `undo` is invoked, but every snapshot captures
+the full Novel state — `undo` in the Player hat reverses the most recent
+mutation regardless of which hat initiated it. The stack depth
 supports at least 10 undo levels per hat. Builders that cannot meet this floor must record
 the constraint and its justification in DECISIONS.md (5). An empty stack returns
 `[ERROR] [STATE_CONFLICT]`. `undo` is a pure-state tool — it itself is not snapshot-able,
 and the step it reverses is removed from the snapshot stack. A pending `[NEED_INPUT]`
 blocks undo. Cancelling a workflow restores the pre-workflow snapshot and discards the
 workflow's internal undo candidates.
+When the undo stack exceeds the configured or default depth ceiling and the oldest
+snapshot is discarded, the server SHALL record a `[snapshot_truncated]` audit entry
+identifying the hat and the discarded entry's snapshot timestamp. When no depth ceiling
+is configured, the truncation threshold is the 10-entry floor defined above.
 *Acceptance criterion:* Ten consecutive mutations produce ten snapshot entries;
 `undo` restores each in LIFO order; the eleventh undo returns `[STATE_CONFLICT]`
 when the builder minimum is 10.
@@ -2371,6 +2488,7 @@ before any server code is written.
 | Extraction fidelity  | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
 | Conversion fidelity  | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 | Extraction completeness | Mechanical sections with ≥1 extraction / total mechanical sections | ≥ 95% | Re-read missed sections, re-extract |
+| Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 
 **Extraction completeness** measures coverage — whether every mechanical section
 identified at intake produced at least one extracted item. A section is considered
@@ -2380,6 +2498,18 @@ count recorded during the viability pre-check (§6.2). Guidance-only sections ar
 excluded from both numerator and denominator. Completeness below 95% triggers
 re-reading of the highest-priority missed sections (those with the most mechanical
 indicators — procedures, tables, definition lists per §6.3).
+
+**Per-category floor.** In addition to the overall confidence threshold,
+each of the seven extraction categories (§6.3: concepts, entities, actions,
+tables, resolution, roles, guidance) must individually meet a minimum
+confidence floor of 50% HIGH + MEDIUM. A category below 50% triggers a
+targeted re-extraction of that category's source sections. If re-extraction
+cannot raise the category above 50%, the builder records a
+`[category-confidence-block]` finding in DECISIONS.md (5) with: the affected
+category, its current score, the sections contributing LOW items, and a
+recommendation. The finding requires operator disposition (accept, reject, or
+request targeted remediation) before Phase 1 exit. The guidance category is
+exempt from this floor — LOW guidance does not affect tool behavior.
 
 Phase 1 exit: all four metrics meet threshold, or an extraction stall (no-delta
 on all metrics) triggers the unbuildable disposition check (§6.5.3). An
@@ -2871,7 +3001,7 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
-| `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 1)                  |
+| `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_ENRICH_STALE_DAYS` | No   | Days before inactive enrichment items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 
@@ -3770,8 +3900,10 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   (`search_rules`, `respond`, `undo`, `spec_health`, `help`).
 - `tools/call`: REQ-001 prefix and `isError` semantics on success and failure paths.
   Tool-level failure is a normal `result` with `isError: true`, never a JSON-RPC `error`
-  response. SDK-level schema-validation failures surface as `-32602` and carry no REQ-002
-  string.
+  response. Success responses carry `isError: false` (or the field omitted, equivalent
+  per JSON-RPC). Verify: call a canonical lookup with a known-absent name — the
+  response is a `result` object with `isError: true` and `[ERROR] [NOT_FOUND]` in
+  `content[0].text`, not a JSON-RPC `error` object.
 - `resources/list` and `resources/read`: `ruleset://`, `entities://`, `entity://<id>`,
   `audit://novel`, `roster://<type>`, `roster://<id>`, and `guidance://<hat>` retrievable
   per hat gating rules (REQ-032). `resources/read` returns Markdown text with a small
@@ -3795,7 +3927,12 @@ date-stamps matching CHANGELOG entries.
 | REQ     | Title                     | Spec version |
 | ------- | ------------------------- | ------------ |
 | REQ-001 | Response contract         | 2026-08-02   |
-| REQ-002 | Error taxonomy            | 2026-08-02   |
+| REQ-001a| Warning and Partial semantics | 2026-08-06 |
+| REQ-001b| Error boundary            | 2026-08-06 |
+| REQ-002 | Error taxonomy            | 2026-08-06 |
+| REQ-002a| Extended error category semantics | 2026-08-06 |
+| REQ-002b| Corrective-action contract | 2026-08-06 |
+| REQ-002c| Hat-filtered error values | 2026-08-06 |
 | REQ-003 | Roll transparency         | 2026-08-02   |
 | REQ-004 | Truncation                | 2026-08-02   |
 | REQ-004a| Statblock baseline view   | 2026-08-02   |
@@ -3920,6 +4057,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-144 | Cross-chunk reference resolution   | 2026-08-06   |
 | REQ-145 | Guidance pass budget               | 2026-08-06   |
 | REQ-146 | Reconciliation authority criteria  | 2026-08-06   |
+| REQ-147 | Confidence aggregation             | 2026-08-06   |
 
 ---
 
@@ -4099,6 +4237,14 @@ diet.
 | T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-144 |
 | T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143 |
 | T174  | Automated | Reconciliation authority criteria: after a build with a mechanic restated in three sections (core-mechanics chapter, summary table, supplement), assert canonical status is assigned to the core-mechanics section via criterion 3. With a ruleset whose index points to the summary table, assert criterion 1 overrides. Assert an `[authority-tie]` defect is produced when criteria 1–4 all produce a tie, and assert the defect log records which criterion resolved each reconciliation. | REQ-146 |
+| T175  | Automated | Warning and Partial semantics: simulate a corrupted Novel on disk — assert `spec_health` returns `[WARNING]` with the Novel slug enumerated. Submit a search query returning contradictory ruleset texts — assert `[PARTIAL]` with both texts cited. Assert neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. | REQ-001a |
+| T176  | Automated | Extended error category semantics: call `apply_condition` with an already-active condition — assert `[ERROR] [RULE_VIOLATION]` citing the ruleset anchor. Call a tool for a waived subsystem — assert `[ERROR] [UNIMPLEMENTED]` with the waiver reference. | REQ-002a |
+| T177  | Automated | Error taxonomy completeness: call a tool with an ambiguous input matching multiple entries — assert `[ERROR] [AMBIGUOUS]` enumerating matching entries with distinguishing fields. Call a tool with a required parameter absent — assert `[ERROR] [MISSING_PARAM]` naming the missing parameter. | REQ-002 |
+| T178  | Automated | Corrective-action contract: trigger a `[FORBIDDEN]` error from Player hat — assert exactly one `Corrective action:` line directing to `set_hat`. Trigger a `[STATE_CONFLICT]` — assert a corrective action referencing the required state change. Trigger a `[SYSTEM]` error via JSON-RPC `-32000` — assert no corrective action. | REQ-002b |
+| T179  | Automated | Hat-filtered error values: as Player hat, call `lookup_spell` with a GM-only spell name — assert `[NOT_FOUND]` with only player-visible spell names and no "Did you mean?" hint for the GM-only name. As Game Master hat, repeat — assert full catalogue including the GM-only name in enumeration and hints. | REQ-002c |
+| T180  | Automated | Error boundary: call a tool with a structurally invalid parameter — assert an SDK-level `-32602` response before the handler, without `[ERROR] [INVALID_INPUT]` or REQ-002 category. Call a tool with a semantically invalid parameter — assert a result with `isError: true` and `[ERROR] [INVALID_INPUT]`. Assert no protocol-level error carries a REQ-002 category string. | REQ-001b |
+| T181  | Automated | Confidence aggregation: construct a RULESET_MODEL.md with three sections matching the REQ-147 acceptance criterion example. Assert per-section scores are 100%, 60%. Assert guidance-only section items are excluded. Assert overall player-filtered HIGH+MEDIUM = 80%. Assert `spec_health` reports this percentage. | REQ-147 |
+| T182  | Automated | Category confidence floor: build against a fixture where one extraction category (e.g., Actions) has 40% HIGH+MEDIUM while overall confidence exceeds the tier threshold. Assert Phase 1 records a `[category-confidence-block]` finding in DECISIONS.md (5). Assert the builder re-extracts the affected category. Assert the build does not proceed past Phase 1 without operator disposition. Repeat with guidance category at 40% — assert no block (guidance is exempt). | REQ-011, §6.5 |
 
 ---
 

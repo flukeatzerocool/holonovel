@@ -67,16 +67,13 @@ dependencies; a failure here blocks everything downstream.
    (§6.3, REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5,
    coupling=5, maturity=4, coverage=3). Everything extracted flows from here;
    garbage in = garbage out.
-8. Snapshots, undo, redo — LIFO snapshot stack, min-10 undo depth, redo stack
    clearing on new mutation, persistence across restarts (REQ-041/116).
    Score: 47 (freq=4, crit=5, cplx=3, coupling=4, maturity=4, coverage=3).
    High-frequency safety net; broken = unrecoverable state.
-9. Error taxonomy & response contract — [OK]/[NEED_INPUT]/[PARTIAL]/[ERROR]/
     [WARNING] prefixes, six error categories, corrective actions, "Did you
     mean?" fuzzy matching (REQ-001/002). Score: 47 (freq=5, crit=5, cplx=3,
     coupling=3, maturity=4, coverage=4). Every tool response; wrong = LLM
     misrouting.
-10. Extraction & confidence — HIGH/MEDIUM/LOW labels, per-section aggregation,
     player-filtered gate, confidence-floor acknowledgment below 80%, no
     assumed mechanics (REQ-011/012/013/099). Score: 47 (freq=3, crit=5,
     cplx=4, coupling=4, maturity=4, coverage=4). Source of all mechanical
