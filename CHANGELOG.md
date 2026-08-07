@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-08-07 — Spec queue cleanup and 4 new REQs from research cycle
+
+- Combat-navigation interaction: the world-model layer now blocks parser
+  navigation commands during active combat — inspection and non-spatial
+  commands still work, but movement is locked until combat ends. Prevents
+  players from walking out of fights they're engaged in. (REQ-221)
+- Parser command vocabulary extension: builders now discover additional
+  command verbs from the ruleset's own text — if the equipment section
+  mentions "push" and "pull," those become first-class parser commands with
+  source anchors. Ruleset-free builds keep the base vocabulary only.
+  (REQ-222)
+- POV mode control: `set_active_entity` now accepts an optional `pov`
+  parameter — `character` (locked to that entity's perspective, the default)
+  or `omniscient` (narration unrestricted even with an active entity). POV
+  mode persists across entity switches and server restarts. (REQ-223)
+- Workflow staleness detection: abandoned decision workflows auto-cancel
+  after a configurable number of connection restarts (default 5), restoring
+  pre-workflow state and recording a `[workflow_stale]` audit entry. The
+  threshold is configurable via `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`.
+  (REQ-224)
+- SPEC-QUEUE cleaned up: 48 completed items removed, 2 malformed items
+  fixed and removed, 3 new subsystems added (world-model layer, narrative
+  POV, ruleset-free build mode). Queue now 5 active research items.
+
+## 2026-08-07 — Narrative POV: player perspective controls for multi-character play
+
+- Added REQ-220 (Narrative point of view): `set_active_entity` now carries narrative POV
+  semantics — the server includes a POV directive in `hat_briefing` instructing the GM AI
+  whose eyes and voice to narrate from.
+- Extended REQ-074 (Multi-entity support) with POV cross-reference.
+- Updated REQ-109 (Hat briefing composition): added narrative POV directive as a
+  decision-critical group, positioned after scene state and before entity listing.
+- Updated REQ-135 (Briefing size budget): POV directive added to never-truncated tier.
+- Added T262 (Narrative POV directive) to the derived test catalogue.
+
+## 2026-08-07 — Ruleset-free build mode: world-model-only servers
+
+- Added ruleset-free build mode (REQ-218): when B1 is `none`, the builder skips all
+  TTRPG extraction and builds an infrastructure-tools + world-model server.
+- Defined ruleset-free entity creation (REQ-219): `create_character` produces
+  narrative-only entities with no mechanical fields.
+- Amended REQ-063 (intro prompt) with "when ruleset-free" clauses for publisher
+  tagline and sourcebook listing.
+- Amended REQ-207 (core-mechanic identification) with ruleset-free skip clause.
+- Added zero-case clauses to convergence Phase 1 and Phase 2 metrics for ruleset-free
+  builds (§6.5).
+- Added Appendix W (World-Model Golden Fixture) — a parser-command-based transcript
+  exercising infrastructure contracts without dice or stats.
+- Branched G0 step 2, G2, H1, H10, and H12 for ruleset-free builds.
+- Added B1 `none` option and viability pre-check skip for ruleset-free builds (§6.2).
+- Created `inform/docs_md/world-model-provider.md` — the provider documentation for
+  the world-model kind hierarchy, property contracts, and parser command catalog.
+- Added three new derived tests: T259 (build mode), T260 (entity creation), T261
+  (world-model fixture replay).
+
 ## 2026-08-07 — World-model layer: mandatory Inform-integrated spatial model
 
 - Added §5.10 defining a mandatory world-model layer — rooms, things, exits,
