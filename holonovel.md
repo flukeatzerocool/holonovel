@@ -667,6 +667,21 @@ the adjusted threshold, justification, and explicit operator approval before
 construction continues.
 _Check:_ T86.
 
+**REQ-207 — Core-mechanic identification.** The builder SHALL identify the ruleset's core
+resolution mechanic — the primary dice/outcome procedure — by applying these criteria in
+order, stopping at the first that yields a single candidate: (a) the mechanic the ruleset's
+own introduction or "how to play" section designates as the central resolution procedure;
+(b) the mechanic cited by the most other sections in cross-references; (c) the mechanic
+with the most distinct dice-roll invocations across the ruleset's examples of play. The
+criterion used SHALL be recorded in DECISIONS.md (5) alongside the identified mechanic. If
+(a)–(c) produce a tie, the builder SHALL record all tied candidates and flag an
+`[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain at least 85%
+confidence independently of the overall threshold.
+*Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs
+target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md
+(5) records the criterion used and the mechanic's confidence meets ≥85%.
+_Check:_ T251.
+
 **REQ-012 — Graceful fallback.** A section that cannot be modeled as a tool or state remains
 searchable via `search_rules` and retrievable as a `ruleset://` resource.
 The builder never fabricates mechanics to fill a gap. Missing triggers do not invalidate the modeled portion.
@@ -745,6 +760,53 @@ every extraction decision; a reviewer can trace any modeled mechanic to its
 original text without opening the ruleset.
 _Check:_ T15; Discovery
 checkpoint.
+
+**REQ-146 — Reconciliation authority.** When the ruleset restates a mechanic across
+multiple sections (e.g., a procedure and a summary table disagree), every source SHALL be
+recorded. Authority SHALL be determined by applying these criteria in order, stopping at the
+first that yields a single candidate: (a) the section the ruleset's own index or table of
+contents designates as the primary reference; (b) the section whose heading text is the most
+specific match to the mechanic name; (c) the section within the ruleset's core-mechanics
+chapter (the chapter at the shallowest heading depth containing the highest proportion of
+mechanical sections); (d) the section with the most explicit procedural text — measured as
+the highest count of imperative verbs (roll, add, subtract, compare, apply) within the
+section's mechanics paragraphs. If (a)–(d) produce a tie, all tied sections SHALL be
+recorded as co-canonical (MEDIUM confidence) and the ambiguity flagged as an
+`[authority-tie]` defect. The builder SHALL record which criterion resolved each
+reconciliation in the defect log. The most authoritative section SHALL be treated as
+canonical; other sources SHALL be LOW confidence.
+*Acceptance criterion:* A mechanic restated in three sections — one in the core-mechanics
+chapter, one in a summary table, and one in a supplement — assigns canonical status via
+criterion (c). With a ruleset whose index points to the summary table, criterion (a)
+overrides. An `[authority-tie]` defect is produced when (a)–(d) all produce a tie.
+_Check:_ T174.
+
+**REQ-209 — Cross-format consistency.** Before server construction begins, the builder
+SHALL sample 10 items at random from the extraction model, spanning at least three of the
+seven extraction categories (§6.3), and verify that RULESET_MODEL.md and ruleset_model.json
+agree on: name, source anchor, confidence label, and action classification for each sampled
+item. A mismatch is a discovery defect, recorded in the defect log with both values, and
+SHALL be resolved before construction begins.
+*Acceptance criterion:* After extraction, RULESET_MODEL.md and ruleset_model.json agree on
+all four fields for 100% of sampled items. A single mismatch blocks construction until
+resolved.
+_Check:_ T252.
+
+**REQ-210 — Extraction categories.** The builder SHALL extract ruleset content into seven
+categories in dependency order within each chunk: Concepts (named ruleset terms: stats,
+moves, conditions, statuses), Entities (character types, monsters, NPCs with fields and
+lifecycle), Tables (lookup tables and generation tables with dice notation), Actions
+(resolution mechanics, commands, generation — classified per REQ-015), Resolution (the core
+mechanic: dice notation, stat associations, result bands), Roles (Player and Game Master
+terms from the ruleset), and Guidance (hat-addressed prose, verbatim with attribution and
+hat scope). A cross-category reference that cannot be resolved against the inventory of
+earlier extractions within the same chunk SHALL be recorded as a MEDIUM-confidence finding
+in the defect log with a deferred-reference annotation.
+*Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined
+within the same chunk resolves that reference against the Concept inventory. A reference to
+a Concept term not yet extracted produces a deferred-reference annotation which resolves
+after cross-chunk resolution.
+_Check:_ T173.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G: layout-aware extraction,
@@ -3655,6 +3717,8 @@ before any server code is written.
 | Conversion fidelity  | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
 | Extraction completeness | Mechanical sections with ≥1 extraction / total mechanical sections | ≥ 95% | Re-read missed sections, re-extract |
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
+| Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
+| Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 
 **Extraction completeness** measures coverage — whether every mechanical section
 identified at intake produced at least one extracted item. A section is considered
@@ -3677,16 +3741,16 @@ recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit. The guidance category is
 exempt from this floor — LOW guidance does not affect tool behavior.
 
-Phase 1 exit: all five metrics meet threshold (conversion-fidelity conditional —
-five when conversion was selected, four otherwise), or an extraction stall
+Phase 1 exit: all seven metrics meet threshold (conversion-fidelity conditional —
+six when conversion not selected, seven when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains four metrics and the exit
-condition is four metrics meeting threshold.
+conversion was not selected, the table contains six metrics and the exit
+condition is six metrics meeting threshold.
 
 **Phase 2 — Construction quality.**
 Builder implementation quality: whether the extracted model was faithfully
@@ -3807,7 +3871,8 @@ finding.
 Every convergence finding SHALL carry a standardized class prefix. The
 taxonomy is: `[C-CONF]` confidence gap, `[C-XREF]` extraction fidelity,
 `[C-CONV]` conversion fidelity, `[C-COMP]` extraction completeness, `[C-CAT]`
-category floor, `[C-MUST]` MUST-coverage gap, `[C-MECH]` mechanics-fidelity
+category floor, `[C-XFMT]` cross-format consistency, `[C-RECN]` reconciliation
+quality, `[C-MUST]` MUST-coverage gap, `[C-MECH]` mechanics-fidelity
 defect, `[C-PROC]` process-compliance omission, `[C-SUGG]` suggestion-coverage
 gap, `[C-TERM]` surface terminology, `[C-PROMPT]` prompt health, `[C-URI]`
 resource URI completeness, `[C-TRUNC]` truncation accuracy, `[C-INPUT]`
@@ -5405,6 +5470,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-206 | Combat-round condition expiry | 2026-08-07 |
 | REQ-207 | Core-mechanic identification     | 2026-08-07 |
 | REQ-208 | Gauntlet convergence metric mapping | 2026-08-07 |
+| REQ-209 | Cross-format consistency     | 2026-08-07 |
+| REQ-210 | Extraction categories        | 2026-08-07 |
 
 ---
 
@@ -5616,7 +5683,7 @@ diet.
 | T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. After a build requiring ≥2 iterations with zero velocity on iteration 3 while below threshold, assert a `[velocity-stall]` finding in DECISIONS.md (5) and assert the metric's step count does not increment beyond the stall. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
 | T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-145 |
 | T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-144 |
-| T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143 |
+| T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143, REQ-210 |
 | T174  | Automated | Reconciliation authority criteria: after a build with a mechanic restated in three sections (core-mechanics chapter, summary table, supplement), assert canonical status is assigned to the core-mechanics section via criterion 3. With a ruleset whose index points to the summary table, assert criterion 1 overrides. Assert an `[authority-tie]` defect is produced when criteria 1–4 all produce a tie, and assert the defect log records which criterion resolved each reconciliation. | REQ-146 |
 | T175  | Automated | Warning and Partial semantics: simulate a corrupted Novel on disk — assert `spec_health` returns `[WARNING]` with the Novel slug enumerated. Submit a search query returning contradictory ruleset texts — assert `[PARTIAL]` with both texts cited. Assert neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. | REQ-001a |
 | T176  | Automated | Extended error category semantics: call `apply_condition` with an already-active condition — assert `[ERROR] [RULE_VIOLATION]` citing the ruleset anchor. Call a tool for a waived subsystem — assert `[ERROR] [UNIMPLEMENTED]` with the waiver reference. | REQ-002a |
@@ -5655,6 +5722,7 @@ diet.
 | T249  | Automated | Combat-round condition expiry: apply a condition with `rounds: 1` to a participant, call `advance_combat` once — assert condition removed after turn and audit log contains `[condition_expired]`. Apply condition with `rounds: 0` — assert no decrement. Apply condition with no `rounds` field — assert no auto-expiry. Apply condition with `rounds: 2` — assert decrements to 1 after first `advance_combat` and expires after second. | REQ-206 |
 | T250  | Automated | Gauntlet convergence metric mapping: induce a missing-tool Gauntlet failure — assert it maps to MUST-coverage with the classification rule cited in DECISIONS.md (6). Induce a mechanics-fidelity failure — assert it maps to mechanics-fidelity. Induce a novel defect class — assert it is logged as process-compliance with a proposed metric mapping. Assert every mapped failure records the classification rule applied. | REQ-208 |
 | T251  | Automated | Core-mechanic identification: build against the Captain Proton fixture (known core mechanic: d20 + stat vs target number). Assert the builder correctly identifies the core resolution mechanic. Assert DECISIONS.md (5) records the criterion used (a, b, or c from REQ-207) alongside the identified mechanic. Assert the core mechanic's confidence meets the ≥85% threshold. | REQ-207 |
+| T252  | Automated | Cross-format consistency: after extraction, sample 10 items at random from RULESET_MODEL.md and ruleset_model.json — spanning at least three extraction categories. Assert all 10 items agree on name, source anchor, confidence label, and action classification across both formats. Introduce a deliberate mismatch — assert it is flagged as a discovery defect and recorded in the defect log with both values. Assert the build does not proceed to construction until the mismatch is resolved. | REQ-209 |
 
 ---
 
