@@ -7,13 +7,14 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215           | 18    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152                         | 6     |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216            | 15    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156 | 27    |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224                     | 7     |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221 | 33    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
-| 5.10    | World-Model Layer                     | 195–202                                             | 8     |
+| 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
+| 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
 
@@ -412,7 +413,11 @@ with the most distinct dice-roll invocations across the ruleset's examples of pl
 criterion used SHALL be recorded in DECISIONS.md (5) alongside the identified mechanic. If
 (a)–(c) produce a tie, the builder SHALL record all tied candidates and flag an
 `[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain at least 85%
-confidence independently of the overall threshold.
+confidence independently of the overall threshold. WHEN the build operates in ruleset-free
+mode THE core-mechanic identification SHALL be skipped. The builder SHALL record
+"ruleset-free — no core mechanic" in the core-mechanic field of DECISIONS.md (5). No
+`[ambiguous-core-mechanic]` or `[core-mechanic-block]` finding is produced — the absence is
+intentional and not a defect.
 *Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs
 target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md
 (5) records the criterion used and the mechanic's confidence meets ≥85%.
@@ -1009,9 +1014,11 @@ prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
 *Acceptance criterion:* `intro` prompt is ≤300 words, opens with the publisher
-tagline, includes a dynamic sourcebook listing from the live index, and ends
+tagline (or a generic server-name identification when the server is ruleset-free),
+includes a dynamic sourcebook listing from the live index (or a message indicating the
+server is world-model-only when the server is ruleset-free), and ends
 with four concrete next actions.
-_Check:_ T49, T50.
+_Check:_ T49, T50, T259.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
 arguments, is visible to all hats (unfiltered), and serves as a structured questionnaire surfaced at the
@@ -1309,6 +1316,26 @@ removes the Novel from disk and the active set; a subsequent `resume_novel`
 returns `[STATE_CONFLICT]`.
 _Check:_ T158.
 
+**REQ-224 — Workflow staleness detection.** THE server SHALL track a
+per-workflow staleness counter — an integer incremented each time a new MCP
+connection is established while the workflow is pending. When the staleness
+counter reaches a configurable threshold (default 5 connections), the pending
+workflow SHALL auto-cancel with the same behavior as `respond("cancel")`: the
+pre-workflow snapshot is restored, a `[workflow_stale]` audit entry is recorded
+with the decision text and connection count, and `undo` becomes callable. The
+audited entry SHALL be tagged `[workflow_stale]` to distinguish it from explicit
+cancellation. The staleness counter SHALL be recorded in `spec_health` under
+`pending_workflow` alongside the decision text and elapsed connections. A
+workflow cancelled by staleness follows the same state-restoration contract as
+explicit cancellation (REQ-042). The threshold is configurable via
+`TTRPG_WORKFLOW_STALENESS_CONNECTIONS`; setting it to zero SHALL disable
+staleness detection.
+*Acceptance criterion:* A pending workflow survives 4 connection restarts and
+remains open; on the 5th restart it auto-cancels with `[workflow_stale]` audit
+entry and restored pre-workflow state. Setting
+`TTRPG_WORKFLOW_STALENESS_CONNECTIONS=0` prevents all auto-cancellation.
+_Check:_ T266.
+
 ### 5.5 Hats and Access
 
 **REQ-030 — Single-user connection.** Each MCP connection serves one active hat at a
@@ -1398,10 +1425,52 @@ defined in the body has at least one tool callable by the Player; a tool
 known to be GM-exclusive returns `[FORBIDDEN]`.
 _Check:_ T148.
 
+**REQ-220 — Narrative point of view.** When `set_active_entity(entity_id)` is called,
+the active entity carries narrative POV (point of view) semantics: the player is
+inhabiting this character — speaking as them, perceiving through their senses. The
+server SHALL include a POV directive in `hat_briefing`, positioned in the
+decision-critical group after scene state and before the entity listing. The
+directive contains: (a) the active entity's name; (b) an instruction to the Game
+Master AI: describe the scene through this character's eyes and senses — other
+characters' internal states (thoughts, feelings, unexpressed intentions) are
+inaccessible unless the POV character could observe or infer them; (c) the active
+entity's personality fields and voice examples (REQ-077) in compact inline form as
+voice and manner reference. When no active entity is set — `active_entity_id` is null
+per REQ-176 — the directive is replaced with an empty-state marker: "POV: none —
+narration is omniscient." The directive is NEVER truncated by the briefing size budget
+(REQ-135, tier 1). POV follows the active entity across `set_active_entity` calls —
+there is no separate tool.
+*Acceptance criterion:* After `set_active_entity("character_01")`, `hat_briefing`
+includes a POV directive naming character_01 with the narrative instruction and
+personality fields. Switching to character_02 updates the directive; removing all
+entities shows the omniscient empty-state marker.
+_Check:_ T262.
+
+**REQ-223 — POV mode control.** THE `set_active_entity` tool SHALL accept an
+optional `pov` parameter — `character` (default) or `omniscient`. When
+`pov=character` is set with an active entity, the POV directive follows
+REQ-220: the narration locks to that character's perspective. When
+`pov=omniscient` is set, the POV directive SHALL render as the omniscient
+empty-state marker defined in REQ-220 regardless of whether an active entity
+exists — narration is unrestricted, all characters' states are accessible. The
+`pov` parameter is stored as Novel-scoped state and persists across
+`set_active_entity` calls: switching entities with `pov=character` keeps the new
+entity under character-locked POV; switching entities with `pov=omniscient`
+keeps narration omniscient. When `set_active_entity` is called without the `pov`
+parameter, the existing POV mode is preserved. The initial default is `character`
+— the first `set_active_entity` call in a Novel locks POV to that entity unless
+`pov=omniscient` is explicit.
+*Acceptance criterion:* After `set_active_entity("char_01", pov="omniscient")`,
+`hat_briefing` shows "POV: none — narration is omniscient" with char_01 still
+the active entity; `set_active_entity("char_02")` preserves omniscient mode;
+`set_active_entity("char_02", pov="character")` switches to character-locked
+POV for char_02.
+_Check:_ T265.
+
 **REQ-109 — Hat briefing composition.** `hat_briefing` surfaces
 these hat-filtered information groups: hat foundations (REQ-062),
 anti-slop guidance (REQ-070), narrative tone samples (REQ-071), current scene state
-(REQ-076), active entities with summary stats (REQ-074), active NPCs
+(REQ-076), narrative POV directive (REQ-220), active entities with summary stats (REQ-074), active NPCs
 (REQ-075), active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries (REQ-083),
 active adventure content (REQ-079), registered tools relevant to the
 current scene type (REQ-087), active combat state — round, turn order, and
@@ -1414,7 +1483,7 @@ source is empty SHALL include an explicit empty-state marker describing which
 category is empty. Markers preserve the expected briefing structure and prevent the
 caller from inferring non-existent content. The enumeration order above is the
 builder's required default section ordering for `hat_briefing`. Decision-critical
-groups (scene state, entities, combat state, triggered lore, active NPCs, and active
+groups (scene state, the POV directive, entities, combat state, triggered lore, active NPCs, and active
 countdowns) precede the section boundary; supplementary guidance and navigation groups
 (hat foundations, anti-slop guidance, narrative tone samples, active adventure content,
 registered tools, entity personality fields, the narrative directive, player signals,
@@ -1461,8 +1530,8 @@ truncated section includes a marker and a resource URI pointer for full
 retrieval. Hat foundations (REQ-062) and the intro pointer (REQ-063) are
 never truncated. The builder records the truncation priority order and the
 default limit in DECISIONS.md. The truncation priority order SHALL respect three
-tiers: (1) never-truncated — hat foundations (REQ-062) and the intro pointer
-(REQ-063); (2) last-truncated — decision-critical groups as classified in REQ-109;
+tiers: (1) never-truncated — hat foundations (REQ-062), the intro pointer
+(REQ-063), and the POV directive (REQ-220); (2) last-truncated — decision-critical groups as classified in REQ-109;
 (3) first-truncated — supplementary guidance and navigation groups as classified in
 REQ-109. Within each tier, the builder determines the relative truncation order and
 records it in DECISIONS.md.
@@ -1737,6 +1806,58 @@ auto-expiry occurs. Apply a condition with `rounds: 2` — assert it decrements 
 the first `advance_combat` and expires after the second.
 _Check:_ T249.
 
+**REQ-221 — Combat-navigation interaction.** WHEN combat is active THE
+world-model parser commands that change the player's location (go, enter,
+exit, or equivalent navigation verbs) SHALL return `[ERROR] [STATE_CONFLICT]`
+with the message "Combat is active — cannot navigate. Call `end_combat`
+first or flee per the ruleset's retreat mechanic." Inspection commands
+(examine, look) and non-spatial commands (take, drop on current room) SHALL
+continue to function — they do not move the player. The combat turn order
+and round counter SHALL NOT be affected by parser commands — navigation
+blocking prevents spatial changes but does not consume combat turns. This
+contract applies regardless of whether the TTRPG ruleset defines movement
+restrictions during combat — the world-model layer enforces spatial
+immutability during combat as a narrative-integrity guard, superseded only
+if the ruleset defines a specific retreat or tactical-movement mechanic
+that explicitly permits location changes during combat.
+*Acceptance criterion:* During active combat with a populated world model,
+`command("go north")` returns `[STATE_CONFLICT]`; `command("look")` and
+`command("examine sword")` return `[OK]`; after `end_combat`, navigation
+resumes.
+_Check:_ T263.
+
+**REQ-217 — Condition tools.** The server supports applying and removing conditions
+via `apply_condition(entity_id, condition, rounds?)` and
+`remove_condition(entity_id, condition)`. `condition` SHALL be validated against the
+ruleset's indexed condition list — unknown conditions SHALL return `[INVALID_INPUT]`
+with valid conditions enumerated (REQ-059). Applying the same condition to an entity
+that already has it SHALL return `[WARNING]` with the text "Condition already active."
+No duplicate is added, no other state changes. `remove_condition` on an entity that
+does not have the condition SHALL return `[WARNING]` with the text "Condition not
+present." Both tools are hat-gated per REQ-032: the Player may apply or remove
+conditions on their own active entity only; the Game Master may apply or remove
+conditions on any entity or NPC. Player attempts on other entities SHALL return
+`[FORBIDDEN]` with the target entity ID. The optional `rounds` parameter on
+`apply_condition` sets the combat-round duration for REQ-206 auto-expiry — omitting
+it creates a condition without automatic expiry. Both tools SHALL record mutation
+entries in the audit log (REQ-040) and appear in `session_recap` condition changes
+(REQ-072). Applied conditions SHALL appear on `character_sheet` output and in
+`hat_briefing` entity summaries.
+
+Under the Player hat, condition entries in `character_sheet` and `hat_briefing`
+SHALL be rendered without expiry round counts — the Player sees only the condition
+name. The Game Master hat SHALL include expiry round counts when the `rounds`
+parameter was set.
+
+*Acceptance criterion:* `apply_condition(entity, "prone")` adds the condition and
+returns `[OK]`; a second call returns `[WARNING]` with "Condition already active.";
+`remove_condition(entity, "prone")` removes it; `remove_condition` on an entity
+without the condition returns `[WARNING]` with "Condition not present."; applying
+"not_a_condition" returns `[INVALID_INPUT]` with valid conditions listed; Player
+`apply_condition` on another player's entity returns `[FORBIDDEN]`; applied condition
+appears on `character_sheet` and `hat_briefing` entity summary.
+_Check:_ T258.
+
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
 that returns a structured summary of the active Novel: session timespan (earliest to latest
 audit entry), active entities with final state (HP, conditions, status — where status is a
@@ -1830,7 +1951,7 @@ first imported entity is the active entity by default. `set_active_entity(entity
 switches the active entity and is always callable regardless of hat. The `party`
 resource (`party://current`) lists all player-owned entities with summary stats: name,
 active status, HP, and conditions. REQ-030 scoping is unchanged — one user per
-connection, no multiplayer.
+connection, no multiplayer. The active entity also establishes the narrative POV per REQ-220.
 *Acceptance criterion:* Creating and importing two entities produces two entries
 in `entities://`; `set_active_entity(entity_02)` switches the default target for
 entity_id-optional tools.
@@ -3247,7 +3368,57 @@ metadata including property values and containment chains. `world://map`
 SHALL return a list of room names with directional exits formatted as a
 navigable adjacency list. _Check:_ T245.
 
+**REQ-222 — Parser command vocabulary extension.** THE builder SHALL discover
+additional command verbs from the ruleset's equipment, action descriptions, and
+mechanical procedures. Verbs discovered during extraction SHALL be registered in
+the parser command catalog alongside the base vocabulary (REQ-196). A discovered
+verb SHALL map to one or more parser command categories — navigation, inspection,
+object interaction, inventory, or wait — based on the ruleset context from which
+it was extracted. Verbs that do not fit an existing category SHALL be registered
+under a `ruleset_custom` category. The registered vocabulary SHALL be exposed at
+`world://kinds` under `parser_commands` with each verb's category and extraction
+source. Discovery SHALL NOT fabricate verbs — every registered verb SHALL cite a
+ruleset anchor per REQ-010. When no additional verbs are discovered, the base
+vocabulary (REQ-196) is the complete command set.
+*Acceptance criterion:* A ruleset whose equipment section mentions "push" and
+"pull" as object interactions registers `push` and `pull` under object interaction
+category with source anchors; a ruleset with no additional verbs exposes only the
+base vocabulary at `world://kinds/parser_commands`.
+_Check:_ T264.
+
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-game versioning beyond the checksum model, and Novel migration between
 different rulesets.
+
+### 5.11 Ruleset-Free Build Mode
+
+**REQ-218 — Ruleset-free build.** WHEN the Build workflow is selected with B1 set to
+`none` THE builder SHALL operate in ruleset-free mode. THE builder SHALL NOT perform
+chunked reading, extraction, or mechanical modeling of ruleset content. THE server
+SHALL register every REQ-020 infrastructure tool category, every REQ-022 resource URI,
+and every REQ-023 prompt. Ruleset-dependent tools — canonical lookups, dice-resolution
+tools, and any tool whose registry depends on extracted mechanics — SHALL be waived
+under REQ-013 or registered with empty domains that return content-absent responses.
+The world-model layer (§5.10) SHALL be populated from the provider documentation
+indexed at the B10 intake path. `search_rules` SHALL return an empty result set with a
+clear message indicating no ruleset is indexed. `roll_on_table` SHALL return the
+content-absent message per REQ-214. Verification workflow G0 step 2 and G2 SHALL use
+the Appendix W fixture in place of Appendix B or N. Handoff verification steps H1 and
+H10 SHALL be skipped for ruleset-free builds — there is no source edition/title to
+compare and no extraction confidence to measure.
+_Check:_ T259.
+
+**REQ-219 — Ruleset-free entity creation.** WHEN no ruleset defines entity stats,
+classes, species, or equipment THE `create_character` tool SHALL accept a name and
+optional personality fields per REQ-077 (description, voice, background, goals). The
+tool SHALL produce a roster entry with no mechanical fields — only name and narrative
+fields. The `character_sheet` rendering for a ruleset-free entity SHALL display the
+entity's name and populated personality fields; no stat block is rendered. Import into
+a Novel follows the standard import contract (REQ-055). The roster entry is a permanent
+baseline; its narrative fields are mutable per REQ-077. The entity is valid as a combat
+participant in `init_combat` — it receives a turn in the order and auto-advances with an
+`[AUTO]` marker without mechanical effects (dangers and entities have no hit points, no
+damage, and no death state). `suggest_actions` SHALL include the entity's name and
+narrative fields in context but SHALL return no mechanical action suggestions.
+_Check:_ T260.
 
