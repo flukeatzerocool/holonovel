@@ -78,26 +78,21 @@ dependencies; a failure here blocks everything downstream.
     assumed mechanics (REQ-011/012/013/099). Score: 47 (freq=3, crit=5,
     cplx=4, coupling=4, maturity=4, coverage=4). Source of all mechanical
     truth.
-11. Verification workflows — G0 (intake integrity + MCP conformance), G2
     (golden transcript replay), G3 (injection resistance), G4 (derived
     tests), G5 (Gauntlet), fixture vs ruleset-facing scoping, T18 anti-hats
     (§8). Score: 46 (freq=2, crit=5, cplx=4, coupling=5, maturity=4,
     coverage=3). Gating wrong = build passes when it shouldn't.
-12. Character creation workflow — step-by-step (sequential NEED_INPUT
     decisions for every mandatory step) and quick (all params in one call)
     modes, undo after creation, Novel-scoped (REQ-104/056/042). Score: 45
     (freq=3, crit=5, cplx=4, coupling=4, maturity=4, coverage=3).
     Session-zero blocker; undo contract critical.
-13. Handoff artifacts & verification — 4 artifacts (RULESET_MODEL.md,
     DECISIONS.md, README.md, AGENTS.md) + LICENSE.md, 13 verification steps
     (H1–H13), traceability chain (§9). Score: 41 (freq=2, crit=5, cplx=3,
     coupling=4, maturity=4, coverage=3). Wrong = unverifiable build.
-14. Dynamic lore — keyword-triggered entries, hat-filtered, priority ordering,
     sticky persistence, configurable token budget, groups, toggle, templates
     from enrichment (REQ-083). Score: 41 (freq=4, crit=4, cplx=4, coupling=4,
     maturity=4, coverage=3). Every scene; wrong keywords = silent narrative
     drift.
-15. Countdowns — round (auto-decrement on combat round) and narrative (GM
     advance), hat_scope (gm/shared), direction (decrement/increment), fire
     at threshold, remove, on_scene_transition flag (REQ-073/125). Score: 39
     (freq=4, crit=4, cplx=3, coupling=4, maturity=4, coverage=3). Pacing
