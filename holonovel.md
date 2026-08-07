@@ -488,10 +488,26 @@ and served at `guidance://<hat>/anti-slop`. The spec carries a synopsis in Appen
 full anti-slop catalogue is sourced from the Enrich workflow (§11.1) as supplementary guidance,
 with genre-specific examples from the `adventure_advice` module. Anti-slop guidance is
 hat-filtered and appears in `hat_briefing` after foundations and before scene state.
-*Acceptance criterion:* `hat_briefing` includes at least one `[anti-slop]`-tagged
-item per hat with a forbidden narrative pattern and a corrected alternative; the
-content is hat-filtered and appears after foundations.
-_Check:_ T26.
+*Acceptance criterion:* (a) Without enrichment, `hat_briefing` includes at least one
+`[anti-slop]`-tagged item per hat sourced from the Appendix J synopsis, each carrying a
+forbidden narrative pattern and a corrected alternative; (b) the content is hat-filtered
+(rows 1–10 are GM-scoped, rows 5–7 and 12 are Player-scoped, rows 8–11 are GM-scoped);
+(c) anti-slop guidance appears after foundations and before scene state;
+(d) `guidance://<hat>/anti-slop` renders the same patterns as a retrievable resource.
+_Check:_ T223.
+
+**REQ-184 — Anti-slop resource rendering.** The server serves anti-slop guidance at
+`guidance://<hat>/anti-slop` as a Markdown resource. The resource SHALL include every
+Appendix J synopsis pattern whose scope matches the requested hat. Each pattern SHALL
+appear as a `[anti-slop]`-tagged item with its Forbidden and Correct text. When enrichment
+is active (REQ-159), the resource SHALL include both the Appendix J synopsis and
+enrichment-supplied anti-slop items; enrichment items SHALL be tagged `[supplementary]`
+with source URL and confidence. Without enrichment, the resource SHALL contain only the
+Appendix J synopsis.
+*Acceptance criterion:* `guidance://<hat>/anti-slop` returns Markdown containing every
+Appendix J pattern for the requested hat, each tagged `[anti-slop]` and hat-filtered;
+enrichment-sourced items carry `[supplementary]` with source URL.
+_Check:_ T223.
 
 **REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
 `[narrative-tone]`-tagged guidance items per hat — example-of-play prose extracted from the
@@ -837,7 +853,14 @@ via Novel-scoped tools (REQ-159); (e) `fingerprint` — the enrichment
 fingerprint used for idempotence detection (ruleset content hash +
 intake answers). Stale items SHALL appear with the `[stale]` flag when
 listed. When enrichment has never been run, `enrichment_active` is false
-and all count fields are zero. The enrichment health section is visible
+and all count fields are zero.
+When enrichment is absent (never run or reverted), `module_counts`
+SHALL include all six module names — `voice_examples`,
+`briefing_order`, `lore_templates`, `action_patterns`,
+`supplementary_guidance`, `adventure_advice` — each with value zero.
+An absent `module_counts` field or an empty object does not satisfy
+this contract.
+The enrichment health section is visible
 to all hats — Player and GM alike see whether enrichment is active and
 how many items are stale, but per-module content is hat-filtered per
 REQ-080.
@@ -2270,12 +2293,7 @@ returns `[ERROR] [INVALID_INPUT]` without reading any file outside the configure
 directories.
 _Check:_ T20.
 
-**REQ-053 — Performance.** Cold start ≤ 5 seconds; simple query ≤ 1 second. Measurement
-environment is recorded per requirement.
-*Acceptance criterion:* `time bash -c '<startup_command> | spec_health'` from
-process start shows wall-clock time ≤ 5 seconds for a Standard-tier ruleset;
-the measurement environment is recorded in DECISIONS.md.
-_Check:_ T23.
+Performance benchmarks are governed by REQ-100 below.
 
 **REQ-100 — Performance benchmark.** The builder measures and records cold-start time and
 representative query latency for the target ruleset. Measurements are recorded in
@@ -2287,6 +2305,20 @@ Standard (100–500) ≤5 s; Heavy (500–2000) ≤10 s; Huge (2000+) ≤20 s.
 *Acceptance criterion:* DECISIONS.md (4) records cold-start time and mean query
 latency for 5 representative lookups; `spec_health` reports the most recent
 measurement.
+_Check:_ T87.
+
+The five representative lookups are one canonical call per lookup category
+registered on the server: `lookup_spell`, `lookup_equipment`, `lookup_monster`,
+`lookup_class`, and `search_rules`. If fewer than five lookup categories exist,
+the builder measures all available categories and notes the count in
+DECISIONS.md (4). The indexed-item count used for tier classification is the
+value reported by `spec_health.search_index` (the heading count in the loaded
+search index). For servers where `spec_health` reports no `search_index` field,
+the builder counts extracted items in RULESET_MODEL.md and records the count and
+method in DECISIONS.md (4).
+*Acceptance criterion (added):* The five lookup calls are one per registered
+lookup category; DECISIONS.md (4) records which categories were measured and
+their individual latencies.
 _Check:_ T87.
 
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
@@ -2478,13 +2510,26 @@ tool — Game Master only. Removes all enrichment state (six output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
 content. Does not modify DECISIONS.md — the enrichment manifest and verification
-results remain for audit. Build-rebuild enrichment behavior is defined in §11.1
+results remain for audit.
+GM-configured Novel state that references enrichment content —
+briefing_order set via `set_briefing_order` (REQ-082) and the
+action pattern activation toggle (REQ-115) — is Novel state, not
+enrichment state. It survives reversion unchanged: the GM's
+configuration choices persist even when the enrichment data they
+reference is absent. After re-enrichment, these choices apply to
+the new enrichment data without reconfiguration.
+Build-rebuild enrichment behavior is defined in §11.1
 (Rebuild scenarios). Player hat returns `[ERROR] [FORBIDDEN]`. Pure-state
 tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
 enrichment state.
-*Acceptance criterion:* After `revert_enrichment()`, `enrichment://action_patterns`
-is empty; re-running Enrich repopulates all six modules; a second revert call
-changes nothing (idempotent).
+*Acceptance criterion:* After `revert_enrichment()`, all
+`enrichment://` resource URIs (§11.1: `enrichment://voice_examples`,
+`enrichment://briefing_order`, `enrichment://action_patterns`,
+`enrichment://adventure_advice`) return empty or absent; `lore://templates`
+returns only Novel-scoped lore entries, never enrichment-sourced templates;
+`spec_health` reports `enrichment_active: false` with zero counts for all
+six modules. Re-running Enrich repopulates all modules; a second revert
+call changes nothing (idempotent).
 _Check:_ T94, T125.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
@@ -3934,7 +3979,7 @@ have a recorded result in DECISIONS.md.
 | H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model. |
 | H8    | T43      | Start a workflow, verify no auto-completion            | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.           |
 | H9    | T44      | Player-hat request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_hat`; no hidden content exposed.           |
-| H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build.                |
+| H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. |
 | H13   | T189   | Check Gauntlet evidence timestamp in DECISIONS.md (6) against most recent source file modification | Gauntlet was re-run (G5 record present) with timestamp after the most recent source file modification timestamp. |
@@ -4718,11 +4763,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-050 | Determinism               | 2026-08-06   |
 | REQ-051 | No runtime network access | 2026-08-02   |
 | REQ-052 | Path containment          | 2026-08-02   |
-| REQ-053 | Performance               | 2026-08-02   |
 | REQ-054 | Input safety              | 2026-08-02   |
 | REQ-055 | Durability and resume     | 2026-08-02   |
 | REQ-067 | Help and tool discovery   | 2026-08-04   |
-| REQ-070 | Anti-slop guidance        | 2026-08-04   |
+| REQ-070 | Anti-slop guidance        | 2026-08-07   |
 | REQ-071 | Narrative tone samples    | 2026-08-04   |
 | REQ-072 | Session recap             | 2026-08-04   |
 | REQ-073 | Countdowns                | 2026-08-04   |
@@ -4757,7 +4801,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-065 | Build fingerprint         | 2026-08-02   |
 | REQ-066 | set_hat                   | 2026-08-02   |
 | REQ-102 | Source conversion contract  | 2026-08-05   |
-| REQ-103 | Enrichment reversion      | 2026-08-05   |
+| REQ-103 | Enrichment reversion      | 2026-08-07   |
 | REQ-104 | Undo after creation       | 2026-08-06   |
 | REQ-105 | Spec resource             | 2026-08-06   |
 | REQ-106 | Spec repository URL       | 2026-08-06   |
@@ -4766,7 +4810,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-098 | Spec-driven update workflow | 2026-08-05   |
 | REQ-109 | Hat briefing composition  | 2026-08-06   |
 | REQ-099 | Confidence-floor acknowledgment | 2026-08-05   |
-| REQ-100 | Performance benchmark     | 2026-08-05   |
+| REQ-100 | Performance benchmark     | 2026-08-07   |
 | REQ-101 | Assumption audit trail    | 2026-08-05   |
 | REQ-110 | Tool surface consolidation | 2026-08-06   |
 | REQ-111 | Search result quality     | 2026-08-06   |
@@ -4818,7 +4862,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-157 | Combat determinism             | 2026-08-06   |
 | REQ-158 | Independent verification obligation | 2026-08-06   |
 | REQ-159 | Enrichment briefing integration | 2026-08-06   |
-| REQ-160 | Enrichment health reporting  | 2026-08-06   |
+| REQ-160 | Enrichment health reporting  | 2026-08-07   |
 | REQ-161 | Intake workflow contract     | 2026-08-07   |
 | REQ-162 | Build-mode profiles          | 2026-08-07   |
 | REQ-163 | Client config verification   | 2026-08-07   |
@@ -4842,6 +4886,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-181 | Character creation output surface | 2026-08-07 |
 | REQ-182 | Bounded-domain parameter documentation | 2026-08-07 |
 | REQ-183 | Live-index-derived error enumerations | 2026-08-07 |
+| REQ-184 | Anti-slop resource rendering | 2026-08-07 |
 
 ---
 
@@ -4873,7 +4918,7 @@ diet.
 | T20   | Automated | Path traversal and malformed input rejected; adversarial free-text stored and echoed verbatim as inert data in all surfaces, with no behavior change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-052, REQ-054                            |
 | T21   | Automated | Original Markdown — and, where conversion applied (Appendix G), the original sources — byte-identical to intake hashes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-014                                     |
 | T22   | Automated | Prompt registration: register a stub tool, restart — assert `prompts/get` output reflects it, each `prompts/get` returns exactly one user-role message, `prompts/list` carries a title on every prompt and a description on every argument, and the stub appears in all five prompts. Call all five prompts, then remove the stub and restart — assert absence from all.                                                                                                                                                                                                                                                                                                                                                         | REQ-023                                     |
-| T23   | Automated | Cold start ≤ 5 s; simple query ≤ 1 s; measurement environment recorded per REQ-053                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-053                                     |
+| T23   | Automated | Performance benchmark per REQ-100: cold start ≤ tier threshold; query latency (mean of 5 representative lookups, one per category) ≤ 1 second; measurement environment recorded in DECISIONS.md (4); `spec_health` reports most recent measurement. | REQ-100 |
 | T25   | Automated | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, the conflict tools are waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
 | T26   | Manual   | Guidance items cited, confidence-labeled, attributed; GM-scoped items hidden from player; inferred-attribution items visible to all; `hat_briefing` differs per hat; hat foundations present in `hat_briefing`; Player briefing excludes GM-tagged foundations; Player read of `guidance://<gm-hat>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
 | T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; seed stream position preserved during per-call override; witness values from Appendix B.4 (d6 and d20); default-seed-0 reproducibility when `TTRPG_SEED` is unset (two restarts without the env var produce identical event sequences for identical tool-call sequences)                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-050, REQ-055                            |
@@ -4935,14 +4980,14 @@ diet.
 | T190  | Automated | Sticky counter decay: create lore entry with `sticky: 3` and trigger "vault". Set scene_state containing "vault" — assert entry triggered in `hat_briefing`. Set scene_state without "vault" — assert entry's sticky counter decrements by 1 (call `hat_briefing` twice on same scene — assert counter unchanged). After 3 scene changes to non-triggering scenes, assert entry no longer appears in `hat_briefing` lore section. Revert scene back to "vault" — assert sticky counter resets to 3 and entry reappears.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-155                                    |
 | T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet rerun passes all blocking sub-workflows for any gap-audit-implemented changes. Assert any previously-unimplemented Gauntlet sub-workflows from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
-| T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert measurements recorded in DECISIONS.md (4) and `spec_health`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-100                                     |
+| T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert individual per-category latencies recorded in DECISIONS.md (4). Assert measurements recorded in DECISIONS.md (4) and `spec_health`. | REQ-100 |
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
 | T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (0) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
 | T90   | Manual   | Complex fixture verification workflow: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and hat enforcement. Required for rulesets at REQ-100 tiers Standard, Heavy, Huge (≥100 indexed items).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
 | T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
-| T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all modules empty, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-103, REQ-080                            |
+| T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all enrichment resource URIs (`enrichment://voice_examples`, `enrichment://briefing_order`, `enrichment://action_patterns`, `enrichment://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080                            |
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `hat_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
 | T96   | Automated | Action pattern inertness: run enrich. Assert `suggest_actions(intent)` does not return enrich-derived patterns while the action pattern toggle (REQ-115) is disabled. Activate patterns via `toggle_action_patterns` — assert patterns appear in results for matching intents. Deactivate via `toggle_action_patterns` — assert patterns excluded again. GM-only tool patterns excluded from Player results whether activated or not. Player hat attempt on `toggle_action_patterns` returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-084                                     |
 | T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all six output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
@@ -4982,7 +5027,7 @@ diet.
 | T192  | Automated | Combat determinism: start a fresh server with `TTRPG_SEED=7`. Call `init_combat` with one danger and `seed="42"` — assert danger initiative d20 face matches Appendix B.4 seed-42 column at position 1 (value 6). Call `roll_save("dexterity")` without a seed — assert the d20 face matches the session sequence (seed-7 B.4 column). Call `init_combat` with two dangers and `seed="42"` — assert d20 faces match positions 1 and 2 of the B.4 seed-42 column. Call `init_combat` with one danger and no seed — assert the d20 face matches the next position in the seed-7 session sequence (after the roll_save draw). | REQ-157                                     |
 | T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0 step 2–G4, smoke session, waiver audit, T29, H1–H14, artifact diet, adversarial Gauntlet) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
 | T194  | Automated | Enrichment briefing integration: after enriching a Novel, invoke `hat_briefing` as GM — assert supplementary guidance items appear tagged `[supplementary]` with source URLs. Assert enrich-sourced voice examples appear under entity personality with `[supplementary]` tag. Switch to Player hat — assert game_master-scoped enrichment items are absent. Call `revert_enrichment` — assert all enrichment content absent from all hat briefing views.                                                                                                                       | REQ-159, REQ-080                            |
-| T195  | Automated | Enrichment health reporting: after enriching a Novel, invoke `spec_health` — assert `enrichment_active: true`, per-module counts matching the manifest, non-empty fingerprint. Call `revert_enrichment` — assert `enrichment_active: false` and all counts zero. Populate stale items past `TTRPG_ENRICH_STALE_DAYS` — assert `stale_count` increments and `[stale]` flag. Activate a lore template via `set_lore_entry` — assert `activated_count` increments.                                                                                                                                                                                                                                                           | REQ-160, REQ-025                            |
+| T195  | Automated | Enrichment health reporting: after enriching a Novel, invoke `spec_health` — assert `enrichment_active: true`, per-module counts matching the manifest, non-empty fingerprint. Call `revert_enrichment` — assert `enrichment_active: false` and `module_counts` contains all six module names (`voice_examples`, `briefing_order`, `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`) each with value zero. Populate stale items past `TTRPG_ENRICH_STALE_DAYS` — assert `stale_count` increments and `[stale]` flag. Activate a lore template via `set_lore_entry` — assert `activated_count` increments.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-160, REQ-025                            |
 | T196  | Automated | Intake workflow contract: attempt a build without recording intake answers in DECISIONS.md (1) — assert the process-compliance convergence metric fails. Run a non-interactive build with network detected — assert Q0 defaults to `build + enrich` and the probe result is recorded in DECISIONS.md (1). Run a non-interactive build offline — assert Q0 defaults to `build` only. Re-run a build selecting an additional workflow — assert only new workflow questions are re-asked.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-161                                     |
 | T197  | Automated | Build-mode profiles: run a production build — assert assumption audit (T89), auditor pre-flight, and cross-model audit results are recorded in DECISIONS.md. Run a quick-build build — assert a `quick-build` annotation in DECISIONS.md (6) listing skipped rituals. Assert the Gauntlet passes for both modes. Run a quick-build build without the annotation — assert the process-compliance metric fails.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-162                                     |
 | T198  | Automated | Client config verification: write a client config entry with `workdir` key targeting a client whose documented schema expects `cwd` — assert the builder produces an F6 defect and blocks the build. After correction — assert the initialize handshake succeeds with matching `serverInfo.name`. Write a valid config entry — assert no F6 defect, handshake passes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-163, H11                                |
@@ -5071,6 +5116,7 @@ diet.
 | T190  | Automated | Four-artifact diet: list handoff directory. Assert exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md present alongside `src/`, `scripts/`, `package.json`, `tsconfig.json`, and config files. Assert no `.log`, `.tmp`, `.json` state files, or build artifacts in the handoff root. | §9 |
 | T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, hat-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
 | T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
+| T223  | Manual   | Anti-slop guidance: invoke `hat_briefing` as GM — assert `[anti-slop]`-tagged items present with forbidden/corrected pattern pairs; assert LLM-specific patterns (echoing, passive voice, motif repetition) present for GM hat. Invoke as Player — assert Player-scoped anti-slop items present (establishing world facts, assuming outcomes, declaring NPC reactions, meta-commentary leakage), GM-only items excluded. Read `guidance://game_master/anti-slop` — assert Markdown containing all Appendix J GM-scoped patterns tagged `[anti-slop]` and hat-filtered; enrichment-sourced items carry `[supplementary]` with source URL. Read `guidance://player/anti-slop` — assert Player-scoped patterns. Severity classification (Hard/Soft) discernible from pattern metadata. | REQ-070, REQ-184 |
 
 ---
 
@@ -5192,15 +5238,20 @@ forbidden/correct examples, pacing advice, and genre-specific patterns — is so
 the Enrich workflow (§11.1) as supplementary guidance, served at `guidance://<hat>/anti-slop`
 (REQ-070)._
 
-| #  | Role   | Pattern                  | Forbidden                                        | Correct                                                     |
-| -- | ------ | ------------------------ | ------------------------------------------------ | ----------------------------------------------------------- |
-| 1  | GM     | Purple prose             | Over-ornamented description burying detail       | Concrete, sensory, actionable — "The hall is old. Cracked pillars. Moss on the flagstones." |
-| 2  | GM     | Negation framing         | Describing by what is absent ("you don't see…")  | Describing what is present ("The corridor is still. Dust settles.") |
-| 3  | GM     | Rushing to closure       | Resolving all tension in one response            | Ending on an image or choice, not a resolution               |
-| 4  | GM     | Declaring player actions | Narrating what a PC thinks, feels, or decides    | Describing the world; letting the player react               |
-| 5  | Player | Establishing world facts | Declaring what exists as established truth       | Asking whether elements exist ("The curtains — are they moving?") |
-| 6  | Player | Assuming outcomes        | Narrating results before adjudication            | Describing intent and attempt, waiting for resolution         |
-| 7  | Player | Declaring NPC reactions  | Stating how an NPC responds                      | Laying out reasoning, waiting for GM response                |
+| #  | Role   | Severity | Pattern                  | Forbidden                                        | Correct                                                     |
+| -- | ------ | -------- | ------------------------ | ------------------------------------------------ | ----------------------------------------------------------- |
+| 1  | GM     | Soft     | Purple prose             | Over-ornamented description burying detail       | Concrete, sensory, actionable — "The hall is old. Cracked pillars. Moss on the flagstones." |
+| 2  | GM     | Soft     | Negation framing         | Describing by what is absent ("you don't see…")  | Describing what is present ("The corridor is still. Dust settles.") |
+| 3  | GM     | Soft     | Rushing to closure       | Resolving all tension in one response            | Ending on an image or choice, not a resolution               |
+| 4  | GM     | Hard     | Declaring player actions | Narrating what a PC thinks, feels, or decides    | Describing the world; letting the player react               |
+| 5  | Player | Hard     | Establishing world facts | Declaring what exists as established truth       | Asking whether elements exist ("The curtains — are they moving?") |
+| 6  | Player | Hard     | Assuming outcomes        | Narrating results before adjudication            | Describing intent and attempt, waiting for resolution         |
+| 7  | Player | Hard     | Declaring NPC reactions  | Stating how an NPC responds                      | Laying out reasoning, waiting for GM response                |
+| 8  | GM     | Soft     | Echoing                  | Restating player action without adding new information ("You attempt to pick the lock. The lock is before you.") | Advancing the scene with new sensory detail or consequence ("Your pick scrapes inside the mechanism. A click — then a second, heavier clunk from deeper in the wall.") |
+| 9  | GM     | Soft     | Passive voice dominance  | Describing events without engaging player agency ("The door is opened. The room is revealed.") | Centering the player's senses or actions ("You push the door open. Cold air spills out. The room beyond is dark — but you hear breathing.") |
+| 10 | GM     | Soft     | Motif repetition         | Reusing the same adjective, sentence structure, or descriptive template across responses | Varying sensory register between responses — if the last scene used visual description, open the next with sound, smell, or temperature |
+| 11 | GM     | Hard     | Constraint forgetting    | Narrating in contradiction of established scene state, character conditions, or earlier decisions | Checking active scene state, entity conditions, and lore before narrating; when uncertain, re-reading the scene description |
+| 12 | Both   | Soft     | Meta-commentary leakage  | Breaking character with out-of-character commentary ("As a GM, I would describe...", "That's a great question!") | Staying in the narrative register; reserving OOC communication for explicit OOC markers or system-level error messages |
 
 ---
 
