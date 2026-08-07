@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** eb8f434c1bf436234eff817506fb5e1ea9d6f370e6b6b1e1d61a289e13a575f5
+- **Spec hash:** 3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -207,3 +207,29 @@
 - **Gap audit:** persona terminology in 10 locations across src/index.ts, src/state.ts → renamed to hat per spec REQ-031/REQ-066.
 - **Changed code paths:** src/index.ts (10 renames), src/state.ts (1 rename).
 - **Verification:** typecheck 0 errors, grep for deprecated terms 0 matches, Gauntlet re-run (blocking sub-workflows pass).
+
+### Spec-Driven Update (REQ-098) — First Spec-Queue Cycle Sync
+- **Date:** 2026-08-06
+- **Spec version:** 2026.08.06
+- **Classification:** Major — new REQs (138-140), amended REQs (023, 025, 042, 043, 088, 092, 097)
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-023 | run_workflow used hardcoded keyword matching | implemented | Replaced with intent-pattern map derived from tool catalog |
+  | REQ-092 | saveNovel lacked fsync before rename | implemented | Added fsyncSync via fd before renameSync |
+  | REQ-092 | Fixed .tmp suffix, no collision guard | implemented | Unique temp name with PID + timestamp |
+  | REQ-140 | respond never routed to endNovel | implemented | Added end_novel decision dispatch to respond handler |
+  | REQ-088 | No TTRPG_NOVEL auto-load at startup | implemented | Startup checks TTRPG_NOVEL env var, resumes or creates |
+  | REQ-043 | advance_combat output was minimal | implemented | Audit-log-derived report with weapon damage, mutation summary |
+  | REQ-043 | No auto-advance for statless participants | implemented | Statless NPCs/dangers advance with [AUTO] marker |
+  | REQ-043 | No combat group in hat_briefing | implemented | combatReport() renders round, turn order, Player-hat redaction |
+  | REQ-025 | Missing gap_audit section in spec_health | deferred | Requires spec_health restructuring with tool/resource comparison |
+  | REQ-138 | Missing prompt health in spec_health | deferred | Requires parsing prompt text for stale references |
+  | REQ-139 | Missing resource URI presence in spec_health | deferred | Requires maintaining REQ-022 URI catalog mapping |
+  | REQ-097 | No file-size accuracy check in spec_health | deferred | Requires filesystem stat call in spec_health |
+  | REQ-042 | Pending workflow not persisted as Novel-tier | deferred | Requires adding pending_workflow field to NovelState serialization |
+  | REQ-043 | Round counter on wrap (already matches amended spec) | waived | Implementation already increments on wrap, not end_combat |
+- **Verification:** typecheck 0 errors
+- **Changed code paths:** src/index.ts (respond handler, advance_combat handler, hat_briefing, run_workflow, main startup), src/state.ts (saveNovel with fsync + unique tmp, advanceCombat auto-advance, combatReport)
+- **Gauntlet:** automated test suite not present — typecheck only. Manual Gauntlet TBD.
+- **Spec hash:** 3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513

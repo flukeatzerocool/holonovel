@@ -25,7 +25,7 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "63f2a178e5d4c6cd3f68c43e0dc6e179bde0e6058064c5d44fd4556248d7ac1d";
+const SPEC_HASH = "3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -192,9 +192,17 @@ server.registerTool("respond", {
     option: z.string(),
   },
 }, async ({ decision, option }) => {
-  requireNovel();
+  const novel = requireNovel();
   if (option === "cancel") {
     return ok("Workflow cancelled.");
+  }
+  if (decision.toLowerCase().includes("end novel")) {
+    const slug = state.activeNovel!.slug;
+    const result = state.endNovel(novel, option as "yes" | "cancel");
+    if (result.removed) {
+      return ok(`Novel '${slug}' ended. Save files moved to .trash/.`);
+    }
+    return ok("End novel cancelled.");
   }
   return ok(`Responded to '${decision}' with '${option}'.`);
 });
@@ -799,7 +807,37 @@ server.registerTool("advance_combat", {
   state.saveNovel(novel);
 
   const current = combat.turn_order[combat.current_turn];
-  return ok(`Round ${combat.round}, Turn ${combat.current_turn + 1}: **${current}**`);
+  const currentName = combat.turn_order[(combat.current_turn - 1 + combat.turn_order.length) % combat.turn_order.length];
+
+  // Derive report from recent audit entries since last advance_combat
+  const recentAudit = novel.audit_log.slice(-10);
+  const mutations = recentAudit.filter(e =>
+    e.tool !== "advance_combat" && e.tool !== "init_combat" &&
+    e.tool !== "end_combat" && e.tool !== "set_scene_state" &&
+    e.tool !== "set_scene_type"
+  );
+  let mutationReport = "";
+  if (mutations.length > 0) {
+    const weaponDmg = mutations.find(e => {
+      try { const a = JSON.parse(e.args); return typeof a === "object" && a !== null && "weapon" in a; } catch { return false; }
+    });
+    if (weaponDmg) {
+      mutationReport = ` — ${JSON.parse(weaponDmg.args).weapon} damage dealt`;
+    } else {
+      mutationReport = ` — ${mutations.map(e => e.tool).join(", ")}`;
+    }
+  } else {
+    mutationReport = " — took no action";
+  }
+
+  // Check for auto-advance marker
+  const lastAudit = novel.audit_log[novel.audit_log.length - 1];
+  let autoMarker = "";
+  if (lastAudit) {
+    try { autoMarker = JSON.parse(lastAudit.args).statless ? " [AUTO]" : ""; } catch { /* ignore */ }
+  }
+
+  return ok(`Round ${combat.round}, Turn ${combat.current_turn + 1}: **${current}** [prev: ${currentName}${autoMarker}]${mutationReport}`);
 });
 
 server.registerTool("end_combat", {
@@ -1673,6 +1711,8 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 ${novel.scene_description || "None set"}
 Scene Type: ${novel.scene_type}
 
+### Combat${state.combatReport(novel)}
+
 ### Entities
 ${entities.join("\n") || "None"}
 
@@ -1771,14 +1811,22 @@ server.registerPrompt("run_workflow", {
   argsSchema: { intent: z.string().describe("What the player wants to do") },
 }, async ({ intent }: any) => {
   const i = (intent ?? "").toLowerCase();
-  let tool: string;
 
-  if (i.includes("attack") || i.includes("strike")) tool = "roll_weapon_attack";
-  else if (i.includes("save") || i.includes("resist")) tool = "roll_save";
-  else if (i.includes("check") || i.includes("try")) tool = "roll_skill_check";
-  else if (i.includes("cast") || i.includes("spell")) tool = "lookup_spell";
-  else if (i.includes("look") || i.includes("search") || i.includes("find")) tool = "search_rules";
-  else tool = "suggest_actions";
+  const intentMap: [RegExp, string][] = [
+    [/attack|strike/i, "roll_weapon_attack"],
+    [/save|resist|dodge|endure/i, "roll_save"],
+    [/check|try|attempt|persuade|deceive|investigate|perceive|stealth|acrobat|athlet/i, "roll_skill_check"],
+    [/cast|spell|magic/i, "lookup_spell"],
+    [/look up|search|find|rules|know about|what is/i, "search_rules"],
+  ];
+
+  let tool = "suggest_actions";
+  for (const [pattern, toolName] of intentMap) {
+    if (pattern.test(i)) {
+      tool = toolName;
+      break;
+    }
+  }
 
   return {
     messages: [{
@@ -1793,7 +1841,29 @@ server.registerPrompt("run_workflow", {
 
 // ── Startup ────────────────────────────────────────────────────────
 
+const TTRPG_NOVEL = process.env.TTRPG_NOVEL;
+
 async function main() {
+  if (TTRPG_NOVEL) {
+    try {
+      const existing = Array.from(state.novels.keys()).find(
+        s => s === TTRPG_NOVEL.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+      );
+      if (existing) {
+        state.switchNovel(existing);
+        console.error(`TTRPG_NOVEL: resumed '${TTRPG_NOVEL}'`);
+      } else {
+        const fullName = TTRPG_NOVEL;
+        const slug = fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const novel = state.createNovel(fullName);
+        state.activeNovelId = slug;
+        console.error(`TTRPG_NOVEL: created '${TTRPG_NOVEL}'`);
+      }
+    } catch (err: any) {
+      console.error(`TTRPG_NOVEL: activation failed — ${err.message}`);
+    }
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`dnd5e-holonovel v2026.08.06 — D&D 5e SRD MCP Server ready`);

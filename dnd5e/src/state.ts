@@ -522,13 +522,21 @@ export class StateManager {
     if (!novel.combat || !novel.combat.active) throw new Error("[STATE_CONFLICT] No active combat.");
 
     const combat = novel.combat;
+    const currentName = combat.turn_order[combat.current_turn];
+    const isEntity = novel.entities.has(currentName);
+    const isNpc = novel.npcs.has(currentName);
+    const isDanger = combat.dangers.some(d => d.name === currentName);
+
+    // Statless NPCs (no ac/hp set) and dangers auto-advance
+    const npcData = isNpc ? novel.npcs.get(currentName) : null;
+    const isStatless = isDanger || (isNpc && npcData && npcData.ac === undefined && npcData.hp === undefined);
+
     combat.current_turn++;
     if (combat.current_turn >= combat.turn_order.length) {
       combat.current_turn = 0;
       combat.round++;
       novel.metadata.total_combat_rounds++;
 
-      // Decrement round-based countdowns
       for (const [, cd] of novel.countdowns) {
         if (cd.type === "round") {
           cd.ticks--;
@@ -538,7 +546,14 @@ export class StateManager {
         }
       }
     }
-    this.audit(novel, novel.hat, "advance_combat", { round: combat.round, turn: combat.current_turn });
+
+    const actionMarker = isStatless ? " [AUTO]" : "";
+    this.audit(novel, novel.hat, "advance_combat", {
+      participant: currentName,
+      round: combat.round,
+      turn: combat.current_turn,
+      statless: isStatless,
+    });
     return combat;
   }
 
@@ -549,13 +564,27 @@ export class StateManager {
     novel.combat = null;
   }
 
+  combatReport(novel: NovelState): string {
+    if (!novel.combat || !novel.combat.active) return "\nNone";
+    const c = novel.combat;
+    const gm = novel.hat === "game_master";
+    const turnOrder = c.turn_order.map((name, i) => {
+      const marker = i === c.current_turn ? "← current" : "";
+      const isEntity = novel.entities.has(name);
+      if (!gm && !isEntity) return null; // Player hat: redact NPC/danger
+      return `  ${i + 1}. ${name}${marker}`;
+    }).filter(Boolean).join("\n");
+    return `\nRound ${c.round} — Turn ${c.current_turn + 1} of ${c.turn_order.length}
+${turnOrder}`;
+  }
+
   // ── Persistence ───────────────────────────────────────────────
 
   saveNovel(novel: NovelState): void {
     const dir = path.join(this.stateDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
     const filePath = path.join(dir, `${novel.slug}.json`);
-    const tmpPath = filePath + ".tmp";
+    const tmpPath = filePath + `.${process.pid}-${Date.now()}.tmp`;
     const bakPath = filePath + ".bak";
 
     novel.metadata.modified = new Date().toISOString();
@@ -568,7 +597,10 @@ export class StateManager {
     if (fs.existsSync(filePath)) {
       fs.copyFileSync(filePath, bakPath);
     }
-    fs.writeFileSync(tmpPath, out, "utf-8");
+    const fd = fs.openSync(tmpPath, "w");
+    fs.writeFileSync(fd, out, "utf-8");
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
     fs.renameSync(tmpPath, filePath);
   }
 
