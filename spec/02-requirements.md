@@ -435,6 +435,17 @@ system, and semantic interpretation of image-only content.
 ruleset terminology — never invented names. Character creation, condition management,
 combat encounter management, table rolling, and session recap are the minimum tool categories any
 ruleset deserves; missing categories are recorded as waivers.
+
+Tools in the following categories exist independent of ruleset content and SHALL
+always be present in `tools/list`: Novel lifecycle, hat and workflow, scene and
+narrative state, NPC management, countdowns, dynamic lore, entity and roster
+management, personality, briefing ordering, export and import (Novel and
+lorebook), search and action suggestions, adventure and encounter generation,
+session tools, utility (`help`, `spec_health`), and enrichment reversion. These
+categories are never waived. Tools whose results depend on indexed ruleset
+content (`search_rules`, `suggest_actions`, `generate_adventure`,
+`generate_encounter`) produce empty or context-only results when that content is
+absent — they are not absent from the tool surface.
 *Acceptance criterion:* `tools/list` includes at minimum character creation,
 condition management, combat, table rolling, and session recap tools; a missing
 category is recorded as a waiver in DECISIONS.md.

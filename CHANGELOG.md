@@ -30,6 +30,10 @@
   a build_complete fingerprint field, and cross-references consolidated
   around REQ-098. (REQ-025 amended, REQ-065/147 amended)
 - Synced the dnd5e MCP server with the updated specification.
+- REQ-020: Added explicit enumeration of always-present (infrastructure) tool
+  categories that exist independent of ruleset content and are never waived.
+- Appendix D: Replaced flat utility-tool list with category-based enumeration
+  synced to REQ-020.
 
 ## 2026-08-07 — Contract hardening across intake, audit, briefing, and personality subsystems
 
