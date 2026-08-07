@@ -34,12 +34,12 @@ pid_alive() { kill -0 "$1" 2>/dev/null; }
 
 unmark_in_progress() {
   local num="$1"
-  sed -i "s/^${num}\. \[IN PROGRESS\] /${num}. /" "$SPEC_QUEUE"
+  sed -i "s/^${num}\. \[RESEARCH\] /${num}. /" "$SPEC_QUEUE"
 }
 
 mark_in_progress() {
   local num="$1"
-  sed -i "s/^${num}\. /${num}. [IN PROGRESS] /" "$SPEC_QUEUE"
+  sed -i "s/^${num}\. /${num}. [RESEARCH] /" "$SPEC_QUEUE"
 }
 
 # ── --cleanup: revert stale [IN PROGRESS] markers ────────────────────────
@@ -58,7 +58,7 @@ cmd_cleanup() {
     else
       echo -e "${GREEN}  Item $num: running (PID $pid)${NC}"
     fi
-  done < <(grep -Po '^\d+\.\s\[IN PROGRESS\]' "$SPEC_QUEUE" | grep -Po '\d+')
+  done < <(grep -Po '^\d+\.\s\[RESEARCH\]' "$SPEC_QUEUE" | grep -Po '\d+')
   if [[ $cleaned -eq 0 ]]; then
     echo -e "${GREEN}No stale markers found.${NC}"
   fi
@@ -113,7 +113,7 @@ while IFS='|' read -r num desc; do
   [[ -n "$num" ]] && items+=("$num|$desc")
 done < <(
   grep -n '^[0-9]\+\. ' "$SPEC_QUEUE" \
-    | grep -v '\[IN PROGRESS\]' \
+    | grep -v '\[RESEARCH\]' \
     | sed 's/^[0-9]*:\([0-9]*\)\. /\1|/' \
     | head -n "$MAX_PARALLEL"
 )
@@ -139,99 +139,14 @@ of the Holonovel specification. Work read-only — do NOT modify any files.
 
 SUBSYSTEM: item $num — $desc
 
+Read the attached research protocol file (research-protocol.md) for the full
+Phase 0-2 workflow: knowledge base checks, spec reading, changelog trail,
+implementation comparison with lag disclaimer, web calibration, reflexion gate,
+plan drafting with machine-readable delimiters, and KB write-back.
+
 Spec file: holonovel.md
 Verify command: npm run check
 Changelog: CHANGELOG.md
-Spec conventions: REQ blocks use \`**REQ-NNN — Title.**\` form, ending in \`*Check:*\`
-  or \`_Check:_\`. Tests use \`TN\` IDs. Requirements state contracts, not
-  implementations.
-
-── PHASE 0: Discovery (skip user confirmation — conventions are known)
-  - Spec: holonovel.md (at repo root)
-  - Verify: \`npm run check\` (lint + validate + audit-assumptions + scan-ambiguity
-    + check-cross-refs + detect-dupes + validate-readme)
-  - Changelog: CHANGELOG.md (date-headed, bulleted)
-  - Proceed directly to Phase 1.
-
-── PHASE 1: Scope & Research
-
-1. READ ALL SPEC SECTIONS. Use grep on holonovel.md to find every section
-   mentioning this subsystem's REQ numbers or keywords. Read each section in
-   full. Do not skim.
-
-2. READ THE CHANGELOG TRAIL. Search CHANGELOG.md for entries referencing this
-   subsystem, its REQ numbers, or related section numbers. Trace evolution
-   across revisions.
-
-3. READ IMPLEMENTATION CODE. In dnd5e/src/, find and read the implementation
-   files for this subsystem. Look for:
-   - Spec drift: code that doesn't match what the spec says
-   - Gaps: spec sections with no corresponding implementation
-   - Over-implementation: code for mechanics the spec never defined
-
-   IMPORTANT — Implementation comparison disclaimer: The dnd5e server may lag
-   behind the spec. Item 2 (Spec-driven updates, §6.7) is re-run after each
-   batch to sync the server. When comparing code against the spec, distinguish:
-   - Lagging implementation: spec features not yet reflected in server code
-     (expected — note them but do NOT classify as gaps or weaknesses)
-   - True gaps: spec sections that have no corresponding implementation pathway
-     even after accounting for known server sync lag (legitimate findings)
-   - Over-implementation: code for mechanics the spec never defined (critical
-     findings — these represent spec drift in the opposite direction)
-
-4. RUN WEB CALIBRATION. Search for:
-   - How MCP servers for TTRPGs handle this subsystem (competitor approaches)
-   - Current best practices for this domain (2025-2026)
-   - How tabletop RPG gamers and GMs think about this subsystem
-   Cross-reference web findings with codebase findings. Flag contradictions.
-   If no relevant web results, note it — do not fabricate.
-
-5. REFLEXION GATE. Before proceeding, verify:
-   - Did I read every section of holonovel.md mentioning this subsystem?
-     (Verify with grep.)
-   - Did I search the web for current information?
-   - Does each weakness cite a concrete source (spec line, changelog entry, or
-     implementation file)?
-   - Are there at least 3 actionable improvement areas?
-   - Do recommendations state contracts (what a conformant system must do),
-     not implementation prescriptions (how to do it)?
-   If any check fails, return to research. Do not present incomplete findings.
-
-── PHASE 2: Draft Plan
-
-For each improvement, produce a concrete plan entry with:
-
-  \`\`\`
-  ### Change N: [one-line summary]
-  **File:** holonovel.md, after <anchor point>
-  **Prose:**
-      [exact new REQ block or edit text]
-  **Manifest:** add REQ-XXX to Appendix E
-  **Test:** add TN to Appendix F "<section>"
-  \`\`\`
-
-Before assigning new REQ IDs, grep holonovel.md for all current REQ-NNN and
-confirm the next-available number. Do not guess.
-
-Verify every recommendation passes the contract test: "Could two different
-implementations satisfy this requirement using different approaches?" If not,
-rephrase as an outcome contract.
-
-── OUTPUT FORMAT
-
-Structure your response as:
-
-## Research Report: <subsystem name>
-### How It Works
-### Strengths
-### Weaknesses
-### Improvement Areas
-
-## Implementation Plan: <subsystem name>
-### Change 1: ...
-### Change 2: ...
-...
-
 End with: "RESEARCH COMPLETE. <N> improvements identified."
 
 Do NOT modify any files. Output only to this conversation.
@@ -257,6 +172,7 @@ for item in "${items[@]}"; do
     --agent plan \
     --title "spec-item-${num}-research" \
     --dir "$PROJECT_DIR" \
+    --file "$PROJECT_DIR/scripts/research-protocol.md" \
     "$prompt_text" \
     > "$output_file" 2> "$log_file" &
 

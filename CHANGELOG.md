@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-06 — Spec queue pipeline: automated research-to-commit cycle with knowledge base
+
+- SPEC-QUEUE.md now follows a 5-state pipeline — `[RESEARCH]` →
+  `[PLAN_READY]` → `[EXECUTING]` → (done), with `[REJECTED]` and `[FAILED]`
+  for terminal states — driven by three new scripts.
+- `scripts/spec-queue-cycle.sh` is the single entry point: `research` launches
+  parallel read-only sessions, `status` shows all items, `execute` runs the
+  full review → approve → apply → sync → validate → commit flow as one batch.
+- `scripts/spec-queue-execute.sh` applies a research plan to the specification
+  via an opencode build session, running `npm run check` after each change.
+- `scripts/spec-queue-sync.sh` runs the spec-driven update workflow
+  (holonovel-update) — gap audit, implementation, scoped Gauntlet — to sync
+  the dnd5e server with spec changes.
+- `scripts/research-protocol.md` extracts the Phase 0-2 methodology into a
+  shared file, cutting ~1,500 tokens per research session. The protocol
+  includes knowledge base checks, implementation comparison with lag
+  disclaimer, web calibration, reflexion gate, and machine-readable plan
+  delimiters (`<!-- PLAN_BEGIN -->` / `<!-- CHANGE_BEGIN N -->`).
+- The knowledge base at `.holonovel-state/knowledge-base/INDEX.md` caches web
+  research findings, spec section summaries, and implementation analysis
+  across cycles. Cached data subdirectories (`web/`, `spec/`,
+  `implementation/`) are in `.gitignore`. Combined with the shared protocol
+  and plan dedup, later items in the 55-item queue see ~50% token reduction.
+
 ## 2026-08-06 — Spec-driven update efficiency: Gauntlet scoping and queue automation
 
 - REQ-098 no longer requires blanket Gauntlet re-run during spec-driven updates

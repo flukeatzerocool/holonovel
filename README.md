@@ -357,4 +357,31 @@ npm install && npm run check   # lint + validate + assumption audit + ambiguity 
 
 All scripts share parsing logic from `scripts/lib/parse-spec.ts`.
 
+### Spec queue pipeline
+
+SPEC-QUEUE.md holds 55 subsystems awaiting review through the spec-engineering
+loop — from character creation to lorebook interchange. The pipeline automates
+the full cycle:
+
+```sh
+./scripts/spec-queue-cycle.sh research    # 3 parallel AI research sessions
+./scripts/spec-queue-cycle.sh status      # check progress
+./scripts/spec-queue-cycle.sh execute     # review, apply, sync, commit
+```
+
+**research** launches detached opencode sessions that analyze one subsystem
+each — reading the spec, changelog, and implementation, calibrating against
+the web — and produce concrete improvement plans with exact spec prose.
+Plans land in `.holonovel-state/queue-plans/`.
+
+**execute** shows the findings, lets you approve or reject each batch, then
+applies approved changes to the specification, runs the spec-driven update
+workflow (gap audit → implement → scoped Gauntlet), validates with
+`npm run check`, and commits everything as one batch. Rejected items stay
+in the queue.
+
+A knowledge base at `.holonovel-state/knowledge-base/` caches web research and
+spec summaries across cycles, cutting token usage by roughly 50% for later
+items. The knowledge base is local — it's in `.gitignore`.
+
 License: MIT. [RSS](https://git.gay/flukeatzerocool/Holonovel).
