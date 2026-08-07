@@ -1,8 +1,9 @@
 # Holonovel
 
 > **Quick Reference.** An AI build prompt for an MCP server that always builds with
-> the Inform world-model layer from provider documentation and optionally layers
-> a tabletop RPG ruleset on top. The AI reads the ruleset (when provided), extracts
+> the `@holonovel/inform` world-model layer (rooms, things, exits, properties,
+> parser commands, kind hierarchy) and optionally layers a tabletop RPG ruleset on
+> top. The AI reads the ruleset (when provided), extracts
 > mechanics, builds the server, and proves it works. Output: a running MCP server
 > with the Inform world-model layer
 > (rooms, things, exits, properties, parser commands), hybrid adventure modules,
@@ -3766,14 +3767,14 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
-| B10 | Where are the world-model provider documentation files? | Path(s) | `<spec-repo>/inform/docs_md/` |
+| B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
-are indexed, no extraction occurs, and the server is built from the world-model provider
-documentation (B10) and infrastructure tools (REQ-020) alone. The builder records ruleset-free
-mode in DECISIONS.md (1) and proceeds to world-model provider indexing (§6.3 — only the
-provider-indexing step; chunked reading and cross-chunk resolution are skipped). Extraction
-discovery and its dependent metrics are skipped. A build declared ruleset-free MUST NOT attempt
+are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
+package (B10) and infrastructure tools (REQ-020) alone. The builder records ruleset-free
+mode in DECISIONS.md (1), runs `npm install @holonovel/inform` at the version specified by B10,
+and proceeds to server construction (§6.4) using the inform scaffold as the starting point.
+Extraction discovery and its dependent metrics are skipped. A build declared ruleset-free MUST NOT attempt
 to index, extract, or model any ruleset content; the server's `search_rules` tool returns empty
 results, its canonical lookup tools are waived (REQ-013), and no dice-resolution tools are
 registered. The server's ruleset content hash is the sentinel hash per REQ-044.
@@ -3893,16 +3894,18 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**World-model provider indexing.** The builder SHALL index the world-model
-provider documentation (the path supplied by the B10 intake question). The provider
-documentation defines the kind hierarchy, property contracts, parser command catalog,
-and declarative assertion syntax that every server SHALL implement. Extraction from
-the provider documentation follows the same chunked-reading, confidence, traceability,
-and cross-reference resolution contracts as TTRPG ruleset extraction (§§5.2, 6.3).
-The provider documentation is indexed once per build — its extracted model (kind
-hierarchy, property contracts, parser command catalog, and declarative assertion
-syntax) is embedded in the server as a fixed reference and surfaced at the
-`world://kinds` resource (REQ-202).
+**Inform scaffold installation.** When B1 is not `none` (TTRPG build), the builder SHALL
+install the `@holonovel/inform` npm package at the version specified by B10. The inform
+package provides the world-model layer pre-built — kind hierarchy, property contracts,
+parser command catalog, and declarative assertion syntax — as `core` and `world` entry
+points. The builder SHALL add `@holonovel/inform` as a dependency of the TTRPG server and
+import from it per §6.4. No chunked reading or provider-documentation indexing occurs
+during TTRPG builds — the inform package is a build-time dependency, not a per-build
+extraction target. Provider documentation is indexed once when the inform package is
+published; the TTRPG builder consumes the published output. The world-model layer is
+surfaced at the `world://kinds` resource (REQ-202). When B1 is `none` (ruleset-free mode),
+the inform package IS the server — the builder installs it, verifies it starts, and no
+further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -3999,15 +4002,21 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize from @holonovel/inform scaffold, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
-| 5     | State: snapshots, undo, audit, hat gating, resource URIs | T9 pass (hat test)                                       |
+| 5     | State layer: extends @holonovel/inform's state with ruleset-specific types (entity stats, combat, spell slots). World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
+
+For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
+helpers, state management, macros, enrichment types, and world-model layer (rooms,
+things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
+verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
+ruleset-specific content on top of the inform base.
 
 **License.** The server MUST include a `LICENSE.md` file at the project
 root with two sections: a **Ruleset Data** section identifying the source
@@ -4546,12 +4555,14 @@ syncs — not only the blanket Gauntlet run.
 
 #### Inform Gauntlet
 
-The Inform server — built from world-model provider documentation (B10,
-ruleset-free per §6.2) — is verified through a separate Gauntlet of
-world-model-specific sub-workflows. The same Method, Verification principle,
-Failure artifacts, Budget, and Structured encoding contracts apply (§6.6).
-Blocking sub-workflows SHALL pass; non-blocking failures are recorded as
-accepted limitations.
+The Inform server — the `@holonovel/inform` npm package (ruleset-free per §6.2) — is
+verified through a separate Gauntlet of world-model-specific sub-workflows. The Inform
+Gauntlet runs when the inform package is built and before it is published, as part of
+the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
+consume the published inform package as a build-time dependency and skip the Inform
+Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
+Budget, and Structured encoding contracts apply (§6.6). Blocking sub-workflows SHALL
+pass; non-blocking failures are recorded as accepted limitations.
 
 **Inform Gauntlet sub-workflows.**
 
@@ -4615,7 +4626,7 @@ accepted limitations.
 
 | Changed surface                                    | Inform Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| Provider documentation changed (B10 re-index)      | All (1–10)                |
+| @holonovel/inform package changed (new version)     | All (1–10)                |
 | Room navigation, parser commands                   | 1, 2, 8                   |
 | Object interaction, properties                     | 3, 6                      |
 | CRUD, state mutations                              | 4                         |
@@ -4643,6 +4654,9 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
+The Inform Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+spec-driven updates — they are run separately when the `@holonovel/inform` package
+is built and published.
 
 **Delta classes.**
 
