@@ -509,6 +509,18 @@ Appendix J pattern for the requested hat, each tagged `[anti-slop]` and hat-filt
 enrichment-sourced items carry `[supplementary]` with source URL.
 _Check:_ T223.
 
+**REQ-194 — Anchor derivation.** Anchors SHALL be derived from heading text
+deterministically: lowercase the text, strip punctuation, replace whitespace and
+hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens.
+Explicit IDs (`{#id}`) take precedence over derived anchors. Role-scoping markers
+(`*Keeper only*`, `*Player only*`, or the ruleset's discovered hat terms) SHALL be
+stripped from the heading text before derivation. Duplicate derived anchors within
+a source file SHALL append `-1`, `-2`, etc. Duplicate explicit IDs across files
+SHALL be treated as an authoring defect. Re-indexing the same source SHALL
+reproduce identical anchors. Punctuation stripped SHALL be the character class
+`[\p{P}\p{S}]` (Unicode punctuation and symbol categories); CJK and other non-ASCII
+word characters SHALL be preserved. _Check:_ T16, T236.
+
 **REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
 `[narrative-tone]`-tagged guidance items per hat — example-of-play prose extracted from the
 ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<hat>/tone`. Each
@@ -670,10 +682,14 @@ text, not executed. Callouts produce no mechanics. Conditions apply and expire p
 _Check:_ T25, T32, T33, T36.
 
 **REQ-014 — Source immutability.** The ruleset Markdown — and, where conversion applied, the
-original sources — is hashed at intake and never modified. A drift check at startup warns
-on mismatch.
-*Acceptance criterion:* `sha256sum` of the original Markdown matches the intake
-hash in DECISIONS.md; a mismatch at startup surfaces in `spec_health` and stderr.
+original sources — is hashed at intake (SHA-256) and never modified. The intake hash is
+the golden record: it is stored in DECISIONS.md (1) at build time and recorded in the
+build fingerprint (REQ-065) as the definitive source identity. Any later comparison that
+detects a change in the ruleset is drift detection, defined by REQ-065 — this requirement
+concerns the freeze only.
+*Acceptance criterion:* A sha256 hash of the original Markdown sources matches the intake
+hash stored in DECISIONS.md; the source files on disk are byte-identical to the files
+hashed at intake.
 _Check:_ T21.
 
 **REQ-015 — Action classification.** Every modeled action is classified: Resolution (dice
@@ -821,8 +837,13 @@ running tool catalog, resource map, prompt list, search index, and extracted dat
 arrays — not from hardcoded numeric literals. The player hat sees only
 player-filtered metrics. Output is filtered by hat. The convergence summary section
 is absent when the build is not yet complete. `spec_health` SHALL include a
-`gap_audit` section containing: a delta summary (server spec_version vs current
-spec version), a tool-catalog comparison (tool count from live registry vs
+`gap_audit` section containing: a delta summary comparing the server's recorded
+spec version against the current spec version recorded at build time — a
+`server_spec_version` field (CalVer date-stamp from the server's build
+fingerprint), a `current_spec_version` field (CalVer date-stamp from the active
+build), and a `version_advanced` boolean (true when `current_spec_version` is
+lexicographically greater than `server_spec_version`, indicating the spec has
+advanced and a gap audit is needed); a tool-catalog comparison (tool count from live registry vs
 expected per REQ-020 categories, with per-category presence), a resource-map
 comparison (URI count from live registry vs REQ-022 catalog), a prompt-list
 comparison (prompt count and names from live registry vs REQ-023 contract, with
@@ -938,15 +959,30 @@ _Check:_ T105.
 version in the build fingerprint, surfaced through `spec_health` under a `spec_version`
 field. The version is a CalVer date-stamp (YYYY.MM.DD) matching the CHANGELOG entry date
 at which the specification was last substantively changed. The builder records the spec
-version in DECISIONS.md at intake (see §2 Pinned Versions). During a spec-driven update
-(REQ-098), the builder compares the current spec version against the server's recorded
-version: when the spec version has advanced, the gap audit proceeds; when unchanged, the
-builder reports the server is current and exits without mutation. The version string is
-informational — it does not gate runtime behavior beyond reporting.
+version in DECISIONS.md §2 Pinned Versions at intake and sets the server's `package.json`
+version to the same value. The two SHALL agree; a mismatch is a build-time defect that
+blocks handoff. During a spec-driven update (REQ-098), the builder compares the current
+spec version against the server's recorded version: when the spec version has advanced,
+the gap audit proceeds; when unchanged, the builder reports the server is current and
+exits without mutation. The version string is informational — it does not gate runtime
+behavior beyond reporting.
 *Acceptance criterion:* `spec_health.spec_version` is a CalVer date-stamp matching
-DECISIONS.md §2 Pinned Versions; a gap audit against the same version exits
-"current" without mutation.
+DECISIONS.md §2 Pinned Versions; the server's `package.json` version matches both; a
+gap audit against the same version exits "current" without mutation.
 _Check:_ T106.
+
+**REQ-187 — Spec content hash computation.** The builder SHALL compute the
+specification content hash at build time from the embedded spec file
+(`holonovel.md` in the server directory, per §6.4) and record it in the
+server's build fingerprint. The stored hash SHALL be read from the build
+fingerprint at runtime — never from a hardcoded literal. A mismatch between the
+stored hash and the embedded file's current hash at startup SHALL surface as a
+warning on stderr and in `spec_health`. The hash algorithm SHALL be SHA-256.
+*Acceptance criterion:* Computing the SHA-256 hash of the embedded spec file
+produces the value recorded in `state.buildFingerprint.specHash`; modifying the
+embedded file and restarting produces a drift warning; `spec_health` reports the
+stored hash alongside a `spec_hash_current` boolean.
+_Check:_ T226.
 
 **REQ-161 — Intake workflow contract.** Before any workflow begins, the builder SHALL
 present the operator with Q0 (workflow selection) and, when two or more workflows are
@@ -2202,39 +2238,59 @@ server preserves the generated adventure; `end_novel` discards it;
 a second `generate_adventure` replaces the first.
 _Check:_ T146.
 
-**REQ-044 — Ruleset versioning.** The server records the ruleset's intake hash and
-content fingerprint. A drift check at startup detects changes after intake; a mismatch
-warns on stderr and appears in `spec_health`.
-*Acceptance criterion:* Modifying the ruleset source after intake surfaces
-a drift warning in `spec_health` and stderr at next startup.
+**REQ-044 — Ruleset hash recording.** The server computes a SHA-256 content hash of the
+ruleset Markdown files at build time and records it in the build fingerprint (REQ-065).
+The hash is computed from the sorted, concatenated contents of every ruleset source file
+so that the same filesystem contents always produce the same hash. The recorded hash is
+the basis for post-build drift detection (REQ-065). A server built without ruleset files
+(e.g., a pure-discovery build that records only the intake answers) records a sentinel
+hash indicating no ruleset was present.
+*Acceptance criterion:* Building the same ruleset twice produces identical ruleset hashes;
+building against two different ruleset revisions produces different hashes.
 _Check:_ T17.
 
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
-directory: the specification version, the ruleset content hash (REQ-044), and the build
-timestamp. On startup with existing state, the server compares the stored fingerprint
-against the current build. A match requires no action. A mismatch emits a warning on
-stderr listing the differing fields and indicating a rebuild occurred. The active build's
-specification version, ruleset hash, and build timestamp always take precedence over
-stored values — stored values are retained for drift comparison only. Per-session fields
-(the last specification review timestamp and last Gauntlet execution timestamp) may be
-updated at runtime and preserved across restarts, but the constructor-derived version,
-hash, and timestamp are immutable for the build's lifetime. The server must load existing
-state gracefully: fields present in state but absent from the current entity model are
-preserved as inert data and cause no errors; fields required by the current model but
-absent from existing state receive their ruleset-defined defaults. Roster baselines remain
-immutable across rebuilds. Unrecoverable state — state that cannot be parsed or
-structurally loaded — is reported to the operator via stderr and surfaced in `spec_health`
-with the affected top-level keys or entity/NPC identifiers named; the server must not
-silently discard it. The server continues to operate
-with a clean state for the affected Novel — the corrupted state is not loaded; the
-Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines and
-other intact Novels are unaffected. A fresh start against an empty state directory
-is a match.
-*Acceptance criterion:* After a rebuild with added entity fields, an existing
-Novel loads without error — absent fields receive defaults, extra fields are
-preserved as inert data; a corrupted JSON produces a stderr diagnostic naming
-the affected keys.
-_Check:_ T52.
+directory: the specification version, the specification content hash (from the embedded
+holonovel.md, REQ-105), the ruleset content hash (REQ-044), the spec repository URL
+(REQ-106), and the build timestamp. The fingerprint is persisted alongside Novel state so
+it survives server restarts. On startup with existing state, the server reloads the stored
+fingerprint and compares it against the freshly computed current-build fingerprint. The
+comparison is field-by-field:
+
+- **Specification version mismatch** — the current spec version differs from the stored
+  version. Emits a `[spec_version_drift]` warning on stderr and in spec_health.
+- **Specification content hash mismatch** — the embedded holonovel.md hash differs from
+  the stored hash. Emits a `[spec_drift]` warning on stderr and in spec_health listing the
+  stored and current hashes. This detects post-build modification of the embedded spec
+  copy.
+- **Ruleset content hash mismatch** — the current ruleset hash differs from the stored
+  intake hash. Emits a `[ruleset_drift]` warning on stderr and in spec_health listing the
+  stored and current hashes. This is the source immutability drift check traceable to
+  REQ-014.
+- **Build timestamp** — expected to differ across restarts; does not emit a warning.
+
+Drift warnings are diagnostic surfaces, not safety interlocks — they do not block startup
+or degrade service. The active build's specification version, ruleset hash, and build
+timestamp always take precedence over stored values; stored values are retained for drift
+comparison only. Per-session fields (the last specification review timestamp and last
+Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
+the constructor-derived version, hash, and timestamp are immutable for the build's
+lifetime. The server must load existing state gracefully: fields present in state but
+absent from the current entity model are preserved as inert data and cause no errors;
+fields required by the current model but absent from existing state receive their
+ruleset-defined defaults. Roster baselines remain immutable across rebuilds. Unrecoverable
+state — state that cannot be parsed or structurally loaded — is reported to the operator
+via stderr and surfaced in spec_health with the affected top-level keys or entity/NPC
+identifiers named; the server must not silently discard it. The server continues to
+operate with a clean state for the affected Novel — the corrupted state is not loaded; the
+Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines and other
+intact Novels are unaffected. A fresh start against an empty state directory is a match.
+*Acceptance criterion:* After a rebuild with added entity fields, an existing Novel loads
+without error. A corrupted JSON produces a stderr diagnostic naming the affected keys. A
+ruleset modification after build produces a [ruleset_drift] warning in spec_health and
+stderr at next startup; a spec modification produces a [spec_drift] warning; neither
+blocks startup.
+_Check:_ T52, T224.
 
 *Out of scope:* relational database backends, distributed state across processes,
 cloud synchronization, and state migration between incompatible specification versions
@@ -2386,7 +2442,12 @@ _Check:_ T64, T134.
 **REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
 `hat_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
 array of section tokens. Unknown tokens return `[ERROR] [INVALID_INPUT]` with valid
-tokens enumerated. An empty array resets to the builder-determined default. The builder SHALL document the
+tokens enumerated. An empty array resets to the builder-determined default.
+Section tokens control both ordering and inclusion — a token present in the
+array causes its corresponding group to render (or render as an empty section
+if the group has no content); a token absent from the array causes its group to
+be omitted entirely from `hat_briefing`. The builder default ordering includes
+all groups. The builder SHALL document the
 complete section-token-to-group mapping and the default ordering in DECISIONS.md, so
 the valid token set and default section ordering are auditable at build verification
 time without invoking the running server. The mapping SHALL cite the REQ-109 group each
@@ -2399,6 +2460,44 @@ hat attempts return `[ERROR] [FORBIDDEN]`.
 reorders `hat_briefing`; `set_briefing_order([])` resets to builder defaults; an
 unknown token returns `[ERROR] [INVALID_INPUT]` with valid tokens enumerated.
 _Check:_ T66.
+
+**REQ-185 — Section token vocabulary.** The builder SHALL assign a stable,
+validated section token to each REQ-109 group that has a runtime representation
+in `hat_briefing`. Token names SHALL be lowercase snake_case identifiers
+corresponding to the REQ-109 group (e.g., `entities` for the active entities
+group, `combat_state` for the active combat state group). The complete
+token-to-group mapping SHALL be documented in DECISIONS.md per REQ-082. The
+mapping SHALL be stable across builds — tokens do not change when the ruleset
+changes unless a REQ-109 group is added or removed. When a REQ-109 group has no
+runtime representation (e.g., ruleset lacks the construct), the builder SHALL
+still assign a token that produces an empty section. The valid token set is the
+authoritative vocabulary for `set_briefing_order` and enrichment briefing_order
+recommendations.
+
+*Acceptance criterion:* Building for D&D 5e produces a DECISIONS.md table
+mapping every REQ-109 group name to a snake_case token. Building for the
+Appendix B fixture (which lacks combat, countdowns, lore, and adventures)
+produces a subset mapping — the token set shrinks but token names for shared
+groups are identical.
+
+_Check:_ T224.
+
+**REQ-186 — Section token discoverability.** The valid section token set SHALL
+be discoverable without triggering an error. `spec_health` SHALL include a
+`section_tokens` field listing every valid token with its corresponding REQ-109
+group name and whether the group currently has runtime content in the active
+Novel. The `help` tool, when queried with `"briefing"` or `"section ordering"`,
+SHALL enumerate the valid token set. The `[INVALID_INPUT]` error from
+`set_briefing_order` (REQ-082) SHALL continue to enumerate valid tokens for
+the immediate caller, but callers are not required to probe via error to find
+valid tokens.
+
+*Acceptance criterion:* `spec_health` returns a `section_tokens` array with
+token, group, and has_content fields. `set_briefing_order` with an unknown
+token returns `[INVALID_INPUT]` with valid tokens enumerated — and the
+enumerated list matches the `section_tokens` field exactly.
+
+_Check:_ T225.
 
 **REQ-083 — Dynamic lore.** The Game Master may create, update, toggle, group, and remove
 keyword-triggered lore entries. Entries activate when trigger keywords appear in scene
@@ -3646,8 +3745,13 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
-**Gap audit method.** The builder compares the server's live registrations — tool
-catalog (tools/list), resource map (resources/list), prompt list (prompts/list),
+**Gap audit method.** The builder first compares the server's recorded spec version
+(`spec_health.spec_version`) against the current spec version. When the
+current version is unchanged, the builder reports `[OK] Server is current
+(spec version <version>)` and exits without mutation. When the current version
+has advanced, the builder proceeds to compare live registrations as follows:
+the builder compares the server's live registrations — tool catalog
+(tools/list), resource map (resources/list), prompt list (prompts/list),
 and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
 conventions (§7.4), state model (§7.7), and REQ-032 hat gating. Behavioral
 contracts are verified by Gauntlet re-run. The audit produces one row per identified
@@ -3683,17 +3787,28 @@ is a build-time operation and does not violate REQ-051.
 
 ## 7. Runtime Conventions
 
-### 7.1 Anchors and slugs
+### 7.1 Anchors
 
-Anchors are derived from heading text deterministically: lowercase, strip punctuation,
-replace whitespace with hyphens, collapse runs. Explicit IDs (`{#id}`) take precedence
-over slugged text. Duplicate anchors append `-1`, `-2`, etc. Role-scoping markers
-(`*Keeper only*`) are stripped before slug derivation. Re-indexing reproduces identical
-anchors.
+Anchors are derived from heading text per REQ-194. They serve as cross-reference
+identifiers for ruleset content in the following surfaces:
 
-Slugs used as filenames must avoid Windows reserved names (CON, PRN, AUX, NUL,
-COM1–COM9, LPT1–LPT9). Collisions resolve by appending `-1`. Path lengths must not
-exceed 240 characters for the full Novel state path.
+| Surface | Format | Source |
+|---|---|---|
+| Source quoting | `<file>#<anchor>` | REQ-060, REQ-061 |
+| Guidance resource URIs | `guidance://<hat>/<anchor>` | REQ-022 |
+| Adventure resource URIs | `adventure://<slug>/<anchor>` | REQ-079 |
+
+### 7.1a Slugs (filename-safe identifiers)
+
+Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
+hyphenate) and additionally:
+
+- SHALL avoid Windows reserved names (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9).
+  Collisions with reserved names resolve by appending `-1`.
+- SHALL NOT result in full Novel state paths exceeding 240 characters.
+  Consider: prepend a short hash if the slug alone would produce a path
+  exceeding the limit.
+- Leading and trailing hyphens are stripped.
 
 ### 7.2 Entity IDs
 
@@ -4130,9 +4245,14 @@ output. Enrich produces an enrichment manifest with six output modules:
    Stored at `enrichment://voice_examples`. The GM activates them via `set_voice_examples`
    (REQ-077).
 
-2. **Prompt ordering.** A single recommended ordering of `hat_briefing` section tokens.
-   Stored at `enrichment://briefing_order`. **Inert** — visible in `spec_health`, never
-   auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to use it.
+2. **Prompt ordering.** A single recommended ordering of `hat_briefing` section
+   tokens. Every token in the recommendation SHALL appear in the builder-documented
+   section token vocabulary (REQ-185). The recommendation MAY omit tokens — omitted
+   tokens follow their builder-default position after the listed tokens. Tokens not
+   in the vocabulary are invalid and the enrichment module SHALL NOT produce them.
+   Stored at `enrichment://briefing_order`. **Inert** — visible in `spec_health`,
+   never auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to
+   use it.
 
 3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries
    total. Each records: `key` (slug), `content` (Markdown), `triggers` (keyword array),
@@ -4294,9 +4414,7 @@ verification results remain in DECISIONS.md for audit.
 bytes are a structural defect.
 
 **Headings.** ATX only (`##`, `###`, `####`). Treat the hierarchy as a tree but allow
-gaps. Generate deterministic anchors from heading text: lowercase, strip punctuation,
-replace whitespace with hyphens, collapse runs. Explicit IDs (`{#id}`) take precedence.
-Duplicate anchors append `-1`, `-2`, etc.
+gaps. Anchors are derived from heading text per REQ-194 (§7.1).
 
 **Role scoping.** A trailing italic heading marker of the form `*<name> only*` scopes the
 section to the GM hat. Match the marker case-insensitively against discovered hat
@@ -4737,7 +4855,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-011 | Confidence                | 2026-08-02   |
 | REQ-012 | Graceful fallback         | 2026-08-02   |
 | REQ-013 | No assumed mechanics      | 2026-08-02   |
-| REQ-014 | Source immutability       | 2026-08-02   |
+| REQ-014 | Source immutability       | 2026-08-07   |
 | REQ-015 | Action classification     | 2026-08-02   |
 | REQ-016 | Guidance extraction       | 2026-08-02   |
 | REQ-017 | Hat stories               | 2026-08-02   |
@@ -4747,7 +4865,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-022 | Resources                 | 2026-08-02   |
 | REQ-023 | Prompts                   | 2026-08-02   |
 | REQ-024 | Tool documentation        | 2026-08-02   |
-| REQ-025 | spec_health               | 2026-08-06   |
+| REQ-025 | spec_health               | 2026-08-07   |
 | REQ-057 | Canonical lookup tools    | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | 2026-08-02   |
 | REQ-059 | Parameter canon validation | 2026-08-07 |
@@ -4759,7 +4877,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-041 | State snapshotting        | 2026-08-02   |
 | REQ-042 | Decision workflows        | 2026-08-02   |
 | REQ-043 | Combat state              | 2026-08-02   |
-| REQ-044 | Ruleset versioning        | 2026-08-02   |
+| REQ-044 | Ruleset hash recording    | 2026-08-07   |
 | REQ-050 | Determinism               | 2026-08-06   |
 | REQ-051 | No runtime network access | 2026-08-02   |
 | REQ-052 | Path containment          | 2026-08-02   |
@@ -4798,16 +4916,16 @@ date-stamps matching CHANGELOG entries.
 | REQ-097 | Novel health              | 2026-08-02   |
 | REQ-056 | Advancement workflow      | 2026-08-02   |
 | REQ-063 | Connection introduction   | 2026-08-02   |
-| REQ-065 | Build fingerprint         | 2026-08-02   |
+| REQ-065 | Build fingerprint         | 2026-08-07   |
 | REQ-066 | set_hat                   | 2026-08-02   |
 | REQ-102 | Source conversion contract  | 2026-08-05   |
 | REQ-103 | Enrichment reversion      | 2026-08-07   |
 | REQ-104 | Undo after creation       | 2026-08-06   |
 | REQ-105 | Spec resource             | 2026-08-06   |
 | REQ-106 | Spec repository URL       | 2026-08-06   |
-| REQ-107 | Version coordination      | 2026-08-06   |
+| REQ-107 | Version coordination      | 2026-08-07   |
 | REQ-108 | Gauntlet traceability     | 2026-08-06   |
-| REQ-098 | Spec-driven update workflow | 2026-08-05   |
+| REQ-098 | Spec-driven update workflow | 2026-08-07   |
 | REQ-109 | Hat briefing composition  | 2026-08-06   |
 | REQ-099 | Confidence-floor acknowledgment | 2026-08-05   |
 | REQ-100 | Performance benchmark     | 2026-08-07   |
@@ -4887,6 +5005,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-182 | Bounded-domain parameter documentation | 2026-08-07 |
 | REQ-183 | Live-index-derived error enumerations | 2026-08-07 |
 | REQ-184 | Anti-slop resource rendering | 2026-08-07 |
+| REQ-185 | Section token vocabulary     | 2026-08-07 |
+| REQ-186 | Section token discoverability | 2026-08-07 |
+| REQ-187 | Spec content hash computation | 2026-08-07 |
+| REQ-194 | Anchor derivation | 2026-08-07 |
 
 ---
 
@@ -4946,6 +5068,8 @@ diet.
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `hat_briefing` for each hat (switch via `set_hat`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of hat)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Hat behavioral boundaries: invoke a Player-hat session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both hats and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T52   | Automated | Build fingerprint: build server, create state (character, game entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
+| T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
+| T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
 | T53   | Automated | Session recap: invoke `session_recap` after a combat session, assert the summary includes entities with final HP and conditions, combat outcomes, scene state, active lore entries with trigger status, narrative directive, current scene type, and last scene state transitions. Assert entity status reports "alive" when HP > 0, "unconscious" at HP = 0, "dead" when death condition active. Assert all 14 named fields present with typed values. Call `session_recap(max_transitions=2, max_rolls=3)` — assert at most 2 transitions and 3 rolls. Call `session_recap(max_transitions=0)` — assert `[ERROR] [INVALID_INPUT]`. Invoke as Player hat — assert only own-entity data appears and narrative elements are hat-filtered. Invoke as Game Master — assert all entity data and narrative elements appear.                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-072, REQ-032, REQ-174, REQ-175          |
 | T54   | Automated | Countdowns: set a `round` countdown (5 ticks), run 3 combat rounds, assert remaining ticks = 2. Set a `narrative` countdown (3 ticks), advance twice manually, assert remaining = 1. Advance again — assert countdown fires and is removed from active countdowns but present in audit log.                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-073                                     |
 | T55   | Automated | Multi-entity: create two entities, import both into a game, assert `entities://` lists both. Switch active entity via `set_active_entity`, assert mutating tools target the active entity. Verify `party://current` lists all player entities with summary stats.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-074                                     |
@@ -4987,7 +5111,7 @@ diet.
 | T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
-| T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all enrichment resource URIs (`enrichment://voice_examples`, `enrichment://briefing_order`, `enrichment://action_patterns`, `enrichment://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080                            |
+| T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all enrichment resource URIs (`enrichment://voice_examples`, `enrichment://briefing_order`, `enrichment://action_patterns`, `enrichment://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`. Assert enrichment briefing_order tokens are a subset of `spec_health.section_tokens`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080, REQ-185                            |
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `hat_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
 | T96   | Automated | Action pattern inertness: run enrich. Assert `suggest_actions(intent)` does not return enrich-derived patterns while the action pattern toggle (REQ-115) is disabled. Activate patterns via `toggle_action_patterns` — assert patterns appear in results for matching intents. Deactivate via `toggle_action_patterns` — assert patterns excluded again. GM-only tool patterns excluded from Player results whether activated or not. Player hat attempt on `toggle_action_patterns` returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-084                                     |
 | T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all six output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
@@ -4999,7 +5123,7 @@ diet.
 | T103  | Automated | Character creation undo: create a character via step-by-step workflow and via quick mode. Call `undo` after each — assert roster returns to pre-creation state and the entity is no longer accessible. Assert undo blocked during pending `[NEED_INPUT]`. Assert empty undo stack returns `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-041, REQ-104                            |
 | T104  | Automated | Spec resource: call `resources/read` on `spec://build` — assert full spec text returned as Markdown. Assert `spec://build` appears in `resources/list`. Switch to Player hat — assert `[FORBIDDEN]`. Compare embedded copy against the builder's copy — assert content hash matches DECISIONS.md (1).                                                                                                                                                                                                                                                                                                                                                                                           | REQ-105, REQ-032                            |
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player hats. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
-| T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Assert `spec_version` appears in `hat_briefing` for Game Master hat. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player hat sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
+| T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player hat sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
 | T107  | Automated | Gauntlet traceability: after a full Gauntlet run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
 | T108  | Automated | Hat precedence: activate GM hat in Novel A, set `TTRPG_HAT=player`, resume Novel A — assert GM hat active (Novel persisted state wins). Create Novel B without activating hat, resume B with `TTRPG_HAT=player` — assert player hat active (env var applied to Novel with no persisted hat). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted hat independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
 | T109  | Automated | Hat briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, adventure content, and active combat state (init_combat). Invoke `hat_briefing` as GM — assert all 16 groups from REQ-109 present including combat state (round, turn order, current participant). Assert decision-critical groups (scene state, entities, combat state, triggered lore, active NPCs, active countdowns) precede the section boundary and supplementary groups follow. Invoke as Player — assert GM-only groups excluded and all player-visible groups present. End combat — assert combat group omitted. Remove entities — assert entity group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
@@ -5117,6 +5241,9 @@ diet.
 | T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, hat-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
 | T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
 | T223  | Manual   | Anti-slop guidance: invoke `hat_briefing` as GM — assert `[anti-slop]`-tagged items present with forbidden/corrected pattern pairs; assert LLM-specific patterns (echoing, passive voice, motif repetition) present for GM hat. Invoke as Player — assert Player-scoped anti-slop items present (establishing world facts, assuming outcomes, declaring NPC reactions, meta-commentary leakage), GM-only items excluded. Read `guidance://game_master/anti-slop` — assert Markdown containing all Appendix J GM-scoped patterns tagged `[anti-slop]` and hat-filtered; enrichment-sourced items carry `[supplementary]` with source URL. Read `guidance://player/anti-slop` — assert Player-scoped patterns. Severity classification (Hard/Soft) discernible from pattern metadata. | REQ-070, REQ-184 |
+| T224  | Automated | Section token vocabulary: build for D&D 5e — assert DECISIONS.md contains a table mapping every REQ-109 group name to a snake_case token. Build for the Appendix B fixture — assert the token set shrinks (absent: combat, countdowns, lore, adventures) but token names for shared groups are identical to the D&D 5e build. | REQ-185 |
+| T225  | Automated | Section token discoverability: invoke `spec_health` — assert `section_tokens` array with token, group, and has_content fields. Invoke `help` with query `"briefing"` — assert valid token set enumerated. Invoke `help` with query `"section ordering"` — assert valid token set enumerated. Invoke `set_briefing_order` with an unknown token — assert `[INVALID_INPUT]` with valid tokens enumerated matching `spec_health.section_tokens` exactly. | REQ-186, REQ-082 |
+| T236  | Automated | Anchor determinism: parse the Appendix B fixture, extract all heading anchors, re-parse, assert identical anchor set. Assert anchors with CJK heading text preserve CJK characters. Assert `*Keeper only*` heading produces same anchor as bare heading text. Assert `{#custom-id}` overrides auto-derived anchor. Assert duplicate headings produce `-1`, `-2` suffixes matching GFM convention. | REQ-194 |
 
 ---
 

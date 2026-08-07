@@ -239,22 +239,18 @@ peripheral features. Score ≤21.
     build-derived registrations, DECISIONS.md enrichment manifest preserved
     for audit, re-running Enrich repopulates (REQ-103). Score: 11 (freq=1,
     crit=2, cplx=1, coupling=1, maturity=3, coverage=2).
-52. Prompt section ordering — set_briefing_order(sections) accepts ordered
     array of section tokens, unknown tokens return INVALID_INPUT with valid
     tokens enumerated, empty array resets to builder defaults, enrich
     recommendation is inert (never auto-applies), persists with Novel
     (REQ-082). Score: 11 (freq=1, crit=2, cplx=1, coupling=1, maturity=4,
     coverage=2).
-53. Source immutability & drift detection — ruleset Markdown hashed at intake
     (sha256sum), drift check at startup emits warning to spec_health and stderr
     on mismatch (REQ-014/044). Score: 11 (freq=1, crit=2, cplx=1, coupling=1,
     maturity=4, coverage=2).
-54. Build fingerprint & version coordination — spec version (CalVer), ruleset
     hash, build timestamp stored in state directory, drift comparison on
     startup, spec_repo_url surfaced in spec_health and intro prompt, version
     comparison during update workflow (REQ-065/106/107). Score: 11 (freq=1,
     crit=2, cplx=1, coupling=1, maturity=4, coverage=2).
-55. Runtime conventions — anchor derivation (lowercase, strip punctuation,
     hyphen-replace, explicit IDs take precedence), entity IDs (prefix_NN,
     roster://, entity://), output contract formats, tool naming (snake_case,
     ruleset terminology), config surface (12 env vars), state tiers (roster/
