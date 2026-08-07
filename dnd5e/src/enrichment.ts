@@ -1,37 +1,11 @@
 // Enrichment Manifest — Community-sourced play advice
 // REQ-080: additive only, never modifies mechanics
 // Six output modules populated during Enrich workflow (§11.1)
+// Types re-exported from @holonovel/inform/core
 
-export interface EnrichmentItem {
-  content: string;
-  source_url: string;
-  confidence: "HIGH" | "MEDIUM" | "LOW";
-  tag?: string;
-  hat_scope: "player" | "game_master" | "shared";
-  category?: string;
-}
+export type { EnrichmentItem, ActionPattern, EnrichmentManifest } from "@holonovel/inform/core";
 
-export interface ActionPattern {
-  intent: string;
-  expected_categories: string[];
-  ruleset_section: string;
-  source_url?: string;
-}
-
-export interface EnrichmentManifest {
-  collected_at: string;
-  spec_version: string;
-  voice_examples: EnrichmentItem[];
-  briefing_order: { sections: string[]; reason: string; source_url: string; confidence: string };
-  lore_templates: EnrichmentItem[];
-  action_patterns: ActionPattern[];
-  supplementary_guidance: EnrichmentItem[];
-  adventure_advice: {
-    templates: EnrichmentItem[];
-    scenario_starters: EnrichmentItem[];
-    table_expansions: EnrichmentItem[];
-  };
-}
+import type { EnrichmentManifest } from "@holonovel/inform/core";
 
 export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
   collected_at: new Date().toISOString(),

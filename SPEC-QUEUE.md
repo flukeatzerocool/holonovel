@@ -70,4 +70,17 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
    Research: Inform 7 without a game — the Inform application is a design-time IDE for creating IF worlds, not a runtime environment that serves world-model interactions without mechanical resolution. What does IF's authoring-tool UX (creating rooms, defining objects, writing descriptions, testing interactively) teach about Holonovel's ruleset-free mode where the builder creates a world-model-only server? Is the parser-command catalog + spatial model compelling enough as a standalone experience, or does it need procedural generation, puzzles, or narrative scaffolding to feel like a game rather than a tech demo?
    Benchmark: No comparable tool exists that builds a world-model server from scratch without a ruleset — this is Holonovel-unique. The operator use case is a pure parser-IF server with spatial interaction but no dice, stats, or combat. Does this mode justify the additional build-path complexity (B1=none, viability pre-check skip, zero-case convergence metrics)?
    Score: 16 (friction=1, crit=3, freq=1). Cplx: 2, Coupling: 2.
-   Risk: If ruleset-free builds are undertested or convergence metrics produce misleading zero-case results, the server may ship with a broken world model — rooms without exits, things that can't be examined, parser commands that don't match the kind hierarchy.
+    Risk: If ruleset-free builds are undertested or convergence metrics produce misleading zero-case results, the server may ship with a broken world model — rooms without exits, things that can't be examined, parser commands that don't match the kind hierarchy.
+
+ 3. [IN_PROGRESS] @holonovel/inform npm package — publish world-model layer as reusable base (operator-facing).
+    Spec: §6.2 B10, §6.3, §6.4, §6.6.
+    Research: Can @holonovel/inform provide clean entry points (core + world) that
+    TTRPG servers consume via npm dependency without modification? Does the inform
+    scaffold export enough surface (state manager, macros, enrichment, world model,
+    parser) for a TTRPG build to layer dice, data, and combat on top without
+    touching inform source? Does the npm package model reduce build time
+    sufficiently to justify the packaging complexity?
+    Score: 19 (friction=1, crit=4, freq=1). Cplx: 3, Coupling: 4.
+    Risk: If the inform package's API surface is wrong — missing exports, wrong
+    types, incompatible state contracts — every TTRPG build that depends on it
+    produces a broken server.

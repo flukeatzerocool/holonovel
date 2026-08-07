@@ -1,8 +1,11 @@
 # Holonovel
 
-> **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
-> ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
-> server, and proves it works. Output: a running MCP server with a world-model layer
+> **Quick Reference.** An AI build prompt for an MCP server that always builds with
+> the `@holonovel/inform` world-model layer (rooms, things, exits, properties,
+> parser commands, kind hierarchy) and optionally layers a tabletop RPG ruleset on
+> top. The AI reads the ruleset (when provided), extracts
+> mechanics, builds the server, and proves it works. Output: a running MCP server
+> with the Inform world-model layer
 > (rooms, things, exits, properties, parser commands), hybrid adventure modules,
 > dice, combat, character management, rules lookup, narrative directives, dynamic
 > lore, action suggestions, voice examples, macros, scene-type tagging, audit
@@ -247,6 +250,7 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
+| Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides infrastructure tools and world-model interactions only. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e reference

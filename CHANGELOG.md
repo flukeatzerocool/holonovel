@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-07 — Publish @holonovel/inform as scaffold base for TTRPG builds
+
+- The Inform world-model server is now published as the `@holonovel/inform`
+  npm package with separate `core` and `world` entry points. The core
+  scaffold provides state management, hat gating, macros, and enrichment
+  types; the world entry point provides rooms, things, exits, parser
+  commands, and the kind hierarchy.
+- The `inform/src/` directory has been restructured into `src/core/` and
+  `src/world/` subdirectories with barrel exports. The server helpers
+  (initServer, getHat, requireGM, requireNovel, etc.) have been extracted
+  into `core/server.ts` for reuse by TTRPG servers.
+- The dnd5e server now depends on `@holonovel/inform` and inherits the
+  full world-model layer. Eight world-model tools (command, create_room,
+  delete_room, create_thing, delete_thing, create_exit, delete_exit,
+  convert_source) are now registered. New entities gain `inventory` and
+  `current_room` fields; each Novel carries a serialized `world` state
+  tier.
+- The specification now describes the new build architecture: B10 asks
+  which version of @holonovel/inform to use instead of a provider-docs
+  path; §6.3 replaces world-model provider indexing with Inform scaffold
+  installation; §6.4 construction starts from the inform skeleton; and
+  the Inform Gauntlet (§6.6) runs when inform is published, not during
+  TTRPG builds. (spec/01-foundations.md, spec/03-build.md,
+  spec/build-phase-map.md)
+- SPEC-QUEUE item 3 added for tracking the @holonovel/inform package
+  as a reusable base.
+
 ## 2026-08-07 — SPEC-QUEUE items 1, 3, 4 implemented (combat, POV, workflow staleness)
 
 - SPEC-QUEUE items 1 (combat), 3 (Narrative POV), 4 (workflow decisions)

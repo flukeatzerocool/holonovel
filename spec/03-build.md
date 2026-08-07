@@ -64,7 +64,7 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| B1  | Ruleset path(s)              | File paths                       | —                   |
+| B1  | Ruleset path(s)              | File paths or `none`             | —                   |
 | B2  | Ruleset identifier (name, edition) | String                      | derived from source |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
 | B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
@@ -73,7 +73,17 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
-| B10 | Where are the world-model provider documentation files? | Path(s) | `<spec-repo>/inform/docs_md/` |
+| B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+
+**Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
+are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
+package (B10) and infrastructure tools (REQ-020) alone. The builder records ruleset-free
+mode in DECISIONS.md (1), runs `npm install @holonovel/inform` at the version specified by B10,
+and proceeds to server construction (§6.4) using the inform scaffold as the starting point.
+Extraction discovery and its dependent metrics are skipped. A build declared ruleset-free MUST NOT attempt
+to index, extract, or model any ruleset content; the server's `search_rules` tool returns empty
+results, its canonical lookup tools are waived (REQ-013), and no dice-resolution tools are
+registered. The server's ruleset content hash is the sentinel hash per REQ-044.
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
@@ -126,6 +136,7 @@ The structural pass identifies heading count, table count, and broken links. The
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing
 verification workflow — per §8, verification workflows G2 and G3 are fixture workflows run once per builder implementation.
+WHEN B1 is `none`, G0 step 1 SHALL report a passing result with the finding "no ruleset — skipped."
 
 **Viability pre-check.** After G0 but before chunked discovery, the builder
 counts mechanical sections — headings containing procedures, tables,
@@ -135,7 +146,9 @@ the builder warns the operator: "This ruleset is below the
 mechanical-density threshold (X% mechanical). Discovery may not produce a
 playable server." The operator may proceed, select a different source, or
 abort. The builder records the pre-check count and operator decision in
-DECISIONS.md (4).
+DECISIONS.md (4). WHEN B1 is `none`, the viability pre-check SHALL be skipped with
+the reason "ruleset-free mode" recorded in DECISIONS.md (4); the mechanical-section
+count SHALL be recorded as zero.
 
 ### 6.3 Discovery
 
@@ -187,16 +200,18 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**World-model provider indexing.** The builder SHALL index the world-model
-provider documentation (the path supplied by the B10 intake question). The provider
-documentation defines the kind hierarchy, property contracts, parser command catalog,
-and declarative assertion syntax that every server SHALL implement. Extraction from
-the provider documentation follows the same chunked-reading, confidence, traceability,
-and cross-reference resolution contracts as TTRPG ruleset extraction (§§5.2, 6.3).
-The provider documentation is indexed once per build — its extracted model (kind
-hierarchy, property contracts, parser command catalog, and declarative assertion
-syntax) is embedded in the server as a fixed reference and surfaced at the
-`world://kinds` resource (REQ-202).
+**Inform scaffold installation.** When B1 is not `none` (TTRPG build), the builder SHALL
+install the `@holonovel/inform` npm package at the version specified by B10. The inform
+package provides the world-model layer pre-built — kind hierarchy, property contracts,
+parser command catalog, and declarative assertion syntax — as `core` and `world` entry
+points. The builder SHALL add `@holonovel/inform` as a dependency of the TTRPG server and
+import from it per §6.4. No chunked reading or provider-documentation indexing occurs
+during TTRPG builds — the inform package is a build-time dependency, not a per-build
+extraction target. Provider documentation is indexed once when the inform package is
+published; the TTRPG builder consumes the published output. The world-model layer is
+surfaced at the `world://kinds` resource (REQ-202). When B1 is `none` (ruleset-free mode),
+the inform package IS the server — the builder installs it, verifies it starts, and no
+further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -293,15 +308,21 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize from @holonovel/inform scaffold, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
-| 5     | State: snapshots, undo, audit, hat gating, resource URIs | T9 pass (hat test)                                       |
+| 5     | State layer: extends @holonovel/inform's state with ruleset-specific types (entity stats, combat, spell slots). World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
+
+For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
+helpers, state management, macros, enrichment types, and world-model layer (rooms,
+things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
+verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
+ruleset-specific content on top of the inform base.
 
 **License.** The server MUST include a `LICENSE.md` file at the project
 root with two sections: a **Ruleset Data** section identifying the source
@@ -414,6 +435,18 @@ metric exists only when the Convert workflow (§6.2) was selected. When
 conversion was not selected, the table contains six metrics and the exit
 condition is six metrics meeting threshold.
 
+**Ruleset-free convergence.** WHEN the build operates in ruleset-free mode THE Phase 1
+metrics are satisfied under the following zero-case clauses: Confidence — no sections to
+score; the metric is skipped and recorded as `ruleset-free — no mechanical sections`.
+Extraction fidelity — zero cross-references to resolve; skipped with record. Extraction
+completeness — zero mechanical sections; skipped. Category floor — only the guidance
+category is evaluated (it is exempt per the existing rule); all other categories are
+skipped with `ruleset-free` annotations. Cross-format consistency — zero items to sample;
+skipped. Reconciliation quality — zero restated mechanics; skipped. The conversion-fidelity
+metric is conditionally absent per the existing rule. Phase 1 exits after recording all
+zero-case dispositions in DECISIONS.md (5). No extraction stall applies — zero-case
+dispositions are not a stall.
+
 **Phase 2 — Construction quality.**
 Builder implementation quality: whether the extracted model was faithfully
 translated into tools, resources, and state.
@@ -451,6 +484,16 @@ but a single-model Phase 1 audit does not block handoff.
 NOTE: Phase 2 row count varies with scope. The input-validation metric exists
 only when REQ-141 is in scope. When REQ-141 is not in scope, the table contains
 seven metrics and the exit condition is seven metrics meeting threshold.
+
+**Ruleset-free Phase 2.** WHEN the build operates in ruleset-free mode: MUST coverage —
+all REQ-020 infrastructure tool categories are present; ruleset-derived MUST tools do not
+apply and their absence is recorded as ruleset-free waivers. Mechanics fidelity — the B.2
+expected model excerpt does not apply; skipped with `ruleset-free` annotation. Suggestion
+coverage — with zero extracted action categories, no curated intents are defined; the
+metric is skipped and `suggest_actions` returns context-only results (scene type, entity
+narrative fields) and empty lists for unrecognized intents per REQ-084. Process compliance,
+surface terminology, prompt health, resource URI completeness, and truncation accuracy
+operate identically regardless of ruleset presence.
 
 ### 6.5.1 No-delta detection
 
@@ -799,7 +842,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 |-------------------------------------------------------------|-----------------------------|
 | Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S11, S12, S23 |
 | Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
-| Conditions, condition management                            | S9 |
+| Conditions, condition management (REQ-206, REQ-217)         | S9 |
 | Search, canonical lookups (REQ-057, REQ-060, REQ-061)      | S8 |
 | Table generation                                            | S7 |
 | Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S20 |
@@ -815,6 +858,87 @@ S1 is always selected when new tools are added or existing tool signatures chang
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
 syncs — not only the blanket Gauntlet run.
+
+#### Inform Gauntlet
+
+The Inform server — the `@holonovel/inform` npm package (ruleset-free per §6.2) — is
+verified through a separate Gauntlet of world-model-specific sub-workflows. The Inform
+Gauntlet runs when the inform package is built and before it is published, as part of
+the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
+consume the published inform package as a build-time dependency and skip the Inform
+Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
+Budget, and Structured encoding contracts apply (§6.6). Blocking sub-workflows SHALL
+pass; non-blocking failures are recorded as accepted limitations.
+
+**Inform Gauntlet sub-workflows.**
+
+1. **Parser command sweep** — call every registered parser command (look, go
+   north/east/south/west, examine, take, drop, open, close, inventory, wait)
+   on a populated world model; no crashes, hangs, or unexpected error codes.
+   (Blocking.)
+
+2. **Room navigation cycle** — navigate through a linked room chain (≥5 rooms)
+   via direction commands; each room description matches the source text, exit
+   directions match declarations, visible things are listed. (Blocking.)
+
+3. **Object interaction cycle** — take a portable thing (succeeds, removed from
+   room), examine it (shows description), drop it (reappears in current room).
+   Attempt to take a fixed thing (returns rule-violation). Attempt to take a
+   thing inside a closed container (returns rule-violation without first
+   opening). (Blocking.)
+
+4. **CRUD round-trip** — create a room via `create_room`, create a thing in it,
+   create an exit connecting it back; read room resource, assert name,
+   description, things, and exits match. Delete the room — assert contained
+   things and exits removed, audit log records all mutations. Undo — assert
+   deleted room and contents restored. (Blocking.)
+
+5. **convert_source with fixture** — call `convert_source` with the Appendix K
+   fixture. Assert object counts (3+ rooms, things, exits), linked annotations,
+   and auditor log entry. Assert command("look") shows Entrance Chamber with
+   content. Call `convert_source` on the same Novel — assert `[STATE_CONFLICT]`.
+   (Blocking.)
+
+6. **Property state propagation** — open a closed container, assert contents
+   accessible. Close it, assert contents blocked. Lock a lockable door — assert
+   it cannot be opened. Unlock it — assert it opens. All property mutations
+   appear in audit log and `session_recap`. (Blocking.)
+
+7. **World-model resources** — call `room://<id>`, `thing://<id>`,
+   `world://map`, `world://kinds`. Assert room and thing content matches state.
+   Assert map shows correct adjacency. Assert kinds resource lists the kind
+   hierarchy, property contracts, and parser command catalog from the indexed
+   provider documentation. Swap to Player hat — assert GM-only metadata
+   excluded from all four resources.
+
+8. **Large-map navigation** — populate 50+ room world model. Navigate from one
+   end to the other (≥10 sequential moves). Assert each room description is
+   correct, no state corruption, memory stable. `session_recap` covers
+   traversal history.
+
+9. **Empty world model** — on a Novel with zero rooms (fresh create, no
+   adventure loaded), every parser command returns not-implemented directing
+   to populate the world model. CRUD tools still function — create a room,
+   assert parser commands now resolve against it.
+
+10. **Hybrid adventure load** — load an adventure module containing `## World`
+    assertions (Appendix K fixture format) via `load_adventure`. Assert
+    world-model tier populated, room descriptions match, things placed in
+    declared rooms, exits connected. Assert `search_rules` finds adventure
+    prose. Assert `hat_briefing` surfaces adventure content hat-filtered.
+    (Blocking.)
+
+**Inform Gauntlet surface-to-scenario mapping.**
+
+| Changed surface                                    | Inform Gauntlet scenarios |
+|----------------------------------------------------|---------------------------|
+| @holonovel/inform package changed (new version)     | All (1–10)                |
+| Room navigation, parser commands                   | 1, 2, 8                   |
+| Object interaction, properties                     | 3, 6                      |
+| CRUD, state mutations                              | 4                         |
+| convert_source, hybrid parsing                     | 5, 10                     |
+| Hat filtering, resource URIs                       | 7                         |
+| Empty state, error handling                        | 9                         |
 
 ### 6.7 Spec-driven updates
 
@@ -836,6 +960,9 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
+The Inform Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+spec-driven updates — they are run separately when the `@holonovel/inform` package
+is built and published.
 
 **Delta classes.**
 

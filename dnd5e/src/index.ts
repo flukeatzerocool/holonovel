@@ -20,6 +20,12 @@ import {
 import { StateManager, Hat, NovelState, LoreEntry } from "./state.js";
 import { expandMacros } from "./macros.js";
 import { DEFAULT_ENRICHMENT } from "./enrichment.js";
+import {
+  dispatchCommand, resolveGoMovement,
+  WorldModel, WorldThing, WorldRoom, WorldKind,
+  ROOM_DIRECTIONS, oppositeDirection, convertSource,
+} from "@holonovel/inform/world";
+import type { ParserContext, ParserResult } from "@holonovel/inform/world";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -2460,6 +2466,233 @@ async function main() {
       }
     }
   }
+
+  // ── World-Model Tools ──────────────────────────────────────────────
+
+  function findMatchingThing(name: string, world: WorldModel, roomName: string | null): WorldThing | null {
+    const lower = name.toLowerCase().trim();
+    for (const [, thing] of world.things) {
+      if (thing.name.toLowerCase().includes(lower)) {
+        const loc = thing.location?.toLowerCase();
+        if (loc === roomName?.toLowerCase()) return thing;
+      }
+    }
+    return null;
+  }
+
+  server.registerTool("command", {
+    title: "Parser Command",
+    description: "Execute a natural-language parser command against the world model. Use for navigation (go, n/s/e/w), inspection (look, examine), object interaction (take, drop, open, close), inventory, and wait.",
+    inputSchema: { command: z.string() },
+  }, async ({ command }: any) => {
+    const novel = requireNovel();
+    novelSnapshot();
+    const entity = getActiveEntity();
+    if (novel.world.rooms.size === 0) {
+      return raw(`[ERROR] [STATE_CONFLICT] The world model has not been populated. Use an adventure module or \`convert_source\` to populate rooms before using parser commands.`);
+    }
+    let currentRoom = entity?.current_room ?? null;
+    if (!currentRoom && entity) {
+      currentRoom = [...novel.world.rooms.keys()][0];
+      entity.current_room = currentRoom;
+    }
+    const inventory = entity?.inventory ?? [];
+    const ctx: ParserContext = { world: novel.world, currentRoom, inventory, hat: getHat() };
+    const result: ParserResult = dispatchCommand(command, ctx);
+    if (result.prefix === "OK") {
+      const goResult = resolveGoMovement(command, ctx);
+      if (goResult.newRoom && entity && goResult.result.prefix === "OK") {
+        entity.current_room = goResult.newRoom;
+        audit("command", { command, moved_to: goResult.newRoom });
+      }
+    }
+    const tokens = command.trim().split(/\s+/);
+    const verb = tokens[0].toLowerCase();
+    if (result.prefix === "OK" && entity) {
+      if (verb === "take" || verb === "get") {
+        const targetThing = findMatchingThing(tokens.slice(1).join(" "), novel.world, currentRoom);
+        if (targetThing && targetThing.portable && !entity.inventory.includes(targetThing.name.toLowerCase())) {
+          entity.inventory.push(targetThing.name.toLowerCase());
+          targetThing.location = null;
+          targetThing.locationType = null;
+          state.saveNovel(novel);
+          audit("command", { command, took: targetThing.name });
+        }
+      } else if (verb === "drop" && tokens.length > 1) {
+        const target = tokens.slice(1).join(" ").toLowerCase();
+        const idx = entity.inventory.indexOf(target);
+        if (idx >= 0) {
+          entity.inventory.splice(idx, 1);
+          const thing = novel.world.things.get(target);
+          if (thing) { thing.location = currentRoom; thing.locationType = "room"; }
+          state.saveNovel(novel);
+          audit("command", { command, dropped: target });
+        }
+      } else if (verb === "open" && result.prefix === "OK" && tokens.length > 1) {
+        const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+        if (thing && thing.openable) { thing.open = true; state.saveNovel(novel); audit("command", { command, opened: thing.name }); }
+      } else if (verb === "close" && result.prefix === "OK" && tokens.length > 1) {
+        const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+        if (thing && thing.openable) { thing.open = false; state.saveNovel(novel); audit("command", { command, closed: thing.name }); }
+      } else if (verb === "unlock" && result.prefix === "OK" && tokens.length > 1) {
+        const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+        if (thing && thing.lockable) { thing.locked = false; state.saveNovel(novel); audit("command", { command, unlocked: thing.name }); }
+      } else if (verb === "lock" && result.prefix === "OK" && tokens.length > 1) {
+        const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+        if (thing && thing.lockable) { thing.locked = true; state.saveNovel(novel); audit("command", { command, locked: thing.name }); }
+      }
+    }
+    const prefix = result.prefix === "OK" ? "[OK]" : result.prefix === "WARNING" ? "[WARNING]" : "[ERROR]";
+    const code = result.code ? ` [${result.code}]` : "";
+    let text = `${prefix}${code} ${result.text}`;
+    if (result.correctiveAction) { text += `\nCorrective action: ${result.correctiveAction}`; }
+    return raw(text);
+  });
+
+  server.registerTool("create_room", {
+    title: "Create Room",
+    description: "Create a new room in the world model. Game Master only.",
+    inputSchema: { name: z.string(), description: z.string().optional() },
+  }, async ({ name, description }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const lower = name.toLowerCase();
+    if (novel.world.rooms.has(lower)) return err("STATE_CONFLICT", `Room '${name}' already exists.`);
+    const room: WorldRoom = { name, description: description ?? "", exits: new Map(), doorRefs: new Map(), annotations: {} };
+    novel.world.rooms.set(lower, room);
+    state.saveNovel(novel);
+    audit("create_room", { name });
+    return ok(`Room '${name}' created.`);
+  });
+
+  server.registerTool("delete_room", {
+    title: "Delete Room",
+    description: "Delete a room and its contained things and exits. Game Master only.",
+    inputSchema: { name: z.string() },
+  }, async ({ name }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const lower = name.toLowerCase();
+    if (!novel.world.rooms.has(lower)) return err("NOT_FOUND", `Room '${name}' not found.`);
+    for (const [tKey, thing] of novel.world.things) {
+      if (thing.location?.toLowerCase() === lower && thing.locationType === "room") novel.world.things.delete(tKey);
+    }
+    for (const [, room] of novel.world.rooms) {
+      for (const [dir, target] of room.exits) {
+        if (target.toLowerCase() === lower) room.exits.delete(dir);
+      }
+    }
+    novel.world.rooms.delete(lower);
+    state.saveNovel(novel);
+    audit("delete_room", { name });
+    return ok(`Room '${name}' and its contents deleted.`);
+  });
+
+  server.registerTool("create_thing", {
+    title: "Create Thing",
+    description: "Create a new thing in the world model. Game Master only.",
+    inputSchema: { name: z.string(), kind: z.string().optional(), description: z.string().optional(), location: z.string().optional(), fixed: z.boolean().optional(), openable: z.boolean().optional(), lockable: z.boolean().optional() },
+  }, async ({ name, kind, description, location, fixed, openable, lockable }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const lower = name.toLowerCase();
+    if (novel.world.things.has(lower)) return err("STATE_CONFLICT", `Thing '${name}' already exists.`);
+    const validKinds = ["thing", "container", "supporter", "door", "person", "backdrop"];
+    const k = (kind && validKinds.includes(kind.toLowerCase())) ? kind.toLowerCase() as WorldKind : "thing";
+    const thing: WorldThing = {
+      name, description: description ?? "", kind: k, location: location ?? null,
+      locationType: location ? "room" : null,
+      portable: !fixed && k !== "supporter" && k !== "door",
+      openable: k === "container" || k === "door" || openable === true,
+      open: false,
+      lockable: k === "container" || k === "door" || lockable === true,
+      locked: false, lit: false, annotations: {},
+    };
+    novel.world.things.set(lower, thing);
+    state.saveNovel(novel);
+    audit("create_thing", { name, kind: k, location });
+    return ok(`Thing '${name}' (${k}) created${location ? ` in ${location}` : ""}.`);
+  });
+
+  server.registerTool("delete_thing", {
+    title: "Delete Thing",
+    description: "Delete a thing from the world model. Game Master only.",
+    inputSchema: { name: z.string() },
+  }, async ({ name }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const lower = name.toLowerCase();
+    if (!novel.world.things.has(lower)) return err("NOT_FOUND", `Thing '${name}' not found.`);
+    novel.world.things.delete(lower);
+    state.saveNovel(novel);
+    audit("delete_thing", { name });
+    return ok(`Thing '${name}' deleted.`);
+  });
+
+  server.registerTool("create_exit", {
+    title: "Create Exit",
+    description: "Create a directional exit between two rooms. Reverse exit created implicitly. Game Master only.",
+    inputSchema: { direction: z.string(), room_a: z.string(), room_b: z.string() },
+  }, async ({ direction, room_a, room_b }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const dir = direction.toLowerCase();
+    if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction '${direction}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
+    const roomA = novel.world.rooms.get(room_a.toLowerCase());
+    const roomB = novel.world.rooms.get(room_b.toLowerCase());
+    if (!roomA) return err("NOT_FOUND", `Room '${room_a}' not found.`);
+    if (!roomB) return err("NOT_FOUND", `Room '${room_b}' not found.`);
+    roomA.exits.set(dir as any, room_b);
+    roomB.exits.set(oppositeDirection(dir as any), room_a);
+    state.saveNovel(novel);
+    audit("create_exit", { direction: dir, room_a, room_b });
+    return ok(`Exit created: ${dir} from ${room_a} to ${room_b}.`);
+  });
+
+  server.registerTool("delete_exit", {
+    title: "Delete Exit",
+    description: "Delete a directional exit from a room. Game Master only.",
+    inputSchema: { direction: z.string(), room: z.string() },
+  }, async ({ direction, room: roomName }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    const dir = direction.toLowerCase();
+    if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", "Invalid direction.");
+    const room = novel.world.rooms.get(roomName.toLowerCase());
+    if (!room) return err("NOT_FOUND", `Room '${roomName}' not found.`);
+    if (!room.exits.has(dir as any)) return err("NOT_FOUND", `No ${dir} exit from '${roomName}'.`);
+    room.exits.delete(dir as any);
+    state.saveNovel(novel);
+    audit("delete_exit", { direction: dir, room: roomName });
+    return ok(`Exit ${dir} from '${roomName}' deleted.`);
+  });
+
+  server.registerTool("convert_source", {
+    title: "Convert Source",
+    description: "Parse hybrid world-model assertions and populate the Novel's world model. Game Master only.",
+    inputSchema: { source: z.string() },
+  }, async ({ source }: any) => {
+    requireGM();
+    const novel = requireNovel();
+    novelSnapshot();
+    if (novel.world.rooms.size > 0) return err("STATE_CONFLICT", "World model already populated. Use CRUD tools to modify, or create a new novel.");
+    const { world, result } = convertSource(source, novel.world);
+    novel.world = world;
+    state.saveNovel(novel);
+    audit("convert_source", { rooms: result.rooms, things: result.things, exits: result.exits });
+    let msg = `World model populated: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits. Linked annotations — encounters: ${result.annotations.encounters}, NPCs: ${result.annotations.npcs}, traps: ${result.annotations.traps}, lore: ${result.annotations.lore}.`;
+    if (result.warnings.length > 0) {
+      msg += `\n\nWarnings:`;
+      for (const w of result.warnings) msg += `\nLine ${w.line}: ${w.message}`;
+    }
+    return ok(msg);
+  });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
