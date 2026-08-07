@@ -148,8 +148,8 @@ cmd_execute() {
   echo -e "${GREEN}Executing ${#approved[@]} approved item(s)...${NC}"
   echo ""
 
-  local spec_lines_before=$(wc -l < holonovel.md 2>/dev/null || echo 0)
-  local req_count_before=$(grep -cE 'REQ-\d+' holonovel.md 2>/dev/null || echo 0)
+  local spec_lines_before=$(wc -l < holonovel.md 2>/dev/null | tr -d ' ' || echo 0)
+  local req_count_before=$(grep -cE 'REQ-[0-9]+' holonovel.md 2>/dev/null | tr -d ' ' || echo 0)
 
   local execute_failures=()
   for num in "${approved[@]}"; do
@@ -210,10 +210,10 @@ EOF
   if [[ $CHECK_RC -eq 0 ]]; then
     echo -e "${GREEN}Validation: PASSED${NC}"
 
-    local spec_lines_after=$(wc -l < holonovel.md 2>/dev/null || echo 0)
-    local req_count_after=$(grep -cE 'REQ-\d+' holonovel.md 2>/dev/null || echo 0)
-    local line_delta=$((spec_lines_after - spec_lines_before))
-    local req_delta=$((req_count_after - req_count_before))
+    local spec_lines_after=$(wc -l < holonovel.md 2>/dev/null | tr -d ' ' || echo 0)
+    local req_count_after=$(grep -cE 'REQ-[0-9]+' holonovel.md 2>/dev/null | tr -d ' ' || echo 0)
+    local line_delta=$((spec_lines_after - spec_lines_before)) 2>/dev/null || line_delta="?"
+    local req_delta=$((req_count_after - req_count_before)) 2>/dev/null || req_delta="?"
     echo "  Spec delta: ${line_delta} lines, ${req_delta} REQ mentions"
   else
     echo -e "${RED}Validation: FAILED — review errors before committing${NC}"

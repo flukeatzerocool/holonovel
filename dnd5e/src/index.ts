@@ -25,7 +25,7 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75";
+const SPEC_HASH = "40bec633fb71b0640415ee3f9f982c78fdc79d0d0a8e94d9954832447315efb1";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -107,15 +107,38 @@ function resolveEntity(id?: string) {
 }
 
 function ok(text: string) {
-  return { content: [{ type: "text" as const, text: `[OK] ${text}` }] };
+  return { content: [{ type: "text" as const, text: `[OK] ${expandMacros(text, buildMacroContext())}` }] };
 }
 
 function err(code: string, msg: string) {
-  return { content: [{ type: "text" as const, text: `[ERROR] [${code}] ${msg}` }] };
+  return { content: [{ type: "text" as const, text: `[ERROR] [${code}] ${expandMacros(msg, buildMacroContext())}` }] };
 }
 
 function raw(text: string) {
-  return { content: [{ type: "text" as const, text }] };
+  return { content: [{ type: "text" as const, text: expandMacros(text, buildMacroContext()) }] };
+}
+
+function buildMacroContext() {
+  const novel = state.activeNovel;
+  const entity = state.getActiveEntity();
+  const countdowns: Record<string, { remaining: number; total: number; scope?: string; direction?: string }> = {};
+  if (novel) {
+    for (const [name, cd] of novel.countdowns) {
+      countdowns[name] = { remaining: cd.ticks, total: cd.total, scope: cd.scope, direction: cd.direction };
+    }
+  }
+  return {
+    entityName: entity?.name,
+    entityHp: entity?.hp,
+    entityMaxHp: entity?.max_hp,
+    entityStats: entity?.stats,
+    sceneCurrent: novel?.scene_description,
+    sceneType: novel?.scene_type,
+    countdowns,
+    novelSlug: novel?.slug,
+    hatActive: novel?.hat ?? undefined,
+    partySize: novel ? novel.entities.size : undefined,
+  };
 }
 
 function fmtEntitySheet(entity: any): string {
@@ -175,6 +198,69 @@ function formatNpcSheet(npc: any): string {
   if (npc.speed !== undefined) s += `**Speed:** ${npc.speed} ft.\n`;
   if (npc.conditions?.length > 0) s += `**Conditions:** ${npc.conditions.join(", ")}\n`;
   return s;
+}
+
+// ── Help Categories ─────────────────────────────────────────────────
+
+const BUILDER_CATEGORIES: Record<string, string[]> = {
+  "Hat & Workflow": ["set_hat", "respond", "undo", "redo", "end_game", "help"],
+  "Characters": ["create_character", "import_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal"],
+  "Dice & Resolution": ["roll_save", "roll_skill_check", "roll_weapon_attack", "roll_weapon_damage", "roll_on_table"],
+  "Lookups": ["search_rules", "lookup_equipment", "lookup_spell", "lookup_monster", "lookup_class", "suggest_actions", "spec_health"],
+  "Combat (GM)": ["init_combat", "advance_combat", "end_combat"],
+  "Conditions": ["apply_condition", "remove_condition"],
+  "Narrative (GM)": ["set_scene_state", "set_scene_type", "set_narrative_directive"],
+  "NPCs (GM)": ["create_npc", "update_npc", "remove_npc"],
+  "Countdowns (GM)": ["set_countdown", "advance_countdown", "remove_countdown"],
+  "Lore (GM)": ["set_lore_entry", "update_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore", "export_lorebook", "import_lorebook"],
+  "Guidance (GM)": ["set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter", "set_help_category"],
+  "Session": ["session_recap"],
+  "Novel Lifecycle": ["create_novel", "resume_novel", "switch_novel", "end_novel", "export_novel", "import_novel"],
+  "Enrichment": ["revert_enrichment"],
+};
+
+const GMToolsSet = new Set([
+  "init_combat", "advance_combat", "end_combat", "apply_condition", "remove_condition",
+  "set_scene_state", "set_scene_type", "set_narrative_directive",
+  "create_npc", "update_npc", "remove_npc",
+  "set_countdown", "advance_countdown", "remove_countdown",
+  "set_lore_entry", "update_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group",
+  "suggest_lore", "export_lorebook", "import_lorebook",
+  "set_briefing_order", "compress_audit", "load_adventure", "generate_adventure", "generate_encounter",
+  "set_help_category", "export_novel", "import_novel", "revert_enrichment", "end_game",
+]);
+
+function isGMTool(name: string): boolean {
+  return GMToolsSet.has(name);
+}
+
+function buildExampleInvocation(name: string, schema: any): string {
+  if (!schema || typeof schema !== "object") return `${name}()`;
+  const shape = schema._def?.typeName === "ZodObject" ? schema._def.shape() : schema;
+  if (!shape) return `${name}()`;
+  const entries = Object.entries(shape) as [string, any][];
+  const required = entries.filter(([, v]) => !v.isOptional?.() && !v._def?.typeName?.startsWith("ZodOptional"));
+  if (required.length === 0 && entries.length > 0) {
+    const [key] = entries[0];
+    return `${name}({ ${key}: ${illustrate(key, entries[0][1])} })`;
+  }
+  if (required.length === 0) return `${name}()`;
+  const args = required.map(([k, v]) => `${k}: ${illustrate(k, v)}`).join(", ");
+  return `${name}({ ${args} })`;
+}
+
+function illustrate(key: string, schema: any): string {
+  const typeName = schema._def?.typeName ?? "";
+  if (typeName === "ZodString") return key === "name" ? '"example"' : `"<${key}>"`;
+  if (typeName === "ZodNumber") return "1";
+  if (typeName === "ZodBoolean") return "true";
+  if (typeName === "ZodEnum") {
+    const values = schema._def?.values ?? [];
+    if (values.length > 0) return `"${values[0]}"`;
+    return `"<${key}>"`;
+  }
+  if (typeName === "ZodArray") return "[]";
+  return `"<${key}>"`;
 }
 
 // ── Tools ──────────────────────────────────────────────────────────
@@ -253,29 +339,125 @@ server.registerTool("help", {
   description: "Show available commands and tools.",
   inputSchema: { query: z.string().optional() },
 }, async ({ query }: any) => {
+  const hat = getHat();
+  const novel = state.activeNovel;
+  const isGM = hat === "game_master";
+
+  // Query mode: search tools by name, description, and prompt summaries
   if (query) {
-    const results = searchRules(query, 5);
-    if (results.length > 0) {
-      const text = results.map(r => "**" + r.heading + "** (" + r.path + ")\n" + r.context).join("\n\n");
-      return raw(text);
+    const q = query.toLowerCase();
+    const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+    const toolNames = Object.keys(registeredTools).filter(t => {
+      if (t === "set_hat" || t === "respond" || t === "undo" || t === "redo") return true;
+      if (!isGM && isGMTool(t)) return false;
+      return true;
+    });
+
+    const matched: { name: string; description: string; example: string; relevance: number }[] = [];
+    for (const name of toolNames) {
+      const def = registeredTools[name];
+      if (!def) continue;
+      const desc = typeof def.description === "string" ? def.description : "";
+      const title = typeof def.title === "string" ? def.title : "";
+      let score = 0;
+      if (name.toLowerCase().includes(q)) score += 3;
+      if (desc.toLowerCase().includes(q)) score += 2;
+      if (title.toLowerCase().includes(q)) score += 1;
+      if (score === 0) continue;
+
+      const firstSentence = desc.split(".")[0] + (desc.includes(".") ? "." : "");
+      const example = buildExampleInvocation(name, def.inputSchema);
+      matched.push({ name, description: firstSentence, example, relevance: score });
     }
-    return ok("No matches found.");
+
+    // Also search prompt summaries
+    if (q.includes("intro") || q.includes("start") || q.includes("begin")) {
+      matched.push({ name: "intro", description: "Connection introduction and getting started.", example: "Use the intro prompt", relevance: 3 });
+    }
+    if (q.includes("brief") || q.includes("hat") || q.includes("state")) {
+      matched.push({ name: "hat_briefing", description: "Per-hat guidance, state, and tool recommendations.", example: "Use the hat_briefing prompt", relevance: 2 });
+    }
+
+    matched.sort((a, b) => b.relevance - a.relevance);
+    const top = matched.slice(0, 5);
+
+    if (top.length === 0) return ok("No tools match. Try `search_rules` for ruleset content.");
+    return raw(top.map(m => `**${m.name}** — ${m.description}\nExample: ${m.example}`).join("\n\n"));
   }
 
-  const helpText = "## D&D 5e Holonovel MCP Server\n\n### Tool Categories\n\n" +
-    "**Characters:** create_character, import_character, character_sheet, set_active_entity, set_personality, set_voice_examples, player_signal\n" +
-    "**Dice & Resolution:** roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage, roll_on_table\n" +
-    "**Combat (GM):** init_combat, advance_combat, end_combat\n" +
-    "**Conditions:** apply_condition, remove_condition\n" +
-    "**Lookups:** search_rules, lookup_equipment, lookup_spell, lookup_monster, lookup_class, suggest_actions, spec_health\n" +
-    "**Narrative (GM):** set_scene_state, set_scene_type, set_narrative_directive\n" +
-    "**NPCs (GM):** create_npc, update_npc, remove_npc\n" +
-    "**Countdowns (GM):** set_countdown, advance_countdown, remove_countdown\n" +
-    "**Lore (GM):** set_lore_entry, remove_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export_lorebook, import_lorebook\n" +
-    "**Guidance (GM):** set_briefing_order, compress_audit, load_adventure, generate_adventure, generate_encounter\n" +
-    "**Session:** session_recap\n\n" +
-    "Use the intro prompt to get started, or hat_briefing for current hat guidance.";
-  return raw(helpText);
+  // No query: categorized task map
+  const builderCategories = BUILDER_CATEGORIES;
+  const overrides = novel?.help_category_overrides ?? {};
+
+  let result = "## D&D 5e Holonovel MCP Server\n\n### Tool Categories\n\n";
+
+  for (const [cat, tools] of Object.entries(builderCategories)) {
+    const displayCat = cat;
+    let displayTools = [...tools];
+
+    if (isGM && novel) {
+      // Apply GM overrides: remove overridden tools, add to override categories
+      const overridden = new Set<string>();
+      for (const [toolName, overrideCat] of Object.entries(overrides)) {
+        if (overrideCat && overrideCat.trim()) {
+          if (tools.includes(toolName)) overridden.add(toolName);
+        }
+      }
+      displayTools = displayTools.filter(t => !overridden.has(t));
+    } else {
+      // Player always sees builder-assigned categories
+      displayTools = tools.filter(t => !GMToolsSet.has(t));
+    }
+
+    if (displayTools.length > 0) {
+      result += `**${displayCat}:** ${displayTools.join(", ")}\n`;
+    }
+  }
+
+  // Show override categories for GM
+  if (isGM && novel && Object.keys(overrides).length > 0) {
+    const overrideCats: Record<string, string[]> = {};
+    for (const [toolName, cat] of Object.entries(overrides)) {
+      if (cat && cat.trim() && !(overrideCats[cat])) overrideCats[cat] = [];
+      if (cat && cat.trim()) overrideCats[cat].push(toolName);
+    }
+    for (const [cat, tools] of Object.entries(overrideCats)) {
+      if (tools.length > 0) {
+        result += `**${cat} (custom):** ${tools.join(", ")}\n`;
+      }
+    }
+  }
+
+  result += "\nUse the intro prompt to get started, or hat_briefing for current hat guidance.";
+  return raw(result);
+});
+
+server.registerTool("set_help_category", {
+  title: "Set Help Category Override",
+  description: "Override the builder-assigned category for a tool. Game Master only. Set category to empty string or null to restore defaults.",
+  inputSchema: {
+    tool_name: z.string(),
+    category: z.string().nullable(),
+  },
+}, async ({ tool_name, category }: any) => {
+  requireGM();
+  const novel = requireNovel();
+
+  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+  if (!(tool_name in registeredTools)) {
+    const valid = Object.keys(registeredTools).join(", ");
+    return err("NOT_FOUND", `Tool '${tool_name}' not found. Valid: ${valid}`);
+  }
+
+  if (!category || category.trim() === "") {
+    delete novel.help_category_overrides[tool_name];
+    state.saveNovel(novel);
+    return ok(`Category override for '${tool_name}' removed. Builder-assigned category restored.`);
+  }
+
+  novel.help_category_overrides[tool_name] = category.trim();
+  state.saveNovel(novel);
+  return ok(`Tool '${tool_name}' assigned to category '${category.trim()}'.`);
 });
 
 // --- Character ---
@@ -1138,11 +1320,13 @@ server.registerTool("set_countdown", {
     name: z.string(),
     ticks: z.number().min(1),
     type: z.enum(["round", "narrative"]).optional(),
+    scope: z.string().optional(),
+    direction: z.string().optional(),
   },
-}, async ({ name, ticks, type }: any) => {
+}, async ({ name, ticks, type, scope, direction }: any) => {
   requireGM();
   const novel = requireNovel();
-  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative" });
+  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction });
   state.saveNovel(novel);
   return ok(`Countdown '${name}' set at ${ticks} ticks.`);
 });
@@ -1436,14 +1620,31 @@ server.registerTool("compress_audit", {
     max_entries: z.number().optional(),
     hat_filter: z.enum(["player", "game_master"]).optional(),
   },
-}, async ({ max_entries }: any) => {
-  requireGM();
+}, async ({ max_entries, hat_filter }: any) => {
   const novel = state.activeNovel;
   if (!novel) return err("STATE_CONFLICT", "No active novel.");
 
-  const limit = max_entries ?? 20;
-  const entries = novel.audit_log.slice(-limit);
-  return raw(entries.map(e => `[${e.timestamp}] ${e.tool} — ${e.output_prefix}`).join("\n"));
+  const requested = max_entries ?? 20;
+  if (requested <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+  const limit = Math.min(requested, 200);
+
+  const hat = getHat();
+  const effectiveHatFilter = hat_filter ?? (hat === "player" ? "player" : "game_master");
+
+  let entries = novel.audit_log;
+  if (effectiveHatFilter === "player") {
+    entries = entries.filter(e => e.hat === "player");
+  }
+
+  const sliced = entries.slice(-limit);
+  const lines = sliced.map(e => {
+    const prefix = e.output_prefix === "[BOUNDARY_VIOLATION]"
+      ? `[${e.timestamp}] [${e.hat}] ${e.tool} — [BOUNDARY_VIOLATION]`
+      : `[${e.timestamp}] [${e.hat}] ${e.tool} — ${e.output_prefix}`;
+    return prefix;
+  });
+
+  return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
 });
 
 server.registerTool("load_adventure", {

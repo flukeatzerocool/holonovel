@@ -38,9 +38,10 @@ usage in subsequent cycles.
 **Start next session:** `./scripts/spec-queue-cycle.sh research`
 
 **Recovery if the pipeline hangs or crashes:**
-1. Run health check:    `./scripts/spec-queue-health.sh`
-2. Kill stale sessions: `./scripts/spec-queue-runner.sh --cleanup`
-3. Resume from queue state: `./scripts/spec-queue-cycle.sh run-all`
+
+  1. Run health check:    `./scripts/spec-queue-health.sh`
+  2. Kill stale sessions: `./scripts/spec-queue-runner.sh --cleanup`
+  3. Resume from queue state: `./scripts/spec-queue-cycle.sh run-all`
 
 <!-- markdownlint-disable MD029 — continuous global item numbering across tiers -->
 
@@ -209,18 +210,15 @@ peripheral features. Score ≤21.
     Novel health metrics, prompt health, hat-filtered, counts derived from
     live registrations at call time (REQ-025/093/097). Score: 19 (freq=3,
     crit=3, cplx=2, coupling=2, maturity=4, coverage=3).
-43. Help & tool discovery — help tool with optional query, no-query returns
     intro pointer + categorized task map + hat_briefing pointer, query mode
     searches tool descriptions/prompts/guidance for matches with example
     invocations, GM-customizable category assignments (Player always sees
     builder defaults), hat-filtered (REQ-067). Score: 17 (freq=2, crit=2,
     cplx=2, coupling=2, maturity=3, coverage=2).
-44. Audit compression — compress_audit(max_entries) returns formatted prompt of
     most recent audit entries for LLM summarization, does not modify audit
     log, hat-filtered (Player sees own entities only), max_entries ≤ 0 returns
     INVALID_INPUT, pure-generation tool (REQ-086). Score: 16 (freq=2, crit=2,
     cplx=2, coupling=2, maturity=4, coverage=2).
-45. Macro system — {{<path>}} token expansion in tool output, resource text,
     and prompt text before client delivery; supported paths (entity.*, scene.*,
     countdown.*, novel.slug, hat.active, party.size); nonexistent paths expand
     to literal unchanged; no expansion in audit log entries (REQ-085).

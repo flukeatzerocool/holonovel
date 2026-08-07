@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75
+- **Spec hash:** 40bec633fb71b0640415ee3f9f982c78fdc79d0d0a8e94d9954832447315efb1
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -77,7 +77,8 @@
 | REQ-063 | Connection introduction | `src/index.ts` — intro prompt |
 | REQ-065 | Build fingerprint | `src/state.ts` — buildFingerprint with specVersion, rulesetHash |
 | REQ-066 | set_hat tool | `src/index.ts` — always callable |
-| REQ-067 | Help and tool discovery | `src/index.ts` — help tool with categorized task map |
+| REQ-067 | Help and tool discovery | `src/index.ts` — help tool with categorized task map, query-mode tool search |
+| REQ-067a | Help category override tool | `src/index.ts` — set_help_category tool, help_category_overrides state |
 | REQ-069 | Player signal | `src/index.ts` — player_signal tool |
 | REQ-072 | Session recap | `src/index.ts` — session_recap tool |
 | REQ-073 | Countdowns | `src/index.ts` — set_countdown, advance_countdown, remove_countdown |
@@ -92,8 +93,8 @@
 | REQ-082 | Prompt section ordering | `src/index.ts` — set_briefing_order |
 | REQ-083 | Dynamic lore | `src/index.ts` — set_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export/import lorebook |
 | REQ-084 | Action suggestions | `src/index.ts` — suggest_actions |
-| REQ-085 | Macro system | `src/macros.ts` — expandMacros |
-| REQ-086 | Audit compression | `src/index.ts` — compress_audit |
+| REQ-085 | Macro system | `src/macros.ts` — expandMacros; `src/index.ts` — unified expansion point in ok/raw/err |
+| REQ-086 | Audit compression | `src/index.ts` — compress_audit, dual-hat access, hat_filter, ceiling |
 | REQ-087 | Scene type tagging | `src/index.ts` — set_scene_type |
 | REQ-088 | Novel lifecycle | `src/index.ts` — create_novel, resume_novel, end_novel; `src/state.ts` |
 | REQ-089 | Novel setup | `src/index.ts` — novel_setup prompt |
@@ -122,7 +123,7 @@
 - **RNG:** LCG algorithm (1664525/1013904223), seedable per session or per call.
 - **Hat model:** null = full access; explicit player/game_master with server-side gating.
 - **Novel lifecycle:** One active Novel per server instance. Persists to `.holonovel-state/novels/<slug>.json`. End moves to `.trash/`.
-- **Capabilities:** 51 tools, 29 resources, 7 prompts, 4 lookup categories, 15 conditions, 12 classes, 9 races, 37 weapons, 13 armor.
+- **Capabilities:** 52 tools, 29 resources, 7 prompts, 4 lookup categories, 15 conditions, 12 classes, 9 races, 37 weapons, 13 armor.
 - **Catalog scale:** 319 spells, 318 monsters, 239 magic items — catalog-style lookups via search_rules.
 
 <!-- @section waivers -->
@@ -265,3 +266,21 @@
 - **Changed code paths:** src/state.ts (NpcState personality/voice_examples, NovelState pending_workflow/connection_counter/pending_staleness_counter, auditForbidden, verifyAuditChain, getEnrichmentHealth, cleanupExpiredTrash, initCombat seed), src/index.ts (spec_health rewrite, roll_skill_check validation, init_combat seed, set_scene_state transition hook + sticky decay, set_personality/set_voice_examples NPC support, SPEC_HASH update, startup connection_counter + trash cleanup)
 - **Gauntlet:** Test suite directory empty — manual smoke test via spec_health.
 - **Spec hash:** 01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75
+
+### Spec-Driven Update (REQ-098) — Macro Expansion, Help Categories, Audit Access
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — new REQ-067a, amended REQs 067, 085, 086
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-067a | Missing `set_help_category` tool | implemented | Registered tool with help_category_overrides Novel state field, full persistence |
+  | REQ-086 | `compress_audit` GM-only, hat_filter unused, no ceiling | implemented | Removed requireGM(), dual-hat access, hat_filter filtering, ceiling 200, header format |
+  | REQ-085 | Missing `{{countdown.<name>.scope}}`/`.direction` macros | implemented | Added to macros.ts, Countdown interface, set_countdown params |
+  | REQ-085 | expandMacros not wired into output path | implemented | Unified expansion point in ok/raw/err helpers via buildMacroContext |
+  | REQ-067 | `help` query-mode searched rules, not tools | implemented | Tool-search by name/description with Zod-based example invocations |
+  | REQ-067 | No category-override support | implemented | Covered by REQ-067a; help() respects help_category_overrides |
+- **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings), test suite empty (no automated tests)
+- **Changed code paths:** src/index.ts (SPEC_HASH, expandMacros wiring in ok/raw/err, help rewrite, set_help_category, compress_audit rewrite, set_countdown params, BUILDER_CATEGORIES, buildExampleInvocation), src/state.ts (Countdown scope/direction, NovelState.help_category_overrides, serialization), src/macros.ts (countdown scope/direction expansion), AGENTS.md (tool list)
+- **Gauntlet:** automated test suite directory empty — manual verification via spec_health smoke test
+- **Spec hash:** 40bec633fb71b0640415ee3f9f982c78fdc79d0d0a8e94d9954832447315efb1

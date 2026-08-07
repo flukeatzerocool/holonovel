@@ -60,8 +60,12 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
 - `initialize` handshake succeeds; the server advertises exactly the capabilities it
   implements — tools, resources, and prompts — and no others; `resources` advertises no
   `subscribe`, and none of `tools`, `resources`, or `prompts` advertises `listChanged`.
-- `tools/list`: unique names, valid JSON schemas, required utility tools present
-  (`search_rules`, `respond`, `undo`, `spec_health`, `help`).
+- `tools/list`: unique names, valid JSON schemas, all REQ-020 base-surface tools
+  present: Novel lifecycle, hat and workflow, scene and narrative state, NPC
+  management, countdowns, dynamic lore, entity and roster management, personality,
+  briefing ordering, export and import (Novel and lorebook), search and action
+  suggestions, adventure and encounter generation, session tools, utility (`help`,
+  `spec_health`), and enrichment reversion.
 - `tools/call`: REQ-001 prefix and `isError` semantics on success and failure paths.
   Tool-level failure is a normal `result` with `isError: true`, never a JSON-RPC `error`
   response. Success responses carry `isError: false` (or the field omitted, equivalent

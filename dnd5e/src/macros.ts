@@ -8,7 +8,7 @@ interface MacroContext {
   entityStats?: Record<string, number>;
   sceneCurrent?: string;
   sceneType?: string;
-  countdowns?: Record<string, { remaining: number; total: number }>;
+  countdowns?: Record<string, { remaining: number; total: number; scope?: string; direction?: string }>;
   novelSlug?: string;
   hatActive?: string;
   partySize?: number;
@@ -38,6 +38,8 @@ export function expandMacros(text: string, ctx: MacroContext): string {
       if (name && ctx.countdowns?.[name]) {
         if (parts[2] === "remaining") return String(ctx.countdowns[name].remaining);
         if (parts[2] === "total") return String(ctx.countdowns[name].total);
+        if (parts[2] === "scope" && ctx.countdowns[name].scope) return ctx.countdowns[name].scope;
+        if (parts[2] === "direction" && ctx.countdowns[name].direction) return ctx.countdowns[name].direction;
       }
     }
 

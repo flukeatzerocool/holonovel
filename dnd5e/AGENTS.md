@@ -45,7 +45,7 @@ src/index.ts            McpServer: ~51 tools, ~29 resources, 7 prompts.
 - **NPCs (GM):** create_npc, update_npc, remove_npc
 - **Countdowns (GM):** set_countdown, advance_countdown, remove_countdown
 - **Lore (GM):** set_lore_entry, remove_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export_lorebook, import_lorebook
-- **Guidance (GM):** set_briefing_order, compress_audit, load_adventure, generate_adventure, generate_encounter
+- **Guidance (GM):** set_briefing_order, compress_audit, load_adventure, generate_adventure, generate_encounter, set_help_category
 - **Session:** session_recap
 - **Novel Lifecycle:** create_novel, resume_novel, switch_novel, end_novel, export_novel, import_novel
 - **Enrichment:** revert_enrichment
