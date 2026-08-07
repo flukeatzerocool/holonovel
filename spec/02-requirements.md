@@ -157,22 +157,22 @@ ruleset defines, in the ruleset's baseline format and order, regardless of wheth
 the output exceeds the truncation limit.
 _Check:_ T13.
 
-**REQ-179 — Output pointer resource template.** The server registers an
+**REQ-179 — Output pointer resource template.** The server SHALL register an
 `output://{tool_name}/{counter}` resource template in `resources/templates/list`.
-The template URI pattern is `output://{tool_name}/{counter}` where `{tool_name}`
+The template URI pattern SHALL be `output://{tool_name}/{counter}` where `{tool_name}`
 matches the producing tool's registered name and `{counter}` is a
-per-session monotonic integer. `resources/read` on a resolved URI returns the
+per-session monotonically increasing integer. `resources/read` on a resolved URI SHALL return the
 full untruncated tool output as Markdown, hat-filtered per REQ-032. The resource
-declares MIME type `text/markdown` and a title of the form
-"<tool_name> output #<counter>". Output payloads are session-local — they do
+SHALL declare MIME type `text/markdown` and a title of the form
+"<tool_name> output #<counter>". Output payloads SHALL be session-local — they do
 not survive server restart. When the session's output storage exceeds a
-configurable limit (default 50 payloads), the oldest payload is evicted and
-its URI returns `[ERROR] [NOT_FOUND]` with a message indicating eviction.
+configurable limit (default 50 payloads), the oldest payload SHALL be evicted and
+its URI SHALL return `[ERROR] [NOT_FOUND]` with a message indicating eviction.
 *Acceptance criterion:* After a tool produces output exceeding 32,000 bytes,
 `resources/templates/list` includes `output://{tool_name}/{counter}`; reading
 the resolved URI returns the full untruncated content, hat-filtered; pushing
 storage beyond the limit evicts the oldest payload and its URI returns
-`[NOT_FOUND]`.
+`[ERROR] [NOT_FOUND]`.
 _Check:_ T221.
 
 **REQ-118 — Prompt length budget.** Every prompt returned by `prompts/get`
@@ -268,7 +268,12 @@ a source file SHALL append `-1`, `-2`, etc. Duplicate explicit IDs across files
 SHALL be treated as an authoring defect. Re-indexing the same source SHALL
 reproduce identical anchors. Punctuation stripped SHALL be the character class
 `[\p{P}\p{S}]` (Unicode punctuation and symbol categories); CJK and other non-ASCII
-word characters SHALL be preserved. _Check:_ T16, T236.
+word characters SHALL be preserved.
+*Acceptance criterion:* The same heading text processed twice through anchor
+derivation produces the same anchor. A heading with an explicit ID (`{#foo}`)
+uses `foo` regardless of its text. Two headings with identical derived text in
+the same file produce anchors suffixed `-1` and `-2`.
+_Check:_ T16, T236.
 
 **REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
 `[narrative-tone]`-tagged guidance items per hat — example-of-play prose extracted from the
@@ -919,12 +924,12 @@ parameter canon validation (REQ-059) without parsing the builder's internal mode
 *Acceptance criterion:* DECISIONS.md (5) lists every bounded-domain tool parameter
 with its source section; a verifier can use this mapping to test REQ-059 compliance
 for every listed parameter.
-_Check:_ T39, T39a (updated — verify DECISIONS.md contains the mapping).
+_Check:_ T39, T39a.
 
 **REQ-183 — Live-index-derived error enumerations.** `[NOT_FOUND]` and `[INVALID_INPUT]`
 error enumerations for bounded-domain parameters SHALL derive from the ruleset index at
 call time, not from hardcoded literals. The enumeration is filtered by hat (per REQ-002c).
-This requirement implements the §6.5 builder rule that hardcoded arrays are permitted only
+This requirement enforces the §6.5 builder rule: hardcoded arrays are permitted only
 for ability abbreviations and persona roles. Tool implementations that enumerate valid values
 from a static list rather than the live index SHALL be flagged in DECISIONS.md (5) as a
 convergence violation.
@@ -1021,7 +1026,7 @@ includes ability scores with per-score modifiers, HP, AC, speed, and the
 full proficiency list — not just a confirmation message. A step-by-step
 creation's final `[NEED_INPUT]` response includes all derived statistics
 computed so far.
-*Check:* T47 (extended).
+_Check:_ T47.
 
 **REQ-151 — Creation step enumeration.** The builder SHALL enumerate every
 mandatory creation step the ruleset defines in RULESET_MODEL.md under
@@ -1522,7 +1527,7 @@ _Check:_ T217.
 **REQ-178 — Roster listing.** The server SHALL provide a `list_roster_characters` tool,
 callable under any hat with no restrictions. The tool returns a structured listing: for each
 roster entry, the roster ID, name, race, class, and level. When no characters exist in the
-roster, SHALL return an empty-state marker. The `novel_setup` prompt (REQ-089) SHALL source
+roster, the tool SHALL return an empty-state marker. The `novel_setup` prompt (REQ-089) SHALL source
 its roster character list from this tool's output rather than constructing the list
 independently. The `roster://` resource (REQ-022) SHALL be populated from the same data
 source — `roster://<type>` groups entries by type (e.g., class, race), and `roster://<id>`

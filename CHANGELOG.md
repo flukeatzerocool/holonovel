@@ -29,11 +29,15 @@
 - Expanded spec_health with per-file and per-category confidence breakdowns,
   a build_complete fingerprint field, and cross-references consolidated
   around REQ-098. (REQ-025 amended, REQ-065/147 amended)
-- Synced the dnd5e MCP server with the updated specification.
-- REQ-020: Added explicit enumeration of always-present (infrastructure) tool
-  categories that exist independent of ruleset content and are never waived.
-- Appendix D: Replaced flat utility-tool list with category-based enumeration
-  synced to REQ-020.
+- Synced the dnd5e MCP server — 61 tools registered, spec hash matched,
+  server rebuilt to reflect all updated REQ contracts.
+- Enumerated the always-present infrastructure tool categories —
+  character creation, condition management, combat, table rolling, and
+  session recap — which exist independent of ruleset content and are
+  never waived. (REQ-020)
+- Replaced the flat utility-tool list in Appendix D with a
+  category-based enumeration synced to REQ-020's infrastructure
+  categories.
 
 ## 2026-08-07 — Contract hardening across intake, audit, briefing, and personality subsystems
 
@@ -81,7 +85,8 @@
 
 - Split the monolithic `holonovel.md` (5,300+ lines) into 10 source files
   under `spec/`, assembled via `npm run assemble`. The assembled file remains
-  the distribution artifact for builders, verifiers, and REQ-105. Source files
+  the distribution artifact for builders, verifiers, and spec compliance
+  (REQ-105). Source files
   follow canonical load order numbering.
 - Added `spec/build-phase-map.md` — a per-build-phase file dependency table
   that lets builders load only the files needed for each phase, reducing
@@ -95,11 +100,10 @@
 - Renamed §5.8 (Narrative, Guidance, and Enrichment) to "Enrichment, Lore, and
   Macros" and §5.9 (Novel Lifecycle and Generation) to "Novel Persistence and
   Transport" for clarity and reduced overlap with other subsections.
-- Fixed stale references and counts across the spec: §6.8 → §6.6 S4, handoff
-  verification step count (12 → 14), §5 subsection count (7 → 9), Gauntlet
-  sub-workflow count (22 → 23), phase-loading hint range (§5.3–§5.7 →
-  §5.3–§5.9), and updated the reading guide to describe the multi-file
-  architecture.
+- Fixed stale cross-section references that pointed to moved or renamed
+  sections, updated related heading counts to reflect the reorganized
+  §5, handoff verification, and Gauntlet structures, and updated the
+  reading guide to describe the multi-file architecture.
 - Updated `.githooks/pre-commit` to run `npm run assemble` before checks,
   the `AGENTS.md` layer map to document file numbering conventions, and the
   `README.md` spec description to reflect the source/build split.

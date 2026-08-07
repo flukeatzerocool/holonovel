@@ -50,7 +50,7 @@ someone to build your game. Your books. Your server. Your table.
 
 ## Try it now — D&D 5e
 
-This repo ships a pre-built D&D 5e SRD v5.1 server: 58 tools, 1,021
+This repo ships a pre-built D&D 5e SRD v5.1 server: 61 tools, 1,021
 indexed ruleset sections. Ten seconds to your first AI Game Master.
 
 ```sh
@@ -360,14 +360,16 @@ All scripts share parsing logic from `scripts/lib/parse-spec.ts`.
 
 ### Spec queue pipeline
 
-SPEC-QUEUE.md holds 55 subsystems awaiting review through the spec-engineering
-loop — from character creation to lorebook interchange. The pipeline automates
-the full cycle:
+SPEC-QUEUE.md tracks the spec-engineering queue — every subsystem inventoried
+and reviewed through a full-cycle pipeline of AI research, improvement planning,
+and automated application. All 55 subsystems have completed the cycle as of
+August 7, 2026.
 
 ```sh
-./scripts/spec-queue-cycle.sh research    # 3 parallel AI research sessions
-./scripts/spec-queue-cycle.sh status      # check progress
-./scripts/spec-queue-cycle.sh execute     # review, apply, sync, commit
+./scripts/spec-queue-cycle.sh research    # Launch parallel AI research sessions
+./scripts/spec-queue-cycle.sh status      # Check progress across all items
+./scripts/spec-queue-cycle.sh execute     # Review, apply, sync, commit
+./scripts/spec-queue-cycle.sh run-all     # Full-auto pipeline: research → execute → repeat
 ```
 
 **research** launches detached opencode sessions that analyze one subsystem
@@ -375,14 +377,12 @@ each — reading the spec, changelog, and implementation, calibrating against
 the web — and produce concrete improvement plans with exact spec prose.
 Plans land in `.holonovel-state/queue-plans/`.
 
-**execute** shows the findings, lets you approve or reject each batch, then
-applies approved changes to the specification, runs the spec-driven update
-workflow (gap audit → implement → scoped Gauntlet), validates with
-`npm run check`, and commits everything as one batch. Rejected items stay
-in the queue.
+**execute** shows the findings, auto-approves each batch, applies approved
+changes to the specification, runs the spec-driven update workflow (gap
+audit → implement → scoped Gauntlet), validates with `npm run check`, and
+commits everything as one batch.
 
 A knowledge base at `.holonovel-state/knowledge-base/` caches web research and
-spec summaries across cycles, cutting token usage by roughly 50% for later
-items. The knowledge base is local — it's in `.gitignore`.
+spec summaries across cycles. The knowledge base is local — it's in `.gitignore`.
 
 License: MIT. [RSS](https://git.gay/flukeatzerocool/Holonovel).
