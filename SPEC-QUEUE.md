@@ -58,15 +58,12 @@ dependencies; a failure here blocks everything downstream.
    tracking, turn order, participant classification (REQ-043). Score: 51
    (freq=4, crit=5, cplx=4, coupling=4, maturity=4, coverage=4). Core play
    loop; wrong = unplayable.
-5. The Gauntlet — 22 sub-workflows, convergence handshake, blocking/non-blocking
    classification, failure artifacts, regression assertions (§6.6, REQ-108).
    Score: 51 (freq=3, crit=5, cplx=5, coupling=5, maturity=4, coverage=3).
    Gates every build; 22 scenarios exercising the full surface.
-6. Convergence loop — extraction quality (Phase 1), construction quality
    (Phase 2), no-delta detection, cross-model audit, unbuildable disposition
    (§6.5, REQ-099). Score: 51 (freq=3, crit=5, cplx=5, coupling=5,
    maturity=4, coverage=3). Quality engine; failure = broken server shipped.
-7. Discovery — chunked reading, 7 extraction categories (concepts, entities,
    actions, tables, resolution, roles, guidance), cross-format consistency
    (§6.3, REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5,
    coupling=5, maturity=4, coverage=3). Everything extracted flows from here;
