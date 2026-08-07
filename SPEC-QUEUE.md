@@ -57,43 +57,54 @@ dependencies; a failure here blocks everything downstream.
 4. [DONE] Combat/conflict lifecycle — init_combat, advance_combat, end_combat, round
    tracking, turn order, participant classification (REQ-043). Score: 51
    (freq=4, crit=5, cplx=4, coupling=4, maturity=4, coverage=4). Core play
-    loop; wrong = unplayable.
-    Score: 51 (freq=3, crit=5, cplx=5, coupling=5, maturity=4, coverage=3).
-    Gates every build; 22 scenarios exercising the full surface.
+     loop; wrong = unplayable.
+5. [DONE] The Gauntlet — 23 sub-workflows, blocking classification, surface-to-
+    scenario mapping, convergence handshake, regression assertions, assertion
+    compression (§6.6, REQ-108/142). Score: 51 (freq=3, crit=5, cplx=5,
+    coupling=5, maturity=4, coverage=3). Gates every build; 22 scenarios
+    exercising the full surface.
+6. [DONE] Convergence loop — extraction quality (Phase 1), construction quality
     (Phase 2), no-delta detection, cross-model audit, unbuildable disposition
-   (§6.5, REQ-099). Score: 51 (freq=3, crit=5, cplx=5, coupling=5,
+    (§6.5, REQ-099). Score: 51 (freq=3, crit=5, cplx=5, coupling=5,
     maturity=4, coverage=3). Quality engine; failure = broken server shipped.
-    actions, tables, resolution, roles, guidance), cross-format consistency
-   (§6.3, REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5,
-   coupling=5, maturity=4, coverage=3). Everything extracted flows from here;
-   garbage in = garbage out.
-   clearing on new mutation, persistence across restarts (REQ-041/116).
-   Score: 47 (freq=4, crit=5, cplx=3, coupling=4, maturity=4, coverage=3).
-   High-frequency safety net; broken = unrecoverable state.
-    [WARNING] prefixes, six error categories, corrective actions, "Did you
-    mean?" fuzzy matching (REQ-001/002). Score: 47 (freq=5, crit=5, cplx=3,
-    coupling=3, maturity=4, coverage=4). Every tool response; wrong = LLM
-    misrouting.
-    player-filtered gate, confidence-floor acknowledgment below 80%, no
-    assumed mechanics (REQ-011/012/013/099). Score: 47 (freq=3, crit=5,
-    cplx=4, coupling=4, maturity=4, coverage=4). Source of all mechanical
-    truth.
-    (golden transcript replay), G3 (injection resistance), G4 (derived
-    tests), G5 (Gauntlet), fixture vs ruleset-facing scoping, T18 anti-hats
-    (§8). Score: 46 (freq=2, crit=5, cplx=4, coupling=5, maturity=4,
-    coverage=3). Gating wrong = build passes when it shouldn't.
-    decisions for every mandatory step) and quick (all params in one call)
-    modes, undo after creation, Novel-scoped (REQ-104/056/042). Score: 45
-    (freq=3, crit=5, cplx=4, coupling=4, maturity=4, coverage=3).
-    Session-zero blocker; undo contract critical.
-    DECISIONS.md, README.md, AGENTS.md) + LICENSE.md, 13 verification steps
-    (H1–H13), traceability chain (§9). Score: 41 (freq=2, crit=5, cplx=3,
-    coupling=4, maturity=4, coverage=3). Wrong = unverifiable build.
-    sticky persistence, configurable token budget, groups, toggle, templates
-    from enrichment (REQ-083). Score: 41 (freq=4, crit=4, cplx=4, coupling=4,
-    maturity=4, coverage=3). Every scene; wrong keywords = silent narrative
-    drift.
-    advance), hat_scope (gm/shared), direction (decrement/increment), fire
+7. [DONE] Discovery — chunked reading, 7 extraction categories (actions, tables,
+    resolution, roles, guidance), cross-format consistency (§6.3,
+    REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5, coupling=5,
+    maturity=4, coverage=3). Everything extracted flows from here; garbage in =
+    garbage out.
+8. [DONE] Snapshots, undo, redo — clearing on new mutation, persistence across
+    restarts, redo of most recently undone mutation (REQ-041/116). Score: 47
+    (freq=4, crit=5, cplx=3, coupling=4, maturity=4, coverage=3).
+    High-frequency safety net; broken = unrecoverable state.
+9. [DONE] Error taxonomy & response contract — [WARNING] prefixes, six error
+    categories, corrective actions, "Did you mean?" fuzzy matching
+    (REQ-001/002). Score: 47 (freq=5, crit=5, cplx=3, coupling=3, maturity=4,
+    coverage=4). Every tool response; wrong = LLM misrouting.
+10. [DONE] Extraction & confidence — player-filtered gate, confidence-floor
+    acknowledgment below 80%, no assumed mechanics (REQ-011/012/013/099).
+    Score: 47 (freq=3, crit=5, cplx=4, coupling=4, maturity=4, coverage=4).
+    Source of all mechanical truth.
+11. [DONE] Verification workflows — G0 intake integrity + MCP conformance,
+    G2 golden transcript replay, G3 injection resistance, G4 derived tests,
+    G5 Gauntlet, fixture vs ruleset-facing scoping, T18 anti-hats (§8).
+    Score: 46 (freq=2, crit=5, cplx=4, coupling=5, maturity=4, coverage=3).
+    Gating wrong = build passes when it shouldn't.
+12. [DONE] Character creation workflow — decision mode (respond decisions for
+    every mandatory step) and quick mode (all params in one call), undo after
+    creation, Novel-scoped (REQ-104/056/042). Score: 45 (freq=3, crit=5,
+    cplx=4, coupling=4, maturity=4, coverage=3). Session-zero blocker; undo
+    contract critical.
+13. [DONE] Handoff artifacts & verification — DECISIONS.md, README.md,
+    AGENTS.md, LICENSE.md, 13 verification steps (H1–H13), traceability chain
+    (§9). Score: 41 (freq=2, crit=5, cplx=3, coupling=4, maturity=4,
+    coverage=3). Wrong = unverifiable build.
+14. [DONE] Dynamic lore subsystem — sticky persistence, configurable token
+    budget, groups, toggle, templates from enrichment (REQ-083). Score: 41
+    (freq=4, crit=4, cplx=4, coupling=4, maturity=4, coverage=3). Every scene;
+    wrong keywords = silent narrative drift.
+15. [PLAN_READY] Countdowns — round (auto-decrement on combat round) and
+    narrative (GM advance), hat_scope (gm/shared), direction
+    (decrement/increment), fire
     at threshold, remove, on_scene_transition flag (REQ-073/125). Score: 39
     (freq=4, crit=4, cplx=3, coupling=4, maturity=4, coverage=3). Pacing
     backbone; fire condition wrong = broken tension.
@@ -103,12 +114,11 @@ dependencies; a failure here blocks everything downstream.
     damage resolution targeting NPCs (REQ-075/119/120/121/122/123/124).
     Score: 38 (freq=4, crit=4, cplx=4, coupling=3, maturity=3, coverage=3).
     Combat + narrative backbone; wrong = broken encounters.
-17. Determinism & RNG — single PRNG, seedable via TTRPG_SEED, per-call seeds,
-    session seed vs per-call seed isolation (override doesn't advance session
-    PRNG position), same-seed reproducibility (REQ-050). Score: 38 (freq=5,
-    crit=4, cplx=3, coupling=3, maturity=4, coverage=3). Every roll;
-    non-deterministic = unreplayable.
-18. Independent verification — cold checkout, Phase 1 blind re-execution (G0
+17. [PLAN_READY] Determinism & RNG — single PRNG, seedable via TTRPG_SEED,
+    per-call seeds, session seed vs per-call seed isolation (override doesn't
+    advance session PRNG position), same-seed reproducibility (REQ-050).
+    Score: 38 (freq=5, crit=4, cplx=3, coupling=3, maturity=4, coverage=3).
+    Every roll; non-deterministic = unreplayable.
     step 2 through G4 + smoke session), Phase 2 comparison against builder's
     evidence, adversarial Gauntlet re-execution (5 random blocking
     sub-workflows), dispute resolution (§10). Score: 38 (freq=2, crit=4,
@@ -118,12 +128,10 @@ dependencies; a failure here blocks everything downstream.
 
 Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
 
-19. Enrichment workflow — 6 output modules (voice examples, prompt ordering,
     lore templates, action patterns, supplementary guidance, adventure
     advice), 9 verification checks, boundaries (additive only), idempotence
     fingerprint, staleness detection, rebuild scenarios (§11.1, REQ-080/103).
     Score: 37 (freq=2, crit=4, cplx=5, coupling=4, maturity=3, coverage=2).
-20. Action suggestions — suggest_actions mapping natural-language intent to
     ruleset-legal tools, scene-type filtering, enrichment pattern supplement
     via toggle_action_patterns, curated intent coverage ≥80% (REQ-084/114/
     115). Score: 35 (freq=5, crit=3, cplx=4, coupling=3, maturity=3,
