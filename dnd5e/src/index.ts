@@ -25,7 +25,7 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9";
+const SPEC_HASH = "3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -484,7 +484,9 @@ server.registerTool("create_character", {
     const entity = state.createEntity(name, race, class_name, bg, stats);
     state.addEntity(novel, entity);
     state.saveNovel(novel);
-    return ok(`Character '${name}' created as ${entity.id}.`);
+    return ok(`${fmtEntitySheet(entity)}
+
+Character '${name}' created as ${entity.id}.`);
   }
 
   // Step-by-step mode
@@ -1643,28 +1645,25 @@ server.registerTool("set_briefing_order", {
 
 server.registerTool("compress_audit", {
   title: "Compress Audit",
-  description: "Summarize recent audit entries. Game Master only.",
+  description: "Summarize recent audit entries. Callable by both hats.",
   inputSchema: {
     max_entries: z.number().optional(),
-    hat_filter: z.enum(["player", "game_master"]).optional(),
   },
-}, async ({ max_entries, hat_filter }: any) => {
+}, async ({ max_entries }: any) => {
   const novel = state.activeNovel;
   if (!novel) return err("STATE_CONFLICT", "No active novel.");
 
   const requested = max_entries ?? 20;
   if (requested <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
-  const limit = Math.min(requested, 200);
 
   const hat = getHat();
-  const effectiveHatFilter = hat_filter ?? (hat === "player" ? "player" : "game_master");
 
   let entries = novel.audit_log;
-  if (effectiveHatFilter === "player") {
+  if (hat === "player") {
     entries = entries.filter(e => e.hat === "player");
   }
 
-  const sliced = entries.slice(-limit);
+  const sliced = entries.slice(-requested);
   const lines = sliced.map(e => {
     const prefix = e.output_prefix === "[BOUNDARY_VIOLATION]"
       ? `[${e.timestamp}] [${e.hat}] ${e.tool} — [BOUNDARY_VIOLATION]`

@@ -235,18 +235,6 @@ peripheral features. Score ≤21.
     unknown values return NOT_FOUND with session-visible valid values
     enumerated (REQ-059). Score: 15 (freq=4, crit=2, cplx=1, coupling=1,
     maturity=4, coverage=2).
-49. Performance benchmarks — cold-start ≤5s (Standard tier, tiered thresholds
-    by REQ-100), query latency mean of 5 representative lookups, measurement
-    environment recorded in DECISIONS.md, spec_health surfaces most recent
-    measurement (REQ-053/100). Score: 15 (freq=2, crit=2, cplx=2, coupling=1,
-    maturity=3, coverage=2).
-50. Anti-slop guidance — concrete forbidden narrative patterns with corrected
-    alternatives, [anti-slop]-tagged, hat-filtered, served at guidance://
-    <hat>/anti-slop, appears in hat_briefing after foundations and before scene
-    state, full catalogue from Enrich (§11.1), synopsis in Appendix J
-    (REQ-070). Score: 14 (freq=3, crit=2, cplx=1, coupling=1, maturity=3,
-    coverage=2).
-51. Enrichment reversion — revert_enrichment removes all six enrichment modules,
     idempotent (second call no-op), does not modify mechanical fields or
     build-derived registrations, DECISIONS.md enrichment manifest preserved
     for audit, re-running Enrich repopulates (REQ-103). Score: 11 (freq=1,

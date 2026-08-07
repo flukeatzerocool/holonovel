@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
+- **Spec hash:** 3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -314,3 +314,22 @@
 - **Changed code paths:** src/state.ts (scene_type → array, normalizeSceneType, buildFingerprint.specHash), src/index.ts (set_scene_type union schema, spec_health gap_audit + gauntlet_scenarios, SPEC_HASH update, scene_type display joins), AGENTS.md (tool count)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
 - **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
+
+### Spec-Driven Update (REQ-098) — Spec Queue Pipeline Cycle Sync
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — spec restructured into source files; REQ-059/085/086/181 amended, new REQ-059a/179-183 added
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | SPEC_HASH | Stored hash stale | implemented | Updated to 3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584 |
+  | REQ-181 | create_character quick mode returned minimal confirmation | implemented | Quick creation now returns full character sheet with all derived stats |
+  | REQ-086 | compress_audit had hat_filter param + 200 ceiling | implemented | Removed hat_filter param and ceiling per simplified spec text |
+  | REQ-085 | {{entity.max_hp}} macro present but removed from spec manifest | waived | Additive support, no regression; macro still functional |
+  | REQ-059/182/183 | Parameter canon validation + live-index documentation | deferred | Requires DECISIONS.md (5) documentation updates for bounded-domain mappings |
+  | REQ-179/180 | Output pointer resource template + truncation budget unit | deferred | Previously deferred; significant architectural change |
+  | REQ-067a | Removed from spec Appendix E manifest | waived | Subsumed into REQ-067; no code change needed |
+- **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
+- **Changed code paths:** src/index.ts (SPEC_HASH, create_character quick-mode response, compress_audit simplified)
+- **Gauntlet:** test suite directory empty — manual smoke test via spec_health
+- **Spec hash:** 3e3a55ba52bdcf196d5c1395382eceafe037d9edb968ab092d8a494e1b483584
