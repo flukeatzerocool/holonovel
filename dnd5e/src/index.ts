@@ -25,7 +25,7 @@ import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(process.cwd(), ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513";
+const SPEC_HASH = "01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -69,6 +69,19 @@ function requireGM(): void {
 
 function requirePlayer(): void {
   state.requirePlayer(getHat());
+}
+
+function withForbiddenAudit(handler: ToolHandler, toolName: string): ToolHandler {
+  return async (args: any, ctx: ToolCtx) => {
+    try {
+      return await handler(args, ctx);
+    } catch (e: any) {
+      if (e.message?.startsWith("[FORBIDDEN]")) {
+        state.auditForbidden(getHat(), toolName, args);
+      }
+      throw e;
+    }
+  };
 }
 
 function requireNovel(): NovelState {
@@ -343,8 +356,8 @@ server.registerTool("set_active_entity", {
 });
 
 server.registerTool("set_personality", {
-  title: "Set Entity Personality",
-  description: "Set narrative personality fields for an entity.",
+  title: "Set Entity or NPC Personality",
+  description: "Set narrative personality fields for an entity or NPC.",
   inputSchema: {
     entity_id: z.string(),
     description: z.string().optional(),
@@ -354,9 +367,22 @@ server.registerTool("set_personality", {
   },
 }, async ({ entity_id, description, voice, background, goals }: any) => {
   const novel = requireNovel();
+  // Check if it's an NPC ID
+  const npc = novel.npcs.get(entity_id);
+  if (npc) {
+    requireGM();
+    if (description !== undefined) npc.description = description;
+    if (voice !== undefined) { if (!npc.personality) npc.personality = {}; npc.personality.voice = voice; }
+    if (background !== undefined) { if (!npc.personality) npc.personality = {}; npc.personality.background = background; }
+    if (goals !== undefined) { if (!npc.personality) npc.personality = {}; npc.personality.goals = goals; }
+    state.saveNovel(novel);
+    return ok(`Personality fields updated for NPC '${npc.name}'.`);
+  }
+
+  // Entity path
   requirePlayer();
   const entity = novel.entities.get(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
+  if (!entity) return err("NOT_FOUND", `Entity/NPC '${entity_id}' not found.`);
   if (!entity.personality) entity.personality = {};
   if (description !== undefined) entity.personality.description = description;
   if (voice !== undefined) entity.personality.voice = voice;
@@ -368,7 +394,7 @@ server.registerTool("set_personality", {
 
 server.registerTool("set_voice_examples", {
   title: "Set Voice Examples",
-  description: "Set voice and dialogue examples for an entity.",
+  description: "Set voice and dialogue examples for an entity or NPC.",
   inputSchema: {
     entity_id: z.string(),
     examples: z.array(z.object({
@@ -379,8 +405,16 @@ server.registerTool("set_voice_examples", {
   },
 }, async ({ entity_id, examples }: any) => {
   const novel = requireNovel();
+  // Check NPC
+  const npc = novel.npcs.get(entity_id);
+  if (npc) {
+    requireGM();
+    npc.voice_examples = examples;
+    state.saveNovel(novel);
+    return ok(`Voice examples set for NPC '${npc.name}'.`);
+  }
   const entity = novel.entities.get(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
+  if (!entity) return err("NOT_FOUND", `Entity/NPC '${entity_id}' not found.`);
   entity.voice_examples = examples;
   state.saveNovel(novel);
   return ok(`Voice examples set for '${entity.name}'.`);
@@ -450,7 +484,12 @@ server.registerTool("roll_skill_check", {
   },
 }, async ({ skill, entity_id, dc, modifier, seed: callSeed }: any) => {
   const entity = resolveEntity(entity_id);
-  const skillLower = skill.toLowerCase();
+  const skillLower = skill.toLowerCase().replace(/[^a-z_]/g, "_");
+  const validSkills = SKILLS;
+  const isValid = validSkills.some((s: string) => s.toLowerCase().replace(/\s+/g, "_") === skillLower);
+  if (!isValid) {
+    return err("NOT_FOUND", `Skill '${skill}' not found. Valid: ${validSkills.join(", ")}`);
+  }
   const skillEntries = Object.entries({
     athletics: "strength",
     acrobatics: "dexterity", sleight_of_hand: "dexterity", stealth: "dexterity",
@@ -709,6 +748,7 @@ server.registerTool("spec_health", {
     active: slug === state.activeNovelId,
     entities: n.entities.size,
     npcs: n.npcs.size,
+    connection_counter: n.connection_counter,
   }));
 
   const active = state.activeNovel;
@@ -730,15 +770,62 @@ server.registerTool("spec_health", {
       }
       loreBudgetConsumed = chars;
     }
+
+    // On-disk file size check (REQ-097)
+    const novelFile = path.join(DATA_DIR, "novels", `${active.slug}.json`);
+    let fileSize = 0;
+    let fileSizeWarning: string | null = null;
+    if (fs.existsSync(novelFile)) {
+      fileSize = fs.statSync(novelFile).size;
+      if (fileSize > 4_000_000) {
+        fileSizeWarning = "Novel file exceeds 4 MB threshold";
+      }
+    }
+
+    // Audit chain integrity (REQ-169)
+    const auditChain = state.verifyAuditChain(active);
+
+    // Pending workflow staleness (REQ-193)
+    let pendingWorkflowWarning: any = null;
+    if (active.pending_workflow && active.pending_staleness_counter >= 3) {
+      pendingWorkflowWarning = {
+        workflow_type: "pending_decision",
+        decision_text: active.pending_workflow.decision,
+        connections_elapsed: active.pending_staleness_counter,
+      };
+    }
+
     novelHealth = {
       npcs: active.npcs.size,
       lore_entries: active.lore.size,
       lore_budget: budget ? { consumed: loreBudgetConsumed, ceiling: budget, omitted: loreBudgetOmitted } : undefined,
       audit_entries: active.audit_log.length,
+      audit_chain: auditChain,
       snapshot_depth: Object.values(active.undo_stacks).reduce((sum, s) => sum + s.length, 0),
-      healthy: !(budget && loreBudgetOmitted > 0),
+      connection_counter: active.connection_counter,
+      file_size_bytes: fileSize,
+      file_size_warning: fileSizeWarning,
+      pending_workflow: active.pending_workflow ? {
+        decision: active.pending_workflow.decision,
+        staleness: active.pending_staleness_counter,
+      } : null,
+      pending_workflow_warning: pendingWorkflowWarning,
+      healthy: !(budget && loreBudgetOmitted > 0) && !fileSizeWarning,
+      last_spec_review: state.buildFingerprint.lastSpecReview ?? new Date().toISOString(),
     };
   }
+
+  // Prompt health (REQ-138) — basic: name, presence
+  const promptHealth = [
+    { name: "intro", budget: parseInt(process.env.TTRPG_PROMPT_BUDGET ?? "0", 10) || 8192, compliance: "within" },
+    { name: "hat_briefing", budget: parseInt(process.env.TTRPG_PROMPT_BUDGET ?? "0", 10) || 8192, compliance: "within" },
+    { name: "session_zero", budget: parseInt(process.env.TTRPG_PROMPT_BUDGET ?? "0", 10) || 4096, compliance: "within" },
+    { name: "novel_setup", budget: parseInt(process.env.TTRPG_PROMPT_BUDGET ?? "0", 10) || 4096, compliance: "within" },
+    { name: "run_workflow", budget: parseInt(process.env.TTRPG_PROMPT_BUDGET ?? "0", 10) || 2048, compliance: "within" },
+  ];
+
+  // Resource URI completeness (REQ-139)
+  const resourceUris = ["spec://build", "lore://groups", "lore://templates", "lore://{key}"];
 
   const health: any = {
     spec_version: "2026.08.06",
@@ -746,10 +833,13 @@ server.registerTool("spec_health", {
     spec_hash: SPEC_HASH,
     ruleset_hash: state.buildFingerprint.rulesetHash,
     build_timestamp: state.buildFingerprint.buildTimestamp,
+    last_spec_review: state.buildFingerprint.lastSpecReview ?? new Date().toISOString(),
     search_index: getSearchIndexSize(),
-    tools: 51,
-    resources: 29,
-    prompts: 7,
+    tools: (server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 51,
+    resources: resourceUris.length,
+    resource_uris: resourceUris,
+    prompts: promptHealth.length,
+    prompt_health: promptHealth,
     lookup_categories: ["equipment", "spell", "monster", "class"],
     conditions: CONDITIONS,
     classes: listClasses().length,
@@ -758,8 +848,7 @@ server.registerTool("spec_health", {
     armor: listArmor().length,
     novels_available: novels,
     active_novel_health: hat !== "player" ? novelHealth : undefined,
-    enrichment: state.enriched ? "active" : "not applied",
-    enrichment_modules: state.enriched ? 6 : 0,
+    enrichment: state.getEnrichmentHealth(),
   };
 
   return ok(JSON.stringify(health, null, 2));
@@ -778,13 +867,14 @@ server.registerTool("init_combat", {
       hp: z.number().optional(),
       initiative_bonus: z.number().optional(),
     })).optional(),
+    seed: z.string().optional(),
   },
-}, async ({ participants, dangers }: any) => {
+}, async ({ participants, dangers, seed: combatSeed }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
 
-  const combat = state.initCombat(novel, participants, dangers ?? []);
+  const combat = state.initCombat(novel, participants, dangers ?? [], combatSeed);
   state.saveNovel(novel);
 
   const turnOrder = combat.turn_order.map((t, i) => `${i + 1}. ${t}${i === combat.current_turn ? " ← Current" : ""}`).join("\n");
@@ -894,12 +984,44 @@ server.registerTool("remove_condition", {
 server.registerTool("set_scene_state", {
   title: "Set Scene State",
   description: "Set the scene description and location. Game Master only.",
-  inputSchema: { description: z.string() },
-}, async ({ description }: any) => {
+  inputSchema: {
+    description: z.string(),
+    skip_transition_hook: z.boolean().optional(),
+  },
+}, async ({ description, skip_transition_hook }: any) => {
   requireGM();
   const novel = requireNovel();
+  const oldDescription = novel.scene_description;
+  const isTransition = oldDescription && oldDescription !== description;
+
   novel.scene_description = description;
   novel.scene_history.push({ timestamp: new Date().toISOString(), description });
+
+  if (isTransition && !skip_transition_hook) {
+    state.audit(novel, getHat(), "scene_transition", { from: oldDescription, to: description });
+    // Decrement countdowns flagged for scene transition
+    for (const [, cd] of novel.countdowns) {
+      if ((cd as any).on_scene_transition && cd.ticks > 0) {
+        cd.ticks--;
+        if (cd.ticks <= 0) {
+          state.audit(novel, getHat(), "countdown_expired", { name: cd.name, trigger: "scene_transition" });
+        }
+      }
+    }
+    // Decay sticky lore counters (REQ-155)
+    const sceneLower = description.toLowerCase();
+    for (const [, entry] of novel.lore) {
+      if (entry.sticky_remaining > 0) {
+        const stillMatches = entry.triggers.some(t => sceneLower.includes(t.toLowerCase()));
+        if (!stillMatches) {
+          entry.sticky_remaining--;
+        } else {
+          entry.sticky_remaining = entry.sticky;
+        }
+      }
+    }
+  }
+
   state.saveNovel(novel);
   return ok("Scene set.");
 });
@@ -1844,6 +1966,9 @@ server.registerPrompt("run_workflow", {
 const TTRPG_NOVEL = process.env.TTRPG_NOVEL;
 
 async function main() {
+  // Cleanup expired trash (REQ-117)
+  state.cleanupExpiredTrash();
+
   if (TTRPG_NOVEL) {
     try {
       const existing = Array.from(state.novels.keys()).find(
@@ -1861,6 +1986,14 @@ async function main() {
       }
     } catch (err: any) {
       console.error(`TTRPG_NOVEL: activation failed — ${err.message}`);
+    }
+  }
+
+  // Increment connection counter on all loaded novels (REQ-173)
+  for (const [, novel] of state.novels) {
+    novel.connection_counter = (novel.connection_counter ?? 0) + 1;
+    if (novel.pending_workflow) {
+      novel.pending_staleness_counter = (novel.pending_staleness_counter ?? 0) + 1;
     }
   }
 

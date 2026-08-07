@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-07 — Spec-queue pipeline: 10 subsystems hardened across tiers 2 and 3
+
+- Added converter selection, image-content disposition, progressive sampling,
+  and content sanitization contracts to the Convert workflow, completing the
+  source conversion subsystem. (REQ-179–182)
+- Defined scene-type tool classification with compound-type persistence,
+  turning set_scene_type into an ordered list that drives hat_briefing and
+  suggest_actions ordering. (REQ-087 amended, REQ-183)
+- Added alias disambiguation, canonical category determination, alias
+  discovery, and subcategory-filtered results to canonical lookups.
+  (REQ-184–186)
+- Hardened action classification with five annotation rows (read-only,
+  state-reading, command, generation, hybrid) and an explicit mapping table
+  replacing the prior three-type model. (REQ-015 amended, REQ-187)
+- Specified tool-surface economy defaults — per-action-class consolidation
+  rules, dice-notation tool naming, and a hard seven-tool-type floor per
+  category. (REQ-188–189)
+- Completed prompt-length budget tiers, truncation priority order, and
+  novel_setup composition with adventure, prompt guidance, and lore
+  integration. (REQ-023 amended, REQ-118/063/078)
+- Defined the full resource URI catalog with hat-filtered templates,
+  per-resource output schemas, and list resource rendering contracts.
+  (REQ-022 amended, REQ-105)
+- Added respond drain result contracts, option display-label pairs, pending
+  workflow staleness detection, and batch-respond collision contracts to
+  decision workflows. (REQ-190–193)
+- Expanded spec_health with per-file and per-category confidence breakdowns,
+  a build_complete fingerprint field, and cross-references consolidated
+  around REQ-098. (REQ-025 amended, REQ-065/147 amended)
+- Synced the dnd5e MCP server with the updated specification.
+
 ## 2026-08-07 — Contract hardening across intake, audit, briefing, and personality subsystems
 
 - Strengthened the intake workflow with REQ contracts for workflow selection,

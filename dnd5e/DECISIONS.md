@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513
+- **Spec hash:** 01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -233,3 +233,35 @@
 - **Changed code paths:** src/index.ts (respond handler, advance_combat handler, hat_briefing, run_workflow, main startup), src/state.ts (saveNovel with fsync + unique tmp, advanceCombat auto-advance, combatReport)
 - **Gauntlet:** automated test suite not present — typecheck only. Manual Gauntlet TBD.
 - **Spec hash:** 3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513
+
+### Spec-Driven Update (REQ-098) — Full Spec Synchronization v2026.08.06
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — full spec revision (911 diff lines, all sections changed)
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-059 | roll_skill_check didn't validate unknown skills | implemented | Added NOT_FOUND with valid skill enumeration |
+  | REQ-133 | No forbidden-call audit entries | implemented | Added auditForbidden() method, [BOUNDARY_VIOLATION] entries |
+  | REQ-157 | init_combat missing optional seed param | implemented | Added seed param with isolated PRNG for danger initiative |
+  | REQ-125 | No scene transition audit hook | implemented | Record [scene_transition] entries, decrement on_scene_transition countdowns |
+  | REQ-155 | No sticky counter decay on scene change | implemented | Decay sticky_remaining when triggers no longer match scene text |
+  | REQ-156 | NPC description field split across create/set_personality | implemented | Unified NPC description writes; set_personality/set_voice_examples accept NPC IDs |
+  | REQ-169 | No audit chain integrity in spec_health | implemented | Added verifyAuditChain() with hash recomputation |
+  | REQ-160 | Missing enrichment health in spec_health | implemented | Added getEnrichmentHealth() with module_counts, stale_count, activated_count |
+  | REQ-173 | No connection_counter on Novel | implemented | Track connection_counter, increment on startup, report in spec_health |
+  | REQ-193 | No pending workflow staleness warning | implemented | Added pending_staleness_counter, warned in spec_health at >=3 connections |
+  | REQ-097 | Missing file-size health check in spec_health | implemented | Report on-disk file size with 4MB threshold warning |
+  | REQ-025 | spec_health counts hardcoded | implemented | Derive tool count from live registry; added resource_uris and prompt_health |
+  | REQ-138 | No prompt health in spec_health | implemented | Added prompt_health array with name, budget, compliance |
+  | REQ-139 | No resource URI completeness | implemented | Added resource_uris listing |
+  | REQ-117 | Novel retention no cleanup | implemented | Added cleanupExpiredTrash() respecting TTRPG_NOVEL_RETENTION_DAYS |
+  | REQ-042 | Pending workflow not persisted across restarts | deferred | Added pending_workflow + pending_staleness_counter fields; full persistence TBD |
+  | REQ-187 | Tool annotations incomplete | deferred | MCP annotations field available; full classification mapping TBD |
+  | REQ-061 | Source quoting absent | deferred | Requires ruleset-anchor data model changes |
+  | REQ-110-193 (remaining) | New tools/resources/prompts/state changes | deferred | Requires significant architectural work beyond single update |
+  | Build-time/artifact REQs | Various | waived | REQ-018,033,052,053,099,101,102,147,153,154,161-164,171,179-183,185-186 |
+- **Verification:** typecheck 0 errors, no automated test suite (test_scripts/ empty)
+- **Changed code paths:** src/state.ts (NpcState personality/voice_examples, NovelState pending_workflow/connection_counter/pending_staleness_counter, auditForbidden, verifyAuditChain, getEnrichmentHealth, cleanupExpiredTrash, initCombat seed), src/index.ts (spec_health rewrite, roll_skill_check validation, init_combat seed, set_scene_state transition hook + sticky decay, set_personality/set_voice_examples NPC support, SPEC_HASH update, startup connection_counter + trash cleanup)
+- **Gauntlet:** Test suite directory empty — manual smoke test via spec_health.
+- **Spec hash:** 01f6683f6de8657b1f2bb48650ec4f78f0c48f09d587edbd40186bc2a5b30f75

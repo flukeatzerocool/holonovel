@@ -107,52 +107,16 @@ dependencies; a failure here blocks everything downstream.
     budget, groups, toggle, templates from enrichment (REQ-083). Score: 41
     (freq=4, crit=4, cplx=4, coupling=4, maturity=4, coverage=3). Every scene;
     wrong keywords = silent narrative drift.
-    narrative (GM advance), hat_scope (gm/shared), direction
-    (decrement/increment), fire
-    at threshold, remove, on_scene_transition flag (REQ-073/125). Score: 39
-    (freq=4, crit=4, cplx=3, coupling=4, maturity=4, coverage=3). Pacing
-    backbone; fire condition wrong = broken tension.
-    ruleset, rendering via character_sheet, resource URIs (npc://<id>,
-    npcs://), narrative personality fields, builder-defined stat fields,
-    damage resolution targeting NPCs (REQ-075/119/120/121/122/123/124).
-    Score: 38 (freq=4, crit=4, cplx=4, coupling=3, maturity=3, coverage=3).
-    Combat + narrative backbone; wrong = broken encounters.
-    per-call seeds, session seed vs per-call seed isolation (override doesn't
-    advance session PRNG position), same-seed reproducibility (REQ-050).
-    Score: 38 (freq=5, crit=4, cplx=3, coupling=3, maturity=4, coverage=3).
-    Every roll; non-deterministic = unreplayable.
-    step 2 through G4 + smoke session), Phase 2 comparison against builder's
-    evidence, adversarial Gauntlet re-execution (5 random blocking
-    sub-workflows), dispute resolution (§10). Score: 38 (freq=2, crit=4,
-    cplx=4, coupling=4, maturity=3, coverage=2). Self-grading escape hatch.
 
 ## Tool-surface features
 
 Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
 
-    lore templates, action patterns, supplementary guidance, adventure
-    advice), 9 verification checks, boundaries (additive only), idempotence
-    fingerprint, staleness detection, rebuild scenarios (§11.1, REQ-080/103).
-    Score: 37 (freq=2, crit=4, cplx=5, coupling=4, maturity=3, coverage=2).
-    ruleset-legal tools, scene-type filtering, enrichment pattern supplement
-    via toggle_action_patterns, curated intent coverage ≥80% (REQ-084/114/
-    115). Score: 35 (freq=5, crit=3, cplx=4, coupling=3, maturity=3,
-    coverage=3).
-    (location, time_of_day, atmosphere), scene_tick counter, scene transition
-    hook with automatic audit entry and countdown decrement (REQ-076/076a/
-    125). Score: 33 (freq=5, crit=3, cplx=3, coupling=3, maturity=3,
-    coverage=3).
-    URL validity, file manifest completeness, deprecated terminology grep
-    (§6.5 convergence sub-process). Score: 33 (freq=2, crit=4, cplx=3,
-    coupling=4, maturity=3, coverage=2).
 23. [DONE] Intake workflow — Q0 (workflow selection), build-mode profiles
     (production/quick), config verification against target client schema,
     viability pre-check (30% mechanical density threshold), cross-workflow
     deduplication (§6.2, REQ-101). Score: 31 (freq=2, crit=4, cplx=3,
     coupling=3, maturity=4, coverage=2).
-    containment (../../etc/passwd rejected, REQ-052), input safety (verbatim
-    free-text, no SQL execution, REQ-054). Score: 31 (freq=5, crit=4, cplx=2,
-    coupling=1, maturity=4, coverage=3).
 25. [DONE] Entity personality fields — description, voice, background, goals,
     voice_examples (up to 5 dialogue snippets), ruleset-native mapping
     (traits/ideals/bonds/flaws → Holonovel fields), voice examples rendering
@@ -194,21 +158,17 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     active_entity as default target, set_active_entity switching, party://
     current listing with summary stats, import_character from roster (REQ-074).
     Score: 25 (freq=5, crit=3, cplx=2, coupling=3, maturity=4, coverage=2).
-33. [PLAN_READY] Source conversion — PDF/HTML/web scrape → Markdown per Appendix G,
     fidelity sampling (3–5 pages, ≥90% per content type), artifact flagging
     with dispositions (fixed/waived/pending), converter version pinned in
     DECISIONS.md (REQ-102, App G). Score: 25 (freq=2, crit=3, cplx=4,
     coupling=2, maturity=3, coverage=2).
-34. [PLAN_READY] Novel & lorebook interchange — export_novel/export_lorebook (json/markdown),
     import_novel/import_lorebook (dry-run/merge/replace), round-trip identity,
     GM-only (REQ-094/096, App L/Q). Score: 24 (freq=2, crit=3, cplx=3,
     coupling=2, maturity=3, coverage=3).
-35. [PLAN_READY] Scene type tagging — set_scene_type (combat/social/exploration/neutral,
     accepts single string or array for backward compat), multi-type
     simultaneous, affects hat_briefing tool ordering and suggest_actions
     filtering, inert guidance (REQ-087). Score: 22 (freq=4, crit=2, cplx=2,
     coupling=3, maturity=4, coverage=2).
-36. [PLAN_READY] Narrative directive — set_narrative_directive with labeled directives
     (label+instruction), duplicate-label replacement, backward-compat single
     string form, GM-only in hat_briefing, inert guidance (REQ-081). Score: 19
     (freq=3, crit=2, cplx=2, coupling=2, maturity=4, coverage=2).
@@ -218,36 +178,30 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
 Tier 3 — output formats, surface conventions, quality-of-life, and
 peripheral features. Score ≤21.
 
-37. [PLAN_READY] Canonical lookups — lookup_<category> tools accepting canonical names and
     aliases, full ruleset entry returned, NOT_FOUND with enumeration and "Did
     you mean?", cross-reference pointers to named sections, source quoting
     (--- separated block with <file>#<anchor>), no ruleset file reads after
     startup indexing (REQ-057/061/112). Score: 22 (freq=5, crit=2, cplx=2,
     coupling=2, maturity=3, coverage=3).
-38. [PLAN_READY] Tools surface — minimum categories (character creation, condition
     management, combat, table rolling, session recap), parameterized tools for
     named sets, ruleset-native titles, action classification annotations
     (idempotentHint/destructiveHint), tool-surface consolidation (REQ-020/021/
     024/015/110). Score: 22 (freq=4, crit=3, cplx=3, coupling=3, maturity=4,
     coverage=3).
-39. [PLAN_READY] Prompts — dynamic composition from live index, state snapshot, registry
     surfaces, hat-scoped guidance, and required contract elements; intro,
     session_zero, hat_briefing, novel_setup, run_workflow; prompt length
     budget with truncation priority order and resource URI pointers
     (REQ-023/063/078/118). Score: 22 (freq=4, crit=3, cplx=3, coupling=2,
     maturity=4, coverage=3).
-40. [PLAN_READY] Resources — full URI catalog (ruleset://, entities://, entity://, audit://,
     roster://, guidance://, scene://, countdown://, party://, npc://, npcs://,
     lore://, enrichment://, adventure://, novel://, spec://, output://),
     templates/list with entity/roster/output:// templates, hat-filtered
     (REQ-022/105). Score: 22 (freq=4, crit=3, cplx=2, coupling=2, maturity=4,
     coverage=3).
-41. [PLAN_READY] Decision workflows — respond(decision, option), kebab-cased ≤25 options
     from ruleset index, cancel restores pre-workflow snapshot, single pending
     workflow per Novel (STATE_CONFLICT on second), pending state survives
     restart, blocks undo/redo/set_hat during pending (REQ-042/056). Score: 19
     (freq=3, crit=2, cplx=3, coupling=2, maturity=3, coverage=3).
-42. [PLAN_READY] spec_health reporting — confidence scores (per-file and overall),
     convergence summary (iterations, findings, residual gaps), indexed counts
     (anchors, concepts, entity types, actions, tables, procedures, guidance),
     MUST-action coverage, defect count, ruleset version status, spec_repo_url,

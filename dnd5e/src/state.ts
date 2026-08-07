@@ -7,7 +7,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import { seed, snapshotSeed, getState } from "./dice.js";
+import { seed, snapshotSeed, getState, rollD20, withIsolatedSeed } from "./dice.js";
 import { RACES, CLASSES } from "./data.js";
 import { abilityModifier } from "./dice.js";
 
@@ -53,6 +53,8 @@ export interface NpcState {
   speed?: number;
   conditions?: string[];
   stats?: Record<string, number>;
+  personality?: { description?: string; voice?: string; background?: string; goals?: string };
+  voice_examples?: { context: string; dialogue: string; tag?: string }[];
 }
 
 export interface LoreEntry {
@@ -118,6 +120,9 @@ export interface NovelState {
   session_zero_completed: boolean;
   characters_present: boolean;
   adventure_set: boolean;
+  pending_workflow: { decision: string; snapshot: any } | null;
+  connection_counter: number;
+  pending_staleness_counter: number;
   metadata: {
     created: string;
     modified: string;
@@ -263,6 +268,9 @@ export class StateManager {
       session_zero_completed: false,
       characters_present: false,
       adventure_set: false,
+      pending_workflow: null,
+      connection_counter: 0,
+      pending_staleness_counter: 0,
       metadata: {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -341,6 +349,9 @@ export class StateManager {
       session_zero_completed: data.session_zero_completed ?? false,
       characters_present: data.characters_present ?? false,
       adventure_set: data.adventure_set ?? false,
+      pending_workflow: data.pending_workflow ?? null,
+      connection_counter: data.connection_counter ?? 0,
+      pending_staleness_counter: data.pending_staleness_counter ?? 0,
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -384,6 +395,21 @@ export class StateManager {
       this.activeNovelId = null;
     }
     return { removed: true };
+  }
+
+  cleanupExpiredTrash(): void {
+    const trashDir = path.join(this.stateDir, ".trash");
+    if (!fs.existsSync(trashDir)) return;
+    const retentionDays = parseInt(process.env.TTRPG_NOVEL_RETENTION_DAYS ?? "0", 10);
+    if (!retentionDays || retentionDays <= 0) return;
+    const cutoff = Date.now() - retentionDays * 86400_000;
+    for (const entry of fs.readdirSync(trashDir)) {
+      const full = path.join(trashDir, entry);
+      const stat = fs.statSync(full);
+      if (stat.mtimeMs < cutoff) {
+        fs.unlinkSync(full);
+      }
+    }
   }
 
   // ── Snapshots, Undo, Redo ─────────────────────────────────────
@@ -470,9 +496,72 @@ export class StateManager {
     novel.audit_log.push(entry);
   }
 
+  auditForbidden(hat: Hat, tool: string, args: any): void {
+    const novel = this.activeNovel;
+    if (!novel) return;
+    const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
+    const entry: AuditEntry & { violation_type?: string } = {
+      timestamp: new Date().toISOString(),
+      hat,
+      tool,
+      args: JSON.stringify(args),
+      output_prefix: "[BOUNDARY_VIOLATION]",
+      hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
+    };
+    (entry as any).violation_type = "boundary";
+    novel.audit_log.push(entry as AuditEntry);
+  }
+
+  verifyAuditChain(novel: NovelState): { valid: boolean; entries: number; first_broken_index?: number } {
+    const entries = novel.audit_log;
+    if (entries.length === 0) return { valid: true, entries: 0 };
+    let prevHash = "00000000";
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const expected = crypto.createHash("sha256").update(prevHash + entry.tool + entry.args).digest("hex").substring(0, 8);
+      if (entry.hash !== expected) {
+        return { valid: false, entries: entries.length, first_broken_index: i };
+      }
+      prevHash = entry.hash;
+    }
+    return { valid: true, entries: entries.length };
+  }
+
+  getEnrichmentHealth(): any {
+    const manifest = this.enrichmentManifest;
+    if (!manifest) return {
+      enrichment_active: this.enriched,
+      module_counts: {},
+      stale_count: 0,
+      activated_count: 0,
+      fingerprint: null,
+    };
+    const staleDays = parseInt(process.env.TTRPG_ENRICH_STALE_DAYS ?? "90", 10);
+    const cutoff = Date.now() - staleDays * 86400_000;
+    let staleCount = 0;
+    let activatedCount = 0;
+    const moduleCounts: Record<string, number> = {};
+    const modules = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice"];
+    for (const mod of modules) {
+      const items = (manifest[mod] ?? []) as any[];
+      moduleCounts[mod] = items.length;
+      for (const item of items) {
+        if (item.collected_at && new Date(item.collected_at).getTime() < cutoff) staleCount++;
+        if (item.activated) activatedCount++;
+      }
+    }
+    return {
+      enrichment_active: this.enriched,
+      module_counts: moduleCounts,
+      stale_count: staleCount,
+      activated_count: activatedCount,
+      fingerprint: manifest._fingerprint ?? null,
+    };
+  }
+
   // ── Combat ────────────────────────────────────────────────────
 
-  initCombat(novel: NovelState, participants: string[], dangers: { name: string; ac: number; hp: number; max_hp?: number; initiative_bonus?: number }[]): CombatState {
+  initCombat(novel: NovelState, participants: string[], dangers: { name: string; ac: number; hp: number; max_hp?: number; initiative_bonus?: number }[], seedStr?: string): CombatState {
     const turn_order: string[] = [];
     const initiative: [string, number][] = [];
 
@@ -483,7 +572,9 @@ export class StateManager {
     }
     for (const d of dangers) {
       const bonus = d.initiative_bonus ?? 0;
-      const roll = Math.floor(Math.random() * 20) + 1 + bonus;
+      const roll = seedStr
+        ? withIsolatedSeed(hashStringSeed(seedStr), () => rollD20()) + bonus
+        : rollD20() + bonus;
       initiative.push([d.name, roll]);
     }
 
@@ -682,6 +773,15 @@ ${turnOrder}`;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+function hashStringSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return h >>> 0;
+}
+
 function computeAC(classData: any, stats: Record<string, number>): number {
   const dexMod = Math.floor((stats.dexterity - 10) / 2);
   if (classData.name === "Barbarian") {
@@ -740,6 +840,9 @@ function novelToJSON(novel: NovelState): any {
     session_zero_completed: novel.session_zero_completed,
     characters_present: novel.characters_present,
     adventure_set: novel.adventure_set,
+    pending_workflow: novel.pending_workflow,
+    connection_counter: novel.connection_counter,
+    pending_staleness_counter: novel.pending_staleness_counter,
     metadata: novel.metadata,
   };
 }
@@ -771,6 +874,9 @@ function novelFromJSON(data: any): NovelState {
     session_zero_completed: data.session_zero_completed ?? false,
     characters_present: data.characters_present ?? false,
     adventure_set: data.adventure_set ?? false,
+    pending_workflow: data.pending_workflow ?? null,
+    connection_counter: data.connection_counter ?? 0,
+    pending_staleness_counter: data.pending_staleness_counter ?? 0,
     metadata: data.metadata ?? {
       created: new Date().toISOString(),
       modified: new Date().toISOString(),

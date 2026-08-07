@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # spec-queue-sync.sh — Run the holonovel-update workflow to sync the dnd5e
 # server with the current spec. Used by spec-queue-cycle.sh after applying
-# spec changes. Runs a detached opencode build session.
+# spec changes.
 #
 # Usage:
 #   ./scripts/spec-queue-sync.sh
 
 set -euo pipefail
+
+# Kill child opencode processes on script exit (prevent orphan zombies)
+cleanup_children() {
+  local child_pids
+  child_pids=$(jobs -p 2>/dev/null || true)
+  [[ -n "$child_pids" ]] && { kill $child_pids 2>/dev/null; sleep 1; kill -9 $child_pids 2>/dev/null; } || true
+}
+trap cleanup_children EXIT SIGINT SIGTERM
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -24,7 +32,8 @@ fi
 
 echo -e "${YELLOW}Delta detected. Launching holonovel-update session...${NC}"
 
-SYNC_LOG="$PROJECT_DIR/.holonovel-state/queue-plans/sync-log.txt"
+SYNC_LOG="$PROJECT_DIR/.holonovel-state/queue-plans/sync-$(date +%Y%m%d-%H%M%S)-log.txt"
+SYNC_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/sync-$(date +%Y%m%d-%H%M%S)-output.txt"
 
 SYNC_PROMPT="Run the holonovel-update skill workflow against the dnd5e server.
 The specification (holonovel.md) has changed since the last server sync.
@@ -39,32 +48,34 @@ Phase 3 — Implement: Apply all implemented gaps. Run \`cd dnd5e && npm run
 Phase 4 — Close: Update dnd5e/DECISIONS.md with gap-disposition entry.
   Run \`npm run version-sync\` then \`npm run spec-delta\` to confirm sync.
 
+Smoke test: After all changes, call the server's \`spec_health\` tool and verify:
+  - Tool count has not decreased from baseline
+  - Resource count has not decreased from baseline
+  - No confidence scores below 50%
+  - \`last_spec_review\` timestamp is current (within 24 hours)
+  If any check fails, report the failure before declaring sync complete.
+
 Gauntlet: Run only the sub-workflows selected by the surface-to-scenario
 mapping in holonovel.md §6.6. Zero failures required on selected scenarios.
 
 Report completion: gaps implemented/deferred/waived, verification results,
 Gauntlet pass/fail. End with 'SYNC COMPLETE.' if all steps pass."
 
-nohup opencode run \
+set +e
+opencode run \
   --agent build \
+  --auto \
   --title "spec-sync" \
   --dir "$PROJECT_DIR" \
   "$SYNC_PROMPT" \
-  > "$PROJECT_DIR/.holonovel-state/queue-plans/sync-output.txt" 2> "$SYNC_LOG" &
-
-SYNC_PID=$!
-echo "  PID: $SYNC_PID"
-echo "  Output: .holonovel-state/queue-plans/sync-output.txt"
-echo "  Log: $SYNC_LOG"
-
-echo -e "${YELLOW}Waiting for sync session to complete...${NC}"
-
-if wait "$SYNC_PID" 2>/dev/null; then
+  > "$SYNC_OUT" 2> "$SYNC_LOG"
+sync_rc=$?
+set -e
+if [[ $sync_rc -eq 0 ]]; then
   echo -e "${GREEN}Sync: DONE${NC}"
   exit 0
 else
-  rc=$?
-  echo -e "${RED}Sync: FAILED (exit code $rc)${NC}"
+  echo -e "${RED}Sync: FAILED (exit code $sync_rc)${NC}"
   echo "Check log: $SYNC_LOG"
-  exit $rc
+  exit $sync_rc
 fi
