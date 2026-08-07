@@ -72,13 +72,13 @@ echo -e "${YELLOW}Launching build session for item $ITEM...${NC}"
 
 EXEC_LOG="$PLANS_DIR/item-${ITEM}-execute-log.txt"
 
-nohup opencode run \
-  --agent build \
-  --title "spec-execute-${ITEM}" \
-  --dir "$PROJECT_DIR" \
-  --file "$PLAN_FILE" \
-  "$EXECUTE_PROMPT" \
-  > "$PLANS_DIR/item-${ITEM}-execute-output.txt" 2> "$EXEC_LOG" &
+  nohup opencode run \
+    "$EXECUTE_PROMPT" \
+    --agent build \
+    --title "spec-execute-${ITEM}" \
+    --dir "$PROJECT_DIR" \
+    --file "$PLAN_FILE" \
+    > "$PLANS_DIR/item-${ITEM}-execute-output.txt" 2> "$EXEC_LOG" &
 
 EXEC_PID=$!
 echo "  PID: $EXEC_PID"

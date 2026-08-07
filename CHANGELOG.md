@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-06 — First spec-queue research cycle: 13 spec improvements across 3 subsystems
+
+- `spec_health` now carries a `gap_audit` section for the spec-driven update
+  workflow: a delta summary, tool-catalog comparison, resource-map comparison,
+  prompt-list comparison, and hat-gating summary. (REQ-025)
+- `spec_health` reports prompt health for every registered prompt — name,
+  presence, budget compliance, and stale references to tools or resources
+  that no longer exist. (REQ-138)
+- `spec_health` reports resource URI presence for every REQ-022 catalog entry,
+  so the gap audit can detect missing registrations. (REQ-139)
+- The `run_workflow` prompt must now derive its tool associations from the
+  live catalog's action classifications, not hardcoded keyword strings.
+  (REQ-023, T155)
+- Novel atomic writes now require explicit durability (fsync before rename)
+  and collision-resistant temp file names. (REQ-092)
+- Pending workflow state is now explicitly Novel-tier, persisting through
+  restarts alongside all other property groups — no more ambiguity with
+  ephemeral session state. (REQ-042)
+- `end_novel` confirmation now has a concrete dispatch contract: `respond`
+  receiving the end-novel decision must execute the full disposal sequence,
+  and unrecognized decisions return `[NOT_FOUND]`. (REQ-140)
+- `TTRPG_NOVEL` at server startup now has a contractual auto-load path:
+  resume if the Novel exists, create if it doesn't, surface errors in
+  `spec_health` if activation fails. (REQ-088)
+- Novel file-size reporting in `spec_health` must match on-disk reality
+  within 1%, with a `[size_mismatch]` warning on drift. (REQ-097)
+- `advance_combat` now derives its turn report from the audit log when
+  resolution is delegated to separate tools, ensuring full transparency
+  even with tool-separated attack/damage mechanics. (REQ-043)
+- Statless combat participants (dangers, statless NPCs) now advance
+  automatically with an `[AUTO]` marker and narrative action, no caller
+  intervention required. (REQ-043)
+- Active combat state is now a dedicated `hat_briefing` group showing round,
+  turn order with current-turn highlight, and hat-filtered participant
+  redaction for the Player hat. (REQ-043, REQ-109)
+- The total combat rounds counter now increments on round wrap instead of
+  `end_combat`, keeping it live mid-combat and safe under undo. (REQ-043)
+- Fixed `opencode run` argument ordering in `spec-queue-runner.sh` and
+  `spec-queue-execute.sh` — the positional message must precede `--file`
+  to avoid being consumed as a file argument.
+
 ## 2026-08-06 — Spec queue pipeline: automated research-to-commit cycle with knowledge base
 
 - SPEC-QUEUE.md now follows a 5-state pipeline — `[RESEARCH]` →
