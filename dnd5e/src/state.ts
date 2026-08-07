@@ -105,7 +105,7 @@ export interface NovelState {
   npcs: Map<string, NpcState>;
   scene_description: string;
   scene_history: { timestamp: string; description: string }[];
-  scene_type: "combat" | "social" | "exploration" | "neutral";
+  scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
   combat: CombatState | null;
   countdowns: Map<string, Countdown>;
@@ -139,6 +139,20 @@ export interface RosterEntity extends NovelEntity {
   // Roster baselines are immutable except narrative fields
 }
 
+const VALID_SCENE_TYPES = ["combat", "social", "exploration", "neutral"] as const;
+type SceneType = (typeof VALID_SCENE_TYPES)[number];
+
+function normalizeSceneType(raw: unknown): SceneType[] {
+  if (!raw) return ["neutral"];
+  if (Array.isArray(raw)) {
+    return (raw as string[]).filter((t): t is SceneType => (VALID_SCENE_TYPES as readonly string[]).includes(t));
+  }
+  if (typeof raw === "string" && (VALID_SCENE_TYPES as readonly string[]).includes(raw)) {
+    return [raw as SceneType];
+  }
+  return ["neutral"];
+}
+
 // ── State Manager ──────────────────────────────────────────────────
 
 export class StateManager {
@@ -149,6 +163,7 @@ export class StateManager {
   buildFingerprint: {
     specVersion: string;
     specRepoUrl: string;
+    specHash: string;
     rulesetHash: string;
     buildTimestamp: string;
     lastSpecReview?: string;
@@ -168,6 +183,7 @@ export class StateManager {
     this.buildFingerprint = {
       specVersion: SPEC_VERSION,
       specRepoUrl: "https://github.com/anomalyco/Holonovel",
+      specHash: "unknown",
       rulesetHash: this.computeRulesetHash() ?? "unknown",
       buildTimestamp: new Date().toISOString(),
     };
@@ -254,7 +270,7 @@ export class StateManager {
       npcs: new Map(),
       scene_description: "",
       scene_history: [],
-      scene_type: "neutral",
+      scene_type: ["neutral"],
       narrative_directive: "",
       combat: null,
       countdowns: new Map(),
@@ -336,7 +352,7 @@ export class StateManager {
       npcs: new Map(Object.entries(data.npcs ?? {}) as any),
       scene_description: data.scene_description ?? "",
       scene_history: data.scene_history ?? [],
-      scene_type: data.scene_type ?? "neutral",
+      scene_type: normalizeSceneType(data.scene_type),
       narrative_directive: data.narrative_directive ?? "",
       combat: data.combat ?? null,
       countdowns: new Map(Object.entries(data.countdowns ?? {}) as any),
@@ -863,7 +879,7 @@ function novelFromJSON(data: any): NovelState {
     npcs: new Map(Object.entries(data.npcs ?? {})),
     scene_description: data.scene_description ?? "",
     scene_history: data.scene_history ?? [],
-    scene_type: data.scene_type ?? "neutral",
+    scene_type: normalizeSceneType(data.scene_type),
     narrative_directive: data.narrative_directive ?? "",
     combat: data.combat ?? null,
     countdowns: new Map(Object.entries(data.countdowns ?? {})),

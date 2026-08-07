@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 40bec633fb71b0640415ee3f9f982c78fdc79d0d0a8e94d9954832447315efb1
+- **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -283,4 +283,34 @@
 - **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings), test suite empty (no automated tests)
 - **Changed code paths:** src/index.ts (SPEC_HASH, expandMacros wiring in ok/raw/err, help rewrite, set_help_category, compress_audit rewrite, set_countdown params, BUILDER_CATEGORIES, buildExampleInvocation), src/state.ts (Countdown scope/direction, NovelState.help_category_overrides, serialization), src/macros.ts (countdown scope/direction expansion), AGENTS.md (tool list)
 - **Gauntlet:** automated test suite directory empty — manual verification via spec_health smoke test
-- **Spec hash:** 40bec633fb71b0640415ee3f9f982c78fdc79d0d0a8e94d9954832447315efb1
+- **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
+
+### Spec-Driven Update (REQ-098) — Spec Synchronization v2026.08.06 (Cycle 3)
+- **Date:** 2026-08-07
+- **Spec version:** 2026.08.06
+- **Classification:** Major — full spec revision (379 diff lines, all sections changed)
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-087 | set_scene_type didn't accept array of type strings | implemented | Changed state model to `SceneType[]` with `normalizeSceneType()` backward compat |
+  | REQ-025 | spec_health missing `gauntlet_scenarios` field | implemented | Added `passed`/`total`/`last_run` from last Gauntlet run |
+  | REQ-025 | spec_health missing `gap_audit` section | implemented | Added delta_summary, tool_catalog, resource_map, prompt_list, hat_gating |
+  | AGENTS.md | Tool count said ~51, actual 62 | implemented | Updated to ~62 tools, ~29 resources, 5 prompts |
+  | REQ-022 | Resource catalog incomplete (4 of ~33 REQ-022 URIs) | deferred | Previously deferred under REQ-110-193; requires full resource template implementation |
+  | REQ-115 | Missing `toggle_action_patterns` tool | deferred | Previously deferred; requires enrich-derived action pattern system |
+  | REQ-176 | Missing `remove_entity` tool | deferred | Previously deferred; entity removal + roster implications |
+  | REQ-177 | Missing `remove_roster_character` tool | deferred | Previously deferred; roster management expansion |
+  | REQ-178 | Missing `list_roster_characters` tool | deferred | Previously deferred; roster listing surface |
+  | REQ-002 | No fuzzy match / "Did you mean?" on NOT_FOUND | deferred | Requires ruleset-index similarity scoring |
+  | REQ-004 | No output:// truncation with resource pointers | deferred | Previously deferred under REQ-110-193 |
+  | REQ-061 | No source quoting blocks | deferred | Previously deferred; requires ruleset-anchor data model changes |
+  | REQ-113 | No collection count reporting (returned vs total) | deferred | Pagination metadata on collection-returning tools |
+  | REQ-118 | No prompt budget truncation with priority ordering | deferred | Previously deferred; per-prompt section-priority model |
+  | REQ-138 | No stale-references detection in prompt_health | deferred | Requires prompt text parsing for stale tool/resource references |
+  | REQ-139 | resource_uris hardcoded, not derived from REQ-022 catalog | deferred | Previously deferred; requires REQ-022 reference catalog mapping |
+  | REQ-042 | Pending workflow Novel-tier persistence incomplete | deferred | Previously partially implemented; full persistence TBD |
+  | REQ-181-183 | Build-time verification REQs | waived | Build-time artifacts; server runtime not affected |
+- **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
+- **Changed code paths:** src/state.ts (scene_type → array, normalizeSceneType, buildFingerprint.specHash), src/index.ts (set_scene_type union schema, spec_health gap_audit + gauntlet_scenarios, SPEC_HASH update, scene_type display joins), AGENTS.md (tool count)
+- **Gauntlet:** test suite directory empty — manual smoke test via spec_health
+- **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9

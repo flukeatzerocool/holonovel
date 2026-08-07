@@ -223,17 +223,14 @@ peripheral features. Score ≤21.
     countdown.*, novel.slug, hat.active, party.size); nonexistent paths expand
     to literal unchanged; no expansion in audit log entries (REQ-085).
     Score: 16 (freq=3, crit=2, cplx=2, coupling=2, maturity=3, coverage=2).
-46. Truncation & result counting — output:// pointers for output exceeding
     configurable limit, session-local hat-filtered payloads, oldest-first
     eviction, stat block baseline view (all fields regardless of truncation),
     "3 of 42 results" counting, configurable display limit (REQ-004/004a/
     113). Score: 16 (freq=2, crit=3, cplx=2, coupling=1, maturity=4,
     coverage=2).
-47. Verbose output — every ruleset-defined field returned (not summaries),
     full combat calculation path with every modifier contribution, complete
     derived statistics in creation/advancement (REQ-060). Score: 16 (freq=5,
     crit=2, cplx=1, coupling=1, maturity=4, coverage=2).
-48. Parameter canon validation — bounded-domain tool parameters (skill names,
     spell names, weapon names) validated against ruleset index at call time,
     unknown values return NOT_FOUND with session-visible valid values
     enumerated (REQ-059). Score: 15 (freq=4, crit=2, cplx=1, coupling=1,

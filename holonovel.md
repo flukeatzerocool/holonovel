@@ -392,17 +392,39 @@ is truncated with `… [truncated — full content: output://<tool>/<counter>]`.
 payloads are session-local, hat-filtered, and evict the oldest when exceeding the session
 limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks are
 presented in the ruleset's baseline format, with all fields regardless of truncation
-(see REQ-004a).
+(see REQ-004a). Prompt output truncation (REQ-118, REQ-135) is a separate mechanism — REQ-004
+governs tool-level output only.
 *Acceptance criterion:* A tool output exceeding 32,000 bytes is truncated with an
 `output://` pointer; retrieving the pointer returns the full content, hat-filtered.
 _Check:_ T13.
 
 **REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
-baseline format, with all fields regardless of truncation.
+baseline format, with all fields regardless of truncation. When the entire output
+including a stat block exceeds the truncation limit, the stat block may be replaced
+with an output:// pointer (REQ-004) — but the stat block SHALL NOT be partially
+rendered.
 *Acceptance criterion:* A character-sheet rendering includes every stat field the
 ruleset defines, in the ruleset's baseline format and order, regardless of whether
 the output exceeds the truncation limit.
 _Check:_ T13.
+
+**REQ-179 — Output pointer resource template.** The server registers an
+`output://{tool_name}/{counter}` resource template in `resources/templates/list`.
+The template URI pattern is `output://{tool_name}/{counter}` where `{tool_name}`
+matches the producing tool's registered name and `{counter}` is a
+per-session monotonic integer. `resources/read` on a resolved URI returns the
+full untruncated tool output as Markdown, hat-filtered per REQ-032. The resource
+declares MIME type `text/markdown` and a title of the form
+"<tool_name> output #<counter>". Output payloads are session-local — they do
+not survive server restart. When the session's output storage exceeds a
+configurable limit (default 50 payloads), the oldest payload is evicted and
+its URI returns `[ERROR] [NOT_FOUND]` with a message indicating eviction.
+*Acceptance criterion:* After a tool produces output exceeding 32,000 bytes,
+`resources/templates/list` includes `output://{tool_name}/{counter}`; reading
+the resolved URI returns the full untruncated content, hat-filtered; pushing
+storage beyond the limit evicts the oldest payload and its URI returns
+`[NOT_FOUND]`.
+_Check:_ T221.
 
 **REQ-118 — Prompt length budget.** Every prompt returned by `prompts/get`
 stays within a per-prompt token budget. When a prompt's constructed content
@@ -427,14 +449,22 @@ size is configurable.
 counts — "3 of 42 results" — so the caller knows 39 results are suppressed.
 _Check:_ T116.
 
-**REQ-060 — Verbose output.** Tool output is comprehensive — every field the ruleset defines
-for the item or action is returned. Combat results include every modifier with its
-contribution, the calculation path, and the outcome in prose. Character creation and
-advancement results include all derived statistics alongside inputs.
+**REQ-060 — Verbose output.** Tool output is comprehensive — every field the
+ruleset defines for the item or action is returned. The roll transparency
+contract (REQ-003) governs the format of dice-roll results. Combat lifecycle
+output (advance_combat) SHALL follow the conflict lifecycle contract (REQ-043).
+Character creation and advancement results include all derived statistics
+alongside inputs (see REQ-181 for minimum surface).
+
 *Acceptance criterion:* A weapon lookup returns every field the ruleset defines
 for that weapon — damage dice, damage type, properties, weight, cost, range —
-not a summary.
-_Check:_ T47.
+not a summary. A spell lookup returns level, school, casting time, range,
+components, duration, description, and at-higher-level effects — not a pointer
+or summary. A monster lookup returns its full stat block — AC, HP, speed,
+ability scores, saves, skills, senses, traits, actions — not a pointer. A class
+lookup returns hit dice, HP formula, proficiencies, features by level, and
+archetype paths.
+*Check:* T47.
 
 **REQ-061 — Source quoting.** Lookup results, search results, and rule-derived tool
 responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim
@@ -720,7 +750,8 @@ _Check:_ T3, T35.
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://setup`, and `spec://build` (GM-filtered). `resources/templates/list` advertises entity,
+`novel://<slug>`, `novel://setup`, `spec://build` (GM-filtered),
+`output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header.
 *Acceptance criterion:* `resources/list` includes all required URIs;
@@ -963,23 +994,10 @@ required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_he
 `help` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to
 the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters,
 dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and
-(3) a pointer to `hat_briefing` for hat-specific guidance. One-line descriptions are drawn from each tool's
-`description` field in `tools/list`. The builder MAY truncate to the first
-sentence; truncation MUST preserve grammatical completeness. With a query, it
+(3) a pointer to `hat_briefing` for hat-specific guidance. With a query, it
 searches tool descriptions, prompt summaries, and guidance text for the most relevant
-matches and returns their names, descriptions, and example invocations showing each
-matched tool's name, required parameters, and a one-sentence usage description.
-The examples are drawn from the tool's `inputSchema`: required parameters are
-populated with illustrative values, optional parameters are omitted. Query-mode results are scoped to tools only. Matches
-are drawn from tool names, descriptions, and from prompt summaries when a
-prompt's purpose matches the query domain. Results are returned as a list
-ordered by relevance: each entry includes the tool name, its one-line
-description, and an example invocation. If no tools match, the server returns
-an empty result with a suggestion to try `search_rules` for ruleset content.
-Output is hat-filtered per REQ-032: the Player hat sees only tools callable by
-the Player, and the Player always sees builder-assigned categories regardless
-of GM overrides. The Game Master hat sees all tools and the current override
-mapping. The Game Master may customize the task-map category
+matches and returns their names, descriptions, and example invocations from the tool-use
+playbook. Output is hat-filtered. The Game Master may customize the task-map category
 assignments via a Novel-scoped mapping. A tool reassigned to a user-defined category
 is removed from its builder-assigned category. The mapping persists with the Novel.
 Player hat results always reflect builder-assigned categories. An empty mapping
@@ -988,22 +1006,6 @@ restores builder defaults.
 descriptions, and a `hat_briefing` pointer; `help("combat")` returns the most
 relevant combat tools with example invocations.
 _Check:_ T62, T118.
-
-**REQ-067a — Help category override tool.** The server provides a
-`set_help_category` tool, callable by the Game Master only. It accepts a
-`tool_name` and a `category` parameter. Setting a tool's category to a
-non-empty string reassigns it to that user-defined category, removing it
-from its builder-assigned category in the help task map. Setting `category`
-to an empty string or `null` restores the tool to its builder-assigned
-category. Setting `category` to the builder-assigned category is equivalent
-to restoration. The mapping persists with the Novel. Player hat attempts
-return `[FORBIDDEN]`. Attempting to categorize an unknown tool name returns
-`[ERROR] [NOT_FOUND]` with valid tool names enumerated.
-*Acceptance criterion:* GM reassigns `roll_save` to a "House Rules"
-category; `help()` shows `roll_save` under "House Rules" and absent from
-"Dice & Resolution." GM sets category to empty string; builder defaults
-restored. Player `help()` always shows builder-assigned categories.
-_Check:_ T118.
 
 **REQ-063 — Connection introduction.** The server provides an `intro` prompt, listed first
 in `prompts/list`. It takes no arguments, is visible to all hats, and serves as a
@@ -1083,13 +1085,46 @@ valid categories.
 _Check:_ T113.
 
 **REQ-059 — Parameter canon validation.** Tool parameters that accept bounded-domain values
-(skill names, force power names, weapon names, move names) validate against the ruleset
-index at call time. An unknown value returns `[ERROR] [NOT_FOUND]` with session-visible
-valid values enumerated. A valid value returns `[OK]` with transparent dice results.
-*Acceptance criterion:* `roll_skill_check("fabricated_skill")` returns `[ERROR]
-[NOT_FOUND]` with valid skill names; `roll_skill_check("athletics")` returns `[OK]`
-with transparent dice results.
+(parameters whose legal values are a finite set derived from the ruleset's own catalogue —
+skill names, spell names, equipment names, condition names, and analogous ruleset-defined
+categories) SHALL validate against the ruleset index at call time. An unknown value returns
+`[ERROR] [NOT_FOUND]` with session-visible valid values enumerated (per REQ-002). A valid
+value returns `[OK]`. For dice-resolution tools, the `[OK]` response includes transparent
+dice results (per REQ-003).
+When a bounded-domain value set includes entries extracted at LOW confidence (per REQ-011),
+the catalogue remains available for validation — a caller who passes a LOW-confidence value
+receives `[OK]` — but `spec_health` SHALL report a `[LOW_CONFIDENCE_CATALOGUE]` finding
+naming the parameter and the affected entries. The builder SHALL record the finding in
+DECISIONS.md (5).
+*Acceptance criterion:* Passing an unknown skill name to a bounded-domain skill-check tool
+returns `[ERROR] [NOT_FOUND]` with valid skill names enumerated; passing a known skill name
+returns `[OK]` with results from the ruleset's resolution model.
 _Check:_ T39, T39a.
+
+**REQ-182 — Bounded-domain parameter documentation.** The builder SHALL document in
+DECISIONS.md (5) every tool parameter whose legal values are a bounded domain: for each
+such parameter, record the tool name, the parameter name, the ruleset source section from
+which the valid-value set is derived, and the extraction confidence of that source (per
+REQ-011). A parameter whose valid-value set is split across multiple ruleset sections
+SHALL list every contributing section. This mapping enables independent verification of
+parameter canon validation (REQ-059) without parsing the builder's internal model.
+*Acceptance criterion:* DECISIONS.md (5) lists every bounded-domain tool parameter
+with its source section; a verifier can use this mapping to test REQ-059 compliance
+for every listed parameter.
+_Check:_ T39, T39a (updated — verify DECISIONS.md contains the mapping).
+
+**REQ-183 — Live-index-derived error enumerations.** `[NOT_FOUND]` and `[INVALID_INPUT]`
+error enumerations for bounded-domain parameters SHALL derive from the ruleset index at
+call time, not from hardcoded literals. The enumeration is filtered by hat (per REQ-002c).
+This requirement implements the §6.5 builder rule that hardcoded arrays are permitted only
+for ability abbreviations and persona roles. Tool implementations that enumerate valid values
+from a static list rather than the live index SHALL be flagged in DECISIONS.md (5) as a
+convergence violation.
+*Acceptance criterion:* Adding a new skill entry to the ruleset source, rebuilding, and
+calling a skill-check tool with the new skill name returns `[OK]`; removing a skill entry
+and rebuilding produces `[NOT_FOUND]` for the removed skill. Both enumerations reflect
+the live state — no hardcoded skill list produces stale values.
+_Check:_ T39b.
 
 *Out of scope:* real-time collaboration tools, streaming resource endpoints,
 tools that modify the ruleset source, and MCP protocol features beyond the standard
@@ -1163,6 +1198,22 @@ returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot.
 mode; `create_character(name="X", race="Y", ...)` creates in one call; both modes
 require an active Novel or return `[STATE_CONFLICT]`.
 _Check:_ T32; T47; T103; Gate 2.
+
+**REQ-181 — Character creation output surface.** `create_character` SHALL
+return, in its final `[OK]` or `[NEED_INPUT]` completion response, every
+ruleset-defined derived statistic: the entity's name, race, class, level,
+ability scores with computed modifiers, hit points (current and maximum),
+armor class, speed, and all proficiencies (saves, skills, armor, weapons,
+tools). When the ruleset defines additional derived fields (initiative,
+passive scores, spellcasting ability, known languages), those SHALL also
+appear. The output SHALL distinguish inputs (player-provided values) from
+derived statistics (computed from inputs and ruleset tables).
+*Acceptance criterion:* A `create_character` quick-mode call returning `[OK]`
+includes ability scores with per-score modifiers, HP, AC, speed, and the
+full proficiency list — not just a confirmation message. A step-by-step
+creation's final `[NEED_INPUT]` response includes all derived statistics
+computed so far.
+*Check:* T47 (extended).
 
 **REQ-151 — Creation step enumeration.** The builder SHALL enumerate every
 mandatory creation step the ruleset defines in RULESET_MODEL.md under
@@ -1355,6 +1406,19 @@ assert some low-priority sections are truncated with resource URI pointers;
 assert hat foundations and the intro pointer are always present regardless
 of budget.
 _Check:_ T149.
+
+**REQ-180 — Truncation budget unit.** All truncation thresholds in this
+specification are defined in bytes of UTF-8 encoded Markdown output. When a
+builder's implementation environment measures in tokens, the builder SHALL use
+a character-to-token heuristic of 4 characters per token (the `CHARS_PER_TOKEN`
+convention) to convert between units and SHALL record the chosen heuristic in
+DECISIONS.md. The byte-level threshold is the authoritative limit — the token
+estimate is a proximity guard that SHALL NOT be used to truncate earlier than
+the byte threshold would require.
+*Acceptance criterion:* A 32,000-byte threshold produces truncation at the same
+byte offset regardless of whether the builder internally measures in tokens or
+bytes; the heuristic is recorded in DECISIONS.md.
+_Check:_ T222.
 
 **REQ-136 — Null-hat briefing.** When no hat is active (REQ-031),
 `hat_briefing` returns setup-oriented content: a list of available Novels
@@ -2448,16 +2512,13 @@ _Check:_ T144.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
-`{{entity.name}}`, `{{entity.hp}}`, `{{entity.max_hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
+`{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
 `{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`,
 `{{countdown.<name>.total}}`, `{{countdown.<name>.scope}}`,
 `{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{hat.active}}`, `{{party.size}}`.
 Macros referencing nonexistent state expand to the literal token unchanged. Macro
-expansion occurs after output composition and before client delivery. Expansion SHALL
-be applied uniformly through a single expansion point — a function, middleware, or
-wrapper that all tool output text, resource content text, and prompt text passes
-through after composition and before client delivery. Audit log entries SHALL bypass
-this expansion point. Macros do not expand in audit log entries.
+expansion occurs after output composition and before client delivery. Macros do not
+expand in audit log entries.
 *Acceptance criterion:* `{{entity.name}}` in tool output expands to the active
 entity's name; `{{nonexistent.path}}` expands to the literal token unchanged;
 macros do not expand in audit log entries.
@@ -2468,20 +2529,9 @@ tool that returns a Markdown-formatted prompt with a header line — "Compressed
 (summarize into a single paragraph):" — followed by one line per entry in the format
 `[timestamp] [hat] tool_name — output_prefix` for mutating entries or
 `[timestamp] [hat] tool_name — [BOUNDARY_VIOLATION]` for forbidden-call entries
-(REQ-133). The tool does not modify the audit log (REQ-040). The tool is callable by both hats.
-Output is hat-filtered per REQ-168: the Player hat sees entries where the recorded
-hat is `player` or where the entity affected is owned by the current player; the Game
-Master sees all entries.
-An optional `hat_filter` parameter accepts `"player"` or `"game_master"` and overrides
-the automatic hat-based output filtering. When `hat_filter` is `"player"`, output is
-filtered to the Player-hat view regardless of the caller's actual hat; when
-`"game_master"`, output is the full unfiltered log. When omitted or absent, the active
-hat determines filtering as described above.
-`max_entries` is a positive integer with a default of 20 when omitted and a ceiling of
-200. Values ≤ 0 return `[ERROR] [INVALID_INPUT]`. Values exceeding the ceiling are
-clamped to the ceiling without error. When `max_entries` exceeds the total number of
-audit entries, the tool returns all available entries without error. The tool is
-pure-generation
+(REQ-133). The tool does not modify the audit log (REQ-040). Output is hat-filtered:
+Player sees only own-entity entries; Game Master sees all. `max_entries` is a positive
+integer; values ≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation
 (idempotent, no server-side state mutation).
 *Acceptance criterion:* `compress_audit(50)` returns a formatted prompt of the
 50 most recent entries; Player hat sees only own-entity entries; `compress_audit(0)`
@@ -3184,6 +3234,7 @@ translated into tools, resources, and state.
 | Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
+| Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
 
 **Prompt health** measures whether prompts contain references to tools or resources
 that are no longer registered — a stale reference is a construction defect that
@@ -4633,7 +4684,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-003 | Roll transparency         | 2026-08-02   |
 | REQ-004 | Truncation                | 2026-08-02   |
 | REQ-004a| Statblock baseline view   | 2026-08-02   |
-| REQ-060 | Verbose output            | 2026-08-02   |
+| REQ-060 | Verbose output            | 2026-08-07 |
 | REQ-061 | Source quoting            | 2026-08-02   |
 | REQ-062 | Hat foundations       | 2026-08-04   |
 | REQ-064 | Hat behavioral boundaries | 2026-08-03   |
@@ -4654,7 +4705,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-025 | spec_health               | 2026-08-06   |
 | REQ-057 | Canonical lookup tools    | 2026-08-02   |
 | REQ-058 | Tool-result fidelity      | 2026-08-02   |
-| REQ-059 | Parameter canon validation | 2026-08-02   |
+| REQ-059 | Parameter canon validation | 2026-08-07 |
 | REQ-030 | Single-user connection    | 2026-08-02   |
 | REQ-031 | Full access — no hat active | 2026-08-02   |
 | REQ-032 | Hat gating                | 2026-08-02   |
@@ -4671,7 +4722,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-054 | Input safety              | 2026-08-02   |
 | REQ-055 | Durability and resume     | 2026-08-02   |
 | REQ-067 | Help and tool discovery   | 2026-08-04   |
-| REQ-067a| Help category override tool | 2026-08-07   |
 | REQ-070 | Anti-slop guidance        | 2026-08-04   |
 | REQ-071 | Narrative tone samples    | 2026-08-04   |
 | REQ-072 | Session recap             | 2026-08-04   |
@@ -4787,6 +4837,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-176 | Entity removal                | 2026-08-07 |
 | REQ-177 | Roster entity removal          | 2026-08-07 |
 | REQ-178 | Roster listing                 | 2026-08-07 |
+| REQ-179 | Output pointer resource template | 2026-08-07 |
+| REQ-180 | Truncation budget unit           | 2026-08-07 |
+| REQ-181 | Character creation output surface | 2026-08-07 |
+| REQ-182 | Bounded-domain parameter documentation | 2026-08-07 |
+| REQ-183 | Live-index-derived error enumerations | 2026-08-07 |
 
 ---
 
@@ -4832,14 +4887,15 @@ diet.
 | T38   | Manual   | Advancement workflow derives tool name from ruleset term; raises `[NEED_INPUT]` for open choices; applies progression server-side; waived if no advancement procedure                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | REQ-056, REQ-013, REQ-042                   |
 | T39   | Automated | Canonical lookup tools registered: for each required category (equipment, spells, monsters, conditions, feats, class features, species, backgrounds as the ruleset requires), assert a `lookup_<category>` tool is in `tools/list`, accepts the canonical name and documented aliases, and returns the ruleset entry                                                                                                                                                                                                                                                                                                                                      | REQ-057, REQ-024                            |
 | T40   | Automated | Lookup tool rejects unknown names: request a non-existent item and assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; if a close Levenshtein match exists (≤ 2), assert a "Did you mean?" hint appears before the enumeration; assert no fabricated entry is returned                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-057, REQ-002                            |
-| T39a  | Automated | Gameplay tool parameter validation: call `make_skill_check` with an unknown skill name, `use_force_power` with an unknown power name, and `attack_with_weapon` with an unknown weapon name; each returns `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; confirm fuzzy-match hints appear for near-miss inputs. Call the same tools with valid parameters; each returns `[OK]` with transparent dice results                                                                                                                                                                                                                                                                     | REQ-059, REQ-002, REQ-003                   |
-| T41   | Automated | No direct source reads: instrument the server or inspect handlers; run a tool call that resolves a canonical name and assert no ruleset Markdown file is read after startup indexing; the lookup tool must use the loaded index or model                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-058, REQ-051                            |
+| T39a  | Automated | Gameplay tool parameter validation: for each bounded-domain tool parameter documented in DECISIONS.md (5) (per REQ-182), call the tool with an unknown value — assert `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated; confirm fuzzy-match hints appear for near-miss inputs. Call the same tool with a valid value from the documented domain — assert `[OK]`. For dice-resolution tools, assert the `[OK]` response includes transparent dice results (per REQ-003). | REQ-059, REQ-002, REQ-003, REQ-182 |
+| T39b  | Automated | Live-index enumeration: add a new skill entry to the ruleset source, rebuild, call a skill-check tool with the new skill name and assert `[OK]`; remove a skill entry, rebuild, assert `[NOT_FOUND]` for the removed skill. Both enumerations reflect the live index — no hardcoded skill list produces stale values. | REQ-183 |
+| T41   | Automated | No direct source reads: instrument the server or inspect handlers; run a tool call that resolves a canonical name and assert no ruleset Markdown file is read after startup indexing; the lookup tool must use the loaded index or model | REQ-058, REQ-051 |
 | T42   | Automated | No tool-result fabrication: request a canonical item at the edge of the ruleset (last table row, ambiguous alias) and assert the result either resolves correctly or returns `[ERROR]`/`[PARTIAL]`; assert no invented mechanics, damage values, or properties appear                                                                                                                                                                                                                                                                                                                                                                                     | REQ-058, REQ-054                            |
 | T43   | Automated | Decision auto-completion blocked: start a workflow that raises `[NEED_INPUT]` and verify the server does not emit a chosen option or complete the workflow without a `respond` call; a client or LLM must not supply a default                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-042, REQ-058                            |
 | T44   | Automated | Player hat boundary: with `player` active, request GM-only content — returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_hat`; switch to `game_master` — same request succeeds; no hidden row revealed                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-032, REQ-058                            |
 | T45   | Automated | spec_health threshold: assert overall confidence is at least 80% and MUST-action coverage is 100% after waivers; if the score is below threshold, assert the build stops and `DECISIONS.md` records a remediation plan                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-025, REQ-011                            |
 | T46   | Automated | Cross-file extraction: index both fixture files; assert gear table anchor exists; assert "Marshwise" row 4 collapsed to cross-reference, not a second entity; assert inline mechanical fields (Rusty Blade → 1d6 slashing) extract from table cells; assert `roll_on_table` for "gear" returns a valid row from the gear table. Waiver: may only be waived when the structural pass confirms the ruleset is a single source file; for multi-file rulesets T46 is mandatory — cross-file dedup is a structural requirement. Waiver ground: absent cross-file content (REQ-013), recorded in `DECISIONS.md` with the single-source-file evidence from the structural pass. | REQ-013         |
-| T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; roll results report the result band when the ruleset defines one; roll results report all rolled faces with selected/discarded distinction when only a subset is selected (advantage, disadvantage, drop-lowest); modifiers are decomposed by source with signed per-source contributions, never collapsed to a bare aggregate; character creation and advancement results include all derived statistics alongside inputs                                                                                                                                                                                                                                                                                                                            | REQ-060, REQ-003                            |
+| T47   | Automated | Verbose output: every lookup tool returns full entry text, not a summary; combat results include every modifier with its contribution, the calculation path, and the outcome in prose; roll results report the result band when the ruleset defines one; roll results report all rolled faces with selected/discarded distinction when only a subset is selected (advantage, disadvantage, drop-lowest); modifiers are decomposed by source with signed per-source contributions, never collapsed to a bare aggregate; spell lookups return level, school, casting time, range, components, duration, description, and at-higher-level effects; monster lookups return full stat block including AC, HP, speed, ability scores, saves, skills, senses, traits, and actions; class lookups return hit dice, HP formula, proficiencies, features by level, and archetype paths; character creation and advancement results include all derived statistics alongside inputs (see REQ-181 for minimum output surface)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-060, REQ-003, REQ-043, REQ-181 |
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline, includes a dynamic sourcebook listing drawn from the live index, and ends with four concrete next actions; verify the `help` tool and `hat_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any hat (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `hat_briefing` for each hat (switch via `set_hat`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of hat)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
@@ -4861,7 +4917,7 @@ diet.
 | T66   | Automated | Prompt section ordering: set custom order, invoke `hat_briefing` for GM — assert sections appear in specified order. Omit a section token — assert section absent from briefing. Set empty array — assert builder default order restored. Unknown token — assert `[ERROR] [INVALID_INPUT]` with valid token list. Token for absent ruleset feature accepted (empty section). Player attempt returns `[FORBIDDEN]`. Restart — verify ordering persists.                                                                                                                                                                                                                                              | REQ-082, REQ-032                            |
 | T67   | Automated | Dynamic lore: create lore entry with trigger "vault". Set scene_state containing "vault" — assert entry in GM `hat_briefing`. Change scene_state without trigger — assert entry deactivated. Create GM-only lore entry — switch to Player, assert GM-only entry hidden, shared entry visible. Remove entry — assert absent. Player create attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                           | REQ-083, REQ-032                            |
 | T68   | Automated | Action suggestions: call `suggest_actions("I want to attack")` in combat context — assert results include combat tools with correct tool names and parameter hints. Call with empty intent — assert context-relevant suggestions based on scene type and entity state. Call with nonsense intent — assert empty list (no tool matches). Verify no GM-only tools in Player results. Call with ambiguous social intent ("I want to convince the guard") — assert multiple plausible tools returned. With enrich and toggle activated, call an intent matching an enrich-derived pattern — assert that pattern's tools appear in results alongside registry matches.                                                                                                                                                                                                  | REQ-084, REQ-032                            |
-| T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{entity.max_hp}}`, `{{countdown.foo.remaining}}`, `{{countdown.foo.scope}}`, `{{countdown.foo.direction}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
+| T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
 | T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains Markdown header "Compressed audit log (summarize into a single paragraph):" followed by per-entry lines in format `[timestamp] [hat] tool_name — output_prefix`. Assert forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix. Switch to Player hat — assert only own-entity entries visible; the hat column distinguishes entries. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                          | REQ-086, REQ-032, REQ-040                   |
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `hat_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
 | T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Gauntlet sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
@@ -4883,7 +4939,7 @@ diet.
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
 | T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (0) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
 | T90   | Manual   | Complex fixture verification workflow: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and hat enforcement. Required for rulesets at REQ-100 tiers Standard, Heavy, Huge (≥100 indexed items).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
-| T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.7) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
+| T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
 | T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all modules empty, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-103, REQ-080                            |
@@ -4910,7 +4966,7 @@ diet.
 | T115  | Automated | Cross-reference discovery: lookup a spell that references a condition (e.g., a spell that applies Blinded) — assert result includes a pointer to the condition's anchor and a one-line description of the relationship. Lookup a monster that references a spell — assert pointer to spell. Lookup a ruleset entry with no cross-references — assert no pointer section appears. Assert pointers are index references, not inline full recursive expansions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | REQ-112                                     |
 | T116  | Automated | Result count reporting: search for a term with exactly 3 matches and a display or segment limit of 1 — assert output reports returned count of 1 and total count of 3. Search with a segment size larger than the match count — assert returned equals total. Call a tool that returns a collection — assert both returned and total counts appear in the output.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-113                                     |
 | T117  | Automated | Suggestion coverage: assert RULESET_MODEL.md contains a curated intent set with derivation citations spanning all ruleset-defined action categories identified during discovery. For each intent in the set, assert `suggest_actions(intent)` returns at least one matching registered tool. Assert the coverage percentage (matching intents ÷ total curated set) is recorded in RULESET_MODEL.md. Assert coverage below 80% produces a DECISIONS.md (5) finding that names the uncovered categories.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-114                                     |
-| T118  | Automated | Help category override: as GM, reassign a tool from its builder-assigned category to a user-defined category via the Novel-scoped mapping. Call `help()` — assert tool appears under the user-defined category and is absent from the builder-assigned category. Reset mapping to empty — assert builder-assigned categories restored. Switch to Player hat — assert builder-assigned categories appear unchanged. Attempt reassignment of an unknown tool name — assert `[ERROR] [NOT_FOUND]` with valid tool names enumerated. Player hat attempt to modify mapping returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-067, REQ-067a, REQ-032                  |
+| T118  | Automated | Help category override: as GM, reassign a tool from its builder-assigned category to a user-defined category via the Novel-scoped mapping. Call `help()` — assert tool appears under the user-defined category and is absent from the builder-assigned category. Reset mapping to empty — assert builder-assigned categories restored. Switch to Player hat — assert builder-assigned categories appear unchanged. Attempt reassignment of an unknown tool name — assert `[ERROR] [NOT_FOUND]` with valid tool names enumerated. Player hat attempt to modify mapping returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-067, REQ-032                            |
 | T119  | Automated | Action pattern toggle: novel has active enrich patterns. Call `suggest_actions` with a pattern-matching intent — assert patterns absent. Call `toggle_action_patterns` — assert "enabled" in response. Call `suggest_actions` with the same intent — assert patterns appear. Call `toggle_action_patterns` — assert "disabled." Call `suggest_actions` — assert patterns absent again. Player hat attempt on `toggle_action_patterns` returns `[FORBIDDEN]`. No novel active — assert `[STATE_CONFLICT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-115, REQ-084, REQ-032                   |
 | T120  | Automated | Suggestion precision: call `suggest_actions("I want to convince the guard")` — assert at least one result maps to a social-resolution tool, not a combat or lookup tool. Call `suggest_actions("strike a bargain")` — assert results exclude weapon-attack tools. Call with a combat intent in a combat scene — assert combat tools appear and scene-type filtering excludes non-combat tools from the top results. Call with intent matching no plausible tool ("I want to become a sandwich") — assert empty list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-084                                     |
 | T121  | Automated | Redo: create Novel with entity. Apply condition → undo → assert condition removed → redo → assert condition restored. Undo twice then redo once → assert one step restored, one still undone. Redo on empty redo stack → `[STATE_CONFLICT]`. Mutate after undo → assert redo stack cleared and new undo target created. Redo blocked during pending `[NEED_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-116, REQ-041                            |
@@ -5013,6 +5069,8 @@ diet.
 | T188  | Automated | H12 evidence format: parse DECISIONS.md (6). Assert H12 evidence entry present with non-empty command, exit_code, g2_result, and env_pins fields. | §9 |
 | T189  | Automated | H13 Gauntlet freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Gauntlet timestamp newer than most recent source file mtime. | §9 |
 | T190  | Automated | Four-artifact diet: list handoff directory. Assert exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md present alongside `src/`, `scripts/`, `package.json`, `tsconfig.json`, and config files. Assert no `.log`, `.tmp`, `.json` state files, or build artifacts in the handoff root. | §9 |
+| T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, hat-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
+| T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
 
 ---
 

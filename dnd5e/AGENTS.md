@@ -28,12 +28,12 @@ src/enrichment.ts       Enrichment manifest — 6 output modules:
                         action_patterns, supplementary_guidance,
                         adventure_advice. Additive, inert, idempotent.
         ↓
-src/index.ts            McpServer: ~51 tools, ~29 resources, 7 prompts.
+src/index.ts            McpServer: ~62 tools, ~29 resources, 5 prompts.
                         Entry point for STDIO transport. Hat gating via
                         requireGM()/requirePlayer(). Error taxonomy.
 ```
 
-## Tool Surface (~51 tools)
+## Tool Surface (~62 tools)
 
 - **Hat & Workflow:** set_hat, respond, undo, redo, end_game, help
 - **Character:** create_character, import_character, character_sheet, set_active_entity, set_personality, set_voice_examples, player_signal
