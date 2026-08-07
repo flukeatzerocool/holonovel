@@ -169,11 +169,11 @@ for item in "${items[@]}"; do
   mark_in_progress "$num"
 
   nohup opencode run \
+    "$prompt_text" \
     --agent plan \
     --title "spec-item-${num}-research" \
     --dir "$PROJECT_DIR" \
     --file "$PROJECT_DIR/scripts/research-protocol.md" \
-    "$prompt_text" \
     > "$output_file" 2> "$log_file" &
 
   pid=$!

@@ -582,7 +582,7 @@ description on every argument.
 *Acceptance criterion:* Removing a stub tool and restarting removes it from all
 five prompts; adding a tool updates prompt output without restart; `prompts/list`
 carries a title on every prompt and a description on every argument.
-_Check:_ T22, T28.
+_Check:_ T22, T28, T155.
 
 **REQ-024 — Tool documentation.** Every tool carries a `title` field with the ruleset's own
 term for that action. Annotations match action classification.
@@ -607,11 +607,47 @@ tool or resource). Counts are derived from live registrations at call time — t
 running tool catalog, resource map, prompt list, search index, and extracted data
 arrays — not from hardcoded numeric literals. The player hat sees only
 player-filtered metrics. Output is filtered by hat. The convergence summary section
-is absent when the build is not yet complete.
+is absent when the build is not yet complete. `spec_health` SHALL include a
+`gap_audit` section containing: a delta summary (server spec_version vs current
+spec version), a tool-catalog comparison (tool count from live registry vs
+expected per REQ-020 categories, with per-category presence), a resource-map
+comparison (URI count from live registry vs REQ-022 catalog), a prompt-list
+comparison (prompt count and names from live registry vs REQ-023 contract, with
+per-prompt title and argument-description presence), and a hat-gating summary
+(tool count per gate classification per REQ-136). The `gap_audit` section
+SHALL be absent when the build is not yet complete.
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
 a tool, resource, or prompt increments the count immediately; counts are derived
 from arrays at call time, not hardcoded.
-_Check:_ T15, T45, T93, T105.
+_Check:_ T15, T45, T93, T105, T154.
+
+**REQ-138 — Prompt health reporting.** `spec_health` SHALL include, for each
+registered prompt: its name, presence (present/absent), character length, the
+configured budget from REQ-118, a budget-compliance flag (within/exceeded), and
+a stale-references list — tool or resource names appearing in the prompt's
+rendered text that do not match any name in the live tool registry or resource
+map. A stale reference is one whose name (matching by exact string or the MCP
+SDK's registration name) appears in the prompt text but is absent from the
+live registrations at call time. The absence of any stale references SHALL be
+reported as an empty list. Prompt health SHALL be present in `spec_health`
+regardless of build mode.
+*Acceptance criterion:* `spec_health` reports prompt health for every
+registered prompt; renaming a tool referenced in a prompt produces a stale
+reference entry on the next `spec_health` call; restoring the tool name clears
+the entry.
+_Check:_ T152.
+
+**REQ-139 — Resource URI completeness reporting.** `spec_health` SHALL report
+resource URI presence: for every URI template defined in the REQ-022 resource
+catalog, `spec_health` SHALL list the URI, its presence (present/absent), its
+registration name if present, and its MIME type. URIs with dynamic segments
+(`<id>`, `<key>`, `<slug>`, `<anchor>`, `<type>`) SHALL be listed by their
+template form. Counts SHALL be derived from the live resource map at call time.
+The report SHALL be absent when the build is not yet complete.
+*Acceptance criterion:* `spec_health.resource_uris` lists every REQ-022 URI
+with presence; registering a new resource adds an entry immediately; removing a
+resource changes its presence to `absent`.
+_Check:_ T153.
 
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
@@ -786,11 +822,17 @@ workflows (undo, redo, set_hat) can query the pending state without ambiguity. P
 workflow state survives server restarts — after restart the `[NEED_INPUT]` remains open
 and the server returns the same decision prompt on the next query. The Novel's pre-
 workflow snapshot is persisted alongside the pending decision so that `respond(cancel)`
-restores the correct pre-workflow state even after a restart.
+restores the correct pre-workflow state even after a restart. Pending workflow
+state is Novel-tier: it persists with the Novel to disk and survives process
+restarts alongside all other Novel property groups. After a restart,
+`respond(cancel)` must restore the correct pre-workflow snapshot, and `respond`
+with a valid option must drain the same decision that was open before the
+restart. Session-tier fields (active entity, connection-scoped transient state)
+are re-initialized from the Novel's persisted values on resume.
 *Acceptance criterion:* `respond("cancel")` restores pre-workflow state; a
 second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
-_Check:_ T32, T138;
+_Check:_ T32, T138, T157;
 Gate 2; S23.
 
 **REQ-104 — Character creation workflow.** `create_character` supports two modes:
@@ -807,6 +849,21 @@ _Check:_ T32; T47; T103; Gate 2.
 
 *Out of scope:* branching narrative trees, puzzle-solving workflows, and decision
 workflows that span multiple Novels or connections.
+
+**REQ-140 — End-Novel confirmation dispatch.** WHEN the `respond` handler
+receives a decision matching the open `end_novel` confirmation prompt,
+THE system SHALL execute the Novel disposal sequence defined in REQ-088:
+deactivate the active hat, clear undo and redo stacks, move the Novel's
+save file and backup to `.trash/`, remove the Novel from the active set,
+and record the disposal in the audit log. The `respond` tool's routing
+logic SHALL be auditable — a mismatch between the open decision and the
+routed action is a build defect. IF `respond` receives a decision not
+matching any open workflow, THEN it SHALL return `[NOT_FOUND]` with
+the open decision's text.
+*Acceptance criterion:* `end_novel()` → `respond("End Novel <slug>?", "yes")`
+removes the Novel from disk and the active set; a subsequent `resume_novel`
+returns `[STATE_CONFLICT]`.
+_Check:_ T158.
 
 ### 5.5 Hats and Access
 
@@ -996,16 +1053,40 @@ order. `init_combat` starts; `advance_combat` resolves one participant's turn an
 the turn order, incrementing the round when wrapping around; `end_combat` terminates.
 Participants may be entities, named NPCs (REQ-075), or dangers. Turn resolution reports
 the participant name, the action taken (if any), the roll result with full transparency,
-and any resulting state changes (HP, conditions). A turn for a participant with no
-turn-defining stats (a danger or a statless NPC) advances automatically, reporting what
-the participant did. Initiative ties resolve by participant type (entity before NPC before
-danger), then alphabetically by name. When `end_combat` terminates a conflict, the
-Novel's total combat rounds counter increases by the rounds played. Snapshot/load
-operations work within one connection.
+and any resulting state changes (HP, conditions). When the ruleset delegates mechanical
+resolution to separate tools (attack, damage, condition), `advance_combat` derives its
+turn report from the audit log — summarizing the most recent mutating entries for the
+current participant since the preceding `advance_combat` call — and reports the
+participant name, actions taken, roll results with full transparency, and resulting state
+changes. When no mutating entries exist for the participant (a skipped or delayed turn),
+`advance_combat` reports the participant took no action. The builder selects the
+reporting strategy at build time and records the choice in RULESET_MODEL.md. Participants
+with no turn-defining mechanical stats — dangers and NPCs created without stat fields —
+advance automatically on their turn. `advance_combat` reports the participant name with
+an `[AUTO]` marker, describes the participant's narrative action using the participant's
+description field (if any), applies no mechanical changes, and advances to the next
+turn. No separate tool call is required from the caller. Initiative ties resolve by
+participant type (entity before NPC before danger), then alphabetically by name. The
+Novel's total combat rounds counter increments by one each time the combat round wraps
+(last participant's turn completes and the turn order returns to the first participant).
+The counter is cumulative across all combats in the Novel's lifetime. `end_combat` does
+not additionally adjust the counter — it records the outcome and tears down the combat
+state. The counter is included in novel metadata (REQ-093) and reported in
+`session_recap` (REQ-072) and `spec_health` (REQ-025). Snapshot/load
+operations work within one connection. Active combat state is visible in `hat_briefing`
+as a dedicated group containing the round number, the turn order list with the current
+turn clearly marked, and the current participant name. The Game Master sees the full
+turn order and all participant names; the Player hat sees entity turn positions only
+(NPC and danger positions are redacted). When no combat is active, the group is omitted
+entirely from the briefing — no empty-state marker.
 *Acceptance criterion:* `init_combat(participants=["hero"], dangers=[{"name":
 "goblin"}])` assigns turn order entity first, then dangers; `advance_combat`
-reports the participant, action, roll, and state changes.
-_Check:_ T25, T33, T110; Gate 2.
+reports the participant, action, roll, and state changes; `advance_combat` on a
+danger's turn reports `[AUTO]` with a narrative action; after weapon-damage
+mutation, `advance_combat` reports the participant name, weapon, damage roll
+transparency, and target HP change; after a turn with no mutations it reports the
+participant took no action.
+_Check:_ T25, T33, T110, T161, T162; Gate 2.
 
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
 that returns a structured summary of the active Novel: session timespan (earliest to latest
@@ -1696,11 +1777,20 @@ association — is a defect. `[STATE_CONFLICT]` if no Novel active when a Novel-
 called. Server start without `TTRPG_NOVEL` operates with no Novel active — Novel-scoped
 tools direct users to create or resume one. For backward compatibility, the builder may
 accept `end_game` as a deprecated alias for `end_novel`; the alias is not required
-and may be logged as deprecated in `spec_health`.
+and may be logged as deprecated in `spec_health`. WHEN `TTRPG_NOVEL` is set at
+server startup, THE system SHALL attempt to activate the Novel named by the env
+var before servicing any tool call. If a Novel matching the slug exists on disk,
+the server resumes it (equivalent to `resume_novel(slug)`). If no such Novel
+exists, the server creates one with the given name (equivalent to
+`create_novel(name)`). In either case, the Novel is the active Novel before the
+first tool call or prompt is served. If `TTRPG_NOVEL` is set but activation
+fails for any reason other than non-existence (e.g., corrupt file, checksum
+mismatch), the server reports the error in stderr and `spec_health`, and
+proceeds with no Novel active — it does not silently swallow the error.
 *Acceptance criterion:* `create_novel("my-game")` creates `novels/my-game.json`;
 `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved
 to `.trash/` and the roster survives.
-_Check:_ T72, T73, T98.
+_Check:_ T72, T73, T98, T159.
 
 **REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
 Novel's save file and its backup to a `.trash/` subdirectory within the state directory
@@ -1783,7 +1873,14 @@ _Check:_ T76.
 **REQ-092 — Novel persistence.** Every mutating tool call writes the Novel to
 `.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers plus
 Novel metadata) using an atomic rename — write to a temporary file, then atomically rename
-over the target. A backup of the previous Novel file is retained as
+over the target. The serialized Novel payload must be fully durable on the storage
+medium before the atomic rename commits. Content written to the temporary file must
+be flushed to stable storage (e.g., via fsync on the file descriptor) before the
+rename operation. The temporary file path must include an element that prevents
+collision with concurrent writers targeting the same Novel (e.g., a process
+identifier or timestamp suffix). A Novel on disk whose file size is zero after an
+atomic write indicates a durability failure — surfaced in `spec_health` and stderr.
+A backup of the previous Novel file is retained as
 `<slug>.json.bak`. Both corrupted JSON and a missing backup surface in `spec_health`
 and stderr. A rebuild with a changed entity model loads the Novel gracefully:
 absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined
@@ -1805,7 +1902,7 @@ Novel state tiers.
 *Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty
 and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string;
 a corrupt primary file triggers backup restore.
-_Check:_ T77, T88.
+_Check:_ T77, T88, T156.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
@@ -1862,12 +1959,18 @@ flag — set to false if any warning is active). `spec_health` reports a sliding
 Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct
 `TTRPG_SESSION_ID` values in the audit log, bounded to the last 7 by default). A Novel
 whose growth trajectory projects an on-disk file size exceeding 4 MB within the next 3
-sessions is flagged with a `[size_growth]` warning. Health metrics are hat-filtered:
+sessions is flagged with a `[size_growth]` warning. The file-size metric reported
+in `spec_health` SHALL match the on-disk file size as reported by the operating
+system, including all serialization overhead (encoding, checksum field,
+whitespace formatting). A file reported at size S bytes in `spec_health` whose
+on-disk size differs by more than 1% is a `[size_mismatch]` warning —
+indicating a durability or serialization defect. The growth trajectory SHALL use
+the on-disk size, not the in-memory representation size. Health metrics are hat-filtered:
 Player sees entity-level health only; GM sees all.
 *Acceptance criterion:* When NPC count approaches `TTRPG_MAX_NPCS`, `spec_health`
 reports a warning and `healthy` is false; a Novel at 3.9 MB with growth trajectory
 projects a `[size_growth]` warning.
-_Check:_ T101.
+_Check:_ T101, T160.
 
 **REQ-131 — Novel initialization order.** When a Novel is created or resumed
 from disk, its property groups SHALL be initialized such that cross-group
@@ -3642,6 +3745,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-135 | Hat briefing size budget  | 2026-08-06   |
 | REQ-136 | Null-hat briefing         | 2026-08-06   |
 | REQ-137 | Gate classification auditability | 2026-08-06   |
+| REQ-138 | Prompt health reporting      | 2026-08-06   |
+| REQ-139 | Resource URI completeness reporting | 2026-08-06   |
+| REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
 
 ---
 
@@ -3798,6 +3904,17 @@ diet.
 | T149  | Automated | Hat briefing size budget: configure a small `TTRPG_MAX_BRIEFING_TOKENS`, invoke `hat_briefing` with populated Novel — assert some low-priority sections are truncated with resource URI pointers; assert hat foundations and intro pointer are always present regardless of budget. Configure a very large budget — assert no truncation markers. Verify truncated sections are full (not partial) and each carries a retrieval pointer. | REQ-135, REQ-109 |
 | T150  | Automated | Null-hat briefing: restart with no Novel active, invoke `hat_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set hat, invoke `hat_briefing` — assert active Novel name and guidance to activate hat. Verify no gated content appears in either case. Set hat to Player — assert full Player briefing (not setup mode). | REQ-136, REQ-031 |
 | T151  | Automated | Gate classification auditability: build server, inspect DECISIONS.md gate-classification table — assert every registered tool appears in exactly one of {Player-only, GM-only, un-gated}. Assert `tools/list` filtered by Player hat contains exactly the tools classified as Player + un-gated. Assert `tools/list` filtered by GM hat contains exactly the tools classified as GM + un-gated. Assert `set_hat` is classified un-gated and appears in both lists. Assert no tool is classified as both Player-only and GM-only. | REQ-137, REQ-032 |
+| T152  | Automated | Prompt health reporting: invoke `spec_health` — assert every registered prompt appears in a `prompt_health` section with name, presence, length, budget, budget-compliance flag, and stale-references list. Rename a tool referenced in a prompt — assert the stale-references list for that prompt shows the old tool name. Restore the original name — assert the stale-references list clears. | REQ-138 |
+| T153  | Automated | Resource URI completeness: invoke `spec_health` — assert a `resource_uris` section lists every REQ-022 URI template with presence (present/absent), registration name, and MIME type. Register a new resource — assert its URI appears as `present` immediately. Remove a resource — assert the URI changes to `absent`. | REQ-139 |
+| T154  | Automated | Gap audit comparison surface: invoke `spec_health` — assert a `gap_audit` section is present containing a delta summary (spec_version comparison), tool-catalog comparison (per-category presence), resource-map comparison, prompt-list comparison, and hat-gating summary. Assert the section is absent when build is not complete. | REQ-025 |
+| T155  | Automated | run_workflow derivation source: invoke `prompts/get` on `run_workflow` — assert intent-to-tool mapping uses registered tool catalog action classifications (REQ-015) rather than hardcoded keyword strings. Add a tool with `attack` classification to the registry and restart — assert the prompt's attack-intent recommendation changes without code changes. | REQ-023 |
+| T156  | Automated | Atomic write durability: create Novel, make mutations, SIGKILL the process. Restart — assert pre-kill state loads from backup or intact primary. Assert zero-byte or truncated files surface in `spec_health` and stderr. Assert Novel file uses unique temp file names (PID or timestamp suffix). | REQ-092 |
+| T157  | Automated | Pending workflow restart survival: initiate step-by-step character creation, restart server with same Novel — assert `[NEED_INPUT]` remains open with same decision text. `respond(cancel)` after restart — assert correct pre-workflow snapshot restored. `respond(valid_option)` after restart — assert decision drains. | REQ-042 |
+| T158  | Automated | End-Novel confirmation dispatch: `end_novel()` → assert `[NEED_INPUT]` with yes/cancel options. `respond("End Novel <slug>?", "yes")` → assert Novel file removed, active set empty. `resume_novel(slug)` → assert `[STATE_CONFLICT]`. `respond` with non-matching decision → assert `[NOT_FOUND]` with open decision text. | REQ-140 |
+| T159  | Automated | TTRPG_NOVEL startup auto-load: set `TTRPG_NOVEL=<slug>` where Novel exists on disk — start server, assert Novel is active before any tool call. Set `TTRPG_NOVEL=<new_slug>` where no Novel exists — assert Novel is created and active. Set `TTRPG_NOVEL=<slug>` with corrupt file — assert error in stderr and `spec_health`, server proceeds with no Novel active. | REQ-088 |
+| T160  | Automated | Novel file-size accuracy: invoke `spec_health` — assert on-disk file size metric matches OS-reported size within 1%. Mismatch > 1% — assert `[size_mismatch]` warning in `spec_health`. Assert growth trajectory uses on-disk size. | REQ-097 |
+| T161  | Automated | advance_combat audit-log-derived output: init combat with entity, perform weapon-damage against target, advance_combat — assert output includes participant name, weapon used, damage roll transparency, target HP change. advance_combat with no prior mutations — assert reports participant took no action. | REQ-043 |
+| T162  | Automated | Auto turn advancement for statless: init combat with entity, NPC (no stats), and danger. Advance through NPC turn — assert `[AUTO]` marker, narrative action from NPC description, no mechanical changes, immediate turn advance. Advance through danger turn — assert `[AUTO]` marker, narrative action from danger name. | REQ-043 |
 
 ---
 
