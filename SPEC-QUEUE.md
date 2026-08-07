@@ -5,12 +5,37 @@ spec-engineering loop. All 55 spec features inventoried and priority-ranked
 via multi-axis review (frequency, criticality, complexity, coupling, maturity,
 verification coverage).
 
-**Rules:** One item per line. Add to bottom of tier. Complete → delete. No
-reordering mid-tier. Check for duplicates before adding. Score = (freq×3) +
-(crit×4) + (cplx×2) + (coupling×2) − (maturity×1) − (coverage×1).
+**Rules:** One item per line. Add to bottom of tier. Delete on completion.
+No reordering mid-tier. Check for duplicates before adding.
+Score = (freq×3) + (crit×4) + (cplx×2) + (coupling×2) − (maturity×1) −
+(coverage×1).
+
+**State markers.** Items pass through five states:
+  `[RESEARCH]` → `[PLAN_READY]` → `[EXECUTING]` → (removed from queue)
+  `[REJECTED]` and `[FAILED]` are terminal states (manual intervention).
+
+- `[RESEARCH]`   — opencode research session running (Phase 0-2)
+- `[PLAN_READY]` — plan file in .holonovel-state/queue-plans/
+- `[EXECUTING]`  — build session applying changes (Phase 3)
+- `[REJECTED]`   — user vetoed (stays in queue for reconsideration)
+- `[FAILED]`     — execute or sync step errored out
+
+**Pipeline:**
+```sh
+./scripts/spec-queue-cycle.sh research [N]   # research N items in parallel
+./scripts/spec-queue-cycle.sh status          # list all items with state
+./scripts/spec-queue-cycle.sh execute         # review → apply → sync → commit
+```
+
+The execute cycle: shows [PLAN_READY] items, asks for approval, applies
+approved changes to the spec, runs the spec-driven update workflow (gap
+audit → implement → scoped Gauntlet), validates with `npm run check`, and
+commits as one batch. Research findings are cached in the knowledge base
+at `.holonovel-state/knowledge-base/` (in `.gitignore`) to reduce token
+usage in subsequent cycles.
 
 **Add mid-session:** `@SPEC-QUEUE.md add: <item> to <tier>`
-**Start next session:** `@SPEC-QUEUE.md next`
+**Start next session:** `./scripts/spec-queue-cycle.sh research`
 
 <!-- markdownlint-disable MD029 — continuous global item numbering across tiers -->
 
