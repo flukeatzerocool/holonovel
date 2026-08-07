@@ -71,8 +71,9 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B8  | Where is the Holonovel spec repository? | URL                    | <https://github.com/anomalyco/Holonovel> |
+| B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
+| B10 | Where are the world-model provider documentation files? | Path(s) | `<spec-repo>/inform/docs_md/` |
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
@@ -185,6 +186,17 @@ reference maps to a source anchor in RULESET_MODEL.md; an unresolvable
 broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
+
+**World-model provider indexing.** The builder SHALL index the world-model
+provider documentation (the path supplied by the B10 intake question). The provider
+documentation defines the kind hierarchy, property contracts, parser command catalog,
+and declarative assertion syntax that every server SHALL implement. Extraction from
+the provider documentation follows the same chunked-reading, confidence, traceability,
+and cross-reference resolution contracts as TTRPG ruleset extraction (§§5.2, 6.3).
+The provider documentation is indexed once per build — its extracted model (kind
+hierarchy, property contracts, parser command catalog, and declarative assertion
+syntax) is embedded in the server as a fixed reference and surfaced at the
+`world://kinds` resource (REQ-202).
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -740,6 +752,10 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | New prompt, resource, or hat-scoped content                 | S6, S20 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
 | Campaign endurance, stress (REQ-052)                        | S15, S22 |
+
+This surface-driven selection applies to all incremental updates — full
+spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
+syncs — not only the blanket Gauntlet run.
 
 ### 6.7 Spec-driven updates
 

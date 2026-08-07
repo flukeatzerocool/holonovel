@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-07 — World-model layer: mandatory Inform-integrated spatial model
+
+- Added §5.10 defining a mandatory world-model layer — rooms, things, exits,
+  containment, properties, kinds, parser commands, world-model CRUD, and hybrid
+  source conversion — installed by default in every Holonovel server. Conflict
+  resolution: ruleset overrides world-model, world-model overrides
+  infrastructure. (REQ-195–202)
+- Replaced the adventure module model with a hybrid format: adventure modules
+  with a `## World` section populate the Novel's world-model tier at load time
+  via declarative assertions interleaved with TTRPG annotations (`@encounter`,
+  `@trap`, `@npc`, `@lore`). Modules without a `## World` section load as flat
+  indexed prose. (REQ-079 replaced, Appendix K rewritten)
+- Extended `generate_adventure` to produce world-model content — generated
+  adventures now include at minimum a starting room with description and exit
+  connections when the premise suggests spatial content. (REQ-132 extended)
+- Index the world-model provider documentation at build time from the B10
+  intake path; the extracted kind hierarchy, property contracts, and parser
+  command catalog are surfaced at the `world://kinds` resource. (§6.3 provider
+  indexing, B10 question)
+- Added world-model resource URIs (`room://<id>`, `thing://<id>`,
+  `world://map`, `world://kinds`) to the resource catalog. (REQ-022 amended)
+- Tightened REQ-200 (kind contracts) — collapsed enumerated kind catalog into
+  a single paragraph, reduced ~80 words.
+- Added F7 failure mode (world-model assertion parsing) with fault tree
+  covering unrecognized assertions, duplicate names, kind contract violations,
+  and unresolved annotation references.
+- Unified foundational prose — Quick Reference, Play Model, and Requirements
+  at a Glance now describe the world-model as a core server component.
+- Updated spec repository URL to git.gay/flukeatzerocool/Holonovel across
+  build config, handoff artifacts, and README.
+
 ## 2026-08-07 — Spec-queue pipeline: 10 subsystems hardened across tiers 2 and 3
 
 - Added converter selection, image-content disposition, progressive sampling,

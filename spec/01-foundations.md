@@ -2,21 +2,22 @@
 
 > **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
-> server, and proves it works. Output: a running MCP server with dice, combat, character
-> management, rules lookup, narrative directives, dynamic lore, action suggestions,
-> voice examples, macros, scene-type tagging, audit compression, scene-state tracking,
-> NPC management, countdowns, and session recap — plus four handoff artifacts
-> (plus LICENSE.md)
-> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
-> community-sourced play advice. Quality enforced by verification workflows, 14 handoff
-> verification steps, and a golden-transcript replay. One server per ruleset. No network at runtime
-> (REQ-051). The Player hat is the human at the table; the Game Master hat is the
-> AI narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support:
-> one player may control multiple entities (REQ-074). Adventures load as indexed reference
-> content (REQ-079). State tiers: roster persists, Novels isolate, lore and enrichment
-> tiers enhance guidance, connections are ephemeral transport, Novel audit logs persist.
-> RNG deterministic and seedable. Requirements state the contract; verification loops enforce
-> quality.
+> server, and proves it works. Output: a running MCP server with a world-model layer
+> (rooms, things, exits, properties, parser commands), hybrid adventure modules,
+> dice, combat, character management, rules lookup, narrative directives, dynamic
+> lore, action suggestions, voice examples, macros, scene-type tagging, audit
+> compression, scene-state tracking, NPC management, countdowns, and session
+> recap — plus four handoff artifacts (plus LICENSE.md) (RULESET_MODEL.md,
+> DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
+> community-sourced play advice. Quality enforced by verification workflows, 14
+> handoff verification steps, and a golden-transcript replay. One server per ruleset.
+> No network at runtime (REQ-051). The Player hat is the human at the table; the Game
+> Master hat is the AI narrator (REQ-032), switchable via `set_hat` (REQ-066).
+> Multi-character support: one player may control multiple entities (REQ-074).
+> Adventures load as hybrid world-model + prose modules (REQ-079). State tiers: world
+> model, roster, Novels, lore, and enrichment tiers enhance guidance; connections are
+> ephemeral transport; Novel audit logs persist. RNG deterministic and seedable.
+> Requirements state the contract; verification loops enforce quality.
 
 ## Contents
 
@@ -86,17 +87,17 @@ narrow (§6.7). A full rebuild is required when the ruleset changes, the extract
 model changes, or the spec version changes.
 
 **The play model.** Two hats, enforced server-side during play. The Novel is the
-container — a named, persistent save file on disk. Novel setup (create Novel, load
-adventure, import characters, session zero) happens with no hat active (full access
-per REQ-031). Create a Novel, set up characters
-and your adventure (load a module, generate from a premise, or build from scratch),
-then activate the Player hat via `set_hat` (REQ-066) to enforce hat
-gating (REQ-032). Switch to Game Master hat to correct, undo, or directly manage
-Novel state. `set_hat` works without restart. One user per MCP connection
-(REQ-030) — no multiplayer. Holonovel targets solo play: one human player, one AI
-Game Master. Multiplayer (multiple human connections sharing one Novel) is out of
-scope for the current specification. One player may control multiple characters
-(REQ-074).
+container — a named, persistent save file holding the world model, entities, scenes,
+and all session state. Novel setup (create Novel, load adventure, import characters,
+session zero) happens with no hat active (full access per REQ-031). Create a Novel,
+populate its world model (load a hybrid adventure module, generate one from a
+premise, or build with CRUD tools), set up characters, then activate the Player hat
+via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
+player issues text commands (`go north`, `examine sword`, `take lamp`) resolved
+against the world model and TTRPG mechanics. Switch to Game Master hat to correct,
+undo, or directly manage Novel state. `set_hat` works without restart. One user per
+MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
+player, one AI Game Master. One player may control multiple characters (REQ-074).
 
 **Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
@@ -110,16 +111,18 @@ cold checkout, comparing its results against the builder's own.
 
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
-and security, Novel state and persistence, extraction and confidence, tools and resources,
-guidance, determinism, input safety, and durability. Each is one paragraph in §5. The
-manifest is the packing list for the DECISIONS.md traceability table and is mechanically
-verified by `scripts/validate.ts`.
+and security, extraction and confidence, tools and resources, world-model layer
+(rooms, things, exits, properties, parser commands, hybrid source conversion),
+Novel state and persistence, guidance, determinism, input safety, and durability.
+Each is one paragraph in §5. The manifest is the packing list for the
+DECISIONS.md traceability table and is mechanically verified by
+`scripts/validate.ts`.
 
 ---
 
 ## 3. How This Build Fails
 
-The spec is designed around six failure modes. Recognize them early.
+The spec is designed around seven failure modes. Recognize them early.
 
 | Mode | Symptom                                                                                          | Primary mitigation                                                 |
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
@@ -129,6 +132,7 @@ The spec is designed around six failure modes. Recognize them early.
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
+| F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
 guard, the gap is explicit.
@@ -177,6 +181,15 @@ guard, the gap is explicit.
 - Port/host mismatch → G0 live initialize
 - Transport type wrong → REQ-001
 - Config tested against different build → H1, REQ-065
+
+**F7 — World-model assertion failures.**
+
+- Unrecognized assertion pattern → REQ-201 not-implemented warning
+- Duplicate names or incompatible properties → REQ-201 validation diagnostics
+- TTRPG annotation references unresolved → REQ-201 unmatched reference reporting
+- Kind contract violation → REQ-200 kind hierarchy enforcement
+- Malformed adventure with corrupt `## World` section → REQ-171, partial index with prose fallback
+- Exit symmetry broken → REQ-198 implicit reverse exit creation
 
 ---
 

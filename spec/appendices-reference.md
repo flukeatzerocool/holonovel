@@ -62,8 +62,9 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   present: Novel lifecycle, hat and workflow, scene and narrative state, NPC
   management, countdowns, dynamic lore, entity and roster management, personality,
   briefing ordering, export and import (Novel and lorebook), search and action
-  suggestions, adventure and encounter generation, session tools, utility (`help`,
-  `spec_health`), and enrichment reversion.
+  suggestions, adventure and encounter generation, world model (parser
+  command dispatch, world-model CRUD, hybrid source conversion),
+  session tools, utility (`help`, `spec_health`), and enrichment reversion.
 - `tools/call`: REQ-001 prefix and `isError` semantics on success and failure paths.
   Tool-level failure is a normal `result` with `isError: true`, never a JSON-RPC `error`
   response. Success responses carry `isError: false` (or the field omitted, equivalent
@@ -264,6 +265,14 @@ date-stamps matching CHANGELOG entries.
 | REQ-186 | Section token discoverability | 2026-08-07 |
 | REQ-187 | Spec content hash computation | 2026-08-07 |
 | REQ-194 | Anchor derivation | 2026-08-07 |
+| REQ-195 | World-model state tier | 2026-08-07 |
+| REQ-196 | Parser command dispatch | 2026-08-07 |
+| REQ-197 | Room description generation | 2026-08-07 |
+| REQ-198 | World-model CRUD | 2026-08-07 |
+| REQ-199 | Property state tracking | 2026-08-07 |
+| REQ-200 | Kind mechanical contracts | 2026-08-07 |
+| REQ-201 | Hybrid source conversion | 2026-08-07 |
+| REQ-202 | World-model resources | 2026-08-07 |
 
 ---
 
@@ -499,6 +508,15 @@ diet.
 | T224  | Automated | Section token vocabulary: build for D&D 5e — assert DECISIONS.md contains a table mapping every REQ-109 group name to a snake_case token. Build for the Appendix B fixture — assert the token set shrinks (absent: combat, countdowns, lore, adventures) but token names for shared groups are identical to the D&D 5e build. | REQ-185 |
 | T225  | Automated | Section token discoverability: invoke `spec_health` — assert `section_tokens` array with token, group, and has_content fields. Invoke `help` with query `"briefing"` — assert valid token set enumerated. Invoke `help` with query `"section ordering"` — assert valid token set enumerated. Invoke `set_briefing_order` with an unknown token — assert `[INVALID_INPUT]` with valid tokens enumerated matching `spec_health.section_tokens` exactly. | REQ-186, REQ-082 |
 | T236  | Automated | Anchor determinism: parse the Appendix B fixture, extract all heading anchors, re-parse, assert identical anchor set. Assert anchors with CJK heading text preserve CJK characters. Assert `*Keeper only*` heading produces same anchor as bare heading text. Assert `{#custom-id}` overrides auto-derived anchor. Assert duplicate headings produce `-1`, `-2` suffixes matching GFM convention. | REQ-194 |
+| T237  | Automated | World-model conflict resolution: create a Novel with a populated world model. Assert a TTRPG combat operation (init_combat, advance_combat) overrides the world-model tool surface — the active scene type is `combat` and parser navigation through doors checks TTRPG-turn-gating, not just world-model door state. Assert world-model room descriptions override infrastructure output-format defaults — the room description format uses the world-model convention (name, description, visible things) rather than generic infrastructure formatting. | §5.10 |
+| T238  | Automated | World-model state tier: create a Novel, populate rooms/things/exits via `convert_source` or CRUD tools. Assert `spec_health` reports world-model object counts. Persist and restart — assert world-model objects restored. Assert snapshot undo restores world-model state. Assert an empty Novel (no rooms) reports zero counts and parser commands return not-implemented. | REQ-195 |
+| T239  | Automated | Parser command dispatch: populate a world model from the Appendix K fixture example. Assert `command("look")` returns the Entrance Chamber name, description, and visible things. Assert `command("go north")` enters the Hall of Statues. Assert `command("go north")` from the Hall hits the locked Obsidian Door and returns a rule-violation. Assert `command("open obsidian door")` succeeds. Assert `command("take serpent crown")` succeeds and removes the crown from the Throne Room. Assert `command("take entrance chamber")` returns a rule-violation (room is not a thing). Assert `command("xyzzy")` returns not-implemented. Assert `command("take something not here")` returns not-found. | REQ-196 |
+| T240  | Automated | Room description generation: enter a room containing a supporter with an object on it and a closed container — assert the LOOK output shows name on first line, description verbatim, visible things with the containment chain expressed (supporter with object, container with its state noted). Assert the description matches the source text exactly — no generative prose appended. Assert exits appear in status-line context, not in the description body. | REQ-197 |
+| T241  | Automated | World-model CRUD: create a room via `create_room("Vault", "A stone chamber.")`. Create a thing via `create_thing("crown", {location: "Vault", fixed: true})`. Create an exit via `create_exit("north", "Vault", "Gallery")`. Assert reverse exit created. Assert `command("look")` in the Vault shows the crown. Assert `command("take crown")` returns rule-violation (fixed). Delete room via `remove_room("Vault")` — assert crown and exits removed. Assert audit log records all mutations. Assert undo restores deleted room with contents. | REQ-198 |
+| T242  | Automated | Property state tracking: load an adventure with a closed locked door and a closed openable container containing an object. Assert `command("go north")` through locked door returns rule-violation. Assert `command("open door")` returns an unlock-first notification or auto-unlock if capable. Assert `command("take bronzemedal")` with the lockbox closed returns rule-violation (container closed). Assert `command("open lockbox")` succeeds then `command("take bronzemedal")` succeeds. Assert property mutations are snapshot-able — undo reverts door to locked. | REQ-199 |
+| T243  | Automated | Kind mechanical contracts: create a container thing (openable), a supporter thing, a door between two rooms, and a person in a room. Assert the container blocks content access when closed. Assert the supporter's surface things are visible without taking the supporter. Assert the door blocks passage when closed and permits passage when open. Assert a backdrop declared in a region is visible from every room in that region. Assert taking a supporter returns rule-violation (fixed by default). | REQ-200 |
+| T244  | Automated | Hybrid source conversion: call `convert_source` with the Appendix K fixture example. Assert `[OK]` with object counts: 3+ rooms, 1+ things, exits. Assert linked annotation counts. Assert `command("look")` shows Entrance Chamber with murals lore reference. Assert `@npc(Serpent King Ghost)` created a Novel NPC in the Throne Room. Assert `@encounter` and `@trap` annotations are retrievable via `search_rules`. Call `convert_source` again on the same Novel — assert `[STATE_CONFLICT]`. Run `convert_source` with an assertion referencing an unknown kind — assert not-implemented warning with line number, and recognized assertions still populated. | REQ-201 |
+| T245  | Automated | World-model resources: populate a world model with 3 rooms, 4 things, and exits. Read `room://<id>` — assert name, description, visible things, exits. Read `thing://<id>` — assert name, description, location, properties. Read `world://map` — assert adjacency list with all rooms and directional exits. Switch to Player hat — assert room and thing descriptions still visible but GM-only metadata (property values, containment chains) excluded. Read `world://map` as Player — assert room connectivity visible but GM-only annotations absent. | REQ-202 |
 
 ---
 
@@ -639,76 +657,105 @@ the Enrich workflow (§11.1) as supplementary guidance, served at `guidance://<h
 
 ## Appendix K: Adventure Module Format
 
-_Adventure modules are supplementary Markdown loaded during the Build workflow (REQ-079).
-Same heading, anchor, hat-marker, table, and bold-labeled-field conventions as the ruleset
-(Appendix A, H). No mechanical extraction — all content is guidance-category._
+Every adventure module loaded at build time SHALL conform to these conventions.
+Adventures MAY omit the `## World` section — such adventures index as flat
+prose content only.
 
-### Required conventions
+### Required structural conventions
 
 - `# Adventure Title` — used as the adventure slug (lowercase-hyphenated).
-- `## Overview` — GM-only summary. Always marked `*Keeper only*` (or the ruleset's
-  adjudicator term). Not surfaced to the Player hat.
+- `## Overview` — GM-only summary. Marked with the ruleset's adjudicator term.
 - `## Adventure Hook` — player-visible introduction. No hat marker.
-- `## Region:` / `## Level:` — structural divisions within the adventure.
-- `### Location Name` — individual rooms or scenes. Player-visible if unmarked; GM-only if
-  the heading or section carries an adjudicator marker.
-- `*Keeper only*` — hide section from Player hat. Use the ruleset's own adjudicator
-  term when it differs (e.g., `*Warden only*`, `*DM only*`).
-- **Bold-labeled fields** for NPC stat blocks, trap mechanics, and treasure entries.
-- **Tables** for treasure, encounter tables, and random events.
+- `## World` (optional) — world-model declarative assertions. When absent, the
+  adventure is indexed as flat prose content.
+- `## Encounters` / `## NPCs` / `## Traps` / `## Lore` — TTRPG content blocks.
+  Each block may contain `@category(Object Name)` annotation directives
+  linking to world-model objects.
+- `### Location Name` — individual rooms or scenes within the adventure's prose.
+  These are guidance content, not mechanically enforced world-model rooms (use
+  `## World` for mechanical rooms).
+
+### World section format
+
+The `## World` heading marks a declarative world-model block. Each line within
+the section is one assertion. Supported assertion patterns:
+
+- Room declaration: `<Name> is a room. "Description."`
+- Room creation by exit: `<Direction> of <Room> is <Other Room>.`
+- Thing with containment: `<Name> is in <Room>. "Description."`
+  or `A <name> is in <Room>.`
+- Thing on supporter: `<Name> is on <Supporter>.`
+- Property declaration: `It is closed and locked.` or
+  `<Name> is fixed in place.`
+
+### TTRPG annotation format
+
+Annotation directives reference world-model objects by name. Each directive
+occupies one line:
+
+```
+@encounter(<Room Name>) <Description of the encounter>
+@trap(<Room Name>) <Mechanics: DC, save type, damage>
+@npc(<Name>, <Room Name>) <Stat block summary>
+@lore(<Object or Room Name>) <Lore content>
+```
+
+An `@npc` annotation creates a Novel-scoped NPC at the named room's location.
+An `@lore` annotation creates a Novel-scoped lore entry triggered when the
+player enters or examines the named object. `@encounter` and `@trap` annotations
+are inert reference data — the GM invokes them as encounters and checks at
+runtime.
+
+An unrecognized annotation category SHALL be treated as guidance content —
+indexed for search but not mechanically linked.
 
 ### Format example
 
 ```markdown
-# The Sunken Temple
+# Tomb of the Serpent King
 _A dungeon adventure for 4–6 delvers of levels 3–5._
 
 ## Overview — *Keeper only*
-The Sunken Temple lies beneath the Marsh of Whispers. Four levels, each
-with a theme and a boss encounter. The delvers seek the Lantern of Lost Souls.
+The tomb lies beneath the Marsh of Whispers. The delvers seek the Serpent Crown.
 
 ## Adventure Hook
-The village elder offers 500 gold for the Lantern. She knows the temple's
-entrance is at the base of the Weeping Willow, three days into the marsh.
+The village elder offers 500 gold for the Crown. She knows the entrance is at the
+base of the Weeping Willow, three days into the marsh.
 
-## Level 1: The Drowned Gate
+## World
+The Entrance Chamber is a room. "A dusty room with faded murals of serpent figures."
+North of the Entrance Chamber is the Hall of Statues.
+The Obsidian Door is north of the Hall of Statues and south of the Throne Room.
+It is closed and locked.
+The Serpent Crown is in the Throne Room. "A golden crown set with emerald eyes."
 
-### Entrance Chamber
-The stone door is ajar, held open by a rusted crowbar. Water drips, pooling
-ankle-deep. Three corridors: north (carved steps descending), east (a dry
-passage, torch soot on the walls), south (the sound of running water).
-
-### Trapped Hallway — *Keeper only*
-The east passage. Third flagstone depresses: DC 12 Steady to notice; DC 15
-Delve to disarm. Failure: scythe blade — 2d6 slashing, +1 Harm on failed Notice.
-
-#### Treasure — *Keeper only*
-| d6  | Item                         |
-| --- | ---------------------------- |
-| 1–3 | 50 gold pieces               |
-| 4–5 | Potion of Grit (+1 Grit, 1 scene) |
-| 6   | Rusty Blade (1d6 slashing)   |
-
-### The Guardian — *Keeper only*
-**Murk-Eye** — Grit +2, Nerve +1, Wits 0, Harm 2/4.
-Weapon: Rusty Blade (1d6 slashing).
-Tactic: ambush from water; fight to half Harm, then flee.
+## Encounters — *Keeper only*
+@encounter(Hall of Statues) Two stone golems animate when the crown is touched.
 
 ## NPCs
+@npc(Serpent King Ghost, Throne Room) AC 15, HP 45. Incorporeal. Appears when
+the crown is taken.
 
-### Elder Myra
-The village elder. She knows the marsh but won't enter — her son was lost
-there years ago. She carries a Whisper Stone and will give it to the
-delvers if they promise to search for signs of her son.
+## Traps — *Keeper only*
+@trap(Entrance Chamber) Poison dart trap: DC 13 Perception to spot, DC 15 Dex
+save or 2d6 poison damage.
+
+## Lore
+@lore(Entrance Chamber) The murals depict the Serpent King conquering seven
+nations. A faded inscription reads: "Only the worthy may wear the crown."
 ```
 
 ### Indexing and hat gating
 
-Adventure content is indexed during discovery alongside the ruleset. Anchors are derived
-from headings. `*Keeper only*` sections produce GM-only guidance items. Unmarked sections
-produce shared (player-visible) guidance items. Adventure content appears in `search_rules`
-results filtered by active adventure and hat. The `load_adventure` tool (REQ-079) sets
-the active adventure for the current game.
+Adventure content is indexed during discovery alongside the ruleset. Anchors are
+derived from headings. `*Keeper only*` sections produce GM-only guidance items.
+Unmarked sections produce shared (player-visible) guidance items. When a `## World`
+section is present, declarative assertions are extracted and the world-model tier
+is populated when `load_adventure` is called. TTRPG annotations are linked to
+world-model objects by name; unmatched annotations are reported as unresolved
+references. Adventure content appears in `search_rules` results filtered by active
+adventure and hat. The `load_adventure` tool (REQ-079) sets the active adventure
+and populates the world model for the current Novel.
 
 ---
 

@@ -19,7 +19,7 @@
   - B5: Config = `~/.config/opencode/opencode.json`
   - B6: Server name = `dnd5e-holonovel`
   - B7: Connect after build = yes
-  - B8: Spec repo = https://github.com/anomalyco/Holonovel
+  - B8: Spec repo = https://git.gay/flukeatzerocool/Holonovel
   - B9: Build mode = production
   - E1: Server path = `dnd5e/`
   - E2: Source types = all

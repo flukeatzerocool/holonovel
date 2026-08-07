@@ -2,21 +2,22 @@
 
 > **Quick Reference.** An AI build prompt for an MCP server that serves one tabletop RPG
 > ruleset from Markdown sources. The AI reads the ruleset, extracts mechanics, builds the
-> server, and proves it works. Output: a running MCP server with dice, combat, character
-> management, rules lookup, narrative directives, dynamic lore, action suggestions,
-> voice examples, macros, scene-type tagging, audit compression, scene-state tracking,
-> NPC management, countdowns, and session recap — plus four handoff artifacts
-> (plus LICENSE.md)
-> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
-> community-sourced play advice. Quality enforced by verification workflows, 14 handoff
-> verification steps, and a golden-transcript replay. One server per ruleset. No network at runtime
-> (REQ-051). The Player hat is the human at the table; the Game Master hat is the
-> AI narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support:
-> one player may control multiple entities (REQ-074). Adventures load as indexed reference
-> content (REQ-079). State tiers: roster persists, Novels isolate, lore and enrichment
-> tiers enhance guidance, connections are ephemeral transport, Novel audit logs persist.
-> RNG deterministic and seedable. Requirements state the contract; verification loops enforce
-> quality.
+> server, and proves it works. Output: a running MCP server with a world-model layer
+> (rooms, things, exits, properties, parser commands), hybrid adventure modules,
+> dice, combat, character management, rules lookup, narrative directives, dynamic
+> lore, action suggestions, voice examples, macros, scene-type tagging, audit
+> compression, scene-state tracking, NPC management, countdowns, and session
+> recap — plus four handoff artifacts (plus LICENSE.md) (RULESET_MODEL.md,
+> DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
+> community-sourced play advice. Quality enforced by verification workflows, 14
+> handoff verification steps, and a golden-transcript replay. One server per ruleset.
+> No network at runtime (REQ-051). The Player hat is the human at the table; the Game
+> Master hat is the AI narrator (REQ-032), switchable via `set_hat` (REQ-066).
+> Multi-character support: one player may control multiple entities (REQ-074).
+> Adventures load as hybrid world-model + prose modules (REQ-079). State tiers: world
+> model, roster, Novels, lore, and enrichment tiers enhance guidance; connections are
+> ephemeral transport; Novel audit logs persist. RNG deterministic and seedable.
+> Requirements state the contract; verification loops enforce quality.
 
 ## Contents
 
@@ -86,17 +87,17 @@ narrow (§6.7). A full rebuild is required when the ruleset changes, the extract
 model changes, or the spec version changes.
 
 **The play model.** Two hats, enforced server-side during play. The Novel is the
-container — a named, persistent save file on disk. Novel setup (create Novel, load
-adventure, import characters, session zero) happens with no hat active (full access
-per REQ-031). Create a Novel, set up characters
-and your adventure (load a module, generate from a premise, or build from scratch),
-then activate the Player hat via `set_hat` (REQ-066) to enforce hat
-gating (REQ-032). Switch to Game Master hat to correct, undo, or directly manage
-Novel state. `set_hat` works without restart. One user per MCP connection
-(REQ-030) — no multiplayer. Holonovel targets solo play: one human player, one AI
-Game Master. Multiplayer (multiple human connections sharing one Novel) is out of
-scope for the current specification. One player may control multiple characters
-(REQ-074).
+container — a named, persistent save file holding the world model, entities, scenes,
+and all session state. Novel setup (create Novel, load adventure, import characters,
+session zero) happens with no hat active (full access per REQ-031). Create a Novel,
+populate its world model (load a hybrid adventure module, generate one from a
+premise, or build with CRUD tools), set up characters, then activate the Player hat
+via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
+player issues text commands (`go north`, `examine sword`, `take lamp`) resolved
+against the world model and TTRPG mechanics. Switch to Game Master hat to correct,
+undo, or directly manage Novel state. `set_hat` works without restart. One user per
+MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
+player, one AI Game Master. One player may control multiple characters (REQ-074).
 
 **Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
@@ -110,16 +111,18 @@ cold checkout, comparing its results against the builder's own.
 
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
-and security, Novel state and persistence, extraction and confidence, tools and resources,
-guidance, determinism, input safety, and durability. Each is one paragraph in §5. The
-manifest is the packing list for the DECISIONS.md traceability table and is mechanically
-verified by `scripts/validate.ts`.
+and security, extraction and confidence, tools and resources, world-model layer
+(rooms, things, exits, properties, parser commands, hybrid source conversion),
+Novel state and persistence, guidance, determinism, input safety, and durability.
+Each is one paragraph in §5. The manifest is the packing list for the
+DECISIONS.md traceability table and is mechanically verified by
+`scripts/validate.ts`.
 
 ---
 
 ## 3. How This Build Fails
 
-The spec is designed around six failure modes. Recognize them early.
+The spec is designed around seven failure modes. Recognize them early.
 
 | Mode | Symptom                                                                                          | Primary mitigation                                                 |
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
@@ -129,6 +132,7 @@ The spec is designed around six failure modes. Recognize them early.
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
+| F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
 guard, the gap is explicit.
@@ -177,6 +181,15 @@ guard, the gap is explicit.
 - Port/host mismatch → G0 live initialize
 - Transport type wrong → REQ-001
 - Config tested against different build → H1, REQ-065
+
+**F7 — World-model assertion failures.**
+
+- Unrecognized assertion pattern → REQ-201 not-implemented warning
+- Duplicate names or incompatible properties → REQ-201 validation diagnostics
+- TTRPG annotation references unresolved → REQ-201 unmatched reference reporting
+- Kind contract violation → REQ-200 kind hierarchy enforcement
+- Malformed adventure with corrupt `## World` section → REQ-171, partial index with prose fallback
+- Exit symmetry broken → REQ-198 implicit reverse exit creation
 
 ---
 
@@ -264,6 +277,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
+| 5.10    | World-Model Layer                     | 195–202                                             | 8     |
 
 ### 5.1 Output and Error Contracts
 
@@ -787,7 +801,8 @@ _Check:_ T3, T35.
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://setup`, `spec://build` (GM-filtered),
+`novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`,
+`spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header.
@@ -2154,33 +2169,51 @@ fail; `TTRPG_MAX_ENTITIES=0` causes `import_character` to fail; `spec_health` re
 per-group counts and overflow status including entity and roster groups.
 _Check:_ T143, T218.
 
-**REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
-Build workflow alongside the ruleset. Adventure content is indexed and served at
-`adventure://<adventure-slug>/<anchor>`. No mechanical extraction — all adventure content
-is guidance-category. One adventure is active per Novel, set via `load_adventure(adventure)`
-(Game Master only). `search_rules` includes adventure content; active-adventure results are
-sorted first. `hat_briefing` includes the active adventure's hook and current location.
-Active-adventure results SHALL carry HIGH match confidence when the query token
-appears in a section heading; MEDIUM when it appears in body text. The
-`[generated]` tag (REQ-132) SHALL NOT affect sort order — generated and indexed
-results sort by match strength identically; the tag is a source-of-origin
-marker only.
-Adventure content is hat-filtered: sections marked `*Keeper only*` (or the ruleset's
-adjudicator term) are hidden from the Player hat; unmarked sections are visible to all.
-Multiple adventures may be indexed; only the active adventure's content is surfaced in
-`hat_briefing`. Adventure NPCs are reference text — the Game Master creates them as
-named-NPCs (REQ-075) at runtime. Adventure format conventions are defined in Appendix K.
-Adventure content is read-only index-level data — it never influences tool behavior. State
-isolation: adventure NPCs are Novel entities (discarded by `end_novel`); switching adventures
-replaces the active adventure but retains existing Novel entities. `load_adventure` is Game
-Master only. `load_adventure` with a slug not matching any indexed adventure SHALL return
-`[ERROR] [NOT_FOUND]` and enumerate the available adventure slugs in the error
-value. The builder records the validation mechanism in DECISIONS.md.
+**REQ-079 — Adventure modules.** The server loads Markdown adventure modules
+during the Build workflow alongside the ruleset. Every adventure module SHALL
+be parsed for world-model declarative assertions (rooms, things, exits,
+properties) within a designated `## World` section. Assertions found in the
+section SHALL be extracted and indexed. `load_adventure(adventure)` SHALL —
+when the adventure module contains a `## World` section — populate the
+Novel's world-model tier with the extracted rooms, things, exits, and
+properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
+`@lore`) to world-model objects by name. Adventure modules without a `## World`
+section SHALL load as flat indexed content — their prose is searchable via
+`search_rules` and surfaced in `hat_briefing`, but no world-model objects
+are created.
+
+After loading, the adventure's prose content SHALL be accessible at
+`adventure://<adventure-slug>/<anchor>`. `search_rules` includes adventure
+content; active-adventure results are sorted first. Active-adventure results
+SHALL carry HIGH match confidence when the query token appears in a section
+heading; MEDIUM when it appears in body text. The `[generated]` tag (REQ-132)
+SHALL NOT affect sort order — generated and indexed results sort by match
+strength identically; the tag is a source-of-origin marker only.
+
+`hat_briefing` includes the active adventure's hook, current location,
+and — when a world model is populated — the current room's name and visible
+contents.
+
+Adventure content is hat-filtered: sections marked with the ruleset's
+adjudicator term (e.g., `*Keeper only*`) are hidden from the Player hat.
+Unmarked sections are visible to all. Multiple adventures may be indexed;
+only the active adventure's content is surfaced in `hat_briefing`. Adventure
+NPCs defined via `@npc` annotations are Novel-scoped entities created at
+load time; the GM may modify them via `update_npc`. `load_adventure` is Game
+Master only. `load_adventure` with a slug not matching any indexed adventure
+SHALL return `[NOT_FOUND]` and enumerate available adventure slugs. The
 `TTRPG_ADVENTURE` env var (optional, comma-separated paths) pre-loads
 adventures at startup.
-*Acceptance criterion:* `load_adventure("tomb-of-horrors")` activates the
-adventure; `hat_briefing` includes the adventure hook and current location;
-`search_rules("trap")` prioritizes active-adventure results.
+
+State isolation: world-model objects, NPCs, and lore created by adventure
+loading are Novel entities — discarded by `end_novel`. Switching adventures
+replaces the active adventure's world model (if present) and prose content
+but retains Novel entities created outside adventure loading.
+*Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")`
+activates the adventure, populates the world-model tier with rooms/things/
+exits from the `## World` section, links `@npc` annotations, and surfaces
+the adventure hook and current room in `hat_briefing`; a module without a
+`## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
@@ -2237,6 +2270,16 @@ both an indexed adventure and a generated adventure active simultaneously —
 `hat_briefing` SHALL surface the indexed adventure's content first, then the
 generated adventure's content, and `search_rules` SHALL distinguish generated
 results with a `[generated]` tag.
+
+`generate_adventure(premise)` SHALL include a `## World` section in its
+generated output when the premise suggests spatial content (locations,
+dungeons, buildings). The generated world-model section SHALL contain at
+minimum: one room (the starting location) with a description, and exit
+connections for any additional locations named in the premise. Generated
+world-model content SHALL follow the same declarative assertion conventions
+as indexed adventure modules (Appendix K). When the generated adventure is
+replaced or the Novel is ended, the generated world-model objects SHALL
+be discarded — they are Novel-scoped per the base contract.
 *Acceptance criterion:* `generate_adventure("A haunted station")` produces
 adventure content at `adventure://generated/overview`; restarting the
 server preserves the generated adventure; `end_novel` discards it;
@@ -2968,6 +3011,137 @@ then the countdown — in dependency order. The order IS stable across 3
 restarts.
 _Check:_ T145.
 
+### 5.10 World-Model Layer
+
+The server SHALL incorporate a world-model layer — a subsystem that models rooms,
+things, exits, containment, kinds, and properties as typed objects with mechanical
+contracts. The layer extends every Novel's state model with a spatial world model,
+parser command dispatch tools, and world-model CRUD tools. It does not replace or
+constrain TTRPG mechanics — it augments them.
+
+Conflict-resolution order:
+
+1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
+   override world-model layer behavior.
+2. World-model layer contracts override infrastructure defaults (response
+   format, resource URIs, hat vocabulary).
+3. TTRPG ruleset contracts override infrastructure defaults.
+_Check:_ T237.
+
+**REQ-195 — World-model state tier.** Every Novel SHALL carry a world-model
+state tier. The tier SHALL hold: rooms (named locations with descriptions and
+exits), things (named objects with descriptions, containment, and portability
+classification), exits (directional connections between rooms with associated
+door and openable/lockable state), and properties (either/or attributes on
+world-model objects: open/closed, locked/unlocked, fixed/portable, lit/dark).
+The tier SHALL be snapshot-able, audit-logged, and persistent with the Novel
+per REQ-088, REQ-092. A Novel whose world-model tier has not been populated
+(no rooms declared) SHALL report an empty world model — the TTRPG layer is
+not dependent on world-model population. _Check:_ T238.
+
+**REQ-196 — Parser command dispatch.** THE system SHALL accept
+natural-language text commands and resolve them against the world model's
+current state. Recognized commands SHALL include: navigation (walk, move,
+or go directions), inspection (examine named objects, look at current room),
+object interaction (take portable things, drop carried things, open/close
+openable objects), inventory listing, and wait. Navigation SHALL resolve exit
+directions and check door state — a closed door blocks passage. Object
+interaction SHALL respect portability and containment — taking a fixed object
+returns a rule-violation; taking an object inside a closed container returns a
+rule-violation. An unrecognized command SHALL return a not-implemented result
+with the command verb named. An ambiguous object reference SHALL return all
+matching objects with their locations and distinguishing descriptions.
+When the world-model tier is empty (no rooms), all parser commands SHALL
+return a not-implemented result directing the user to populate the world
+model via an adventure module or CRUD tools. _Check:_ T239.
+
+**REQ-197 — Room description generation.** WHEN the player enters a room
+or issues a look command THE system SHALL return the room's name, its
+verbatim description, and visible things with containment chains expressed
+in a standard format. The description SHALL be drawn from the source
+text — no generative prose is appended. Exit directions SHALL appear in
+status-line context, not in the room-description body. _Check:_ T240.
+
+**REQ-198 — World-model CRUD.** THE system SHALL provide tools to create
+and delete world-model object types: rooms, things, and exits. Every
+mutation SHALL be snapshot-able, audit-logged, and Game Master only.
+Creating a room SHALL accept a name and optional description. Creating a
+thing SHALL accept a name, optional description, optional containment (a
+room, container, or supporter), and optional properties (fixed/portable,
+openable, lockable). Creating an exit SHALL accept a direction and two room
+names; the reverse exit SHALL be created implicitly. Deleting a room SHALL
+remove all contained things and connected exits from the world model.
+_Check:_ T241.
+
+**REQ-199 — Property state tracking.** THE system SHALL track either/or
+properties on world-model objects. Openable objects (containers, doors)
+SHALL have open/closed state. Lockable objects SHALL have locked/unlocked
+state in addition to open/closed state. A closed container SHALL block
+access to its contents — examining, taking, or interacting with contents
+requires opening the container first. A closed door SHALL block passage
+in both directions. Property mutations (open, close, lock, unlock) SHALL
+be snapshot-able and audit-logged. _Check:_ T242.
+
+**REQ-200 — Kind mechanical contracts.** The world-model layer SHALL define
+mechanical contracts for the kinds extracted from the provider documentation:
+containers (open/closed, contents blocked when closed), supporters (surface things
+visible and reachable, supporter fixed by default), doors (connect two rooms,
+open/closed, closed blocks passage), persons (visible, examinable in rooms),
+backdrops (visible from every room in a defined region), and regions (named room
+groups). Every thing SHALL have a portability classification: `portable` (may be
+taken) or `fixed` (may not be taken). Supporters are fixed by default. Containers
+and unclassified things are portable by default. Taking a fixed thing SHALL return
+a rule-violation. _Check:_ T243.
+
+**REQ-201 — Hybrid source conversion.** THE system SHALL provide a
+`convert_source` tool accepting hybrid source text — declarative
+world-model assertions interleaved with TTRPG annotations — and parsing
+it into a linked world model + TTRPG state. The tool SHALL operate only
+under the Game Master hat. The tool SHALL populate only an empty Novel
+(world-model tier has zero rooms) — calling `convert_source` on a Novel
+with existing world-model objects SHALL return a state-conflict. The
+conversion pipeline SHALL consist of four phases:
+
+1. **Tokenize.** Split source into declarative assertions and TTRPG
+   annotations. Declarative assertions follow the world-model layer's
+   prose conventions: room declarations ("The Crypt is a room. 'Desc.'"),
+   thing declarations with containment ("A sword is in the Crypt."),
+   exit declarations ("East of the Crypt is the Hall."), and property
+   declarations ("It is closed and locked."). TTRPG annotations are
+   directives attaching ruleset-specific data to named world-model objects.
+
+2. **Validate.** Each assertion is checked against the kind hierarchy
+   and property contracts. Contradictions (duplicate names, incompatible
+   properties on a kind) produce line-numbered diagnostics.
+
+3. **Resolve.** Containment chains, exit symmetry, implicit objects
+   (reverse exits, implied rooms from exit declarations), and property
+   defaults are resolved. TTRPG annotations are matched to world-model
+   objects by name. Unmatched annotations are reported as unresolved
+   references.
+
+4. **Populate.** The resolved world model and linked annotations are
+   installed in the Novel. Object counts (rooms, things, exits) and
+   linked-annotation counts (encounters, NPCs, traps, lore) are reported.
+   The operation is snapshot-able and audit-logged.
+
+Unrecognized assertion patterns SHALL produce not-implemented warnings
+naming the pattern and its source line, but SHALL NOT block population
+of recognized assertions — the system SHALL parse every recognized
+assertion and report the count of both successful and skipped items.
+_Check:_ T244.
+
+**REQ-202 — World-model resources.** THE system SHALL provide resource
+URIs for the world-model tier: `room://<id>` (room name, description,
+visible things, exits), `thing://<id>` (thing name, description, location,
+properties), `world://map` (all rooms with exit connections — a navigable
+graph), `world://kinds` (kind hierarchy, property contracts, and parser
+command catalog from the indexed provider documentation). All world-model resources SHALL be hat-filtered: the Player hat
+sees only descriptions and visible state; the Game Master hat sees
+metadata including property values and containment chains. `world://map`
+SHALL return a list of room names with directional exits formatted as a
+navigable adjacency list. _Check:_ T245.
+
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-game versioning beyond the checksum model, and Novel migration between
 different rulesets.
@@ -3047,8 +3221,9 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B8  | Where is the Holonovel spec repository? | URL                    | <https://github.com/anomalyco/Holonovel> |
+| B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
+| B10 | Where are the world-model provider documentation files? | Path(s) | `<spec-repo>/inform/docs_md/` |
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
@@ -3161,6 +3336,17 @@ reference maps to a source anchor in RULESET_MODEL.md; an unresolvable
 broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
+
+**World-model provider indexing.** The builder SHALL index the world-model
+provider documentation (the path supplied by the B10 intake question). The provider
+documentation defines the kind hierarchy, property contracts, parser command catalog,
+and declarative assertion syntax that every server SHALL implement. Extraction from
+the provider documentation follows the same chunked-reading, confidence, traceability,
+and cross-reference resolution contracts as TTRPG ruleset extraction (§§5.2, 6.3).
+The provider documentation is indexed once per build — its extracted model (kind
+hierarchy, property contracts, parser command catalog, and declarative assertion
+syntax) is embedded in the server as a fixed reference and surfaced at the
+`world://kinds` resource (REQ-202).
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -3716,6 +3902,10 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | New prompt, resource, or hat-scoped content                 | S6, S20 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
 | Campaign endurance, stress (REQ-052)                        | S15, S22 |
+
+This surface-driven selection applies to all incremental updates — full
+spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
+syncs — not only the blanket Gauntlet run.
 
 ### 6.7 Spec-driven updates
 
@@ -4812,8 +5002,9 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   present: Novel lifecycle, hat and workflow, scene and narrative state, NPC
   management, countdowns, dynamic lore, entity and roster management, personality,
   briefing ordering, export and import (Novel and lorebook), search and action
-  suggestions, adventure and encounter generation, session tools, utility (`help`,
-  `spec_health`), and enrichment reversion.
+  suggestions, adventure and encounter generation, world model (parser
+  command dispatch, world-model CRUD, hybrid source conversion),
+  session tools, utility (`help`, `spec_health`), and enrichment reversion.
 - `tools/call`: REQ-001 prefix and `isError` semantics on success and failure paths.
   Tool-level failure is a normal `result` with `isError: true`, never a JSON-RPC `error`
   response. Success responses carry `isError: false` (or the field omitted, equivalent
@@ -5014,6 +5205,14 @@ date-stamps matching CHANGELOG entries.
 | REQ-186 | Section token discoverability | 2026-08-07 |
 | REQ-187 | Spec content hash computation | 2026-08-07 |
 | REQ-194 | Anchor derivation | 2026-08-07 |
+| REQ-195 | World-model state tier | 2026-08-07 |
+| REQ-196 | Parser command dispatch | 2026-08-07 |
+| REQ-197 | Room description generation | 2026-08-07 |
+| REQ-198 | World-model CRUD | 2026-08-07 |
+| REQ-199 | Property state tracking | 2026-08-07 |
+| REQ-200 | Kind mechanical contracts | 2026-08-07 |
+| REQ-201 | Hybrid source conversion | 2026-08-07 |
+| REQ-202 | World-model resources | 2026-08-07 |
 
 ---
 
@@ -5249,6 +5448,15 @@ diet.
 | T224  | Automated | Section token vocabulary: build for D&D 5e — assert DECISIONS.md contains a table mapping every REQ-109 group name to a snake_case token. Build for the Appendix B fixture — assert the token set shrinks (absent: combat, countdowns, lore, adventures) but token names for shared groups are identical to the D&D 5e build. | REQ-185 |
 | T225  | Automated | Section token discoverability: invoke `spec_health` — assert `section_tokens` array with token, group, and has_content fields. Invoke `help` with query `"briefing"` — assert valid token set enumerated. Invoke `help` with query `"section ordering"` — assert valid token set enumerated. Invoke `set_briefing_order` with an unknown token — assert `[INVALID_INPUT]` with valid tokens enumerated matching `spec_health.section_tokens` exactly. | REQ-186, REQ-082 |
 | T236  | Automated | Anchor determinism: parse the Appendix B fixture, extract all heading anchors, re-parse, assert identical anchor set. Assert anchors with CJK heading text preserve CJK characters. Assert `*Keeper only*` heading produces same anchor as bare heading text. Assert `{#custom-id}` overrides auto-derived anchor. Assert duplicate headings produce `-1`, `-2` suffixes matching GFM convention. | REQ-194 |
+| T237  | Automated | World-model conflict resolution: create a Novel with a populated world model. Assert a TTRPG combat operation (init_combat, advance_combat) overrides the world-model tool surface — the active scene type is `combat` and parser navigation through doors checks TTRPG-turn-gating, not just world-model door state. Assert world-model room descriptions override infrastructure output-format defaults — the room description format uses the world-model convention (name, description, visible things) rather than generic infrastructure formatting. | §5.10 |
+| T238  | Automated | World-model state tier: create a Novel, populate rooms/things/exits via `convert_source` or CRUD tools. Assert `spec_health` reports world-model object counts. Persist and restart — assert world-model objects restored. Assert snapshot undo restores world-model state. Assert an empty Novel (no rooms) reports zero counts and parser commands return not-implemented. | REQ-195 |
+| T239  | Automated | Parser command dispatch: populate a world model from the Appendix K fixture example. Assert `command("look")` returns the Entrance Chamber name, description, and visible things. Assert `command("go north")` enters the Hall of Statues. Assert `command("go north")` from the Hall hits the locked Obsidian Door and returns a rule-violation. Assert `command("open obsidian door")` succeeds. Assert `command("take serpent crown")` succeeds and removes the crown from the Throne Room. Assert `command("take entrance chamber")` returns a rule-violation (room is not a thing). Assert `command("xyzzy")` returns not-implemented. Assert `command("take something not here")` returns not-found. | REQ-196 |
+| T240  | Automated | Room description generation: enter a room containing a supporter with an object on it and a closed container — assert the LOOK output shows name on first line, description verbatim, visible things with the containment chain expressed (supporter with object, container with its state noted). Assert the description matches the source text exactly — no generative prose appended. Assert exits appear in status-line context, not in the description body. | REQ-197 |
+| T241  | Automated | World-model CRUD: create a room via `create_room("Vault", "A stone chamber.")`. Create a thing via `create_thing("crown", {location: "Vault", fixed: true})`. Create an exit via `create_exit("north", "Vault", "Gallery")`. Assert reverse exit created. Assert `command("look")` in the Vault shows the crown. Assert `command("take crown")` returns rule-violation (fixed). Delete room via `remove_room("Vault")` — assert crown and exits removed. Assert audit log records all mutations. Assert undo restores deleted room with contents. | REQ-198 |
+| T242  | Automated | Property state tracking: load an adventure with a closed locked door and a closed openable container containing an object. Assert `command("go north")` through locked door returns rule-violation. Assert `command("open door")` returns an unlock-first notification or auto-unlock if capable. Assert `command("take bronzemedal")` with the lockbox closed returns rule-violation (container closed). Assert `command("open lockbox")` succeeds then `command("take bronzemedal")` succeeds. Assert property mutations are snapshot-able — undo reverts door to locked. | REQ-199 |
+| T243  | Automated | Kind mechanical contracts: create a container thing (openable), a supporter thing, a door between two rooms, and a person in a room. Assert the container blocks content access when closed. Assert the supporter's surface things are visible without taking the supporter. Assert the door blocks passage when closed and permits passage when open. Assert a backdrop declared in a region is visible from every room in that region. Assert taking a supporter returns rule-violation (fixed by default). | REQ-200 |
+| T244  | Automated | Hybrid source conversion: call `convert_source` with the Appendix K fixture example. Assert `[OK]` with object counts: 3+ rooms, 1+ things, exits. Assert linked annotation counts. Assert `command("look")` shows Entrance Chamber with murals lore reference. Assert `@npc(Serpent King Ghost)` created a Novel NPC in the Throne Room. Assert `@encounter` and `@trap` annotations are retrievable via `search_rules`. Call `convert_source` again on the same Novel — assert `[STATE_CONFLICT]`. Run `convert_source` with an assertion referencing an unknown kind — assert not-implemented warning with line number, and recognized assertions still populated. | REQ-201 |
+| T245  | Automated | World-model resources: populate a world model with 3 rooms, 4 things, and exits. Read `room://<id>` — assert name, description, visible things, exits. Read `thing://<id>` — assert name, description, location, properties. Read `world://map` — assert adjacency list with all rooms and directional exits. Switch to Player hat — assert room and thing descriptions still visible but GM-only metadata (property values, containment chains) excluded. Read `world://map` as Player — assert room connectivity visible but GM-only annotations absent. | REQ-202 |
 
 ---
 
@@ -5389,76 +5597,105 @@ the Enrich workflow (§11.1) as supplementary guidance, served at `guidance://<h
 
 ## Appendix K: Adventure Module Format
 
-_Adventure modules are supplementary Markdown loaded during the Build workflow (REQ-079).
-Same heading, anchor, hat-marker, table, and bold-labeled-field conventions as the ruleset
-(Appendix A, H). No mechanical extraction — all content is guidance-category._
+Every adventure module loaded at build time SHALL conform to these conventions.
+Adventures MAY omit the `## World` section — such adventures index as flat
+prose content only.
 
-### Required conventions
+### Required structural conventions
 
 - `# Adventure Title` — used as the adventure slug (lowercase-hyphenated).
-- `## Overview` — GM-only summary. Always marked `*Keeper only*` (or the ruleset's
-  adjudicator term). Not surfaced to the Player hat.
+- `## Overview` — GM-only summary. Marked with the ruleset's adjudicator term.
 - `## Adventure Hook` — player-visible introduction. No hat marker.
-- `## Region:` / `## Level:` — structural divisions within the adventure.
-- `### Location Name` — individual rooms or scenes. Player-visible if unmarked; GM-only if
-  the heading or section carries an adjudicator marker.
-- `*Keeper only*` — hide section from Player hat. Use the ruleset's own adjudicator
-  term when it differs (e.g., `*Warden only*`, `*DM only*`).
-- **Bold-labeled fields** for NPC stat blocks, trap mechanics, and treasure entries.
-- **Tables** for treasure, encounter tables, and random events.
+- `## World` (optional) — world-model declarative assertions. When absent, the
+  adventure is indexed as flat prose content.
+- `## Encounters` / `## NPCs` / `## Traps` / `## Lore` — TTRPG content blocks.
+  Each block may contain `@category(Object Name)` annotation directives
+  linking to world-model objects.
+- `### Location Name` — individual rooms or scenes within the adventure's prose.
+  These are guidance content, not mechanically enforced world-model rooms (use
+  `## World` for mechanical rooms).
+
+### World section format
+
+The `## World` heading marks a declarative world-model block. Each line within
+the section is one assertion. Supported assertion patterns:
+
+- Room declaration: `<Name> is a room. "Description."`
+- Room creation by exit: `<Direction> of <Room> is <Other Room>.`
+- Thing with containment: `<Name> is in <Room>. "Description."`
+  or `A <name> is in <Room>.`
+- Thing on supporter: `<Name> is on <Supporter>.`
+- Property declaration: `It is closed and locked.` or
+  `<Name> is fixed in place.`
+
+### TTRPG annotation format
+
+Annotation directives reference world-model objects by name. Each directive
+occupies one line:
+
+```
+@encounter(<Room Name>) <Description of the encounter>
+@trap(<Room Name>) <Mechanics: DC, save type, damage>
+@npc(<Name>, <Room Name>) <Stat block summary>
+@lore(<Object or Room Name>) <Lore content>
+```
+
+An `@npc` annotation creates a Novel-scoped NPC at the named room's location.
+An `@lore` annotation creates a Novel-scoped lore entry triggered when the
+player enters or examines the named object. `@encounter` and `@trap` annotations
+are inert reference data — the GM invokes them as encounters and checks at
+runtime.
+
+An unrecognized annotation category SHALL be treated as guidance content —
+indexed for search but not mechanically linked.
 
 ### Format example
 
 ```markdown
-# The Sunken Temple
+# Tomb of the Serpent King
 _A dungeon adventure for 4–6 delvers of levels 3–5._
 
 ## Overview — *Keeper only*
-The Sunken Temple lies beneath the Marsh of Whispers. Four levels, each
-with a theme and a boss encounter. The delvers seek the Lantern of Lost Souls.
+The tomb lies beneath the Marsh of Whispers. The delvers seek the Serpent Crown.
 
 ## Adventure Hook
-The village elder offers 500 gold for the Lantern. She knows the temple's
-entrance is at the base of the Weeping Willow, three days into the marsh.
+The village elder offers 500 gold for the Crown. She knows the entrance is at the
+base of the Weeping Willow, three days into the marsh.
 
-## Level 1: The Drowned Gate
+## World
+The Entrance Chamber is a room. "A dusty room with faded murals of serpent figures."
+North of the Entrance Chamber is the Hall of Statues.
+The Obsidian Door is north of the Hall of Statues and south of the Throne Room.
+It is closed and locked.
+The Serpent Crown is in the Throne Room. "A golden crown set with emerald eyes."
 
-### Entrance Chamber
-The stone door is ajar, held open by a rusted crowbar. Water drips, pooling
-ankle-deep. Three corridors: north (carved steps descending), east (a dry
-passage, torch soot on the walls), south (the sound of running water).
-
-### Trapped Hallway — *Keeper only*
-The east passage. Third flagstone depresses: DC 12 Steady to notice; DC 15
-Delve to disarm. Failure: scythe blade — 2d6 slashing, +1 Harm on failed Notice.
-
-#### Treasure — *Keeper only*
-| d6  | Item                         |
-| --- | ---------------------------- |
-| 1–3 | 50 gold pieces               |
-| 4–5 | Potion of Grit (+1 Grit, 1 scene) |
-| 6   | Rusty Blade (1d6 slashing)   |
-
-### The Guardian — *Keeper only*
-**Murk-Eye** — Grit +2, Nerve +1, Wits 0, Harm 2/4.
-Weapon: Rusty Blade (1d6 slashing).
-Tactic: ambush from water; fight to half Harm, then flee.
+## Encounters — *Keeper only*
+@encounter(Hall of Statues) Two stone golems animate when the crown is touched.
 
 ## NPCs
+@npc(Serpent King Ghost, Throne Room) AC 15, HP 45. Incorporeal. Appears when
+the crown is taken.
 
-### Elder Myra
-The village elder. She knows the marsh but won't enter — her son was lost
-there years ago. She carries a Whisper Stone and will give it to the
-delvers if they promise to search for signs of her son.
+## Traps — *Keeper only*
+@trap(Entrance Chamber) Poison dart trap: DC 13 Perception to spot, DC 15 Dex
+save or 2d6 poison damage.
+
+## Lore
+@lore(Entrance Chamber) The murals depict the Serpent King conquering seven
+nations. A faded inscription reads: "Only the worthy may wear the crown."
 ```
 
 ### Indexing and hat gating
 
-Adventure content is indexed during discovery alongside the ruleset. Anchors are derived
-from headings. `*Keeper only*` sections produce GM-only guidance items. Unmarked sections
-produce shared (player-visible) guidance items. Adventure content appears in `search_rules`
-results filtered by active adventure and hat. The `load_adventure` tool (REQ-079) sets
-the active adventure for the current game.
+Adventure content is indexed during discovery alongside the ruleset. Anchors are
+derived from headings. `*Keeper only*` sections produce GM-only guidance items.
+Unmarked sections produce shared (player-visible) guidance items. When a `## World`
+section is present, declarative assertions are extracted and the world-model tier
+is populated when `load_adventure` is called. TTRPG annotations are linked to
+world-model objects by name; unmatched annotations are reported as unresolved
+references. Adventure content appears in `search_rules` results filtered by active
+adventure and hat. The `load_adventure` tool (REQ-079) sets the active adventure
+and populates the world model for the current Novel.
 
 ---
 
