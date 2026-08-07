@@ -140,7 +140,7 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     URL validity, file manifest completeness, deprecated terminology grep
     (§6.5 convergence sub-process). Score: 33 (freq=2, crit=4, cplx=3,
     coupling=4, maturity=3, coverage=2).
-23. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Intake workflow — Q0 (workflow selection), build-mode profiles
+23. [FAILED] [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] [PLAN_READY] Intake workflow — Q0 (workflow selection), build-mode profiles
     (production/quick), config verification against target client schema,
     viability pre-check (30% mechanical density threshold), cross-workflow
     deduplication (§6.2, REQ-101). Score: 31 (freq=2, crit=4, cplx=3,
@@ -148,7 +148,7 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     containment (../../etc/passwd rejected, REQ-052), input safety (verbatim
     free-text, no SQL execution, REQ-054). Score: 31 (freq=5, crit=4, cplx=2,
     coupling=1, maturity=4, coverage=3).
-25. Entity personality fields — description, voice, background, goals,
+25. [FAILED] [PLAN_READY] [PLAN_READY] Entity personality fields — description, voice, background, goals,
     voice_examples (up to 5 dialogue snippets), ruleset-native mapping
     (traits/ideals/bonds/flaws → Holonovel fields), voice examples rendering
     before trait descriptions, roster-level storage with Novel overrides
@@ -159,19 +159,19 @@ Tier 2 — core play-surface and build-time infrastructure. Score 22–32.
     verification on load, mismatch in spec_health and stderr, survives
     connection restarts (REQ-040). Score: 30 (freq=5, crit=3, cplx=3,
     coupling=4, maturity=3, coverage=2).
-27. Hat briefing composition — ordered section groups (foundations → anti-slop
+27. [FAILED] [PLAN_READY] Hat briefing composition — ordered section groups (foundations → anti-slop
     → tone → scene → entities → NPCs → countdowns → lore → adventure →
     tools → combat → personality → directive → signals → setup → intro),
     decision-critical boundary, GM-overridable ordering via set_briefing_order,
     empty-source omission (REQ-109/082/062/063/070/071). Score: 29 (freq=5,
     crit=3, cplx=3, coupling=4, maturity=4, coverage=3).
-28. Adventure modules & generation — load_adventure, indexed adventure content
+28. [FAILED] [PLAN_READY] [PLAN_READY] [PLAN_READY] Adventure modules & generation — load_adventure, indexed adventure content
     at adventure://<slug>/<anchor>, hat-filtered (*Keeper only* hidden from
     Player), generate_adventure (premise → title/overview/hook/locations/NPCs/
     encounters), generate_encounter (scene+NPC+lore batch, single undo target),
     novel_setup prompt integration (REQ-079/089/090/091). Score: 29 (freq=3,
     crit=3, cplx=4, coupling=3, maturity=3, coverage=3).
-29. Roll transparency — full calculation path (dice notation, individual faces,
+29. [FAILED] [PLAN_READY] [PLAN_READY] Roll transparency — full calculation path (dice notation, individual faces,
     every modifier with source and signed contribution, total, prose outcome,
     result band when ruleset defines one) (REQ-003). Score: 27 (freq=5,
     crit=3, cplx=2, coupling=2, maturity=4, coverage=3).
