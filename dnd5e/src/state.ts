@@ -130,6 +130,7 @@ export interface NovelState {
   pending_workflow: { decision: string; snapshot: any } | null;
   connection_counter: number;
   pending_staleness_counter: number;
+  pov_mode: "character" | "omniscient";
   help_category_overrides: Record<string, string>;
   metadata: {
     created: string;
@@ -296,8 +297,9 @@ export class StateManager {
       characters_present: false,
       adventure_set: false,
       pending_workflow: null,
-      connection_counter: 0,
-      pending_staleness_counter: 0,
+    connection_counter: 0,
+    pending_staleness_counter: 0,
+    pov_mode: "character",
       help_category_overrides: {},
       metadata: {
         created: new Date().toISOString(),
@@ -383,6 +385,7 @@ export class StateManager {
       pending_workflow: data.pending_workflow ?? null,
       connection_counter: data.connection_counter ?? 0,
       pending_staleness_counter: data.pending_staleness_counter ?? 0,
+      pov_mode: data.pov_mode ?? "character",
       help_category_overrides: data.help_category_overrides ?? {},
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
@@ -976,6 +979,7 @@ function novelToJSON(novel: NovelState): any {
     pending_workflow: novel.pending_workflow,
     connection_counter: novel.connection_counter,
     pending_staleness_counter: novel.pending_staleness_counter,
+    pov_mode: novel.pov_mode,
     help_category_overrides: novel.help_category_overrides,
     metadata: novel.metadata,
   };
@@ -1014,6 +1018,7 @@ function novelFromJSON(data: any): NovelState {
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: data.connection_counter ?? 0,
     pending_staleness_counter: data.pending_staleness_counter ?? 0,
+    pov_mode: data.pov_mode ?? "character",
     help_category_overrides: data.help_category_overrides ?? {},
     metadata: data.metadata ?? {
       created: new Date().toISOString(),

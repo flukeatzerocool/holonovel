@@ -54,7 +54,7 @@ mid-tier. Check for duplicates before adding.
 
 Tier 1 — Score ≥ 35. Break these and the game stops. Sequence by (cplx + coupling) ascending.
 
-1. [RESEARCH] Combat tracking & turn management (player/GM-facing).
+1. [DONE] Combat tracking & turn management (player/GM-facing).
     Spec: REQ-043, REQ-124, Gauntlet S3–S5.
    Research: Inform 7's turn-based action model — how does the parser-sequence "before/check/carry out/after/report" rule ordering compare to Holonovel's round-tracking and condition lifecycle? Are there Inform patterns for handling "the player pressed Attack but should have moved first"?
    Benchmark: LoreKeeper's real-5e initiative tracking vs ChatGPT's freeform combat narration. Where does Holonovel's structured combat fall on the agency-vs-narration spectrum?
@@ -72,14 +72,14 @@ Tier 1 — Score ≥ 35. Break these and the game stops. Sequence by (cplx + cou
 
 Tier 2 — Score 25–34. Important UX; degrades play if broken. Sequence by (cplx + coupling) ascending.
 
-3. [RESEARCH] Narrative POV — player perspective controls for multi-character play (player/GM-facing).
+3. [DONE] Narrative POV — player perspective controls for multi-character play (player/GM-facing).
    Spec: REQ-220, REQ-074, REQ-109.
    Research: Inform 7's "you" is always a single actor — the parser assumes one protagonist and one perspective. Multi-character IF is rare and awkward; the few IF games with party members (Beyond Zork, Sorcerer) use workarounds like "ASK CHARACTER ABOUT TOPIC" rather than true POV switching. How do IF games handle narrative perspective when the player controls multiple characters? What patterns from the text-adventure community's experiments with party-based IF inform Holonovel's POV model where set_active_entity carries narrative consequences?
    Benchmark: ChatGPT-as-GM multi-character sessions — players naturally declare "I want to play from Ripley's point of view" and the AI adjusts narration. Holonovel formalizes this with REQ-220's POV directive in hat_briefing with never-truncate protection. Does making POV a first-class server property prevent the perspective-drift problem reliably, or do players still need to re-declare POV when the AI narration wanders?
    Score: 33 (friction=3, crit=4, freq=3). Cplx: 1, Coupling: 2.
    Risk: If the POV directive is ignored by the AI narrator or overridden by scene context, the player loses narrative immersion — the AI describes what another character sees/feels/thinks, breaking the player's sense of inhabiting a single perspective.
 
-4. [RESEARCH] Workflow decisions & NEED_INPUT interaction (player/GM-facing).
+4. [DONE] Workflow decisions & NEED_INPUT interaction (player/GM-facing).
    Spec: REQ-042, REQ-056, REQ-104, REQ-140, REQ-151, REQ-152.
    Research: Inform 7's "ask/tell/topic" conversation model — IF dialogue works via decision-like branching. What patterns from IF dialogue systems (ASk/Tell, menu-based choice) map to Holonovel's [NEED_INPUT] decision workflow? Do players prefer typed responses or enumerated choices?
    Benchmark: LoreKeeper's character creation wizard (guided steps) vs ChatGPT's freeform character creation (describe your character). Does Holonovel's decision-queue model feel like a form to fill out or a conversation?

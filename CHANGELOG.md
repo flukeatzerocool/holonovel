@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-07 — SPEC-QUEUE items 1, 3, 4 implemented (combat, POV, workflow staleness)
+
+- SPEC-QUEUE items 1 (combat), 3 (Narrative POV), 4 (workflow decisions)
+  now fully implemented in the dnd5e server and marked DONE. Items 2
+  (world-model layer) and 5 (ruleset-free build) remain for the next cycle.
+- Abandoned decision workflows now auto-cancel after a configurable number
+  of connection restarts, restoring pre-workflow state. The staleness
+  threshold is set via `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` (default 5).
+  (REQ-224)
+- `set_active_entity` now accepts an optional `pov` parameter — `character`
+  (locked perspective, default) or `omniscient` (unrestricted narration).
+  The POV mode persists across entity switches and server restarts.
+  (REQ-220, REQ-223)
+- `hat_briefing` now includes a never-truncated POV directive after the
+  scene section. When character-locked, it names the active entity with
+  narrative instruction and personality fields. When omniscient, it
+  displays "POV: none — narration is omniscient."
+- Pending workflow JSON persistence round-trip: `pending_workflow`,
+  `pending_staleness_counter`, and `connection_counter` already serialized.
+  Auto-cancel restoration uses the pre-workflow snapshot when available.
+
 ## 2026-08-07 — Spec queue cleanup and 4 new REQs from research cycle
 
 - Combat-navigation interaction: the world-model layer now blocks parser

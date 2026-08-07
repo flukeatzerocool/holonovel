@@ -540,12 +540,14 @@ server.registerTool("character_sheet", {
 server.registerTool("set_active_entity", {
   title: "Set Active Entity",
   description: "Set the currently active entity.",
-  inputSchema: { entity_id: z.string() },
-}, async ({ entity_id }: any) => {
+  inputSchema: { entity_id: z.string(), pov: z.enum(["character", "omniscient"]).optional() },
+}, async ({ entity_id, pov }: any) => {
   const novel = requireNovel();
   if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
   novel.active_entity_id = entity_id;
-  return ok(`Active entity set to '${entity_id}'.`);
+  if (pov !== undefined) novel.pov_mode = pov;
+  const mode = novel.pov_mode;
+  return ok(`Active entity set to '${entity_id}'${mode === "omniscient" ? " (omniscient POV)" : ""}.`);
 });
 
 server.registerTool("set_personality", {
@@ -2267,6 +2269,17 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 ${novel.scene_description || "None set"}${novel.scene_location ? `\nLocation: ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\nTime of Day: ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\nAtmosphere: ${novel.scene_atmosphere}` : ""}
 Scene Type: ${novel.scene_type.join(", ")}
 
+### POV
+${(() => {
+  const entity = novel.active_entity_id ? novel.entities.get(novel.active_entity_id) : null;
+  if (novel.pov_mode === "omniscient" || !entity) {
+    return "POV: none — narration is omniscient.";
+  }
+  const p = entity.personality;
+  const details = [p?.description, p?.voice, p?.background, p?.goals].filter(Boolean).join(" ");
+  return `POV: ${entity.name} — describe the scene through this character's eyes and senses. Other characters' internal states are inaccessible unless ${entity.name} could observe or infer them.${details ? `\nVoice: ${details}` : ""}`;
+})()}
+
 ### Combat${state.combatReport(novel)}
 
 ### Entities
@@ -2424,10 +2437,27 @@ async function main() {
   }
 
   // Increment connection counter on all loaded novels (REQ-173)
+  const stalenessThreshold = parseInt(process.env.TTRPG_WORKFLOW_STALENESS_CONNECTIONS ?? "0", 10) || 5;
   for (const [, novel] of state.novels) {
     novel.connection_counter = (novel.connection_counter ?? 0) + 1;
     if (novel.pending_workflow) {
       novel.pending_staleness_counter = (novel.pending_staleness_counter ?? 0) + 1;
+      if (stalenessThreshold > 0 && novel.pending_staleness_counter >= stalenessThreshold) {
+        const decisionText = novel.pending_workflow.decision;
+        const elapsed = novel.pending_staleness_counter;
+        if (novel.pending_workflow.snapshot) {
+          Object.assign(novel, novel.pending_workflow.snapshot);
+        }
+        state.audit(novel, novel.hat, "respond", {
+          decision: decisionText,
+          option: "[auto-cancel: stale]",
+          tag: "[workflow_stale]",
+          connections_elapsed: elapsed,
+        });
+        novel.pending_workflow = null;
+        novel.pending_staleness_counter = 0;
+        console.error(`Auto-cancelled stale workflow '${decisionText}' after ${elapsed} connections`);
+      }
     }
   }
 
