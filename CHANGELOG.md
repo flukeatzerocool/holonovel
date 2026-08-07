@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-08-07 — Contract hardening across intake, audit, briefing, and personality subsystems
+
+- Strengthened the intake workflow with REQ contracts for workflow selection,
+  build-mode profiles, config verification, and mechanical-density pre-checks.
+  Restored the missing B8 spec-repository-URL question and disambiguated the
+  overloaded "quick" term into quick-create (character creation) and quick-build
+  (build mode). (REQ-161–164)
+- Defined entity ownership for personality gating and added explicit rendering
+  contracts for personality fields in hat_briefing and personality resource
+  URIs. Voice examples and NPC personality now carry clear hat gates.
+  (REQ-165–167)
+- Specified the audit://novel resource contract, a concrete boundary-violation
+  marker format, compress_audit output structure, audit-chain integrity
+  reporting in spec_health, and full-structure audit log export depth.
+  (REQ-168–169, amended REQ-133/086/096)
+- Completed the hat_briefing decision-critical boundary — all 16 groups are
+  now classified, truncation respects three priority tiers (never/last/first),
+  and the section-token-to-group mapping must be documented in DECISIONS.md.
+  (amended REQ-109/135/082)
+- Hardened adventure modules with a load_adventure error contract, an
+  adventure discovery surface in spec_health, content validation against
+  Appendix K, post-build drift detection, URI consistency with generated
+  adventures, and search_rules confidence-level integration.
+  (REQ-170–172, amended REQ-090/079)
+- Expanded roll transparency to require discarded-die reporting in
+  advantage/disadvantage rolls and per-source modifier decomposition — never
+  collapsing to a bare aggregate. Added a concrete O.1 behavioral example.
+  (amended REQ-003)
+- Replaced signal age timestamps with a persistent connection counter that
+  survives restarts, giving accurate "set N connections ago" deltas and
+  compound signal entries matching the audit-log schema. (REQ-173,
+  amended REQ-069/128)
+- Rewrote the session recap contract to mandate a structured output with 14
+  named fields, entity status derivation from HP/death mechanics, significant-
+  roll criteria, audit-log-derived confrontation summaries, and configurable
+  max_transitions/max_rolls parameters. (REQ-174–175, amended REQ-072)
+- Added entity and roster-entity removal tools, entity/roster cardinality
+  limits matching the existing property-group enforcement pattern, a roster
+  listing tool and resource surface, and a duplicate import guard preventing
+  silent entity duplication within a Novel. (REQ-176–178, amended
+  REQ-074/129)
+
 ## 2026-08-07 — Split spec into 10 source files with per-phase builder loading
 
 - Split the monolithic `holonovel.md` (5,300+ lines) into 10 source files

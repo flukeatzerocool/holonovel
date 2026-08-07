@@ -71,16 +71,17 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B9  | Build mode                   | production / quick                | production          |
+| B8  | Where is the Holonovel spec repository? | URL                    | <https://github.com/anomalyco/Holonovel> |
+| B9  | Build mode                   | production / quick-build           | production          |
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
 verification on every file, cross-model auditing when available, and the full
-Gauntlet (§6.6). The Gauntlet gates both modes. `quick` mode narrows the
+Gauntlet (§6.6). The Gauntlet gates both modes. `quick-build` mode narrows the
 overhead rituals: skips the assumption audit and auditor pre-flight, scopes
 post-write verification to critical files (DECISIONS.md, MCP client config,
 on-disk Novel state), and accepts same-model audits. The Gauntlet still gates
-— any build that creates or modifies tools must pass it. Quick mode is for
+— any build that creates or modifies tools must pass it. Quick-build mode is for
 inner-loop iteration; the server is runnable but not handoff-ready. A
 quick-mode build records a `quick-build` annotation in DECISIONS.md (6).
 
@@ -444,7 +445,7 @@ one model is available for both construction and audit — records a
 `single-model-audit` annotation in DECISIONS.md (6). This annotation is
 informational and does not block handoff; it alerts the operator that
 same-model auditing may miss defect classes a cross-model audit would catch.
-In `quick` mode, same-model audits are acceptable; the builder records a
+In `quick-build` mode, same-model audits are acceptable; the builder records a
 `quick-build` annotation in DECISIONS.md (6) in place of any cross-model
 requirement.
 
@@ -480,7 +481,7 @@ order; (b) no path corruption — search for doubled directory components and mi
 slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
 convergence finding and triggers a fix + re-read iteration. In `production` mode
 this check applies to every file write: source code, test scripts, README,
-DECISIONS.md, and MCP client configuration. In `quick` mode it applies to
+DECISIONS.md, and MCP client configuration. In `quick-build` mode it applies to
 critical files only: DECISIONS.md, the MCP client configuration, and the on-disk
 Novel state file. (d) **completeness** — the builder maintains a file manifest
 (list of expected output files recorded after construction planning). The
@@ -529,12 +530,12 @@ fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 exits with all Gauntlet sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
 ruleset-facing verification workflows (G0 step 2 and G4) pass. The Gauntlet
-gates both `production` and `quick` builds — any build that creates or modifies
+gates both `production` and `quick-build` builds — any build that creates or modifies
 tools must pass the Gauntlet before marking complete. In `production` mode
 the build additionally requires the assumption audit (REQ-101), the audit steps
 with auditor pre-flight (§6.5), full post-write verification on every file
 (§6.5), and cross-model auditing when available (§6.5.2). These are optional in
-`quick` mode; a quick-mode build records a `quick-build` annotation in
+`quick-build` mode; a quick-build-mode build records a `quick-build` annotation in
 DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
 Marking a workflow complete without a passing Gauntlet is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
