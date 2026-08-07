@@ -269,10 +269,10 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212           | 16    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215           | 18    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152                         | 6     |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159            | 14    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216            | 15    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156 | 27    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
@@ -772,6 +772,30 @@ network access (the default per REQ-051). A server configured with network
 access SHALL set `openWorldHint: true` on tools whose output depends on
 external content.
 
+**REQ-214 — Table classification.** Every table extracted from the ruleset SHALL
+carry a `type` field of `generation` or `lookup`. A generation table contains at
+least one dice-range-to-result row and is registered under `roll_on_table`. A
+lookup table contains only deterministic reference data and is registered as a
+`lookup_<category>` tool or served via `ruleset://` resources. A table containing
+any dice-range row is a generation table — generation and lookup rows SHALL NOT
+coexist in the same registered tool entry.
+
+When the ruleset contains zero generation tables, `roll_on_table` SHALL be
+registered with an empty domain and return `[NOT_FOUND]` with a clear "no random
+generation tables in this ruleset" message on any call. The tool description
+SHALL reflect this — it SHALL NOT advertise canonical table names that resolve to
+nothing. When the ruleset contains at least one generation table, `roll_on_table`
+SHALL enumerate valid table names in its input schema dynamically from the
+ruleset model.
+
+*Acceptance criterion:* Building for D&D 5e produces a `roll_on_table` whose
+`table` parameter enumerates only generation tables (trinkets, madness tables,
+wand of wonder, etc.) — not lookup tables (ability_modifiers, difficulty_classes).
+Building for a ruleset with zero generation tables registers `roll_on_table` with
+an empty domain and a "no tables" response.
+
+*Check:* T255.
+
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
 guidance items, each with attribution, confidence, and hat scope. Guidance is quoted
@@ -843,6 +867,32 @@ within the same chunk resolves that reference against the Concept inventory. A r
 a Concept term not yet extracted produces a deferred-reference annotation which resolves
 after cross-chunk resolution.
 _Check:_ T173.
+
+**REQ-215 — Table content extraction.** The builder SHALL extract generation table
+content from the ruleset and register it as `roll_on_table` entries. For each
+generation table, the builder SHALL produce: a canonical `key` (snake_case slug
+derived from the source heading), a `dice_expression`, a `ranges` array
+(min/max/result tuples), a `hat_scope` (derived from source location — tables in
+GM-only chapters are `game_master`, otherwise `shared`), and a `source_anchor`
+(heading and file path). Table content extraction follows the same confidence
+labeling and traceability rules as other extraction categories (REQ-011,
+REQ-010).
+
+The builder SHALL detect dice-range tables from Markdown table cells containing
+`d100`, `d%`, `d8`, `d20`, or explicit numeric ranges (`01-10`, `11-25`). A row
+whose first column is a numeric range is a generation result row. A row whose
+first column is a name or label (not a numeric range) is a lookup row. Each
+generation table entry SHALL be stored in the ruleset model under
+`generation_tables` with its full content, and the server SHALL serve it via
+`roll_on_table` at runtime.
+
+*Acceptance criterion:* The D&D 5e build extracts at minimum the Short-Term
+Madness, Long-Term Madness, Indefinite Madness, Reincarnate Race, Wand of Wonder,
+and Trinkets tables. Each table entry includes dice_expression, ranges with
+result text, and a source_anchor. `spec_health` reports the count of extracted
+generation tables.
+
+*Check:* T256.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G: layout-aware extraction,
@@ -1570,6 +1620,22 @@ endpoints return full content and all tools are callable.
 switching back and calling again returns `[FORBIDDEN]`.
 _Check:_ T9, T13, T15, T18,
 T26, T44, T148, T151.
+
+**REQ-216 — Generation table hat filtering.** `roll_on_table` SHALL be callable
+from both hats, but tables with `hat_scope: "game_master"` SHALL return
+`[FORBIDDEN]` when called from the Player hat — the error SHALL enumerate the
+full table name but SHALL NOT reveal table content. The `hat_scope` value SHALL
+be visible in `spec_health` per-table metadata but the table content SHALL NOT.
+The `hat_briefing` SHALL enumerate available table names with their hat_scope,
+filtered per the active hat's access level. The error message SHALL direct the
+caller to `hat_briefing` for a non-revealing list of accessible tables.
+
+*Acceptance criterion:* `roll_on_table("madness_short_term")` called from the
+Player hat returns `[FORBIDDEN]` with the table name visible but no content; the
+same call from the Game Master hat returns the table result. `hat_briefing` under
+the Player hat lists only `hat_scope: "shared"` table names.
+
+*Check:* T257.
 
 **REQ-133 — Forbidden-call audit.** Every tool invocation that returns
 `[FORBIDDEN]` is recorded in the audit log with timestamp, active hat, tool
@@ -2642,6 +2708,28 @@ shall produce identical event sequences for identical tool-call sequences.
 d20 face on two separate server restarts; a per-call seed does not advance the
 session PRNG position.
 _Check:_ Gate 2, T27, T111.
+
+**REQ-213 — Weighted table result mapping.** When a generation table defines a
+dice-range-to-result mapping, `roll_on_table` SHALL roll the specified dice
+expression, match the result against the defined ranges, and return the matched
+result row. The output SHALL include: (a) the dice notation (e.g., `d100`),
+(b) the individual die face rolled, and (c) the matched range with its result
+text. When a roll falls outside all defined ranges, the tool SHALL return
+`[WARNING]` with the raw roll and a "no range matched" message — the tool SHALL
+NOT silently return a bare number.
+
+A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a
+list of `ranges` (each with `min`, `max`, `result`), and an optional `hat_scope`
+(`game_master` or `shared`, default `shared`). A generation table SHALL NOT
+interleave dice-range rows with static lookup rows — tables are classified as
+either generation or lookup at extraction; a table containing any dice-range row
+is a generation table.
+
+*Acceptance criterion:* `roll_on_table(table="wand_of_wonder", seed="42")`
+produces the same result row on two separate server restarts, with output
+including dice notation, individual die face, matched range, and result text.
+
+*Check:* T254.
 
 **REQ-157 — Combat determinism.** Combat initiative for dangers is drawn from the
 same PRNG as all other random draws (REQ-050). `init_combat` accepts an optional
@@ -5502,6 +5590,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-110 | Tool surface consolidation | 2026-08-06   |
 | REQ-111 | Search result quality     | 2026-08-07   |
 | REQ-212 | Generation table rolling  | 2026-08-07   |
+| REQ-213 | Weighted table result mapping | 2026-08-07   |
 | REQ-112 | Cross-reference discovery | 2026-08-06   |
 | REQ-113 | Result count reporting    | 2026-08-06   |
 | REQ-114 | Suggestion coverage       | 2026-08-06   |
@@ -5596,6 +5685,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-209 | Cross-format consistency     | 2026-08-07 |
 | REQ-210 | Extraction categories        | 2026-08-07 |
 | REQ-211 | Evidence record field contract | 2026-08-07 |
+| REQ-214 | Table classification         | 2026-08-07 |
+| REQ-215 | Table content extraction     | 2026-08-07 |
+| REQ-216 | Generation table hat filtering | 2026-08-07 |
 
 ---
 
@@ -5848,6 +5940,10 @@ diet.
 | T251  | Automated | Core-mechanic identification: build against the Captain Proton fixture (known core mechanic: d20 + stat vs target number). Assert the builder correctly identifies the core resolution mechanic. Assert DECISIONS.md (5) records the criterion used (a, b, or c from REQ-207) alongside the identified mechanic. Assert the core mechanic's confidence meets the ≥85% threshold. | REQ-207 |
 | T252  | Automated | Cross-format consistency: after extraction, sample 10 items at random from RULESET_MODEL.md and ruleset_model.json — spanning at least three extraction categories. Assert all 10 items agree on name, source anchor, confidence label, and action classification across both formats. Introduce a deliberate mismatch — assert it is flagged as a discovery defect and recorded in the defect log with both values. Assert the build does not proceed to construction until the mismatch is resolved. | REQ-209 |
 | T253  | Automated | Evidence record field contract: parse DECISIONS.md (6). Assert every evidence record contains workflow identifier, timestamp, environment pins (runtime version, OS, spec hash), pass/fail status, and a findings section with per-sub-check enumeration. Assert G0 records enumerate Appendix H and Appendix D items individually. Assert G2 records include per-contract coverage enumeration. Assert G4 records include per-test pass/fail counts. Assert G5 records include per-sub-workflow verdicts with blocking/non-blocking classification. | REQ-211 |
+| T254  | Automated | Weighted table result: invoke `roll_on_table("wand_of_wonder", seed="42")` with a fixture table defining 1d100 → { 1-10: "Fireball", 11-20: "Stinking Cloud" }. Assert output includes dice notation, individual die face, matched range, and result text. Assert repeat with same seed produces identical result. Assert roll falling outside all ranges returns `[WARNING]` with raw roll and "no range matched" message. Assert table with interleaved lookup/dice-range rows is classified as generation-only. | REQ-213 |
+| T255  | Automated | Table classification: invoke `roll_on_table` with a lookup-table name — assert the lookup table is not accessible through `roll_on_table`. Assert `roll_on_table.table` enum contains only generation tables; assert no lookup table appears in the enum; assert the D&D 5e build includes trinkets, madness tables, and at least one equipment/spell d100 table; assert a fixture ruleset with zero generation tables returns `[NOT_FOUND]` with a "no tables" message. | REQ-214 |
+| T256  | Automated | Table content extraction: assert `spec_health` reports `generation_tables` count ≥ 6 for D&D 5e; assert each entry has dice_expression, ranges, and source_anchor; assert `roll_on_table("trinkets", seed="42")` returns a valid trinket from the SRD trinket list, not a bare d100 number. | REQ-215 |
+| T257  | Automated | Hat filtering for generation tables: assert GM-only generation table returns `[FORBIDDEN]` under Player hat with table name visible; assert shared table returns result under both hats; assert Player hat_briefing hides GM-only table names. | REQ-216 |
 
 ---
 

@@ -81,9 +81,21 @@ existing entries:
    If KB has fresh implementation analysis for this subsystem, read it first.
 
 5. **RUN WEB CALIBRATION.** Search for:
-   - How MCP servers for TTRPGs handle this subsystem (competitor approaches)
+   - How AI-assisted roleplaying tools and platforms handle this subsystem
+     (MCP servers, AI Dungeon-style narrative engines, AI GM assistants,
+     AI NPC companions)
    - Current best practices for this domain (2025-2026)
-   - How tabletop RPG gamers and GMs think about this subsystem
+   - How different play formats stress this subsystem differently:
+     * In-person tabletop — fast lookup, GM adjudication aid
+     * Video chat / remote — latency-sensitive, voice-friendly output
+     * Virtual tabletops (Foundry, Roll20) — token/map integration,
+       module loading
+     * Play by post (forum/Discord) — state persistence across long gaps,
+       recap importance
+     * Solo play — single-player + AI GM dynamics
+     * Text adventure players and developers (including Inform 7) —
+       parser-driven interaction, world-model consistency, procedural
+       generation expectations
    Cross-reference web findings with codebase findings. Flag contradictions.
    If KB has fresh cached web findings, use those — search only for queries
    not already covered. If no relevant web or KB results, note it — do not

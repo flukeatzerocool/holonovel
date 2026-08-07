@@ -40,7 +40,7 @@ marker() {
 
 clear_marker() {
   local num="$1"
-  sed -i "s/^${num}\. \[[A-Z_]*\] /${num}. /" "$SPEC_QUEUE"
+  sed -i "s/^${num}\. \(\[[A-Z_]*\] \)*/${num}. /" "$SPEC_QUEUE"
 }
 
 # ── cmd_status: list all items with marker state ─────────────────────────
@@ -57,6 +57,7 @@ cmd_status() {
     [[ "$rest" =~ \[REJECTED\] ]] && marker_type="REJECTED"
     [[ "$rest" =~ \[FAILED\] ]] && marker_type="FAILED"
     [[ "$rest" =~ \[DONE\] ]] && marker_type="DONE"
+    [[ "$rest" =~ \[JOB\] ]] && marker_type="JOB"
     desc=$(echo "$rest" | sed 's/^[0-9]\+\. \[[A-Z_]*\] //')
     case "$marker_type" in
       RESEARCH)   echo -e "${YELLOW}$num. [RESEARCH]${NC}   $desc" ;;
@@ -65,6 +66,7 @@ cmd_status() {
       REJECTED)   echo -e "${RED}$num. [REJECTED]${NC}   $desc" ;;
       FAILED)     echo -e "${RED}$num. [FAILED]${NC}     $desc" ;;
       DONE)       echo -e "${GREEN}$num. [DONE]${NC}       $desc" ;;
+      JOB)        echo -e "${YELLOW}$num. [JOB]${NC}        $desc" ;;
       *)          echo "  $num.              $desc" ;;
     esac
   done
@@ -76,7 +78,55 @@ cmd_status() {
 
 cmd_execute() {
   local auto_mode=false
-  [[ "${1:-}" == "--auto" ]] && auto_mode=true
+  local force_sync=false
+  for arg in "$@"; do
+    [[ "$arg" == "--auto" ]] && auto_mode=true
+    [[ "$arg" == "--force-sync" ]] && force_sync=true
+  done
+
+  # ── ad-hoc jobs (executed first, skips research phase) ─────────────────
+
+  local job_nums=()
+  while IFS= read -r line; do
+    num=$(echo "$line" | grep -Po '^\d+')
+    [[ -n "$num" ]] && job_nums+=("$num")
+  done < <(grep '\[JOB\]' "$SPEC_QUEUE")
+
+  if [[ ${#job_nums[@]} -gt 0 ]]; then
+    echo -e "${YELLOW}Processing ${#job_nums[@]} ad-hoc job(s)...${NC}"
+    echo ""
+
+    for num in "${job_nums[@]}"; do
+      local job_plan=""
+      job_plan=$(sed -n "/^${num}\. \[JOB\]/s/.*plan: //p" "$SPEC_QUEUE" | tr -d ' ')
+      [[ -z "$job_plan" ]] && { echo -e "${RED}Job $num: missing plan: pointer${NC}"; continue; }
+
+      # Resolve relative plan path
+      [[ "$job_plan" != /* ]] && job_plan="$PROJECT_DIR/$job_plan"
+      if [[ ! -f "$job_plan" ]]; then
+        echo -e "${RED}Job $num: plan file not found — $job_plan${NC}"
+        marker "$num" "FAILED"
+        continue
+      fi
+
+      echo -e "${YELLOW}── Job $num ──${NC}"
+      marker "$num" "EXECUTING"
+
+      # Copy plan to location execute expects
+      cp "$job_plan" "$PLANS_DIR/item-${num}-output.txt"
+
+      if "$PROJECT_DIR/scripts/spec-queue-execute.sh" "$num"; then
+        sed -i "/^${num}\. /d" "$SPEC_QUEUE"
+        echo -e "${GREEN}Job $num: DONE and removed from queue${NC}"
+      else
+        marker "$num" "FAILED"
+        echo -e "${RED}Job $num: FAILED (see execute log)${NC}"
+      fi
+      echo ""
+    done
+  fi
+
+  # ── research-derived items ─────────────────────────────────────────────
 
   echo -e "${YELLOW}Reviewing pending plans...${NC}"
   echo ""
@@ -91,8 +141,14 @@ cmd_execute() {
   )
 
   if [[ ${#items[@]} -eq 0 ]]; then
-    echo -e "${RED}No items with [PLAN_READY] marker. Run 'research' first.${NC}"
-    exit 1
+    local jobs_processed=""
+    jobs_processed=$(grep -c '\[JOB\]' "$SPEC_QUEUE" 2>/dev/null); jobs_processed=${jobs_processed:-0}
+    if [[ $jobs_processed -eq 0 ]]; then
+      echo -e "${YELLOW}No items to execute.${NC}"
+    else
+      echo -e "${YELLOW}Jobs processed; no additional items to execute.${NC}"
+    fi
+    exit 0
   fi
 
   echo -e "${GREEN}${#items[@]} item(s) awaiting review:${NC}"
@@ -181,18 +237,40 @@ EOF
 
   # ── sync ──────────────────────────────────────────────────────────────
 
+  local sync_counter_file="$PLANS_DIR/.sync-counter"
+  local sync_threshold="${TTRPG_SYNC_THRESHOLD:-3}"
+  local sync_count=0
+  [[ -f "$sync_counter_file" ]] && sync_count=$(cat "$sync_counter_file" 2>/dev/null || echo 0)
+  sync_count=$((sync_count + ${#approved[@]}))
+
+  local queue_remaining=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+  local queue_plan_ready=$(grep -c '\[PLAN_READY\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+  local queue_exhausted=false
+  [[ $queue_remaining -eq 0 ]] && [[ $queue_plan_ready -eq 0 ]] && queue_exhausted=true
+
+  local do_sync=false
+  if $force_sync || $queue_exhausted || [[ $sync_count -ge $sync_threshold ]]; then
+    do_sync=true
+  fi
+
   echo ""
-  echo -e "${YELLOW}── Checking server/spec sync ──${NC}"
-  if npm run spec-delta --silent 2>/dev/null; then
-    echo -e "${GREEN}Sync: server already in sync — skipped${NC}"
-  else
-    echo -e "${YELLOW}── Delta detected — running spec-queue-sync (holonovel-update) ──${NC}"
-    if "$PROJECT_DIR/scripts/spec-queue-sync.sh"; then
-      echo -e "${GREEN}Sync: DONE${NC}"
+  if $do_sync; then
+    echo -e "${YELLOW}── Checking server/spec sync (${sync_count} item(s) since last sync) ──${NC}"
+    if npm run spec-delta --silent 2>/dev/null; then
+      echo -e "${GREEN}Sync: server already in sync — skipped${NC}"
     else
-      echo -e "${RED}Sync: FAILED — spec changes applied but dnd5e server not synced. Re-run sync manually.${NC}"
-      exit 1
+      echo -e "${YELLOW}── Delta detected — running spec-queue-sync (holonovel-update) ──${NC}"
+      if "$PROJECT_DIR/scripts/spec-queue-sync.sh"; then
+        echo -e "${GREEN}Sync: DONE${NC}"
+      else
+        echo -e "${RED}Sync: FAILED — spec changes applied but dnd5e server not synced. Re-run sync manually.${NC}"
+        exit 1
+      fi
     fi
+    echo 0 > "$sync_counter_file"
+  else
+    echo "$sync_count" > "$sync_counter_file"
+    echo -e "${YELLOW}Sync deferred — ${sync_count} of ${sync_threshold} items since last sync. Use --force-sync to override.${NC}"
   fi
 
   # ── validate ──────────────────────────────────────────────────────────
@@ -311,17 +389,18 @@ cmd_run_all() {
     echo ""
 
     # Count items by state
-    local unstarted=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-    local plan_ready=$(grep -c '\[PLAN_READY\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-    local in_flight=$(grep -cE '\[RESEARCH\]|\[EXECUTING\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-    local done=$(grep -c '\[DONE\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-    local terminal=$(grep -cE '\[REJECTED\]|\[FAILED\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+    local unstarted=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null); unstarted=${unstarted:-0}
+    local plan_ready=$(grep -c '\[PLAN_READY\]' "$SPEC_QUEUE" 2>/dev/null); plan_ready=${plan_ready:-0}
+    local in_flight=$(grep -cE '\[RESEARCH\]|\[EXECUTING\]' "$SPEC_QUEUE" 2>/dev/null); in_flight=${in_flight:-0}
+    local done=$(grep -c '\[DONE\]' "$SPEC_QUEUE" 2>/dev/null); done=${done:-0}
+    local terminal=$(grep -cE '\[REJECTED\]|\[FAILED\]' "$SPEC_QUEUE" 2>/dev/null); terminal=${terminal:-0}
+    local jobs=$(grep -c '\[JOB\]' "$SPEC_QUEUE" 2>/dev/null); jobs=${jobs:-0}
 
-    echo "  Unstarted: $unstarted | Plan-ready: $plan_ready | In-flight: $in_flight | Done: $done | Terminal: $terminal"
+    echo "  Unstarted: $unstarted | Jobs: $jobs | Plan-ready: $plan_ready | In-flight: $in_flight | Done: $done | Terminal: $terminal"
     echo ""
 
     # Exit condition: nothing left to process
-    if [[ $unstarted -eq 0 ]] && [[ $plan_ready -eq 0 ]] && [[ $in_flight -eq 0 ]]; then
+    if [[ $unstarted -eq 0 ]] && [[ $jobs -eq 0 ]] && [[ $plan_ready -eq 0 ]] && [[ $in_flight -eq 0 ]]; then
       echo -e "${GREEN}Queue exhausted.${NC}"
       echo ""
       echo -e "${GREEN}Results: $done items DONE, $terminal items terminal${NC}"
@@ -329,8 +408,8 @@ cmd_run_all() {
       break
     fi
 
-    # If plan-ready items exist, execute them first
-    if [[ $plan_ready -gt 0 ]]; then
+    # If jobs or plan-ready items exist, execute them first
+    if [[ $jobs -gt 0 ]] || [[ $plan_ready -gt 0 ]]; then
       echo -e "${YELLOW}Executing $plan_ready plan-ready item(s)...${NC}"
       if cmd_execute "--auto"; then
         echo ""
@@ -422,12 +501,12 @@ case "${1:-}" in
     exec "$PROJECT_DIR/scripts/spec-queue-runner.sh" --watch "${@}"
     ;; 
   *)
-    echo "Usage: $0 {research [N] [--notify]|watch [interval]|status|execute [--auto]|run-all [N]}"
+    echo "Usage: $0 {research [N] [--notify]|watch [interval]|status|execute [--auto] [--force-sync]|run-all [N]}"
     echo ""
     echo "  research [N] [--notify]  Launch N sessions + watch (--notify: background)"
     echo "  watch [secs]   Poll progress until all sessions complete (default 30s)"
     echo "  status         List all SPEC-QUEUE items with marker state"
-    echo "  execute [--auto]  Review plans → approve → apply → sync → commit (--auto: approve all)"
+    echo "  execute [--auto] [--force-sync]  Review plans → approve → apply → sync → commit (--auto: approve all, --force-sync: sync regardless of counter)"
     echo "  run-all [N]    Full-auto pipeline: research → execute → repeat until queue exhausted"
     echo "                  Interrupt-safe — re-run to resume from current queue state"
     exit 1

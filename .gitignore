@@ -7,10 +7,7 @@ opencode-raw-*.log
 dnd5e/node_modules/
 dnd5e/.holonovel-state/
 dnd5e/.holonovel-oce-state/
-.holonovel-state/knowledge-base/web/
-.holonovel-state/knowledge-base/spec/
-.holonovel-state/knowledge-base/implementation/
-.holonovel-state/queue-plans/
-.holonovel-state/wiki/
+.holonovel-state/*
+!.holonovel-state/knowledge-base/INDEX.md
 *.bak
 plans/

@@ -60,9 +60,9 @@ Corrective action: <action>
 
 | Convention | Rule | Source |
 |-----------|------|--------|
-| Naming | `snake_case`, ruleset terminology, one verb per category | REQ-020, REQ-024 |
+| Naming | `snake_case`, ruleset terminology, one verb per category — every tool in a related operation set shares the same verb prefix (e.g., all dice-resolution tools use `roll_`, all state-setting tools use `set_`). When the ruleset uses an abbreviated term (e.g., "save" for "saving throw"), the tool name SHALL use the ruleset's most common form of that term. Display titles are human-readable expansions. | REQ-020, REQ-024 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
-| Annotations | Resolution→`idempotentHint`, Command→`destructiveHint`, Generation→both | REQ-015 |
+| Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
 ### 7.5 Decisions and workflows
 

@@ -297,6 +297,7 @@ done < <(
     | grep -v '\[EXECUTING\]' \
     | grep -v '\[REJECTED\]' \
     | grep -v '\[FAILED\]' \
+    | grep -v '\[JOB\]' \
     | sed 's/^[0-9]*:\([0-9]*\)\. /\1|/' \
     | head -n "$MAX_PARALLEL"
 )
