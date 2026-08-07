@@ -736,6 +736,24 @@ classification — `idempotentHint` for read-only and state-reading, `destructiv
 for command, both for generation and hybrid.
 _Check:_ T15.
 
+The builder SHALL classify every registered tool according to the following
+table. Every tool in `tools/list` falls into exactly one classification row.
+When a tool's behavior spans two rows, the builder SHALL apply the higher-impact
+classification (command overrides state-reading, hybrid overrides generation).
+
+| Classification   | Tool examples                              | `idempotentHint` | `destructiveHint` | `readOnlyHint` | `openWorldHint` |
+|------------------|--------------------------------------------|-------------------|--------------------|----------------|-----------------|
+| read-only        | `help`, `spec_health`                     | `true`            | `false`            | `true`         | `false`         |
+| state-reading    | `character_sheet`, `session_recap`        | `true`            | `false`            | `false`        | `false`         |
+| command          | `create_character`, `set_scene_state`     | `false`           | `true`             | `false`        | `false`         |
+| generation       | `generate_adventure`, `roll_on_table`     | `false`           | `false`            | `false`        | `false`         |
+| hybrid           | `generate_encounter`, `roll_weapon_damage`| `false`           | `true`             | `false`        | `false`         |
+
+The `openWorldHint` is `false` for all tools when the server operates without
+network access (the default per REQ-051). A server configured with network
+access SHALL set `openWorldHint: true` on tools whose output depends on
+external content.
+
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
 guidance items, each with attribution, confidence, and hat scope. Guidance is quoted
@@ -838,7 +856,17 @@ narrative state, NPC management, countdowns, dynamic lore, entity and roster
 management, personality, briefing ordering, export and import (Novel and
 lorebook), search and action suggestions, adventure and encounter generation,
 session tools, utility (`help`, `spec_health`), and enrichment reversion. These
-categories are never waived. Tools whose results depend on indexed ruleset
+categories are never waived.
+
+The `help` tool SHALL present these infrastructure categories as the base
+grouping for its task map. The builder MAY subdivide or rename categories for
+runtime display, but every tool in the infrastructure enumeration SHALL appear
+under exactly one help category. The mapping from infrastructure category to
+help category name SHALL be recorded in DECISIONS.md. Help category names are
+advisory — the GM may override them (REQ-067) — but the infrastructure
+classification is immutable.
+
+Tools whose results depend on indexed ruleset
 content (`search_rules`, `suggest_actions`, `generate_adventure`,
 `generate_encounter`) produce empty or context-only results when that content is
 absent — they are not absent from the tool surface.
@@ -897,6 +925,19 @@ term for that action. Annotations match action classification.
 for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not
 "lookup_weapon."
 _Check:_ T3, T35, T39.
+
+The `description` field SHALL follow a three-clause structure: a one-line summary
+of the tool's action (verb + object), a "Use when:" clause naming concrete
+scenarios that select this tool, and a "Do NOT use when:" clause naming sibling
+tools the caller should prefer for similar-sounding requests. Descriptions longer
+than three sentences are truncated in `tools/list`; the full text remains
+available at `resources/read`.
+
+*Acceptance criterion:* Every tool's description contains all three clauses;
+overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name
+each other in their disambiguation clauses; a verifier can map a natural-language
+player intent to the correct tool using only the tool descriptions.
+_Check:_ T3, T49.
 
 **REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
 (per-file and overall), conversion fidelity (per-content-type rates, overall rate,
@@ -1650,6 +1691,21 @@ GM-filtered output contains exactly the tools classified as GM or un-gated;
 `set_hat` is always present in both lists. No tool is classified as both
 Player-only and GM-only.
 _Check:_ T151.
+
+The classification table in DECISIONS.md SHALL enumerate every registered tool
+with the format:
+
+| Tool name          | Gate       | Hat visibility         |
+|--------------------|------------|------------------------|
+| `set_hat`          | un-gated   | Player, Game Master    |
+| `init_combat`      | GM-only    | Game Master            |
+| `character_sheet`  | Player     | Player                 |
+
+The `tools/list` output filtered by each hat SHALL match the Gate column of
+this table. A tool added after the initial build SHALL append a new row within
+the same DECISIONS.md section before the server restarts. Helper tools that
+exist solely to support other tools (e.g., `respond`) inherit the gate of
+the tool they service.
 
 **REQ-148 — Structural integrity gate.** _(F1)_ The ruleset source SHALL pass all
 blocking items in the Appendix H checklist before discovery proceeds. A failed
@@ -4305,7 +4361,7 @@ Corrective action: <action>
 
 | Convention | Rule | Source |
 |-----------|------|--------|
-| Naming | `snake_case`, ruleset terminology, one verb per category | REQ-020, REQ-024 |
+| Naming | `snake_case`, ruleset terminology, one verb per category — every tool in a related operation set shares the same verb prefix (e.g., all dice-resolution tools use `roll_`, all state-setting tools use `set_`). When the ruleset uses an abbreviated term (e.g., "save" for "saving throw"), the tool name SHALL use the ruleset's most common form of that term. Display titles are human-readable expansions. | REQ-020, REQ-024 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
 | Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 

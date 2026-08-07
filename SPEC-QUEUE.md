@@ -321,7 +321,6 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: No competitor has a structured guidance surface distinct from the GM prompt. Holonovel's guidance:// URIs are the "rulebook" of AI narration — does anyone actually read them?
     Score: 22 (friction=2, crit=2, freq=3). Cplx: 2, Coupling: 3.
 
-46. Tool-surface conventions — naming, parameterization, annotations, infrastructure tool categories.
     Spec: REQ-020, REQ-021, REQ-024, REQ-015, REQ-110, REQ-187.
     Research: Inform 7's action model — every verb (TAKE, DROP, EXAMINE, GO) has a standard behavior that authors customize. How does IF's verb-naming convention (imperative, ruleset-native, discoverable) inform Holonovel's tool-naming? When does roll_skill_check feel mechanical vs attempt_stealth feel immersive?
     Benchmark: MCP tool naming is inherently technical (snake_case, flat namespace). Does the Player ever type tool names directly? If not, naming conventions only affect the LLM's tool selection — not the player.
@@ -339,7 +338,7 @@ Tier 3 — Score ≤ 24. Quality-of-life and build-time infrastructure. Sequence
     Benchmark: ChatGPT-as-GM prompts are static templates. Holonovel's prompts are live-composed from 5 data sources — unique in the space. Does dynamic composition produce better or worse prompts than a curated template?
     Score: 22 (friction=2, crit=2, freq=3). Cplx: 3, Coupling: 4.
 
-49. Condition lifecycle — apply, remove, ruleset triggers, combat integration, expire by mechanics.
+49. [FAILED] Condition lifecycle — apply, remove, ruleset triggers, combat integration, expire by mechanics.
     Spec: §5.6 condition tools, REQ-043, Gauntlet S9.
     Research: Inform 7 doesn't have "conditions" in the TTRPG sense — but it has "properties that change over time" (poisoned, lit, open). How does IF's model of mutable object properties compare to Holonovel's condition system? What makes a condition system feel like the rules are being followed vs an invisible spreadsheet?
     Benchmark: LoreKeeper's auto-tracked conditions vs manual condition tracking in ChatGPT play. Holonovel's condition system enforces rules — does it speed up or slow down play compared to freeform narration?
