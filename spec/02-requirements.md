@@ -13,6 +13,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
+| 5.10    | World-Model Layer                     | 195–202                                             | 8     |
 
 ### 5.1 Output and Error Contracts
 
@@ -536,7 +537,8 @@ _Check:_ T3, T35.
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://setup`, `spec://build` (GM-filtered),
+`novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`,
+`spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
 source header.
@@ -1903,33 +1905,51 @@ fail; `TTRPG_MAX_ENTITIES=0` causes `import_character` to fail; `spec_health` re
 per-group counts and overflow status including entity and roster groups.
 _Check:_ T143, T218.
 
-**REQ-079 — Adventure modules.** The server loads Markdown adventure modules during the
-Build workflow alongside the ruleset. Adventure content is indexed and served at
-`adventure://<adventure-slug>/<anchor>`. No mechanical extraction — all adventure content
-is guidance-category. One adventure is active per Novel, set via `load_adventure(adventure)`
-(Game Master only). `search_rules` includes adventure content; active-adventure results are
-sorted first. `hat_briefing` includes the active adventure's hook and current location.
-Active-adventure results SHALL carry HIGH match confidence when the query token
-appears in a section heading; MEDIUM when it appears in body text. The
-`[generated]` tag (REQ-132) SHALL NOT affect sort order — generated and indexed
-results sort by match strength identically; the tag is a source-of-origin
-marker only.
-Adventure content is hat-filtered: sections marked `*Keeper only*` (or the ruleset's
-adjudicator term) are hidden from the Player hat; unmarked sections are visible to all.
-Multiple adventures may be indexed; only the active adventure's content is surfaced in
-`hat_briefing`. Adventure NPCs are reference text — the Game Master creates them as
-named-NPCs (REQ-075) at runtime. Adventure format conventions are defined in Appendix K.
-Adventure content is read-only index-level data — it never influences tool behavior. State
-isolation: adventure NPCs are Novel entities (discarded by `end_novel`); switching adventures
-replaces the active adventure but retains existing Novel entities. `load_adventure` is Game
-Master only. `load_adventure` with a slug not matching any indexed adventure SHALL return
-`[ERROR] [NOT_FOUND]` and enumerate the available adventure slugs in the error
-value. The builder records the validation mechanism in DECISIONS.md.
+**REQ-079 — Adventure modules.** The server loads Markdown adventure modules
+during the Build workflow alongside the ruleset. Every adventure module SHALL
+be parsed for world-model declarative assertions (rooms, things, exits,
+properties) within a designated `## World` section. Assertions found in the
+section SHALL be extracted and indexed. `load_adventure(adventure)` SHALL —
+when the adventure module contains a `## World` section — populate the
+Novel's world-model tier with the extracted rooms, things, exits, and
+properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
+`@lore`) to world-model objects by name. Adventure modules without a `## World`
+section SHALL load as flat indexed content — their prose is searchable via
+`search_rules` and surfaced in `hat_briefing`, but no world-model objects
+are created.
+
+After loading, the adventure's prose content SHALL be accessible at
+`adventure://<adventure-slug>/<anchor>`. `search_rules` includes adventure
+content; active-adventure results are sorted first. Active-adventure results
+SHALL carry HIGH match confidence when the query token appears in a section
+heading; MEDIUM when it appears in body text. The `[generated]` tag (REQ-132)
+SHALL NOT affect sort order — generated and indexed results sort by match
+strength identically; the tag is a source-of-origin marker only.
+
+`hat_briefing` includes the active adventure's hook, current location,
+and — when a world model is populated — the current room's name and visible
+contents.
+
+Adventure content is hat-filtered: sections marked with the ruleset's
+adjudicator term (e.g., `*Keeper only*`) are hidden from the Player hat.
+Unmarked sections are visible to all. Multiple adventures may be indexed;
+only the active adventure's content is surfaced in `hat_briefing`. Adventure
+NPCs defined via `@npc` annotations are Novel-scoped entities created at
+load time; the GM may modify them via `update_npc`. `load_adventure` is Game
+Master only. `load_adventure` with a slug not matching any indexed adventure
+SHALL return `[NOT_FOUND]` and enumerate available adventure slugs. The
 `TTRPG_ADVENTURE` env var (optional, comma-separated paths) pre-loads
 adventures at startup.
-*Acceptance criterion:* `load_adventure("tomb-of-horrors")` activates the
-adventure; `hat_briefing` includes the adventure hook and current location;
-`search_rules("trap")` prioritizes active-adventure results.
+
+State isolation: world-model objects, NPCs, and lore created by adventure
+loading are Novel entities — discarded by `end_novel`. Switching adventures
+replaces the active adventure's world model (if present) and prose content
+but retains Novel entities created outside adventure loading.
+*Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")`
+activates the adventure, populates the world-model tier with rooms/things/
+exits from the `## World` section, links `@npc` annotations, and surfaces
+the adventure hook and current room in `hat_briefing`; a module without a
+`## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
@@ -1986,6 +2006,16 @@ both an indexed adventure and a generated adventure active simultaneously —
 `hat_briefing` SHALL surface the indexed adventure's content first, then the
 generated adventure's content, and `search_rules` SHALL distinguish generated
 results with a `[generated]` tag.
+
+`generate_adventure(premise)` SHALL include a `## World` section in its
+generated output when the premise suggests spatial content (locations,
+dungeons, buildings). The generated world-model section SHALL contain at
+minimum: one room (the starting location) with a description, and exit
+connections for any additional locations named in the premise. Generated
+world-model content SHALL follow the same declarative assertion conventions
+as indexed adventure modules (Appendix K). When the generated adventure is
+replaced or the Novel is ended, the generated world-model objects SHALL
+be discarded — they are Novel-scoped per the base contract.
 *Acceptance criterion:* `generate_adventure("A haunted station")` produces
 adventure content at `adventure://generated/overview`; restarting the
 server preserves the generated adventure; `end_novel` discards it;
@@ -2716,6 +2746,137 @@ content, then the NPC (with template stats), then the triggered lore entry,
 then the countdown — in dependency order. The order IS stable across 3
 restarts.
 _Check:_ T145.
+
+### 5.10 World-Model Layer
+
+The server SHALL incorporate a world-model layer — a subsystem that models rooms,
+things, exits, containment, kinds, and properties as typed objects with mechanical
+contracts. The layer extends every Novel's state model with a spatial world model,
+parser command dispatch tools, and world-model CRUD tools. It does not replace or
+constrain TTRPG mechanics — it augments them.
+
+Conflict-resolution order:
+
+1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
+   override world-model layer behavior.
+2. World-model layer contracts override infrastructure defaults (response
+   format, resource URIs, hat vocabulary).
+3. TTRPG ruleset contracts override infrastructure defaults.
+_Check:_ T237.
+
+**REQ-195 — World-model state tier.** Every Novel SHALL carry a world-model
+state tier. The tier SHALL hold: rooms (named locations with descriptions and
+exits), things (named objects with descriptions, containment, and portability
+classification), exits (directional connections between rooms with associated
+door and openable/lockable state), and properties (either/or attributes on
+world-model objects: open/closed, locked/unlocked, fixed/portable, lit/dark).
+The tier SHALL be snapshot-able, audit-logged, and persistent with the Novel
+per REQ-088, REQ-092. A Novel whose world-model tier has not been populated
+(no rooms declared) SHALL report an empty world model — the TTRPG layer is
+not dependent on world-model population. _Check:_ T238.
+
+**REQ-196 — Parser command dispatch.** THE system SHALL accept
+natural-language text commands and resolve them against the world model's
+current state. Recognized commands SHALL include: navigation (walk, move,
+or go directions), inspection (examine named objects, look at current room),
+object interaction (take portable things, drop carried things, open/close
+openable objects), inventory listing, and wait. Navigation SHALL resolve exit
+directions and check door state — a closed door blocks passage. Object
+interaction SHALL respect portability and containment — taking a fixed object
+returns a rule-violation; taking an object inside a closed container returns a
+rule-violation. An unrecognized command SHALL return a not-implemented result
+with the command verb named. An ambiguous object reference SHALL return all
+matching objects with their locations and distinguishing descriptions.
+When the world-model tier is empty (no rooms), all parser commands SHALL
+return a not-implemented result directing the user to populate the world
+model via an adventure module or CRUD tools. _Check:_ T239.
+
+**REQ-197 — Room description generation.** WHEN the player enters a room
+or issues a look command THE system SHALL return the room's name, its
+verbatim description, and visible things with containment chains expressed
+in a standard format. The description SHALL be drawn from the source
+text — no generative prose is appended. Exit directions SHALL appear in
+status-line context, not in the room-description body. _Check:_ T240.
+
+**REQ-198 — World-model CRUD.** THE system SHALL provide tools to create
+and delete world-model object types: rooms, things, and exits. Every
+mutation SHALL be snapshot-able, audit-logged, and Game Master only.
+Creating a room SHALL accept a name and optional description. Creating a
+thing SHALL accept a name, optional description, optional containment (a
+room, container, or supporter), and optional properties (fixed/portable,
+openable, lockable). Creating an exit SHALL accept a direction and two room
+names; the reverse exit SHALL be created implicitly. Deleting a room SHALL
+remove all contained things and connected exits from the world model.
+_Check:_ T241.
+
+**REQ-199 — Property state tracking.** THE system SHALL track either/or
+properties on world-model objects. Openable objects (containers, doors)
+SHALL have open/closed state. Lockable objects SHALL have locked/unlocked
+state in addition to open/closed state. A closed container SHALL block
+access to its contents — examining, taking, or interacting with contents
+requires opening the container first. A closed door SHALL block passage
+in both directions. Property mutations (open, close, lock, unlock) SHALL
+be snapshot-able and audit-logged. _Check:_ T242.
+
+**REQ-200 — Kind mechanical contracts.** The world-model layer SHALL define
+mechanical contracts for the kinds extracted from the provider documentation:
+containers (open/closed, contents blocked when closed), supporters (surface things
+visible and reachable, supporter fixed by default), doors (connect two rooms,
+open/closed, closed blocks passage), persons (visible, examinable in rooms),
+backdrops (visible from every room in a defined region), and regions (named room
+groups). Every thing SHALL have a portability classification: `portable` (may be
+taken) or `fixed` (may not be taken). Supporters are fixed by default. Containers
+and unclassified things are portable by default. Taking a fixed thing SHALL return
+a rule-violation. _Check:_ T243.
+
+**REQ-201 — Hybrid source conversion.** THE system SHALL provide a
+`convert_source` tool accepting hybrid source text — declarative
+world-model assertions interleaved with TTRPG annotations — and parsing
+it into a linked world model + TTRPG state. The tool SHALL operate only
+under the Game Master hat. The tool SHALL populate only an empty Novel
+(world-model tier has zero rooms) — calling `convert_source` on a Novel
+with existing world-model objects SHALL return a state-conflict. The
+conversion pipeline SHALL consist of four phases:
+
+1. **Tokenize.** Split source into declarative assertions and TTRPG
+   annotations. Declarative assertions follow the world-model layer's
+   prose conventions: room declarations ("The Crypt is a room. 'Desc.'"),
+   thing declarations with containment ("A sword is in the Crypt."),
+   exit declarations ("East of the Crypt is the Hall."), and property
+   declarations ("It is closed and locked."). TTRPG annotations are
+   directives attaching ruleset-specific data to named world-model objects.
+
+2. **Validate.** Each assertion is checked against the kind hierarchy
+   and property contracts. Contradictions (duplicate names, incompatible
+   properties on a kind) produce line-numbered diagnostics.
+
+3. **Resolve.** Containment chains, exit symmetry, implicit objects
+   (reverse exits, implied rooms from exit declarations), and property
+   defaults are resolved. TTRPG annotations are matched to world-model
+   objects by name. Unmatched annotations are reported as unresolved
+   references.
+
+4. **Populate.** The resolved world model and linked annotations are
+   installed in the Novel. Object counts (rooms, things, exits) and
+   linked-annotation counts (encounters, NPCs, traps, lore) are reported.
+   The operation is snapshot-able and audit-logged.
+
+Unrecognized assertion patterns SHALL produce not-implemented warnings
+naming the pattern and its source line, but SHALL NOT block population
+of recognized assertions — the system SHALL parse every recognized
+assertion and report the count of both successful and skipped items.
+_Check:_ T244.
+
+**REQ-202 — World-model resources.** THE system SHALL provide resource
+URIs for the world-model tier: `room://<id>` (room name, description,
+visible things, exits), `thing://<id>` (thing name, description, location,
+properties), `world://map` (all rooms with exit connections — a navigable
+graph), `world://kinds` (kind hierarchy, property contracts, and parser
+command catalog from the indexed provider documentation). All world-model resources SHALL be hat-filtered: the Player hat
+sees only descriptions and visible state; the Game Master hat sees
+metadata including property values and containment chains. `world://map`
+SHALL return a list of room names with directional exits formatted as a
+navigable adjacency list. _Check:_ T245.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-game versioning beyond the checksum model, and Novel migration between
