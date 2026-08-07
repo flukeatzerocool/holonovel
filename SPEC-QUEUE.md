@@ -57,14 +57,13 @@ dependencies; a failure here blocks everything downstream.
 4. [DONE] Combat/conflict lifecycle — init_combat, advance_combat, end_combat, round
    tracking, turn order, participant classification (REQ-043). Score: 51
    (freq=4, crit=5, cplx=4, coupling=4, maturity=4, coverage=4). Core play
-   loop; wrong = unplayable.
-   classification, failure artifacts, regression assertions (§6.6, REQ-108).
-   Score: 51 (freq=3, crit=5, cplx=5, coupling=5, maturity=4, coverage=3).
-   Gates every build; 22 scenarios exercising the full surface.
-   (Phase 2), no-delta detection, cross-model audit, unbuildable disposition
+    loop; wrong = unplayable.
+    Score: 51 (freq=3, crit=5, cplx=5, coupling=5, maturity=4, coverage=3).
+    Gates every build; 22 scenarios exercising the full surface.
+    (Phase 2), no-delta detection, cross-model audit, unbuildable disposition
    (§6.5, REQ-099). Score: 51 (freq=3, crit=5, cplx=5, coupling=5,
-   maturity=4, coverage=3). Quality engine; failure = broken server shipped.
-   actions, tables, resolution, roles, guidance), cross-format consistency
+    maturity=4, coverage=3). Quality engine; failure = broken server shipped.
+    actions, tables, resolution, roles, guidance), cross-format consistency
    (§6.3, REQ-010/015/016/018). Score: 48 (freq=2, crit=5, cplx=5,
    coupling=5, maturity=4, coverage=3). Everything extracted flows from here;
    garbage in = garbage out.
