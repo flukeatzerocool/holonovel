@@ -34,7 +34,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "5f99049418d713ccd22e35f2b51049c84a761b60ff4b22fde89d5ffe5a579ab1";
+const SPEC_HASH = "0bf64cc256e939aceb3b18dfd652ed1e19667c948b86f32b39c97556c6050f37";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -1891,8 +1891,79 @@ server.registerTool("load_adventure", {
   const novel = requireNovel();
   novel.adventure_slug = slug;
   novel.adventure_set = true;
+
+  const adventureDir = process.env.TTRPG_ADVENTURE ?? path.join(DATA_DIR, "adventures");
+  const adventurePath = path.join(adventureDir, `${slug}.json`);
+  if (fs.existsSync(adventurePath)) {
+    const advData = JSON.parse(fs.readFileSync(adventurePath, "utf-8"));
+    if (advData.adventure_index) {
+      novel.adventure_index = advData.adventure_index;
+      const summary: string[] = [];
+
+      if (advData.adventure_index.npcs?.length > 0) {
+        for (const npcData of advData.adventure_index.npcs) {
+          const exists = [...novel.npcs.values()].some(n => n.name === npcData.name);
+          if (!exists) {
+            const npc = {
+              id: `npc_av_${Date.now()}_${npcData.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+              name: npcData.name,
+              description: npcData.description ?? "",
+              disposition: "neutral",
+              location: npcData.location,
+              ac: npcData.stats?.ac,
+              hp: npcData.stats?.hp,
+            };
+            novel.npcs.set(npc.id, npc);
+          }
+        }
+        summary.push(`${advData.adventure_index.npcs.length} NPCs`);
+      }
+
+      if (advData.adventure_index.locations?.length > 0) {
+        for (const loc of advData.adventure_index.locations) {
+          const key = `location_${slug}_${loc.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+          if (!novel.lore.has(key)) {
+            novel.lore.set(key, {
+              key,
+              content: loc.description,
+              triggers: [loc.name.toLowerCase()],
+              hat_scope: "shared",
+              priority: 5,
+              sticky: 0,
+              sticky_remaining: 0,
+              enabled: true,
+            });
+          }
+        }
+        summary.push(`${advData.adventure_index.locations.length} location lore entries`);
+      }
+
+      if (advData.adventure_index.hooks?.length > 0) {
+        const firstHook = advData.adventure_index.hooks[0];
+        novel.scene_description = `Adventure hook: ${firstHook}`;
+        novel.scene_history.push({
+          timestamp: new Date().toISOString(),
+          description: novel.scene_description,
+          location: novel.scene_location,
+          time_of_day: novel.scene_time_of_day,
+          atmosphere: novel.scene_atmosphere,
+        });
+      }
+
+      if (advData.adventure_index.locations?.length > 0) {
+        novel.adventure_scene_waypoint = {
+          anchor: advData.adventure_index.locations[0].name,
+          description: advData.adventure_index.locations[0].description,
+        };
+      }
+
+      state.saveNovel(novel);
+      return ok(`Adventure '${slug}' loaded. Pre-populated: ${summary.join(", ") || "no structural extraction data available"}.`);
+    }
+  }
+
   state.saveNovel(novel);
-  return ok(`Adventure '${slug}' loaded.`);
+  return ok(`Adventure '${slug}' loaded. No structural extraction data — NPCs and locations must be created manually.`);
 });
 
 server.registerTool("generate_adventure", {
@@ -2273,6 +2344,7 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 
 ### Scene
 ${novel.scene_description || "None set"}${novel.scene_location ? `\nLocation: ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\nTime of Day: ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\nAtmosphere: ${novel.scene_atmosphere}` : ""}
+${novel.adventure_scene_waypoint ? `\nAdventure Scene: ${novel.adventure_scene_waypoint.description}` : ""}
 Scene Type: ${novel.scene_type.join(", ")}
 
 ### POV

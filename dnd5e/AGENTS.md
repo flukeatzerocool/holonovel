@@ -16,7 +16,8 @@ src/data.ts             Structured ruleset data: ABILITY_SCORES, SKILLS,
 src/state.ts            StateManager singleton: novels, roster, NPCs,
                         scenes, countdowns, lore, enrichment, snapshots
                         (per-hat undo/redo stacks), audit log, hat gating,
-                        workflows, build fingerprint. Atomic persistence.
+                        workflows, build fingerprint, adventure_index,
+                        adventure_scene_waypoint. Atomic persistence.
         ↓
 src/macros.ts           expandMacros — {{entity.name}}, {{entity.hp}},
                         {{entity.<stat>}}, {{scene.current}}, {{scene.type}},
@@ -45,7 +46,7 @@ src/index.ts            McpServer: ~64 tools, ~29 resources, 5 prompts.
 - **NPCs (GM):** create_npc, update_npc, remove_npc
 - **Countdowns (GM):** set_countdown, advance_countdown, remove_countdown
 - **Lore (GM):** set_lore_entry, remove_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export_lorebook, import_lorebook
-- **Guidance (GM):** set_briefing_order, compress_audit, load_adventure, generate_adventure, generate_encounter, set_help_category
+- **Guidance (GM):** set_briefing_order, compress_audit, load_adventure (pre-populates NPCs/lore/waypoint from adventure_index), generate_adventure, generate_encounter, set_help_category
 - **Session:** session_recap
 - **Novel Lifecycle:** create_novel, resume_novel, switch_novel, end_novel, export_novel, import_novel
 - **Enrichment:** revert_enrichment
@@ -71,3 +72,7 @@ npm run build    # runs build-index to extract ruleset data
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **Snapshots:** Per-mutation snapshots per hat stack (undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.
+- **Adventure Scene Waypoint:** Current scene anchor within the active adventure module (REQ-250). Surfaced in hat_briefing alongside free-text scene state. Set on load_adventure.
+- **Adventure Index:** Build-time structural extraction output (NPCs, locations, factions, premise) loaded into Novel on load_adventure (REQ-247, REQ-248).
+
+Novel property groups: 13 total (Entities, NPCs, Scene, Combat, World, Countdowns, Lore, Enrichment, Adventure, Adventure Scene Waypoint, Adventure Index, Faction, Secret, Relationship).

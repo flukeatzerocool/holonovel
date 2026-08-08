@@ -2,7 +2,7 @@
 // REQ-040, REQ-041, REQ-043, REQ-055, REQ-065, REQ-073, REQ-074, REQ-075,
 // REQ-076, REQ-077, REQ-079, REQ-081, REQ-082, REQ-083, REQ-084,
 // REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-095, REQ-096,
-// REQ-097, REQ-116
+// REQ-097, REQ-116, REQ-247, REQ-248, REQ-250
 
 import * as fs from "fs";
 import * as path from "path";
@@ -124,6 +124,8 @@ export interface NovelState {
   player_signals: Record<string, string>;
   adventure_slug: string | null;
   generated_adventure: any | null;
+  adventure_scene_waypoint: { anchor: string; description: string } | null;
+  adventure_index: { npcs: Array<{ name: string; description?: string; stats?: any }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[] } | null;
   audit_log: AuditEntry[];
   undo_stacks: Record<string, NovelState[]>;
   redo_stacks: Record<string, NovelState[]>;
@@ -294,6 +296,8 @@ export class StateManager {
       player_signals: {},
       adventure_slug: null,
       generated_adventure: null,
+      adventure_scene_waypoint: null,
+      adventure_index: null,
       audit_log: [],
       undo_stacks: { player: [], game_master: [], null: [] },
       redo_stacks: { player: [], game_master: [], null: [] },
@@ -381,6 +385,8 @@ export class StateManager {
       player_signals: data.player_signals ?? {},
       adventure_slug: data.adventure_slug ?? null,
       generated_adventure: data.generated_adventure ?? null,
+      adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
+      adventure_index: data.adventure_index ?? null,
       audit_log: data.audit_log ?? [],
       undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
       redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },
@@ -1023,6 +1029,8 @@ function novelToJSON(novel: NovelState): any {
     player_signals: novel.player_signals,
     adventure_slug: novel.adventure_slug,
     generated_adventure: novel.generated_adventure,
+    adventure_scene_waypoint: novel.adventure_scene_waypoint,
+    adventure_index: novel.adventure_index,
     audit_log: novel.audit_log,
     undo_stacks: novel.undo_stacks,
     redo_stacks: novel.redo_stacks,
@@ -1063,6 +1071,8 @@ function novelFromJSON(data: any): NovelState {
     player_signals: data.player_signals ?? {},
     adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
+    adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
+    adventure_index: data.adventure_index ?? null,
     audit_log: data.audit_log ?? [],
     undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
     redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },

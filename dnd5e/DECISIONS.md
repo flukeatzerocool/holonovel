@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 5f99049418d713ccd22e35f2b51049c84a761b60ff4b22fde89d5ffe5a579ab1
+- **Spec hash:** 0bf64cc256e939aceb3b18dfd652ed1e19667c948b86f32b39c97556c6050f37
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -114,6 +114,10 @@
 | REQ-106 | Spec repository URL | `src/state.ts` — specRepoUrl; `src/index.ts` — spec_health + intro |
 | REQ-107 | Version coordination | `src/state.ts` — specVersion; `src/index.ts` — spec_health |
 | REQ-116 | Redo | `src/state.ts` — redo stacks; `src/index.ts` — redo tool |
+| REQ-247 | Adventure structural extraction | Waived — build-time REQ; no adventure modules on disk |
+| REQ-248 | Adventure index | `src/state.ts` — adventure_index field in NovelState; `src/index.ts` — load_adventure populates from extracted data if available |
+| REQ-249 | Adventure text extraction | Waived — build-time REQ; no adventure modules to extract |
+| REQ-250 | Adventure scene waypoint | `src/state.ts` — adventure_scene_waypoint field; `src/index.ts` — surfaced in hat_briefing, set on load_adventure |
 | REQ-001a | Warning and Partial semantics | Deferred — `src/index.ts` ok/err/raw helpers; WARNING/PARTIAL status prefixes not yet implemented |
 | REQ-001b | Error boundary | Deferred — SDK-layer validation via Zod; REQ-002 category strings not yet separated from protocol errors |
 | REQ-002a | Extended error categories | Deferred — RULE_VIOLATION and UNIMPLEMENTED categories not yet implemented |
@@ -460,5 +464,22 @@
 - **Changed code paths:** src/index.ts (SPEC_HASH, set_scene_state inputSchema/handler, roll_on_table rewrite with gen table registry, hat_briefing scene fields, scene_history entries, spec_health additions, lastSpecReview startup, macro context, export_novel markdown), src/state.ts (NovelState scene_location/time_of_day/atmosphere fields, createNovel/loadNovelFromData/novelToJSON/novelFromJSON/undo/redo serialization), src/macros.ts (scene location/time_of_day/atmosphere macros), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: tool signature change (set_scene_state, roll_on_table) → S1; scene state surface (REQ-076a) → S20; table generation (REQ-212) → S7; hat gating (GM-only tables) → S6
 - **Spec hash:** 3ab2435ed3256df9f3842334ef071011cfb0b8e19c78b904ae8e24ac0f98439d
+
+### Spec-Driven Update Gap Disposition (REQ-098)
+- **Date:** 2026-08-08
+- **Spec version:** 2026.08.06 → 2026.08.06
+- **Classification:** major
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-247 | Adventure structural extraction | waived | Build-time REQ; no adventure modules on disk |
+  | REQ-248 | Adventure index Novel property | implemented | Added adventure_index field to NovelState |
+  | REQ-249 | Adventure text extraction | waived | Build-time REQ; no adventure modules to extract |
+  | REQ-250 | Adventure scene waypoint | implemented | Added adventure_scene_waypoint to NovelState + hat_briefing |
+  | REQ-079 mod | load_adventure pre-population | implemented | load_adventure populates NPCs/lore/waypoint from adventure_index |
+  | §7.7 mod | Novel properties 11→13 | implemented | Added two new property groups to NovelState + serialization |
+- **Verification:** typecheck 0 errors
+- **Changed code paths:** src/index.ts (SPEC_HASH, load_adventure, hat_briefing), src/state.ts (NovelState interface, createNovel, loadNovelFromData, novelToJSON, novelFromJSON)
+- **Gauntlet:** S1 (tool change — load_adventure), S20 (scene state surface — hat_briefing)
 
 (End of file - total 435 lines)
