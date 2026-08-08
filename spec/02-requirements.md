@@ -4636,10 +4636,13 @@ tool, ruleset-native action_patterns and supplementary_guidance receive new
 _Check:_ T-new-243.
 
 **REQ-244 — Convergence cache key.** The builder SHALL compute a convergence
-cache key at the start of Phase 1, composed of four components: the ruleset
+cache key at the start of Phase 1, composed of five components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
-content hash (REQ-187), the inform package version (B10), and an aggregate hash
-of the `inform/docs_md/` vendor directory. When the cache key matches a prior successful
+content hash (REQ-187), the inform package version (B10), an aggregate hash
+of the `inform/docs_md/` vendor directory, and a narrative surface hash — a
+SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names
+for all narrative-category tools (excluding Novel lifecycle and Hat & Workflow
+tools). When the cache key matches a prior successful
 convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
 whose inputs are fully captured by the key — all nine metrics when the key
 matches, or individual metrics when a partial match is detected. Phase 2 metrics
@@ -4671,7 +4674,7 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the inform version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Inform Gauntlet sub-workflow outcomes (I1–I10, per-sub-workflow pass/fail with
+Inform Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the inform builder MAY skip Phase 2
 convergence and the Inform Gauntlet, recording `cached — inform vX.Y.Z

@@ -4968,10 +4968,13 @@ tool, ruleset-native action_patterns and supplementary_guidance receive new
 _Check:_ T-new-243.
 
 **REQ-244 — Convergence cache key.** The builder SHALL compute a convergence
-cache key at the start of Phase 1, composed of four components: the ruleset
+cache key at the start of Phase 1, composed of five components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
-content hash (REQ-187), the inform package version (B10), and an aggregate hash
-of the `inform/docs_md/` vendor directory. When the cache key matches a prior successful
+content hash (REQ-187), the inform package version (B10), an aggregate hash
+of the `inform/docs_md/` vendor directory, and a narrative surface hash — a
+SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names
+for all narrative-category tools (excluding Novel lifecycle and Hat & Workflow
+tools). When the cache key matches a prior successful
 convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
 whose inputs are fully captured by the key — all nine metrics when the key
 matches, or individual metrics when a partial match is detected. Phase 2 metrics
@@ -5003,7 +5006,7 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the inform version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Inform Gauntlet sub-workflow outcomes (I1–I10, per-sub-workflow pass/fail with
+Inform Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the inform builder MAY skip Phase 2
 convergence and the Inform Gauntlet, recording `cached — inform vX.Y.Z
@@ -7273,7 +7276,7 @@ limitations.
 prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
 results — recording `cached — inform vX.Y.Z Gauntlet results` in DECISIONS.md
-(6) — instead of re-executing the 10 sub-workflows. A specification version
+(6) — instead of re-executing the 13 sub-workflows. A specification version
 advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
@@ -7347,17 +7350,44 @@ are selected for changed surfaces.
     prose. Assert `hat_briefing` surfaces adventure content hat-filtered.
     (Blocking.)
 
+11. **Narrative CRUD cycle** — create an NPC via `create_npc`, set personality
+    fields via `set_personality`, attach voice examples via `set_voice_examples`,
+    update the NPC's disposition via `update_npc`, then remove it via
+    `remove_npc`. Assert `hat_briefing` surfaces NPC name and disposition after
+    each mutation. Assert `session_recap` covers the create-update-remove
+    sequence. Assert `remove_npc` on a nonexistent NPC returns `[NOT_FOUND]`.
+    (Non-blocking.)
+
+12. **Lore and countdown lifecycle** — create a lore entry with triggers via
+    `set_lore_entry`, toggle it disabled then re-enabled via `toggle_lore_entry`,
+    update its content via `update_lore_entry`, remove it via
+    `remove_lore_entry`. Create a countdown via `set_countdown(ticks=2)`,
+    advance it twice to expiry via `advance_countdown` — assert the expiry audit
+    log entry and countdown removal. Assert `remove_lore_entry` on a removed
+    entry returns `[NOT_FOUND]`. (Non-blocking.)
+
+13. **Scene state and guidance** — set scene state via
+    `set_scene_state(description, location, time_of_day, atmosphere)`, set scene
+    type to `["social", "exploration"]`, set a narrative directive. Assert
+    `hat_briefing` surfaces all scene fields, scene type, and directive. Set a
+    custom briefing order via `set_briefing_order([...])` — assert `hat_briefing`
+    sections appear in the specified order. Assert `set_scene_state` transitions
+    push the prior scene to `scene_history`. (Non-blocking.)
+
 **Inform Gauntlet surface-to-scenario mapping.**
 
 | Changed surface                                    | Inform Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| @holonovel/inform package changed (new version)     | All (1–10)                |
+| @holonovel/inform package changed (new version)     | All (1–13)                |
 | Room navigation, parser commands                   | 1, 2, 8                   |
 | Object interaction, properties                     | 3, 6                      |
 | CRUD, state mutations                              | 4                         |
 | convert_source, hybrid parsing                     | 5, 10                     |
 | Hat filtering, resource URIs                       | 7                         |
 | Empty state, error handling                        | 9                         |
+| NPCs, character narrative fields                   | 11                        |
+| Lore, countdowns                                   | 12                        |
+| Scene state, tone, guidance                        | 13                        |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
@@ -7785,7 +7815,7 @@ transcript) and operational behavior by G5 (Gauntlet scenarios).
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
+For the Inform server, run the 13-sub-workflow Inform Gauntlet (I1–I13) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4

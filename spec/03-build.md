@@ -1287,7 +1287,7 @@ limitations.
 prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
 results — recording `cached — inform vX.Y.Z Gauntlet results` in DECISIONS.md
-(6) — instead of re-executing the 10 sub-workflows. A specification version
+(6) — instead of re-executing the 13 sub-workflows. A specification version
 advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
@@ -1361,17 +1361,44 @@ are selected for changed surfaces.
     prose. Assert `hat_briefing` surfaces adventure content hat-filtered.
     (Blocking.)
 
+11. **Narrative CRUD cycle** — create an NPC via `create_npc`, set personality
+    fields via `set_personality`, attach voice examples via `set_voice_examples`,
+    update the NPC's disposition via `update_npc`, then remove it via
+    `remove_npc`. Assert `hat_briefing` surfaces NPC name and disposition after
+    each mutation. Assert `session_recap` covers the create-update-remove
+    sequence. Assert `remove_npc` on a nonexistent NPC returns `[NOT_FOUND]`.
+    (Non-blocking.)
+
+12. **Lore and countdown lifecycle** — create a lore entry with triggers via
+    `set_lore_entry`, toggle it disabled then re-enabled via `toggle_lore_entry`,
+    update its content via `update_lore_entry`, remove it via
+    `remove_lore_entry`. Create a countdown via `set_countdown(ticks=2)`,
+    advance it twice to expiry via `advance_countdown` — assert the expiry audit
+    log entry and countdown removal. Assert `remove_lore_entry` on a removed
+    entry returns `[NOT_FOUND]`. (Non-blocking.)
+
+13. **Scene state and guidance** — set scene state via
+    `set_scene_state(description, location, time_of_day, atmosphere)`, set scene
+    type to `["social", "exploration"]`, set a narrative directive. Assert
+    `hat_briefing` surfaces all scene fields, scene type, and directive. Set a
+    custom briefing order via `set_briefing_order([...])` — assert `hat_briefing`
+    sections appear in the specified order. Assert `set_scene_state` transitions
+    push the prior scene to `scene_history`. (Non-blocking.)
+
 **Inform Gauntlet surface-to-scenario mapping.**
 
 | Changed surface                                    | Inform Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| @holonovel/inform package changed (new version)     | All (1–10)                |
+| @holonovel/inform package changed (new version)     | All (1–13)                |
 | Room navigation, parser commands                   | 1, 2, 8                   |
 | Object interaction, properties                     | 3, 6                      |
 | CRUD, state mutations                              | 4                         |
 | convert_source, hybrid parsing                     | 5, 10                     |
 | Hat filtering, resource URIs                       | 7                         |
 | Empty state, error handling                        | 9                         |
+| NPCs, character narrative fields                   | 11                        |
+| Lore, countdowns                                   | 12                        |
+| Scene state, tone, guidance                        | 13                        |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
