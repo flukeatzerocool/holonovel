@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-08 — Hat boundary directive
+
+- Wearing a hat now comes with an explicit behavioral contract: `hat_briefing`
+  includes a boundary directive reminding the operator — whether human or AI,
+  Player or GM — that while a hat is active, they are in the story and should
+  confine tool use and responses to the current Novel. `set_hat("none")` is
+  stepping away from the table. The "In the story" terminology entry now
+  carries this implication. The directive is symmetric — it works identically
+  for both hats — and is never truncated from the briefing. (REQ-064, REQ-135)
+
 ## 2026-08-08 — Boundary signal enforcement, checkpoint queue entry
 
 - Boundary signals set via `player_signal("boundary", ...)` are now surfaced in
@@ -166,7 +176,7 @@
   surface-to-scenario mapping. Operator override via `--full-gauntlet` flag.
   (§6.6)
 
-- Vendor enrichment content (`enrich/` directory) now ships with a pre-verified
+- Vendor enrichment content (`inform/docs_md/` directory) now ships with a pre-verified
   MANIFEST.md: per-module confidence scores and term anchoring results that the
   convergence loop validates against instead of re-auditing from source. Module-level
   hashing from the partial-refresh contract catches drift. (§11.2)
@@ -195,7 +205,7 @@
   narrative infrastructure > Inform (always secondary surface).
 - Ruleset-free server redefined as freeform narrative roleplay. Parser
   navigation is optional scaffolding, never primary interface.
-- Vendor enrichment (§11.2): four open-source source bundles in `enrich/`
+- Vendor enrichment (§11.2): four open-source source bundles in `inform/docs_md/`
   directory — DMCP (MIT), Blades in the Dark SRD (CC-BY 3.0), Lonelog
   (CC BY-SA 4.0), IF Craft Corpus (CC-BY 4.0). No separate infrastructure
   web enrichment needed.

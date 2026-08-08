@@ -270,7 +270,7 @@ guard, the gap is explicit.
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
 | Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
-| In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
+| In the story | Hat is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_hat("none")` is stepping away from the table. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
