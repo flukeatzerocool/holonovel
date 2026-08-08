@@ -1169,6 +1169,11 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-216 | S7 | Generation table hat filtering |
 | REQ-220 | S26 | Narrative point of view |
 | REQ-223 | S26 | POV mode control |
+| REQ-304 | S19 | Counterpart AI role |
+| REQ-305 | S6, S19 | Observer mode |
+| REQ-306 | S19, S22 | Adjustable autonomy |
+| REQ-307 | S16, S17 | Entity presence |
+| REQ-308 | S16, S19 | Knowledge gating by presence |
 | REQ-040 | S16, S21 | Audit log |
 | REQ-041 | S4, S22, S25 | Undo/redo/snapshots |
 | REQ-043 | S3, S4, S5 | Combat lifecycle |
@@ -1210,7 +1215,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-237 | S24 | Session segmentation |
 | REQ-239 | S24 | Audit log compaction |
 | REQ-241 | S25 | Checkpoints |
-| REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-242 | S23 | Notes |
 | REQ-247 | S2, S18 | Adventure structure extraction |
 | REQ-248 | S18 | Adventure overview resource |
 | REQ-249 | S18 | Adventure navigation resource |

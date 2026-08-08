@@ -11,9 +11,14 @@
 > provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
 > play advice. Quality enforced by verification workflows, 14 handoff verification steps,
 > and a golden-transcript replay. One server per ruleset. No network at runtime
-> (REQ-051). The Player hat is the human at the table; the Game Master hat is the AI
-> narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support: one
-> player may control multiple entities (REQ-074). Adventures load as hybrid world-model
+> (REQ-051). Hats control tool-access gating (REQ-032): `player`, `game_master`,
+> `observer`, or `none`, switchable via `set_hat` (REQ-066). The AI's narrative role is
+> the counterpart of the active hat by default — human as Player → AI as Game Master,
+> human as Game Master → AI as Player — configurable via `TTRPG_AI_ROLE` (REQ-304).
+> Observer mode (REQ-305) lets the human spectate while the AI plays both roles.
+> Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
+> human. Multi-character support with entity presence (REQ-307) and knowledge gating by
+> presence (REQ-308): one Adventures load as hybrid world-model
 > and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
 > enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
 > persist. RNG deterministic and seedable. Requirements state the contract; verification
@@ -100,11 +105,18 @@ Player hat, the player acts through the ruleset's resolution mechanics — skill
 attacks, spells, exploration actions. World-model navigation (parser commands like `go
 north` or `take lamp`) is available when adventures provide spatial maps; the ruleset,
 not the world model, drives the story. Switch to the Game Master hat to correct, undo,
-or directly manage Novel state while staying in the story. End the story with
-`set_hat("none")` — return to editing mode with the Novel intact. End the Novel with
-`end_novel` — the save file is deleted. `set_hat` works without restart. One user per
-MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
-player, one AI Game Master. One player may control multiple characters (REQ-074).
+or directly manage Novel state while staying in the story. Switch to the Observer hat
+(REQ-305) to spectate — the AI plays both Player and Game Master while you watch,
+intervening only for mechanical decisions at your configured autonomy level (REQ-306).
+End the story with `set_hat("none")` — return to editing mode with the Novel intact.
+End the Novel with `end_novel` — the save file is deleted. `set_hat` works without
+restart. One user per MCP connection (REQ-030) — no multiplayer. Holonovel targets
+solo play: one human operator, one AI counterpart. By default, the human wears the
+Player hat and the AI briefs as Game Master (REQ-304). The human may switch hats
+freely — the AI's narrative role follows as counterpart, or can be locked to a fixed
+role via `TTRPG_AI_ROLE`. One player may control multiple characters (REQ-074) with
+entity presence tracking (REQ-307) and knowledge gated by who was present for each
+scene (REQ-308).
 
 **The play model (ruleset-free).** When no TTRPG ruleset is present, the server provides
 freeform narrative roleplay. The primary interaction is through the GM's narrative tools:
@@ -269,12 +281,13 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
+| Hat        | Active hat — `player`, `game_master`, `observer`, or `none` (editing mode, full access). Wearing the player, game_master, or observer hat means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
 | In the story | Hat is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_hat("none")` is stepping away from the table. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
+| Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
@@ -292,9 +305,14 @@ guard, the gap is explicit.
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
-| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). All are Game Master only. |
-| Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side. `hat_briefing` (REQ-109) composes guidance, state, lore, and registry content hat-filtered. Hat behavioral boundaries (REQ-064), hat foundations (REQ-062), anti-slop guidance (REQ-070), and narrative tone samples (REQ-071) supply hat-specific orientation. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
-| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap, notes), Session Management (pause/resume, checkpoints, briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
+| Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
+| AI Role           | The narrative role the AI plays — derived as the counterpart of the active hat by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `hat_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
+| Observer          | Spectator mode (REQ-305). The human wears the Observer hat (`set_hat("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
+| Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
+| Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `set_scene_state`. Non-present entities are marked `[not present]` in `hat_briefing` and the party resource. The GM controls presence with `set_party_presence`. |
+| Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
+| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
