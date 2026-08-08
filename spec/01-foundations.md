@@ -129,10 +129,11 @@ cold checkout, comparing its results against the builder's own.
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
 and security, extraction and confidence, tools and resources, Novel state and
-persistence, guidance, determinism, input safety, durability, and infrastructure — Inform
-(the world-model layer: rooms, things, exits, properties, parser commands, hybrid source
-conversion) and Not Inform (narrative infrastructure: scenes, NPCs, factions, countdowns,
-lore, pause/resume, player choices, and all REQ-020 base tools).
+persistence, guidance, determinism, input safety, durability, and infrastructure — World (the world-model layer:
+rooms, things, exits, properties, parser commands, hybrid source conversion), Novels
+(the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
+archive), and Narrative (narrative infrastructure: scenes, NPCs, factions, countdowns,
+lore, story journal, player choices, and all other REQ-020 base tools).
 Each is one paragraph in §5. The manifest is the packing list for the
 DECISIONS.md traceability table and is mechanically verified by
 `scripts/validate.ts`.
@@ -290,8 +291,9 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| Infrastructure — Inform | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
-| Infrastructure — Not Inform | All other infrastructure: REQ-020 tool categories (Novels, hats, scenes, NPCs, countdowns, lore, entities, personality, briefing, export/import, adventure generation, session, utility, enrichment, combat), new narrative tools (Pause/Resume, Factions, Secrets, Player Choices, Relationships, Clock taxonomy, Session notation), all infrastructure resources, and all infrastructure prompts. Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
+| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). All are Game Master only. |
+| Narrative         | The story-content layer: REQ-020 tool categories (scenes, NPCs, countdowns, lore, entities, personality, hats, briefing, adventure generation, session, utility, enrichment, combat, story journal), new narrative tools (Factions, Secrets, Player Choices, Relationships, Clock taxonomy, Session notation), all infrastructure resources, and all infrastructure prompts. Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
