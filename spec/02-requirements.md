@@ -2540,6 +2540,29 @@ section listing each signal type, value, and age delta; an empty-signal Novel
 shows the empty-state marker.
 _Check:_ T142.
 
+**REQ-255 — Boundary signal propagation.** Active boundary signals set via
+`player_signal("boundary", value)` (REQ-069) SHALL be surfaced in `hat_briefing` as a
+dedicated advisory section titled "Boundaries," visible only to the Game Master and
+positioned before the scene state group (REQ-109). The section SHALL list each active
+boundary value with an explicit directive: "Do not narrate, imply, or introduce content
+that evokes these topics." Boundary removal (empty value per REQ-069) removes the entry.
+The boundary advisory is never truncated by the briefing size budget (REQ-135, tier 1).
+
+When `set_scene_state`, `create_npc`, `update_npc`, `set_lore_entry`, `update_lore_entry`,
+or `set_narrative_directive` receive free-text input containing a substring that matches an
+active boundary value (case-insensitive), the server SHALL return `[WARNING]` identifying
+the matched boundary and the colliding input segment without suppressing the operation —
+the collision check is advisory because free-text narrative input may coincidentally
+contain boundary strings without evoking the prohibited topic. The `generate_adventure`
+and `generate_encounter` tools are covered separately by REQ-251, whose participant-consent
+criterion includes boundary-relevant content.
+*Acceptance criterion:* `player_signal("boundary", "spiders")` sets a boundary;
+`hat_briefing` under GM hat includes a Boundaries section listing "spiders" with the avoid
+directive; `set_scene_state("a cavern full of spiders")` returns `[WARNING]` identifying
+the "spiders" boundary collision. Removing the boundary removes the section. Player hat
+does not see the Boundaries section in hat_briefing.
+_Check:_ T-new-255.
+
 **REQ-173 — Connection counter.** Each Novel tracks a `connection_counter`
 that increments on every server start or MCP transport connect for that
 Novel — not on individual tool invocations. When the server restarts or a

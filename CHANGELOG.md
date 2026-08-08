@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-08 — Boundary signal enforcement, checkpoint queue entry
+
+- Boundary signals set via `player_signal("boundary", ...)` are now surfaced in
+  `hat_briefing` as a dedicated "Boundaries" advisory section with an explicit
+  avoid directive — the GM AI sees "Do not narrate, imply, or introduce content
+  that evokes these topics" for each boundary. GM narrative input tools
+  (`set_scene_state`, `create_npc`, `update_npc`, `set_lore_entry`,
+  `update_lore_entry`, `set_narrative_directive`) return `[WARNING]` when their
+  input matches an active boundary value, without suppressing the operation.
+  The boundary advisory is never truncated by briefing size budgets. (REQ-255)
+
+- Added SPEC-QUEUE entries for the two remaining Holodeck episodes not covered
+  in the first research pass: *Ship in a Bottle* (nested state — already
+  addressed by REQ-241 checkpoints) and *Hollow Pursuits* (persona safety —
+  addressed by REQ-255 boundary enforcement). Both marked DONE. Items 8 and 9.
+
 ## 2026-08-08 — Holodeck queue, adventure extraction
 
 - Cleared stale SPEC-QUEUE items (world-model layer and ruleset-free build are
