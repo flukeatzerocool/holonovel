@@ -61,6 +61,9 @@ Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
 contracts-over-implementations and red-team disciplines), then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing. The SPEC-QUEUE.md tracks subsystems awaiting review.
+Cached domain research at `.holonovel-state/knowledge-base/` provides cross-session
+efficiency — web findings, spec summaries, and implementation analysis with
+defined freshness windows.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.

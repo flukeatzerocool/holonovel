@@ -35,7 +35,15 @@ Expiration: 14 days from today.
 
 Read each changed section of `holonovel.md` (use `git diff` to find
 changes) and write a 50-100 word summary to `KB/spec/`. Include REQ
-numbers covered.
+numbers covered and the current git HEAD hash:
+
+```
+**Spec hash:** <git rev-parse HEAD>
+```
+
+Freshness check: an entry is fresh when the stored hash equals current
+HEAD. If the hash differs but the REQ count is unchanged, the entry is
+"stale-prose" — re-read only `git diff` since stored hash.
 
 ### 4. INDEX.md maintenance
 

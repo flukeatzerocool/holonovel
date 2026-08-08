@@ -49,7 +49,10 @@ if ! grep -q "PLAN_END" "$PLAN_FILE"; then
 fi
 
 CHANGE_COUNT=$(grep -c "<!-- CHANGE_BEGIN" "$PLAN_FILE" || true)
-echo -e "${GREEN}Plan file valid:${NC} $CHANGE_COUNT change(s) detected"
+
+# Parse item attribution from CHANGE_BEGIN markers (for grouped plans)
+PLAN_ITEM=$(grep -oP '<!-- PLAN_BEGIN item=\K\d+' "$PLAN_FILE" 2>/dev/null || echo "$ITEM")
+echo -e "${GREEN}Plan file valid:${NC} $CHANGE_COUNT change(s) detected (item=$PLAN_ITEM)"
 
 if $DRY_RUN; then
   echo -e "${YELLOW}Dry run — would execute $CHANGE_COUNT change(s)${NC}"
@@ -206,4 +209,22 @@ echo -e "${RED}Item $ITEM: all $MAX_ATTEMPTS attempt(s) exhausted.${NC}"
 echo "  Execute output: $EXEC_OUT"
 echo "  Execute log:    $EXEC_LOG"
 echo "  Recovery log:   $RECOVERY_LOG"
-exit 1
+
+# Write structured failure report for the recovery subsystem
+FAILURE_REPORT="$PLANS_DIR/item-${ITEM}-failure-report.txt"
+{
+  echo "### Item $ITEM — Execution Failure Report"
+  echo "**Date:** $(date -Iseconds)"
+  echo "**Attempts:** $MAX_ATTEMPTS exhausted"
+  echo "**Last output:** $EXEC_OUT"
+  echo "**Last log:** $EXEC_LOG"
+  echo ""
+  echo "**Last 20 lines of execute output:**"
+  echo '```'
+  tail -20 "$EXEC_OUT" 2>/dev/null || echo "(empty)"
+  echo '```'
+} > "$FAILURE_REPORT"
+
+# Exit 0 — failure is tracked via [FAILED] marker, not exit code.
+# The pipeline orchestrator handles recovery.
+exit 0

@@ -57,8 +57,10 @@ else
   done < <(pgrep opencode | xargs -I{} ps -p {} -o pid=,rss= 2>/dev/null)
   echo ""
   echo -e "  Total: ${opencode_count} process(es), ${total_rss}MB RSS"
-  if [[ $opencode_count -gt 3 ]]; then
-    echo -e "  ${RED}High process count — check for stale sessions${NC}"
+  local max_research="${TTRPG_MAX_RESEARCH_SESSIONS:-5}"
+  local threshold=$((max_research + 3))
+  if [[ $opencode_count -gt $threshold ]]; then
+    echo -e "  ${RED}High process count (> ${threshold}) — check for stale sessions${NC}"
     issues=$((issues + 1))
   fi
 fi

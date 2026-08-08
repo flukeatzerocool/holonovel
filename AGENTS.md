@@ -53,6 +53,24 @@ scripts/validate-readme.ts    README guardrail (structure, voice, links, compari
 scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
 ```
 
+## Knowledge Base
+
+Cached domain research at `.holonovel-state/knowledge-base/` for cross-session
+efficiency. Structure:
+
+```
+.holonovel-state/knowledge-base/
+  INDEX.md               Registry of all entries with freshness metadata
+  web/                   Web research findings (expires 30 days from source)
+  spec/                  Spec section summaries (expires when git hash changes)
+  implementation/        Code analysis (expires 14 days from source)
+  .web-recalibrated      Date marker — if today's date, all web/ entries are current
+```
+
+**Standing rule.** Every AI session operating in this repo that reads spec
+sections or searches the web for domain research SHALL check the KB first.
+If fresh cached findings exist, use them — skip redundant reads and searches.
+
 ## Conventions
 
 ### Commits
