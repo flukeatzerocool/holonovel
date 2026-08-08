@@ -18,6 +18,12 @@
   Scene Waypoint and Adventure Index. Cross-property coupling table now documents
   adventure waypoint → scene/lore and adventure index → NPC relationships.
 
+- Synced dnd5e server with spec: added adventure_scene_waypoint and adventure_index
+  to NovelState, enhanced load_adventure to pre-populate NPCs and location lore from
+  extracted adventure data, surfaced waypoint in hat_briefing. Two new REQs
+  implemented (REQ-248, REQ-250), two build-time REQs waived (REQ-247, REQ-249).
+  Spec hash updated.
+
 ## 2026-08-08 — Story lifecycle, narrative memory, one-file Novel
 
 - Defined the story lifecycle: entering a Novel now starts in editing
