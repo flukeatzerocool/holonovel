@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.06
-- **Spec hash:** 0bf64cc256e939aceb3b18dfd652ed1e19667c948b86f32b39c97556c6050f37
+- **Spec hash:** 6bf19ec5110fe9b74c4ebff07e211799c87a0a7d5b94059f00953cd326806949
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -118,6 +118,9 @@
 | REQ-248 | Adventure index | `src/state.ts` — adventure_index field in NovelState; `src/index.ts` — load_adventure populates from extracted data if available |
 | REQ-249 | Adventure text extraction | Waived — build-time REQ; no adventure modules to extract |
 | REQ-250 | Adventure scene waypoint | `src/state.ts` — adventure_scene_waypoint field; `src/index.ts` — surfaced in hat_briefing, set on load_adventure |
+| REQ-251 | Generation intent guard | Deferred — spec-driven update; 2026-08-08 queue research |
+| REQ-252 | Narrative fast-forward | Deferred — spec-driven update; 2026-08-08 queue research |
+| REQ-253 | Tool-output verbosity control | Deferred — spec-driven update; 2026-08-08 queue research |
 | REQ-001a | Warning and Partial semantics | Deferred — `src/index.ts` ok/err/raw helpers; WARNING/PARTIAL status prefixes not yet implemented |
 | REQ-001b | Error boundary | Deferred — SDK-layer validation via Zod; REQ-002 category strings not yet separated from protocol errors |
 | REQ-002a | Extended error categories | Deferred — RULE_VIOLATION and UNIMPLEMENTED categories not yet implemented |
@@ -481,5 +484,19 @@
 - **Verification:** typecheck 0 errors
 - **Changed code paths:** src/index.ts (SPEC_HASH, load_adventure, hat_briefing), src/state.ts (NovelState interface, createNovel, loadNovelFromData, novelToJSON, novelFromJSON)
 - **Gauntlet:** S1 (tool change — load_adventure), S20 (scene state surface — hat_briefing)
+
+### Spec-Driven Update Gap Disposition (REQ-098) — Queue Research
+- **Date:** 2026-08-08
+- **Spec version:** 2026.08.06 → 2026.08.06
+- **Classification:** major
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | REQ-251 | Generation intent guard (generate_adventure/encounter) | deferred | Requires LLM integration for premise assessment; beyond current deterministic builder scope |
+  | REQ-252 | Narrative fast-forward (set_scene_state extension) | deferred | Requires countdown-bulk-advance logic and bridging summary generation |
+  | REQ-253 | Tool-output verbosity control (terse/verbose modes) | deferred | Per-tool terse mode + detail signal plumbing; implementation surface large |
+- **Verification:** typecheck 0 errors, spec-delta in sync
+- **Changed code paths:** SPEC_HASH only
+- **Gauntlet:** No code changes affecting tool surface
 
 (End of file - total 435 lines)

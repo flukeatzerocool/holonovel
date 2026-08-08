@@ -59,7 +59,7 @@ mid-tier. Check for duplicates before adding.
 
 Tier 1 — Score ≥ 28. Break these and the game stops. Sequence by (cplx + coupling) ascending.
 
-1. [RESEARCH] Intent interpretation guardrails — prevent dangerous generation (player/GM-facing).
+1. [DONE] Intent interpretation guardrails — prevent dangerous generation (player/GM-facing).
    Holodeck: *Elementary, Dear Data* (TNG 2x03) — Geordi says "create an adversary capable of
    defeating Data," the computer interprets literally and Moriarty is born with no clarifying
    questions or safety caps.
@@ -74,7 +74,7 @@ Tier 1 — Score ≥ 28. Break these and the game stops. Sequence by (cplx + cou
    Risk: A player or GM types a natural-language intent with dangerous unintended consequences, the
    system complies without warning, and trust in Holonovel as a safe storytelling tool is lost.
 
-2. [RESEARCH] Parser command discoverability — surface valid commands without trial-and-error
+2. [DONE] Parser command discoverability — surface valid commands without trial-and-error
    (player-facing).
    Holodeck: *The Big Goodbye* (TNG 1x12) — crew enters a noir program and immediately interacts:
    Picard speaks to characters, examines objects, navigates the office. Nobody types "help" or
@@ -91,7 +91,7 @@ Tier 1 — Score ≥ 28. Break these and the game stops. Sequence by (cplx + cou
    concludes the world model is broken, and quits. The IF community's standard for parser
    discoverability is high — Holonovel must meet it.
 
-3. [RESEARCH] Dual-register speech separation — distinguish in-character from meta-intent (player/GM-facing).
+3. [DONE] Dual-register speech separation — distinguish in-character from meta-intent (player/GM-facing).
    Holodeck: *Bride of Chaotica!* (VOY 5x12) — crew speaks in-character AND in meta simultaneously.
    "Captain Proton would never retreat!" — said in character, meaning: we need the aliens to think
    we're committed. Players and GMs do this constantly: "I examine the altar" means both "my
@@ -113,7 +113,7 @@ Tier 1 — Score ≥ 28. Break these and the game stops. Sequence by (cplx + cou
 
 Tier 2 — Score 19–27. Break these and play degrades. Sequence by (cplx + coupling) ascending.
 
-4. [RESEARCH] Narrative fast-forward — skip to climax with coherent summary (GM-facing).
+4. [DONE] Narrative fast-forward — skip to climax with coherent summary (GM-facing).
    Holodeck: *Fistful of Datas* (TNG 6x08) — Worf says "Computer, skip to the climax." The Holodeck
    advances the narrative, summarizes intervening events, and presents the final confrontation.
    Spec: REQ-073 (countdowns), REQ-076 (scene state), §5.6 (session_recap), §5.8 (narrative
@@ -129,7 +129,7 @@ Tier 2 — Score 19–27. Break these and play degrades. Sequence by (cplx + cou
    manually or jump-cut with no intervening logic. Lore entries and countdowns that would have
    triggered during the skipped period are ignored, breaking continuity.
 
-5. [RESEARCH] NPC depth signaling — distinguish cardboard cutouts from campaign companions (player/GM-facing).
+5. [DONE] NPC depth signaling — distinguish cardboard cutouts from campaign companions (player/GM-facing).
    Holodeck: *Our Man Bashir* (DS9 4x10) — transporter accidents store crew patterns as Holodeck
    characters. Real people ARE the NPCs. The Holodeck IS the life-support system — not a game, an
    environment. When does an entity stop being "game state" and start being "world state"?
@@ -152,7 +152,7 @@ Tier 2 — Score 19–27. Break these and play degrades. Sequence by (cplx + cou
 
 Tier 3 — Score ≤ 18. Quality-of-life and build-time polish. Sequence by (cplx + coupling) ascending.
 
-6. [RESEARCH] Progressive detail control — "less detail" and "more detail" signals (player-facing).
+6. [DONE] Progressive detail control — "less detail" and "more detail" signals (player-facing).
    Holodeck: *The Big Goodbye* (TNG 1x12) — Picard: "I didn't create this detail, the computer did."
    The Holodeck generates appropriate detail from minimal prompts. It doesn't dump the entire noir
    detective's backstory on first entry — it reveals detail as you interact.
@@ -171,7 +171,7 @@ Tier 3 — Score ≤ 18. Quality-of-life and build-time polish. Sequence by (cpl
    Risk: Players drown in verbatim room descriptions when all they wanted was the exit list. GMs
    can't signal "the tapestry matters" without the player reading every word of every room.
 
-7. [RESEARCH] Responsiveness budget — speed-of-interaction requirements for live table use (GM-facing).
+7. [DONE] Responsiveness budget — speed-of-interaction requirements for live table use (GM-facing).
    Holodeck: The Holodeck processes voice commands in real time with no perceptible latency. The
    computer never says "processing" and the crew never waits. Interaction is instantaneous.
    Spec: §5.6 (combat lifecycle), §7.3 (output contracts), REQ-051 (no network at runtime).

@@ -319,8 +319,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250 | 45    |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250, 252 | 46    |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245       | 24    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240                         | 14    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
@@ -611,9 +611,31 @@ all tool output. The Game Master hat describes situations and surfaces informati
 never takes action or makes decisions on behalf of the player. The Player hat describes
 character intent; it never prescribes world facts or narrative outcomes without Game
 Master confirmation.
-*Acceptance criterion:* A Game Master hat `hat_briefing` describes situations without
-prescribing player actions; a Player hat briefing describes character intent without
-stating world facts the GM has not established.
+
+When a player's natural-language input carries both in-character and meta-intent
+simultaneously — e.g., "I examine the altar" (character action) + "what does my
+character see?" (meta-query) — the `suggest_actions` tool SHALL return both
+tool categories: the in-character resolution (roll_skill_check, examine) and the
+meta-inquiry (search_rules for altar lore). The Game Master AI, informed by
+`hat_briefing`, SHALL resolve the in-character component through narration and
+redirect the meta-intent component through tool calls — it SHALL NOT silently
+treat a meta-query as an in-character action resolved without the player's
+knowledge.
+
+The `player_signal` tool SHALL accept a `register` signal with values `character`
+(speaking or acting in-character) and `meta` (asking a rules question or directing
+the GM out-of-character). Setting `register=meta` SHALL suppress in-character
+narration in tool output — responses from `suggest_actions`, rule lookups, and
+similar tools present bare mechanical information without narrative framing. The
+register state persists for the session (discarded on connection close) and is
+visible in `hat_briefing` as a Player-Register line. Setting `register=character`
+restores narrative-framed output. The default register is `character`.
+
+*Acceptance criterion:* A player typing "Can my character jump the chasm?" under
+`register=character` receives `suggest_actions` output with the acrobatics check
+tool AND a rules-lookup pointer; under `register=meta` the same input produces
+only mechanical information with no "you attempt to jump" narrative framing. The
+register state appears in `hat_briefing` and does not persist across server restarts.
 _Check:_ T51.
 
 *Out of scope:* transport-layer error handling, client-side error formatting,
@@ -2475,9 +2497,26 @@ values SHALL clear the field without removing it from the NPC's known field set.
 `remove_npc(id)` deletes an NPC. `npcs://` lists all active NPCs. NPC state
 persists with the Novel. All NPC tools are Game Master only; the Player hat reads
 NPC state via `hat_briefing` and resource URIs.
+
+Every NPC SHALL carry depth metadata: `appearance_count` (integer, incremented each
+time the NPC appears in a scene or is referenced in `hat_briefing`), `first_seen`
+(ISO 8601 timestamp of first appearance), and `last_seen` (ISO 8601 timestamp of
+most recent appearance). `hat_briefing` SHALL include a depth signal for each NPC:
+NPCs with `appearance_count < 3` display with name and description only; NPCs with
+`appearance_count >= 3` display with a `[recurring]` marker and the count ("3
+appearances across 2 sessions"); NPCs with `appearance_count >= 10` display with a
+`[campaign]` marker. `session_recap` SHALL include an NPC relationship heatmap:
+for each NPC with `appearance_count > 1`, the number of sessions they appeared in
+and the number of distinct scenes. An NPC not seen in 5 or more sessions SHALL carry
+a `[distant]` marker in `hat_briefing`. The depth metadata is automatically maintained
+by the server — the GM does not set it directly.
+
 *Acceptance criterion:* `create_npc("Innkeeper")` produces an NPC with `npc://<id>`
 URI; `update_npc(id, {disposition: "friendly"})` changes the field; `remove_npc(id)`
-deletes it.
+deletes it. An NPC appearing in 3 scenes across 2 sessions displays `[recurring]` in
+`hat_briefing` with the appearance count. An NPC not seen in 5 sessions carries
+`[distant]`. `session_recap` includes an NPC relationship heatmap with session and
+scene counts.
 _Check:_ T56.
 
 **REQ-119 — NPC stat block reference.** `create_npc` accepts an optional
@@ -2618,6 +2657,29 @@ resolution. All fields persist with the Novel. The Player hat reads them via
 time_of_day="night", atmosphere="tense, dripping water")` surfaces all four
 fields in `scene://current`.
 _Check:_ T133.
+
+**REQ-252 — Narrative fast-forward.** The Game Master may skip intervening narrative
+time via a `fast_forward` parameter on `set_scene_state`. When present, the
+fast-forward SHALL produce a bridging summary of what transpired during the
+skipped interval: (a) any countdowns that would have elapsed — `narrative` countdowns
+advance by the caller-declared interval and `round` countdowns advance proportionally;
+(b) location lore entries whose triggers match the new scene; (c) NPC state changes
+the GM declares in a `changes` array (position, disposition, condition). The bridging
+summary SHALL be recorded in the audit log as a `[fast_forward]` entry containing the
+interval description, countdown adjustments, NPC updates, and lore triggers activated.
+`fast_forward` accepts: `interval` (free-text describing the skipped period —
+"three days of uneventful travel"), `changes` (optional array of NPC state assertions),
+and `skip_countdowns` (optional boolean — when true, countdowns are NOT advanced,
+preserving their state for later use). The fast-forward is snapshot-able and the
+pre-fast-forward state is restored on undo. Caller SHALL omit `skip_transition_hook`
+when `fast_forward` is present — the transition hook fires after the bridging
+summary is generated. Player hat returns `[FORBIDDEN]`.
+*Acceptance criterion:* `set_scene_state("The castle gates", fast_forward={interval:
+"three days of travel", changes:[{npc_id:"guard_1", location:"castle gate"}])`
+produces an audit entry with the bridging summary, advances narrative countdowns by 3
+days, and updates guard_1's location. Undo restores the pre-fast-forward scene state
+and countdown positions.
+_Check:_ T-new-252.
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields:
@@ -3431,6 +3493,29 @@ _Check:_ T20.
 
 Performance benchmarks are governed by REQ-100 below.
 
+**REQ-251 — Generation intent guard.** Before producing generation output, `generate_adventure`
+and `generate_encounter` SHALL assess the premise or context string for direct and
+implied harm, power-inversion requests ("create an adversary capable of defeating
+<specific entity>"), and content that exceeds the ruleset's mechanical ceiling. Any
+request whose resolution would require the server to fabricate mechanics, void the
+ruleset's stated constraints, or generate content likely to violate participant consent
+SHALL return `[WARNING]` describing the concern and requesting clarification or
+modification — the server SHALL NOT silently comply. The assessment SHALL operate on
+the input string without generating output first — compliance is checked before
+resources are consumed. The operator MAY override the guard by prefixing the premise
+with `!force` — the override SHALL be recorded in the audit log with a
+`[generation_guard_overridden]` entry. A GM-only advisory SHALL appear in
+`hat_briefing` when a generation guard fired in the current session, listing the premise
+and the concern. When the ruleset defines a difficulty system (challenge rating, threat
+levels), `generate_encounter` SHALL cap generated danger power against the party's
+existing entity levels — exceeding the cap produces `[WARNING]` with the cap value.
+*Acceptance criterion:* `generate_adventure("create an adversary capable of defeating
+Data")` returns `[WARNING]` listing the guard concern; `generate_adventure("!force
+create an adversary capable of defeating Data")` proceeds with the generation and
+records a `[generation_guard_overridden]` audit entry. A ruleset that defines
+challenge rating caps generated encounters against party level and warns on exceedance.
+_Check:_ T-new-251.
+
 **REQ-100 — Performance benchmark.** The builder measures and records cold-start time and
 representative query latency for the target ruleset. Measurements are recorded in
 DECISIONS.md (4) with the measurement environment (OS, CPU, memory, runtime version).
@@ -3456,6 +3541,26 @@ method in DECISIONS.md (4).
 lookup category; DECISIONS.md (4) records which categories were measured and
 their individual latencies.
 _Check:_ T87.
+
+**REQ-253 — Tool-output verbosity control.** Every lookup and resolution tool SHALL support
+a `terse` mode that returns the minimum mechanical content needed to resolve the rules
+question — no narrative framing, no extended context, no auxiliary information. The
+`terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time,
+range, duration, and damage/effect die — omitting verbal/somatic/material components
+and full spell description; for `search_rules`, the most relevant sentence or paragraph
+only — omitting surrounding context; for combat advance, the participant name,
+action taken (or `[AUTO]`), and resulting state changes — omitting full roll
+transparency. The default mode is `verbose` (full output, current behavior). `terse`
+mode is selectable via: (a) the `detail=terse` player signal (REQ-197) which applies
+to all subsequent tool output; (b) a per-call `terse: true` parameter on individual
+tool invocations. The per-call parameter overrides the session-scoped signal for
+that call. `spec_health` SHALL report the active verbosity mode. The mode is
+session-scoped — discarded on connection close.
+*Acceptance criterion:* `lookup_spell("fireball", terse=true)` returns the spell name,
+level, and damage die without the full spell description. `search_rules("grapple", terse=true)`
+returns the most relevant sentence only. `advance_combat` under `detail=terse` returns
+participant name + `[AUTO]` + resulting HP/condition changes without full roll breakdown.
+_Check:_ T-new-253.
 
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
@@ -4498,7 +4603,16 @@ directions and check door state — a closed door blocks passage. Object
 interaction SHALL respect portability and containment — taking a fixed object
 returns a rule-violation; taking an object inside a closed container returns a
 rule-violation. An unrecognized command SHALL return a not-implemented result
-with the command verb named. An ambiguous object reference SHALL return all
+with the command verb named AND the three nearest-matching valid commands from
+the parser catalog, ordered by edit distance — the response pattern is
+`[NOT_IMPLEMENTED] Unknown verb '<verb>'. Valid commands include: <nearest-1>,
+<nearest-2>, <nearest-3>.` `command("help")` SHALL enumerate every available
+command verb with its category (navigation, inspection, object interaction,
+inventory, wait) and a one-line description. `command("what can I do?")`,
+`command("commands")`, and `command("verbs")` SHALL produce the same output
+as `command("help")`. When the world-model tier is empty (no rooms), the
+help enumeration SHALL still list verbs — the base vocabulary is known even
+without a populated world. An ambiguous object reference SHALL return all
 matching objects with their locations and distinguishing descriptions.
 When the world-model tier is empty (no rooms), all parser commands SHALL
 return a not-implemented result directing the user to populate the world
@@ -4509,7 +4623,27 @@ or issues a look command THE system SHALL return the room's name, its
 verbatim description, and visible things with containment chains expressed
 in a standard format. The description SHALL be drawn from the source
 text — no generative prose is appended. Exit directions SHALL appear in
-status-line context, not in the room-description body. _Check:_ T240.
+status-line context, not in the room-description body.
+
+The system SHALL support three description modes settable via `command("brief")`,
+`command("verbose")`, and `command("normal")` (default). In `brief` mode,
+`command("look")` returns only the room name and exit directions — the verbatim
+description and visible things are suppressed. In `verbose` mode, every room
+entry prints the full verbatim description regardless of whether the player has
+seen the room before. `normal` mode prints the full description on first entry
+only; subsequent entries into seen rooms return the name and exits. The mode
+persists for the session — it is discarded on connection close. `command("brief")`
+and `command("verbose")` are always recognized verbs, even when the world-model
+tier is empty. `spec_health` SHALL report the current description mode.
+
+The `player_signal` interface SHALL accept a `detail` signal with values `terse`
+(room name + exits only, minimal combat feedback — participant name + result, no
+full roll transparency), `normal` (default balance), and `rich` (full descriptions,
+complete roll transparency, lore trigger notifications). Setting `detail=terse`
+SHALL override both the room description mode and combat verbosity — all tool
+output follows the selected detail level. The detail signal is session-scoped
+(discarded on connection close) and visible in `hat_briefing` as a Player-Detail
+line. _Check:_ T240.
 
 **REQ-198 — World-model CRUD.** THE system SHALL provide tools to create
 and delete world-model object types: rooms, things, and exits. Every
@@ -7474,6 +7608,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-248 | Adventure overview resource   | 2026-08-08 |
 | REQ-249 | Adventure navigation resource | 2026-08-08 |
 | REQ-250 | Adventure scene waypoint      | 2026-08-08 |
+| REQ-251 | Generation intent guard       | 2026-08-08 |
+| REQ-252 | Narrative fast-forward        | 2026-08-08 |
+| REQ-253 | Tool-output verbosity control | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -7835,6 +7972,9 @@ diet.
 | T286  | Automated | Adventure navigation resource: load an adventure with populated structural index. Call `resources/read` on `adventure://<slug>/navigation` — assert scene list in order with heading anchors. Set adventure scene waypoint to scene heading — assert current waypoint marked with `[→]`, adjacent scenes indicated as previous/next. Switch to Player hat — assert GM-only section headings are hidden; shared scene headings visible. Call with no adventure loaded — assert `[ERROR] [STATE_CONFLICT]`. Load an adventure with empty extraction — assert `[WARNING]` with "No navigation index available." | REQ-249, REQ-250, REQ-032 |
 | T287  | Automated | Adventure pre-population: build with a non-Appendix-K adventure containing discoverable NPC names (bolded name + stat-like value) and location headings with prose. Call `load_adventure` — assert NPC entities created in Novel with extracted names; assert lore entries created keyed by location heading names; assert factions created from organization references. Assert load response includes summary with item counts. Assert NPCs carrying only a name and no parseable stats (skeletal entities) participate in combat with `[AUTO]` turns per REQ-043. Assert duplicate-name Novel state is skipped with note in load response. Assert fuzzy-match suggestion appears when extracted NPC name matches a ruleset monster entry. | REQ-079, REQ-247, REQ-043 |
 | T288  | Automated | Enrichment auto-activation on adventure load: load an adventure with enrichment active and NPC references matching enrichment voice_examples. Assert ruleset-native enrichment voice examples are auto-activated for the GM — items appear active in `hat_briefing` and enrichment resources immediately after load completes. Assert community enrichment items remain inert with activation prompt in load response. Load an adventure with no matching enrichment items — assert no augmentation section, no auto-activation. | REQ-229, REQ-080 |
+| T-new-251 | Automated | Generation intent guard: call `generate_adventure("create an adversary capable of defeating Data")` — assert `[WARNING]` listing the guard concern: power-inversion intent, fabricated mechanics required. Assert no adventure content is produced. Call `generate_adventure("!force create an adversary capable of defeating Data")` — assert adventure scaffold generated, `[generation_guard_overridden]` audit entry recorded. Call with a ruleset that defines challenge ratings — assert `generate_encounter("dragon fight")` caps danger difficulty against party level and warns on exceedance. Assert `hat_briefing` under GM hat includes guard-fire advisory when a guard fired in the current session. | REQ-251 |
+| T-new-252 | Automated | Narrative fast-forward: call `set_scene_state("The castle", fast_forward={interval:"three days travel", changes:[{npc_id:"guard_1", location:"castle gate"}]})` — assert audit entry `[fast_forward]` recorded with interval, countdown adjustments, and NPC update. Assert narrative countdown advanced by 3-day-equivalent ticks. Assert guard_1 location updated. Assert `undo` restores pre-fast-forward state. Assert fast-forward with `skip_countdowns: true` preserves countdown positions. Assert fast-forward + `skip_transition_hook` returns `[ERROR] [INVALID_INPUT]`. Assert Player hat returns `[FORBIDDEN]`. | REQ-252, REQ-073, REQ-125 |
+| T-new-253 | Automated | Tool-output verbosity control: call `lookup_spell("fireball", terse=true)` — assert output includes spell name, level, and damage die; assert verbal/somatic/material component text absent. Set `player_signal("detail", "terse")` — assert subsequent `search_rules("grapple")` returns most relevant sentence only. Assert `advance_combat` under terse mode returns participant name + action result only, no full roll transparency. Assert `detail=normal` restores full output. Assert per-call `terse: true` overrides session detail signal. Assert `detail=rich` returns full descriptions with lore trigger notifications. | REQ-253, REQ-196, REQ-069 |
 | T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
