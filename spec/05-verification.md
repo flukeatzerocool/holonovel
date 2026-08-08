@@ -88,8 +88,8 @@ tests must document the verification procedure and expected output shape in
 DECISIONS.md.
 
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
-ruleset server, run the 23-sub-workflow Gauntlet defined in §6.6. All blocking
-sub-workflows (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22, S23) must pass.
+ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
+sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
 For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation

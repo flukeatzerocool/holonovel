@@ -86,18 +86,20 @@ token and time costs. The builder prefers incremental updates when the spec delt
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
 
-**The play model (TTRPG).** Two hats, enforced server-side during play. The Novel is the
-container — a named, persistent save file holding the world model, entities, scenes,
-and all session state. Novel setup (create Novel, load adventure, import characters,
-session zero) happens with no hat active (full access per REQ-031). Create a Novel,
-populate its narrative state (load an adventure module — a session-zero Novel — or
-build with scene, NPC, and faction tools), set up characters, then activate the Player
-hat via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
-player acts through the ruleset's resolution mechanics — skill checks, attacks,
-spells, exploration actions. World-model navigation (parser commands like `go north`
-or `take lamp`) is available when adventures provide spatial maps; the ruleset, not
-the world model, drives the game. Switch to Game Master hat to correct,
-undo, or directly manage Novel state. `set_hat` works without restart. One user per
+**The play model (TTRPG).** Two hats, enforced server-side when the story is active.
+The Novel is the container — a named, persistent save file holding the world model,
+entities, scenes, and all state. Entering a Novel (create or resume) starts in editing
+mode with no hat active (full access per REQ-031). Work on characters, load an
+adventure, build the world, refine lore — the Novel is yours to shape before the story
+begins. When ready, activate a hat via `set_hat` (REQ-066): wearing the player or
+game_master hat means you are in the story. Hat gating (REQ-032) activates. Under the
+Player hat, the player acts through the ruleset's resolution mechanics — skill checks,
+attacks, spells, exploration actions. World-model navigation (parser commands like `go
+north` or `take lamp`) is available when adventures provide spatial maps; the ruleset,
+not the world model, drives the story. Switch to the Game Master hat to correct, undo,
+or directly manage Novel state while staying in the story. End the story with
+`set_hat("none")` — return to editing mode with the Novel intact. End the Novel with
+`end_novel` — the save file is deleted. `set_hat` works without restart. One user per
 MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
 player, one AI Game Master. One player may control multiple characters (REQ-074).
 
@@ -107,8 +109,8 @@ freeform narrative roleplay. The primary interaction is through the GM's narrati
 `present_choices` to offer structured decisions, and `set_lore_entry`
 to build the world as you play. Player tools (`set_personality`, `player_signal`,
 `character_sheet`) let the player describe their character and communicate
-preferences. Parser navigation (`command("go north")`) is available when an adventure
-module populates rooms — it is never required for play. Adventures are starting-state
+preferences. Parser navigation (`go north`) is available when an adventure
+module populates rooms — it is never required to be in the story. Adventures are starting-state
 Novels: factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
 **Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
@@ -218,7 +220,7 @@ guard, the gap is explicit.
 4. The server trusts nothing client-supplied; every tool validates its inputs (REQ-054).
 5. Hat gating is enforced server-side (REQ-032).
 6. **LLMs propose intentions; the engine validates and executes.** The AI narrator
-   never directly mutates game state — every change flows through validated
+    never directly mutates story state — every change flows through validated
    tools. This is the same architecture as rpg-mcp's embodiment model, enforced
    server-side by hat gating (REQ-032), tool-result fidelity (REQ-058),
    and parameter canon validation (REQ-059).
@@ -236,12 +238,23 @@ guard, the gap is explicit.
    spec-authoring discipline — not a mechanical check — and is exercised by the author,
     not the builder. No _Check:_ citation attaches.
 9. **Ruleset-free skip rule.** When B1 is `none`, every check, metric, or
-   workflow that requires ruleset content SHALL be skipped with a `ruleset-free —
-   skipped` annotation in DECISIONS.md. The builder SHALL NOT attempt to measure,
-   score, or verify ruleset-derived properties in ruleset-free mode. Fixture
-   selections, workflow branches, and verification steps that carry explicit
-   ruleset-free clauses in their own sections SHALL follow those specific clauses
-   in preference to this general rule.
+    workflow that requires ruleset content SHALL be skipped with a `ruleset-free —
+    skipped` annotation in DECISIONS.md. The builder SHALL NOT attempt to measure,
+    score, or verify ruleset-derived properties in ruleset-free mode. Fixture
+    selections, workflow branches, and verification steps that carry explicit
+    ruleset-free clauses in their own sections SHALL follow those specific clauses
+    in preference to this general rule.
+10. **Plain English, no tool names.** User-facing narrative prompts — `intro`,
+    `session_zero`, and `novel_setup` — SHALL describe capabilities in plain
+    English with plaintext examples: what the user does, not what the tool is
+    called. Tool names, parameter shapes, and technical syntax SHALL NOT appear
+    in these prompts. The builder writes as if instructing a person, not
+    documenting an API. Narrative capability descriptions SHALL use plaintext
+    examples: a sentence the player or GM would write, not a function signature.
+    Operational prompts (`hat_briefing`, `run_workflow`) and tool output
+    (`suggest_actions`) are exempt — their content contracts are defined by their
+    respective REQs. This rule is verified at G4 and G5 — narrative prompts
+    containing tool names or technical syntax are a construction defect.
 
 **Terminology.**
 
@@ -252,11 +265,16 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Hat        | Active hat — `player`, `game_master`, or none (full access) (REQ-031, REQ-066).         |
+| Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
+| Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
+| In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
+| Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
-|               | audit log, snapshots, and hat state for a single ruleset playthrough.         |
+|               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
+|               | can be edited without a hat active (editing mode). The story begins when a       |
+|               | hat is activated and ends when the hat is removed — the Novel persists.          |
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
 |               | and rebuilds. Removed from disk by `end_novel`. Multiple Novels per server       |
 |               | instance; one active per connection. Isolated from other Novels.                  |
@@ -264,7 +282,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 22 sub-workflows against a running server. |
+| Gauntlet         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
@@ -295,12 +313,12 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224                     | 7     |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242 | 41    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 243–245       | 23    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245       | 24    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240                         | 14    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
@@ -360,7 +378,7 @@ multiple close matches exist, list them all ("Did you mean one of…"). An
 empty-string search returns no results — not an error — with valid-value enumeration.
 `[FORBIDDEN]` directs callers to use `set_hat` to switch hats. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
-ended game, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
+ended Novel, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
 matches multiple entries — an alias that resolves to more than one canonical
 name. The response enumerates the matching entries with their distinguishing
 fields. `[MISSING_PARAM]` is raised when a required parameter is absent or empty
@@ -1143,7 +1161,7 @@ boolean indicating whether enrichment state exists; (b) `module_counts`
 — per-module item count for each of the seven output modules (§11.1); (c)
 `stale_count` — number of inactive enrichment items whose `collected_at`
 exceeds `TTRPG_ENRICH_STALE_DAYS`; (d) `activated_count` — number of
-enrichment items the Game Master has incorporated into active game state
+enrichment items the Game Master has incorporated into active Novel state
 via Novel-scoped tools (REQ-159); (e) `fingerprint` — the enrichment
 fingerprint used for idempotence detection (ruleset content hash +
 intake answers). Stale items SHALL appear with the `[stale]` flag when
@@ -1344,7 +1362,7 @@ _Check:_ T62, T118.
 in `prompts/list`. It takes no arguments, is visible to all hats, and serves as a
 conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
 actions a player can take. The tone is engaging and energetic; the anti-slop catalogue
-(REQ-070, Appendix J) governs in-game GM and Player narration, not server onboarding
+(REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding
 prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
@@ -1356,35 +1374,56 @@ with four concrete next actions.
 _Check:_ T49, T50, T259.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
-arguments, is visible to all hats (unfiltered), and serves as a structured questionnaire surfaced at the
-start of a new adventure. It gathers: character introductions (narrative fields, REQ-077),
-tone preference (lighter/darker/grittier), difficulty preference, pacing preference
-(slower/faster), focus preference (more-action/more-exploration/more-dialogue),
-content boundaries (topics to avoid), and
-adventure confirmation. For each preference category, the prompt includes an explicit
-directive to record the response — `player_signal("tone", <value>)` for tone,
-`player_signal("difficulty", <value>)` for difficulty, `player_signal("pace", <value>)`
-for pacing, `player_signal("focus", <value>)` for focus, and
-`player_signal("boundary", <value>)` for boundaries. Character introductions
-include the directive `set_personality(entity_id, description, voice, background, goals)`.
-Every recording directive names the specific tool and its expected arguments; a caller
-who follows the directive verbatim produces a valid tool call. `session_zero` is listed
-in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run
-the `session_zero` prompt before play.
-*Acceptance criterion:* `session_zero` prompt lists `player_signal(...)`
-directives for tone, difficulty, pace, focus, and boundaries; a caller who
-copies a directive verbatim produces a valid tool call.
+arguments, is visible to all hats (unfiltered), and serves as a structured guide
+surfaced at the start of a new story. The builder SHALL generate the prompt text at
+build time, drawing on the ruleset model for ruleset terminology,
+character-creation rules, example-of-play excerpts, and native personality
+constructs, and drawing on Enrich `adventure_advice` content when available
+for genre conventions, narrative-voice profiles, and anti-slop examples. The
+builder MAY generate narrative prose — tuning option descriptions, example
+character introductions, plaintext capability examples — using its own
+language capabilities when the ruleset model provides sufficient context. Missing
+ruleset content SHALL produce the corresponding section with a plain-English fallback
+description — this is not a defect. The prompt SHALL be verbose throughout — every
+section SHALL describe narrative possibilities in plain English without tool names or
+technical syntax, per Standing Rule 10. The prompt SHALL include eight sections in
+order: (1) a welcome explaining session zero's purpose as creative alignment and a
+safety check — this is where the GM and player agree on the shape of the story before
+anyone rolls, and the preferences recorded here feed into the GM's narration for the
+entire story; (2) per-signal explanations — for each of tone, difficulty, pace, focus,
+and boundary, a plain-English description of what the signal controls narratively and
+three to five named tuning options each with a paragraph describing what that choice
+means for the story (scene style, narrative voice, consequences model, encounter
+design), plus a plain-English example instruction the player could write; (3) character
+introductions — three example character descriptions at increasing detail (a minimal
+one-to-two-sentence archetype, a three-paragraph description covering physical
+appearance and mannerisms then personality and voice then backstory and motivation, and
+a media reference that names a known character as shorthand then elaborates what to
+emphasise or change about that archetype), each self-contained as a usable model for
+the player's own description; (4) character creation — every mechanical choice category
+the ruleset provides (species/ancestry, class/archetype, background, stat generation,
+equipment) described in plain English with what each option means for the character's
+capabilities narratively, noting that roster characters are already available for
+import; (5) adventure confirmation — presenting loaded adventure premise, factions with
+their starting tensions, pre-populated NPCs with personality summaries, and the opening
+scene with a plain-English confirmation that the GM can accept or describe what to
+change, or guiding from-scratch definition when no adventure is loaded; (6) narrative
+capabilities — plain-English descriptions of what the GM can do during the story
+organized by context (combat, exploration, dialogue, world-building), with plaintext
+examples written as natural-language instructions the GM would give; (7) a quick-start
+guide summarising what is ready and describing how the first scene begins — the GM sets
+the opening scene, the player describes what their character does; (8) post-session
+encouragement to refine characters between stories — personality, voice, dialogue
+examples referencing favourite media, and mechanical advancement when the ruleset
+provides it. The prompt SHALL use the ruleset's own terminology for mechanical
+concepts. `session_zero` is listed in `prompts/list` after `intro`. The `intro`
+prompt includes a concrete action to run `session_zero` before play.
+*Acceptance criterion:* `session_zero` prompt contains all eight sections in
+order; per-signal explanations include three to five named tuning options with
+narrative paragraphs; character introductions include three example descriptions at
+increasing detail; narrative capabilities section uses plain English and plaintext
+examples with no tool names.
 _Check:_ T22, T124.
-
-When a `load_adventure` has been called prior to `session_zero`, the prompt SHALL
-include: (a) the adventure's premise/hook from the `## Premise` section, (b)
-available pre-populated factions and their starting clocks, (c) pre-populated NPCs
-with personality summaries, (d) the starting scene description, and (e) a
-confirmation question to accept or modify these defaults. When no adventure is
-loaded, `session_zero` guides the GM through creating these elements from scratch
-— effectively authoring a session-zero adventure live. An adventure file is a
-Novel at session zero: it provides pre-populated starting state that the GM
-accepts, modifies, or replaces during session zero.
 
 **REQ-057 — Canonical lookup tools.** For each category the ruleset defines as canonical
 content (equipment, spells, monsters/stat-blocks, conditions, feats, class features,
@@ -1529,7 +1568,7 @@ are re-initialized from the Novel's persisted values on resume.
 second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
 _Check:_ T32, T138, T157;
-Gate 2; S23.
+Gate 2; S22.
 
 **REQ-190 — Respond drain result.** WHEN `respond(decision, option)` drains a
 pending workflow decision, THE system SHALL return `[OK]` with the decision
@@ -1564,7 +1603,7 @@ NOT apply the same decision twice or leave the Novel in an inconsistent state
 where the workflow appears both drained and pending.
 *Acceptance criterion:* Two concurrent `respond` calls to the same decision —
 first succeeds, second returns `[STATE_CONFLICT]` with "no pending workflow".
-_Check:_ S23.
+_Check:_ S22.
 
 **REQ-193 — Pending workflow staleness detection.** THE server SHALL track
 a staleness counter for open pending workflows, incremented on each new
@@ -1719,24 +1758,31 @@ _Check:_ Appendix D.
 **REQ-031 — Hat activation.** By default, no hat is active — the server operates
 with full access, equivalent to Game Master privileges. All tools, resources, and prompts
 are accessible without restriction. Hat gating (REQ-032) takes effect only when a
-hat is explicitly activated via `set_hat` (REQ-066). When no hat is active,
+hat is explicitly activated via `set_hat` (REQ-066). Wearing a hat means you are
+in the story. The hat may be deactivated with `set_hat("none")` — the Novel
+persists in editing mode with full access. When no hat is active,
 all hat-filtered surfaces (`hat_briefing`, `prompts/list`, `resources/list`,
 `tools/list`, guidance) return full unfiltered content. The hat activation state
-persists with the Novel (REQ-055). `end_novel` deactivates the
-hat and returns to full-access mode.
+persists with the Novel (REQ-055). `end_novel` deletes the Novel regardless of
+hat state.
 *Acceptance criterion:* On startup with no hat active, `tools/list` returns all
 tools unfiltered; after `set_hat("player")`, GM-only tools are excluded from
-`tools/list` and return `[FORBIDDEN]` on invocation.
+`tools/list` and return `[FORBIDDEN]` on invocation; after `set_hat("none")`,
+full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
 **REQ-066 — set_hat tool.** The server provides a `set_hat` tool accepting
-`player` or `game_master`. Returns `[OK] Active hat: <hat>` on
-success. Returns `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
+`player`, `game_master`, or `none`. Returns `[OK] Active hat: <hat>` on
+success — `"none"` returns `[OK] Active hat: none — Novel editing mode`. Returns
+`[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
 hat-gated — it is always callable regardless of current hat. The hat switch
-takes effect immediately on the next tool call.
+takes effect immediately on the next tool call. `set_hat("none")` deactivates
+the hat and returns to editing mode with full access; the Novel persists
+untouched.
 *Acceptance criterion:* `set_hat("player")` returns `[OK] Active hat: player`
-and the next tool call is gated; `set_hat(...)` during a pending workflow returns
-`[STATE_CONFLICT]`.
+and the next tool call is gated; `set_hat("none")` returns
+`[OK] Active hat: none — Novel editing mode` and full access is restored;
+`set_hat(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
 **REQ-032 — Server-side gating.** When a hat is active, the server enforces hat
@@ -1929,8 +1975,9 @@ presents the same full-access view as all other null-hat surfaces but
 structured for initial orientation rather than ongoing play.
 *Acceptance criterion:* On startup with no Novel active, `hat_briefing`
 returns a setup-oriented message with the intro pointer and Novel-creation
-guidance; with a Novel active but no hat set, the briefing includes the
-active Novel name and guidance to activate a hat via `set_hat`.
+guidance; with a Novel active but no hat set (editing mode), the briefing
+includes the active Novel name, setup progress when incomplete, and
+guidance to continue Novel setup or start the story when ready.
 _Check:_ T150.
 
 **REQ-137 — Gate classification auditability.** Every tool registered on
@@ -2015,7 +2062,7 @@ _Check:_ T253, T188.
 
 ### 5.6 State and Lifecycle
 
-**REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
+**REQ-040 — Audit log.** Every tool call that mutates Novel state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://novel`), including timestamp, hat, tool name,
 arguments, and output prefix. State queries are not logged. Each audit entry chains the hash of the preceding entry,
@@ -2040,6 +2087,12 @@ disk when the Novel JSON references it SHALL produce a `[missing_audit]`
 warning — the server loads with an empty audit log and records the event.
 `end_novel` removes both the Novel JSON and its audit JSONL file.
 `export_novel` (REQ-096) assembles the full audit log from the JSONL file.
+Hat switches via `set_hat` (all values: `player`, `game_master`, `none`)
+SHALL produce audit entries recording the old hat, new hat, and timestamp.
+Hat-switch entries carry `[hat_switch]` as the tool-name field. They are
+recorded in the append-only audit log and included in `audit://novel`
+output, but they are not mutating state operations for undo/redo purposes —
+`undo` SHALL NOT reverse a hat switch.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
 hat, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
@@ -2131,6 +2184,14 @@ mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
 _Check:_ T25, T33, T110, T161, T162; Gate 2.
+
+Combat state is Novel-scoped — it persists when the story ends via
+`set_hat("none")` or resumes via `set_hat("player")` or
+`set_hat("game_master")`. `end_novel` discards the combat state along with all
+other Novel state. When a story resumes mid-combat, the combat continues from
+its current round and turn position — the turn order, participant states, and
+round counter are unchanged. When a story resumes and no combat was active,
+play begins from the current scene state.
 
 **REQ-203 — Combat-init guard.** When `init_combat` is called while combat is already
 active, the server SHALL return `[ERROR] [STATE_CONFLICT]` with the text "Combat already
@@ -2333,7 +2394,7 @@ briefings; a GM-only countdown "patrol" appears only in the GM briefing;
 `advance_countdown("patrol")` at tick 1 fires and removes it.
 _Check:_ T54, T139.
 
-**REQ-074 — Multi-entity support.** A Novel may contain multiple game entities under the
+**REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
 same hat. The roster may hold multiple entities for the player. `entities://` lists
 all Novel entities visible to the active hat. One entity is the active entity — the
 default target for tools that accept an `entity_id` when no `entity_id` is supplied. The
@@ -3291,9 +3352,14 @@ Novel fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with 
 When a Novel is resumed or switched to, the Novel's persisted hat state takes
 precedence over `TTRPG_HAT`. `TTRPG_HAT` sets the initial active hat only
 when the starting Novel has no persisted hat state — either because the Novel is
-newly created, or because no hat was activated during a prior session.
-*Acceptance criterion:* Server restart with `TTRPG_NOVEL=my-game` restores
-entities, HP, conditions, hat, and RNG state; `resume_novel("ended-game")`
+newly created, or because no hat was activated during a prior session. WHEN
+`resume_novel` restores a Novel that has a hat active (a story in progress) THE
+server SHALL include a notice identifying the active hat — e.g., "This Novel has
+a story in progress (Player hat active). You're back in the story." — so the
+operator knows they have resumed an active story rather than entered editing
+mode.
+*Acceptance criterion:* Server restart with `TTRPG_NOVEL=my-novel` restores
+entities, HP, conditions, hat, and RNG state; `resume_novel("ended-novel")`
 returns `[STATE_CONFLICT]`.
 _Check:_ T9, T31, T108.
 
@@ -3558,7 +3624,7 @@ _Check:_ T94, T125.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
 enrichment state SHALL preserve every enrichment item that the Game
-Master has incorporated into active game state through any Novel-scoped
+Master has incorporated into active Novel state through any Novel-scoped
 tool call. An enrichment item is "activated" when a Novel-scoped GM tool
 call causes it to appear in at least one tool-observable surface (tool
 output, resource, or prompt) for the current Novel. Items never
@@ -3874,7 +3940,7 @@ first tool call or prompt is served. If `TTRPG_NOVEL` is set but activation
 fails for any reason other than non-existence (e.g., corrupt file, checksum
 mismatch), the server reports the error in stderr and `spec_health`, and
 proceeds with no Novel active — it does not silently swallow the error.
-*Acceptance criterion:* `create_novel("my-game")` creates `novels/my-game.json`;
+*Acceptance criterion:* `create_novel("my-novel")` creates `novels/my-novel.json`;
 `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved
 to `.trash/` and the roster survives.
 _Check:_ T72, T73, T98, T159.
@@ -3901,25 +3967,32 @@ is currently active, `switch_novel` activates the target directly (equivalent to
 `resume_novel(slug)` without requiring a fresh server start). Novel-scoped tools operate on
 the connection's active Novel. Each connection maintains its own active Novel reference;
 two connections may have different Novels active simultaneously.
-*Acceptance criterion:* `switch_novel("other-game")` deactivates the current Novel
+*Acceptance criterion:* `switch_novel("other-novel")` deactivates the current Novel
 and activates the target; the target's persisted hat is restored; switching to a
 nonexistent slug returns `[STATE_CONFLICT]`.
 _Check:_ T98.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
-`prompts/list`). It surfaces the recommended setup workflow: (1) create or import
-characters, (2) choose an adventure source (load a module, generate from a premise, generate
-a random encounter, or build from scratch), (3) run session zero. Lists available roster
-characters, indexed adventure modules, and the generation tools. Setup is freeform — tools
-are available without enforced order, but the Novel tracks completed steps
+`prompts/list`). It SHALL present a guided setup wizard in three sequential steps: (1)
+characters — import roster characters or create new ones, with the ruleset's creation
+options described in plain English; (2) story source — load an adventure, generate from
+a premise, generate a random encounter, or build from scratch, with each option
+explained in terms of what the GM gets narratively; (3) session zero. Each step SHALL
+display a visual completion marker — `[✓]` for completed, `[→]` for current, `[ ]` for
+pending — so the operator always knows where they are. Step descriptions SHALL be
+conversational in plain English (e.g., "You have 2 characters in your roster. Would you
+like to import one, create a new one, or move on?") rather than a static listing. After
+session zero completes, the prompt SHALL present a next-steps summary describing what is
+ready and how to begin the first scene. The Novel SHALL track completed steps
 (characters_present, adventure_set, session_zero_completed) in its metadata, surfaced in
-`hat_briefing` under the `novel` section token. After `create_novel`, the server response
-or `hat_briefing` surfaces `novel_setup` as the recommended next step. `novel_setup` integrates
-ruleset-extracted guidance (REQ-016), Enrich `adventure_advice` content, and spec
-foundations for adventure-construction context.
-*Acceptance criterion:* After `create_novel(...)`, the response directs the
-operator to `novel_setup`; the prompt lists available roster characters, indexed
-adventures, and generation tools.
+`hat_briefing` under the `novel` section token. After `create_novel`, the server
+response or `hat_briefing` SHALL surface `novel_setup` as the recommended next step.
+`novel_setup` SHALL integrate ruleset-extracted guidance (REQ-016), Enrich
+`adventure_advice` content, and spec foundations for story-construction context.
+*Acceptance criterion:* `novel_setup` presents three sequential steps with visual
+completion markers; step descriptions use conversational plain English; after session
+zero completes, a next-steps summary appears; completed steps are tracked in Novel
+metadata.
 _Check:_ T74.
 
 **REQ-090 — Adventure generation.** `generate_adventure(premise)` (Game Master only).
@@ -4206,10 +4279,10 @@ from the clone, keeping only the most recent N sessions' entries (session
 boundaries determined by `[session_boundary]` markers per REQ-237). A new
 `clone` audit entry SHALL be recorded in both the source and cloned Novel.
 Player hat attempts return `[ERROR] [FORBIDDEN]`.
-*Acceptance criterion:* `clone_novel("my-game", "my-game-fork")` creates an
+*Acceptance criterion:* `clone_novel("my-novel", "my-novel-fork")` creates an
 independent copy; mutating the clone does not affect the source; `spec_health`
-lists both Novels; `clone_novel("my-game", "my-game-fork")` a second time
-returns `[STATE_CONFLICT]`; `clone_novel("my-game", "trimmed", trim_audit_
+lists both Novels; `clone_novel("my-novel", "my-novel-fork")` a second time
+returns `[STATE_CONFLICT]`; `clone_novel("my-novel", "trimmed", trim_audit_
 sessions=2)` clones with only the 2 most recent sessions' audit entries.
 _Check:_ T278.
 
@@ -4233,7 +4306,7 @@ Conflict-resolution order:
    (narrative vs. mechanical); no override is needed between them.
 3. The Inform layer provides optional spatial navigation. It is always secondary
    surface — backgrounded in all builds. Parser commands are available when a
-   world model is populated; they never drive the game's resolution layer.
+    world model is populated; they never drive the story's resolution layer.
 _Check:_ T237.
 
 **Inform secondary surface.** In TTRPG builds, the parser `command` SHALL be
@@ -4378,7 +4451,7 @@ base vocabulary at `world://kinds/parser_commands`.
 _Check:_ T264.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
-save-game versioning beyond the checksum model, and Novel migration between
+save-Novel versioning beyond the checksum model, and Novel migration between
 different rulesets.
 
 ### 5.11 Ruleset-Free Build Mode
@@ -4424,7 +4497,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 
 | Workflow | What it does                                                | Required sections        |
 | ------- | ----------------------------------------------------------- | ------------------------ |
-| Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
+| Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the ruleset. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
 | Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet sub-workflows. | §6.7, §6.2      |
@@ -4818,9 +4891,11 @@ live state. The builder constructs prompts from these sources, in this order:
    active hat's filter.
 
 5. **Required contract elements.** Every prompt that carries a specification
-   contract (intro pointer in `hat_briefing` per REQ-063, `player_signal`
-   and `set_personality` directives in `session_zero` per REQ-078) includes
-   those elements before any truncation.
+    contract (intro pointer in `hat_briefing` per REQ-063, plain-English
+    guidance sections and examples in `session_zero` per REQ-078, conversational
+    wizard steps in `novel_setup` per REQ-089) includes
+    those elements before any truncation. Standing Rule 10 applies — prompt
+    bodies SHALL contain no tool names or technical syntax.
 
 Prompts use the ruleset's own terminology for mechanics, tool names, and
 categories — the builder does not invent terms. The prompt length budget
@@ -5163,6 +5238,20 @@ code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
+**Convergence-loop-driven scoping.** When the convergence loop (§6.5) exits with all
+metrics within their tiered thresholds and the ruleset content hash (REQ-044)
+matches the prior build, the subsequent Gauntlet run SHALL skip
+mechanics-fidelity sub-workflows — those whose failures would be
+extraction-dependent: S2 (character creation), S3 (encounter setup), S4
+(simulated combat), S7 (table generation), S8 (search and canonical lookup), and
+S9 (condition lifecycle). Each skipped sub-workflow is recorded as
+`skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
+sub-workflows — all others (S1, S5, S6, S10–S29) — always execute, as they
+verify runtime contracts independent of extraction quality. This scoping applies
+to both the initial build-time Gauntlet and subsequent re-runs after enrichment
+or spec-driven updates. The operator MAY override with `--full-gauntlet` to force
+all sub-workflows.
+
 **Workflow completion.** The Build workflow is not complete until the Gauntlet
 exits with all Gauntlet sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
@@ -5179,7 +5268,7 @@ Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts up to two MCP client connections to the same server process
 sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-hat interaction
-(S6, S14h, S17) use one connection for the Game Master hat and one for the Player hat.
+(S6, S14h, S17, S23, S26) use one connection for the Game Master hat and one for the Player hat.
 All other sub-workflows use a single connection switching hats as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
 calls between the two connections when simulating cross-hat turn-taking. Every scenario
@@ -5207,10 +5296,10 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep** — call at least one tool from every registered tool category
-   per REQ-015 (read-only, state-reading, command, generation, hybrid), plus all
-   Novel-lifecycle and hat-management tools. Each call uses valid input; additionally,
-   call at least one tool per category with an invalid input (empty string, missing
+1. **Tool surface sweep** — call one read-only tool from each REQ-015 category not
+   exercised by another blocking sub-workflow, plus all Novel-lifecycle and
+   hat-management tools. Each call uses valid input; additionally,
+   call each with an invalid input (empty string, missing
    required param) and assert `[INVALID_INPUT]` or `[MISSING_PARAM]` response without
    crash. (Blocking.)
 2. **Character creation workflow** — step-by-step and quick creation; correct derived
@@ -5277,6 +5366,81 @@ four items is incomplete and blocks handoff.
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_hat blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
+23. **Narrative features sweep** — exercise all six DMCP narrative tools end to end:
+    `save_pause_context` / `get_resume_context` round-trip with auto-captured faction
+    clocks, countdown positions, NPC dispositions, and entity relationships;
+    `end_novel` clears dm_context; `create_faction` with faction-type countdown,
+    `faction://` resource, `advance_countdown` coupling, scene transition advances
+    faction clock, `remove_faction` removes clock; `set_secret` / `reveal_secret` /
+    `check_knowledge` cycle with character_sheet "Known Information" section;
+    `present_choices` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
+    audit tag, countdown and faction clock coupling on resolved id; `set_relationship`
+    / `get_relationships` cycle, character_sheet shows "Relationships" section,
+    relationship change between `ally` and `rival` prompts lore entry in
+    `hat_briefing`; `set_note` / `list_notes` / `notes://<key>` round-trip, Player hat
+    excluded from notes content. Verify clock taxonomy: `racing` clock pair resolves
+    correctly (first to full wins), `linked` clock chain triggers child on parent
+    completion, `tug_of_war` retreated to zero does not trigger, `mission` clock
+    decrements on `resume_novel`. All mutations appear in audit log and
+    `session_recap`. (Blocking.)
+24. **Session segmentation and audit compaction** — two sessions with different
+    `TTRPG_SESSION_ID` values: assert two `[session_boundary]` markers in audit log
+    with session IDs and timestamps; `session_recap(session_id="s1")` returns only s1
+    entries; `session_recap(session_id="s2")` returns only s2 entries; `session_recap()`
+    returns all entries; `spec_health` reports per-session metrics array. With
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `compact_audit_log()` prompts `[NEED_INPUT]`
+    confirmation; on confirm, session 1 entries removed from live log,
+    `audit://novel/archive` returns session 1 summary; `session_recap(session_id="s1")`
+    returns the summary from archive; `session_recap()` returns only session 2 entries.
+    Player hat `compact_audit_log` returns `[FORBIDDEN]`. (Non-blocking.)
+25. **State durability: backups, checkpoints, clones** — with
+    `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
+    files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
+    `[restored_from_backup]` audit entry; `end_novel` removes all backups.
+    `set_checkpoint("a")` → 5 mutations → `restore_checkpoint("a")` with `[NEED_INPUT]`
+    confirm → assert all 5 mutations reversed; `delete_checkpoint` removes entry;
+    `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
+    and Novel switch; `export_novel(json, include_checkpoints=true)` includes
+    checkpoints key; Player hat returns `[FORBIDDEN]`. `clone_novel("src", "dst")`
+    creates independent Novel; mutating clone does not affect source; duplicate slug
+    returns `[STATE_CONFLICT]`; `trim_audit_sessions=2` retains only 2 most recent
+    sessions; Player hat returns `[FORBIDDEN]`. (Blocking.)
+26. **Narrative POV** — import two entities; `set_active_entity("char_01")` — assert
+    `hat_briefing` includes POV directive naming char_01 with narrative instruction
+    and personality fields; `set_active_entity("char_02")` — assert directive updates
+    to char_02. `set_active_entity("char_01", pov="omniscient")` — assert
+    `hat_briefing` shows "POV: none — narration is omniscient" with char_01 still
+    active; `set_active_entity("char_02")` preserves omniscient mode;
+    `set_active_entity("char_02", pov="character")` switches to character-locked POV
+    for char_02. POV mode persists across server restart. POV directive is never
+    truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
+27. **Enrichment lifecycle** — requires enrichment to have been run. Assert
+    `enrichment://status` reports active modules with per-module item counts.
+    Deactivate a module via `set_enrichment_module(module_name, false)` — assert items
+    from that module absent from enrichment surfaces. Reactivate — assert items return.
+    `revert_enrichment()` — assert community enrichment items removed, ruleset-native
+    items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
+    items. Assert `hat_briefing` enrichment content follows activation state: active
+    modules' content appears, deactivated modules' content absent. Entity
+    `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
+    sourcing. (Non-blocking.)
+28. **Briefing ordering, voice examples, session notation** —
+    `set_briefing_order(["scene", "entities", "lore"])` — assert `hat_briefing`
+    sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
+    enumerated; `set_briefing_order([])` resets to builder defaults.
+    `set_voice_examples(entity_id, [{context:"greeting", dialogue:"Hello",
+    tag:"formal"}])` — assert `entity://<id>/voice_examples` returns examples;
+    `entity://<id>/personality` reflects `set_personality` fields.
+    `session_recap(format="lonelog")` — assert output in Lonelog notation (`###` scene
+    headers, `@` actions, `=>` outcomes); `compress_audit(format="lonelog")` —
+    assert compressed Lonelog entries. (Non-blocking.)
+29. **Novel export/import cycle** — `export_novel("json")` → `import_novel(data,
+    "dry-run")` reports changes without side effects → `import_novel(data, "replace")`
+    restores exported state → re-`export_novel("json")` matches original.
+    `export_novel("json", "lore")` produces lore-only payload. `import_novel(data,
+    "dry-run", strict=true)` with broken references reports all failures and blocks
+    import. Assert `suggest_actions("attack the goblin")` returns at least one
+    combat-category tool with registered name and REQ-015 classification. (Blocking.)
 
 **REQ-108 — Gauntlet traceability.** The builder must ensure at least one
 Gauntlet sub-workflow exercises each requirement in §5.5 (Hats and Access),
@@ -5317,8 +5481,8 @@ the sub-workflow but is recorded with the actual duration. Three consecutive S21
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
-wall-clock time, except S13 (10 minutes), S21 (10 minutes), and S22 (3
-minutes). A sub-workflow exceeding its individual budget does not fail but
+wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3
+minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
@@ -5332,6 +5496,19 @@ exceeding 2,000 indexed items (REQ-100 Huge tier).
 **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
 as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
 descriptions above are canonical; the structured encoding is a lossless transcription.
+
+The structured encoding SHALL be accompanied by a single runnable test harness
+(`scripts/run_gauntlet.ts`) that reads the encoded sub-workflow records and executes
+each against the live MCP server. The harness SHALL: (a) start the server process,
+(b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion
+against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
+Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
+non-blocking failures per the Exit criteria. The harness enables operator re-execution
+of the full Gauntlet without AI builder reasoning — re-runs after enrichment, after
+spec-driven updates, or after code changes consume zero AI tokens. The harness output
+SHALL include the Gauntlet execution timestamp and per-sub-workflow verdicts with
+failure details when applicable. The harness is recorded as a handoff artifact
+(§9 H13a).
 
 **Convergence integration.** The convergence handshake (see Timing block above)
 governs the Gauntlet ↔ Phase 2 feedback loop.
@@ -5349,7 +5526,7 @@ and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
-20, 21, and 22 are blocking — Build is incomplete until they pass. Other failures are
+20, 21, 22, 23, 25, 26, and 29 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
@@ -5414,10 +5591,99 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | New prompt, resource, or hat-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
 | Campaign endurance, stress (REQ-052)                        | S13, S21 |
+| Pause/resume, factions, player choices, relationships, secrets, notes, clock types | S23 |
+| Session segmentation, audit compaction                      | S24 |
+| Backup rotation, checkpoints, clone novel                   | S25 |
+| Narrative POV (REQ-220, REQ-223)                            | S26 |
+| Enrichment lifecycle, status, toggles                       | S27 |
+| Briefing ordering, voice examples, session notation         | S28 |
+| Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
 syncs — not only the blanket Gauntlet run.
+
+**REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
+(Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
+Performance), and REQ-002 (Error taxonomy) to at least one Gauntlet sub-workflow
+that exercises its contract. This table is normative — it ships with the
+specification and is mechanically verified by `scripts/validate.ts`. When a spec
+revision adds a new REQ to these sections, the maintainer SHALL add at least one
+row mapping it to a Gauntlet sub-workflow (existing or new). When no existing
+sub-workflow exercises the new REQ's contract, the maintainer SHALL add a new
+sub-workflow. Gaps detected by validation are errors — they block assembly.
+
+| REQ | Sub-workflows | Feature |
+|-----|---------------|---------|
+| REQ-030 | S6, S17 | Single-user connection |
+| REQ-031 | S6, S22 | Hat activation |
+| REQ-032 | S6, S14h, S19 | Server-side hat gating |
+| REQ-066 | S6, S15 | set_hat tool |
+| REQ-109 | S19 | Hat briefing composition |
+| REQ-133 | S6 | Forbidden-call audit |
+| REQ-134 | S6 | Minimum Player tool surface |
+| REQ-135 | S19, S26 | Hat briefing size budget |
+| REQ-136 | S19 | Null-hat briefing |
+| REQ-137 | S6 | Gate classification auditability |
+| REQ-148 | S6, S19 | Entity ownership filter |
+| REQ-149 | S6, S19 | Hat-filtered resources |
+| REQ-150 | S6 | Server-settable entity visibility |
+| REQ-159 | S19, S27 | Enrichment briefing integration |
+| REQ-216 | S7 | Generation table hat filtering |
+| REQ-220 | S26 | Narrative point of view |
+| REQ-223 | S26 | POV mode control |
+| REQ-040 | S16, S21 | Audit log |
+| REQ-041 | S4, S22, S25 | Undo/redo/snapshots |
+| REQ-043 | S3, S4, S5 | Combat lifecycle |
+| REQ-044 | S17 | Ruleset hash recording |
+| REQ-065 | S5, S17 | Build fingerprint |
+| REQ-069 | S16 | Player feedback signal |
+| REQ-072 | S21, S28 | Session recap (incl. Lonelog) |
+| REQ-073 | S16, S23 | Countdowns (incl. clock taxonomy) |
+| REQ-074 | S17, S19 | Multi-entity support |
+| REQ-075 | S16 | Named-NPC state |
+| REQ-076 | S16, S17 | Scene-state ledger |
+| REQ-076a | S16 | Structured scene fields |
+| REQ-077 | S2, S19, S28 | Entity personality fields |
+| REQ-079 | S18, S29 | Adventure modules |
+| REQ-116 | S4, S22 | Redo |
+| REQ-119 | S16 | NPC stat block reference |
+| REQ-120 | S16 | NPC rendering |
+| REQ-121 | S16 | NPC resource URIs |
+| REQ-122 | S16 | NPC narrative fields |
+| REQ-123 | S16 | Builder-defined NPC stat fields |
+| REQ-124 | S16 | NPC damage resolution |
+| REQ-126 | S19, S28 | Voice examples rendering |
+| REQ-127 | S2, S19 | Ruleset-native personality mapping |
+| REQ-128 | S16 | Signal briefing surface |
+| REQ-129 | S16 | Property group cardinality |
+| REQ-132 | S18 | Adventure generation lifecycle |
+| REQ-156 | S16 | Countdown persistence |
+| REQ-203 | S15 | Corrupted state recovery |
+| REQ-204 | S15 | State directory isolation |
+| REQ-205 | S5, S15, S17 | State survival under restart |
+| REQ-206 | S4, S9 | Condition management |
+| REQ-217 | S9 | Condition lifecycle |
+| REQ-221 | S23 | Combat-navigation interaction |
+| REQ-229 | S18 | Adventure enrichment linkage |
+| REQ-232 | S23 | Pause/resume context |
+| REQ-233 | S23 | Factions |
+| REQ-236 | S23 | Entity relationships |
+| REQ-237 | S24 | Session segmentation |
+| REQ-239 | S24 | Audit log compaction |
+| REQ-241 | S25 | Checkpoints |
+| REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-050 | S4, S7 | Determinism (PRNG) |
+| REQ-051 | G4 | No runtime network access |
+| REQ-052 | S13, S21 | Path containment |
+| REQ-054 | S14i | Input safety |
+| REQ-055 | S5, S17 | Durability and resume |
+| REQ-100 | S13, S21 | Performance benchmark |
+| REQ-157 | S4 | Combat determinism |
+| REQ-002 | S1, S14e, S14f, S22 | Error taxonomy |
+| REQ-002a | S9 | Extended error category semantics |
+| REQ-002b | S1, S14e | Corrective-action contract |
+| REQ-002c | S6 | Hat-filtered error values |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
@@ -5427,14 +5693,30 @@ SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
 The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
 
-When the specification version has advanced but the ruleset hash is unchanged,
-the builder SHALL run the gap audit (§6.7) and select Gauntlet sub-workflows
-per the surface-to-scenario mapping — only sub-workflows exercising changed
-surfaces execute. The full 22-sub-workflow Gauntlet is not required when the
+**Per-sub-workflow surface fingerprints.** Each sub-workflow's structured encoding
+SHALL carry a `surface_hash` — a SHA-256 of the sorted, concatenated tool names,
+resource URIs, and prompt names the sub-workflow exercises. When the
+specification version has advanced but the ruleset hash is unchanged, the builder
+SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
+Sub-workflows whose `surface_hash` matches the prior Gauntlet execution SHALL be
+skipped individually — recorded as `cached — surface hash match for S<N>` in
+DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
+The full 29-sub-workflow Gauntlet is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
+**Gauntlet results manifest.** The builder SHALL record a `gauntlet_manifest`
+alongside the build fingerprint (REQ-065): per-sub-workflow pass/fail status,
+surface hash, and execution timestamp, keyed to spec version + ruleset hash.
+When the spec version and ruleset hash both match a prior manifest entry, all
+sub-workflow results are reused — recorded as `cached — gauntlet manifest match`
+in DECISIONS.md (6) — instead of re-executing any sub-workflow. When the spec
+version has advanced, sub-workflows with unchanged surface hashes carry forward
+their prior results per the per-sub-workflow fingerprint rule; sub-workflows with
+changed surface hashes re-execute. The manifest takes precedence over the
+DECISIONS.md (6) execution record for re-use decisions.
+
 The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
-intake, forcing all 22 sub-workflows regardless of fingerprint match.
+intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
 #### Inform Gauntlet
 
@@ -5444,8 +5726,11 @@ Gauntlet runs when the inform package is built and before it is published, as pa
 the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
 consume the published inform package as a build-time dependency and skip the Inform
 Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
-Budget, and Structured encoding contracts apply (§6.6). Blocking sub-workflows SHALL
-pass; non-blocking failures are recorded as accepted limitations.
+Budget, and Structured encoding contracts apply (§6.6), including the executable
+test harness mandate — the Inform build SHALL produce a runnable harness
+(`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
+sub-workflows SHALL pass; non-blocking failures are recorded as accepted
+limitations.
 
 **Version-bound results.** When the inform package version (B10) matches a
 prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
@@ -5456,6 +5741,16 @@ advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
+
+**Per-sub-workflow surface fingerprints.** Each Inform sub-workflow's structured
+encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
+resource URIs, and prompt names the sub-workflow exercises. When the
+specification version has advanced but the inform package version is unchanged,
+sub-workflows whose `surface_hash` matches the prior Inform Gauntlet execution
+SHALL be skipped individually — recorded as `cached — surface hash match for
+I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
+re-execute. The surface-to-scenario mapping below governs which sub-workflows
+are selected for changed surfaces.
 
 **Inform Gauntlet sub-workflows.**
 
@@ -5557,7 +5852,7 @@ is built and published.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -5706,7 +6001,7 @@ switching. See §6.4 for the full creation contract.
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
-| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`) |
+| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -5727,7 +6022,7 @@ State tiers:
 | Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
-| Novel      | Active game state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
 **Novel properties.** Every Novel contains eleven property groups, all
@@ -5900,8 +6195,8 @@ tests must document the verification procedure and expected output shape in
 DECISIONS.md.
 
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
-ruleset server, run the 23-sub-workflow Gauntlet defined in §6.6. All blocking
-sub-workflows (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22, S23) must pass.
+ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
+sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
 For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
 Non-blocking failures are recorded as accepted limitations with re-activation
@@ -6585,7 +6880,7 @@ A correct extraction of the fixture includes at least:
 - **Entities**: delver — Name; Grit/Nerve/Wits from {+2, +1, 0}; Harm 0–6 (a pool);
   Conditions; lifecycle: creation is defined and modeled [HIGH for creation]; advancement
   and deletion are undefined (the advancement cross-reference is broken — defect 3), so no
-  advance or delete tool exists (REQ-013). The confrontation is a game-scoped state object
+  advance or delete tool exists (REQ-013). The confrontation is a Novel-scoped state object
   — participants, round counter, turn order — not an entity (REQ-043). Dangers are
   non-entity participants (REQ-043).
 - **Actions**: `roll_move` (Resolution, MUST), `create_delver` (Command, MUST —
@@ -6653,7 +6948,7 @@ Corrective action: ask the Keeper to roll, or switch to game_master hat via `set
 → roll_on_table { "table": "knacks", "seed": 42 }
 [OK] Knacks (knacks): rolled 2 — Iron Stomach: immune to ingested poisons
 
-# --- same game, new connection, hat: Lantern Keeper ---
+# --- same Novel, new connection, hat: Lantern Keeper ---
 → start_confrontation { "participants": ["delver_01"], "dangers": ["hollow-man"] }
 [OK] Confrontation active. Round 1. Turn order: Moss, hollow man.
 
@@ -7092,7 +7387,7 @@ diet.
 | T4    | Automated | Search returns the expected section in the top 3 results for exact, prefix, and substring queries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-012                                     |
 | T5    | Manual   | Entity lifecycle end to end: create, field mutation, and deletion where the ruleset defines it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-020                                     |
 | T8    | Automated | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-040                                     |
-| T9    | Automated | Startup: no hat active — full access, no gating. `set_hat player`: Player gating active — GM tools blocked. `set_hat game_master`: full access restored. `end_novel`: hat deactivated, full access. Hat switches are audited; `set_hat` blocked during pending workflows (STATE_CONFLICT); undo stacks are hat-separate; Novel state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
+| T9    | Automated | Startup: no hat active — editing mode, full access. `set_hat player`: Player hat active, in the story — GM tools blocked. `set_hat game_master`: GM hat active, in the story — full access restored. `set_hat none`: returns to editing mode, full access restored, Novel persists. Hat switches are audited; `set_hat` blocked during pending workflows (STATE_CONFLICT); undo stacks are hat-separate; Novel state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
 | T10   | Automated | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-041                                     |
 | T13   | Automated | Truncation at limit with `output://` pointer; payload hat filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-004, REQ-032                            |
 | T15   | Automated | `spec_health` reports confidence, convergence_summary, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
@@ -7129,22 +7424,22 @@ diet.
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline (or server-name identification when ruleset-free), includes a dynamic sourcebook listing drawn from the live index (or world-model-only notice when ruleset-free), and ends with four concrete next actions; verify the `help` tool and `hat_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any hat (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `hat_briefing` for each hat (switch via `set_hat`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of hat)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Hat behavioral boundaries: invoke a Player-hat session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both hats and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
-| T52   | Automated | Build fingerprint: build server, create state (character, game entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
+| T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
 | T53   | Automated | Session recap: invoke `session_recap` after a combat session, assert the summary includes entities with final HP and conditions, combat outcomes, scene state, active lore entries with trigger status, narrative directive, current scene type, and last scene state transitions. Assert entity status reports "alive" when HP > 0, "unconscious" at HP = 0, "dead" when death condition active. Assert all 14 named fields present with typed values. Call `session_recap(max_transitions=2, max_rolls=3)` — assert at most 2 transitions and 3 rolls. Call `session_recap(max_transitions=0)` — assert `[ERROR] [INVALID_INPUT]`. Invoke as Player hat — assert only own-entity data appears and narrative elements are hat-filtered. Invoke as Game Master — assert all entity data and narrative elements appear.                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-072, REQ-032, REQ-174, REQ-175          |
 | T54   | Automated | Countdowns: set a `round` countdown (5 ticks), run 3 combat rounds, assert remaining ticks = 2. Set a `narrative` countdown (3 ticks), advance twice manually, assert remaining = 1. Advance again — assert countdown fires and is removed from active countdowns but present in audit log.                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-073                                     |
-| T55   | Automated | Multi-entity: create two entities, import both into a game, assert `entities://` lists both. Switch active entity via `set_active_entity`, assert mutating tools target the active entity. Verify `party://current` lists all player entities with summary stats.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-074                                     |
+| T55   | Automated | Multi-entity: create two entities, import both into a Novel, assert `entities://` lists both. Switch active entity via `set_active_entity`, assert mutating tools target the active entity. Verify `party://current` lists all player entities with summary stats.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-074                                     |
 | T56   | Automated | Named-NPC: create an NPC with partial stats (only name + Grit), verify at `npc://<id>`. Include NPC in a confrontation — assert NPC gets a turn. Update NPC stats, verify changes persist across connection restart. Update NPC with a stat field not previously set — assert field is added and persists across restart.                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-075, REQ-043                            |
 | T57   | Automated | Scene state: set scene state, verify it appears in `scene://current` and `hat_briefing`. Update scene state, verify old entry in audit log and new entry as current. Attempt `set_scene_state` as Player hat — assert `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-076, REQ-032                            |
-| T58   | Automated | Entity personality: create a character, set personality fields, verify they appear in `hat_briefing` and `entity://<id>/personality`. Set game-level overrides — assert they replace roster baseline in `hat_briefing` for that game. Verify mechanical stats remain immutable (baseline unchanged).                                                                                                                                                                                                                                                                                                                                                                                         | REQ-077                                     |
+| T58   | Automated | Entity personality: create a character, set personality fields, verify they appear in `hat_briefing` and `entity://<id>/personality`. Set Novel-level overrides — assert they replace roster baseline in `hat_briefing` for that Novel. Verify mechanical stats remain immutable (baseline unchanged).                                                                                                                                                                                                                                                                                                                                                                                         | REQ-077                                     |
 | T59   | Automated | Adventure load: load an adventure, verify `adventure://<slug>/<anchor>` resources are retrievable. Assert `*Keeper only*` sections return content for Game Master hat and are hidden from Player hat. Assert `search_rules` with a query matching a section heading assigns HIGH confidence; matching body text assigns MEDIUM confidence. Assert each result line begins with a bracketed confidence label matching the query-token location rule. Assert `[generated]` tag does not affect sort order.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-079, REQ-032                            |
-| T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as game entities but adventure A's content no longer appears in `hat_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
+| T60   | Automated | Adventure isolation: load adventure A, create NPCs from its text. Load adventure B via `load_adventure`. Assert adventure A's NPCs persist as Novel entities but adventure A's content no longer appears in `hat_briefing`. Verify no content leak between adventures.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-079                                     |
 | T61   | Automated | Adventure continuity: load adventure, create NPCs, set scene state within the adventure. Restart the server with the same `TTRPG_NOVEL`. Assert the active adventure, NPCs, and scene state are restored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-079, REQ-055                            |
 | T62   | Automated | Help and tool discovery: invoke `help()` with no query — assert output includes a categorized task map and all registered tools. Invoke `help("combat")` — assert results include combat tools. Invoke as Player hat — assert GM-only tools are not listed.                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-067, REQ-032                            |
 | T63   | Automated | Enrichment boundaries: run enrich, diff entity stat fields (stats/saves/HP) before and after — assert no changes. Diff `tools/list` — assert no changes. Assert all voice_examples, lore templates, and action patterns carry `[supplementary]` tag. Assert all six enrichment output modules (§11.1) are populated with non-empty content. Re-run enrich — assert idempotent. Switch to player hat — assert GM-scoped enrich content hidden.                                                                                                                                                                                                                                                                                                                     | REQ-080, REQ-077, REQ-032                   |
 | T64   | Automated | Narrative directive: set directive, verify it appears in GM `hat_briefing` and is absent from Player `hat_briefing`. Clear directive, verify absent from both. Player attempt to set returns `[FORBIDDEN]`. Restart connection, verify directive persists.                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-081, REQ-032                            |
-| T65   | Automated | Entity voice examples: set voice_examples, verify they appear in `entity://<id>/personality` and `hat_briefing` tagged `[supplementary]` when enrich-sourced. Set game-level overrides — assert they replace roster baseline for that game. Verify mechanical stats remain immutable. Player attempt on another player's entity returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                            | REQ-077, REQ-032                            |
+| T65   | Automated | Entity voice examples: set voice_examples, verify they appear in `entity://<id>/personality` and `hat_briefing` tagged `[supplementary]` when enrich-sourced. Set Novel-level overrides — assert they replace roster baseline for that Novel. Verify mechanical stats remain immutable. Player attempt on another player's entity returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                            | REQ-077, REQ-032                            |
 | T66   | Automated | Prompt section ordering: set custom order, invoke `hat_briefing` for GM — assert sections appear in specified order. Omit a section token — assert section absent from briefing. Set empty array — assert builder default order restored. Unknown token — assert `[ERROR] [INVALID_INPUT]` with valid token list. Token for absent ruleset feature accepted (empty section). Player attempt returns `[FORBIDDEN]`. Restart — verify ordering persists.                                                                                                                                                                                                                                              | REQ-082, REQ-032                            |
 | T67   | Automated | Dynamic lore: create lore entry with trigger "vault". Set scene_state containing "vault" — assert entry in GM `hat_briefing`. Change scene_state without trigger — assert entry deactivated. Create GM-only lore entry — switch to Player, assert GM-only entry hidden, shared entry visible. Remove entry — assert absent. Player create attempt returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                           | REQ-083, REQ-032                            |
 | T68   | Automated | Action suggestions: call `suggest_actions("I want to attack")` in combat context — assert results include combat tools with correct tool names and parameter hints. Call with empty intent — assert context-relevant suggestions based on scene type and entity state. Call with nonsense intent — assert empty list (no tool matches). Verify no GM-only tools in Player results. Call with ambiguous social intent ("I want to convince the guard") — assert multiple plausible tools returned. With enrich and toggle activated, call an intent matching an enrich-derived pattern — assert that pattern's tools appear in results alongside registry matches.                                                                                                                                                                                                  | REQ-084, REQ-032                            |
@@ -7153,7 +7448,7 @@ diet.
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `hat_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Set to "combat" — assert combat tools prioritized. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                | REQ-087, REQ-032                            |
 | T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Gauntlet sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
 | T73   | Automated | Novel isolation: create Novel A with entities. Create Novel B — assert Novel A's entities not visible via `entities://`. Resume Novel A — assert entities restored. Generated adventure content scoped to the Novel that generated it.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-088, REQ-074, REQ-090                   |
-| T74   | Manual   | Novel setup: invoke `novel_setup` prompt on a fresh Novel. Assert output lists the setup checklist, available roster characters, indexed adventures, and generation tools. Create a character — assert "characters_present" step marked complete. Load an adventure — assert "adventure_set" step marked complete. Verify metadata in `hat_briefing` under `novel` token.                                                                                                                                                                                                                                                                                                                            | REQ-089                                     |
+| T74   | Manual   | Novel setup: invoke `novel_setup` prompt on a fresh Novel. Assert output presents three sequential steps (characters, story source, session zero) with visual completion markers `[✓]`, `[→]`, and `[ ]`. Assert step descriptions use conversational plain English — a prompt for action, not a static list. Create a character — assert characters step marked `[✓]`. Load an adventure — assert story source step marked `[✓]`. Run session zero — assert session zero step marked `[✓]` and next-steps summary appears after completion. Verify metadata in `hat_briefing` under `novel` token. | REQ-089                                     |
 | T75   | Automated | Adventure generation: call `generate_adventure("A haunted space station")`. Assert output contains title, Overview (GM-only), Adventure Hook, 2–6 locations, NPC entries. Assert generated content retrievable at `adventure://<slug>/<anchor>`. Assert GM-only sections hidden from Player. Assert appears in `search_rules` results. Regenerate — assert old content replaced.                                                                                                                                                                                                                                                                                                                       | REQ-090, REQ-032                            |
 | T76   | Automated | Enhanced encounters: call `generate_encounter("dark alley")`. Assert output creates a scene_state entry, an NPC, and a lore entry — all snapshot-able. Call without context — assert generates from ruleset tables. Undo — assert all three artifacts removed (single undo). Player attempt → `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                           | REQ-091, REQ-041, REQ-032                   |
 | T77   | Automated | Novel persistence: create Novel, populate state (entity, NPC, scene, countdown, lore, adventure). Restart server — assert all state tiers restored. Modify the entity model (add/remove a field), rebuild, resume — assert graceful load (no errors, missing fields get defaults, extra fields preserved). Corrupt the on-disk JSON — assert stderr warning and `spec_health` flag.                                                                                                                                                                                                                                                                                                                  | REQ-092, REQ-065                            |
@@ -7203,7 +7498,7 @@ diet.
 | T121  | Automated | Redo: create Novel with entity. Apply condition → undo → assert condition removed → redo → assert condition restored. Undo twice then redo once → assert one step restored, one still undone. Redo on empty redo stack → `[STATE_CONFLICT]`. Mutate after undo → assert redo stack cleared and new undo target created. Redo blocked during pending `[NEED_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-116, REQ-041                            |
 | T122  | Automated | Retention: create Novel with state, end Novel confirming "yes." Assert primary `.json` and `.json.bak` moved to `.holonovel-state/novels/.trash/`. Assert `listNovels` excludes the slug. Assert `resume_novel(slug)` returns `[STATE_CONFLICT]`. Set `TTRPG_NOVEL_RETENTION_DAYS=0`, restart — assert trash files retained. Set `TTRPG_NOVEL_RETENTION_DAYS=1`, restart — assert files older than 1 day removed, recent files retained.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-117, REQ-088                            |
 | T123  | Automated | Prompt length budget: populate a Novel with the maximum expected NPCs, lore entries, countdowns, and entities (per REQ-097 default thresholds). Invoke `hat_briefing` — assert output length does not exceed the configured budget; assert truncated sections carry `[truncated]` markers with resource URI pointers; assert section headers and required contract elements (intro pointer, `player_signal` directives) are preserved untruncated. Invoke `session_zero` — assert output within budget. Invoke `novel_setup` with a full roster and indexed adventures — assert output within budget. Modify the budget config to a lower value, restart — assert truncation activates at the new threshold.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-118                                     |
-| T124  | Automated | Session zero recording directives: invoke the `session_zero` prompt on a running server. Assert the output includes the string `player_signal` for each of the five preference categories (tone, difficulty, pace, focus, boundary) with the correct argument shapes. Assert the character introduction section includes the string `set_personality` with entity_id and field arguments. Assert the `intro` prompt output includes the string `session_zero` as a recommended next action.                                                                                                                                                                                                                                                                                                                                                                                                                                           | REQ-078, REQ-063                            |
+| T124  | Automated | Session zero content: invoke the `session_zero` prompt on a running server. Assert the output contains all eight sections in order: welcome, per-signal explanations (tone, difficulty, pace, focus, boundary), character introductions (three example descriptions at increasing detail), character creation (ruleset's choice categories in plain English), adventure confirmation, narrative capabilities (no tool names, plaintext examples), quick-start guide, post-session. Assert per-signal explanations include three to five named tuning options with narrative paragraphs. Assert the narrative capabilities section contains zero tool names. Assert the `intro` prompt output directs to `session_zero` as a recommended next action. | REQ-078, REQ-063 |
 | T125  | Automated | Enrichment rebuild survival: create Novel, populate enrichment across all six modules. Restart server — assert enrichment restored unchanged. Rebuild with same ruleset — assert enrichment preserved, all items still tagged `[supplementary]`. Change ruleset hash, rebuild, resume — assert `spec_health` reports fingerprint mismatch with enrichment retained from prior build. Run Build + Enrich against new hash — assert new enrichment manifest generated, old enrichment replaced. Delete state directory, rebuild without enrich — assert no enrichment present. Build + Enrich with matching fingerprint — assert no-op with enriched state unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | REQ-080, REQ-103, REQ-092, REQ-065 |
 | T126  | Automated | NPC stat block reference: call `lookup_monster("goblin")`, capture its stats. Call `create_npc("Goblin Scout", reference="goblin")` — assert NPC created with stats matching the goblin entry. Call `create_npc("Goblin Chief", reference="goblin", hp=21)` — assert HP overridden to 21, other stats from reference. Call `create_npc("Fake", reference="nonexistent")` — assert `[ERROR] [NOT_FOUND]` with valid reference names enumerated. Call `create_npc` with a reference entry carrying a field not in the builder-determined stat surface — assert the extra field is included in the NPC's stat block and resource URI output. Assert reference parameter is optional — calling without reference succeeds.                                                                                                                                                                                                     | REQ-119                                     |
 | T127  | Automated | NPC rendering: create NPC with stat fields and narrative fields (per REQ-075, REQ-122). Call `character_sheet(npc_id)` — assert output contains NPC name, populated stat fields, conditions, and narrative fields in ruleset baseline format. Call with a non-existent ID — assert `[ERROR] [NOT_FOUND]`. Switch to Player hat — assert stat fields visible, GM-only narrative fields hidden. Verify output format matches entity `character_sheet` format.                                                                                                                                                                                                                                                  | REQ-120, REQ-032                            |
@@ -7250,7 +7545,7 @@ diet.
 | T138  | Automated | Workflow lifecycle: raise `[NEED_INPUT]` via step-by-step character creation. Assert `respond` with whitespace-only variation of the decision text (leading/trailing whitespace, collapsed internal whitespace) is accepted and drains the decision — `undo` becomes callable (no longer returns `[STATE_CONFLICT]`). Assert `respond` with non-whitespace difference returns `[ERROR] [NOT_FOUND]` with the canonical text. Assert `respond` with unrecognized option returns `[ERROR] [NOT_FOUND]` enumerating valid options. Assert `respond("cancel")` restores pre-workflow state — no entity in roster, `[workflow_cancelled]` audit entry recorded with decision text, `undo` callable. Assert `create_character()` without params while workflow is pending returns `[STATE_CONFLICT]`. Assert `undo` returns `[STATE_CONFLICT]` during pending workflow. Assert `set_hat` returns `[STATE_CONFLICT]` during pending workflow. Restart server — assert the pending `[NEED_INPUT]` survives and `respond("cancel")` restores pre-workflow state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-042, REQ-190, REQ-066, REQ-041, REQ-092 |
 | T139  | Automated | Countdown lifecycle: set a shared increment countdown "tension" (3 ticks). Advance twice — assert remaining = 2/3, still active. Advance again — assert fires at 3/3, removed from active, audit log entry present, name slot free. Set a game-master decrement countdown "patrol" (2 ticks). Switch to Player — assert `hat_briefing` shows "tension" (shared) but not "patrol" (GM-only). Switch to GM — assert both. `remove_countdown("patrol")` — assert removed, no audit expiry. Set "patrol" again — assert new countdown (not reactivated).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-073, REQ-032                            |
 | T140  | Automated | Voice examples rendering: create entity with personality fields and voice_examples. Call `hat_briefing` — assert voice_examples appear alongside personality traits under the entity personality group, with dialogue examples before trait descriptions. Call `character_sheet` — assert voice_examples rendered under Personality section. Set Novel-level override for voice field — assert override voice renders alongside original voice_examples. Verify enrich-sourced voice_examples carry `[supplementary]` tag in all surfaces. Invoke `entity://<id>/personality` resource — assert rendering contract holds. NPC with personality fields: assert same rendering contract at `npc://<id>/personality`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | REQ-077, REQ-126, REQ-109                   |
-| T141  | Manual   | Ruleset-native personality mapping: build server for a ruleset with native personality constructs (e.g., D&D 5e Traits/Ideals/Bonds/Flaws). Assert RULESET_MODEL.md records a mapping from each native construct to a Holonovel personality field. Assert `set_personality` tool description references the ruleset-native construct names. Assert `session_zero` prompt includes both native and Holonovel field references. Build server for a ruleset without native constructs (e.g., Appendix B fixture) — assert tool descriptions use only Holonovel field names and no native construct names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-127, REQ-104, REQ-078                   |
+| T141  | Manual   | Ruleset-native personality mapping: build server for a ruleset with native personality constructs (e.g., D&D 5e Traits/Ideals/Bonds/Flaws). Assert RULESET_MODEL.md records a mapping from each native construct to a Holonovel personality field. Assert `set_personality` tool description references the ruleset-native construct names. Assert `session_zero` prompt's character introductions and character creation sections use the ruleset-native construct names in plain English (e.g., "describe your character's Traits, Ideals, Bonds, and Flaws"). Build server for a ruleset without native constructs (e.g., Appendix B fixture) — assert tool descriptions use only Holonovel field names and no native construct names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-127, REQ-104, REQ-078                   |
 | T142  | Automated | Signal lifecycle: set five player signals (pace, difficulty, tone, focus, boundary) with distinct values. Assert all five appear in the audit log. Invoke `hat_briefing` as GM — assert a dedicated player-signals section with all five signals, each showing signal type, value, and age (connection-counter delta per REQ-173). Invoke `hat_briefing` as Player — assert signals absent. Invoke `player_signal` from GM hat — assert `[FORBIDDEN]`. Set `player_signal("pace", "")` — assert pace removed, briefing section reflects removal. Set `player_signal("pace", "new_value")` — assert replaced with refreshed connection counter. Restart server — assert all signals persist and ages advance. End Novel, resume — assert signals restored. | REQ-069, REQ-128, REQ-032, REQ-173        |
 | T143  | Automated | Property group cardinality: create 3 NPCs, assert `spec_health` reports current=3/500. Configure `TTRPG_MAX_NPCS=3`, attempt to create a 4th NPC — assert `[ERROR] [STATE_CONFLICT]` with group named and counts reported. Set `TTRPG_MAX_NPCS=0` — assert `create_npc` returns `[STATE_CONFLICT]`. Restore to 500 — assert creation succeeds. Repeat for countdowns (max 3 via `TTRPG_MAX_COUNTDOWNS`) and lore entries (max 3 via `TTRPG_MAX_LORE_ENTRIES`). Assert `spec_health` `overflow` flag true when any group at maximum. | REQ-129                                     |
 | T144  | Automated | Enrichment rebuild contract: run enrich, activate one lore template and one voice example via Novel-scoped GM tool calls that cause them to appear in tool-observable surfaces. Re-run enrich — assert activated items persist exactly as activated. Verify an inactive enrich item's content may change (replaced by fresh output). Run `revert_enrichment`, re-run enrich — assert all fresh. Create Novel with enrichment from prior build, change ruleset hash, rebuild with same spec — assert activated items preserved, inactive items replaced. | REQ-130, REQ-080, REQ-103                   |
@@ -7259,7 +7554,7 @@ diet.
 | T147  | Automated | Forbidden-call audit: create a Novel, invoke a GM-only tool under the Player hat — assert `[FORBIDDEN]` audit entry recorded with hat `player`, tool name, arguments, `violation_type: "boundary"` field, and `[BOUNDARY_VIOLATION]` prefix on the output column. Invoke a Player-only tool under the GM hat — assert another `[FORBIDDEN]` audit entry with the same markers. Verify entries visible at `audit://novel` and chained with correct hashes (REQ-040). Verify state queries do not produce audit entries. | REQ-133, REQ-040 |
 | T148  | Automated | Minimum Player tool surface: set Player hat, invoke one tool from each Player-guaranteed group (dice-resolution, ruleset lookup, character_sheet, suggest_actions, player_signal, help, undo, set_hat) — assert all succeed. Invoke a GM-exclusive tool (create_npc, init_combat, set_scene_state, set_lore_entry) — assert each returns `[FORBIDDEN]`. Switch to Game Master — assert all tools succeed. Verify `tools/list` filtered by each hat matches the DECISIONS.md classification table. | REQ-134, REQ-032 |
 | T149  | Automated | Hat briefing size budget: configure a small `TTRPG_MAX_BRIEFING_TOKENS`, invoke `hat_briefing` with populated Novel — assert supplementary sections truncate before decision-critical sections at the same budget threshold; assert hat foundations and intro pointer are never truncated. Configure a very large budget — assert no truncation markers. Verify truncated sections are full (not partial) and each carries a retrieval pointer. | REQ-135, REQ-109 |
-| T150  | Automated | Null-hat briefing: restart with no Novel active, invoke `hat_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set hat, invoke `hat_briefing` — assert active Novel name and guidance to activate hat. Verify no gated content appears in either case. Set hat to Player — assert full Player briefing (not setup mode). | REQ-136, REQ-031 |
+| T150  | Automated | Null-hat briefing: restart with no Novel active, invoke `hat_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set hat, invoke `hat_briefing` — assert active Novel name and guidance to set up the Novel (editing mode). Verify no gated content appears in either case. Set hat to Player — assert full Player briefing (in the story mode, not setup mode). | REQ-136, REQ-031 |
 | T151  | Automated | Gate classification auditability: build server, inspect DECISIONS.md gate-classification table — assert every registered tool appears in exactly one of {Player-only, GM-only, un-gated}. Assert `tools/list` filtered by Player hat contains exactly the tools classified as Player + un-gated. Assert `tools/list` filtered by GM hat contains exactly the tools classified as GM + un-gated. Assert `set_hat` is classified un-gated and appears in both lists. Assert no tool is classified as both Player-only and GM-only. | REQ-137, REQ-032 |
 | T152  | Automated | Prompt health reporting: invoke `spec_health` — assert every registered prompt appears in a `prompt_health` section with name, presence, length, budget, budget-compliance flag, and stale-references list. Rename a tool referenced in a prompt — assert the stale-references list for that prompt shows the old tool name. Restore the original name — assert the stale-references list clears. | REQ-138 |
 | T153  | Automated | Resource URI completeness: invoke `spec_health` — assert a `resource_uris` section lists every REQ-022 URI template with presence (present/absent), registration name, and MIME type. Register a new resource — assert its URI appears as `present` immediately. Remove a resource — assert the URI changes to `absent`. | REQ-139 |
@@ -7346,7 +7641,7 @@ diet.
 | T275  | Automated | Session segmentation: run two sessions with different `TTRPG_SESSION_ID` values — assert audit log contains two `[session_boundary]` markers with session IDs and timestamps. Call `session_recap(session_id="s1")` — assert returns only entries from session s1. Call `session_recap(session_id="s2")` — assert returns only entries from session s2. Call `session_recap()` with no session_id — assert returns all entries. Call `spec_health` — assert per-session metrics array includes entry counts, timespans, and combat rounds for both sessions. | REQ-237 |
 | T276  | Automated | Backup rotation: set `TTRPG_NOVEL_BACKUP_COUNT=3` — after 10 mutations, assert three rotated backup files exist (`.bak.1`, `.bak.2`, `.bak.3`) with descending modification times. Corrupt the primary `.json` file and `.bak.1` — restart the server, assert it restores from `.bak.2` and the audit log contains a `[restored_from_backup]` entry naming backup index 2. Call `end_novel` — assert all backup files and the primary are moved to `.trash/`. | REQ-238 |
 | T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `compact_audit_log()` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `session_recap(session_id="s1")` — assert returns the summary from archive. Call `session_recap()` with no session_id — assert returns only session 2 entries. Call `compact_audit_log(sessions=2)` — assert prompt to retain both sessions. Player hat `compact_audit_log` returns `[FORBIDDEN]`. | REQ-239 |
-| T278  | Automated | Clone Novel: call `clone_novel("my-game", "my-game-fork")` — assert new Novel created at `novels/my-game-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Mutate the clone (add NPC) — assert source Novel unaffected. Call `clone_novel("my-game", "my-game-fork")` again — assert `[STATE_CONFLICT]`. Call `clone_novel("my-game", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player hat `clone_novel` returns `[FORBIDDEN]`. | REQ-240 |
+| T278  | Automated | Clone Novel: call `clone_novel("my-novel", "my-novel-fork")` — assert new Novel created at `novels/my-novel-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Mutate the clone (add NPC) — assert source Novel unaffected. Call `clone_novel("my-novel", "my-novel-fork")` again — assert `[STATE_CONFLICT]`. Call `clone_novel("my-novel", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player hat `clone_novel` returns `[FORBIDDEN]`. | REQ-240 |
 | T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
 | T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
 | T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |

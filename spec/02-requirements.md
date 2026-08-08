@@ -7,12 +7,12 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224                     | 7     |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242 | 41    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 243–245       | 23    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245       | 24    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240                         | 14    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
@@ -72,7 +72,7 @@ multiple close matches exist, list them all ("Did you mean one of…"). An
 empty-string search returns no results — not an error — with valid-value enumeration.
 `[FORBIDDEN]` directs callers to use `set_hat` to switch hats. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
-ended game, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
+ended Novel, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
 matches multiple entries — an alias that resolves to more than one canonical
 name. The response enumerates the matching entries with their distinguishing
 fields. `[MISSING_PARAM]` is raised when a required parameter is absent or empty
@@ -855,7 +855,7 @@ boolean indicating whether enrichment state exists; (b) `module_counts`
 — per-module item count for each of the seven output modules (§11.1); (c)
 `stale_count` — number of inactive enrichment items whose `collected_at`
 exceeds `TTRPG_ENRICH_STALE_DAYS`; (d) `activated_count` — number of
-enrichment items the Game Master has incorporated into active game state
+enrichment items the Game Master has incorporated into active Novel state
 via Novel-scoped tools (REQ-159); (e) `fingerprint` — the enrichment
 fingerprint used for idempotence detection (ruleset content hash +
 intake answers). Stale items SHALL appear with the `[stale]` flag when
@@ -1056,7 +1056,7 @@ _Check:_ T62, T118.
 in `prompts/list`. It takes no arguments, is visible to all hats, and serves as a
 conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
 actions a player can take. The tone is engaging and energetic; the anti-slop catalogue
-(REQ-070, Appendix J) governs in-game GM and Player narration, not server onboarding
+(REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding
 prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
@@ -1068,35 +1068,56 @@ with four concrete next actions.
 _Check:_ T49, T50, T259.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
-arguments, is visible to all hats (unfiltered), and serves as a structured questionnaire surfaced at the
-start of a new adventure. It gathers: character introductions (narrative fields, REQ-077),
-tone preference (lighter/darker/grittier), difficulty preference, pacing preference
-(slower/faster), focus preference (more-action/more-exploration/more-dialogue),
-content boundaries (topics to avoid), and
-adventure confirmation. For each preference category, the prompt includes an explicit
-directive to record the response — `player_signal("tone", <value>)` for tone,
-`player_signal("difficulty", <value>)` for difficulty, `player_signal("pace", <value>)`
-for pacing, `player_signal("focus", <value>)` for focus, and
-`player_signal("boundary", <value>)` for boundaries. Character introductions
-include the directive `set_personality(entity_id, description, voice, background, goals)`.
-Every recording directive names the specific tool and its expected arguments; a caller
-who follows the directive verbatim produces a valid tool call. `session_zero` is listed
-in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run
-the `session_zero` prompt before play.
-*Acceptance criterion:* `session_zero` prompt lists `player_signal(...)`
-directives for tone, difficulty, pace, focus, and boundaries; a caller who
-copies a directive verbatim produces a valid tool call.
+arguments, is visible to all hats (unfiltered), and serves as a structured guide
+surfaced at the start of a new story. The builder SHALL generate the prompt text at
+build time, drawing on the ruleset model for ruleset terminology,
+character-creation rules, example-of-play excerpts, and native personality
+constructs, and drawing on Enrich `adventure_advice` content when available
+for genre conventions, narrative-voice profiles, and anti-slop examples. The
+builder MAY generate narrative prose — tuning option descriptions, example
+character introductions, plaintext capability examples — using its own
+language capabilities when the ruleset model provides sufficient context. Missing
+ruleset content SHALL produce the corresponding section with a plain-English fallback
+description — this is not a defect. The prompt SHALL be verbose throughout — every
+section SHALL describe narrative possibilities in plain English without tool names or
+technical syntax, per Standing Rule 10. The prompt SHALL include eight sections in
+order: (1) a welcome explaining session zero's purpose as creative alignment and a
+safety check — this is where the GM and player agree on the shape of the story before
+anyone rolls, and the preferences recorded here feed into the GM's narration for the
+entire story; (2) per-signal explanations — for each of tone, difficulty, pace, focus,
+and boundary, a plain-English description of what the signal controls narratively and
+three to five named tuning options each with a paragraph describing what that choice
+means for the story (scene style, narrative voice, consequences model, encounter
+design), plus a plain-English example instruction the player could write; (3) character
+introductions — three example character descriptions at increasing detail (a minimal
+one-to-two-sentence archetype, a three-paragraph description covering physical
+appearance and mannerisms then personality and voice then backstory and motivation, and
+a media reference that names a known character as shorthand then elaborates what to
+emphasise or change about that archetype), each self-contained as a usable model for
+the player's own description; (4) character creation — every mechanical choice category
+the ruleset provides (species/ancestry, class/archetype, background, stat generation,
+equipment) described in plain English with what each option means for the character's
+capabilities narratively, noting that roster characters are already available for
+import; (5) adventure confirmation — presenting loaded adventure premise, factions with
+their starting tensions, pre-populated NPCs with personality summaries, and the opening
+scene with a plain-English confirmation that the GM can accept or describe what to
+change, or guiding from-scratch definition when no adventure is loaded; (6) narrative
+capabilities — plain-English descriptions of what the GM can do during the story
+organized by context (combat, exploration, dialogue, world-building), with plaintext
+examples written as natural-language instructions the GM would give; (7) a quick-start
+guide summarising what is ready and describing how the first scene begins — the GM sets
+the opening scene, the player describes what their character does; (8) post-session
+encouragement to refine characters between stories — personality, voice, dialogue
+examples referencing favourite media, and mechanical advancement when the ruleset
+provides it. The prompt SHALL use the ruleset's own terminology for mechanical
+concepts. `session_zero` is listed in `prompts/list` after `intro`. The `intro`
+prompt includes a concrete action to run `session_zero` before play.
+*Acceptance criterion:* `session_zero` prompt contains all eight sections in
+order; per-signal explanations include three to five named tuning options with
+narrative paragraphs; character introductions include three example descriptions at
+increasing detail; narrative capabilities section uses plain English and plaintext
+examples with no tool names.
 _Check:_ T22, T124.
-
-When a `load_adventure` has been called prior to `session_zero`, the prompt SHALL
-include: (a) the adventure's premise/hook from the `## Premise` section, (b)
-available pre-populated factions and their starting clocks, (c) pre-populated NPCs
-with personality summaries, (d) the starting scene description, and (e) a
-confirmation question to accept or modify these defaults. When no adventure is
-loaded, `session_zero` guides the GM through creating these elements from scratch
-— effectively authoring a session-zero adventure live. An adventure file is a
-Novel at session zero: it provides pre-populated starting state that the GM
-accepts, modifies, or replaces during session zero.
 
 **REQ-057 — Canonical lookup tools.** For each category the ruleset defines as canonical
 content (equipment, spells, monsters/stat-blocks, conditions, feats, class features,
@@ -1241,7 +1262,7 @@ are re-initialized from the Novel's persisted values on resume.
 second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
 _Check:_ T32, T138, T157;
-Gate 2; S23.
+Gate 2; S22.
 
 **REQ-190 — Respond drain result.** WHEN `respond(decision, option)` drains a
 pending workflow decision, THE system SHALL return `[OK]` with the decision
@@ -1276,7 +1297,7 @@ NOT apply the same decision twice or leave the Novel in an inconsistent state
 where the workflow appears both drained and pending.
 *Acceptance criterion:* Two concurrent `respond` calls to the same decision —
 first succeeds, second returns `[STATE_CONFLICT]` with "no pending workflow".
-_Check:_ S23.
+_Check:_ S22.
 
 **REQ-193 — Pending workflow staleness detection.** THE server SHALL track
 a staleness counter for open pending workflows, incremented on each new
@@ -1431,24 +1452,31 @@ _Check:_ Appendix D.
 **REQ-031 — Hat activation.** By default, no hat is active — the server operates
 with full access, equivalent to Game Master privileges. All tools, resources, and prompts
 are accessible without restriction. Hat gating (REQ-032) takes effect only when a
-hat is explicitly activated via `set_hat` (REQ-066). When no hat is active,
+hat is explicitly activated via `set_hat` (REQ-066). Wearing a hat means you are
+in the story. The hat may be deactivated with `set_hat("none")` — the Novel
+persists in editing mode with full access. When no hat is active,
 all hat-filtered surfaces (`hat_briefing`, `prompts/list`, `resources/list`,
 `tools/list`, guidance) return full unfiltered content. The hat activation state
-persists with the Novel (REQ-055). `end_novel` deactivates the
-hat and returns to full-access mode.
+persists with the Novel (REQ-055). `end_novel` deletes the Novel regardless of
+hat state.
 *Acceptance criterion:* On startup with no hat active, `tools/list` returns all
 tools unfiltered; after `set_hat("player")`, GM-only tools are excluded from
-`tools/list` and return `[FORBIDDEN]` on invocation.
+`tools/list` and return `[FORBIDDEN]` on invocation; after `set_hat("none")`,
+full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
 **REQ-066 — set_hat tool.** The server provides a `set_hat` tool accepting
-`player` or `game_master`. Returns `[OK] Active hat: <hat>` on
-success. Returns `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
+`player`, `game_master`, or `none`. Returns `[OK] Active hat: <hat>` on
+success — `"none"` returns `[OK] Active hat: none — Novel editing mode`. Returns
+`[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
 hat-gated — it is always callable regardless of current hat. The hat switch
-takes effect immediately on the next tool call.
+takes effect immediately on the next tool call. `set_hat("none")` deactivates
+the hat and returns to editing mode with full access; the Novel persists
+untouched.
 *Acceptance criterion:* `set_hat("player")` returns `[OK] Active hat: player`
-and the next tool call is gated; `set_hat(...)` during a pending workflow returns
-`[STATE_CONFLICT]`.
+and the next tool call is gated; `set_hat("none")` returns
+`[OK] Active hat: none — Novel editing mode` and full access is restored;
+`set_hat(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
 **REQ-032 — Server-side gating.** When a hat is active, the server enforces hat
@@ -1641,8 +1669,9 @@ presents the same full-access view as all other null-hat surfaces but
 structured for initial orientation rather than ongoing play.
 *Acceptance criterion:* On startup with no Novel active, `hat_briefing`
 returns a setup-oriented message with the intro pointer and Novel-creation
-guidance; with a Novel active but no hat set, the briefing includes the
-active Novel name and guidance to activate a hat via `set_hat`.
+guidance; with a Novel active but no hat set (editing mode), the briefing
+includes the active Novel name, setup progress when incomplete, and
+guidance to continue Novel setup or start the story when ready.
 _Check:_ T150.
 
 **REQ-137 — Gate classification auditability.** Every tool registered on
@@ -1727,7 +1756,7 @@ _Check:_ T253, T188.
 
 ### 5.6 State and Lifecycle
 
-**REQ-040 — Audit log.** Every tool call that mutates game state (character creation,
+**REQ-040 — Audit log.** Every tool call that mutates Novel state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://novel`), including timestamp, hat, tool name,
 arguments, and output prefix. State queries are not logged. Each audit entry chains the hash of the preceding entry,
@@ -1752,6 +1781,12 @@ disk when the Novel JSON references it SHALL produce a `[missing_audit]`
 warning — the server loads with an empty audit log and records the event.
 `end_novel` removes both the Novel JSON and its audit JSONL file.
 `export_novel` (REQ-096) assembles the full audit log from the JSONL file.
+Hat switches via `set_hat` (all values: `player`, `game_master`, `none`)
+SHALL produce audit entries recording the old hat, new hat, and timestamp.
+Hat-switch entries carry `[hat_switch]` as the tool-name field. They are
+recorded in the append-only audit log and included in `audit://novel`
+output, but they are not mutating state operations for undo/redo purposes —
+`undo` SHALL NOT reverse a hat switch.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
 hat, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
@@ -1843,6 +1878,14 @@ mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
 _Check:_ T25, T33, T110, T161, T162; Gate 2.
+
+Combat state is Novel-scoped — it persists when the story ends via
+`set_hat("none")` or resumes via `set_hat("player")` or
+`set_hat("game_master")`. `end_novel` discards the combat state along with all
+other Novel state. When a story resumes mid-combat, the combat continues from
+its current round and turn position — the turn order, participant states, and
+round counter are unchanged. When a story resumes and no combat was active,
+play begins from the current scene state.
 
 **REQ-203 — Combat-init guard.** When `init_combat` is called while combat is already
 active, the server SHALL return `[ERROR] [STATE_CONFLICT]` with the text "Combat already
@@ -2045,7 +2088,7 @@ briefings; a GM-only countdown "patrol" appears only in the GM briefing;
 `advance_countdown("patrol")` at tick 1 fires and removes it.
 _Check:_ T54, T139.
 
-**REQ-074 — Multi-entity support.** A Novel may contain multiple game entities under the
+**REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
 same hat. The roster may hold multiple entities for the player. `entities://` lists
 all Novel entities visible to the active hat. One entity is the active entity — the
 default target for tools that accept an `entity_id` when no `entity_id` is supplied. The
@@ -3003,9 +3046,14 @@ Novel fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with 
 When a Novel is resumed or switched to, the Novel's persisted hat state takes
 precedence over `TTRPG_HAT`. `TTRPG_HAT` sets the initial active hat only
 when the starting Novel has no persisted hat state — either because the Novel is
-newly created, or because no hat was activated during a prior session.
-*Acceptance criterion:* Server restart with `TTRPG_NOVEL=my-game` restores
-entities, HP, conditions, hat, and RNG state; `resume_novel("ended-game")`
+newly created, or because no hat was activated during a prior session. WHEN
+`resume_novel` restores a Novel that has a hat active (a story in progress) THE
+server SHALL include a notice identifying the active hat — e.g., "This Novel has
+a story in progress (Player hat active). You're back in the story." — so the
+operator knows they have resumed an active story rather than entered editing
+mode.
+*Acceptance criterion:* Server restart with `TTRPG_NOVEL=my-novel` restores
+entities, HP, conditions, hat, and RNG state; `resume_novel("ended-novel")`
 returns `[STATE_CONFLICT]`.
 _Check:_ T9, T31, T108.
 
@@ -3270,7 +3318,7 @@ _Check:_ T94, T125.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
 enrichment state SHALL preserve every enrichment item that the Game
-Master has incorporated into active game state through any Novel-scoped
+Master has incorporated into active Novel state through any Novel-scoped
 tool call. An enrichment item is "activated" when a Novel-scoped GM tool
 call causes it to appear in at least one tool-observable surface (tool
 output, resource, or prompt) for the current Novel. Items never
@@ -3586,7 +3634,7 @@ first tool call or prompt is served. If `TTRPG_NOVEL` is set but activation
 fails for any reason other than non-existence (e.g., corrupt file, checksum
 mismatch), the server reports the error in stderr and `spec_health`, and
 proceeds with no Novel active — it does not silently swallow the error.
-*Acceptance criterion:* `create_novel("my-game")` creates `novels/my-game.json`;
+*Acceptance criterion:* `create_novel("my-novel")` creates `novels/my-novel.json`;
 `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved
 to `.trash/` and the roster survives.
 _Check:_ T72, T73, T98, T159.
@@ -3613,25 +3661,32 @@ is currently active, `switch_novel` activates the target directly (equivalent to
 `resume_novel(slug)` without requiring a fresh server start). Novel-scoped tools operate on
 the connection's active Novel. Each connection maintains its own active Novel reference;
 two connections may have different Novels active simultaneously.
-*Acceptance criterion:* `switch_novel("other-game")` deactivates the current Novel
+*Acceptance criterion:* `switch_novel("other-novel")` deactivates the current Novel
 and activates the target; the target's persisted hat is restored; switching to a
 nonexistent slug returns `[STATE_CONFLICT]`.
 _Check:_ T98.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
-`prompts/list`). It surfaces the recommended setup workflow: (1) create or import
-characters, (2) choose an adventure source (load a module, generate from a premise, generate
-a random encounter, or build from scratch), (3) run session zero. Lists available roster
-characters, indexed adventure modules, and the generation tools. Setup is freeform — tools
-are available without enforced order, but the Novel tracks completed steps
+`prompts/list`). It SHALL present a guided setup wizard in three sequential steps: (1)
+characters — import roster characters or create new ones, with the ruleset's creation
+options described in plain English; (2) story source — load an adventure, generate from
+a premise, generate a random encounter, or build from scratch, with each option
+explained in terms of what the GM gets narratively; (3) session zero. Each step SHALL
+display a visual completion marker — `[✓]` for completed, `[→]` for current, `[ ]` for
+pending — so the operator always knows where they are. Step descriptions SHALL be
+conversational in plain English (e.g., "You have 2 characters in your roster. Would you
+like to import one, create a new one, or move on?") rather than a static listing. After
+session zero completes, the prompt SHALL present a next-steps summary describing what is
+ready and how to begin the first scene. The Novel SHALL track completed steps
 (characters_present, adventure_set, session_zero_completed) in its metadata, surfaced in
-`hat_briefing` under the `novel` section token. After `create_novel`, the server response
-or `hat_briefing` surfaces `novel_setup` as the recommended next step. `novel_setup` integrates
-ruleset-extracted guidance (REQ-016), Enrich `adventure_advice` content, and spec
-foundations for adventure-construction context.
-*Acceptance criterion:* After `create_novel(...)`, the response directs the
-operator to `novel_setup`; the prompt lists available roster characters, indexed
-adventures, and generation tools.
+`hat_briefing` under the `novel` section token. After `create_novel`, the server
+response or `hat_briefing` SHALL surface `novel_setup` as the recommended next step.
+`novel_setup` SHALL integrate ruleset-extracted guidance (REQ-016), Enrich
+`adventure_advice` content, and spec foundations for story-construction context.
+*Acceptance criterion:* `novel_setup` presents three sequential steps with visual
+completion markers; step descriptions use conversational plain English; after session
+zero completes, a next-steps summary appears; completed steps are tracked in Novel
+metadata.
 _Check:_ T74.
 
 **REQ-090 — Adventure generation.** `generate_adventure(premise)` (Game Master only).
@@ -3918,10 +3973,10 @@ from the clone, keeping only the most recent N sessions' entries (session
 boundaries determined by `[session_boundary]` markers per REQ-237). A new
 `clone` audit entry SHALL be recorded in both the source and cloned Novel.
 Player hat attempts return `[ERROR] [FORBIDDEN]`.
-*Acceptance criterion:* `clone_novel("my-game", "my-game-fork")` creates an
+*Acceptance criterion:* `clone_novel("my-novel", "my-novel-fork")` creates an
 independent copy; mutating the clone does not affect the source; `spec_health`
-lists both Novels; `clone_novel("my-game", "my-game-fork")` a second time
-returns `[STATE_CONFLICT]`; `clone_novel("my-game", "trimmed", trim_audit_
+lists both Novels; `clone_novel("my-novel", "my-novel-fork")` a second time
+returns `[STATE_CONFLICT]`; `clone_novel("my-novel", "trimmed", trim_audit_
 sessions=2)` clones with only the 2 most recent sessions' audit entries.
 _Check:_ T278.
 
@@ -3945,7 +4000,7 @@ Conflict-resolution order:
    (narrative vs. mechanical); no override is needed between them.
 3. The Inform layer provides optional spatial navigation. It is always secondary
    surface — backgrounded in all builds. Parser commands are available when a
-   world model is populated; they never drive the game's resolution layer.
+    world model is populated; they never drive the story's resolution layer.
 _Check:_ T237.
 
 **Inform secondary surface.** In TTRPG builds, the parser `command` SHALL be
@@ -4090,7 +4145,7 @@ base vocabulary at `world://kinds/parser_commands`.
 _Check:_ T264.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
-save-game versioning beyond the checksum model, and Novel migration between
+save-Novel versioning beyond the checksum model, and Novel migration between
 different rulesets.
 
 ### 5.11 Ruleset-Free Build Mode
