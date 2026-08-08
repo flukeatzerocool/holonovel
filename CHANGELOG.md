@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-08-08 — Convergence cache key, enrichment memoization, Gauntlet fingerprint caching
+
+- Builders can now skip the convergence loop when the inputs haven't changed:
+  a convergence cache key (ruleset hash + spec hash + inform version + enrichment
+  vendor hash) enables reuse of prior Phase 1 and extraction-dependent Phase 2
+  results across same-source rebuilds. Operator override via `--no-cache` flag.
+  (REQ-244, §6.5.5)
+
+- Ruleset-native enrichment extraction (REQ-225) is memoized by ruleset content
+  hash — same-hash rebuilds skip extraction and the feedback-driven
+  re-classification loop. Pre-built enrichment manifests shipped alongside
+  ruleset sources are validated and used when the spec version matches.
+  (REQ-245, §6.3)
+
+- The inform package now ships a CONVERGENCE.md manifest with pre-computed
+  Phase 2 results and Inform Gauntlet outcomes per version, enabling inform
+  builds to skip convergence and the Inform Gauntlet when the spec version
+  hasn't advanced. (REQ-245, §6.6)
+
+- The TTRPG Gauntlet now supports fingerprint-driven scoping: when neither the
+  ruleset hash nor spec hash change, all 22 sub-workflows are skipped. Spec-only
+  changes run only sub-workflows exercising changed surfaces via the
+  surface-to-scenario mapping. Operator override via `--full-gauntlet` flag.
+  (§6.6)
+
+- Vendor enrichment content (`enrich/` directory) now ships with a pre-verified
+  MANIFEST.md: per-module confidence scores and term anchoring results that the
+  convergence loop validates against instead of re-auditing from source. Module-level
+  hashing from the partial-refresh contract catches drift. (§11.2)
+
 ## 2026-08-08 — Infrastructure reorg, DMCP/BitD/Lonelog imports, vendor enrichment
 
 - Infrastructure taxonomy formalized: two subcategories — Inform (world-model

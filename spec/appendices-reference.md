@@ -243,6 +243,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-241 | Checkpoints                            | 2026-08-08 |
 | REQ-242 | Notes (GM scratchpad)                  | 2026-08-08 |
 | REQ-243 | Enrichment population during updates | 2026-08-08 |
+| REQ-244 | Convergence cache key | 2026-08-08 |
+| REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
