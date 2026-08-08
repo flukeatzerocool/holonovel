@@ -208,10 +208,13 @@ redistribute source content beyond the Novel's local state.
 Novel properties and follows the Novel's persistence contract (REQ-092) — it
 survives server restarts and same-ruleset rebuilds unchanged. The enrichment
 fingerprint (above) controls re-enrich: unchanged fingerprint → no-op, changed
-fingerprint → replacement. A nuclear rebuild — a build from scratch where the
-state directory is absent — produces no enrichment unless the Enrich workflow
-is selected at intake. The builder surfaces enrichment status after build in
-`spec_health`.
+fingerprint → replacement. Ruleset-native enrichment is subject to the Phase 1
+convergence loop metrics (enrichment population and term anchoring, §6.5) —
+a build that produces a barren enrichment manifest is flagged during
+convergence and triggers re-read of source sections per REQ-225. A nuclear
+rebuild — a build from scratch where the state directory is absent — produces
+no enrichment unless the Enrich workflow is selected at intake. The builder
+surfaces enrichment status after build in `spec_health`.
 
 **Reversion.** Calling `revert_enrichment` (REQ-103) removes all community enrichment
 state at runtime without requiring a rebuild. Ruleset-native enrichment persists.

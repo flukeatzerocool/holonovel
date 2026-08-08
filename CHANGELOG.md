@@ -105,6 +105,51 @@
 
 - Appendix W: World-model golden fixture for ruleset-free builds.
 
+- Session lifecycle: audit logs now carry `[session_boundary]` markers
+  between sessions with per-session metrics (entry counts, timespans, combat
+  rounds) surfaced in `spec_health`. `session_recap` accepts an optional
+  `session_id` to scope output to a single session. (REQ-237)
+
+- Novel state safety: `end_novel` now rotates backups before deletion (last N
+  retained per `TTRPG_NOVEL_BACKUP_COUNT`) and the server restores from backup
+  on corruption detection. (REQ-238)
+
+- Audit log compaction: long-running Novels can compress old audit sessions
+  into an archive with summaries (timespan, entry count, confrontations,
+  significant rolls). The archive is retrievable at `audit://novel/archive`
+  for game-history queries. (REQ-239)
+
+- Novel cloning and checkpoints: `clone_novel` forks a Novel with optional
+  audit-session trimming, and `set_checkpoint`/`restore_checkpoint` provide
+  named save points with configurable slot limits. (REQ-240, REQ-241)
+
+- GM scratchpad: Notes tier added to Novel state — `set_note`/`remove_note`
+  and `list_notes` for storing private GM reminders visible at `notes://<key>`.
+  Notes are hat-filtered, persist with the Novel, and are included in export.
+  (REQ-242)
+
+- Novel interchange validation: `import_novel` now carries strict mode —
+  enabled via `strict=true`, it rejects imports with unresolvable references
+  rather than accepting them with a warning. (REQ-096)
+
+- Ruleset-native enrichment classification is now feedback-driven, not a
+  one-pass sort. When a module is empty after initial classification, the
+  builder re-reads the relevant source section and attempts re-classification —
+  one pass per barren module. The enrichment population metric (≥4 of 7 modules
+  populated) is now tracked in the Phase 1 convergence loop with velocity
+  monitoring, alongside a new term-anchoring metric that verifies enrichment
+  items reference valid ruleset index terms. (REQ-225 amendment, §6.5 Phase 1)
+
+- Spec-driven updates now auto-populate enrichment for new surfaces. After the
+  gap audit implements new tools or resources, the builder runs a scoped
+  REQ-225 re-classification on only the source sections that produced those
+  surfaces, merging new `[ruleset]` items into the existing enrichment manifest
+  without replacing existing content. (REQ-243)
+
+- Module-count fix: REQ-160 and the export manifest now reference seven output
+  modules (narrative_voices was added as the 7th module by REQ-226 but these
+  counts weren't updated). §5.8 REQ count bumped from 20 to 21.
+
 ## 2026-08-07 — Build process efficiency: dynamic chunking, regression gates, and question-tiering
 
 - Discovery now sizes rulebook-reading chunks by token budget instead of a
