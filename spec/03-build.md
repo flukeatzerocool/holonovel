@@ -598,6 +598,26 @@ In `quick-build` mode, same-model audits are acceptable; the builder records a
 `quick-build` annotation in DECISIONS.md (6) in place of any cross-model
 requirement.
 
+**REQ-299 — Cross-model audit sufficiency.** A cross-model audit that meets the
+sufficiency criteria SHALL produce: (a) findings with REQ citations and specific
+discrepancies — expected extraction vs. auditor's finding, with source anchors — not
+general assessments; (b) coverage of at least 3 distinct extraction categories from
+REQ-210; (c) a minimum of 1 finding, or an explicit statement that systematic comparison
+was performed across the cited categories and produced zero findings — this statement
+SHALL enumerate the categories compared.
+
+An audit that produces "extraction looks complete, no issues found" without enumerated
+comparison categories SHALL be recorded as `[insufficient]` in DECISIONS.md (4) and the
+builder SHALL re-run the audit against specific extraction categories. WHEN two models
+disagree on a mechanical extraction, THE higher-confidence extraction (per REQ-011) is
+authoritative; the disagreement is recorded as a permanent finding with both models'
+positions and the confidence differential.
+
+*Acceptance criterion:* A cross-model audit report includes findings with REQ citations,
+specific discrepancies, covers ≥3 extraction categories, and produces ≥1 finding or an
+enumerated zero-finding statement.
+_Check:_ T-new-299.
+
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
 
 **Adjusted thresholds.** The builder may lower the confidence threshold specified in
@@ -1343,6 +1363,37 @@ are selected for changed surfaces.
 | convert_source, hybrid parsing                     | 5, 10                     |
 | Hat filtering, resource URIs                       | 7                         |
 | Empty state, error handling                        | 9                         |
+
+**REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
+builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
+sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
+diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
+initially `pending`, updated to `converged` when the discrepancy is resolved.
+
+*Acceptance criterion:* When Gate 2 fails on an init_combat turn-order mismatch,
+DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
+turn order, actual turn order, and a diff.
+_Check:_ T-new-300.
+
+**REQ-301 — Convergence loop audit trail.** Each iteration of the convergence loop SHALL
+produce a traceable record in DECISIONS.md (5) containing: iteration number, the specific
+REQ or test ID addressed, the change made (summary), the re-test result, and the token
+cost. After convergence, DECISIONS.md (5) SHALL include a `convergence_summary`: total
+iterations, total token cost, REQ coverage, and final disposition.
+
+*Acceptance criterion:* A convergence loop requiring 3 iterations produces 3 audit trail
+entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
+_Check:_ T-new-301.
+
+**REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Gauntlet
+sub-workflows SHALL scope their verification to changed sections. Sub-workflows that
+verify unchanged sections only SHALL be skipped with a `[section unchanged — re-validating
+from previous build]` annotation. Cross-section sub-workflows SHALL run in full. Skipped
+sub-workflows carry the `[validated-by-prior-build]` disposition.
+
+*Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
+skips Gauntlet sub-workflows that verify unchanged sections and records the skip.
+_Check:_ T-new-303.
 
 ### 6.7 Spec-driven updates
 
