@@ -643,16 +643,25 @@ generation tables.
 *Check:* T256.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
-source materials are converted to Markdown per Appendix G: layout-aware extraction,
-table reassembly with merged-cell handling, page-furniture stripping, and artifact
-flagging. A fidelity sample of 3–5 representative pages is diffed per the fidelity
-protocol in Appendix G; a rate below 90% for any content type blocks the batch. The
-converter and its version are pinned in DECISIONS.md. Flagged artifacts receive a
+source materials are converted to Markdown per Appendix G. The builder SHALL select a
+converter from the Appendix G.1 catalog or record a justified alternative in
+DECISIONS.md (2). Conversion SHALL proceed per the progressive sampling protocol
+(Appendix G.2): trial page (Phase 1) at ≥70% fidelity gates the batch, content-type
+expansion (Phase 2) gates at ≥90% per type, and batch conversion (Phase 3) completes
+the source. PDF sources SHALL additionally follow the format-specific protocol
+(Appendix G.3): column detection, multi-page table reassembly, image-content
+classification, and OCR fallback. HTML sources SHALL additionally follow the
+format-specific protocol (Appendix G.4): dynamic content detection, chrome stripping,
+chrome fingerprinting, pagination, and content-type classification. The builder SHALL
+run cross-converter verification (Appendix G.6) on the Phase 2 fidelity sample pages.
+Fidelity results SHALL be reported in the structured format (Appendix G.5). The
+converter and its version are pinned in DECISIONS.md (2). Flagged artifacts receive a
 disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity
 rates appear in `spec_health` (REQ-025).
 *Acceptance criterion:* A converted PDF produces a fidelity report in `spec_health`;
 any content type below 90% fidelity blocks the batch and records a disposition in
-DECISIONS.md (5).
+DECISIONS.md (5). DECISIONS.md (2) records the selected converter and any
+cross-converter verification results in DECISIONS.md (5).
 _Check:_ T93.
 
 **REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
@@ -1584,8 +1593,10 @@ current scene type (REQ-087), active combat state — round, turn order, and
 current participant (if in-combat; REQ-043), active entity personality fields and voice
 examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM
 only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
-(REQ-089, including a "Session zero not yet completed — run `session_zero` prompt" reminder when
-`session_zero_completed` is false), and a pointer to the intro prompt (REQ-063). Groups whose data
+(REQ-089, including a "Session zero not yet completed" reminder when
+`session_zero_completed` is false), a pointer to the intro prompt (REQ-063), and
+story journal entries — entries whose entity IDs overlap the active entities or
+whose scene anchor matches the current scene (GM only, REQ-246). Groups whose data
 source is empty SHALL include an explicit empty-state marker describing which
 category is empty. Markers preserve the expected briefing structure and prevent the
 caller from inferring non-existent content. The enumeration order above is the
@@ -1767,20 +1778,15 @@ the server SHALL insert a `[session_boundary]` marker entry (REQ-237) before the
 first mutating entry of the session — the marker is a mutating entry for
 hash-chain purposes and is included in `audit://novel` output.
 
-The audit log SHALL be stored as a separate append-only file:
-`.holonovel-state/novels/<slug>.audit.jsonl` — one JSON object per line,
-appended on each mutating tool call. The Novel JSON SHALL store an
-`audit_log_offset` field (the byte offset in the audit file of the last entry
-included in the last full Novel JSON write). On load, the server reads audit
-entries from the JSONL file starting at the stored offset, replays any entries
-written after the last Novel snapshot, and verifies the hash chain end-to-end.
-An audit JSONL file whose hash chain is broken at a point before the stored
-offset SHALL produce a `[corrupted_audit]` warning in `spec_health` — the
-server loads entries up to the break point. An audit JSONL file absent on
-disk when the Novel JSON references it SHALL produce a `[missing_audit]`
-warning — the server loads with an empty audit log and records the event.
-`end_novel` removes both the Novel JSON and its audit JSONL file.
-`export_novel` (REQ-096) assembles the full audit log from the JSONL file.
+The audit log SHALL be stored as an `audit_log` array in the Novel JSON,
+appended on each mutating tool call alongside the Novel state write per REQ-092.
+Each entry is a JSON object with `timestamp`, `hat`, `tool`, `args`, and `prefix`
+fields. Each audit entry chains the hash of the preceding entry, producing a
+tamper-evident sequence verified end-to-end on load. A hash chain broken at any
+point SHALL produce a `[corrupted_audit]` warning in `spec_health` — the server
+loads entries up to the break point. `end_novel` removes the Novel JSON and its
+backup — the audit log is part of the Novel and removed with it. `export_novel`
+(REQ-096) serializes the `audit_log` array directly from the Novel JSON.
 Hat switches via `set_hat` (all values: `player`, `game_master`, `none`)
 SHALL produce audit entries recording the old hat, new hat, and timestamp.
 Hat-switch entries carry `[hat_switch]` as the tool-name field. They are
@@ -2022,7 +2028,9 @@ object describing the active combat), `scene` (current description string), `sce
 timestamp}` objects, most recent N), `roster_changes` (array of `{entity_id, action`
 — "created" or "removed", `timestamp}`), `condition_changes` (array of `{entity_id,
 condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls` (per
-REQ-174), and `total_combat_rounds` (integer). Missing or inapplicable fields SHALL be
+REQ-174), `total_combat_rounds` (integer), and `story_entries` (array of objects with
+`type`, `entry`, `timestamp`, `scene_anchor`, and `entity_ids` — most recent N, default
+10). Missing or inapplicable fields SHALL be
 present with a typed null or empty array, not omitted. The LLM reconstructs a narrative
 recap from these fields; the tool SHALL NOT generate recap prose.
 `session_recap` accepts optional parameters: `session_id` (string — when
@@ -2858,7 +2866,7 @@ containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`,
 `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174),
 `condition_changes`, `roster_changes`, and `scene_transitions`. Summaries are
 stored in the Novel JSON under an `audit_archive` key; raw audit entries for
-archived sessions are removed from the audit JSONL file (REQ-040). The audit
+archived sessions are removed from the `audit_log` array in the Novel JSON (REQ-040,
 hash chain is re-anchored at the first live entry after compaction — the
 chain is not broken, but entries after the compaction boundary form a new
 segment. `session_recap` (REQ-072) SHALL derive from live entries plus archive
@@ -3062,6 +3070,32 @@ verification of input safety, and performance under adversarial load beyond the 
 benchmarks defined in REQ-100.
 
 ### 5.8 Enrichment, Lore, and Macros
+
+**REQ-246 — Story journal.** The server provides a `record_story(type, entry)` tool — Game
+Master only. Records a narrative memory in the Novel's `story_journal` array. `type` SHALL
+be one of `decision`, `moment`, `revelation`, `bond`, or `consequence`. `entry` is free-form
+text — recommended one to four sentences. The entry SHALL record the current scene anchor,
+active entity IDs, and an ISO 8601 timestamp. Each type signals retrieval context:
+`decision` (a choice with consequences), `moment` (an emotional beat or roleplay highlight),
+`revelation` (new information that changed understanding), `bond` (a relationship formed or
+deepened), `consequence` (something happened because of a prior choice). The tool SHALL
+include a style guide in its help text: focus on narrative elements the mechanical audit log
+does not capture — motivations, emotional stakes, world changes, off-screen events. Entries
+are Novel-scoped, survive restarts, and are discarded by `end_novel`. Story journal entries
+are not mutating state operations for undo/redo purposes — `undo` SHALL NOT reverse a story
+journal entry. Player hat returns `[FORBIDDEN]`.
+
+Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
+field — most recent N entries, default 10; (b) in `hat_briefing` under a `story` section
+token — entries whose `entity_ids` overlap the current active entities or whose
+`scene_anchor` matches the current scene; (c) in `export_novel` output under
+`story_journal`; (d) in `clone_novel` as a copied array. The `story_journal` array is
+stored in the Novel JSON per REQ-092 and grows with each recorded entry.
+*Acceptance criterion:* `record_story("moment", "The ferryman told a story...")` appends
+an entry with type, entry text, timestamp, scene anchor, and entity IDs; the entry appears
+in `session_recap.story_entries`, `hat_briefing` when the ferryman scene is active, and
+`export_novel("json")` output; undo does not remove it; Player hat returns `[FORBIDDEN]`.
+_Check:_ T282.
 
 **REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers: (1)
 Ruleset-native enrichment — extracted during Discovery from the ruleset's own text
@@ -3725,50 +3759,52 @@ undo rolls back all three.
 _Check:_ T76.
 
 **REQ-092 — Novel persistence.** Every mutating tool call writes the Novel to
-`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers plus
-Novel metadata) using an atomic rename — write to a temporary file, then atomically rename
-over the target. The serialized Novel payload must be fully durable on the storage
-medium before the atomic rename commits. Content written to the temporary file must
-be flushed to stable storage (e.g., via fsync on the file descriptor) before the
-rename operation. The temporary file path must include an element that prevents
-collision with concurrent writers targeting the same Novel (e.g., a process
-identifier or timestamp suffix). A Novel on disk whose file size is zero after an
-atomic write indicates a durability failure — surfaced in `spec_health` and stderr.
-A backup of the previous Novel file is retained as
+`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers,
+the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata,
+and undo snapshot stacks) using an atomic rename — write to a temporary file, then
+atomically rename over the target. The serialized Novel payload must be fully durable
+on the storage medium before the atomic rename commits. Content written to the
+temporary file must be flushed to stable storage (e.g., via fsync on the file
+descriptor) before the rename operation. The temporary file path must include an
+element that prevents collision with concurrent writers targeting the same Novel
+(e.g., a process identifier or timestamp suffix). A Novel on disk whose file size is
+zero after an atomic write indicates a durability failure — surfaced in `spec_health`
+and stderr. A backup of the previous Novel file is retained as
 `<slug>.json.bak`. Both corrupted JSON and a missing backup surface in `spec_health`
 and stderr. A rebuild with a changed entity model loads the Novel gracefully:
-absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined
-defaults. Roster baselines remain immutable across rebuilds. Structurally corrupted JSON →
-stderr warning and `spec_health` flag; never silently discarded. On load, if the primary
-file is structurally corrupt but the `.bak` file is intact and parseable, the server loads
-from the backup and records a `[restored_from_backup]` audit entry. If both primary and
-backup are corrupt, the server emits a stderr warning listing both file paths, surfaces a
-`[corrupted_novel]` flag in `spec_health` with the slug, and provides the backup path for
-operator recovery. The server must not silently discard or zero-initialize the Novel. No
-orphaned state — `end_novel` removes the save file and its backup. The Novel JSON includes
-a checksum field — a hash of the serialized state excluding the checksum field itself. On
-load, the server verifies the checksum against the loaded state. A mismatch follows the
-same recovery path as structural corruption: attempt backup restore, then surface the
-mismatch in `spec_health` and stderr if both are tainted. The checksum algorithm and field
-name are builder-determined; the convergence loop enforces that tainted state is detected. Undo snapshot stacks
+absent-model fields in JSON preserved as inert data; missing fields receive
+ruleset-defined defaults. Roster baselines remain immutable across rebuilds.
+Structurally corrupted JSON → stderr warning and `spec_health` flag; never silently
+discarded. On load, if the primary file is structurally corrupt but the `.bak` file
+is intact and parseable, the server loads from the backup and records a
+`[restored_from_backup]` audit entry. If both primary and backup are corrupt, the
+server emits a stderr warning listing both file paths, surfaces a
+`[corrupted_novel]` flag in `spec_health` with the slug, and provides the backup
+path for operator recovery. The server must not silently discard or zero-initialize
+the Novel. No orphaned state — `end_novel` removes the save file and its backup. The
+Novel JSON includes a checksum field — a hash of the serialized state excluding the
+checksum field itself. On load, the server verifies the checksum against the loaded
+state. A mismatch follows the same recovery path as structural corruption: attempt
+backup restore, then surface the mismatch in `spec_health` and stderr if both are
+tainted. The checksum algorithm and field name are builder-determined; the
+convergence loop enforces that tainted state is detected. Undo snapshot stacks
 (REQ-041) persist with the Novel — they survive server restarts alongside all other
 Novel state tiers.
 
-The Novel JSON SHALL include a `novel_format_version` field — an integer,
-initially `1`, incremented when the Novel's on-disk schema changes
-incompatibly. On load, the server compares the stored version to the current
-format version. Version < current: trigger graceful migration per the existing
-load rules (absent-model fields receive ruleset-defined defaults; extra fields
-are preserved as inert data). Version > current: surface a `[WARNING]
-[format_future]` in `spec_health` — the Novel may contain fields the current
-server cannot interpret; the server loads the Novel with the existing graceful
-migration rules and the warning remains active until the format version matches.
-
-The Novel JSON SHALL include an `audit_log_offset` field — an integer byte
-offset pointing to the last audit entry included in the last full Novel JSON
-write, stored in the separate audit JSONL file (REQ-040). On load, the server
-reads audit entries from the JSONL file starting at this offset to recover
-entries written after the last full save.
+The Novel JSON SHALL include a `novel_format_version` field — an integer, initially
+`2`, incremented when the Novel's on-disk schema changes incompatibly. On load, the
+server compares the stored version to the current format version. Version < current:
+trigger graceful migration per the existing load rules (absent-model fields receive
+ruleset-defined defaults; extra fields are preserved as inert data). For version 1
+Novels, the server SHALL auto-migrate: if a `.holonovel-state/novels/<slug>.audit.jsonl`
+file exists alongside the Novel JSON, read all entries from the JSONL file, construct an
+`audit_log` array in the Novel, verify the hash chain end-to-end, delete the JSONL file,
+and set `novel_format_version` to `2`. If no JSONL file exists for a version 1 Novel,
+load with an empty `audit_log` array, record a `[migration_missing_audit]` audit entry,
+and set `novel_format_version` to `2`. Version > current: surface a `[WARNING]
+[format_future]` in `spec_health` — the Novel may contain fields the current server
+cannot interpret; the server loads the Novel with the existing graceful migration
+rules and the warning remains active until the format version matches.
 
 WHEN `TTRPG_NOVEL_COMPRESS` is `true` (default `false`), the serialized Novel
 JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be
@@ -3782,15 +3818,16 @@ a compressed Novel loaded with compression disabled SHALL produce a `[WARNING]
 loads normally.
 *Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty
 and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string;
-`cat novels/<slug>.json | jq .novel_format_version` returns `1`;
-`cat novels/<slug>.json | jq .audit_log_offset` returns an integer;
-a corrupt primary file triggers backup restore.
-_Check:_ T77, T88, T156.
+`cat novels/<slug>.json | jq .novel_format_version` returns `2`;
+`cat novels/<slug>.json | jq .audit_log` returns an array with 10 entries;
+a version 1 Novel with a valid JSONL file auto-migrates on load; a corrupt primary
+file triggers backup restore.
+_Check:_ T77, T88, T156, T282.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
 creation timestamp, last-modified timestamp, entity count, adventure source (module slug,
-"generated", or "none"), setup-completion flags, session count (distinct `TTRPG_SESSION_ID`
+"generated", or "none"), setup-completion flags, story journal entry count, session count (distinct `TTRPG_SESSION_ID`
 values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
 range), last-active scene anchor, current combat round if in-combat, total combat rounds
 played across this Novel's lifetime, and a `sessions` array — per-session objects with
@@ -3836,7 +3873,8 @@ snapshots, checkpoints if `include_checkpoints=true` per REQ-241), `state_only`
 `world_model` (rooms, things, exits, properties), `npcs` (NPCs with personality
 fields), `factions` (factions with clock state), `secrets` (secrets with
 known-by status), `relationships` (relationship objects), `dm_context` (pause/
-resume context), `notes` (key-value notes), or `scene_history` (scene-state
+resume context), `notes` (key-value notes), `story_journal` (story journal entries
+per REQ-246), or `scene_history` (scene-state
 ledger). Each scope outputs Appendix Q schema with omitted keys for excluded
 tiers. Single scope per call.
 
@@ -3898,7 +3936,8 @@ _Check:_ T100, T281.
 **REQ-097 — Novel health.** The `spec_health` tool reports per-Novel health metrics for
 the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore
 entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log
-entry count, snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
+entry count, story journal entry count, story journal total characters (on-disk byte count),
+snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
 configured), on-disk file size in bytes (with warning if exceeding 4 MB), and a `healthy`
 flag — set to false if any warning is active). `spec_health` reports a sliding window of
 Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct
@@ -3960,10 +3999,11 @@ _Check:_ T276.
 **REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
 new_name, trim_audit_sessions?)` tool (callable with no hat active or Game Master
 hat). The tool creates an independent copy of the source Novel as a new Novel at
-`.holonovel-state/novels/<new_slug>.json`. All ten property groups (NPC, Scene,
-Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context)
-plus the world-model tier, combat state, pending workflows, metadata, audit log,
-undo snapshots, and checkpoints (if present, REQ-241) SHALL be copied. Roster
+`.holonovel-state/novels/<new_slug>.json`. All property groups (NPC, Scene,
+Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context,
+Notes, Story Journal) plus the world-model tier, combat state, pending workflows,
+metadata, audit log, story journal, undo snapshots, and checkpoints (if present,
+REQ-241) SHALL be copied. Roster
 references are preserved — cloned entities point to the same roster IDs. The
 cloned Novel's `created_at` timestamp SHALL be the clone time; the clone is not
 activated — the caller's active Novel is unchanged. Returns `[STATE_CONFLICT]`

@@ -119,6 +119,7 @@ discarded by `end_novel`):
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
 | Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
+| Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
