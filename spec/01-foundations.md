@@ -49,7 +49,7 @@ current phase — reducing per-phase context by ~73% vs. loading the full specif
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
 these), then §6 (Build Process — this is your workflow). Use `build-phase-map.md`
 for per-phase file loading. Consult §5 (Requirements) by subsection as each build
-phase demands it. Skip the appendices until Gate 0.
+phase demands it. Skip the appendices until G0a.
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
@@ -151,7 +151,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
-| F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
+| F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
@@ -293,7 +293,8 @@ guard, the gap is explicit.
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). All are Game Master only. |
-| Narrative         | The story-content layer: REQ-020 tool categories (scenes, NPCs, countdowns, lore, entities, personality, hats, briefing, adventure generation, session, utility, enrichment, combat, story journal), new narrative tools (Factions, Secrets, Player Choices, Relationships, Clock taxonomy, Session notation), all infrastructure resources, and all infrastructure prompts. Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side. `hat_briefing` (REQ-109) composes guidance, state, lore, and registry content hat-filtered. Hat behavioral boundaries (REQ-064), hat foundations (REQ-062), anti-slop guidance (REQ-070), and narrative tone samples (REQ-071) supply hat-specific orientation. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
+| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap, notes), Session Management (pause/resume, checkpoints, briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no

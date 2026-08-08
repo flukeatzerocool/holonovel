@@ -49,7 +49,7 @@ current phase — reducing per-phase context by ~73% vs. loading the full specif
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
 these), then §6 (Build Process — this is your workflow). Use `build-phase-map.md`
 for per-phase file loading. Consult §5 (Requirements) by subsection as each build
-phase demands it. Skip the appendices until Gate 0.
+phase demands it. Skip the appendices until G0a.
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
@@ -151,7 +151,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
-| F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; Gate 0 live initialize                    |
+| F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
@@ -373,6 +373,19 @@ true`.
 `spec_health` with the Novel slug enumerated; a search returning contradictory
 ruleset texts produces `[PARTIAL]` with both texts cited.
 _Check:_ T175.
+
+**REQ-277 — Fixture evolution contract.** When a specification change causes a
+golden transcript assertion (Appendix B.3, N.3, W.3, X.3) to fail, the maintainer
+SHALL:
+
+1. Version-bump the fixture — the fixture carries a `<!-- fixture version N -->` comment.
+2. Record the citing REQ that caused the break in the fixture's changelog comment.
+3. Update the transcript and RNG witness values to match the new expected behavior.
+
+A fixture transcript that fails replay under a conformant server is a spec defect
+— the fixture SHALL be updated, not treated as a regression. The fixture version
+SHALL increment on any transcript or witness-value change.
+_Check:_ T297.
 
 **REQ-002 — Error taxonomy.** _(F1)_ Every error carries a category: `[FORBIDDEN]`,
 `[NOT_FOUND]`, `[INVALID_INPUT]`, `[STATE_CONFLICT]`, `[RULE_VIOLATION]`,
@@ -743,6 +756,29 @@ initialize handshake succeeds with `serverInfo.name` matching the config
 key.
 _Check:_ T187.
 
+**REQ-270 — Artifact version identification.** Each of the four handoff artifacts
+(RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md) SHALL carry its build-time
+specification version in a standardized position — the first HTML comment line of
+each file: `<!-- built against Holonovel spec vX.Y.Z -->`. The version SHALL match
+the value reported by `spec_health.spec_version`. An artifact missing this
+identifier or carrying a version that does not match `spec_health` is a handoff
+defect recorded in DECISIONS.md (6).
+_Check:_ T290.
+
+**REQ-271 — AGENTS.md structure contract.** Every build's AGENTS.md SHALL include
+four sections in order:
+
+1. **Code Map** — a REQ-to-source-file mapping listing every REQ implemented in the
+   server and the primary file(s) exercising its contract.
+2. **Verification** — the commands to run gates G0–G5 with expected exit codes and
+   per-workflow pass criteria.
+3. **Troubleshooting** — common operator-reported failure modes per REQ-153.
+4. **Build Context** — spec version, build date in ISO 8601, builder model identifier,
+   ruleset content hash (REQ-044), and the `@holonovel/inform` version used.
+
+Missing sections or sections without content are handoff defects.
+_Check:_ T291.
+
 **REQ-099 — Confidence-floor acknowledgment.** When the overall confidence threshold drops
 below 80% — whether via the convergence loop's adjusted-threshold provision or acceptance of
 residual gaps — the builder records the drop in DECISIONS.md (5) with the adjusted threshold,
@@ -985,6 +1021,17 @@ generation tables.
 
 *Check:* T256.
 
+**REQ-272 — Stock elements catalog.** The builder SHALL record ruleset-derived
+reusable templates in DECISIONS.md (4) as a structured catalog — a `stock_elements`
+table enumerating character archetypes, monster stat-block libraries, location
+templates, lore patterns, and generation tables extracted during Discovery (§6.3).
+Each entry carries a key, a description, and the source anchor(s) from which it was
+derived. Future builds against the same ruleset target with an unchanged ruleset
+content hash (REQ-044) SHALL reference this catalog rather than re-extracting;
+changed entries are re-extracted per the delta. The catalog is a normalizations
+record, not a runtime surface — it lives in DECISIONS.md only.
+_Check:_ T292.
+
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G. The builder SHALL select a
 converter from the Appendix G.1 catalog or record a justified alternative in
@@ -1088,8 +1135,8 @@ always be present in `tools/list`:
   Enrichment Controls (`revert_enrichment`, `list_enrichment_items`,
   `activate_enrichment_item`, `deactivate_enrichment_item`,
   `remove_enrichment_item`, `toggle_action_patterns`,
-  `player_suppress_enrichment`, `player_unsuppress_enrichment`,
-  `player_list_suppressed_enrichment`, `compress_audit`). These categories
+  `player_enrich`, `player_remove_enrichment`,
+  `player_list_enrichment`, `compress_audit`). These categories
   are never waived.
 
 The `help` tool SHALL present these infrastructure categories as the base
@@ -1300,6 +1347,22 @@ with presence; registering a new resource adds an entry immediately; removing a
 resource changes its presence to `absent`.
 _Check:_ T153.
 
+**REQ-269 — Safety protocol status.** The server SHALL report, through `spec_health`,
+a `safety_protocols` object enumerating each safety property protected by the build
+and its status:
+
+- `state_loss` — Novel state is recoverable after restart
+- `hat_boundary` — GM-only content never leaks to Player hat
+- `data_corruption` — corrupted state files are detected and isolated
+- `unrecoverable_crash` — the server handles adversarial input without crash
+
+Each property carries a `status` of `online`, `degraded` (one or more non-blocking
+Gauntlet failures in relevant sub-workflows), or `offline` (blocking failure
+unresolved). Properties with no exercising Gauntlet sub-workflow SHALL report
+`unverified`. Per-safety-property status is recorded in DECISIONS.md (6) alongside the
+Gauntlet fingerprint.
+_Check:_ T289.
+
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
 full text of the specification that built the server as Markdown, embedded in the
@@ -1349,6 +1412,17 @@ produces the value recorded in `state.buildFingerprint.specHash`; modifying the
 embedded file and restarting produces a drift warning; `spec_health` reports the
 stored hash alongside a `spec_hash_current` boolean.
 _Check:_ T226.
+
+**REQ-278 — Build-phase-map staleness detection.** The build-phase-map
+(`spec/build-phase-map.md`) SHALL carry a SHA-256 hash of the concatenated,
+normalized content of the spec files it references, computed at assembly time
+(`npm run assemble`). The builder SHALL compute the hash of the loaded spec
+files and compare against the map's recorded hash. A mismatch SHALL be recorded
+as a process-compliance finding in DECISIONS.md (6) — the builder proceeds with
+the map but records the stale-hash warning with the list of files whose content
+differs. The `npm run validate` check SHALL verify the map's hash matches the
+current spec file set.
+_Check:_ T298.
 
 **REQ-161 — Intake workflow contract.** Before any workflow begins, the builder SHALL
 present the operator with Q0 (workflow selection) and, when two or more workflows are
@@ -2144,6 +2218,26 @@ Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
 parsed to extract workflow identifier, timestamp, environment pins, pass/fail status,
 and sub-check enumeration without depending on prose interpretation.
 _Check:_ T253, T188.
+
+**REQ-275 — Evidence hash commitment.** Before Phase 1 of independent verification
+(§10), the builder SHALL compute and record a SHA-256 hash of the full DECISIONS.md
+in the redacted copy supplied to the verifier. After Phase 1, when the operator
+supplies the unredacted DECISIONS.md, the verifier SHALL compute its SHA-256 hash
+and compare against the commitment. A hash mismatch SHALL be recorded as a
+Discrepancy with the "evidence tampered" classification. Hash match is a
+prerequisite for Phase 2 comparison — mismatch blocks Phase 2.
+_Check:_ T295.
+
+**REQ-276 — Independent verifier model criteria.** The independent verifier
+(§10) SHALL be a model from a different provider or a different architecture
+family than the builder model. A model from the same provider with a version
+increment (e.g., provider-model-v3 vs. provider-model-v4) is insufficient. The
+verifier SHALL record its model identity (provider, model name, version) in its
+evidence record. The operator SHALL verify the model-difference criterion before
+beginning Phase 1; a same-provider-same-architecture verifier SHALL be noted as
+a process-compliance finding and does not block the verification but SHALL be
+recorded in DECISIONS.md (6).
+_Check:_ T296.
 
 ### 5.6 State and Lifecycle
 
@@ -3514,6 +3608,42 @@ d20 face on two separate server restarts; a per-call seed does not advance the
 session PRNG position.
 _Check:_ Gate 2, T27, T111.
 
+**REQ-273 — Independent verification reproducibility tolerance.** When the
+independent verifier (§10) compares its results to the builder's, the following
+count as a structural match rather than a discrepancy:
+
+1. Seed-pinned dice rolls SHALL match exactly.
+2. Status prefixes (`[OK]`, `[ERROR]`, `[WARNING]`, `[NEED_INPUT]`) SHALL match
+   exactly.
+3. Exit codes SHALL match.
+4. Tool names and parameter values SHALL match.
+5. Natural-language prose (scene descriptions, NPC dialogue, lore content) is
+   non-adversarial — a match is structural (non-empty and within ±20% word count)
+   rather than verbatim.
+6. Counts (entity count, lore entry count, audit entry count) SHALL match within
+   zero tolerance for exact-count fields and ±1 for open-ended fields (audit log
+   entries, session recap entries).
+
+A comparison that satisfies all applicable tolerance rules is a match. Any
+violation of rules 1–4 is a Discrepancy. Any violation of rule 5 is Unclassifiable
+(operator's call). Any violation of rule 6 is Pin drift unless rule 1–4 also fail.
+_Check:_ T293.
+
+**REQ-274 — Independent verifier confidence score.** The independent verifier
+(§10) SHALL produce an overall confidence score between 0 and 1 across all
+compared workflows, computed as:
+
+- Each Discrepancy: weight 0
+- Each Pin drift: weight 0.2 × (1 if operator confirms pin drift, 0 if operator
+  flags as discrepancy)
+- Each Structural match under REQ-273 tolerance: weight 1.0
+- Each Exact match: weight 1.0
+
+Score = sum(weights) / total_comparisons. A score below 0.80 is FAIL; 0.80–0.95
+is PARTIAL with enumerated reservations; above 0.95 is PASS. The score and
+per-workflow component weights are recorded in the verifier's evidence.
+_Check:_ T294.
+
 **REQ-213 — Weighted table result mapping.** When a generation table defines a
 dice-range-to-result mapping, `roll_on_table` SHALL roll the specified dice
 expression, match the result against the defined ranges, and return the matched
@@ -3708,8 +3838,8 @@ returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not rem
 entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
 
-**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers with
-distinct storage models:
+**REQ-080 — Enrichment boundaries.** Enrichment consists of three source
+categories with distinct storage models:
 
 1. **Tier 1 (ruleset-native)** — extracted during Discovery from the ruleset's own
 text per REQ-225, populated at build time. Tier 1 content is **build output**: full
@@ -3722,6 +3852,17 @@ the GM has activated. Items tagged `[ruleset]` with source anchors.
 Tier 2 items are stored in full within the Novel JSON. Items tagged
 `[supplementary]` with source URLs.
 
+3. **Player-authored (player)** — created at runtime by the Player hat via
+`player_enrich` (REQ-261). Items are stored in full within the Novel JSON under a
+`player_enrichment` key, organized by output module. Items are tagged `[player]`
+and are active immediately upon creation in the player-facing subset of modules:
+`voice_examples`, `action_patterns`, `supplementary_guidance`, `narrative_voices`,
+and `lore_templates`. Default hat scope is `shared` (visible to both hats); the
+player may scope items `player` (private). Player items are subject to a per-module
+cap of 15 items. The GM may not modify or remove `[player]` items but may override
+their `hat_scope` to `game_master` to incorporate them into the GM's active
+enrichment set.
+
 On Novel startup, Tier 1 activation keys resolve against the build's current tier 1
 extraction. Keys that match stay active with the latest extracted content. Vanished
 keys — those whose anchors no longer resolve — silently drop and are reported in
@@ -3730,8 +3871,11 @@ extraction but not present in the activation keys start inactive. When a ruleset
 rebuild occurs, fresh extraction replaces the build output directory; the same key
 resolution logic applies on next Novel startup.
 
-Community items never replace ruleset-native items. The GM activates items from
-either tier via the same tool calls. Enrichment may ADD content to entity
+Community items never replace ruleset-native items. Player items never replace
+ruleset-native or community items — the three source categories coexist. The GM
+activates items from Tier 1 and Tier 2 via the same tool calls. Player items are
+active immediately upon creation; the player may deactivate their own items via
+`deactivate_enrichment_item` (REQ-260). Enrichment may ADD content to entity
 voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
 (REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090,
 §11.1), narrative voice profiles (REQ-226), and supplementary guidance. Enrichment
@@ -3749,13 +3893,16 @@ finding carries source_url, quoted_excerpt, hat_scope, confidence (derived from
 source authority, not mechanical completeness), output_module, and collected_at (ISO
 8601 timestamp of collection) — all non-empty. Ruleset-native items carry source
 anchor, confidence, output_module, and `[ruleset]` tag. Reverting enrichment
-(REQ-103) removes only community enrichment; ruleset-native items persist.
+(REQ-103) removes only community enrichment; ruleset-native and
+player items persist.
 
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
-and source URL; ruleset-native items carry `[ruleset]` tag and source anchor; a
+and source URL; ruleset-native items carry `[ruleset]` tag and source anchor;
+player-authored items carry `[player]` tag and appear in both Player and GM
+`hat_briefing` by default; a
 stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
 `[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
-community items but preserves ruleset-native items; a Novel's Tier 1 activation key that
+community items but preserves ruleset-native and player items; a Novel's Tier 1 activation key that
 no longer resolves against the build's current extraction appears as an
 `[enrichment_gap]` entry in `spec_health`; new Tier 1 items in the current extraction
 with no matching activation key start inactive.
@@ -3984,8 +4131,8 @@ _Check:_ T94, T125.
 
 **REQ-260 — Granular enrichment activation.** The Game Master may manage
 enrichment items individually. `list_enrichment_items(module?, tier?)` returns
-all available enrichment items with key, preview, source, and activated status —
-Tier 1 resolved from current build output, Tier 2 from Novel JSON.
+all available enrichment items with key, preview, source, source tag, and activated
+status — Tier 1 resolved from current build output, Tier 2 from Novel JSON.
 `activate_enrichment_item(module, key)` activates one item: Tier 1 adds the key to
 the Novel's `enrichment_activated` keys; Tier 2 marks the item active in Novel
 JSON. `deactivate_enrichment_item(module, key)` deactivates without removal —
@@ -3993,37 +4140,75 @@ Tier 1 removes the key from the activation set; Tier 2 marks the item inactive i
 Novel JSON. `remove_enrichment_item(module, key)` permanently deletes a Tier 2 item
 from the Novel JSON. Calling `remove_enrichment_item` on a Tier 1 item SHALL return
 `[ERROR] [RULE_VIOLATION]` directing the caller to `deactivate_enrichment_item` —
-Tier 1 items cannot be removed, only deactivated. All tools are Game Master only.
-Activation and deactivation state persists with the Novel. Existing
-`toggle_enrichment_module` and `revert_enrichment` tools remain unchanged as
-convenience shortcuts.
+Tier 1 items cannot be removed, only deactivated. The above activation, deactivation,
+and removal tools are Game Master only. Activation and deactivation state persists
+with the Novel. Existing `toggle_enrichment_module` and `revert_enrichment` tools
+remain unchanged as convenience shortcuts.
+
+The Player hat may call `activate_enrichment_item` and `deactivate_enrichment_item`
+on items they authored (tagged `[player]`) — items stored under the
+`player_enrichment` key in Novel JSON. Player-created items are active immediately
+upon creation; `deactivate_enrichment_item` suppresses a player item from the player's
+`hat_briefing` and enrichment surfaces without deleting it. The Player may NOT call
+`remove_enrichment_item` — they use `player_remove_enrichment` (REQ-261) for their
+own items. Player hat attempts to activate, deactivate, or remove any item NOT tagged
+`[player]` SHALL return `[ERROR] [FORBIDDEN]`.
 
 *Acceptance criterion:*
-`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status;
+`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status
+and source tag;
 `activate_enrichment_item("voice_examples", "goblin-snarl")` activates the item
 and it appears in enrichment surfaces;
 `deactivate_enrichment_item("voice_examples", "goblin-snarl")` removes it from
 surfaces; `remove_enrichment_item("voice_examples", "goblin-snarl")` on a Tier 1 item
-returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it.
+returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it;
+Player calls `deactivate_enrichment_item` on a `[player]` item — item hidden from
+player briefing; Player calls `activate_enrichment_item` on a `[ruleset]` item —
+returns `[FORBIDDEN]`.
 
 _Check:_ T-new-260.
 
-**REQ-261 — Player enrichment suppression.** The player may suppress individual
-enrichment items from their player-facing surfaces.
-`player_suppress_enrichment(module, key)` hides an item;
-`player_unsuppress_enrichment(module, key)` restores it;
-`player_list_suppressed_enrichment()` lists all suppressed items with module and
-key. Suppression state is stored as `player_enrichment_suppressed: {module: [key,
-...]}` in the Novel and survives restarts. Suppression is per-item and does not
-communicate to the GM. Player hat only.
+**REQ-261 — Player enrichment.** The player may create enrichment items in a
+player-facing subset of enrichment modules: `voice_examples`, `action_patterns`,
+`supplementary_guidance`, `narrative_voices`, and `lore_templates` — modules where
+player-authored content enriches the shared story experience. Three tools provide
+player enrichment:
+
+`player_enrich(module, key, content, triggers?, hat_scope?)` creates a `[player]`-tagged
+enrichment item in the specified module. `key` is a unique snake_case slug within
+the module. `content` is a Markdown string. `triggers` is an optional keyword array
+for lore_templates (ignored for other modules). `hat_scope` defaults to `shared`
+— the item is visible to both Player and GM hats. The player may set `hat_scope` to
+`player` to keep the item private. `player_remove_enrichment(module, key)` removes a
+`[player]`-tagged item. Returns `[RULE_VIOLATION]` if the item is not player-authored.
+`player_list_enrichment(module?)` lists all `[player]`-tagged items, optionally filtered
+by module, with key, preview, scope, and activated status.
+
+Player-created items are stored in the Novel JSON under a `player_enrichment` key,
+organized by module. Items survive restarts and follow the Novel's persistence
+contract (REQ-092). Player items are active immediately upon creation — the player
+does not need to activate them separately. The player may `deactivate_enrichment_item`
+on their own items to suppress them from their briefing without deletion. Player items
+are subject to the same per-module budget caps as community enrichment (§11.1), with a
+per-module player cap of 15 items each. The GM hat sees player enrichment items in
+`list_enrichment_items` and in `hat_briefing` filtered by the item's `hat_scope`.
+The GM may not modify or remove player enrichment items — attempts return
+`[FORBIDDEN]` — but may override an item's `hat_scope` from `shared` to `game_master`
+to incorporate it into the GM's active enrichment set. `revert_enrichment` (REQ-103)
+and `revert_novel_enrichment` (REQ-265) SHALL NOT remove `[player]` items.
+Player hat only.
 
 *Acceptance criterion:*
-`player_suppress_enrichment("action_patterns", "feint-suggestion")` removes the
-item from the player's `suggest_actions` output;
-`player_unsuppress_enrichment("action_patterns", "feint-suggestion")` restores
-it; suppressed items appear in `player_list_suppressed_enrichment()`; GM hat
-returns `[FORBIDDEN]` on player enrichment tools; suppression state survives
-server restart.
+`player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest
+deception check")` creates an item that appears in the player's `suggest_actions`
+output and in the GM's `hat_briefing` (default shared scope);
+`player_enrich("voice_examples", "growl", "Get away from my hoard!", [],
+"player")` creates a private item visible only to the Player hat;
+`player_remove_enrichment("action_patterns", "feint-suggestion")` removes it;
+`player_remove_enrichment` on a Tier 1 `[ruleset]` item returns `[RULE_VIOLATION]`;
+`player_list_enrichment()` returns all player-authored items with module, key,
+preview, and scope; GM hat returns `[FORBIDDEN]` on player enrichment tools;
+player items survive server restart.
 
 _Check:_ T-new-261.
 
@@ -4037,8 +4222,9 @@ Novel-scoped — they do not transfer between Novels. Items are removed by
 `revert_novel_enrichment` (REQ-265), not by `revert_enrichment` (REQ-103).
 Items are inert — they do not auto-apply to any surface. The GM activates
 individual `[novel]` items via the same granular tools as Tier 1 and Tier 2
-(REQ-260). The Player may suppress individual `[novel]` items via
-`player_suppress_enrichment` (REQ-261).
+(REQ-260). The Player may deactivate individual `[novel]` items via
+`deactivate_enrichment_item` when the GM has overridden their scope to
+`shared` or `player` (REQ-261).
 
 *Acceptance criterion:* `list_enrichment_items(tier=3)` returns items tagged
 `[novel]` with Novel-scoped source citations. `revert_enrichment` does not
@@ -4150,21 +4336,23 @@ _Check:_ T-new-266.
 
 **REQ-267 — Novel enrichment in hat_briefing.** `[novel]` items appear in
 `hat_briefing` under their respective enrichment sections, tagged `[novel]`
-with confidence, alongside Tier 1 and Tier 2 items. Hat filtering follows
+with confidence, alongside Tier 1, Tier 2, and `[player]` items. Hat filtering follows
 the same rules as Tier 2 items (REQ-159): items assigned `hat_scope:
 game_master` are hidden from the Player hat. `[novel]` item hat scope
 defaults to `game_master` — they are GM prep aids by nature. The GM may
-override the scope to `shared` or `player`. The Player may suppress individual
-`[novel]` items via `player_suppress_enrichment` (REQ-261). When no `[novel]`
+override the scope to `shared` or `player`. The Player may deactivate individual
+`[novel]` items via `deactivate_enrichment_item` when the GM has overridden their
+scope to `shared` or `player` (REQ-260). When no `[novel]`
 items are active, `hat_briefing` SHALL NOT include an empty `[novel]` section —
 unlike Tier 1 and Tier 2 enrichment sections which require explicit
 empty-state markers per REQ-109. The absence of `[novel]` content is not a
 deficiency to signal.
 
 *Acceptance criterion:* `[novel]` items appear in `hat_briefing` under their
-respective enrichment sections tagged with `[novel]` and confidence. Player
-hat sees only items whose scope is `shared` or `player`. Suppressed items via
-REQ-261 are hidden from the Player hat. After `revert_novel_enrichment`,
+respective enrichment sections tagged with `[novel]` and confidence, alongside
+`[ruleset]`, `[supplementary]`, and `[player]` items. Player
+hat sees only items whose scope is `shared` or `player`. Deactivated items via
+REQ-260 are hidden from the Player hat. After `revert_novel_enrichment`,
 `[novel]` items are absent from `hat_briefing` with no empty-section marker.
 
 _Check:_ T-new-267.
@@ -6746,17 +6934,16 @@ discarded by `end_novel`):
 | Scene       | read/write                                                         | read-only                                      |
 | Countdown   | read/write/create/delete                                            | read-only                                      |
 | Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (hat-filtered per REQ-083)        |
-| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered)                    |
+| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered); read/write for `[player]` items (REQ-261) |
 | Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content hat-filtered; indexed and generated adventures coexist in the active Novel  |
 | Adventure Scene Waypoint | read/write (REQ-250)                                      | read-only (pass-through in `hat_briefing`)      |
-| Adventure Index | read (populated from REQ-247 structural extraction; read-only index-level data) | read-only (hat-filtered per adventure section markers) |
 | Faction     | read/write/create/delete (REQ-233)                                   | read-only (GM-filtered)                         |
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
 | Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
-| Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; suppressible per REQ-261) |
+| Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -6834,35 +7021,41 @@ Verification workflows are either **fixture workflows** (run once per builder
 implementation — their results apply to every ruleset served by that builder)
 or **ruleset-facing** (each ruleset must pass them independently).
 
-| Workflow | Scope  | What it verifies                                           |
-| -------- | ------ | ---------------------------------------------------------- |
-| G0       | Ruleset | Structural integrity + MCP conformance                   |
-| G2       | Fixture | Golden transcript replay (fixture scoped by complexity)   |
-| G3       | Fixture | Injection resistance                                      |
-| G4       | Ruleset | Derived test catalogue                                    |
-| G5       | Ruleset | The Gauntlet — operational verification                   |
+| Workflow | Scope   | What it verifies                              |
+| -------- | ------- | --------------------------------------------- |
+| G0a      | Ruleset | Structural integrity                           |
+| G0b      | Ruleset | MCP conformance                                |
+| G2       | Fixture | Golden transcript replay (fixture scoped by complexity) |
+| G3       | Fixture | Injection resistance                           |
+| G4       | Ruleset | Derived test catalogue                         |
+| G5       | Ruleset | The Gauntlet — operational verification        |
+| G6       | Ruleset | Enrichment lifecycle                           |
 
 In prose, verification workflows are referred to by their canonical `GN` form
 (G0, G2, etc.), established in this table. The legacy "Gate N" form is
 deprecated outside this section.
 
-**Verification workflow G0 — Intake integrity.** Two checks, run in order:
+**Verification workflow G0a — Structural integrity.** Verify the ruleset Markdown (or converted
+source) passes the Appendix H checklist: well-formed, all headings unique, tables
+regular, references resolvable. Run at intake. Per Standing Rule 9, a ruleset-free
+build SHALL report a passing result with the finding "no ruleset — skipped." This
+workflow uniquely verifies source quality independent of the running server; structural
+checks are distinct from MCP conformance (G0b).
 
-1. **Structural integrity.** Verify the ruleset Markdown (or converted source)
-   passes the Appendix H checklist: well-formed, all headings unique, tables
-   regular, references resolvable. Run at intake. Per Standing Rule 9, a
-   ruleset-free build SHALL report a passing result with the finding "no ruleset —
-   skipped."
-
-2. **MCP conformance.** Verify the running server against the Appendix D
-   checklist. Every check must pass. Run the MCP Inspector or equivalent
-   against a server built from the active fixture: the Appendix B fixture
-   (Tin Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N
-   fixture (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed
-   items); the Appendix W fixture (World-Model) for ruleset-free builds.
+**Verification workflow G0b — MCP conformance.** Verify the running server against the
+Appendix D checklist. Every check must pass. Run the MCP Inspector or equivalent
+against a server built from the active fixture: the Appendix B fixture (Tin Lanterns)
+for Light-tier rulesets (<100 indexed items); the Appendix N fixture (Captain Proton)
+for Standard, Heavy, and Huge tiers (≥100 indexed items); the Appendix W fixture
+(World-Model) for ruleset-free builds. This workflow uniquely verifies the server
+registry, tool schemas, and resource URIs against the MCP protocol — it does not
+verify structural correctness of the ruleset source (G0a).
 
 **Verification workflow G2 — Golden transcript replay (fixture workflow).**
-Build a server from a fixture and replay its transcript. The fixture is
+Build a server from a fixture and replay its transcript. This workflow uniquely
+verifies deterministic reproduction of known interaction sequences — hat gating
+is exercised separately by G3 (tool registry), G5 S6 (cross-hat operations), and
+G5 S17 (resource filtering). The fixture is
 selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
 (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items);
@@ -6902,7 +7095,9 @@ _Check:_ T185.
 over the Appendix C fixture. Verify the capability surface, hat gating, and
 metadata filtering are unchanged. Tool registry and resource listings diff
 clean (identical except for the new section's anchor and its GM-only guidance
-items).
+items). This workflow uniquely verifies that adversarial source content
+(prompt injection, HTML comments, embedded directives) remains inert data;
+structural integrity of indexed content is verified by G0a.
 
 **Verification workflow G4 — Derived tests.** Execute the tests in
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
@@ -6910,13 +7105,27 @@ disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
 reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual
 tests must document the verification procedure and expected output shape in
-DECISIONS.md.
+DECISIONS.md. This workflow uniquely verifies the server against the formal
+test catalogue — individual tool contracts are exercised by G2 (fixture
+transcript) and operational behavior by G5 (Gauntlet scenarios).
 
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
 For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
+This workflow uniquely verifies operational behavior under AI-simulated play —
+deterministic tool contracts are verified by G2 (golden transcript) and G4
+(derived tests).
+
+**Verification workflow G6 — Enrichment lifecycle (ruleset-facing).** After the
+enrichment workflow (§11) completes, verify: all enrichment items carry a source
+tag (`[ruleset]`, `[supplementary]`, `[novel]`, or `[player]`); `[ruleset]`-tagged
+items survive server rebuild with unchanged ruleset hash; deactivated items are
+absent from `hat_briefing` and `suggest_actions` output; `enrichment://status`
+reports correct per-module active/inactive counts; `revert_enrichment` removes all
+`[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
+items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
@@ -6933,12 +7142,24 @@ any manual code modification.
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
 
+Each persona archetype exercises at least one Gauntlet sub-workflow:
+
+| Persona              | Gauntlet scenario(s) | Contract exercised                               |
+| -------------------- | -------------------- | ------------------------------------------------- |
+| Power Gamer          | S4, S21              | Combat determinism, max-round endurance           |
+| New Player           | S1, S22              | Invalid-param handling, unknown-decision errors   |
+| Curious Player       | S8, S18              | Search ambiguity, adventure generation            |
+| Rules Lawyer         | S8                   | Ambiguous alias → `[AMBIGUOUS]` with enumeration  |
+| Forgetful Player ×2  | S22, S24             | Workflow staleness, session-boundary recovery     |
+
 ---
 
 ## 9. Artifacts and Handoff
 
-Four handoff documents (plus `LICENSE.md`). Verification workflow evidence is embedded in DECISIONS.md, never stored as
-separate files.
+Four handoff documents (plus `LICENSE.md`). Each artifact SHALL carry its build-time
+specification version in the first line: `<!-- built against Holonovel spec vX.Y.Z -->`.
+The version SHALL match the value reported by `spec_health.spec_version`. Verification
+workflow evidence is embedded in DECISIONS.md, never stored as separate files.
 
 - **RULESET_MODEL.md** — the semantic model with citations, confidence labels, and
   defect log.
@@ -6949,8 +7170,12 @@ separate files.
   normalizations, and capabilities inventory; `<!-- @section waivers -->` (5) waivers and
   accepted limitations — including mechanics-deviation entries for every hardcoded table,
   each with justification, impact, and re-activation condition; `<!-- @section evidence
-  -->` (6) verification workflow evidence, audit findings, verification record, and structured task
-  list.
+  -->` (6) verification workflow evidence organized in sub-sections: `<!-- @section
+  evidence-g0a -->`, `<!-- @section evidence-g0b -->`, `<!-- @section evidence-g2 -->`,
+  `<!-- @section evidence-g3 -->`, `<!-- @section evidence-g4 -->`,
+  `<!-- @section evidence-g5 -->`, `<!-- @section evidence-g6 -->`,
+  `<!-- @section audit -->` audit findings and verification record,
+  `<!-- @section task-list -->` structured task list.
 - **README.md** — setup, usage, hat model, state model, RNG continuity, and
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
@@ -6958,7 +7183,13 @@ separate files.
   operator-reported failure modes (config mismatch, corrupted state, hat confusion,
   missing environment variables).
 
-**Handoff verification workflow.** Before declaring done, run these verification steps in order. Every step must
+**Handoff verification workflow.** Before declaring done, run these verification steps in order.
+
+The Novel export format (§7.7, `export_novel`) is the runtime equivalent of a holo-novel
+program artifact — a self-contained single-file representation of complete game state
+importable on any conformant server. The export manifest (REQ-096) carries the spec version,
+making the exported Novel traceable to the build that produced it independently of the
+handoff artifacts. Every step must
 have a recorded result in DECISIONS.md.
 
 | Step | Covers   | Procedure                                              | Pass criterion                                                                                                       |
@@ -6975,7 +7206,7 @@ have a recorded result in DECISIONS.md.
 | H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. |
-| H13   | T189   | Check Gauntlet evidence timestamp in DECISIONS.md (6) against most recent source file modification | Gauntlet was re-run (G5 record present) with timestamp after the most recent source file modification timestamp. |
+| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Gauntlet was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
 | H14   | T190   | Four-artifact diet                                                    | Handoff directory contains exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md; no other regular files. Automated test scripts in `scripts/` and `.holonovel-state/` directory are exempt. |
 
 A verification step may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
@@ -7032,54 +7263,56 @@ Phase 1 — blind re-execution, in order:
 5. Run the automated handoff verification workflow (H1–H14) and record the results.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
-   and re-execute them with your own tool calls — do not replay the builder's
-   recorded calls. Use a different random seed for each re-execution. Assert
-   every assertion in each sub-workflow's pass criterion holds. Record any
-   discrepancy as `DISPUTED` with both your result and the builder's recorded
-   result. The five selected sub-workflows must span at least three distinct
-   REQ categories (hat gating, state survival, combat resolution, error
-   handling, undo, or novel lifecycle). Report the selection and the category
-   mapping.
-   Document the random selection mechanism and seed used. If the operator re-runs
-   a DISPUTED adversarial item, the operator SHALL use the documented seed to
-   reproduce the same sub-workflow selection. If the documented mechanism cannot
-   select five blocking sub-workflows spanning ≥3 REQ categories (e.g., fewer than
-   three categories have blocking sub-workflows), the verifier SHALL select all
-   available blocking sub-workflows and record the shortfall as a finding.
+    from a weighted pool and re-execute them with your own tool calls — do not
+    replay the builder's recorded calls. Sub-workflows with prior failures in the
+    builder's evidence (from DECISIONS.md §6) are weighted 3×; sub-workflows
+    involving state mutation (S2–S5, S9, S13, S15, S17, S22, S25) are weighted
+    2×; all other blocking sub-workflows are weighted 1×. Use a different random
+    seed for each re-execution. Assert every assertion in each sub-workflow's pass
+    criterion holds. The selected set SHALL span ≥3 distinct REQ categories (§5.5–§5.7).
+    Record any discrepancy as `DISPUTED` with both your result and the builder's
+    recorded result. Report the selection, the pool weights, and the category mapping.
+    Document the random selection mechanism and seed used. If the operator re-runs
+    a DISPUTED adversarial item, the operator SHALL use the documented seed to
+    reproduce the same sub-workflow selection. If the documented mechanism cannot
+    select five blocking sub-workflows spanning ≥3 REQ categories (e.g., fewer than
+    three categories have blocking sub-workflows), the verifier SHALL select all
+    available blocking sub-workflows and record the shortfall as a finding.
 
-Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md`:
+Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md` and the
+hash matches the commitment (REQ-275):
 8. Compare your evidence entries against the recorded ones field by field, on salient
-   values only — commands, pins, exit statuses, diff summaries, determinate counts;
-   never wording or timestamps. Per-workflow salient values:
-   - G0 step 2: per-checklist-item pass/fail status; Appendix D check count.
-   - G2: die values pinned by per-call seeds (REQ-050); coverage gap enumeration
-     (which REQs are flagged as unexercised); status prefix assertions.
-   - G3: registry diff line count; resource listing diff line count; whether the
-     diff is clean (identical except for the new section's anchor and GM-only items).
-   - G4: per-test pass/fail count; automated vs. manual test counts; any waived
-     test IDs and their REQ-013 grounds.
-   - S4 simulated combat: dice totals, outcomes, state transitions, character sheet
-     diffs (as step 10).
-   - Gauntlet sub-workflows re-executed in step 7: per-sub-workflow pass/fail,
-     per-assertion results.
+    values only — commands, pins, exit statuses, diff summaries, determinate counts;
+    never wording or timestamps. Salient values are defined per workflow by the table
+    below:
+
+| Workflow | Fields to compare         | Comparison rule                                |
+| -------- | ------------------------- | ---------------------------------------------- |
+| G0a      | checklist pass/fail       | Exact match on pass/fail per checklist item     |
+| G0b      | Appendix D pass/fail      | Exact match on pass/fail per checklist item     |
+| G2       | die values, status prefixes, isError, gating decisions, coverage count | Seed-pinned dice match exactly; status prefixes match; contract coverage count matches within zero tolerance |
+| G3       | tool registry diff        | Identical diff (zero added or removed tools)    |
+| G4       | per-test pass/fail        | Exact match for each test ID; waived tests cite matching REQ-013 grounds |
+| G5       | per-sub-workflow verdicts | Per REQ-273 tolerance: blocking/non-blocking classification matches; seed-pinned dice match; structural match for prose |
+| G6       | per-module counts, tag presence | per-module active/inactive counts match within zero tolerance; all items carry source tags |
+
 9. Classify every mismatch:
-   - Discrepancy: a field in the builder's evidence record contradicts the verifier's
-     independently produced evidence for the same input conditions — identical
-     pinned seeds, identical fixture, identical workflow parameters produce different
-     outputs.
-   - Pin drift: a field differs because the execution environment changed between
-     builder and verifier — runtime version, OS kernel, protocol version, or any
-     other environment pin differed at execution time. Differences in outputs
-     attributable to different pinned seeds (step 7 adversarial re-execution) are
-     pin drift — the verifier used a different seed by design.
-   - Unclassifiable: record the mismatch and both parties' values; flag for operator
-     adjudication. The operator's classification is binding.
- 10. Compare the simulated-combat-session transcripts on salient events only —
-    dice totals, outcomes, state transitions, character sheet diffs;
-     ignore prose wording, timestamps, and turn-by-turn narration.
- 11. Compare your handoff verification workflow results (from Phase 1 step 5) against
-     the builder's recorded H1–H14 results field by field; classify any mismatch as a
-     discrepancy or pin drift per step 9.
+    - Discrepancy: a field in the builder's evidence record contradicts the verifier's
+      independently produced evidence for the same input conditions — identical
+      pinned seeds, identical fixture, identical workflow parameters produce different
+      outputs.
+    - Pin drift: a field differs because the execution environment changed between
+      builder and verifier — runtime version, OS kernel, protocol version, or any
+      other environment pin differed at execution time. Differences in outputs
+      attributable to different pinned seeds (step 7 adversarial re-execution) are
+      pin drift — the verifier used a different seed by design.
+    - Unclassifiable: record the mismatch and both parties' values; flag for operator
+      adjudication. The operator's classification is binding.
+  10. Compute the overall confidence score per REQ-274 across all compared workflows —
+      Discrepancies count as 0, Pin drifts as 0.2× (operator-confirmed), structural and
+      exact matches as 1.0. A score below 0.80 is FAIL; 0.80–0.95 is PARTIAL with
+      enumerated reservations; above 0.95 is PASS. Record the score and per-workflow
+      component weights in the verifier's evidence.
 
 Report in the format below.
 ```
@@ -7636,6 +7869,7 @@ the ruleset's own conventions during the structural pass.
 _Tin Lanterns is a synthetic test fixture — a dark-fantasy holo-novel in the tradition_
 _of the Captain Proton program. Like Appendix N, its mechanics are fabricated for_
 _testing and bear no relation to any published game._
+<!-- fixture version 1 -->
 
 ### B.1 Fixture ruleset (`tin_lanterns.md`)
 
@@ -7883,11 +8117,11 @@ Ruleset version: matches intake snapshot
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify this
 table before running Gate 2. Draw consumption and seeding are as defined in REQ-050.
 
-The witness values were generated using a 32-bit linear congruential generator:
+The witness table below is the normative contract; any deterministic PRNG that
+reproduces these witness sequences exactly is conformant. For reference, the values
+were generated using a 32-bit linear congruential generator:
 `state ← (state × 1664525 + 1013904223) mod 2³²` with initial state
 `parseInt(seed, 10)`, d6 draw `⌊next() × 6⌋ + 1`, and d20 draw `⌊next() × 20⌋ + 1`.
-The builder may use any deterministic PRNG that reproduces these witness sequences
-exactly; the table below is the contract.
 
 | Seed | First 10 d6 faces            | First 10 d20 faces                          |
 | ---- | ---------------------------- | ------------------------------------------- |
@@ -8251,7 +8485,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-258 | Novel info                 | 2026-08-08 |
 | REQ-259 | Update Novel description   | 2026-08-08 |
 | REQ-260 | Granular enrichment activation | 2026-08-08 |
-| REQ-261 | Player enrichment suppression | 2026-08-08 |
+| REQ-261 | Player enrichment | 2026-08-08 |
 | REQ-262 | Novel enrichment tier | 2026-08-08 |
 | REQ-263 | Novel enrichment synthesis tool | 2026-08-08 |
 | REQ-264 | Novel enrichment auto-trigger | 2026-08-08 |
@@ -8259,6 +8493,16 @@ date-stamps matching CHANGELOG entries.
 | REQ-266 | Novel enrichment confidence model | 2026-08-08 |
 | REQ-267 | Novel enrichment in hat_briefing | 2026-08-08 |
 | REQ-268 | Novel enrichment in enrichment dashboard | 2026-08-08 |
+| REQ-269 | Safety protocol status | 2026-08-08 |
+| REQ-270 | Artifact version identification | 2026-08-08 |
+| REQ-271 | AGENTS.md structure contract | 2026-08-08 |
+| REQ-272 | Stock elements catalog | 2026-08-08 |
+| REQ-273 | Independent verification reproducibility tolerance | 2026-08-08 |
+| REQ-274 | Independent verifier confidence score | 2026-08-08 |
+| REQ-275 | Evidence hash commitment | 2026-08-08 |
+| REQ-276 | Independent verifier model criteria | 2026-08-08 |
+| REQ-277 | Fixture evolution contract | 2026-08-08 |
+| REQ-278 | Build-phase-map staleness detection | 2026-08-08 |
 
 ---
 
@@ -8555,15 +8799,25 @@ diet.
 | T-new-257 | Automated | List Novels: create two Novels (A and B). Call `list_novels()` — assert both slugs listed with metadata (name, last_played, entity_count, active). Assert active Novel marked. Call `end_novel` on A — assert A absent from listing. Call `list_novels()` on a clean server — assert empty list with empty-state marker. Assert `list_novels()` is callable regardless of hat — both Player and Game Master see same listing. | REQ-257 |
 | T-new-258 | Automated | Novel info: create a Novel with entities, NPCs, lore entries, and an active adventure. Call `novel_info()` — assert output includes slug, name, created_at, last_played, entity_count, adventure_module, session_count, and total_combat_rounds. Assert `novel_info(slug="my-novel")` with a non-active Novel returns same fields. Assert `novel_info(slug="nonexistent")` returns `[NOT_FOUND]`. Assert `novel_info(format="json")` returns all metadata fields in structured format matching `spec_health` novel fields. | REQ-258 |
 | T-new-259 | Automated | Update Novel description: create a Novel with name "Original Name". Call `update_novel(description="A tale of adventure")` — assert `[OK]`, description stored. Call `novel_info()` — assert description field present. Call `hat_briefing` — assert description appears under novel token. Call `update_novel(name="New Name", description="Revised")` — assert both fields updated. Call `update_novel()` with no fields — assert `[ERROR] [INVALID_INPUT]`. Assert Player hat returns `[FORBIDDEN]`. Assert `end_novel` then `resume_novel` — assert description persists. | REQ-259 |
-| T-new-260 | Automated | Granular enrichment activation: build with enrichment active across 6 modules. Call `activate_enrichment_module("lore_templates")` — assert `[OK]`, module activated and items appear in `hat_briefing`. Call `deactivate_enrichment_module("lore_templates")` — assert module deactivated, items absent from `hat_briefing`. Call `activate_enrichment_module("unknown_module")` — assert `[NOT_FOUND]` with valid module names enumerated. Assert `spec_health` reports per-module activation status. Assert activation is Novel-scoped — restart restores module activation states. Assert Player hat returns `[FORBIDDEN]`. Assert `revert_enrichment` resets all modules to inert. | REQ-260 |
-| T-new-261 | Automated | Player enrichment suppression: build with enrichment active. Set player_signal to suppress enrichment. Assert Player `hat_briefing` excludes all enrichment-derived content regardless of hat_scope. Assert GM `hat_briefing` is unaffected. Assert `suggest_actions` under Player hat excludes enrich-derived patterns while GM results include them. Assert toggling suppression off restores Player enrichment visibility. Assert suppression survives restart. Assert `revert_enrichment` clears suppression state. | REQ-261 |
-| T-new-262 | Automated | Novel enrichment tier: create a Novel with populated NPCs, lore entries, story journal entries, and faction state. Call `synthesize_novel_enrichment()` — assert items tagged `[novel]` appear in `list_enrichment_items(tier=3)`. Assert source citations use `novel://<slug>/` prefix. Call `revert_enrichment` — assert `[novel]` items persist unchanged. Call `revert_novel_enrichment` — assert `[novel]` items removed. Call `end_novel` — assert `[novel]` items discarded with Novel JSON. Assert Player may suppress `[novel]` items via `player_suppress_enrichment`. | REQ-262, REQ-103, REQ-265, REQ-261 |
+| T-new-260 | Automated | Granular enrichment activation: build with enrichment active across 6 modules. Call `activate_enrichment_module("lore_templates")` — assert `[OK]`, module activated and items appear in `hat_briefing`. Call `deactivate_enrichment_module("lore_templates")` — assert module deactivated, items absent from `hat_briefing`. Call `activate_enrichment_module("unknown_module")` — assert `[NOT_FOUND]` with valid module names enumerated. Assert `spec_health` reports per-module activation status. Assert activation is Novel-scoped — restart restores module activation states. Assert Player hat returns `[FORBIDDEN]` on activation/deactivation of non-`[player]` items. Assert Player can call `deactivate_enrichment_item` on own `[player]` items — item hidden from player briefing. Assert Player calling `activate_enrichment_item` on a `[ruleset]` item returns `[FORBIDDEN]`. Assert `revert_enrichment` resets all modules to inert. | REQ-260 |
+| T-new-261 | Automated | Player enrichment: build with enrichment active. Call `player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest deception check")` — assert item appears in Player `suggest_actions` output and in GM `hat_briefing` (default shared scope). Call `player_enrich("voice_examples", "growl", "Get away!", [], "player")` — assert item visible to Player hat, absent from GM hat. Call `player_list_enrichment()` — assert both items listed with module, key, preview, and scope. Call `player_remove_enrichment("action_patterns", "feint-suggestion")` — assert item removed. Call `player_remove_enrichment` on a Tier 1 `[ruleset]` item — assert `[RULE_VIOLATION]`. Call `list_enrichment_items()` as GM — assert `[player]` items visible with source tag. GM attempts `player_enrich` — assert `[FORBIDDEN]`. Assert player items survive server restart. Assert `revert_enrichment` does not remove `[player]` items. Assert per-module cap of 15 enforced. | REQ-261 |
+| T-new-262 | Automated | Novel enrichment tier: create a Novel with populated NPCs, lore entries, story journal entries, and faction state. Call `synthesize_novel_enrichment()` — assert items tagged `[novel]` appear in `list_enrichment_items(tier=3)`. Assert source citations use `novel://<slug>/` prefix. Call `revert_enrichment` — assert `[novel]` items persist unchanged. Call `revert_novel_enrichment` — assert `[novel]` items removed. Call `end_novel` — assert `[novel]` items discarded with Novel JSON. Assert Player may deactivate `[novel]` items scoped `shared` or `player` via `deactivate_enrichment_item`. | REQ-262, REQ-103, REQ-265, REQ-260 |
 | T-new-263 | Automated | Novel enrichment synthesis: create a Novel with an NPC possessing personality fields (description, voice, goals). Call `synthesize_novel_enrichment()` — assert voice example items produced with `source: novel://<slug>/npc/<npc_id>`. Call again with no state changes — assert up-to-date message with ISO 8601 timestamp. Call `synthesize_novel_enrichment(force=true)` — assert re-synthesis regardless of staleness. Assert Player hat returns `[FORBIDDEN]`. Assert items are inert (inactive) by default — GM must activate via `activate_enrichment_item`. | REQ-263 |
 | T-new-264 | Automated | Novel enrichment auto-trigger: set `TTRPG_NOVEL_ENRICH_AUTO_TRIGGER=on_session_start`. Change `TTRPG_SESSION_ID` — assert `synthesize_novel_enrichment` triggers, items appear in `list_enrichment_items(tier=3)` with `activated: false`. Set to `off` — assert no auto-trigger on session change. Set to `on_scene_change` — call `set_scene_state("new scene")` — assert synthesis triggers. Assert `spec_health` shows `novel_enrich_auto_trigger: <threshold>`. Create a ruleset-free Novel with no state — assert synthesis produces `[novel] [empty — no state]` markers. | REQ-264 |
 | T-new-265 | Automated | Novel enrichment removal: create a Novel with `[novel]` enrichment items. Call `revert_novel_enrichment()` — assert `list_enrichment_items(tier=3)` returns 0 items. Assert Tier 1 (`[ruleset]`) items unchanged. Assert Tier 2 (`[supplementary]`) items unchanged. Call `revert_enrichment` — assert Tier 2 items removed, `[novel]` items remain at 0 (already removed). Call `revert_novel_enrichment()` on empty tier — assert `[OK] No novel enrichment to revert`. Assert Player hat returns `[FORBIDDEN]`. | REQ-265, REQ-103 |
 | T-new-266 | Automated | Novel enrichment confidence: create a Novel with an NPC carrying explicit personality text. Call `synthesize_novel_enrichment()` — assert voice example item carries `[novel] [MEDIUM]`. Create a story journal entry and call synthesis — assert theme-detection item carries `[novel] [LOW]`. Edit the NPC personality, call synthesis — assert `collected_at` timestamp updated. Assert `MEDIUM` items always correspond to explicit-field sources; `LOW` items always correspond to inference sources. | REQ-266 |
-| T-new-267 | Automated | Novel enrichment in hat_briefing: create a Novel with active `[novel]` enrichment items. Call `hat_briefing` under GM hat — assert `[novel]` items appear under respective enrichment sections tagged `[novel]`. Switch to Player hat — assert only `[novel]` items with scope `shared` or `player` visible; `game_master`-scoped items absent. Call `player_suppress_enrichment` on a `[novel]` item — assert item hidden from Player hat. Call `revert_novel_enrichment` — assert no `[novel]` section in `hat_briefing` (no empty-section marker). | REQ-267, REQ-032, REQ-261 |
+| T-new-267 | Automated | Novel enrichment in hat_briefing: create a Novel with active `[novel]` enrichment items. Call `hat_briefing` under GM hat — assert `[novel]` items appear under respective enrichment sections tagged `[novel]` alongside `[ruleset]`, `[supplementary]`, and `[player]` items. Switch to Player hat — assert only `[novel]` items with scope `shared` or `player` visible; `game_master`-scoped items absent. Call `deactivate_enrichment_item` on a `[novel]` item scoped `shared` — assert item hidden from Player hat. Call `revert_novel_enrichment` — assert no `[novel]` section in `hat_briefing` (no empty-section marker). | REQ-267, REQ-032, REQ-260 |
 | T-new-268 | Automated | Novel enrichment in enrichment dashboard: create a Novel with `[novel]` enrichment items in voice_examples and lore_templates modules. Call `resources/read` on `enrichment://status` — assert `novel` column present in per-module table alongside `ruleset-native` and `community` columns. Assert non-zero counts for voice_examples and lore_templates in the `novel` column. Call `spec_health` — assert `novel_enrichment_status` with per-module activated/total counts and `novel_enrichment_last_synthesis` timestamp. Call `revert_novel_enrichment` — assert `novel` column shows zero counts. | REQ-268, REQ-230 |
+| T289    | Automated | Safety protocol status: build a server with a known hat-gating defect — assert `spec_health.safety_protocols.hat_boundary` reports `offline`. Fix the defect — assert reports `online`. Induce a non-blocking failure in S16 (narrative state) — assert relevant property reports `degraded`. Assert all four properties present in `spec_health` output. Assert a ruleset-free build reports `state_loss` and `hat_boundary` as `online`, `data_corruption` and `unrecoverable_crash` as `unverified`. | REQ-269 |
+| T290    | Automated | Artifact version identification: build a server and inspect the first line of each handoff artifact — assert each begins with `<!-- built against Holonovel spec vXX.XX.XX -->` matching `spec_health.spec_version`. Remove the comment from one artifact — assert handoff verification flags a defect. Assert version mismatch between artifact and `spec_health` is a handoff defect. | REQ-270 |
+| T291    | Automated | AGENTS.md structure: build a server and inspect AGENTS.md — assert four sections present in order: Code Map, Verification, Troubleshooting, Build Context. Assert each section has non-empty content. Assert Build Context includes spec version, build date (ISO 8601), builder model identifier, ruleset content hash, and @holonovel/inform version. Assert missing section or empty content produces a handoff defect. | REQ-271, REQ-153 |
+| T292    | Automated | Stock elements catalog: build a server against Tin Lanterns — assert DECISIONS.md (4) contains a `stock_elements` table with character archetype, monster, location, lore pattern, and generation table entries. Rebuild with unchanged ruleset hash — assert the catalog is referenced, not re-extracted. Mutate the source — assert delta extraction updates only changed entries. | REQ-272, REQ-044 |
+| T293    | Automated | Reproducibility tolerance: execute Phase 1 independent verification against a known-good build. Assert seed-pinned dice and status prefixes match exactly. Assert natural-language prose matches structurally (non-empty, ±20% word count) without verbatim comparison. Assert a dice mismatch classifies as Discrepancy. Assert a prose-only mismatch classifies as Unclassifiable. Assert count mismatch within zero tolerance classifies as Pin drift. | REQ-273 |
+| T294    | Automated | Verifier confidence score: execute Phase 2 comparison with 3 Discrepancies out of 10 total comparisons — assert confidence score = 0.70 (FAIL). With 1 Discrepancy, 2 Pin drifts (operator-confirmed), 7 matches — assert score = 0.84 (PARTIAL). With 0 Discrepancies, 10 matches — assert score = 1.0 (PASS). Assert per-workflow component weights are recorded in verifier evidence. | REQ-274 |
+| T295    | Automated | Evidence hash commitment: compute SHA-256 of DECISIONS.md before Phase 1 and record it. After operator supplies unredacted DECISIONS.md, compute its hash — assert match. Modify the unredacted DECISIONS.md after the commitment — assert hash mismatch recorded as "evidence tampered" Discrepancy. Assert mismatch blocks Phase 2. | REQ-275 |
+| T296    | Automated | Verifier model criteria: execute independent verification with same-provider-same-architecture model — assert verifier records the finding but does not block. Execute with different-provider model — assert no finding. Assert verifier evidence record includes model identity fields. | REQ-276 |
+| T297    | Automated | Fixture evolution: modify the Tin Lanterns ruleset source such that Appendix B.3 golden transcript fails replay. Assert the fixture version bumps per the evolution contract. Assert the citing REQ is recorded in the fixture changelog comment. Assert transcript and witness values are updated. Assert a fixture with mismatched transcript and witness values is flagged as a spec defect by `npm run validate`. | REQ-277 |
+| T298    | Automated | Build-phase-map staleness: run `npm run assemble` — assert `spec/build-phase-map.md` content hash comment is updated. Modify one spec file — assert `npm run validate` reports a stale-hash warning with the file name. Compute the current hash and overwrite the stale one — assert warning clears on next validate run. | REQ-278 |
 
 ---
 
@@ -8616,8 +8870,8 @@ fidelity rates.
 **Artifact disposition.** Conversion artifacts (empty anchors, stray-numeral headings,
 broken table fragments, unresolved column-order ambiguities, suspected merge failures)
 are flagged for review. Flagged artifacts are recorded in DECISIONS.md (5) with a
-disposition: `fixed` (manually repaired before Gate 0), `waived` (accepted with
-justification and no mechanical impact on the model), or `pending` (blocks Gate 0
+disposition: `fixed` (manually repaired before G0a), `waived` (accepted with
+justification and no mechanical impact on the model), or `pending` (blocks G0a
 until resolved).
 
 ### G.3 PDF-Specific Protocol
@@ -8639,7 +8893,7 @@ detected fragments. Flag tables where merge is ambiguous or fails as artifacts.
 (diagram, chart, flowchart, area-of-effect template, reference table rendered as an
 image) or decorative (art, illustration, page border). Record image counts per
 category in DECISIONS.md (5). Every mechanical image receives a `pending` disposition
-— operator review required before Gate 0. Decorative images require no disposition.
+— operator review required before G0a. Decorative images require no disposition.
 
 **OCR fallback.** After text extraction, count extracted characters per page. If the
 mean across sampled pages is below 200 characters, the PDF is likely scan-based.
@@ -9028,6 +9282,7 @@ a spec-maintainer signal, not a build requirement.
 ---
 
 ## Appendix N: Complex Fixture
+<!-- fixture version 1 -->
 
 _This fixture is synthetic — a test instrument, not a published game. Production rulesets_
 _are selected from the permissively-licensed catalog in [Appendix I](#appendix-i-permissively-licensed-ruleset-catalog)._

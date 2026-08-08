@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-08-08 — Spec engineering: verification, artifacts, fixtures
+
+- Split verification workflow G0 into G0a (structural integrity) and G0b (MCP
+  conformance) — source quality and server quality are now independently verifiable
+  workflows. Added G6 enrichment lifecycle verification to the workflow table.
+- Added a safety protocols concept reported by `spec_health`: `state_loss`,
+  `hat_boundary`, `data_corruption`, and `unrecoverable_crash` each report
+  `online`, `degraded`, `offline`, or `unverified`. (REQ-269)
+- Mapped six T18 anti-hat persona archetypes to Gauntlet sub-workflows so every
+  adversarial persona is exercised by operational verification.
+- Added deduplication statements to each verification workflow — every workflow
+  now states what it uniquely verifies that no other workflow covers.
+- Handoff artifacts now carry their build-time spec version in a standardized
+  `<!-- built against -->` comment, auditable by H13. (REQ-270)
+- Split DECISIONS.md section 6 into navigable sub-sections with HTML anchors
+  (evidence-g0a through evidence-g6, audit, task-list).
+- Defined a minimum AGENTS.md structure contract: Code Map, Verification,
+  Troubleshooting, and Build Context sections. (REQ-271)
+- Added a stock elements catalog — ruleset-derived reusable templates (character
+  archetypes, monster libraries, location templates) recorded in DECISIONS.md
+  and reused across builds with unchanged ruleset hashes. (REQ-272)
+- Independent verification now operates under a formal reproducibility tolerance
+  contract — seed-pinned dice, status prefixes, and exit codes must match exactly;
+  natural-language prose is checked structurally. (REQ-273)
+- The independent verifier produces a confidence score (0–1) across all compared
+  workflows rather than a binary pass/fail. (REQ-274)
+- Evidence for independent verification is cryptographically committed with a
+  SHA-256 hash before Phase 1 to prevent post-hoc tampering. (REQ-275)
+- The independent verifier model must be from a different provider or architecture
+  family than the builder — same-provider version increments are insufficient.
+  (REQ-276)
+- Risk-driven adversarial selection replaces pure-random Gauntlet sub-workflow
+  selection during independent verification — prior failures and state-mutating
+  sub-workflows receive higher weight.
+- Replaced hardcoded per-workflow salient-value lists in §10 with a structured
+  comparison criteria table covering all workflows including the new G6.
+- Added a fixture coverage matrix mapping every extraction path tested by each
+  fixture (dedup, inline stats, broken cross-refs, prompt injection, etc.).
+- Added Appendix X (Court Intrigue) — a social-interaction fixture with no combat
+  rules, testing persuasion, faction standing, and social gambit extraction.
+- Added Appendix Y — a structural stress-test fixture for the Appendix H checklist
+  (7-level heading nesting, 100-row tables, Unicode edge cases, mixed formatting).
+- Defined a fixture evolution contract — when spec changes break a golden
+  transcript, the fixture is version-bumped with the citing REQ recorded, not
+  treated as a regression. (REQ-277)
+- All RNG witness tables are now the normative contract; their generating
+  algorithm is documented as a reference implementation, not a constraint.
+- Fixed broken `appendices.md` file references in the build-phase-map, added a
+  de-duplication statement against §6 Prepare directives, and defined a
+  staleness-detection hash contract. (REQ-278)
+
 ## 2026-08-08 — Novel enrichment tier (tier 3)
 
 - Added a third enrichment tier — `[novel]`-tagged — synthesized from the
