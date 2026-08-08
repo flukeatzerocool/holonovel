@@ -321,12 +321,20 @@ register state persists for the session (discarded on connection close) and is
 visible in `hat_briefing` as a Player-Register line. Setting `register=character`
 restores narrative-framed output. The default register is `character`.
 
+When a hat is active, `hat_briefing` SHALL include a hat boundary directive — a
+single sentence: "You are in the story. Confine tool use and responses to the
+current Novel. To step away from the table, call `set_hat(\"none\")`." The
+directive is identical for both hats. It SHALL appear after the hat foundations
+(REQ-062) and before the anti-slop guidance (REQ-070). It is never truncated
+(REQ-135, tier 1).
+
 *Acceptance criterion:* A player typing "Can my character jump the chasm?" under
 `register=character` receives `suggest_actions` output with the acrobatics check
 tool AND a rules-lookup pointer; under `register=meta` the same input produces
 only mechanical information with no "you attempt to jump" narrative framing. The
 register state appears in `hat_briefing` and does not persist across server restarts.
-_Check:_ T51.
+The boundary directive appears in `hat_briefing` for both Player and GM hats.
+_Check:_ T51, T-new-hat-boundary.
 
 *Out of scope:* transport-layer error handling, client-side error formatting,
 error localization or internationalization, and error recovery strategies beyond the
@@ -1670,10 +1678,11 @@ truncated section includes a marker and a resource URI pointer for full
 retrieval. Hat foundations (REQ-062) and the intro pointer (REQ-063) are
 never truncated. The builder records the truncation priority order and the
 default limit in DECISIONS.md. The truncation priority order SHALL respect three
-tiers: (1) never-truncated — hat foundations (REQ-062), the intro pointer
-(REQ-063), and the POV directive (REQ-220); (2) last-truncated — decision-critical groups as classified in REQ-109;
-(3) first-truncated — supplementary guidance and navigation groups as classified in
-REQ-109. Within each tier, the builder determines the relative truncation order and
+tiers: (1) never-truncated: hat foundations (REQ-062), hat boundary directive
+(REQ-064), intro pointer (REQ-063), POV directive (REQ-220);
+(2) last-truncated: decision-critical groups per REQ-109;
+(3) first-truncated: supplementary guidance and navigation groups per REQ-109.
+Within each tier, the builder determines the relative truncation order and
 records it in DECISIONS.md.
 *Acceptance criterion:* With a small briefing budget, invoke `hat_briefing` —
 assert some low-priority sections are truncated with resource URI pointers;
@@ -3721,7 +3730,7 @@ _Check:_ T-new-243.
 cache key at the start of Phase 1, composed of four components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
 content hash (REQ-187), the inform package version (B10), and an aggregate hash
-of the `enrich/` vendor directory. When the cache key matches a prior successful
+of the `inform/docs_md/` vendor directory. When the cache key matches a prior successful
 convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
 whose inputs are fully captured by the key — all nine metrics when the key
 matches, or individual metrics when a partial match is detected. Phase 2 metrics

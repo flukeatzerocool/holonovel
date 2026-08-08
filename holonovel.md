@@ -270,7 +270,7 @@ guard, the gap is explicit.
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
 | Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
-| In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
+| In the story | Hat is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_hat("none")` is stepping away from the table. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
@@ -631,12 +631,20 @@ register state persists for the session (discarded on connection close) and is
 visible in `hat_briefing` as a Player-Register line. Setting `register=character`
 restores narrative-framed output. The default register is `character`.
 
+When a hat is active, `hat_briefing` SHALL include a hat boundary directive — a
+single sentence: "You are in the story. Confine tool use and responses to the
+current Novel. To step away from the table, call `set_hat(\"none\")`." The
+directive is identical for both hats. It SHALL appear after the hat foundations
+(REQ-062) and before the anti-slop guidance (REQ-070). It is never truncated
+(REQ-135, tier 1).
+
 *Acceptance criterion:* A player typing "Can my character jump the chasm?" under
 `register=character` receives `suggest_actions` output with the acrobatics check
 tool AND a rules-lookup pointer; under `register=meta` the same input produces
 only mechanical information with no "you attempt to jump" narrative framing. The
 register state appears in `hat_briefing` and does not persist across server restarts.
-_Check:_ T51.
+The boundary directive appears in `hat_briefing` for both Player and GM hats.
+_Check:_ T51, T-new-hat-boundary.
 
 *Out of scope:* transport-layer error handling, client-side error formatting,
 error localization or internationalization, and error recovery strategies beyond the
@@ -1980,10 +1988,11 @@ truncated section includes a marker and a resource URI pointer for full
 retrieval. Hat foundations (REQ-062) and the intro pointer (REQ-063) are
 never truncated. The builder records the truncation priority order and the
 default limit in DECISIONS.md. The truncation priority order SHALL respect three
-tiers: (1) never-truncated — hat foundations (REQ-062), the intro pointer
-(REQ-063), and the POV directive (REQ-220); (2) last-truncated — decision-critical groups as classified in REQ-109;
-(3) first-truncated — supplementary guidance and navigation groups as classified in
-REQ-109. Within each tier, the builder determines the relative truncation order and
+tiers: (1) never-truncated: hat foundations (REQ-062), hat boundary directive
+(REQ-064), intro pointer (REQ-063), POV directive (REQ-220);
+(2) last-truncated: decision-critical groups per REQ-109;
+(3) first-truncated: supplementary guidance and navigation groups per REQ-109.
+Within each tier, the builder determines the relative truncation order and
 records it in DECISIONS.md.
 *Acceptance criterion:* With a small briefing budget, invoke `hat_briefing` —
 assert some low-priority sections are truncated with resource URI pointers;
@@ -4031,7 +4040,7 @@ _Check:_ T-new-243.
 cache key at the start of Phase 1, composed of four components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
 content hash (REQ-187), the inform package version (B10), and an aggregate hash
-of the `enrich/` vendor directory. When the cache key matches a prior successful
+of the `inform/docs_md/` vendor directory. When the cache key matches a prior successful
 convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
 whose inputs are fully captured by the key — all nine metrics when the key
 matches, or individual metrics when a partial match is detected. Phase 2 metrics
@@ -4942,7 +4951,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (enrich/ directory) | yes / no                          | yes                  |
+| E5  | Enrich with vendor content? (inform/docs_md/ directory) | yes / no                          | yes                  |
 
 **Update workflow.** Asked when `update` is selected.
 
@@ -5468,7 +5477,7 @@ findings without a prefix are process-compliance defects.
 Before Phase 1 measurement begins, the builder SHALL compute a convergence
 cache key per REQ-244: ruleset content hash (REQ-044, sentinel `"none"` for
 ruleset-free), specification content hash (REQ-187), inform package version
-(B10), and aggregate hash of the `enrich/` vendor directory. The builder SHALL
+(B10), and aggregate hash of the `inform/docs_md/` vendor directory. The builder SHALL
 search DECISIONS.md (5) for a prior convergence recording whose cache key
 matches.
 
@@ -6974,7 +6983,7 @@ all module hashes for quick whole-manifest comparison.
 ### 11.2 Vendor enrichment
 
 Vendor enrichment draws from curated, licensed documentation vendored in the
-`enrich/` directory at the Holonovel repository root. It supplements community
+`inform/docs_md/` directory at the Holonovel repository root. It supplements community
 enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
 fiction design, GM tooling, and solo RPG communities.
 
@@ -7004,7 +7013,7 @@ web enrichment pass is not run — it would find redundant or lower-quality cont
 compared to the combination of ruleset-anchored web search and vendor sources.
 
 **Indexing.** The builder SHALL index all vendored enrichment sources from
-`enrich/` alongside web-sourced community enrichment. Vendor content SHALL carry
+`inform/docs_md/` alongside web-sourced community enrichment. Vendor content SHALL carry
 `[supplementary]` tag with source URL pointing to the vendor file within the
 repository. Vendor content follows the same budgets, confidence model, and
 deduplication rules as community enrichment (§11.1). Vendor content confidence
@@ -7014,10 +7023,10 @@ content.
 
 **Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
 content hashes alongside the community enrichment fingerprint. Vendor content
-changes (updates to `enrich/` files) trigger module replacement per the partial
+changes (updates to `inform/docs_md/` files) trigger module replacement per the partial
 refresh contract; unchanged vendor modules are not disturbed.
 
-**Pre-verified enrichment manifest.** The `enrich/` directory SHALL include a
+**Pre-verified enrichment manifest.** The `inform/docs_md/` directory SHALL include a
 `MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
 source: module name, module content hash, item count, confidence distribution
 (HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
@@ -7036,7 +7045,7 @@ scores — and update the manifest with the new hash and scores. Modules whose
 hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
 contract in §11.1.
 
-When the `enrich/` directory contains no MANIFEST.md, the builder SHALL audit
+When the `inform/docs_md/` directory contains no MANIFEST.md, the builder SHALL audit
 all vendor content from source and record the results — no manifest match is
 attempted. The builder MAY produce a MANIFEST.md from the audit results for use
 in subsequent builds.
@@ -7769,6 +7778,7 @@ diet.
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline (or server-name identification when ruleset-free), includes a dynamic sourcebook listing drawn from the live index (or world-model-only notice when ruleset-free), and ends with four concrete next actions; verify the `help` tool and `hat_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any hat (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `hat_briefing` for each hat (switch via `set_hat`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of hat)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Hat behavioral boundaries: invoke a Player-hat session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both hats and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
+| T-new-hat-boundary | Automated | Hat boundary directive: invoke `hat_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_hat(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
