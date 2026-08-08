@@ -187,4 +187,30 @@ Tier 3 — Score ≤ 18. Quality-of-life and build-time polish. Sequence by (cpl
    Score: 14 (fidelity=2, friction=4, safety=0). Cplx: 1, Coupling: 1.
    Risk: A GM at a live table calls `lookup_spell("fireball")` mid-combat, the output is 12 lines
    of verbose text, and the table loses momentum while the GM skims for the damage dice. If this
-   happens three times in one combat, the GM closes Holonovel and picks up the physical PHB.
+    happens three times in one combat, the GM closes Holonovel and picks up the physical PHB.
+
+8. [DONE] Named Novel checkpoints — nested state save and restore (GM-facing).
+   Holodeck: *Ship in a Bottle* (TNG 6x12) — Moriarty creates a nested simulation;
+   Picard believes he's escaped but is still inside. The computer models worlds inside
+   worlds.
+   Spec: REQ-241, REQ-041, REQ-116, §5.6.
+   Research: [Checkpoint patterns in IF engines] | [Benchmark against Obsidian's history,
+   git branching metaphors, or game save-state systems]
+   Score: 18 (fidelity=4, friction=2, safety=1). Cplx: 2, Coupling: 1.
+   Risk: The GM runs a dream sequence or illusion scene, modifies state extensively, and
+   has no way to revert except undo — which is LIFO and destructive. GM must manually
+   track pre-dream state or avoid complex nested scenes entirely.
+
+9. [DONE] Boundary signal enforcement — surface and warn on content violations (GM/player-facing).
+   Holodeck: *Hollow Pursuits* (TNG 3x21) — Barclay uses the Holodeck to create fantasy
+   versions of his crewmates. The computer doesn't judge — but the social consequences are
+   real. Players and GMs may subvert the system for power fantasy, social manipulation,
+   or grief processing.
+   Spec: REQ-255, REQ-069, REQ-251, §5.5.
+   Research: [Content safety guardrails in AI storytelling tools] | [Benchmark against AI
+   Dungeon's moderation layer, Character.AI's safety filters, or RP platform consent tools]
+   Score: 24 (fidelity=4, friction=3, safety=3). Cplx: 1, Coupling: 2.
+   Risk: A GM (or AI GM) narrates content that violates a player's stated boundary. The
+   player set the signal, but the GM ignored it — and the server had no mechanism to warn.
+   The player loses trust in the system as a safe storytelling tool.
+

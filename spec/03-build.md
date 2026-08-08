@@ -1173,6 +1173,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-126 | S19, S28 | Voice examples rendering |
 | REQ-127 | S2, S19 | Ruleset-native personality mapping |
 | REQ-128 | S16 | Signal briefing surface |
+| REQ-255 | S16, S19 | Boundary signal propagation |
 | REQ-129 | S16 | Property group cardinality |
 | REQ-132 | S18 | Adventure generation lifecycle |
 | REQ-156 | S16 | Countdown persistence |
