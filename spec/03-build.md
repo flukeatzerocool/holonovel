@@ -60,20 +60,35 @@ records the failure in DECISIONS.md. If the probe succeeds, the default includes
 | C2  | Source path(s) or URL(s)     | Paths or URLs                    | —                   |
 | C3  | Ruleset identifier (name, edition) | String                      | derived from source |
 
-**Build workflow.** Asked when `build` is selected.
+**Build workflow.** Asked when `build` is selected. Questions are presented in
+two tiers: Required first, then Advanced.
+
+**Required Build questions:**
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
 | B1  | Ruleset path(s)              | File paths or `none`             | —                   |
-| B2  | Ruleset identifier (name, edition) | String                      | derived from source |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
 | B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
-| B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
+
+**Advanced Build questions.** After the builder confirms Required answers, the
+builder presents the Advanced defaults and asks whether the operator wants to
+override any. If the operator declines, all Advanced questions take their
+defaults without further prompting.
+
+| #   | Question                     | Options                          | Default             |
+| --- | ---------------------------- | -------------------------------- | ------------------- |
+| B2  | Ruleset identifier (name, edition) | String                      | derived from source |
+| B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+
+The builder SHALL record all answers — Required and Advanced — in
+DECISIONS.md (1). When the operator declines the Advanced prompt, the
+defaults are recorded with a `(defaults accepted)` annotation.
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
 are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
@@ -136,7 +151,7 @@ The structural pass identifies heading count, table count, and broken links. The
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing
 verification workflow — per §8, verification workflows G2 and G3 are fixture workflows run once per builder implementation.
-WHEN B1 is `none`, G0 step 1 SHALL report a passing result with the finding "no ruleset — skipped."
+WHEN B1 is `none`, G0 step 1 SHALL report a passing result with the finding "no ruleset — skipped" (per Standing Rule 9).
 
 **Viability pre-check.** After G0 but before chunked discovery, the builder
 counts mechanical sections — headings containing procedures, tables,
@@ -146,22 +161,23 @@ the builder warns the operator: "This ruleset is below the
 mechanical-density threshold (X% mechanical). Discovery may not produce a
 playable server." The operator may proceed, select a different source, or
 abort. The builder records the pre-check count and operator decision in
-DECISIONS.md (4). WHEN B1 is `none`, the viability pre-check SHALL be skipped with
-the reason "ruleset-free mode" recorded in DECISIONS.md (4); the mechanical-section
-count SHALL be recorded as zero.
+DECISIONS.md (4). Per Standing Rule 9, the viability pre-check is skipped — the
+mechanical-section count SHALL be recorded as zero.
 
 ### 6.3 Discovery
 
 *Prepare:* Load files from `build-phase-map.md` Discovery row: 03-build.md §6.3,
 02-requirements.md §5.2.
 
-**Chunked reading.** The ruleset is read in fixed-size chunks of 10 mechanical sections
-(headings with procedures, tables, bold-labeled fields, or definition lists). The budget
-of 10 sections balances discovery depth against context-collapse risk — fewer sections
-per chunk reduce false merges at the cost of more round-trips; 10 is the calibrated
-compromise under REQ-100 tier benchmarks. The builder
-reads each chunk, extracts models (see below), then requests the next 10. Guidance-only
-sections are read in a background pass and don't count against the 10-section budget.
+**Chunked reading.** The ruleset is read in chunks calibrated to stay within the
+builder's context window — chunks are sized to fill approximately 3,000 tokens of
+mechanical prose each, with a floor of 3 mechanical sections and a ceiling of 20.
+The builder determines the token-equivalent section count per chunk by estimating
+the average mechanical-section token size from a sample of the first 5 mechanical
+sections encountered and records the chunking strategy (chunk-size floor/ceiling,
+sample-token estimate) in DECISIONS.md (4). The builder reads each chunk, extracts
+models (see below), then requests the next. Guidance-only sections are read in a
+background pass and don't count against the mechanical-section budget.
 
 **Guidance pass budget.** The background guidance pass SHALL not exceed 50
 guidance-only sections. If the ruleset contains more than 50 guidance-only
@@ -311,7 +327,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 1     | MCP skeleton: initialize from @holonovel/inform scaffold, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
-| 4     | Domain tools: resolution, commands, generation, lookup       | Dry-run G2 against the fixture                               |
+| 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: extends @holonovel/inform's state with ruleset-specific types (entity stats, combat, spell slots). World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
@@ -372,7 +388,8 @@ subagent (fresh context) that audits the work against the requirements cited by 
 The subagent reports findings; the builder resolves each before the next step.
 
 **Auditor pre-flight.** In `production` mode, before the first checkpoint audit
-for a ruleset (the first build session only), the builder seeds one deliberate
+for a ruleset, and every 5 build sessions thereafter or when the spec version
+changes, the builder seeds one deliberate
 defect in its own output — a mislabeled anchor, a missing cross-reference, or an
 extra tool name in a registry entry — and verifies the audit subagent catches
 it. Subsequent build sessions for the same ruleset skip the pre-flight. A
@@ -402,6 +419,18 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
+
+**Regression gate.** After each metric-targeted improvement step completes (the
+metric's pass/fail is measured), the builder SHALL re-measure all other metrics in
+the same phase. If any previously-passed metric drops below its threshold, the
+regression SHALL be recorded as a finding against the current step. The builder
+SHALL resolve the regression before the current step can be marked complete, using
+the current step's remaining iteration budget — no new budget is granted. A
+regression that cannot be resolved within the remaining budget SHALL be recorded
+as a residual gap for both the regressed metric and the current step's metric in
+DECISIONS.md (5). This rule applies identically to Phase 1 and Phase 2. The
+no-delta detection (§6.5.1) SHALL trigger independently for each metric: a stalled
+step whose regression causes a second metric to stall SHALL log both stalls.
 
 **Extraction completeness** measures coverage — whether every mechanical section
 identified at intake produced at least one extracted item. A section is considered
@@ -435,16 +464,9 @@ metric exists only when the Convert workflow (§6.2) was selected. When
 conversion was not selected, the table contains six metrics and the exit
 condition is six metrics meeting threshold.
 
-**Ruleset-free convergence.** WHEN the build operates in ruleset-free mode THE Phase 1
-metrics are satisfied under the following zero-case clauses: Confidence — no sections to
-score; the metric is skipped and recorded as `ruleset-free — no mechanical sections`.
-Extraction fidelity — zero cross-references to resolve; skipped with record. Extraction
-completeness — zero mechanical sections; skipped. Category floor — only the guidance
-category is evaluated (it is exempt per the existing rule); all other categories are
-skipped with `ruleset-free` annotations. Cross-format consistency — zero items to sample;
-skipped. Reconciliation quality — zero restated mechanics; skipped. The conversion-fidelity
-metric is conditionally absent per the existing rule. Phase 1 exits after recording all
-zero-case dispositions in DECISIONS.md (5). No extraction stall applies — zero-case
+**Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
+builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
+seven metrics are treated as met. No extraction stall applies — zero-case
 dispositions are not a stall.
 
 **Phase 2 — Construction quality.**
@@ -461,6 +483,15 @@ translated into tools, resources, and state.
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
+
+**Suggestion coverage constraint.** The curated intent set SHALL include at
+minimum: one intent per extraction action category (classified during Discovery
+per §6.3), one compound intent combining two categories, one ruleset-specific
+edge case drawn from the ruleset's FAQ, errata, or corner-case examples (if the
+ruleset provides them), and one player-narrative intent expected to produce an
+empty result (no matching tool). If the ruleset provides no FAQ/errata material,
+the edge-case slot SHALL be filled with a second compound intent. The set
+composition SHALL be recorded in DECISIONS.md (4) alongside the coverage score.
 
 **Prompt health** measures whether prompts contain references to tools or resources
 that are no longer registered — a stale reference is a construction defect that
@@ -485,15 +516,12 @@ NOTE: Phase 2 row count varies with scope. The input-validation metric exists
 only when REQ-141 is in scope. When REQ-141 is not in scope, the table contains
 seven metrics and the exit condition is seven metrics meeting threshold.
 
-**Ruleset-free Phase 2.** WHEN the build operates in ruleset-free mode: MUST coverage —
-all REQ-020 infrastructure tool categories are present; ruleset-derived MUST tools do not
-apply and their absence is recorded as ruleset-free waivers. Mechanics fidelity — the B.2
-expected model excerpt does not apply; skipped with `ruleset-free` annotation. Suggestion
-coverage — with zero extracted action categories, no curated intents are defined; the
-metric is skipped and `suggest_actions` returns context-only results (scene type, entity
-narrative fields) and empty lists for unrecognized intents per REQ-084. Process compliance,
-surface terminology, prompt health, resource URI completeness, and truncation accuracy
-operate identically regardless of ruleset presence.
+**Ruleset-free Phase 2.** Per Standing Rule 9: MUST coverage is assessed against
+REQ-020 infrastructure categories only — ruleset-derived MUST tools do not apply
+and their absence is recorded as ruleset-free waivers. Mechanics fidelity and
+suggestion coverage are skipped. Process compliance, surface terminology, prompt
+health, resource URI completeness, and truncation accuracy operate identically
+regardless of ruleset presence.
 
 ### 6.5.1 No-delta detection
 
@@ -800,6 +828,14 @@ failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 15, 17, 20,
 21, 22, and 23 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
+
+A build with more than 3 unresolved non-blocking Gauntlet failures SHALL not be
+declared handoff-ready without explicit operator acknowledgment. The count of
+unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
+a per-failure severity assessment. The operator may override this ceiling by
+recording an acceptance entry in DECISIONS.md (5). This rule applies at handoff
+verification time (§9 H13) — non-blocking failures accumulated and logged during
+the build process are re-counted at handoff.
 
 **REQ-142 — Blocking classification principle.** A Gauntlet sub-workflow is
 classified as blocking when it exercises a correctness property whose

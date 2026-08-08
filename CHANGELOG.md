@@ -1,6 +1,32 @@
 # Changelog
 
-## 2026-08-07 — Publish @holonovel/inform as scaffold base for TTRPG builds
+## 2026-08-07 — Build process efficiency: dynamic chunking, regression gates, and question-tiering
+
+- Discovery now sizes rulebook-reading chunks by token budget instead of a
+  fixed 10-section count, preventing context collapse on dense chapters and
+  wasted round-trips on sparse ones. The chunking strategy is recorded in
+  DECISIONS.md. (§6.3)
+- The convergence loop now re-measures all metrics after each improvement step,
+  catching regressions where fixing one metric silently breaks another.
+  Oscillating metrics share the current step's remaining budget. (§6.5)
+- Build pre-build questions are now two-tiered — Required first (path, client,
+  save location, server name), then Advanced with default-acceptance (ruleset
+  name, config path, spec URL, build mode, inform version). Operators face 4
+  questions instead of 10. (§6.2)
+- Converged servers can no longer ship with an unlimited count of unresolved
+  non-blocking Gauntlet failures — 3 or more requires explicit operator
+  acknowledgment at handoff. (§6.6)
+- The ruleset-free mode's scattered "WHEN B1 is `none`" zero-case clauses
+  have been consolidated into a single Standing Rule 9, reducing 15+ scattered
+  clauses across 4 files to one governing rule with local references. (§4, §6,
+  §8, §9)
+- The auditor pre-flight now re-runs every 5 build sessions and on spec version
+  changes, catching sub-agent quality drift that single-session checks miss. (§6.5)
+- Construction step 4's acceptance check is now a full G2 golden-transcript
+  replay instead of an undefined "dry-run." (§6.4)
+- The suggestion-coverage intent set is now structurally constrained — it must
+  include intents from every action category, a compound intent, a ruleset
+  edge case, and an empty-result intent — reducing self-grading risk. (§6.5)
 
 - The Inform world-model server is now published as the `@holonovel/inform`
   npm package with separate `core` and `world` entry points. The core

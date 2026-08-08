@@ -223,7 +223,14 @@ guard, the gap is explicit.
    paradigm would make this REQ inapplicable or contradictory? If any question
    produces a concrete gap, tighten the REQ or record the gap in Appendix M. This is a
    spec-authoring discipline — not a mechanical check — and is exercised by the author,
-   not the builder. No _Check:_ citation attaches.
+    not the builder. No _Check:_ citation attaches.
+9. **Ruleset-free skip rule.** When B1 is `none`, every check, metric, or
+   workflow that requires ruleset content SHALL be skipped with a `ruleset-free —
+   skipped` annotation in DECISIONS.md. The builder SHALL NOT attempt to measure,
+   score, or verify ruleset-derived properties in ruleset-free mode. Fixture
+   selections, workflow branches, and verification steps that carry explicit
+   ruleset-free clauses in their own sections SHALL follow those specific clauses
+   in preference to this general rule.
 
 **Terminology.**
 
