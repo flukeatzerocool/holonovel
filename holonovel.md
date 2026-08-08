@@ -304,7 +304,8 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
+| World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
+| World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `hat_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
 | Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active hat by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `hat_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
@@ -344,7 +345,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 32    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 18    |
-| 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
+| 5.10    | World-Model Layer                     | 195–202, 222, 309                                   | 10    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -1571,8 +1572,9 @@ matches and returns their names, descriptions, and example invocations from the 
 playbook. Output is hat-filtered. The Game Master may customize the task-map category
 assignments via a Novel-scoped mapping. A tool reassigned to a user-defined category
 is removed from its builder-assigned category. The mapping persists with the Novel.
-Player hat results always reflect builder-assigned categories. An empty mapping
-restores builder defaults.
+Player hat results always reflect builder-assigned categories. The builder-assigned
+categories SHALL follow the default set by `TTRPG_WORLD_PROMINENCE` (REQ-309). An
+empty mapping restores builder defaults.
 *Acceptance criterion:* `help()` returns an intro pointer, task-map with one-line
 descriptions, and a `hat_briefing` pointer; `help("combat")` returns the most
 relevant combat tools with example invocations.
@@ -4372,7 +4374,10 @@ Section tokens control both ordering and inclusion — a token present in the
 array causes its corresponding group to render (or render as an empty section
 if the group has no content); a token absent from the array causes its group to
 be omitted entirely from `hat_briefing`. The builder default ordering includes
-all groups. The builder SHALL document the
+all groups and SHALL follow the placement contract of `TTRPG_WORLD_PROMINENCE`
+(REQ-309) — world-model state is decision-critical at `prominent`, a dedicated
+section at `visible`, or folded into scene state at `secondary`. The builder
+SHALL document the
 complete section-token-to-group mapping and the default ordering in DECISIONS.md, so
 the valid token set and default section ordering are auditable at build verification
 time without invoking the running server. The mapping SHALL cite the REQ-109 group each
@@ -5644,12 +5649,17 @@ Conflict-resolution order:
    management, character personality, lore tracking, and GM-facing narrative
    scaffolding. Narrative tools and TTRPG mechanics address separate domains
    (narrative vs. mechanical); no override is needed between them.
-4. The World layer provides optional spatial navigation. It is always secondary
-    surface — backgrounded in all builds. Parser commands are available when a
-     world model is populated; they never drive the story's resolution layer.
+4. The World layer provides optional spatial navigation. Its default surface
+   prominence is `secondary`, configurable via `TTRPG_WORLD_PROMINENCE`
+   (REQ-309). Parser commands are available when a world model is populated;
+   they never drive the story's resolution layer.
 _Check:_ T237.
 
-**World secondary surface.** In TTRPG builds, the parser `command` SHALL be
+**World surface prominence.** REQ-309 defines a `TTRPG_WORLD_PROMINENCE`
+configuration with three levels controlling the default surface emphasis of
+world-model and narrative infrastructure tools across help categories,
+`hat_briefing` composition, and `suggest_actions` intent mapping. At the
+default `secondary` level: In TTRPG builds, the parser `command` SHALL be
 the only world-model tool visible in the primary help surface — and only when
 a world model is populated. All other World tools (`create_room`, `delete_room`,
 `create_thing`, `delete_thing`, `create_exit`, `delete_exit`, `convert_source`)
@@ -5893,6 +5903,48 @@ category with source anchors; a ruleset with no additional verbs exposes only th
 base vocabulary at `world://kinds/parser_commands`.
 _Check:_ T264.
 
+**REQ-309 — World and narrative surface prominence.** THE server SHALL accept a
+`TTRPG_WORLD_PROMINENCE` configuration with three levels controlling the default
+surface emphasis of world-model and narrative infrastructure tools across the help
+task map, `hat_briefing` composition, and `suggest_actions` intent mapping. The
+setting SHALL be a build-time configuration recorded in DECISIONS.md (1) and SHALL
+be server-scoped — it applies as the default to every Novel, overridable per-Novel
+by `set_help_category` (REQ-067) and `set_briefing_order` (REQ-082). TTRPG
+resolution authority is unchanged by this setting — it affects presentation, not
+mechanics.
+
+At `secondary` (default): World-model tools SHALL be placed in a secondary help
+category. `hat_briefing` SHALL fold world-model state into the scene state section;
+narrative-tool sections SHALL render only when their data is non-empty.
+`suggest_actions` SHALL NOT return parser commands for exploration or navigation
+intents.
+
+At `visible`: World-model and narrative tools SHALL appear in primary help
+categories alongside TTRPG tools. `hat_briefing` SHALL include a dedicated
+world-model state section with an empty-state marker when the world-model tier is
+unpopulated. `suggest_actions` SHALL return parser commands alongside TTRPG
+mechanics for spatial intents whose registered tools are absent — parser command
+suggestions SHALL NOT replace existing TTRPG tool suggestions.
+
+At `prominent`: Parser `command` SHALL be a top-level help entry; world CRUD tools
+SHALL appear in a primary setup category. `hat_briefing` SHALL include world-model
+state in the decision-critical group. `suggest_actions` SHALL prefer parser commands
+over TTRPG mechanics for exploration and navigation intents — parser command
+suggestions SHALL appear before TTRPG tool suggestions when both match the intent.
+
+In ruleset-free mode (B1=`none`), the setting SHALL be skipped — the world-model
+and narrative layers are the primary surface by definition (REQ-218). The builder
+SHALL NOT record a `TTRPG_WORLD_PROMINENCE` value in DECISIONS.md when B1 is
+`none`, and the intake question (B12) SHALL NOT be asked.
+
+*Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=secondary` produces
+the current default help categorization (World in secondary category).
+`TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level help
+entry and includes world-model state in the decision-critical briefing group.
+`TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with all three
+layers in primary help.
+_Check:_ T-new-309.
+
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
 different rulesets.
@@ -6020,6 +6072,7 @@ defaults without further prompting.
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
+| B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -6038,7 +6091,10 @@ the inform scaffold as the starting point. Extraction discovery and its dependen
 metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
 or model any ruleset content; the server's `search_rules` tool returns empty results, its
 canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
-The server's ruleset content hash is the sentinel hash per REQ-044.
+The server's ruleset content hash is the sentinel hash per REQ-044. When B1 is
+`none`, B12 (`TTRPG_WORLD_PROMINENCE`) is skipped — the world-model and narrative
+layers are the primary surface by definition (REQ-218), and no prominence
+configuration is recorded.
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
@@ -9143,6 +9199,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-306 | Adjustable autonomy | 2026-08-08 |
 | REQ-307 | Entity presence | 2026-08-08 |
 | REQ-308 | Knowledge gating by presence | 2026-08-08 |
+| REQ-309 | World and narrative surface prominence | 2026-08-08 |
 
 ---
 
@@ -9464,6 +9521,7 @@ diet.
 | T-new-306 | Automated | Adjustable autonomy: call `set_autonomy({level: "full", confirmation: "auto", safety: "safe", creativity: "standard"})` — assert `[OK]`. Invoke `hat_briefing` — assert autonomy state visible. Set `level=mechanical_prompt, confirmation=prompt` — assert AI auto-narrates exploration but pauses via `present_choices` for combat actions; human responds via `respond`. Set `safety=safe` — assert lethal damage reduces HP to 1 and applies incapacitation instead of death. Set `safety=hardcore` — assert death permanent, no warnings. Set `creativity=chaotic` — assert AI makes unexpected, dramatic choices. Assert Player hat `set_autonomy` returns `[FORBIDDEN]`. Assert autonomy persists across Novel restart. | REQ-306 |
 | T-new-307 | Automated | Entity presence: call `set_scene_state("Dark corridor", characters_present=["rogue_01"])` — assert `party://current` shows rogue present, wizard not present with `[not present]`. Call `set_party_presence(["wizard_01"], "Camp")` — assert scene description unchanged, wizard present. Call `set_party_presence([])` — assert all entities not present. Entity listing in `hat_briefing` — assert `[not present]` markers and `last_location` fields. `set_active_entity` to non-present entity — assert no error, `knowledge_state` renders "Entity not present" marker. | REQ-307 |
 | T-new-308 | Automated | Knowledge gating by presence: set scene to corridor with rogue only present. Call `reveal_secret("floor_trap", "rogue_01")` — assert rogue's `knowledge_state` includes trap. Set scene to camp with wizard only present — assert wizard's `knowledge_state` does NOT include trap. Reunite party (`characters_present` includes all). Assert rogue's trap knowledge retained, wizard's still excludes trap. Call `reveal_secret("floor_trap", "wizard_01")` — assert wizard now knows trap. | REQ-308 |
+| T-new-309 | Automated | World and narrative surface prominence: build with `TTRPG_WORLD_PROMINENCE=secondary` — assert World tools in secondary help category, world-model state folded into scene state in `hat_briefing`, `suggest_actions("go north")` returns no parser commands. Build with `TTRPG_WORLD_PROMINENCE=visible` — assert world-model and narrative tools in primary help categories, dedicated world-model state section in `hat_briefing` with empty-state marker when unpopulated, `suggest_actions("go north")` returns parser command alongside TTRPG tools. Build with `TTRPG_WORLD_PROMINENCE=prominent` — assert parser `command` is a top-level help entry, world CRUD tools in primary setup category, world-model state in decision-critical `hat_briefing` group, `suggest_actions("go north")` returns parser command before TTRPG tools. Assert ruleset-free build skips B12 and records no `TTRPG_WORLD_PROMINENCE` value. | REQ-309 |
 
 ---
 

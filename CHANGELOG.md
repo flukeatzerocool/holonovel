@@ -1,7 +1,14 @@
 # Changelog
 
-## 2026-08-08 — Observer hat, AI role, autonomy, and subsystem classification fixes
+## 2026-08-08 — Observer hat, AI role, autonomy, subsystem classification fixes
 
+- The world-model layer's "always secondary surface" constraint is now configurable via
+  `TTRPG_WORLD_PROMINENCE`, with three levels: `secondary` (default, current behavior),
+  `visible` (world-model and narrative tools in primary help categories), and `prominent`
+  (parser commands as top-level tools, world-model state in decision-critical briefing,
+  parser commands preferred for spatial intents). The setting controls default surface
+  emphasis — TTRPG resolution authority is unchanged. Skipped in ruleset-free mode.
+  (REQ-309, B12)
 - The human can now spectate via the Observer hat (`set_hat("observer")`) — the AI plays
   both Player and Game Master while the human watches, stepping in for mechanical decisions
   at a configurable autonomy level. Observer is read-only. (REQ-305, REQ-032)

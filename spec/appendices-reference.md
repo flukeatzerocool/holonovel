@@ -375,6 +375,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-306 | Adjustable autonomy | 2026-08-08 |
 | REQ-307 | Entity presence | 2026-08-08 |
 | REQ-308 | Knowledge gating by presence | 2026-08-08 |
+| REQ-309 | World and narrative surface prominence | 2026-08-08 |
 
 ---
 
@@ -696,6 +697,7 @@ diet.
 | T-new-306 | Automated | Adjustable autonomy: call `set_autonomy({level: "full", confirmation: "auto", safety: "safe", creativity: "standard"})` — assert `[OK]`. Invoke `hat_briefing` — assert autonomy state visible. Set `level=mechanical_prompt, confirmation=prompt` — assert AI auto-narrates exploration but pauses via `present_choices` for combat actions; human responds via `respond`. Set `safety=safe` — assert lethal damage reduces HP to 1 and applies incapacitation instead of death. Set `safety=hardcore` — assert death permanent, no warnings. Set `creativity=chaotic` — assert AI makes unexpected, dramatic choices. Assert Player hat `set_autonomy` returns `[FORBIDDEN]`. Assert autonomy persists across Novel restart. | REQ-306 |
 | T-new-307 | Automated | Entity presence: call `set_scene_state("Dark corridor", characters_present=["rogue_01"])` — assert `party://current` shows rogue present, wizard not present with `[not present]`. Call `set_party_presence(["wizard_01"], "Camp")` — assert scene description unchanged, wizard present. Call `set_party_presence([])` — assert all entities not present. Entity listing in `hat_briefing` — assert `[not present]` markers and `last_location` fields. `set_active_entity` to non-present entity — assert no error, `knowledge_state` renders "Entity not present" marker. | REQ-307 |
 | T-new-308 | Automated | Knowledge gating by presence: set scene to corridor with rogue only present. Call `reveal_secret("floor_trap", "rogue_01")` — assert rogue's `knowledge_state` includes trap. Set scene to camp with wizard only present — assert wizard's `knowledge_state` does NOT include trap. Reunite party (`characters_present` includes all). Assert rogue's trap knowledge retained, wizard's still excludes trap. Call `reveal_secret("floor_trap", "wizard_01")` — assert wizard now knows trap. | REQ-308 |
+| T-new-309 | Automated | World and narrative surface prominence: build with `TTRPG_WORLD_PROMINENCE=secondary` — assert World tools in secondary help category, world-model state folded into scene state in `hat_briefing`, `suggest_actions("go north")` returns no parser commands. Build with `TTRPG_WORLD_PROMINENCE=visible` — assert world-model and narrative tools in primary help categories, dedicated world-model state section in `hat_briefing` with empty-state marker when unpopulated, `suggest_actions("go north")` returns parser command alongside TTRPG tools. Build with `TTRPG_WORLD_PROMINENCE=prominent` — assert parser `command` is a top-level help entry, world CRUD tools in primary setup category, world-model state in decision-critical `hat_briefing` group, `suggest_actions("go north")` returns parser command before TTRPG tools. Assert ruleset-free build skips B12 and records no `TTRPG_WORLD_PROMINENCE` value. | REQ-309 |
 
 ---
 

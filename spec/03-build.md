@@ -86,6 +86,7 @@ defaults without further prompting.
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
+| B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -104,7 +105,10 @@ the inform scaffold as the starting point. Extraction discovery and its dependen
 metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
 or model any ruleset content; the server's `search_rules` tool returns empty results, its
 canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
-The server's ruleset content hash is the sentinel hash per REQ-044.
+The server's ruleset content hash is the sentinel hash per REQ-044. When B1 is
+`none`, B12 (`TTRPG_WORLD_PROMINENCE`) is skipped — the world-model and narrative
+layers are the primary surface by definition (REQ-218), and no prominence
+configuration is recorded.
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
