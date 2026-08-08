@@ -269,6 +269,7 @@ guard, the gap is explicit.
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
 | In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
+| Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |

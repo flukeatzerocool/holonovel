@@ -269,6 +269,7 @@ guard, the gap is explicit.
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
 | In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
+| Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
@@ -949,16 +950,25 @@ generation tables.
 *Check:* T256.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
-source materials are converted to Markdown per Appendix G: layout-aware extraction,
-table reassembly with merged-cell handling, page-furniture stripping, and artifact
-flagging. A fidelity sample of 3–5 representative pages is diffed per the fidelity
-protocol in Appendix G; a rate below 90% for any content type blocks the batch. The
-converter and its version are pinned in DECISIONS.md. Flagged artifacts receive a
+source materials are converted to Markdown per Appendix G. The builder SHALL select a
+converter from the Appendix G.1 catalog or record a justified alternative in
+DECISIONS.md (2). Conversion SHALL proceed per the progressive sampling protocol
+(Appendix G.2): trial page (Phase 1) at ≥70% fidelity gates the batch, content-type
+expansion (Phase 2) gates at ≥90% per type, and batch conversion (Phase 3) completes
+the source. PDF sources SHALL additionally follow the format-specific protocol
+(Appendix G.3): column detection, multi-page table reassembly, image-content
+classification, and OCR fallback. HTML sources SHALL additionally follow the
+format-specific protocol (Appendix G.4): dynamic content detection, chrome stripping,
+chrome fingerprinting, pagination, and content-type classification. The builder SHALL
+run cross-converter verification (Appendix G.6) on the Phase 2 fidelity sample pages.
+Fidelity results SHALL be reported in the structured format (Appendix G.5). The
+converter and its version are pinned in DECISIONS.md (2). Flagged artifacts receive a
 disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity
 rates appear in `spec_health` (REQ-025).
 *Acceptance criterion:* A converted PDF produces a fidelity report in `spec_health`;
 any content type below 90% fidelity blocks the batch and records a disposition in
-DECISIONS.md (5).
+DECISIONS.md (5). DECISIONS.md (2) records the selected converter and any
+cross-converter verification results in DECISIONS.md (5).
 _Check:_ T93.
 
 **REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
@@ -1890,8 +1900,10 @@ current scene type (REQ-087), active combat state — round, turn order, and
 current participant (if in-combat; REQ-043), active entity personality fields and voice
 examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM
 only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
-(REQ-089, including a "Session zero not yet completed — run `session_zero` prompt" reminder when
-`session_zero_completed` is false), and a pointer to the intro prompt (REQ-063). Groups whose data
+(REQ-089, including a "Session zero not yet completed" reminder when
+`session_zero_completed` is false), a pointer to the intro prompt (REQ-063), and
+story journal entries — entries whose entity IDs overlap the active entities or
+whose scene anchor matches the current scene (GM only, REQ-246). Groups whose data
 source is empty SHALL include an explicit empty-state marker describing which
 category is empty. Markers preserve the expected briefing structure and prevent the
 caller from inferring non-existent content. The enumeration order above is the
@@ -2073,20 +2085,15 @@ the server SHALL insert a `[session_boundary]` marker entry (REQ-237) before the
 first mutating entry of the session — the marker is a mutating entry for
 hash-chain purposes and is included in `audit://novel` output.
 
-The audit log SHALL be stored as a separate append-only file:
-`.holonovel-state/novels/<slug>.audit.jsonl` — one JSON object per line,
-appended on each mutating tool call. The Novel JSON SHALL store an
-`audit_log_offset` field (the byte offset in the audit file of the last entry
-included in the last full Novel JSON write). On load, the server reads audit
-entries from the JSONL file starting at the stored offset, replays any entries
-written after the last Novel snapshot, and verifies the hash chain end-to-end.
-An audit JSONL file whose hash chain is broken at a point before the stored
-offset SHALL produce a `[corrupted_audit]` warning in `spec_health` — the
-server loads entries up to the break point. An audit JSONL file absent on
-disk when the Novel JSON references it SHALL produce a `[missing_audit]`
-warning — the server loads with an empty audit log and records the event.
-`end_novel` removes both the Novel JSON and its audit JSONL file.
-`export_novel` (REQ-096) assembles the full audit log from the JSONL file.
+The audit log SHALL be stored as an `audit_log` array in the Novel JSON,
+appended on each mutating tool call alongside the Novel state write per REQ-092.
+Each entry is a JSON object with `timestamp`, `hat`, `tool`, `args`, and `prefix`
+fields. Each audit entry chains the hash of the preceding entry, producing a
+tamper-evident sequence verified end-to-end on load. A hash chain broken at any
+point SHALL produce a `[corrupted_audit]` warning in `spec_health` — the server
+loads entries up to the break point. `end_novel` removes the Novel JSON and its
+backup — the audit log is part of the Novel and removed with it. `export_novel`
+(REQ-096) serializes the `audit_log` array directly from the Novel JSON.
 Hat switches via `set_hat` (all values: `player`, `game_master`, `none`)
 SHALL produce audit entries recording the old hat, new hat, and timestamp.
 Hat-switch entries carry `[hat_switch]` as the tool-name field. They are
@@ -2328,7 +2335,9 @@ object describing the active combat), `scene` (current description string), `sce
 timestamp}` objects, most recent N), `roster_changes` (array of `{entity_id, action`
 — "created" or "removed", `timestamp}`), `condition_changes` (array of `{entity_id,
 condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls` (per
-REQ-174), and `total_combat_rounds` (integer). Missing or inapplicable fields SHALL be
+REQ-174), `total_combat_rounds` (integer), and `story_entries` (array of objects with
+`type`, `entry`, `timestamp`, `scene_anchor`, and `entity_ids` — most recent N, default
+10). Missing or inapplicable fields SHALL be
 present with a typed null or empty array, not omitted. The LLM reconstructs a narrative
 recap from these fields; the tool SHALL NOT generate recap prose.
 `session_recap` accepts optional parameters: `session_id` (string — when
@@ -3164,7 +3173,7 @@ containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`,
 `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174),
 `condition_changes`, `roster_changes`, and `scene_transitions`. Summaries are
 stored in the Novel JSON under an `audit_archive` key; raw audit entries for
-archived sessions are removed from the audit JSONL file (REQ-040). The audit
+archived sessions are removed from the `audit_log` array in the Novel JSON (REQ-040,
 hash chain is re-anchored at the first live entry after compaction — the
 chain is not broken, but entries after the compaction boundary form a new
 segment. `session_recap` (REQ-072) SHALL derive from live entries plus archive
@@ -3368,6 +3377,32 @@ verification of input safety, and performance under adversarial load beyond the 
 benchmarks defined in REQ-100.
 
 ### 5.8 Enrichment, Lore, and Macros
+
+**REQ-246 — Story journal.** The server provides a `record_story(type, entry)` tool — Game
+Master only. Records a narrative memory in the Novel's `story_journal` array. `type` SHALL
+be one of `decision`, `moment`, `revelation`, `bond`, or `consequence`. `entry` is free-form
+text — recommended one to four sentences. The entry SHALL record the current scene anchor,
+active entity IDs, and an ISO 8601 timestamp. Each type signals retrieval context:
+`decision` (a choice with consequences), `moment` (an emotional beat or roleplay highlight),
+`revelation` (new information that changed understanding), `bond` (a relationship formed or
+deepened), `consequence` (something happened because of a prior choice). The tool SHALL
+include a style guide in its help text: focus on narrative elements the mechanical audit log
+does not capture — motivations, emotional stakes, world changes, off-screen events. Entries
+are Novel-scoped, survive restarts, and are discarded by `end_novel`. Story journal entries
+are not mutating state operations for undo/redo purposes — `undo` SHALL NOT reverse a story
+journal entry. Player hat returns `[FORBIDDEN]`.
+
+Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
+field — most recent N entries, default 10; (b) in `hat_briefing` under a `story` section
+token — entries whose `entity_ids` overlap the current active entities or whose
+`scene_anchor` matches the current scene; (c) in `export_novel` output under
+`story_journal`; (d) in `clone_novel` as a copied array. The `story_journal` array is
+stored in the Novel JSON per REQ-092 and grows with each recorded entry.
+*Acceptance criterion:* `record_story("moment", "The ferryman told a story...")` appends
+an entry with type, entry text, timestamp, scene anchor, and entity IDs; the entry appears
+in `session_recap.story_entries`, `hat_briefing` when the ferryman scene is active, and
+`export_novel("json")` output; undo does not remove it; Player hat returns `[FORBIDDEN]`.
+_Check:_ T282.
 
 **REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers: (1)
 Ruleset-native enrichment — extracted during Discovery from the ruleset's own text
@@ -4031,50 +4066,52 @@ undo rolls back all three.
 _Check:_ T76.
 
 **REQ-092 — Novel persistence.** Every mutating tool call writes the Novel to
-`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers plus
-Novel metadata) using an atomic rename — write to a temporary file, then atomically rename
-over the target. The serialized Novel payload must be fully durable on the storage
-medium before the atomic rename commits. Content written to the temporary file must
-be flushed to stable storage (e.g., via fsync on the file descriptor) before the
-rename operation. The temporary file path must include an element that prevents
-collision with concurrent writers targeting the same Novel (e.g., a process
-identifier or timestamp suffix). A Novel on disk whose file size is zero after an
-atomic write indicates a durability failure — surfaced in `spec_health` and stderr.
-A backup of the previous Novel file is retained as
+`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers,
+the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata,
+and undo snapshot stacks) using an atomic rename — write to a temporary file, then
+atomically rename over the target. The serialized Novel payload must be fully durable
+on the storage medium before the atomic rename commits. Content written to the
+temporary file must be flushed to stable storage (e.g., via fsync on the file
+descriptor) before the rename operation. The temporary file path must include an
+element that prevents collision with concurrent writers targeting the same Novel
+(e.g., a process identifier or timestamp suffix). A Novel on disk whose file size is
+zero after an atomic write indicates a durability failure — surfaced in `spec_health`
+and stderr. A backup of the previous Novel file is retained as
 `<slug>.json.bak`. Both corrupted JSON and a missing backup surface in `spec_health`
 and stderr. A rebuild with a changed entity model loads the Novel gracefully:
-absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined
-defaults. Roster baselines remain immutable across rebuilds. Structurally corrupted JSON →
-stderr warning and `spec_health` flag; never silently discarded. On load, if the primary
-file is structurally corrupt but the `.bak` file is intact and parseable, the server loads
-from the backup and records a `[restored_from_backup]` audit entry. If both primary and
-backup are corrupt, the server emits a stderr warning listing both file paths, surfaces a
-`[corrupted_novel]` flag in `spec_health` with the slug, and provides the backup path for
-operator recovery. The server must not silently discard or zero-initialize the Novel. No
-orphaned state — `end_novel` removes the save file and its backup. The Novel JSON includes
-a checksum field — a hash of the serialized state excluding the checksum field itself. On
-load, the server verifies the checksum against the loaded state. A mismatch follows the
-same recovery path as structural corruption: attempt backup restore, then surface the
-mismatch in `spec_health` and stderr if both are tainted. The checksum algorithm and field
-name are builder-determined; the convergence loop enforces that tainted state is detected. Undo snapshot stacks
+absent-model fields in JSON preserved as inert data; missing fields receive
+ruleset-defined defaults. Roster baselines remain immutable across rebuilds.
+Structurally corrupted JSON → stderr warning and `spec_health` flag; never silently
+discarded. On load, if the primary file is structurally corrupt but the `.bak` file
+is intact and parseable, the server loads from the backup and records a
+`[restored_from_backup]` audit entry. If both primary and backup are corrupt, the
+server emits a stderr warning listing both file paths, surfaces a
+`[corrupted_novel]` flag in `spec_health` with the slug, and provides the backup
+path for operator recovery. The server must not silently discard or zero-initialize
+the Novel. No orphaned state — `end_novel` removes the save file and its backup. The
+Novel JSON includes a checksum field — a hash of the serialized state excluding the
+checksum field itself. On load, the server verifies the checksum against the loaded
+state. A mismatch follows the same recovery path as structural corruption: attempt
+backup restore, then surface the mismatch in `spec_health` and stderr if both are
+tainted. The checksum algorithm and field name are builder-determined; the
+convergence loop enforces that tainted state is detected. Undo snapshot stacks
 (REQ-041) persist with the Novel — they survive server restarts alongside all other
 Novel state tiers.
 
-The Novel JSON SHALL include a `novel_format_version` field — an integer,
-initially `1`, incremented when the Novel's on-disk schema changes
-incompatibly. On load, the server compares the stored version to the current
-format version. Version < current: trigger graceful migration per the existing
-load rules (absent-model fields receive ruleset-defined defaults; extra fields
-are preserved as inert data). Version > current: surface a `[WARNING]
-[format_future]` in `spec_health` — the Novel may contain fields the current
-server cannot interpret; the server loads the Novel with the existing graceful
-migration rules and the warning remains active until the format version matches.
-
-The Novel JSON SHALL include an `audit_log_offset` field — an integer byte
-offset pointing to the last audit entry included in the last full Novel JSON
-write, stored in the separate audit JSONL file (REQ-040). On load, the server
-reads audit entries from the JSONL file starting at this offset to recover
-entries written after the last full save.
+The Novel JSON SHALL include a `novel_format_version` field — an integer, initially
+`2`, incremented when the Novel's on-disk schema changes incompatibly. On load, the
+server compares the stored version to the current format version. Version < current:
+trigger graceful migration per the existing load rules (absent-model fields receive
+ruleset-defined defaults; extra fields are preserved as inert data). For version 1
+Novels, the server SHALL auto-migrate: if a `.holonovel-state/novels/<slug>.audit.jsonl`
+file exists alongside the Novel JSON, read all entries from the JSONL file, construct an
+`audit_log` array in the Novel, verify the hash chain end-to-end, delete the JSONL file,
+and set `novel_format_version` to `2`. If no JSONL file exists for a version 1 Novel,
+load with an empty `audit_log` array, record a `[migration_missing_audit]` audit entry,
+and set `novel_format_version` to `2`. Version > current: surface a `[WARNING]
+[format_future]` in `spec_health` — the Novel may contain fields the current server
+cannot interpret; the server loads the Novel with the existing graceful migration
+rules and the warning remains active until the format version matches.
 
 WHEN `TTRPG_NOVEL_COMPRESS` is `true` (default `false`), the serialized Novel
 JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be
@@ -4088,15 +4125,16 @@ a compressed Novel loaded with compression disabled SHALL produce a `[WARNING]
 loads normally.
 *Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty
 and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string;
-`cat novels/<slug>.json | jq .novel_format_version` returns `1`;
-`cat novels/<slug>.json | jq .audit_log_offset` returns an integer;
-a corrupt primary file triggers backup restore.
-_Check:_ T77, T88, T156.
+`cat novels/<slug>.json | jq .novel_format_version` returns `2`;
+`cat novels/<slug>.json | jq .audit_log` returns an array with 10 entries;
+a version 1 Novel with a valid JSONL file auto-migrates on load; a corrupt primary
+file triggers backup restore.
+_Check:_ T77, T88, T156, T282.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
 slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
 creation timestamp, last-modified timestamp, entity count, adventure source (module slug,
-"generated", or "none"), setup-completion flags, session count (distinct `TTRPG_SESSION_ID`
+"generated", or "none"), setup-completion flags, story journal entry count, session count (distinct `TTRPG_SESSION_ID`
 values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
 range), last-active scene anchor, current combat round if in-combat, total combat rounds
 played across this Novel's lifetime, and a `sessions` array — per-session objects with
@@ -4142,7 +4180,8 @@ snapshots, checkpoints if `include_checkpoints=true` per REQ-241), `state_only`
 `world_model` (rooms, things, exits, properties), `npcs` (NPCs with personality
 fields), `factions` (factions with clock state), `secrets` (secrets with
 known-by status), `relationships` (relationship objects), `dm_context` (pause/
-resume context), `notes` (key-value notes), or `scene_history` (scene-state
+resume context), `notes` (key-value notes), `story_journal` (story journal entries
+per REQ-246), or `scene_history` (scene-state
 ledger). Each scope outputs Appendix Q schema with omitted keys for excluded
 tiers. Single scope per call.
 
@@ -4204,7 +4243,8 @@ _Check:_ T100, T281.
 **REQ-097 — Novel health.** The `spec_health` tool reports per-Novel health metrics for
 the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore
 entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log
-entry count, snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
+entry count, story journal entry count, story journal total characters (on-disk byte count),
+snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
 configured), on-disk file size in bytes (with warning if exceeding 4 MB), and a `healthy`
 flag — set to false if any warning is active). `spec_health` reports a sliding window of
 Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct
@@ -4266,10 +4306,11 @@ _Check:_ T276.
 **REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
 new_name, trim_audit_sessions?)` tool (callable with no hat active or Game Master
 hat). The tool creates an independent copy of the source Novel as a new Novel at
-`.holonovel-state/novels/<new_slug>.json`. All ten property groups (NPC, Scene,
-Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context)
-plus the world-model tier, combat state, pending workflows, metadata, audit log,
-undo snapshots, and checkpoints (if present, REQ-241) SHALL be copied. Roster
+`.holonovel-state/novels/<new_slug>.json`. All property groups (NPC, Scene,
+Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context,
+Notes, Story Journal) plus the world-model tier, combat state, pending workflows,
+metadata, audit log, story journal, undo snapshots, and checkpoints (if present,
+REQ-241) SHALL be copied. Roster
 references are preserved — cloned entities point to the same roster IDs. The
 cloned Novel's `created_at` timestamp SHALL be the clone time; the clone is not
 activated — the caller's active Novel is unchanged. Returns `[STATE_CONFLICT]`
@@ -4939,7 +4980,7 @@ before any server code is written.
 | -------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
 | Confidence           | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
 | Extraction fidelity  | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
-| Conversion fidelity  | G.1 fidelity rate (per content type)| ≥ 90%         | Tune converter, re-sample                |
+| Conversion fidelity  | G.2 progressive fidelity rate (per content type)| ≥ 90%         | Switch converter, re-run progressive phases |
 | Extraction completeness | Mechanical sections with ≥1 extraction / total mechanical sections | ≥ 95% | Re-read missed sections, re-extract |
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
@@ -6042,6 +6083,7 @@ discarded by `end_novel`):
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
 | Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
+| Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -7291,6 +7333,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-243 | Enrichment population during updates | 2026-08-08 |
 | REQ-244 | Convergence cache key | 2026-08-08 |
 | REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
+| REQ-246 | Story journal                 | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -7645,6 +7688,7 @@ diet.
 | T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
 | T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
 | T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
+| T282  | Automated | Story journal: call `record_story("moment", "The ferryman told a story...")` during an active scene with entity "eira" on scene "river-crossing" — assert entry appended to `story_journal` array in Novel JSON with `type: "moment"`, `entry`, `timestamp` (ISO 8601), `scene_anchor: "river-crossing"`, and `entity_ids: ["eira"]`. Call `undo` — assert story journal entry persists (not undone). Call `export_novel("json")` — assert `story_journal` key present with one entry. Call `record_story("moment", "...")` under Player hat — assert `[FORBIDDEN]`. Call `record_story("invalid_type", "...")` — assert `[ERROR] [INVALID_INPUT]` with valid type enumeration. Invoke `session_recap()` — assert `story_entries` field present as array with at most 10 most recent entries. Invoke `hat_briefing` with scene set to "river-crossing" and entity "eira" active — assert `story` section token present containing the ferryman entry. Call `end_novel()` — assert `story_journal` cleared. | REQ-246 |
 | T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
@@ -7660,21 +7704,151 @@ the ruleset for every downstream purpose — parsing, extraction, citations, ver
 itself hashed and frozen at the conversion checkpoint. Conversion never modifies the
 originals.
 
-**Converter requirements.** Layout-aware extraction: document order is preserved across
-page breaks and column layouts. Table grids are reassembled faithfully; merged cells are
-expanded or marked. Page furniture (running heads, page numbers, boilerplate) is stripped.
-Conversion artifacts (empty anchors, stray-numeral headings) are flagged for review.
-Flagged artifacts are recorded in DECISIONS.md (5) with a disposition: `fixed`
-(manually repaired before Gate 0), `waived` (accepted with justification and no
-mechanical impact on the model), or `pending` (blocks Gate 0 until resolved).
+### G.1 Converter Catalog
 
-**Fidelity.** Sample 3–5 representative source pages spanning at least one table-bearing
-section, one stat-block section, and one procedure section. Diff the converted Markdown
-against the rendered source text for mechanical content fidelity. A rate below 90% for any
-content type blocks the batch conversion. Record the fidelity rate in DECISIONS.md.
+The builder SHALL select a converter from this catalog or record a justified alternative
+in DECISIONS.md (2). The catalog lists recommended converters with format strengths and
+known failure modes.
 
-**Pin.** The converter and its version are recorded in DECISIONS.md; the same converter
-produces the frozen Markdown and any later diagnostic re-run.
+| Converter | Format | Strengths | Known failure modes |
+| --------- | ------ | --------- | ------------------- |
+| `marker-pdf` | PDF | Strong table extraction, preserves cell alignment | Multi-column reading order; splits merged cells across page breaks |
+| `docling` | PDF | Preserves reading order, handles column layouts | Weak inline formatting preservation; loses bold/italic in stat blocks |
+| `pandoc` | PDF/HTML | Universal format support, mature table handling | Weak layout preservation; column layouts become flat linear text |
+| `turndown` + `mozilla/readability` | HTML | Strong chrome stripping, content extraction | JavaScript-rendered content; tables with colspan/rowspan |
+| `pandoc` (HTML reader) | HTML | Preserves table structure, handles inline formatting | Sidebar/adornment content mixed into main flow |
+| `pdfplumber` | PDF | Precise text positioning, column-aware extraction | No Markdown output natively — requires post-processing pipeline |
+
+### G.2 Progressive Sampling Protocol
+
+Conversion fidelity is measured in three phases. Each phase gates the next.
+
+**Phase 1 — Trial page.** Convert one representative page containing both tabular and
+prose content. Diff the converted Markdown against the rendered source text per the
+fidelity protocol (below). If fidelity is below 70%, select a different converter or
+record an `[unconvertible-source]` finding in DECISIONS.md (5) — do not convert the
+full batch.
+
+**Phase 2 — Content-type expansion.** Convert three more pages spanning at least one
+table-bearing section, one stat-block section, and one procedure section. Measure
+fidelity per content type per the fidelity protocol. If any content type falls below
+90%, tune converter parameters or switch converter and restart Phase 1. Record
+per-phase results in DECISIONS.md (5).
+
+**Phase 3 — Batch conversion.** Convert the full source. Flag every conversion
+artifact per the artifact disposition rules below. Record the final per-content-type
+fidelity rates.
+
+**Artifact disposition.** Conversion artifacts (empty anchors, stray-numeral headings,
+broken table fragments, unresolved column-order ambiguities, suspected merge failures)
+are flagged for review. Flagged artifacts are recorded in DECISIONS.md (5) with a
+disposition: `fixed` (manually repaired before Gate 0), `waived` (accepted with
+justification and no mechanical impact on the model), or `pending` (blocks Gate 0
+until resolved).
+
+### G.3 PDF-Specific Protocol
+
+When C1 is PDF, the conversion SHALL additionally:
+
+**Column detection.** Detect multi-column regions before extraction. Extract text in
+visual reading order. Where the reading order is ambiguous — overlapping bounding boxes,
+irregular column widths, or column-spanning elements — flag the affected section as an
+artifact with disposition `pending`.
+
+**Multi-page table reassembly.** Detect table fragments split across page breaks.
+Continuation indicators include: a header row repeated on the subsequent page, the
+text "continued" or "cont." in the table caption, or a table whose row count on a
+page is anomalously low (fewer rows than other tables in the same section). Merge
+detected fragments. Flag tables where merge is ambiguous or fails as artifacts.
+
+**Image-content classification.** Classify every image in the source as mechanical
+(diagram, chart, flowchart, area-of-effect template, reference table rendered as an
+image) or decorative (art, illustration, page border). Record image counts per
+category in DECISIONS.md (5). Every mechanical image receives a `pending` disposition
+— operator review required before Gate 0. Decorative images require no disposition.
+
+**OCR fallback.** After text extraction, count extracted characters per page. If the
+mean across sampled pages is below 200 characters, the PDF is likely scan-based.
+Attempt OCR with the engine and language recorded in DECISIONS.md (2). Flag OCR
+output as a converted source with a `converted-from-scan` annotation in
+DECISIONS.md (5).
+
+### G.4 HTML-Specific Protocol
+
+When C1 is HTML or web scrape, the conversion SHALL additionally:
+
+**Dynamic content detection.** After fetching a page, check whether the HTML body
+contains meaningful text content (≥500 characters of visible text, excluding script
+and style elements). If a page returns a JS-dependent skeleton — empty body, content
+only in `<script>` tags, or `display:none` wrapping all content — flag the page
+as `[js-dependent]` in DECISIONS.md (6). The builder SHALL NOT silently convert
+empty pages into the ruleset. The operator may supply a headless-browser fetch
+pipeline or re-supply the source as static HTML.
+
+**Chrome stripping.** Before Markdown conversion, strip elements that carry site
+infrastructure rather than ruleset content: `<nav>`, `<header>`, `<footer>`,
+`<aside>`, `<script>`, `<style>`, and elements whose text content repeats identically
+across three or more fetched pages (cross-page boilerplate). The stripped element
+types SHALL be recorded in DECISIONS.md (2).
+
+**Chrome fingerprinting.** After conversion, hash the first 20 lines and last 20
+lines of each page's Markdown output. Deduplicate blocks with identical hashes across
+pages before assembling the final ruleset — repeated navigation, sidebar, and footer
+text SHALL NOT appear in the assembled ruleset. Record the count of deduplicated
+lines in DECISIONS.md (6).
+
+**Pagination.** Detect pagination controls — "Next", "Previous", page-number lists,
+directory/index links — and follow them within the same origin. The default crawl
+depth is 3 (not 1). The operator may supply an alternative depth and a maximum page
+budget (default 200). The builder SHALL maintain a URL-seen set and never re-fetch a
+URL already visited. A crawl that reaches the page budget without exhausting all
+discovered links SHALL record a `[page-budget-exhausted]` finding in DECISIONS.md (6)
+— informational, not blocking.
+
+**Content-type classification.** Before full Markdown conversion, score each fetched
+page: mechanical content (tables, stat blocks, bold-labeled fields, procedural steps)
+vs. non-mechanical content (navigation indexes, blog posts, changelogs, community
+forums). Pages with zero mechanical indicators SHALL be skipped — the URL, reason,
+and byte count are logged in DECISIONS.md (6) but no Markdown is produced. This
+classification SHALL precede the fidelity protocol; skipped pages are not counted
+against fidelity thresholds.
+
+**Web-scrape protocol.** The builder fetches pages with at least 1 second between
+requests, retries failed fetches up to 3 times with exponential backoff (2/4/8
+seconds), and times out individual page fetches after 30 seconds. The builder records
+the scraped URL, response code, byte count, and content-type classification per page
+in DECISIONS.md (6). A scrape that fails 3 consecutive pages stops and records the
+failure. The builder never follows links that match known non-content patterns
+(login, search, print, PDF download pages).
+
+### G.5 Structured Fidelity Report
+
+Fidelity results SHALL be recorded in DECISIONS.md (5) as a table, not prose
+narrative:
+
+| Page | Content type | Fidelity % | Artifacts | Disposition |
+| ---- | ------------ | ---------- | --------- | ----------- |
+| 12   | table        | 94%        | 1 merged cell expanded | waived |
+| 34   | stat-block   | 88%        | missing inline bold | fixed |
+| 56   | procedure    | 97%        | — | — |
+
+Additional context (diff narrative, converter parameters, sampling-phase results) MAY
+follow the table as prose.
+
+### G.6 Cross-Converter Verification
+
+The builder SHALL run a second converter from the catalog on the Phase 2 fidelity
+sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
+Disagreements — text present in one output but not the other, or different word order
+— SHALL be flagged as artifacts with disposition `pending`. The converter pair and
+disagreement count SHALL be recorded in DECISIONS.md (5).
+
+If the catalog offers no second converter for the source format, the builder SHALL
+record a `[single-converter]` finding in DECISIONS.md (5) with the justification —
+informational, not blocking.
+
+**Pin.** The converter and its version are recorded in DECISIONS.md (2); the same
+converter produces the frozen Markdown and any later diagnostic re-run.
 
 **Fidelity protocol.** The fidelity diff is character-level after normalizing
 whitespace (collapse runs, trim) and stripping Markdown formatting delimiters
@@ -7688,16 +7862,6 @@ by `.` or `)` and an imperative verb). Content matching none of these patterns i
 textual content — excluded from the fidelity numerator but recorded for
 completeness. The fidelity rate is (matching characters in mechanical content) ÷
 (total characters in mechanical content in rendered source).
-
-**Web-scrape protocol.** When C1 is "web scrape," the builder fetches pages with
-at least 1 second between requests, follows links only within the same origin and
-below the starting URL path, retries failed fetches up to 3 times with exponential
-backoff (2/4/8 seconds), and times out individual page fetches after 30 seconds.
-The builder records the scraped URL, response code, and byte count per page in
-DECISIONS.md (6). A scrape that fails 3 consecutive pages stops and records the
-failure. The builder never follows links that match known non-content patterns
-(login, search, print, PDF download pages). The operator may supply a
-link-following depth; the default is 1 (starting page only).
 
 ---
 
@@ -7735,6 +7899,11 @@ Before declaring the ruleset ready for discovery, confirm:
 - [ ] (Converted sources only) At least 3 randomly selected tables match their source
   pages in row count and header labels — diff the converted Markdown table against the
   fidelity sample renderings.
+- [ ] (Converted sources only) Heading count in the converted Markdown matches the source
+  document within ±10% — a gross structural mismatch indicates conversion failure.
+- [ ] (Converted sources only) Table count and bold-label count in the converted Markdown
+  match the source document within ±10% — catch missing or duplicated content before the
+  fidelity diff.
 
 ---
 
@@ -8417,9 +8586,9 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | **Denial of Service** | Malformed input crashes the server | REQ-054: input validation on every tool, T20: path traversal and malformed input rejection | **Covered.** |
 | **Elevation of Privilege** | Player bypasses hat gating through rapid hat switching | §10 adversarial round (a): 20 rapid switches during combat, no state leak | **Covered.** Tested. |
 | **Elevation of Privilege** | Player accesses GM-only resources through direct URI crafting | REQ-032: server-side gating on every endpoint including resources, T44 verifies player boundary | **Covered.** |
-| **Tampering** | Converter tool produces subtly incorrect Markdown (swapped table columns, merged paragraphs) | Fidelity sampling (Appendix G) catches gross errors; pinning (Appendix G) ensures reproducibility | **Moderate.** Fidelity sampling covers 3–5 pages. A systemic error on unscanned pages would propagate into the model. No cross-converter verification. |
+| **Tampering** | Converter tool produces subtly incorrect Markdown (swapped table columns, merged paragraphs) | Progressive fidelity sampling (Appendix G.2) catches gross errors; cross-converter verification (Appendix G.6) catches format-specific errors a single converter misses; pinning ensures reproducibility | **Minor.** Cross-converter verification on the fidelity sample surfaces disagreements a single converter would hide. |
 | **Denial of Service** | Web scrape exhausts builder resources, gets IP banned by source site | Web-scrape protocol (Appendix G) enforces rate limiting and retry with backoff | **Minor.** Single-source scrape is bounded. Multi-source concurrent scraping is not addressed. |
-| **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | No existing mitigation — the spec does not require content inspection before conversion | **Moderate.** A compromised SRD page or a redirect to a phishing page could inject non-ruleset content. The spec assumes trusted sources. |
+| **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | Chrome stripping (Appendix G.4) removes `<script>`, `<style>`, and non-content HTML elements before conversion; content-type classification (Appendix G.4) skips pages with no mechanical indicators | **Minor.** Stripping reduces the attack surface; classification skips the most likely injection targets (blog posts, forum pages). The spec still assumes trusted sources for content-bearing pages. |
 
 _Verify:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.

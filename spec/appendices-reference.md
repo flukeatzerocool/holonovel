@@ -245,6 +245,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-243 | Enrichment population during updates | 2026-08-08 |
 | REQ-244 | Convergence cache key | 2026-08-08 |
 | REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
+| REQ-246 | Story journal                 | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -599,6 +600,7 @@ diet.
 | T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
 | T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
 | T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
+| T282  | Automated | Story journal: call `record_story("moment", "The ferryman told a story...")` during an active scene with entity "eira" on scene "river-crossing" — assert entry appended to `story_journal` array in Novel JSON with `type: "moment"`, `entry`, `timestamp` (ISO 8601), `scene_anchor: "river-crossing"`, and `entity_ids: ["eira"]`. Call `undo` — assert story journal entry persists (not undone). Call `export_novel("json")` — assert `story_journal` key present with one entry. Call `record_story("moment", "...")` under Player hat — assert `[FORBIDDEN]`. Call `record_story("invalid_type", "...")` — assert `[ERROR] [INVALID_INPUT]` with valid type enumeration. Invoke `session_recap()` — assert `story_entries` field present as array with at most 10 most recent entries. Invoke `hat_briefing` with scene set to "river-crossing" and entity "eira" active — assert `story` section token present containing the ferryman entry. Call `end_novel()` — assert `story_journal` cleared. | REQ-246 |
 | T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
@@ -614,21 +616,151 @@ the ruleset for every downstream purpose — parsing, extraction, citations, ver
 itself hashed and frozen at the conversion checkpoint. Conversion never modifies the
 originals.
 
-**Converter requirements.** Layout-aware extraction: document order is preserved across
-page breaks and column layouts. Table grids are reassembled faithfully; merged cells are
-expanded or marked. Page furniture (running heads, page numbers, boilerplate) is stripped.
-Conversion artifacts (empty anchors, stray-numeral headings) are flagged for review.
-Flagged artifacts are recorded in DECISIONS.md (5) with a disposition: `fixed`
-(manually repaired before Gate 0), `waived` (accepted with justification and no
-mechanical impact on the model), or `pending` (blocks Gate 0 until resolved).
+### G.1 Converter Catalog
 
-**Fidelity.** Sample 3–5 representative source pages spanning at least one table-bearing
-section, one stat-block section, and one procedure section. Diff the converted Markdown
-against the rendered source text for mechanical content fidelity. A rate below 90% for any
-content type blocks the batch conversion. Record the fidelity rate in DECISIONS.md.
+The builder SHALL select a converter from this catalog or record a justified alternative
+in DECISIONS.md (2). The catalog lists recommended converters with format strengths and
+known failure modes.
 
-**Pin.** The converter and its version are recorded in DECISIONS.md; the same converter
-produces the frozen Markdown and any later diagnostic re-run.
+| Converter | Format | Strengths | Known failure modes |
+| --------- | ------ | --------- | ------------------- |
+| `marker-pdf` | PDF | Strong table extraction, preserves cell alignment | Multi-column reading order; splits merged cells across page breaks |
+| `docling` | PDF | Preserves reading order, handles column layouts | Weak inline formatting preservation; loses bold/italic in stat blocks |
+| `pandoc` | PDF/HTML | Universal format support, mature table handling | Weak layout preservation; column layouts become flat linear text |
+| `turndown` + `mozilla/readability` | HTML | Strong chrome stripping, content extraction | JavaScript-rendered content; tables with colspan/rowspan |
+| `pandoc` (HTML reader) | HTML | Preserves table structure, handles inline formatting | Sidebar/adornment content mixed into main flow |
+| `pdfplumber` | PDF | Precise text positioning, column-aware extraction | No Markdown output natively — requires post-processing pipeline |
+
+### G.2 Progressive Sampling Protocol
+
+Conversion fidelity is measured in three phases. Each phase gates the next.
+
+**Phase 1 — Trial page.** Convert one representative page containing both tabular and
+prose content. Diff the converted Markdown against the rendered source text per the
+fidelity protocol (below). If fidelity is below 70%, select a different converter or
+record an `[unconvertible-source]` finding in DECISIONS.md (5) — do not convert the
+full batch.
+
+**Phase 2 — Content-type expansion.** Convert three more pages spanning at least one
+table-bearing section, one stat-block section, and one procedure section. Measure
+fidelity per content type per the fidelity protocol. If any content type falls below
+90%, tune converter parameters or switch converter and restart Phase 1. Record
+per-phase results in DECISIONS.md (5).
+
+**Phase 3 — Batch conversion.** Convert the full source. Flag every conversion
+artifact per the artifact disposition rules below. Record the final per-content-type
+fidelity rates.
+
+**Artifact disposition.** Conversion artifacts (empty anchors, stray-numeral headings,
+broken table fragments, unresolved column-order ambiguities, suspected merge failures)
+are flagged for review. Flagged artifacts are recorded in DECISIONS.md (5) with a
+disposition: `fixed` (manually repaired before Gate 0), `waived` (accepted with
+justification and no mechanical impact on the model), or `pending` (blocks Gate 0
+until resolved).
+
+### G.3 PDF-Specific Protocol
+
+When C1 is PDF, the conversion SHALL additionally:
+
+**Column detection.** Detect multi-column regions before extraction. Extract text in
+visual reading order. Where the reading order is ambiguous — overlapping bounding boxes,
+irregular column widths, or column-spanning elements — flag the affected section as an
+artifact with disposition `pending`.
+
+**Multi-page table reassembly.** Detect table fragments split across page breaks.
+Continuation indicators include: a header row repeated on the subsequent page, the
+text "continued" or "cont." in the table caption, or a table whose row count on a
+page is anomalously low (fewer rows than other tables in the same section). Merge
+detected fragments. Flag tables where merge is ambiguous or fails as artifacts.
+
+**Image-content classification.** Classify every image in the source as mechanical
+(diagram, chart, flowchart, area-of-effect template, reference table rendered as an
+image) or decorative (art, illustration, page border). Record image counts per
+category in DECISIONS.md (5). Every mechanical image receives a `pending` disposition
+— operator review required before Gate 0. Decorative images require no disposition.
+
+**OCR fallback.** After text extraction, count extracted characters per page. If the
+mean across sampled pages is below 200 characters, the PDF is likely scan-based.
+Attempt OCR with the engine and language recorded in DECISIONS.md (2). Flag OCR
+output as a converted source with a `converted-from-scan` annotation in
+DECISIONS.md (5).
+
+### G.4 HTML-Specific Protocol
+
+When C1 is HTML or web scrape, the conversion SHALL additionally:
+
+**Dynamic content detection.** After fetching a page, check whether the HTML body
+contains meaningful text content (≥500 characters of visible text, excluding script
+and style elements). If a page returns a JS-dependent skeleton — empty body, content
+only in `<script>` tags, or `display:none` wrapping all content — flag the page
+as `[js-dependent]` in DECISIONS.md (6). The builder SHALL NOT silently convert
+empty pages into the ruleset. The operator may supply a headless-browser fetch
+pipeline or re-supply the source as static HTML.
+
+**Chrome stripping.** Before Markdown conversion, strip elements that carry site
+infrastructure rather than ruleset content: `<nav>`, `<header>`, `<footer>`,
+`<aside>`, `<script>`, `<style>`, and elements whose text content repeats identically
+across three or more fetched pages (cross-page boilerplate). The stripped element
+types SHALL be recorded in DECISIONS.md (2).
+
+**Chrome fingerprinting.** After conversion, hash the first 20 lines and last 20
+lines of each page's Markdown output. Deduplicate blocks with identical hashes across
+pages before assembling the final ruleset — repeated navigation, sidebar, and footer
+text SHALL NOT appear in the assembled ruleset. Record the count of deduplicated
+lines in DECISIONS.md (6).
+
+**Pagination.** Detect pagination controls — "Next", "Previous", page-number lists,
+directory/index links — and follow them within the same origin. The default crawl
+depth is 3 (not 1). The operator may supply an alternative depth and a maximum page
+budget (default 200). The builder SHALL maintain a URL-seen set and never re-fetch a
+URL already visited. A crawl that reaches the page budget without exhausting all
+discovered links SHALL record a `[page-budget-exhausted]` finding in DECISIONS.md (6)
+— informational, not blocking.
+
+**Content-type classification.** Before full Markdown conversion, score each fetched
+page: mechanical content (tables, stat blocks, bold-labeled fields, procedural steps)
+vs. non-mechanical content (navigation indexes, blog posts, changelogs, community
+forums). Pages with zero mechanical indicators SHALL be skipped — the URL, reason,
+and byte count are logged in DECISIONS.md (6) but no Markdown is produced. This
+classification SHALL precede the fidelity protocol; skipped pages are not counted
+against fidelity thresholds.
+
+**Web-scrape protocol.** The builder fetches pages with at least 1 second between
+requests, retries failed fetches up to 3 times with exponential backoff (2/4/8
+seconds), and times out individual page fetches after 30 seconds. The builder records
+the scraped URL, response code, byte count, and content-type classification per page
+in DECISIONS.md (6). A scrape that fails 3 consecutive pages stops and records the
+failure. The builder never follows links that match known non-content patterns
+(login, search, print, PDF download pages).
+
+### G.5 Structured Fidelity Report
+
+Fidelity results SHALL be recorded in DECISIONS.md (5) as a table, not prose
+narrative:
+
+| Page | Content type | Fidelity % | Artifacts | Disposition |
+| ---- | ------------ | ---------- | --------- | ----------- |
+| 12   | table        | 94%        | 1 merged cell expanded | waived |
+| 34   | stat-block   | 88%        | missing inline bold | fixed |
+| 56   | procedure    | 97%        | — | — |
+
+Additional context (diff narrative, converter parameters, sampling-phase results) MAY
+follow the table as prose.
+
+### G.6 Cross-Converter Verification
+
+The builder SHALL run a second converter from the catalog on the Phase 2 fidelity
+sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
+Disagreements — text present in one output but not the other, or different word order
+— SHALL be flagged as artifacts with disposition `pending`. The converter pair and
+disagreement count SHALL be recorded in DECISIONS.md (5).
+
+If the catalog offers no second converter for the source format, the builder SHALL
+record a `[single-converter]` finding in DECISIONS.md (5) with the justification —
+informational, not blocking.
+
+**Pin.** The converter and its version are recorded in DECISIONS.md (2); the same
+converter produces the frozen Markdown and any later diagnostic re-run.
 
 **Fidelity protocol.** The fidelity diff is character-level after normalizing
 whitespace (collapse runs, trim) and stripping Markdown formatting delimiters
@@ -642,16 +774,6 @@ by `.` or `)` and an imperative verb). Content matching none of these patterns i
 textual content — excluded from the fidelity numerator but recorded for
 completeness. The fidelity rate is (matching characters in mechanical content) ÷
 (total characters in mechanical content in rendered source).
-
-**Web-scrape protocol.** When C1 is "web scrape," the builder fetches pages with
-at least 1 second between requests, follows links only within the same origin and
-below the starting URL path, retries failed fetches up to 3 times with exponential
-backoff (2/4/8 seconds), and times out individual page fetches after 30 seconds.
-The builder records the scraped URL, response code, and byte count per page in
-DECISIONS.md (6). A scrape that fails 3 consecutive pages stops and records the
-failure. The builder never follows links that match known non-content patterns
-(login, search, print, PDF download pages). The operator may supply a
-link-following depth; the default is 1 (starting page only).
 
 ---
 
@@ -689,6 +811,11 @@ Before declaring the ruleset ready for discovery, confirm:
 - [ ] (Converted sources only) At least 3 randomly selected tables match their source
   pages in row count and header labels — diff the converted Markdown table against the
   fidelity sample renderings.
+- [ ] (Converted sources only) Heading count in the converted Markdown matches the source
+  document within ±10% — a gross structural mismatch indicates conversion failure.
+- [ ] (Converted sources only) Table count and bold-label count in the converted Markdown
+  match the source document within ±10% — catch missing or duplicated content before the
+  fidelity diff.
 
 ---
 
@@ -1002,9 +1129,9 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | **Denial of Service** | Malformed input crashes the server | REQ-054: input validation on every tool, T20: path traversal and malformed input rejection | **Covered.** |
 | **Elevation of Privilege** | Player bypasses hat gating through rapid hat switching | §10 adversarial round (a): 20 rapid switches during combat, no state leak | **Covered.** Tested. |
 | **Elevation of Privilege** | Player accesses GM-only resources through direct URI crafting | REQ-032: server-side gating on every endpoint including resources, T44 verifies player boundary | **Covered.** |
-| **Tampering** | Converter tool produces subtly incorrect Markdown (swapped table columns, merged paragraphs) | Fidelity sampling (Appendix G) catches gross errors; pinning (Appendix G) ensures reproducibility | **Moderate.** Fidelity sampling covers 3–5 pages. A systemic error on unscanned pages would propagate into the model. No cross-converter verification. |
+| **Tampering** | Converter tool produces subtly incorrect Markdown (swapped table columns, merged paragraphs) | Progressive fidelity sampling (Appendix G.2) catches gross errors; cross-converter verification (Appendix G.6) catches format-specific errors a single converter misses; pinning ensures reproducibility | **Minor.** Cross-converter verification on the fidelity sample surfaces disagreements a single converter would hide. |
 | **Denial of Service** | Web scrape exhausts builder resources, gets IP banned by source site | Web-scrape protocol (Appendix G) enforces rate limiting and retry with backoff | **Minor.** Single-source scrape is bounded. Multi-source concurrent scraping is not addressed. |
-| **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | No existing mitigation — the spec does not require content inspection before conversion | **Moderate.** A compromised SRD page or a redirect to a phishing page could inject non-ruleset content. The spec assumes trusted sources. |
+| **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | Chrome stripping (Appendix G.4) removes `<script>`, `<style>`, and non-content HTML elements before conversion; content-type classification (Appendix G.4) skips pages with no mechanical indicators | **Minor.** Stripping reduces the attack surface; classification skips the most likely injection targets (blog posts, forum pages). The spec still assumes trusted sources for content-bearing pages. |
 
 _Verify:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.

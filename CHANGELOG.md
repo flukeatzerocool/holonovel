@@ -1,5 +1,61 @@
 # Changelog
 
+## 2026-08-08 — Story lifecycle, narrative memory, one-file Novel
+
+- Defined the story lifecycle: entering a Novel now starts in editing
+  mode (no hat, full access) — work on characters, load adventures, build
+  the world before the story begins. Putting on a hat means you're in the
+  story. `set_hat("none")` ends the story and returns to editing mode
+  with the Novel intact. `end_novel` deletes the file from any state.
+  When you resume a Novel with an active story, the server tells you
+  "You're back in the story." (REQ-031, REQ-066, REQ-055)
+
+- Replaced "game" with "story" throughout the prose — the Novel is the
+  container, the story is what happens when a hat is active. "Game Master"
+  and tool names unchanged. (Standing Rule 9, terminology table)
+
+- The session zero prompt is now an eight-section builder-generated
+  guide: welcome, per-signal explanations (5 signals × 3-5 tuning
+  options with narrative paragraphs), three character introduction
+  examples at increasing detail (minimal sketch, three-paragraph
+  description, media reference), plain-English character creation
+  walkthrough, adventure confirmation, narrative capability discovery
+  with plaintext examples, quick-start guide, and post-session
+  encouragement. No tool names — everything described as plain-English
+  instructions. (REQ-078)
+
+- The Novel setup prompt is now a three-step wizard with visual
+  completion markers (`[✓]`, `[→]`, `[ ]`) and conversational
+  descriptions. After session zero completes, a next-steps summary
+  tells the GM how to begin the first scene. (REQ-089)
+
+- Added a new standing rule: user-facing narrative prompts (`intro`,
+  `session_zero`, `novel_setup`) must use plain English with no tool
+  names or technical syntax. Operational prompts (`hat_briefing`,
+  `run_workflow`) and tool output are exempt. (Standing Rule 10)
+
+- Added a story journal — the Novel's narrative memory. The GM records
+  decisions, moments, revelations, bonds, and consequences with
+  `record_story(type, entry)`. Entries are typed for smart retrieval,
+  surfacing in session recaps, hat briefings (when characters or scenes
+  match), and exports. The mechanical audit log captures dice; the
+  story journal captures everything else — motivations, emotional
+  stakes, world changes. (REQ-246)
+
+- Merged the Novel to a single file. The audit log is now an
+  `audit_log` array inside the Novel JSON instead of a separate
+  `.audit.jsonl` file. One file to copy, share, backup, export.
+  Version 1 Novels auto-migrate on load. `novel_format_version` is
+  now 2. (REQ-040, REQ-092)
+
+- Combat state now persists across story boundaries — end the story
+  mid-combat and resume it from the same round and turn. Hat switches
+  via `set_hat` are explicitly recorded in the audit log. (REQ-043,
+  REQ-040)
+
+- `TTRPG_HAT` now accepts `none` so Novels can start in editing mode
+  by default. (REQ-055, 04-runtime.md)
+
 ## 2026-08-08 — Gauntlet expansion, efficiency improvements, and auto-detection
 
 - Added seven new TTRPG Gauntlet sub-workflows (S23–S29) covering all
