@@ -246,6 +246,27 @@ containing `<file>#<anchor>` and the verbatim Markdown text from the source; an
 undo result contains no source block.
 _Check:_ T48.
 
+**REQ-280 — Source-anchor citation.** Every ruleset lookup tool — `lookup_spell`,
+`lookup_equipment`, `lookup_monster`, `lookup_class`, and `search_rules` — SHALL include
+the source anchor from which the content was extracted in every result. The anchor SHALL
+include: (a) the source file name; (b) the heading path (e.g., "Spells > Level 3 >
+Fireball"); and (c) the line range in the source Markdown (e.g., "lines 1420–1445"). The
+anchor is surfaced as a `source_anchor` field in the tool output, positioned after the
+mechanical data and before any narrative framing. The anchor enables the caller to verify
+the output against the ruleset source without re-running extraction.
+
+For `search_rules`, every result item SHALL carry its own `source_anchor`. For canonical
+lookups returning a single entry, the anchor SHALL be the heading from which the entry
+was extracted. The anchor is derived from extraction metadata per REQ-010 (traceability)
+and SHALL be present even when the extraction confidence is LOW — the anchor labels the
+source, not the confidence.
+
+*Acceptance criterion:* `lookup_spell("fireball")` returns a `source_anchor` field with
+file name, heading path, and line range. Every result in `search_rules("grapple")`
+carries its own `source_anchor`. A ruleset-free build returns `source_anchor: null` for
+all lookups (waived per REQ-013).
+_Check:_ T-new-280.
+
 **REQ-062 — Hat foundations.** `hat_briefing` includes ruleset-agnostic best-practice
 foundations for each hat. The Enrich workflow (§11.1) supplies the expanded foundations
 catalogue at `guidance://<hat>/foundations` as supplementary guidance.
@@ -578,7 +599,7 @@ classification (command overrides state-reading, hybrid overrides generation).
 | read-only        | `help`, `spec_health`                     | `true`            | `false`            | `true`         | `false`         |
 | state-reading    | `character_sheet`, `session_recap`        | `true`            | `false`            | `false`        | `false`         |
 | command          | `create_character`, `set_scene_state`     | `false`           | `true`             | `false`        | `false`         |
-| generation       | `generate_adventure`, `roll_on_table`     | `false`           | `false`            | `false`        | `false`         |
+| generation       | `generate_adventure`, `roll_on_table`, `ask_oracle`     | `false`           | `false`            | `false`        | `false`         |
 | hybrid           | `generate_encounter`, `roll_weapon_damage`| `false`           | `true`             | `false`        | `false`         |
 
 The `openWorldHint` is `false` for all tools when the server operates without
@@ -812,6 +833,7 @@ always be present in `tools/list`:
   `update_lore_entry`, `remove_lore_entry`, `toggle_lore_entry`,
   `set_lore_group`, `suggest_lore`, `create_faction`, `update_faction`,
   `remove_faction`, `set_countdown`, `advance_countdown`, `remove_countdown`,
+  `set_vow`, `mark_milestone`, `resolve_vow`, `forsake_vow`,
   `set_secret`, `reveal_secret`, `check_knowledge`), Player Interaction
   (`present_choices`, `suggest_actions`, `player_signal`), Story Memory
   (`record_story`, `update_story`, `remove_story`, `list_stories`,
@@ -862,7 +884,7 @@ _Check:_ T3, T35.
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://action_patterns`, `enrichment://adventure_advice`,
 `enrichment://narrative_voices`, `enrichment://status`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`,
+`novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`, `graph://novel`,
 `spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
@@ -871,6 +893,21 @@ source header.
 `resources/templates/list` includes entity, roster, and `output://` templates;
 each resource declares a media type and title.
 _Check:_ T16, T104.
+
+**REQ-296 — Knowledge-graph resource.** THE server SHALL provide a `graph://novel` resource
+returning the Novel's entity-relationship graph as a structured adjacency list. The resource
+SHALL include: (a) `entities` — all Novel entities with their current relationships;
+(b) `npcs` — all NPCs with relationships, dispositions, and location; (c) `lore_connections`;
+(d) `secrets` — secret lore entries mapped to the entities that have had them revealed;
+(e) `factions` — faction memberships. The resource is hat-filtered: Player hat sees only
+relationships involving their active entities, `shared`-scope lore, and revealed secrets.
+When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has
+no briefing presence per §5.10.
+
+*Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with
+1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM hat
+includes entities, NPCs with relationships, lore_connections, secrets, and factions.
+_Check:_ T-new-296.
 
 **REQ-023 — Prompts.** The server provides prompts covering multi-step workflows,
 hat briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel
@@ -950,6 +987,20 @@ comparison (prompt count and names from live registry vs REQ-023 contract, with
 per-prompt title and argument-description presence), and a hat-gating summary
 (tool count per gate classification per REQ-136). The `gap_audit` section
 SHALL be absent when the build is not yet complete.
+
+`spec_health` SHALL include a `cross_ref_health` section reporting: (a)
+`total_cross_refs` — the count of cross-references discovered during extraction across
+all ruleset sections (a spell referencing a condition, a class feature referencing a
+spell, equipment referencing a mechanic); (b) `resolved` — cross-references where the
+referenced entry exists in the extraction; (c) `unresolved` — cross-references where
+the referenced entry does not exist in the extraction, each flagged with the source
+entry, the referenced target, and the source anchor; (d) `unresolved_pct` — percentage.
+When `unresolved_pct` exceeds 5%, `spec_health` SHALL include a `[fidelity_warning]`
+annotation. The builder records the `cross_ref_health` section in DECISIONS.md (4).
+
+A rebuilt server re-computes cross-reference health from the current extraction. A
+previously resolved cross-reference that becomes unresolved after a ruleset change SHALL
+be flagged as a `[regression]` in the `unresolved` list.
 
 `spec_health` must report a `gauntlet_scenarios` field containing
 `passed` (count of sub-workflows that passed on the most recent run),
@@ -1742,7 +1793,7 @@ category is empty. Markers preserve the expected briefing structure and prevent 
 caller from inferring non-existent content. The enumeration order above is the
 builder's required default section ordering for `hat_briefing`. Decision-critical
 groups (scene state, the POV directive, entities, combat state, triggered lore, active NPCs, and active
-countdowns) precede the section boundary; supplementary guidance and navigation groups
+countdowns, and narrative threads) precede the section boundary; supplementary guidance and navigation groups
 (hat foundations, anti-slop guidance, narrative tone samples, active adventure content,
 registered tools, entity personality fields, the narrative directive, player signals,
 Novel setup metadata, and the intro pointer) follow. The Game Master may override this
@@ -1751,6 +1802,40 @@ order via `set_briefing_order` (REQ-082).
 countdowns, and lore includes all mandatory groups; an empty data source displays
 its empty-state marker; decision-critical groups appear before supplementary groups.
 _Check:_ T109, T110, T149.
+
+**REQ-281 — Narrative-threads section token.** `hat_briefing` SHALL include a
+`narrative_threads` section token in the decision-critical group containing: (a)
+unresolved story journal decisions — `decision` type entries whose referenced entity or
+scene has no corresponding `consequence` entry (REQ-246), surfaced as "Unresolved: <entry
+summary>"; (b) active promises derived from story journal `bond` entries with no
+`consequence`; (c) active countdowns with their narrative meaning — name + remaining ticks
+in prose form; (d) active NPC dispositions where the disposition differs from the NPC's
+creation default, surfaced as "<NPC name> (<disposition>, set in session <N>)"; (e)
+active vow progress when populated (REQ-289). The section is hat-filtered: GM sees all;
+Player sees only own-entity bonds and `shared`-scope content.
+
+The `narrative_threads` token SHALL appear in the decision-critical group, after entities
+and before combat state. This token gives the AI GM a "what's currently unresolved"
+signal for narrative consistency. When all source data is empty, the token SHALL render
+its empty-state marker: "[No unresolved threads.]"
+
+*Acceptance criterion:* After recording a story journal `decision` with no `consequence`,
+setting a countdown, and creating an NPC with a non-default disposition, `hat_briefing`
+under the GM hat includes a `narrative_threads` section with the unresolved decision, the
+countdown in narrative form, and the NPC disposition. Under the Player hat, only
+own-entity bonds and shared content appear.
+_Check:_ T-new-281.
+
+`hat_briefing` SHALL include a `knowledge_state` section token in the decision-critical
+group showing what the active entity currently knows: (a) revealed secrets (key and
+reveal timestamp); (b) known NPC relationships where the active entity is a participant;
+(c) `shared`-scope lore entries whose trigger keywords have appeared in scenes the active
+entity was present for. When no active entity is set, the section renders "[No active
+entity — knowledge state unavailable.]" When the active entity knows nothing, it renders
+"[No known information.]" The section SHALL NOT include GM-only secrets, unrevealed lore,
+or relationships where the active entity is not a participant. On a fresh Novel,
+`hat_briefing` renders the empty-state marker — narrative tools fade into the background
+per §5.10.
 
 **REQ-159 — Enrichment briefing integration.** When enrichment is active
 (§11.1), `hat_briefing` SHALL include enrichment-derived content as
@@ -2210,6 +2295,29 @@ the output contains no narrative prose strings outside field values; entity stat
 reports "alive" when HP > 0, "unconscious" at HP = 0, "dead" when death condition active.
 _Check:_ T53, T212, T213, T214, T215.
 
+**REQ-279 — Narrative orientation.** `session_recap` SHALL include a `narrative_orientation`
+field — a prose paragraph (2–4 sentences) derived from the active Novel state. The
+paragraph SHALL synthesize: (a) the last 3 story journal entries of type `decision` or
+`bond` (REQ-246); (b) active NPC dispositions that differ from their creation default;
+(c) the current narrative directive (REQ-081); (d) active countdown names and remaining
+ticks in narrative form ("The ritual completes in 2 rounds"); and (e) active vow names
+and milestone counts when vow tracking is populated (REQ-289). The paragraph SHALL use
+plain English without tool names, status prefixes, or structured field syntax — it reads
+as a "Previously on…" summary a returning player can understand immediately.
+
+The field SHALL be present when any of its source data is non-empty. When all source data
+is empty (new Novel with no play), the field SHALL contain the empty-state marker
+"[No narrative history yet — your story begins here.]" `session_recap` SHALL include
+`narrative_orientation` as its first field, before the structured data blocks. The
+paragraph is hat-filtered: Player hat sees orientation derived from `shared`-scope lore,
+own-entity story entries, and player-visible NPC dispositions per REQ-032.
+
+*Acceptance criterion:* After a session with a story journal decision, a narrative
+directive, and an active countdown, `session_recap()` returns a `narrative_orientation`
+field containing a 2–4 sentence prose summary synthesizing all three sources.
+`session_recap` on a new Novel with no play returns the empty-state marker.
+_Check:_ T-new-279.
+
 **REQ-174 — Significant-roll criterion for recap.** A roll is significant for
 `session_recap` purposes when it (a) was produced by a dice-resolution tool
 (roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage, or
@@ -2256,6 +2364,38 @@ Countdown tools are Game Master only; the Player hat reads active countdowns via
 briefings; a GM-only countdown "patrol" appears only in the GM briefing;
 `advance_countdown("patrol")` at tick 1 fires and removes it.
 _Check:_ T54, T139.
+
+**REQ-289 — Vow tracking.** The Game Master may track narrative vows — intangible
+promises, quests, or obligations that bind entities or the party. `set_vow(name,
+description, parties, difficulty, scope)` creates a vow: `name` (unique identifier),
+`description` (the vow's substance — a sentence), `parties` (array of entity/NPC/faction
+IDs bound by the vow), `difficulty` (one of `troublesome`, `dangerous`, `formidable`,
+`extreme`, `epic` — determines the rank track), `scope` (one of `gm`, `shared`,
+`faction`, or `party` — hat visibility per REQ-032). A vow's rank track has 10
+milestones per difficulty rank (troublesome = 10, dangerous = 20, formidable = 30,
+extreme = 40, epic = 50). `mark_milestone(vow_name)` advances the milestone counter by
+one. When milestones reach the rank track total, the vow is complete and `resolve_vow`
+becomes available. `resolve_vow(vow_name, outcome, consequences)` closes the vow: the
+vow moves from active to resolved state, the outcome (free-text summary) is stored, and
+`consequences` (free-text narrative effects) are recorded as a `consequence` story
+journal entry per REQ-246. `forsake_vow(vow_name, reason)` abandons a vow — the vow
+moves to `forsaken` state and is excluded from active displays; the reason is recorded
+alongside the vow.
+
+Active vows appear in `hat_briefing` (`narrative_threads` section per REQ-281) and
+`session_recap` (`narrative_orientation` per REQ-279). Resolved and forsaken vows
+appear in `session_recap` with their state and outcome/reason. Vow state persists
+with the Novel and is included in `save_pause_context` captures (REQ-232). Vow tools
+are Game Master only; the Player hat reads vow state via `hat_briefing` and
+`session_recap` when the vow's scope is `shared` or `party`.
+
+*Acceptance criterion:* `set_vow("Find the Crown", "Recover the lost Crown of Alara",
+parties=["pc_1", "pc_2"], difficulty="dangerous", scope="shared")` creates a vow with
+a 20-milestone track. `mark_milestone("Find the Crown")` advances the counter.
+`resolve_vow("Find the Crown", "The Crown is found in the Dragon's hoard", "The
+kingdom is restored")` moves the vow to resolved. `forsake_vow("other_vow", "Too
+dangerous")` marks it forsaken.
+_Check:_ T-new-286.
 
 **REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
 same hat. The roster may hold multiple entities for the player. `entities://` lists
@@ -2471,6 +2611,24 @@ timestamped entries in `scene://history`; scene state is narrative context and
 does not change search results for mechanical terms.
 _Check:_ T57, T112, T132, T137.
 
+WHEN `set_scene_state` references a location that has established lore entries (REQ-083)
+and the new scene description contradicts an established property of that location, THE
+server SHALL emit a `[WARNING]` naming the contradiction and the conflicting lore entry.
+The warning SHALL NOT block the scene change — the GM may override — but SHALL surface
+the inconsistency for the GM's awareness. The check SHALL compare against: (a) lore
+entries with `hat_scope: "game_master"` or `"shared"` whose trigger keywords match the
+location name; (b) NPC dispositions set explicitly (not creation defaults) for NPCs whose
+`location` field matches the scene location. The check is keyword-based and does not
+perform semantic analysis — a lore entry stating "the Inn is crowded" with a trigger
+keyword "Inn" SHALL produce a `[WARNING]` when a scene description contains "the empty
+Inn."
+
+*Acceptance criterion:* Set a lore entry for "Blackwood Inn" with content "crowded and
+noisy" and trigger "Blackwood." Call `set_scene_state("The Blackwood Inn is quiet and
+deserted.")` — assert `[WARNING]` naming the lore entry. Call `set_scene_state("The
+Blackwood Inn is bustling as always.")` — assert no warning.
+_Check:_ T-new-282.
+
 **REQ-076a — Structured scene fields.** `set_scene_state` accepts optional structured
 fields alongside the required `description`: `location` (a named place within the world),
 `time_of_day` (morning, afternoon, evening, night, or free-text), `atmosphere` (mood,
@@ -2570,6 +2728,31 @@ source URL and are rendered after player-authored examples when both exist.
 *Acceptance criterion:* When `hat_briefing` renders an entity with voice_examples
 set, the dialogue snippets appear before the trait descriptions.
 _Check:_ T140.
+
+**REQ-282 — NPC voice directive.** WHEN `hat_briefing` renders the entity personality
+group (REQ-109), every NPC whose `location` field matches the current scene location AND
+whose `voice_examples` array is non-empty SHALL include a compact voice directive
+block. The directive SHALL contain: (a) the NPC name and role; (b) the `voice` field
+value (REQ-077); (c) up to 2 voice_example snippets (the first two examples from the
+array); (d) a synthesized "Avoid:" line derived from the voice field — counsel on what
+the NPC should NOT sound like. The directive block SHALL be hat-filtered per REQ-032:
+GM sees all NPC voice directives; Player hat sees directives for NPCs created with
+`shared` scope.
+
+The voice directive is rendered inline in the entity personality group, after personality
+fields and before any enrichment-sourced content. It is advisory — it provides the AI GM
+with voice constraints but does not mechanically enforce them. `voice_examples` stored
+in the roster (entity-level) follow the same directive rendering in the entity personality
+group but use the entity's own voice_examples, not NPC-role synthesis.
+
+Format: `Voice directive (<NPC name>, <role>): <voice>. Example: "<snippet 1>"
+Example: "<snippet 2>" Avoid: <voice mismatch counsel>.`
+
+*Acceptance criterion:* Create an NPC with `voice: "gruff, uses 'oi'"`, `voice_examples`
+containing two dialogue snippets, and `location` matching the current scene. Assert
+`hat_briefing` under the GM hat includes a voice directive block for the NPC.
+Set scene to a different location — assert the NPC voice directive is absent.
+_Check:_ T-new-283.
 
 **REQ-127 — Ruleset-native personality mapping.** During discovery (§6.3), the builder
 must identify ruleset-native personality constructs — character traits, motivations,
@@ -2823,6 +3006,26 @@ the adventure hook and current room in `hat_briefing`; a module without a
 `## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
+**REQ-292 — Adventure catalog.** THE server SHALL provide a `list_adventures(filter?)` tool
+(always callable) returning metadata for every adventure module present in `TTRPG_ADVENTURE`.
+Each entry SHALL include: `slug`, `title`, `preview` (2–3 sentence GM-facing premise),
+`genre_tags`, `room_count`, `npc_count`, `complexity` (estimated: `short`, `standard`,
+`epic` based on room count thresholds), and `last_modified`. An optional `filter` parameter
+accepts a genre tag string and returns only matching adventures.
+
+When `TTRPG_ADVENTURE` contains no adventure modules, `list_adventures` SHALL return an
+empty-state message: "[No adventure modules found.]" The catalog is hat-filtered: Player
+hat sees adventures with a `player_visible` flag or `shared` adventure hooks; GM hat sees
+all. `spec_health` SHALL report `adventure_catalog_count`. `list_adventures` has no
+briefing presence per §5.10.
+
+`help("list_adventures")` SHALL return usage examples and parameter contracts.
+
+*Acceptance criterion:* With 2 adventure modules, `list_adventures()` returns 2 entries
+with slug, title, preview, genre_tags, room_count, npc_count, complexity, and
+last_modified. Empty directory returns the empty-state message.
+_Check:_ T-new-292.
+
 Adventure modules MAY contain narrative sections in addition to or instead of the
 `## World` spatial section: `## Premise` — one-paragraph hook introducing the
 adventure; `## Factions` — named organizations with goals, resources, and starting
@@ -3025,6 +3228,22 @@ hash indicating no ruleset was present.
 building against two different ruleset revisions produces different hashes.
 _Check:_ T17.
 
+**REQ-302 — Per-section content hashing.** In addition to the ruleset-wide content hash
+(REQ-044), the builder SHALL compute per-section content hashes — one hash per top-level
+heading section in the ruleset Markdown source. Each section hash SHALL use SHA-256 over
+the normalized section content. Per-section hashes SHALL be recorded in DECISIONS.md (4).
+
+During incremental rebuild (§6.7), sections whose hash is unchanged SHALL be skipped —
+their prior extraction output is referenced. Sections whose hash changed SHALL be
+re-extracted. The builder SHALL record a per-section delta summary: total sections,
+sections unchanged, sections changed, sections added, sections removed. This SHALL NOT
+override REQ-272 (stock elements catalog) — both operate independently.
+
+*Acceptance criterion:* A ruleset with 20 top-level sections, one of which changed,
+produces per-section hashes where 19 match the prior build and 1 is re-extracted.
+DECISIONS.md (4) records the delta summary.
+_Check:_ T-new-302.
+
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
 directory: the specification version, the specification content hash (from the embedded
 holonovel.md, REQ-105), the ruleset content hash (REQ-044), the spec repository URL
@@ -3086,8 +3305,14 @@ returns a complete briefing for session resumption: `dm_context` content plus a
 Novel state summary plus the `hat_briefing` prompt. When `resume_novel` is called,
 the `intro` prompt SHALL include the `dm_context` summary. `end_novel` clears
 `dm_context`. `save_pause_context` SHALL automatically capture current faction clock
-states (REQ-233), active countdown positions (REQ-073), NPC dispositions, and entity
-relationships (REQ-236) — the GM is not required to re-enter these manually.
+states (REQ-233), active countdown positions (REQ-073), NPC dispositions, entity
+relationships (REQ-236), the last 3 story journal entries of type `decision` or
+`bond` (REQ-246), and active vow state — milestone counts and difficulty ranks
+(REQ-289) — the GM is not required to re-enter these manually. The story journal
+and vow captures SHALL be stored as `story_context` (array of entry summaries,
+1–2 sentences each) and `active_vows` (array of vow summaries: name, difficulty,
+milestone count). These fields are surfaced by `get_resume_context` and included
+in the `intro` prompt's DM context summary.
 *Acceptance criterion:* `save_pause_context(current_scene="The tavern brawl",
 short_term_plans="Guards arrive in 2 rounds")` followed by `get_resume_context()`
 returns both fields; `resume_novel` includes the context in `intro`.
@@ -3352,6 +3577,30 @@ produces the same result row on two separate server restarts, with output
 including dice notation, individual die face, matched range, and result text.
 
 *Check:* T254.
+
+**REQ-291 — Oracle tool.** THE server SHALL provide an `ask_oracle(question, likelihood,
+seed?)` tool (GM only) for uncertainty resolution. The tool accepts a free-text `question`
+and a `likelihood` value — one of `certain` (90% yes), `likely` (70% yes), `even` (50%
+yes), `unlikely` (30% yes), or `impossible` (10% yes). It draws from the PRNG (REQ-050)
+and returns one of: `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`.
+
+Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an
+`EXCEPTIONAL_YES` or `EXCEPTIONAL_NO` — which signals a stronger, more intense version
+of the answer. The `question` parameter is recorded in the audit log; the draw is
+deterministic and seedable. The oracle is positioned as a GM-input aid — it resolves
+uncertainty when the GM doesn't know what should happen, but SHALL NOT replace the AI
+GM's narrative judgment. Player hat returns `[FORBIDDEN]`. The oracle has no briefing
+presence — it is callable on demand only and fades into the background per §5.10.
+
+`help("ask_oracle")` SHALL return usage examples, parameter contracts, and common
+workflows. `suggest_actions("I don't know what's behind the door")` SHALL map to
+`ask_oracle`.
+
+*Acceptance criterion:* `ask_oracle("Is there a guard behind the door?", "even",
+seed="42")` returns `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Same
+seed + same call sequence produces the same result across restarts. Likelihood "certain"
+returns `[YES]` or `[EXCEPTIONAL_YES]` on most draws. Player hat returns `[FORBIDDEN]`.
+_Check:_ T-new-291.
 
 **REQ-157 — Combat determinism.** Combat initiative for dangers is drawn from the
 same PRNG as all other random draws (REQ-050). `init_combat` accepts an optional
@@ -3696,6 +3945,22 @@ sticky entries persist for their count after keywords leave; suppressed entries
 count appears in `spec_health`.
 _Check:_ T67, T79, T81, T82,
 T83.
+
+Extend `set_lore_entry` and `update_lore_entry`: each lore entry SHALL carry a
+`visibility` field — one of `gm_only` (default for new entries), `shared` (visible to
+Player hat immediately), or `player_discovered` (set automatically when `reveal_secret`
+is called for this entry's key). `gm_only` entries are excluded from Player-hat surfaces
+including `hat_briefing`, `lore://active`, and `graph://novel`. `shared` entries are
+visible to both hats.
+
+When `set_lore_entry` creates a new entry without a `visibility` field, it defaults to
+`gm_only`. `update_lore_entry` MAY change the visibility field. The `hat_scope` field
+controls briefing presentation priority; `visibility` controls hat-filtered read access.
+
+*Acceptance criterion:* `set_lore_entry("secret", "content", visibility="shared")`
+creates a lore entry visible to Player hat. `set_lore_entry("gm_secret", "content")`
+creates a `gm_only` entry invisible to Player hat.
+_Check:_ T-new-298.
 
 **REQ-155 — Sticky counter decay.** A lore entry's sticky counter decays by one
 when the scene text changes such that the entry's trigger keywords are no longer
@@ -4511,6 +4776,19 @@ zero completes, a next-steps summary appears; completed steps are tracked in Nov
 metadata.
 _Check:_ T74.
 
+**REQ-294 — Genre declaration.** The Novel SHALL carry a `genre` field, settable via
+`novel://current` metadata and `hat_briefing` under the `novel` section token. The field
+accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`,
+`sci_fi_horror`, `cosmic_horror`, `historical`, `western`, `modern`, `cyberpunk`.
+Ruleset-derived genre tags merge with the canonical catalog. Default is unset. When a
+genre is set, `spec_health` SHALL report `active_genre`. When unset, the genre line is
+absent from briefing per §5.10.
+
+*Acceptance criterion:* After setting `genre: "noir"`, `spec_health` reports
+`active_genre: "noir"` and `hat_briefing` includes a `genre` line. Setting an unknown tag
+returns `[WARNING]` but the tag is stored.
+_Check:_ T-new-294.
+
 **REQ-090 — Adventure generation.** `generate_adventure(premise)` (Game Master only).
 Accepts a free-text premise and produces an adventure scaffold: a title (slug-ified from
 premise), an Overview (GM-only, template-populated), an Adventure Hook (player-visible), 2–6
@@ -4545,6 +4823,24 @@ as a single undo target. No `[NEED_INPUT]`. Player hat → `[FORBIDDEN]`.
 a scene description, an NPC stat block, and a lore entry as a single atomic batch;
 undo rolls back all three.
 _Check:_ T76.
+
+**REQ-295 — Genre-filtered generation.** WHEN the active Novel carries a genre declaration
+(REQ-294), `generate_adventure` and `generate_encounter` SHALL filter their table draws
+and template selections to prefer genre-matching content. The filtering SHALL operate as
+a preference, not a block: (a) encounter tables, NPC archetypes, and location templates
+that carry a matching genre tag SHALL be drawn from first; (b) untagged or `universal`
+tables SHALL be drawn from only when genre-matching content is exhausted; (c) content
+tagged with a non-matching genre SHALL be excluded unless the GM explicitly requests it
+via a `!include_all` prefix on the premise/context string; (d) enrichment content SHALL
+be filtered by genre tag when the Novel's genre is set.
+
+Generation tables (REQ-213) SHALL carry an optional `genre_tags` field extracted during
+Discovery (§6.3). A table with no `genre_tags` field is classified as `universal`.
+
+*Acceptance criterion:* With `genre: "noir"` set, `generate_encounter("dark alley")` drawn
+from tables where the noir-tagged table contains "mugger" and the universal table contains
+"dragon" SHALL return the mugger.
+_Check:_ T-new-295.
 
 **REQ-092 — Novel persistence.** Every mutating tool call writes the Novel to
 `.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers,
@@ -4860,6 +5156,30 @@ help task map. In ruleset-free builds, the same rule applies — the freeform
 narrative tools (Narrative) are the primary surface; World serves as optional
 spatial scaffolding in the secondary category.
 
+This backgrounding principle extends to all narrative infrastructure tools that are
+not part of the TTRPG rules engine: vows (REQ-289), oracles (REQ-291), genre declaration
+(REQ-294), knowledge-graph resources (REQ-296), and any future narrative tools. These
+tools follow the Inform design philosophy in both directions:
+
+**When you are not using them, they are invisible.** Narrative tools that render briefing
+sections (vows, narrative threads, knowledge state) render their sections only when data
+is non-empty. Empty state renders a compact empty-state marker. Narrative tools invoked on
+demand (oracle, graph://novel, list_adventures) SHALL have no briefing presence — they
+are callable by the GM but do not push content into the briefing unprompted. Advisory
+constraints (genre) render as a single line in the `novel` briefing section when set;
+absent when unset.
+
+**When you call on them, they are as helpful as anything else on the server.** Every
+narrative tool inherits the full Holonovel UX contract: `[INVALID_INPUT]` with enumerated
+valid options; `help("<tool_name>")` returns usage examples, parameter contracts, and
+common workflows; `suggest_actions("<intent>")` maps player intent to narrative tools;
+`[NOT_FOUND]` with nearest-match suggestions; `[STATE_CONFLICT]` with corrective action.
+
+The acid test: when a new GM opens `hat_briefing` on a fresh Novel with no narrative
+tools populated, the briefing SHALL look the same as it did before the tools were added.
+When that same GM types `help("set_vow")`, the server SHALL respond with the same level
+of helpfulness as `help("set_countdown")`.
+
 **REQ-195 — World-model state tier.** Every Novel SHALL carry a world-model
 state tier. The tier SHALL hold: rooms (named locations with descriptions and
 exits), things (named objects with descriptions, containment, and portability
@@ -4890,11 +5210,61 @@ inventory, wait) and a one-line description. `command("what can I do?")`,
 `command("commands")`, and `command("verbs")` SHALL produce the same output
 as `command("help")`. When the world-model tier is empty (no rooms), the
 help enumeration SHALL still list verbs — the base vocabulary is known even
-without a populated world. An ambiguous object reference SHALL return all
-matching objects with their locations and distinguishing descriptions.
+without a populated world. An ambiguous object reference SHALL return a
+disambiguation prompt listing all matching objects by name and location, ending with
+a question: "Which <object type>?" The response pattern is:
+`[OK] Which <object_type>?` followed by a numbered list of matches with locations
+(e.g., "1. The stone altar (in the Crypt)\n2. The wooden altar (in the Chapel)").
+This replaces the previous behavior of returning all matches as a flat list — the
+numbered format enables the caller to respond with a specific match.
 When the world-model tier is empty (no rooms), all parser commands SHALL
 return a not-implemented result directing the user to populate the world
 model via an adventure module or CRUD tools. _Check:_ T239.
+
+**REQ-283 — Verb coverage tiers.** The parser command catalog SHALL classify every
+registered command verb into one of three coverage tiers:
+
+- `core` — the base vocabulary: go (and direction equivalents), look, examine, take,
+  drop, inventory, and wait. Always present. These are the minimum verb set for any
+  populated world model.
+- `standard` — IF-community baseline verbs that map to world-model object properties:
+  open, close, lock, unlock, push, pull, search, read, sit, stand, wear, remove, eat,
+  drink, light, extinguish, climb, jump, enter, exit, put, insert. Available when the
+  world model contains objects supporting the corresponding property (openable,
+  lockable, portable/fixed, readable, wearable, edible, drinkable, etc.).
+- `extended` — ruleset-derived verbs discovered via REQ-222, registered under their
+  discovered category.
+
+`command("help")` SHALL group commands by tier. `command("verbs")` SHALL report the
+tiered coverage with per-tier counts. `world://kinds` SHALL report per-tier verb lists.
+`spec_health` SHALL include `parser_verb_coverage` with per-tier counts. The tier
+classification is advisory — it signals parser completeness, not mechanical enforcement.
+
+*Acceptance criterion:* A populated world model with openable doors, readable books,
+and wearable items reports `core` tier verbs (7), `standard` tier verbs (12+ depending
+on world-model supports), and `extended` tier verbs per REQ-222. A ruleset with no
+additional verbs reports 0 `extended`. A world model with no openable objects reports
+the `open` and `close` verbs as registered but unavailable (annotated in the verb list).
+_Check:_ T-new-284.
+
+**REQ-284 — Implicit action hints.** WHEN a parser command fails because a precondition
+is not met — a locked container before unlocking, a closed door before opening, an object
+in darkness — THE response SHALL include a hint naming the required action and object
+when that object exists and is reachable in the world model. Reachable means: the object
+is in the current room, in the player's inventory, or in an open container in either.
+The hint SHALL be appended to the rule-violation message as a separate line:
+`Hint: You need the <object name> (<location>) first.`
+
+Examples: `command("open chest")` when the chest is locked and the iron key is in the
+player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the iron key
+(inventory) first.` `command("unlock chest")` when no key exists in the world model →
+`[RULE_VIOLATION] The chest is locked.` (no hint — no reachable key exists).
+
+*Acceptance criterion:* Create a world model with a locked chest and an iron key in the
+room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
+and its location. Remove the key from the world model — `command("open chest")` returns
+`[RULE_VIOLATION]` with no hint.
+_Check:_ T-new-285.
 
 **REQ-197 — Room description generation.** WHEN the player enters a room
 or issues a look command THE system SHALL return the room's name, its

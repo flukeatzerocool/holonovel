@@ -352,6 +352,23 @@ date-stamps matching CHANGELOG entries.
 | REQ-276 | Independent verifier model criteria | 2026-08-08 |
 | REQ-277 | Fixture evolution contract | 2026-08-08 |
 | REQ-278 | Build-phase-map staleness detection | 2026-08-08 |
+| REQ-279 | Narrative orientation | 2026-08-08 |
+| REQ-280 | Source-anchor citation | 2026-08-08 |
+| REQ-281 | Narrative-threads section token | 2026-08-08 |
+| REQ-282 | NPC voice directive | 2026-08-08 |
+| REQ-283 | Verb coverage tiers | 2026-08-08 |
+| REQ-284 | Implicit action hints | 2026-08-08 |
+| REQ-289 | Vow tracking | 2026-08-08 |
+| REQ-291 | Oracle tool | 2026-08-08 |
+| REQ-292 | Adventure catalog | 2026-08-08 |
+| REQ-294 | Genre declaration | 2026-08-08 |
+| REQ-295 | Genre-filtered generation | 2026-08-08 |
+| REQ-296 | Knowledge-graph resource | 2026-08-08 |
+| REQ-299 | Cross-model audit sufficiency | 2026-08-08 |
+| REQ-300 | Structured failure diagnostics | 2026-08-08 |
+| REQ-301 | Convergence loop audit trail | 2026-08-08 |
+| REQ-302 | Per-section content hashing | 2026-08-08 |
+| REQ-303 | Scoped re-verification | 2026-08-08 |
 
 ---
 
@@ -950,6 +967,12 @@ prose content only.
   These are guidance content, not mechanically enforced world-model rooms (use
   `## World` for mechanical rooms).
 
+Adventure modules MAY include an optional `## Preview` section. When present, this section
+SHALL contain 2–3 sentences of GM-facing premise. The preview is surfaced by
+`list_adventures` (REQ-292). When `## Preview` is absent, `list_adventures` SHALL derive
+the preview from the first sentences of the `## Adventure Hook` section, prepending
+`[derived]` to indicate automated generation.
+
 ### World section format
 
 The `## World` heading marks a declarative world-model block. Each line within
@@ -1029,7 +1052,7 @@ section is present, declarative assertions are extracted and the world-model tie
 is populated when `load_adventure` is called. TTRPG annotations are linked to
 world-model objects by name; unmatched annotations are reported as unresolved
 references. Adventure content appears in `search_rules` results filtered by active
-adventure and hat. The `load_adventure` tool (REQ-079) sets the active adventure
+adventure and hat. The `load_adventure` tool (REQ-079, REQ-292) sets the active adventure
 and populates the world model for the current Novel.
 
 **Non-Appendix-K adventures.** Adventure modules that do not conform to Appendix K
