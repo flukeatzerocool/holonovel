@@ -240,3 +240,49 @@ This allows staleness resolution and incremental enrichment without rebuilding
 the entire manifest. The enrichment fingerprint root hash SHALL still aggregate
 all module hashes for quick whole-manifest comparison.
 
+### 11.2 Vendor enrichment
+
+Vendor enrichment draws from curated, licensed documentation vendored in the
+`enrich/` directory at the Holonovel repository root. It supplements community
+enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
+fiction design, GM tooling, and solo RPG communities.
+
+**Sources.** Four source bundles, all open-source licensed:
+
+| Source | License | What it enriches |
+|---|---|---|
+| DMCP (shawnrushefsky/dmcp) | MIT | NPC voice design, pause/resume patterns, combat management, campaign lifecycle |
+| Blades in the Dark SRD (John Harper) | CC-BY 3.0 | Clock design philosophy, tension management, linked/danger/racing clock patterns |
+| Lonelog (lonelog.org) | CC BY-SA 4.0 | Session notation structure, scene/action/outcome separation |
+| IF Craft Corpus (pvliesdonk) | CC-BY 4.0 | Narrative structure, character voice, worldbuilding, scene structure, genre conventions |
+
+**When vendor enrichment runs.** Vendor enrichment SHALL run when the operator sets
+E5 to `yes` (default). It runs alongside community enrichment (§11.1): for TTRPG
+builds, vendor enrichment provides infrastructure craft advice that complements
+the ruleset-anchored community enrichment. For ruleset-free builds, vendor
+enrichment is the primary enrichment source — community enrichment (§11.1) SHALL
+use infrastructure-level search terms (freeform roleplay, GM techniques, narrative
+design) in place of ruleset-anchored terms, and vendor content carries higher
+weight.
+
+**No separate infrastructure web enrichment.** For TTRPG builds, the ruleset-anchored
+community enrichment (§11.1) already captures infrastructure concepts through the
+ruleset's lens (e.g., "D&D 5e NPC personality" returns NPC design advice). Vendor
+enrichment fills remaining gaps at higher quality. A separate infrastructure-only
+web enrichment pass is not run — it would find redundant or lower-quality content
+compared to the combination of ruleset-anchored web search and vendor sources.
+
+**Indexing.** The builder SHALL index all vendored enrichment sources from
+`enrich/` alongside web-sourced community enrichment. Vendor content SHALL carry
+`[supplementary]` tag with source URL pointing to the vendor file within the
+repository. Vendor content follows the same budgets, confidence model, and
+deduplication rules as community enrichment (§11.1). Vendor content confidence
+defaults to HIGH (curated, licensed, reviewed) with MEDIUM overrides for
+opinion content within vendor documents and LOW overrides for experimental
+content.
+
+**Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
+content hashes alongside the community enrichment fingerprint. Vendor content
+changes (updates to `enrich/` files) trigger module replacement per the partial
+refresh contract; unchanged vendor modules are not disturbed.
+

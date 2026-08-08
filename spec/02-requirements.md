@@ -1071,6 +1071,16 @@ directives for tone, difficulty, pace, focus, and boundaries; a caller who
 copies a directive verbatim produces a valid tool call.
 _Check:_ T22, T124.
 
+When a `load_adventure` has been called prior to `session_zero`, the prompt SHALL
+include: (a) the adventure's premise/hook from the `## Premise` section, (b)
+available pre-populated factions and their starting clocks, (c) pre-populated NPCs
+with personality summaries, (d) the starting scene description, and (e) a
+confirmation question to accept or modify these defaults. When no adventure is
+loaded, `session_zero` guides the GM through creating these elements from scratch
+— effectively authoring a session-zero adventure live. An adventure file is a
+Novel at session zero: it provides pre-populated starting state that the GM
+accepts, modifies, or replaces during session zero.
+
 **REQ-057 — Canonical lookup tools.** For each category the ruleset defines as canonical
 content (equipment, spells, monsters/stat-blocks, conditions, feats, class features,
 species, backgrounds), a `lookup_<category>` tool accepts the canonical name and documented
@@ -1365,6 +1375,28 @@ remains open; on the 5th restart it auto-cancels with `[workflow_stale]` audit
 entry and restored pre-workflow state. Setting
 `TTRPG_WORKFLOW_STALENESS_CONNECTIONS=0` prevents all auto-cancellation.
 _Check:_ T266.
+
+**REQ-235 — Structured player choices.** The Game Master may present structured
+choice prompts to the player. `present_choices(prompt, choices[], allow_freeform?,
+context?)` returns a `[NEED_INPUT]` decision workflow (REQ-042). Each choice in
+the `choices` array SHALL have `id` (kebab-cased identifier), `label` (display
+text), and `description` (detail text). `allow_freeform` (default false) permits
+the player to provide a free-text response instead of selecting a listed option.
+`context` is an optional metadata object (e.g., `{urgency: "medium"}`). The player
+responds via `respond(decision, option)`. The outcome SHALL be appended to the
+audit log with a `[choice]` tag; freeform responses SHALL be stored in the audit
+entry's `content` field.
+*Coupling:* When a `present_choices` result is recorded, any countdown (REQ-073)
+bearing the same `id` in its `scope` field SHALL advance by one tick. Choices whose
+resolved `id` matches a faction goal keyword (REQ-233) SHALL advance that faction's
+clock. The choice outcome SHALL also advance any `linked` countdown triggered by
+the matching clock.
+*Acceptance criterion:* `present_choices("The goon blocks your path.", [{id:
+"talk", label: "Talk", description: "Persuade him"}, {id: "fight", label:
+"Fight", description: "Start combat"}])` returns `[NEED_INPUT]` with two
+options; `respond("The goon blocks your path.", "fight")` records a `[choice]`
+audit entry; a countdown with `scope: "fight"` advances.
+_Check:_ T273.
 
 ### 5.5 Hats and Access
 
@@ -2144,7 +2176,10 @@ result is audited and snapshot-able.
 _Check:_ T131.
 
 **REQ-076 — Scene-state ledger.** The server maintains a Novel-scoped narrative scene
-description via `set_scene_state(description)`. Each call creates a timestamped entry in
+via `set_scene_state(description, ...)`. In addition to `description` (required), the
+tool accepts optional fields: `location`, `time_of_day`, `atmosphere` (per REQ-076a),
+`scene_type` (per REQ-087), `narrative_directive` (per REQ-081), and
+`skip_transition_hook` (per REQ-125). Each call creates a timestamped entry in
 the audit log; previous entries are retained in audit history. `scene://current` returns
 the most recent scene state. `scene://history` returns up to a configurable maximum of
 the most recent entries (default 50). When the cap is exceeded, the most recent entries
@@ -2169,8 +2204,11 @@ _Check:_ T57, T112, T132, T137.
 
 **REQ-076a — Structured scene fields.** `set_scene_state` accepts optional structured
 fields alongside the required `description`: `location` (a named place within the world),
-`time_of_day` (morning, afternoon, evening, night, or free-text), and `atmosphere` (mood,
-weather, sensory qualities — e.g., "tense, foggy, silent"). These fields are surfaced in
+`time_of_day` (morning, afternoon, evening, night, or free-text), `atmosphere` (mood,
+weather, sensory qualities — e.g., "tense, foggy, silent"), `scene_type` (one or more
+type tags from the canonical catalog: `combat`, `social`, `exploration`, `neutral`, per
+REQ-087), and `narrative_directive` (a standalone directive string or an array of
+labeled directives per REQ-081). These fields are surfaced in
 `hat_briefing` alongside the description, in `scene://current`, and in `scene://history`
 entries. They are narrative context — inert data that does not influence mechanical
 resolution. All fields persist with the Novel. The Player hat reads them via
@@ -2192,14 +2230,16 @@ fields:
   (situation label), `dialogue` (verbatim speech), and `tag`
   (scene-type or emotional-context label describing when the example dialogue would be
   spoken — e.g., combat, social, exploration). These examples demonstrate
-  how the entity speaks in specific situations, sourced via `set_voice_examples(entity_id,
-  examples)` and stored at the roster level. Voice examples set via `set_voice_examples`
-  follow the same hat-gating contract as `set_personality`: Player-only for own entities
-  (per REQ-165), GM for all. On NPCs (REQ-122), `set_voice_examples` is Game Master only.
+  how the entity speaks in specific situations, set via the optional `voice_examples`
+  parameter on `set_personality(entity_id, ...)` and stored at the roster level.
+  Voice examples follow the same hat-gating contract as other personality fields:
+  Player-only for own entities (per REQ-165), GM for all. On NPCs (REQ-122), setting
+  voice_examples is Game Master only.
   Voice examples sourced from enrichment carry a `[supplementary]` tag and source URL.
 
 These are narrative context — inert data, not mechanical. `set_personality(entity_id,
-fields)` sets description, voice, background, and goals (Player-only for own entities per
+fields)` sets description, voice, background, goals, and voice_examples — all as
+optional fields on one tool (Player-only for own entities per
 REQ-165, GM for all). The tool also accepts NPC identifiers per REQ-122. Personality
 fields are stored at the roster level and are explicitly
 mutable (an exception to roster baseline immutability — narrative fields, unlike
@@ -2443,6 +2483,17 @@ the adventure hook and current room in `hat_briefing`; a module without a
 `## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
+Adventure modules MAY contain narrative sections in addition to or instead of the
+`## World` spatial section: `## Premise` — one-paragraph hook introducing the
+adventure; `## Factions` — named organizations with goals, resources, and starting
+clocks (per REQ-233); `## Scenes` — ordered or branching scene descriptions with
+embedded choice prompts; `## NPCs` — named characters with personality fields and
+voice examples; `## Lore` — worldbuilding keywords with triggers; `## Seeds` —
+GM-facing prompts and improvisation hooks. An adventure with no `## World` section
+is a narrative-only adventure — it populates Novel state (factions, lore, NPCs,
+and scene history seeds) without creating spatial rooms. `load_adventure` processes
+all present sections regardless of spatial content.
+
 **REQ-229 — Adventure enrichment linkage.** After `load_adventure` processes
 `@npc`, `@encounter`, and `@lore` annotations, the server SHALL scan both
 enrichment tiers (ruleset-native and community) for matches against the newly
@@ -2590,6 +2641,99 @@ _Check:_ T52, T224.
 *Out of scope:* relational database backends, distributed state across processes,
 cloud synchronization, and state migration between incompatible specification versions
 without the Update workflow (§6.7).
+
+**REQ-232 — Pause/resume context.** The Novel SHALL persist a `dm_context` object
+alongside other Novel state. Fields: `current_scene` (narrative summary of the active
+scene), `immediate_situation` (what is happening right now), `pending_player_action`
+(what the player was about to decide), `short_term_plans` (GM's next move),
+`long_term_plans` (GM's arc-level direction), `active_threads` (array of {name,
+status, urgency, description}), `npc_attitudes` (object mapping NPC ids to their
+current disposition strings), `player_goals` (what the player seems focused on), and
+`saved_at` (ISO 8601 timestamp of last save). All fields are optional; a call supplies
+only the fields the GM wants to update. `save_pause_context(fields...)` — Game Master
+only — merges provided fields into the existing `dm_context`. `get_resume_context()`
+returns a complete briefing for session resumption: `dm_context` content plus a
+Novel state summary plus the `hat_briefing` prompt. When `resume_novel` is called,
+the `intro` prompt SHALL include the `dm_context` summary. `end_novel` clears
+`dm_context`. `save_pause_context` SHALL automatically capture current faction clock
+states (REQ-233), active countdown positions (REQ-073), NPC dispositions, and entity
+relationships (REQ-236) — the GM is not required to re-enter these manually.
+*Acceptance criterion:* `save_pause_context(current_scene="The tavern brawl",
+short_term_plans="Guards arrive in 2 rounds")` followed by `get_resume_context()`
+returns both fields; `resume_novel` includes the context in `intro`.
+_Check:_ T268.
+
+**REQ-233 — Factions.** The Game Master may manage named organizations (factions)
+with goals, resources, and a progress clock. `create_faction(name, description,
+goals?, resources?)` creates a faction. `update_faction(faction_id, fields...)`
+mutates existing fields. `remove_faction(faction_id)` removes a faction and its
+clock. Factions persist with the Novel. Resources: `faction://<id>` and
+`factions://` — GM-filtered. Faction clocks update faction progress and are
+surfaced in `hat_briefing`. When a faction clock fills, the faction's status updates
+to the next goal and a new clock begins — surfaced as a `[WARNING]` in `spec_health`.
+Factions appear in `dm_context.active_threads` (REQ-232). Faction clocks SHALL
+advance by one tick at scene transitions (REQ-125).
+*Coupling:* `create_faction` SHALL auto-create a `faction`-type countdown (REQ-073)
+for the faction's primary goal. `advance_countdown` on a faction-named clock SHALL
+update the faction's clock display. When a relationship is set between a faction and
+an entity (REQ-236), the faction name SHALL be accepted as valid for either
+direction.
+*Acceptance criterion:* `create_faction("Merchant Guild", "Controls trade routes",
+goals=["Expand to East Dock"])` creates a faction with a `faction`-type clock;
+`faction://<id>` returns the faction with its current clock position.
+_Check:_ T269.
+
+**REQ-236 — Entity relationships.** The Game Master may set directed relationships
+between entities, NPCs, and factions. `set_relationship(entity_a, entity_b, type,
+value?, description?)` sets a directed relationship. Relationship types: `ally`,
+`rival`, `neutral`, `mentor`, `dependent`, `suspicious`. `get_relationships(entity_id)`
+returns all relationships for an entity (both outgoing and incoming). Relationships
+SHALL appear on `character_sheet` output in a "Relationships" section. When an
+entity's relationship type changes between `ally` and `rival` (in either direction),
+the GM SHALL be prompted via `hat_briefing` to consider a lore entry. Relationships
+persist with the Novel and SHALL be saved as part of `save_pause_context` (REQ-232).
+Faction identifiers are accepted as valid for either direction.
+*Acceptance criterion:* `set_relationship("pc_1", "npc_guard", "suspicious",
+value=3)` records a suspicious relationship; `get_relationships("pc_1")` includes
+the entry; `character_sheet("pc_1")` shows "Relationships: Guard (suspicious)."
+_Check:_ T270.
+
+**REQ-073 clock types.** `set_countdown` SHALL accept a `clock_type` parameter
+selecting the clock's interaction model:
+
+- `danger` (default) — Current behavior: fills on consequences. Full = danger triggers.
+- `racing` — Two opposed clocks specified by `opposes: <name>`. First to full wins.
+  Both complete simultaneously → tie. Surfaced as paired entries in `countdown://active`.
+- `linked` — On completion, triggers `unlocks: <name>`. Unlocked clock starts at 0.
+  Linked clock chains rendered as an indented tree in `countdown://active`.
+- `tug_of_war` — Segments can be advanced AND retreated. `retreat_countdown(name, ticks?)`
+  removes ticks from the clock; does not go below zero. Filling a `tug_of_war` clock
+  triggers its resolution; retreating does not.
+- `faction` — Background clock for factions (REQ-233). Advances one tick on each scene
+  transition (REQ-125). Surfaced in the faction's resource display.
+- `mission` — Window of opportunity. Auto-decrements one tick at each `resume_novel`.
+  Reaching zero changes mission parameters — surfaced in `hat_briefing`.
+
+`link_countdown(parent_name, child_name)` creates a linked relationship between two
+existing clocks. The existing `type` parameter (`round`/`narrative`) controls tick
+timing — `clock_type` controls the clock's interaction model. Both parameters coexist:
+a clock may be `clock_type: "racing"` with `type: "round"`.
+*Acceptance criterion:* A `racing` clock pair with `opposes` resolves correctly;
+a `linked` clock chain triggers the child on parent completion; a `tug_of_war` clock
+retreated to zero does not trigger.
+_Check:_ T271.
+
+**REQ-072 session format.** `session_recap` SHALL accept an optional `format`
+parameter: `"markdown"` (default, current behavior) or `"lonelog"` — structured
+in Lonelog notation: `###` scene headers, `@` entity actions, `=>` narrative
+outcomes, `?` GM-decision equivalents, `d:` resolved mechanics. `compress_audit`
+SHALL accept the same `format` parameter to produce compressed entries in the
+requested notation. Each audit entry (REQ-040) SHALL gain an optional `notation`
+field storing the Lonelog representation alongside the raw audit data.
+*Acceptance criterion:* `session_recap(format="lonelog")` produces output in
+Lonelog notation; `compress_audit(format="lonelog")` produces compressed
+Lonelog entries; audit entries contain the `notation` field.
+_Check:_ T272.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -2755,7 +2899,7 @@ community items but preserves ruleset-native items.
 _Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set narrative directives via
-`set_narrative_directive(directives)`. Each directive has a `label` (non-empty, unique
+the `narrative_directive` parameter on `set_scene_state`. Each directive has a `label` (non-empty, unique
 within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the
 prior entry. An empty array clears all directives. For backward compatibility,
 `set_narrative_directive` also accepts a single `directive` string — treated as
@@ -2764,8 +2908,9 @@ for the Game Master hat only and at `novel://current`, grouped under "Narrative
 Directives" with their labels. Directives are inert guidance — they do not affect tool
 behavior, dice results, or rules enforcement. They persist with the Novel. Player hat
 attempts return `[ERROR] [FORBIDDEN]`.
-*Acceptance criterion:* `set_narrative_directive([{label: "mood", instruction:
-"dark and brooding"}, {label: "pacing", instruction: "slow burn"}])` produces two
+*Acceptance criterion:* The `narrative_directive` parameter on
+`set_scene_state` with `[{label: "mood", instruction:
+"dark and brooding"}, {label: "pacing", instruction: "slow burn"}]` produces two
 entries in `hat_briefing` under the GM hat; a duplicate "mood" label replaces the prior;
 an empty array clears all directives.
 _Check:_ T64, T134.
@@ -2830,8 +2975,11 @@ enumerated list matches the `section_tokens` field exactly.
 
 _Check:_ T225.
 
-**REQ-083 — Dynamic lore.** The Game Master may create, update, toggle, group, and remove
-keyword-triggered lore entries. Entries activate when trigger keywords appear in scene
+**REQ-083 — Dynamic lore.** The Game Master may set (upsert — create or update), toggle,
+group, and remove keyword-triggered lore entries via `set_lore_entry(key, content, ...)`.
+If the key already exists, provided fields merge into the existing entry; if the key
+does not exist, a new entry is created. `content` is required for new entries and optional
+for updates. Entries activate when trigger keywords appear in scene
 description text (§7.7 Scene → Lore coupling), are hat-filtered, support priority ordering and sticky persistence, and are
 subject to a configurable token budget. The server SHALL return matching enrich templates from `lore://templates`
 via `suggest_lore`. The returned template set SHALL include all hat_scope
@@ -3114,17 +3262,18 @@ _Check:_ T70.
 **REQ-087 — Scene type tagging.** The Game Master may tag the current scene with one or
 more types drawn from a canonical catalog: `combat`, `social`, `exploration`, `neutral`.
 Multiple types may be active simultaneously (e.g., "combat" and "social" for a duel
-amidst negotiation). `set_scene_type` accepts either a single type string or an array of
-type strings. The type tags are guidance — they affect `hat_briefing` composition (tools
+amidst negotiation). The `scene_type` parameter on `set_scene_state` accepts either a
+single type string or an array of type strings. The type tags are guidance — they affect `hat_briefing` composition (tools
 matching any active type are ordered before unmatched tools) and `suggest_actions`
 filtering (actions matching any active type are prioritized), but do not alter tool
 behavior, dice results, or rules enforcement. The types persist with the Novel. Player
 hat attempts return `[ERROR] [FORBIDDEN]`. Confrontation tools (REQ-043) operate
 identically regardless of scene type; the tag guides the GM and LLM toward moves
 matching the scene type.
-*Acceptance criterion:* `set_scene_type(["combat", "social"])` orders combat and
-social tools before exploration tools in `hat_briefing`; `set_scene_type("exploration")`
-works as single-string for backward compatibility.
+*Acceptance criterion:* The `scene_type` parameter on `set_scene_state` with
+`["combat", "social"]` orders combat and
+social tools before exploration tools in `hat_briefing`; a single string
+`"exploration"` works for backward compatibility.
 _Check:_ T71, T135.
 
 **REQ-125 — Scene transition hook.** When `set_scene_state` is called and the new
@@ -3145,6 +3294,27 @@ _Check:_ T136.
 *Out of scope:* AI content generation at runtime (all generation is build-time),
 real-time web enrichment, and narrative quality assessment beyond the anti-slop
 guidance catalog.
+
+**REQ-234 — Secrets and knowledge.** The Game Master may manage hidden information
+with per-entity visibility. `set_secret(key, content, triggers?, hat_scope?)`
+creates a secret lore entry visible only to the Game Master hat. `reveal_secret(key,
+entity_id)` makes a secret known to a specific entity — the entity's `character_sheet`
+SHALL include the secret text in a "Known Information" section. `check_knowledge
+(entity_id, key?)` returns what secrets an entity knows; without `key`, returns all
+known secrets. Secrets are functionally lore entries with a knowledge-visibility
+layer — they follow the same persistence, grouping, and export contracts as lore
+(REQ-083, REQ-094). Resource: `secrets://active` — GM-filtered, lists all secrets
+and their known-by status.
+*Coupling:* When a secret implicates another entity or faction (detected by name
+overlap between the secret text and registered entity/NPC/faction names), a
+`suspicious` relationship (REQ-236) SHALL be recommended between the
+knowledge-holder and the implicated entity. The recommendation SHALL be surfaced
+in `hat_briefing` for the Game Master hat only.
+*Acceptance criterion:* `set_secret("murder_confession", "The butler killed Lord
+Ashworth")` creates a GM-only lore entry; `reveal_secret("murder_confession",
+"pc_detective")` adds "Known Information" to the detective's character sheet;
+`check_knowledge("pc_detective")` returns the secret.
+_Check:_ T274.
 
 ### 5.9 Novel Persistence and Transport
 
@@ -3403,11 +3573,26 @@ constrain TTRPG mechanics — it augments them.
 Conflict-resolution order:
 
 1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
-   override world-model layer behavior.
-2. World-model layer contracts override infrastructure defaults (response
-   format, resource URIs, hat vocabulary).
-3. TTRPG ruleset contracts override infrastructure defaults.
+   override all infrastructure behavior. The TTRPG ruleset drives resolution;
+   infrastructure tools serve narration, state management, and scene composition.
+2. Narrative infrastructure tools (REQ-020 categories, §5.6–5.8) are purely
+   additive. They never conflict with TTRPG mechanics — they provide scene
+   management, character personality, lore tracking, and GM-facing narrative
+   scaffolding. Narrative tools and TTRPG mechanics address separate domains
+   (narrative vs. mechanical); no override is needed between them.
+3. The Inform layer provides optional spatial navigation. It is always secondary
+   surface — backgrounded in all builds. Parser commands are available when a
+   world model is populated; they never drive the game's resolution layer.
 _Check:_ T237.
+
+**Inform secondary surface.** In TTRPG builds, the parser `command` SHALL be
+the only world-model tool visible in the primary help surface — and only when
+a world model is populated. All other Inform tools (`create_room`, `delete_room`,
+`create_thing`, `delete_thing`, `create_exit`, `delete_exit`, `convert_source`)
+SHALL be placed in a secondary "World (Setup)" category at the bottom of the
+help task map. In ruleset-free builds, the same rule applies — the freeform
+narrative tools (Not Inform) are the primary surface; Inform serves as optional
+spatial scaffolding in the secondary category.
 
 **REQ-195 — World-model state tier.** Every Novel SHALL carry a world-model
 state tier. The tier SHALL hold: rooms (named locations with descriptions and
