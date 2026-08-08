@@ -71,3 +71,7 @@ mid-tier. Check for duplicates before adding.
 
 *Queue empty. All items addressed by spec REQs (REQ-058/280/025/281/299–303, knowledge_state).
 Last research pass: 2026-08-08.*
+
+**When the queue is empty:** run `./scripts/spec-queue-wrapup.sh` — a 10-step
+pipeline that audits the spec, rebuilds both servers (Inform + dnd5e), scans
+for dead data, updates README and wiki, then commits and pushes.

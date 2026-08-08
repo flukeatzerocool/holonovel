@@ -9,7 +9,7 @@
 - **License:** Open Game License v1.0a (OGL) + Creative Commons Attribution 4.0 International (CC BY 4.0)
 - **File count:** 1,021 Markdown files across 10 category directories
 - **Encoding:** UTF-8, ATX headings
-- **Build date:** 2026-08-06
+- **Build date:** 2026-08-08
 - **Build mode:** production
 - **Pre-build answers:**
   - B1: Ruleset path = `ruleset/` (in-tree)
@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.08
-- **Spec hash:** 6bf19ec5110fe9b74c4ebff07e211799c87a0a7d5b94059f00953cd326806949
+- **Spec hash:** f61a89ac40d8934e247f0364f34ba05369dcf6253257a042f6af015372f9a8e9
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
