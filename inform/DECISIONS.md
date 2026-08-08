@@ -1,6 +1,6 @@
 # DECISIONS.md — Inform MCP Server
 
-**Spec hash:** f61a89ac40d8934e247f0364f34ba05369dcf6253257a042f6af015372f9a8e9
+**Spec hash:** 55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6
 
 ## 2026-08-08 — Rebuild (Gauntlet verified)
 
@@ -9,9 +9,9 @@
   catalog, and declarative assertion syntax indexed and surfaced at `world://kinds`.
 - Server version: 2026.08.07. Specification version: 2026.08.08.
 - Ruleset hash: "ruleset-free" (B1=none). World-model base: `@holonovel/inform` (B10).
-- Build fingerprint: spec hash `f61a89ac`, ruleset-free, build timestamp 2026-08-08T23:00Z.
+- Build fingerprint: spec hash `55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6`, ruleset-free, build timestamp 2026-08-08T23:00Z.
 
-### Inform Gauntlet (I1–I10) — 2026-08-08
+### Inform Gauntlet (I1–I13) — 2026-08-08
 
 All 10 sub-workflows executed against live MCP server (`scripts/run_gauntlet.ts`).
 Blocking sub-workflows (I1–I6, I10): all PASS. Non-blocking (I7–I9): all PASS.
