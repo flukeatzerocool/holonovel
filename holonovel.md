@@ -61,6 +61,9 @@ Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
 contracts-over-implementations and red-team disciplines), then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing. The SPEC-QUEUE.md tracks subsystems awaiting review.
+Cached domain research at `.holonovel-state/knowledge-base/` provides cross-session
+efficiency — web findings, spec summaries, and implementation analysis with
+defined freshness windows.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
@@ -316,7 +319,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242 | 41    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250 | 45    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245       | 24    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240                         | 14    |
@@ -2843,9 +2846,27 @@ when the adventure module contains a `## World` section — populate the
 Novel's world-model tier with the extracted rooms, things, exits, and
 properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
 `@lore`) to world-model objects by name. Adventure modules without a `## World`
-section SHALL load as flat indexed content — their prose is searchable via
+ section SHALL load as flat indexed content — their prose is searchable via
 `search_rules` and surfaced in `hat_briefing`, but no world-model objects
 are created.
+
+When the adventure module has undergone structural extraction (REQ-247),
+`load_adventure` SHALL additionally pre-populate Novel state from the
+extracted content: extracted NPCs SHALL become Novel-scoped NPC entities
+created silently (GM-modifiable via `update_npc`), extracted location
+descriptions SHALL become lore entries keyed by heading name, extracted
+faction references SHALL become faction entities with starting clocks, and
+the extracted premise SHALL become the adventure hook surfaced in
+`hat_briefing`. The load response SHALL include a summary of pre-populated
+items with counts. Items whose name duplicates existing Novel state are
+skipped with a note. NPCs carrying only a name and no parseable stats are
+created as skeletal entities — they participate in combat with `[AUTO]`
+turns per REQ-043, using the description field for narration, and the GM
+is expected to fill in stats via `update_npc` before mechanical combat
+participation is needed. When a pre-populated NPC's name fuzzy-matches a
+ruleset monster entry (per `lookup_monster`), the load response SHALL
+include a suggestion: "NPC '<name>' may match ruleset entry '<match>'.
+Confirm to populate stats."
 
 After loading, the adventure's prose content SHALL be accessible at
 `adventure://<adventure-slug>/<anchor>`. `search_rules` includes adventure
@@ -2903,10 +2924,19 @@ enrichment tiers (ruleset-native and community) for matches against the newly
 loaded adventure content: voice examples matched to NPC creature types via the
 ruleset index, lore templates matched to `@lore` annotation keywords, action
 patterns matched to encounter types, adventure advice matched to adventure
-themes. Matches are surfaced in the `load_adventure` augmentation section:
+themes. For non-Appendix-K adventures, matches SHALL be derived
+from structural extraction content (REQ-247): voice examples matched to
+extracted NPC names via the ruleset index, lore templates matched to
+extracted location keywords, action patterns matched to extracted encounter
+descriptions. Ruleset-native enrichment items SHALL be automatically
+activated for the GM — items are active in `hat_briefing`, enrichment
+resources, and suggestion surfaces immediately after `load_adventure`
+completes. Community enrichment items SHALL remain inert per REQ-080, with
+a prompt in the load response offering activation: "Community enrichment
+X items found. Review at `enrichment://status` and activate individually."
+Matches are surfaced in the `load_adventure` augmentation section:
 "Enrichment found X voice examples for adventure NPCs, Y lore templates for
-adventure locations. Review at `enrichment://status`." Matches are NOT
-automatically activated — they remain inert per REQ-080. The augmentation
+adventure locations. Review at `enrichment://status`." The augmentation
 section SHALL appear after the world-model population confirmation. When no
 matches are found, the augmentation section is omitted. When enrichment has not
 been run (community tier empty) and ruleset-native enrichment provides no
@@ -2953,6 +2983,87 @@ service — it is a diagnostic surface, not a safety interlock.
 assert `spec_health` reports `[adventure_drift]` for the modified slug with the
 detection timestamp; assert stderr carries a matching warning.
 _Check:_ T209.
+
+**REQ-247 — Adventure structure extraction.** During Discovery (§6.3), the
+builder SHALL extract structural content from every adventure module using
+discoverable patterns — no Appendix K formatting is required. The builder
+SHALL apply three heuristics in order: (a) heading extraction — every `##`
+or `###` heading in the adventure file becomes a structural table-of-contents
+entry; headings that are purely numeric or exceed 50 characters without
+whitespace are excluded (garbled OCR text); confidence HIGH; (b) NPC
+extraction — a bolded name followed within 3 lines by a numeric stat value,
+a role noun, or a page reference is an NPC reference; stat values that parse
+as numbers populate the NPC's fields; non-parsing values are recorded in a
+`notes` narrative field; confidence LOW; (c) location and faction extraction
+— a heading whose text contains no rule/action keywords (roll, check, save,
+attack, damage) and has at least 100 words of prose below it is a
+scene/location description; a heading within 80 words of a goal- or
+resource-describing sentence and containing an organization term (Guild,
+Fleet, Council, Company, Syndicate) is a faction reference; confidence
+MEDIUM. Garbled text matching no pattern is discarded silently — the
+contract guarantees extraction is attempted, not that it yields results.
+Output is recorded in the build's adventure index. The step is skipped when
+no adventure files are present.
+*Acceptance criterion:* Build with a non-Appendix-K adventure — assert
+structural index produced with scene headings, NPC references, and location
+entries; a module with no discoverable structure produces an empty index
+without error.
+_Check:_ T283.
+
+**REQ-248 — Adventure overview resource.** The server SHALL provide a
+resource at `adventure://<slug>/overview` summarizing the adventure's
+contents: the premise (one paragraph introducing the adventure), key NPCs
+(name and one-line role), major locations (name and one-line description),
+factions in conflict, and the scene count from the structural index.
+Content is drawn from the structural extraction (REQ-247) and populated
+when `load_adventure` is called. The resource SHALL be hat-filtered: the
+Player hat sees only the premise and shared content; the Game Master hat
+sees the full overview including GM-only sections. When the adventure has
+no structural index (empty extraction), the resource SHALL return
+`[WARNING]` with "No structured overview available" and the raw adventure
+slug.
+*Acceptance criterion:* `adventure://<slug>/overview` returns premise,
+NPC list with roles, location list, faction descriptions, and scene count,
+hat-filtered per section markers.
+_Check:_ T285.
+
+**REQ-249 — Adventure navigation resource.** The server SHALL provide a
+resource at `adventure://<slug>/navigation` rendering the adventure's
+structural index (REQ-247) as navigable Markdown: all scenes in order
+with heading anchors, the current scene waypoint (REQ-250) marked with
+`[→]`, adjacent scenes indicated as previous and next. The resource is
+on-demand — it SHALL NOT be included in `hat_briefing`. The resource SHALL
+be hat-filtered: GM-only sections are hidden from the Player hat; the Player
+sees only the scene list without GM annotations. When no adventure is loaded,
+the resource SHALL return `[ERROR] [STATE_CONFLICT]` directing the caller to
+load an adventure first. When the adventure has no structural index, the
+resource SHALL return `[WARNING]` with "No navigation index available."
+*Acceptance criterion:* `adventure://<slug>/navigation` returns scene list
+with current waypoint marked; adjacent scenes indicated; hat-filtered per
+section markers; unavailable when no adventure is loaded.
+_Check:_ T286.
+
+**REQ-250 — Adventure scene waypoint.** The `set_scene_state` tool gains
+an optional `adventure_scene` field accepting a heading anchor from the
+adventure's structural index (REQ-247). When set: `hat_briefing` SHALL
+surface the adventure scene's description as a distinct labeled block
+alongside the current scene state — "Adventure Scene (<slug> § <heading>):
+<prose>"; `hat_briefing` SHALL list adjacent scenes (previous and next in
+the structural index) as nearby; the GM's free-text `description` parameter
+remains independent — the two SHALL NOT overwrite each other. The waypoint
+persists with the Novel. Setting `adventure_scene` to a heading not in the
+index returns `[NOT_FOUND]` with nearby scene names enumerated. Setting it
+to an empty string or null clears the waypoint. Changing the waypoint fires
+a scene transition hook (REQ-125). The field is Game Master only; the Player
+hat reads it passively via `hat_briefing`. When `adventure_scene` is set and
+the adventure contains GM-only sections, the scene description SHALL be
+rendered regardless of hat — but the full scene prose (at the adventure
+resource) is hat-filtered per adventure section markers.
+*Acceptance criterion:* Set `adventure_scene` to a heading anchor — assert
+description in `hat_briefing` labeled with adventure slug and scene heading;
+adjacent scenes listed; transition hook fires; `[NOT_FOUND]` for unknown
+anchors; Player pass-through in briefing.
+_Check:_ T284.
 
 **REQ-132 — Adventure generation lifecycle.** Adventure content produced by
 `generate_adventure(premise)` is a transient Novel-scoped artifact, distinct
@@ -4012,7 +4123,14 @@ _Check:_ T98.
 characters — import roster characters or create new ones, with the ruleset's creation
 options described in plain English; (2) story source — load an adventure, generate from
 a premise, generate a random encounter, or build from scratch, with each option
-explained in terms of what the GM gets narratively; (3) session zero. Each step SHALL
+explained in terms of what the GM gets narratively; after step 2 completes and
+a story source is selected, `novel_setup` SHALL include a plain-English
+note: "Community enrichment — web-sourced play advice tailored to your
+adventure's themes — is available for this Novel. You can run enrichment
+against this server to add it now, or proceed without it." The note SHALL
+describe enrichment in terms of what it delivers (voice examples, lore
+ideas, scene advice) not what it is called or how to invoke it; (3)
+session zero. Each step SHALL
 display a visual completion marker — `[✓]` for completed, `[→]` for current, `[ ]` for
 pending — so the operator always knows where they are. Step descriptions SHALL be
 conversational in plain English (e.g., "You have 2 characters in your roster. Would you
@@ -4867,6 +4985,13 @@ is canonical. An `[authority-tie]` is produced when criteria 1–4 all
 produce a tie.
 _Check:_ T174.
 
+**Adventure structure extraction.** After the seven extraction categories and
+enrichment classification, the builder SHALL run adventure structure extraction
+(REQ-247) against every adventure module file present in the build input. The
+builder records the adventure index — structural TOC, extracted NPC references,
+location entries, and faction references — in DECISIONS.md (4). The step is
+skipped when no adventure files are present.
+
 ### 6.4 Server construction
 
 *Prepare:* Load files from `build-phase-map.md` Construction row: 03-build.md §6.4,
@@ -5714,6 +5839,10 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-239 | S24 | Audit log compaction |
 | REQ-241 | S25 | Checkpoints |
 | REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-247 | S2, S18 | Adventure structure extraction |
+| REQ-248 | S18 | Adventure overview resource |
+| REQ-249 | S18 | Adventure navigation resource |
+| REQ-250 | S16, S18 | Adventure scene waypoint |
 | REQ-050 | S4, S7 | Determinism (PRNG) |
 | REQ-051 | G4 | No runtime network access |
 | REQ-052 | S13, S21 | Path containment |
@@ -5866,7 +5995,9 @@ are selected for changed surfaces.
 ### 6.7 Spec-driven updates
 
 *Prepare:* Load files from `build-phase-map.md` Spec-driven update row:
-03-build.md §6.7 plus files changed per git diff.
+03-build.md §6.7 plus files changed per git diff. Before reading spec sections
+for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
+spec summaries and implementation analysis — use fresh entries to reduce re-reading.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps across the tool
@@ -6066,7 +6197,7 @@ State tiers:
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains eleven property groups, all
+**Novel properties.** Every Novel contains thirteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -6078,6 +6209,8 @@ discarded by `end_novel`):
 | Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (hat-filtered per REQ-083)        |
 | Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered)                    |
 | Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content hat-filtered; indexed and generated adventures coexist in the active Novel  |
+| Adventure Scene Waypoint | read/write (REQ-250)                                      | read-only (pass-through in `hat_briefing`)      |
+| Adventure Index | read (populated from REQ-247 structural extraction; read-only index-level data) | read-only (hat-filtered per adventure section markers) |
 | Faction     | read/write/create/delete (REQ-233)                                   | read-only (GM-filtered)                         |
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
@@ -6126,6 +6259,9 @@ consistent order.
 | Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
 | DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
 | Notes → Scene       | Notes tagged with scene anchors surface when that scene is active                                                  | Navigational   | REQ-242 |
+| Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
+| Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
+| Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`hat_briefing`, resource rendering, suggestion tools) and does not influence
@@ -7334,6 +7470,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-244 | Convergence cache key | 2026-08-08 |
 | REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
 | REQ-246 | Story journal                 | 2026-08-08 |
+| REQ-247 | Adventure structure extraction | 2026-08-08 |
+| REQ-248 | Adventure overview resource   | 2026-08-08 |
+| REQ-249 | Adventure navigation resource | 2026-08-08 |
+| REQ-250 | Adventure scene waypoint      | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -7689,6 +7829,12 @@ diet.
 | T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
 | T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
 | T282  | Automated | Story journal: call `record_story("moment", "The ferryman told a story...")` during an active scene with entity "eira" on scene "river-crossing" — assert entry appended to `story_journal` array in Novel JSON with `type: "moment"`, `entry`, `timestamp` (ISO 8601), `scene_anchor: "river-crossing"`, and `entity_ids: ["eira"]`. Call `undo` — assert story journal entry persists (not undone). Call `export_novel("json")` — assert `story_journal` key present with one entry. Call `record_story("moment", "...")` under Player hat — assert `[FORBIDDEN]`. Call `record_story("invalid_type", "...")` — assert `[ERROR] [INVALID_INPUT]` with valid type enumeration. Invoke `session_recap()` — assert `story_entries` field present as array with at most 10 most recent entries. Invoke `hat_briefing` with scene set to "river-crossing" and entity "eira" active — assert `story` section token present containing the ferryman entry. Call `end_novel()` — assert `story_journal` cleared. | REQ-246 |
+| T283  | Automated | Adventure structure extraction: build with a non-Appendix-K adventure module (raw prose, no `## World`, no `@npc` annotations). Assert structural index produced with scene headings, NPC references, and location entries. Assert extracted NPC names appear in DECISIONS.md (4) adventure index. Assert a module with entirely garbled OCR text (no discoverable structure) produces an empty index without error. Assert no `[malformed_adventure]` flag for non-conforming adventures — structural extraction is independent of Appendix K validation. | REQ-247, REQ-171 |
+| T284  | Automated | Adventure scene waypoint: load an adventure with a populated structural index. Call `set_scene_state(adventure_scene="Some Scene Heading")` — assert `hat_briefing` surfaces the adventure scene description labeled with the active adventure slug and scene heading. Assert adjacent scenes (previous and next in the structural index) are listed in `hat_briefing`. Assert the GM's free-text `description` remains independent and visible alongside the adventure scene. Call `set_scene_state(adventure_scene="")` — assert waypoint cleared, adventure scene absent from briefing. Call `set_scene_state(adventure_scene="nonexistent-heading")` — assert `[ERROR] [NOT_FOUND]` with nearby scene names enumerated. Assert changing the waypoint fires a scene transition hook (REQ-125). Switch to Player hat — assert adventure scene visible in briefing passively, `set_scene_state` with `adventure_scene` returns `[FORBIDDEN]`. | REQ-250, REQ-125, REQ-032 |
+| T285  | Automated | Adventure overview resource: load an adventure with populated structural extraction. Call `resources/read` on `adventure://<slug>/overview` — assert premise, NPC list with role descriptions, location list, faction descriptions, and scene count present. Switch to Player hat — assert GM-only sections (NPCs marked Keeper-only) hidden; premise and shared locations visible. Call `load_adventure` on a module with empty structural extraction — assert `[WARNING]` with "No structured overview available." | REQ-248, REQ-079, REQ-032 |
+| T286  | Automated | Adventure navigation resource: load an adventure with populated structural index. Call `resources/read` on `adventure://<slug>/navigation` — assert scene list in order with heading anchors. Set adventure scene waypoint to scene heading — assert current waypoint marked with `[→]`, adjacent scenes indicated as previous/next. Switch to Player hat — assert GM-only section headings are hidden; shared scene headings visible. Call with no adventure loaded — assert `[ERROR] [STATE_CONFLICT]`. Load an adventure with empty extraction — assert `[WARNING]` with "No navigation index available." | REQ-249, REQ-250, REQ-032 |
+| T287  | Automated | Adventure pre-population: build with a non-Appendix-K adventure containing discoverable NPC names (bolded name + stat-like value) and location headings with prose. Call `load_adventure` — assert NPC entities created in Novel with extracted names; assert lore entries created keyed by location heading names; assert factions created from organization references. Assert load response includes summary with item counts. Assert NPCs carrying only a name and no parseable stats (skeletal entities) participate in combat with `[AUTO]` turns per REQ-043. Assert duplicate-name Novel state is skipped with note in load response. Assert fuzzy-match suggestion appears when extracted NPC name matches a ruleset monster entry. | REQ-079, REQ-247, REQ-043 |
+| T288  | Automated | Enrichment auto-activation on adventure load: load an adventure with enrichment active and NPC references matching enrichment voice_examples. Assert ruleset-native enrichment voice examples are auto-activated for the GM — items appear active in `hat_briefing` and enrichment resources immediately after load completes. Assert community enrichment items remain inert with activation prompt in load response. Load an adventure with no matching enrichment items — assert no augmentation section, no auto-activation. | REQ-229, REQ-080 |
 | T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
@@ -8054,6 +8200,16 @@ world-model objects by name; unmatched annotations are reported as unresolved
 references. Adventure content appears in `search_rules` results filtered by active
 adventure and hat. The `load_adventure` tool (REQ-079) sets the active adventure
 and populates the world model for the current Novel.
+
+**Non-Appendix-K adventures.** Adventure modules that do not conform to Appendix K
+conventions — PDF-to-Markdown conversions, raw prose without `## World` sections,
+unannotated content — are still structurally extracted and pre-populated per
+REQ-247 (adventure structure extraction) and amended REQ-079. Appendix K conventions
+enable higher-confidence extraction, world-model population, and `@npc` annotation
+linkage. Non-conforming modules use discoverable-pattern extraction at LOW or
+MEDIUM confidence — they receive NPC pre-population, location lore entries, and
+faction creation, but cannot create world-model rooms or linked annotation entities
+without a `## World` section.
 
 ---
 

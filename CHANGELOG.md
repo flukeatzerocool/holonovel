@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-08 — Holodeck queue, adventure extraction
+
+- Cleared stale SPEC-QUEUE items (world-model layer and ruleset-free build are
+  both implemented in @holonovel/inform) and repopulated with seven Holodeck-driven
+  items ranked across three tiers. Every item maps to a Star Trek episode scene, a
+  competitive benchmark, or a persona quit moment from the knowledge base, scored on
+  fidelity, friction, and safety against the Holodeck's eight evaluation axes.
+
+- Adventure modules now support structural extraction: loading an adventure
+  pre-populates NPCs, location lore, faction entities, and scene waypoints from
+  parsed headings and prose. Structural extraction separates index-level data
+  (read-only) from live Novel state, and adventure scene waypoints trigger scene
+  transitions and lore coupling. (REQ-247–250, §5.6, §7.7)
+
+- Bumped Novel property groups from eleven to thirteen to accommodate Adventure
+  Scene Waypoint and Adventure Index. Cross-property coupling table now documents
+  adventure waypoint → scene/lore and adventure index → NPC relationships.
+
 ## 2026-08-08 — Story lifecycle, narrative memory, one-file Novel
 
 - Defined the story lifecycle: entering a Novel now starts in editing
