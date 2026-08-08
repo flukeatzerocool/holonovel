@@ -13,7 +13,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 32    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 18    |
-| 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
+| 5.10    | World-Model Layer                     | 195–202, 222, 309                                   | 10    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -1240,8 +1240,9 @@ matches and returns their names, descriptions, and example invocations from the 
 playbook. Output is hat-filtered. The Game Master may customize the task-map category
 assignments via a Novel-scoped mapping. A tool reassigned to a user-defined category
 is removed from its builder-assigned category. The mapping persists with the Novel.
-Player hat results always reflect builder-assigned categories. An empty mapping
-restores builder defaults.
+Player hat results always reflect builder-assigned categories. The builder-assigned
+categories SHALL follow the default set by `TTRPG_WORLD_PROMINENCE` (REQ-309). An
+empty mapping restores builder defaults.
 *Acceptance criterion:* `help()` returns an intro pointer, task-map with one-line
 descriptions, and a `hat_briefing` pointer; `help("combat")` returns the most
 relevant combat tools with example invocations.
@@ -4041,7 +4042,10 @@ Section tokens control both ordering and inclusion — a token present in the
 array causes its corresponding group to render (or render as an empty section
 if the group has no content); a token absent from the array causes its group to
 be omitted entirely from `hat_briefing`. The builder default ordering includes
-all groups. The builder SHALL document the
+all groups and SHALL follow the placement contract of `TTRPG_WORLD_PROMINENCE`
+(REQ-309) — world-model state is decision-critical at `prominent`, a dedicated
+section at `visible`, or folded into scene state at `secondary`. The builder
+SHALL document the
 complete section-token-to-group mapping and the default ordering in DECISIONS.md, so
 the valid token set and default section ordering are auditable at build verification
 time without invoking the running server. The mapping SHALL cite the REQ-109 group each
@@ -5313,12 +5317,17 @@ Conflict-resolution order:
    management, character personality, lore tracking, and GM-facing narrative
    scaffolding. Narrative tools and TTRPG mechanics address separate domains
    (narrative vs. mechanical); no override is needed between them.
-4. The World layer provides optional spatial navigation. It is always secondary
-    surface — backgrounded in all builds. Parser commands are available when a
-     world model is populated; they never drive the story's resolution layer.
+4. The World layer provides optional spatial navigation. Its default surface
+   prominence is `secondary`, configurable via `TTRPG_WORLD_PROMINENCE`
+   (REQ-309). Parser commands are available when a world model is populated;
+   they never drive the story's resolution layer.
 _Check:_ T237.
 
-**World secondary surface.** In TTRPG builds, the parser `command` SHALL be
+**World surface prominence.** REQ-309 defines a `TTRPG_WORLD_PROMINENCE`
+configuration with three levels controlling the default surface emphasis of
+world-model and narrative infrastructure tools across help categories,
+`hat_briefing` composition, and `suggest_actions` intent mapping. At the
+default `secondary` level: In TTRPG builds, the parser `command` SHALL be
 the only world-model tool visible in the primary help surface — and only when
 a world model is populated. All other World tools (`create_room`, `delete_room`,
 `create_thing`, `delete_thing`, `create_exit`, `delete_exit`, `convert_source`)
@@ -5561,6 +5570,48 @@ vocabulary (REQ-196) is the complete command set.
 category with source anchors; a ruleset with no additional verbs exposes only the
 base vocabulary at `world://kinds/parser_commands`.
 _Check:_ T264.
+
+**REQ-309 — World and narrative surface prominence.** THE server SHALL accept a
+`TTRPG_WORLD_PROMINENCE` configuration with three levels controlling the default
+surface emphasis of world-model and narrative infrastructure tools across the help
+task map, `hat_briefing` composition, and `suggest_actions` intent mapping. The
+setting SHALL be a build-time configuration recorded in DECISIONS.md (1) and SHALL
+be server-scoped — it applies as the default to every Novel, overridable per-Novel
+by `set_help_category` (REQ-067) and `set_briefing_order` (REQ-082). TTRPG
+resolution authority is unchanged by this setting — it affects presentation, not
+mechanics.
+
+At `secondary` (default): World-model tools SHALL be placed in a secondary help
+category. `hat_briefing` SHALL fold world-model state into the scene state section;
+narrative-tool sections SHALL render only when their data is non-empty.
+`suggest_actions` SHALL NOT return parser commands for exploration or navigation
+intents.
+
+At `visible`: World-model and narrative tools SHALL appear in primary help
+categories alongside TTRPG tools. `hat_briefing` SHALL include a dedicated
+world-model state section with an empty-state marker when the world-model tier is
+unpopulated. `suggest_actions` SHALL return parser commands alongside TTRPG
+mechanics for spatial intents whose registered tools are absent — parser command
+suggestions SHALL NOT replace existing TTRPG tool suggestions.
+
+At `prominent`: Parser `command` SHALL be a top-level help entry; world CRUD tools
+SHALL appear in a primary setup category. `hat_briefing` SHALL include world-model
+state in the decision-critical group. `suggest_actions` SHALL prefer parser commands
+over TTRPG mechanics for exploration and navigation intents — parser command
+suggestions SHALL appear before TTRPG tool suggestions when both match the intent.
+
+In ruleset-free mode (B1=`none`), the setting SHALL be skipped — the world-model
+and narrative layers are the primary surface by definition (REQ-218). The builder
+SHALL NOT record a `TTRPG_WORLD_PROMINENCE` value in DECISIONS.md when B1 is
+`none`, and the intake question (B12) SHALL NOT be asked.
+
+*Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=secondary` produces
+the current default help categorization (World in secondary category).
+`TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level help
+entry and includes world-model state in the decision-critical briefing group.
+`TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with all three
+layers in primary help.
+_Check:_ T-new-309.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
