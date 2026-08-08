@@ -6,11 +6,16 @@ After Enrich completes, re-run the Gauntlet blocking sub-workflows (§6.6 exit c
 previously-passing blocking sub-workflow that now fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
-### 11.1 Hat enrichment
+### 11.1 Community enrichment
 
-Pre-build questions are collected in §6.2 when the `enrich` workflow is selected. Enrich runs
-after Build completes and all verification workflows pass (§8), enhancing the server with community-sourced play
-advice. Build alone produces a fully working server; enrichment makes a good server better.
+Ruleset-native enrichment (tier 1) is extracted during Discovery per REQ-225 and
+shipped with every build. Community enrichment (tier 2) is run after Build
+completes and all verification workflows pass (§8), enhancing the server with
+web-sourced play advice layered on top of ruleset-native enrichment. Pre-build
+questions are collected in §6.2 when the `enrich` workflow is selected. Build
+alone produces a fully working server with ruleset-native enrichment; community
+enrichment adds supplementary content to every module. Community items carry
+`[supplementary]` tag and never replace ruleset-native items (REQ-227).
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
 selected source types (E2). Research depth is deep — at minimum:
@@ -76,10 +81,20 @@ output. Enrich produces an enrichment manifest with six output modules:
    table_expansions, or scenario_starters), `content` (Markdown), `source_url`,
    `confidence`, and `hat_scope`. Stored at `enrichment://adventure_advice`. **Inert**
    — the `generate_adventure` and `generate_encounter` tools (REQ-090, REQ-091) may draw
-   from this module to seed scaffolds, but the content never auto-applies.
+    from this module to seed scaffolds, but the content never auto-applies.
 
-**Boundaries.** Enrich may ADD to: entity voice_examples, prompt ordering recommendations,
-lore templates, action suggestion patterns, adventure advice, and supplementary guidance.
+7. **Narrative voice profiles.** Up to 15 community-sourced items. Ruleset-native items
+    extracted during Discovery per REQ-226 already populate the module. Each item
+    records: `name` (e.g., "Sword & Sorcery — Conan"), `media_title`, `media_type` (film,
+    novel, game), `description` (narrative techniques from the source material),
+    `source_url` (for community items; ruleset-native items carry `source` anchor), and
+    `confidence`. Stored at `enrichment://narrative_voices`. **Inert** — the GM applies a
+    profile via `set_narrative_directive` (REQ-081) by naming the profile. Community
+    items tagged `[supplementary]`; ruleset-native items tagged `[ruleset]`.
+
+**Boundaries.** Community enrichment may ADD to: entity voice_examples, prompt ordering
+recommendations, lore templates, action suggestion patterns, adventure advice, narrative
+voice profiles, and supplementary guidance.
 Enrich MUST NOT modify: mechanical fields (stats, saves, HP, conditions, combat state),
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged content
 (REQ-080).
@@ -105,6 +120,7 @@ audit. The builder records scope overrides in the enrichment manifest.
 | Action patterns         | 10 total                  | Yes           |
 | Supplementary guidance   | 20 total                  | Yes           |
 | Adventure advice         | 30 total                  | Yes           |
+| Narrative voice profiles   | 15 total                  | Yes           |
 
 Budget cap overrides are accepted via E4 at intake (§6.2). Overrides must be ≥ the
 spec minimum shown in this table. Overrides below the minimum are rejected with a
@@ -167,8 +183,8 @@ results in DECISIONS.md:
 5. Hat filtering: GM-scoped enrich content hidden from Player hat. LOW-confidence
    items carry `[LOW]` tag in all hat views.
 6. Budget compliance: no output module exceeds its cap.
-7. Research depth: every output module (modules 1–6) contains ≥1 actionable item. Source
-   domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
+7. Research depth: every output module (modules 1–7) contains ≥1 actionable item. Source
+    domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
    disposition with supplement source audit is recorded in DECISIONS.md.
 8. Content relevance: every enrichment item references the ruleset by name or by a term
    drawn from the ruleset's index. Generic RPG advice without a ruleset-specific anchor
@@ -197,7 +213,30 @@ state directory is absent — produces no enrichment unless the Enrich workflow
 is selected at intake. The builder surfaces enrichment status after build in
 `spec_health`.
 
-**Reversion.** Calling `revert_enrichment` (REQ-103) removes all enrichment
-state at runtime without requiring a rebuild. Enrichment manifest and
-verification results remain in DECISIONS.md for audit.
+**Reversion.** Calling `revert_enrichment` (REQ-103) removes all community enrichment
+state at runtime without requiring a rebuild. Ruleset-native enrichment persists.
+Enrichment manifest and verification results remain in DECISIONS.md for audit.
+
+**Enrichment resource rendering.** Every enrichment resource URI
+(`enrichment://voice_examples`, `enrichment://briefing_order`,
+`enrichment://action_patterns`, `enrichment://adventure_advice`, `enrichment://narrative_voices`,
+`lore://templates`)
+and every hat guidance resource that draws from enrichment data
+(`guidance://<hat>/voice`, `guidance://<hat>/tone`) SHALL render from the Novel's
+live enrichment state — not from hardcoded text. When the enrichment array is
+non-empty, the resource output SHALL contain the enrichment items filtered by
+output_module and hat scope. Ruleset-native items (`[ruleset]`-tagged) are always
+present; community items (`[supplementary]`-tagged) are present when community
+enrichment has been run and not reverted.
+
+**Partial refresh.** The enrichment fingerprint SHALL include per-module hashes in
+addition to the root aggregate hash. When community enrichment is re-run and a
+module's hash matches the stored value, that module is unchanged — its inactive
+items are preserved as-is. When a module's hash differs, only that module's
+inactive items are replaced with fresh output; active (GM-activated) items are
+preserved per REQ-130. Modules whose hashes are individually unchanged SHALL NOT
+be disturbed — their items, timestamps, and activation state remain identical.
+This allows staleness resolution and incremental enrichment without rebuilding
+the entire manifest. The enrichment fingerprint root hash SHALL still aggregate
+all module hashes for quick whole-manifest comparison.
 

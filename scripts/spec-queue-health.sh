@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # spec-queue-health.sh — Read-only diagnostic for the spec queue pipeline.
-# Reports WAL size, process count, queue state, and stale markers.
-# Exit 1 if anything needs attention; 0 if clean.
+# Reports WAL size, process count, queue state, server dir presence, and
+# stale markers. Exit 1 if anything needs attention; 0 if clean.
 #
 # Usage:
 #   ./scripts/spec-queue-health.sh
@@ -61,6 +61,46 @@ else
     echo -e "  ${RED}High process count — check for stale sessions${NC}"
     issues=$((issues + 1))
   fi
+fi
+echo ""
+
+# ── Server directories ──────────────────────────────────────────────────────
+
+echo -e "${YELLOW}── Server directories ──${NC}"
+
+# Inform server
+inform_dir="$PROJECT_DIR/inform"
+if [[ -d "$inform_dir" ]]; then
+  inform_spec_hash="none"
+  if [[ -f "$inform_dir/DECISIONS.md" ]]; then
+    inform_spec_hash=$(grep -oP 'Spec hash:\s*\S+' "$inform_dir/DECISIONS.md" 2>/dev/null | awk '{print $NF}' || echo "present (no hash)")
+  fi
+  echo -e "  ${GREEN}inform/: present${NC} (spec hash: $inform_spec_hash)"
+else
+  echo -e "  ${YELLOW}inform/: not found — server not yet built${NC}"
+  issues=$((issues + 1))
+fi
+
+# dnd5e server
+dnd5e_dir="$PROJECT_DIR/dnd5e"
+if [[ -d "$dnd5e_dir" ]]; then
+  dnd5e_spec_hash="none"
+  if [[ -f "$dnd5e_dir/DECISIONS.md" ]]; then
+    dnd5e_spec_hash=$(grep -oP 'Spec hash:\s*\S+' "$dnd5e_dir/DECISIONS.md" 2>/dev/null | awk '{print $NF}' || echo "present (no hash)")
+  fi
+  echo -e "  ${GREEN}dnd5e/: present${NC} (spec hash: $dnd5e_spec_hash)"
+else
+  echo -e "  ${YELLOW}dnd5e/: not found — server not yet built${NC}"
+  issues=$((issues + 1))
+fi
+
+# Provider docs
+provider_docs="$PROJECT_DIR/inform/docs_md"
+if [[ -d "$provider_docs" ]] && [[ -n "$(ls -A "$provider_docs" 2>/dev/null)" ]]; then
+  echo -e "  ${GREEN}inform/docs_md/: present${NC}"
+else
+  echo -e "  ${RED}inform/docs_md/: missing or empty — provider docs required for Inform build${NC}"
+  issues=$((issues + 1))
 fi
 echo ""
 

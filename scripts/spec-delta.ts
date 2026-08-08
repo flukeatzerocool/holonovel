@@ -8,7 +8,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
 const SPEC_PATH = join(root, "holonovel.md");
-const DECISIONS_PATH = join(root, "dnd5e", "DECISIONS.md");
+
+const server = process.argv.includes("--server")
+  ? process.argv[process.argv.indexOf("--server") + 1]
+  : "dnd5e";
+
+if (server !== "dnd5e" && server !== "inform") {
+  console.error("Usage: npm run spec-delta -- --server inform|dnd5e");
+  process.exit(1);
+}
+
+const SERVER_DIR = join(root, server);
+const DECISIONS_PATH = join(SERVER_DIR, "DECISIONS.md");
 
 function sha256(filePath: string): string {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");

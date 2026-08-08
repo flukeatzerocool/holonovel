@@ -42,7 +42,11 @@ selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
 (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items);
 the Appendix W fixture (World-Model) for ruleset-free builds.
-Assert all contracts the selected fixture's transcript exercises: status prefix
+For Light and Standard tiers (<500 indexed items), the builder replays the first
+100 interactions of the selected fixture and verifies per T185 that all applicable
+contracts are exercised within that span. Full transcript replay is required for
+Heavy and Huge tiers. Assert all contracts the selected fixture's transcript
+exercises: status prefix
 and `isError` semantics (REQ-001), required fields in order, die values pinned
 by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
 (REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),

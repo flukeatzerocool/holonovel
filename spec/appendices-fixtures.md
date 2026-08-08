@@ -727,3 +727,193 @@ B.4. A d20 draw is `⌊next() × 20⌋ + 1`.
 
 ---
 
+## Appendix W: World-Model Golden Fixture
+
+_A synthetic test fixture for ruleset-free Holonovel builds. No dice, no stats, no combat
+mechanics — only parser commands, world-model state, hat gating, Novel lifecycle, lore,
+countdowns, and undo. Exercises the same behavioral contracts as Appendix B (REQ-001,
+REQ-032, REQ-041, REQ-042, REQ-055, REQ-072, REQ-073, REQ-092) over infrastructure-only
+surfaces._
+
+### W.1 Fixture world model
+
+```
+The Entrance Chamber is a room. "A vast hall carved from living stone. Torches gutter in
+iron sconces, casting dancing shadows across the polished floor. A heavy oaken door leads
+north. A wrought-iron lever protrudes from the eastern wall."
+
+The Hall of Statues is a room. "Tall statues line both walls — kings, warriors, and
+creatures of legend, their stone eyes following you. The air is cold and still. The oaken
+door leads back south. An obsidian door, carved with serpentine patterns, leads north."
+
+The Throne Room is a room. "A single throne of black stone dominates the chamber. Dust
+lies thick on every surface. The Serpent Crown rests on the throne's seat, its emerald
+eyes glinting. The obsidian door leads back south."
+
+North of the Entrance Chamber is the Hall of Statues.
+North of the Hall of Statues is the Throne Room.
+
+A wrought-iron lever is in the Entrance Chamber. It is fixed.
+The obsidian door is a door. It is closed and locked.
+The Serpent Crown is in the Throne Room. "A golden crown set with emerald eyes. Cold
+to the touch."
+```
+
+### W.2 Expected model
+
+A correct indexing of the fixture includes: 3 rooms with descriptions, 4 directional
+exits (with implicit reverse exits), 1 thing (the Serpent Crown, portable), 1 fixed thing
+(the lever), 1 door (openable, lockable, closed, locked). All descriptions are verbatim
+from the source. The lever is fixed (cannot be taken). The door blocks passage north from
+the Hall of Statues when closed.
+
+### W.3 Golden transcript
+
+```
+→ create_novel { "name": "The Serpent Crown" }
+[OK] Novel created: the-serpent-crown (novel://current)
+
+→ convert_source { "source": "<W.1 fixture text>" }
+[OK] World model populated: 3 rooms, 2 things, 4 exits. Linked annotations: 0.
+Linked annotation counts — encounters: 0, NPCs: 0, traps: 0, lore: 0.
+
+→ set_scene_state { "description": "The entrance chamber. Torches flicker." }
+[OK] Scene set: The entrance chamber. Torches flicker.
+
+# World-model parser commands under Player hat
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Entrance Chamber
+A vast hall carved from living stone. Torches gutter in iron sconces, casting dancing
+shadows across the polished floor. A heavy oaken door leads north. A wrought-iron lever
+protrudes from the eastern wall.
+You can see: a wrought-iron lever (fixed).
+Exits: north (oaken door).
+
+→ command { "command": "go north" }
+[OK] The Hall of Statues
+Tall statues line both walls — kings, warriors, and creatures of legend, their stone
+eyes following you. The air is cold and still.
+Exits: south (oaken door), north (obsidian door — closed, locked).
+
+→ command { "command": "go north" }
+[WARNING] The obsidian door is closed.
+
+→ command { "command": "open obsidian door" }
+[WARNING] The obsidian door is locked.
+
+→ command { "command": "go south" }
+[OK] The Entrance Chamber
+A vast hall carved from living stone...
+Exits: north (oaken door).
+
+→ command { "command": "take lever" }
+[ERROR] [RULE_VIOLATION] The wrought-iron lever is fixed.
+Corrective action: fixed objects cannot be taken.
+
+→ command { "command": "xyzzy" }
+[ERROR] [NOT_FOUND] "xyzzy" is not a recognized command.
+Corrective action: try look, go <direction>, take <thing>, drop <thing>,
+open <door>, close <door>, inventory, or wait.
+
+# Cross-hat boundary
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ init_combat { "participants": [], "dangers": [{"name": "stone-guardian"}] }
+[ERROR] [FORBIDDEN] init_combat is restricted to the game_master hat.
+Corrective action: switch hats via `set_hat("game_master")`.
+
+# GM hat — manage state, set lore and countdown
+→ set_hat { "hat": "game_master" }
+[OK] Active hat: game_master
+
+→ set_lore_entry { "key": "serpent-crown-lore", "content": "The Serpent Crown was
+forged by the Serpent King to bind the seven winds. It grants the wearer command
+over storms.", "triggers": ["serpent crown", "throne room"] }
+[OK] Lore entry created: serpent-crown-lore
+
+→ set_countdown { "name": "torch-fade", "ticks": 3, "type": "narrative" }
+[OK] Countdown set: torch-fade (3 ticks, narrative)
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade: 2 ticks remaining.
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade: 1 tick remaining.
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade expired. Recorded in audit log.
+
+# Player triggers lore by entering the Throne Room (GM sets scene)
+→ set_scene_state { "description": "The Throne Room. The Serpent Crown gleams
+on the black stone throne." }
+[OK] Scene set. Transition recorded.
+
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Throne Room
+A single throne of black stone dominates the chamber. Dust lies thick on every surface.
+The Serpent Crown rests on the throne's seat, its emerald eyes glinting.
+You can see: the Serpent Crown.
+Exits: south (obsidian door).
+
+→ command { "command": "take serpent crown" }
+[OK] You take the Serpent Crown.
+
+# GM verifies lore triggered by Serpent Crown
+→ set_hat { "hat": "game_master" }
+[OK] Active hat: game_master
+
+→ hat_briefing {}
+[OK] Lore: [serpent-crown-lore] The Serpent Crown was forged by the Serpent King...
+
+→ session_recap {}
+[OK] Active Novel: the-serpent-crown. Scene: The Throne Room. World model: 3 rooms,
+1 thing held by player, 1 fixed lever, 1 door (open).
+
+→ undo {}
+[OK] Reverted: command("take serpent crown"). The Serpent Crown is back on the throne.
+
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Throne Room
+A single throne of black stone dominates the chamber. Dust lies thick on every surface.
+The Serpent Crown rests on the throne's seat, its emerald eyes glinting.
+You can see: the Serpent Crown.
+Exits: south (obsidian door).
+
+→ command { "command": "take serpent crown" }
+[OK] You take the Serpent Crown.
+
+→ end_novel {}
+[NEED_INPUT] Decision: -end_novel-confirm
+Question: End Novel "The Serpent Crown"?
+Options: yes, cancel
+
+→ respond { "decision": "-end_novel-confirm", "option": "yes" }
+[OK] Novel ended: the-serpent-crown. Roster survives.
+```
+
+### W.4 Behavioral contracts exercised
+
+The Appendix W transcript exercises: REQ-001 (status prefixes on `[OK]`, `[WARNING]`,
+`[ERROR]`, `[NEED_INPUT]`), REQ-032 (hat gating — `init_combat` blocked from Player,
+`set_hat` switches hats), REQ-041 (undo round-trip restores item position on the
+throne), REQ-042 (decision workflow — `[NEED_INPUT]` with yes/cancel, concluded via
+`respond`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
+survives `end_novel`), REQ-072 (session_recap reports scene state, entity inventory,
+world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, audit),
+REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file
+removal), REQ-196 (parser commands — look, go north, go south, take, open, assert
+locked door blocks passage, assert fixed things cannot be taken, assert unrecognized
+commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
+door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
+(hybrid source conversion via convert_source populates rooms, things, and exits).
+

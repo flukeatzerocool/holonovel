@@ -1,26 +1,23 @@
 # Holonovel
 
-> **Quick Reference.** An AI build prompt for an MCP server that always builds with
-> the `@holonovel/inform` world-model layer (rooms, things, exits, properties,
-> parser commands, kind hierarchy) and optionally layers a tabletop RPG ruleset on
-> top. The AI reads the ruleset (when provided), extracts
-> mechanics, builds the server, and proves it works. Output: a running MCP server
-> with the Inform world-model layer
-> (rooms, things, exits, properties, parser commands), hybrid adventure modules,
-> dice, combat, character management, rules lookup, narrative directives, dynamic
-> lore, action suggestions, voice examples, macros, scene-type tagging, audit
-> compression, scene-state tracking, NPC management, countdowns, and session
-> recap — plus four handoff artifacts (plus LICENSE.md) (RULESET_MODEL.md,
-> DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
-> community-sourced play advice. Quality enforced by verification workflows, 14
-> handoff verification steps, and a golden-transcript replay. One server per ruleset.
-> No network at runtime (REQ-051). The Player hat is the human at the table; the Game
-> Master hat is the AI narrator (REQ-032), switchable via `set_hat` (REQ-066).
-> Multi-character support: one player may control multiple entities (REQ-074).
-> Adventures load as hybrid world-model + prose modules (REQ-079). State tiers: world
-> model, roster, Novels, lore, and enrichment tiers enhance guidance; connections are
-> ephemeral transport; Novel audit logs persist. RNG deterministic and seedable.
-> Requirements state the contract; verification loops enforce quality.
+> **Quick Reference.** An AI build prompt for an MCP server that reads a tabletop RPG
+> ruleset, extracts mechanics, builds the server, and proves it works. Output: a running
+> MCP server with dice, combat, character management, rules lookup, narrative directives,
+> dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
+> compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
+> adventure modules, and ruleset-native enrichment — plus four handoff artifacts (plus
+> LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
+> infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) is
+> provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
+> play advice. Quality enforced by verification workflows, 14 handoff verification steps,
+> and a golden-transcript replay. One server per ruleset. No network at runtime
+> (REQ-051). The Player hat is the human at the table; the Game Master hat is the AI
+> narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support: one
+> player may control multiple entities (REQ-074). Adventures load as hybrid world-model
+> and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
+> enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
+> persist. RNG deterministic and seedable. Requirements state the contract; verification
+> loops enforce quality.
 
 ## Contents
 
@@ -96,8 +93,10 @@ session zero) happens with no hat active (full access per REQ-031). Create a Nov
 populate its world model (load a hybrid adventure module, generate one from a
 premise, or build with CRUD tools), set up characters, then activate the Player hat
 via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
-player issues text commands (`go north`, `examine sword`, `take lamp`) resolved
-against the world model and TTRPG mechanics. Switch to Game Master hat to correct,
+player acts through the ruleset's resolution mechanics — skill checks, attacks,
+spells, exploration actions. World-model navigation (parser commands like `go north`
+or `take lamp`) is available when adventures provide spatial maps; the ruleset, not
+the world model, drives the game. Switch to Game Master hat to correct,
 undo, or directly manage Novel state. `set_hat` works without restart. One user per
 MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
 player, one AI Game Master. One player may control multiple characters (REQ-074).
@@ -114,9 +113,10 @@ cold checkout, comparing its results against the builder's own.
 
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
-and security, extraction and confidence, tools and resources, world-model layer
-(rooms, things, exits, properties, parser commands, hybrid source conversion),
-Novel state and persistence, guidance, determinism, input safety, and durability.
+and security, extraction and confidence, tools and resources, Novel state and
+persistence, guidance, determinism, input safety, durability, and infrastructure
+(the world-model layer: rooms, things, exits, properties, parser commands, hybrid
+source conversion).
 Each is one paragraph in §5. The manifest is the packing list for the
 DECISIONS.md traceability table and is mechanically verified by
 `scripts/validate.ts`.
@@ -253,10 +253,11 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 23 sub-workflows against a running server. |
+| Gauntlet         | Operational verification suite (§6.6) — 22 sub-workflows against a running server. |
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
+| World model  | Infrastructure layer providing rooms, things, exits, and parser commands via `@holonovel/inform`. When a TTRPG ruleset is present, the world model serves narration; the ruleset drives resolution. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides infrastructure tools and world-model interactions only. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
@@ -280,13 +281,13 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215           | 18    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224                     | 7     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221 | 33    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231           | 20    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
@@ -301,8 +302,15 @@ challenged assumption per category — technology, AI-as-builder, extraction and
 MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec
 process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a
 diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+For same-spec builds against different rulesets, when a prior assumption audit exists for
+the same spec version, only assumptions in categories affected by the ruleset paradigm
+delta are re-audited. Categories unaffected by the ruleset change (technology, MCP
+ecosystem, verification model, build process) carry forward the prior audit results.
+The builder records the prior audit's ruleset fingerprint for traceability. Audit re-use
+does not block the build — a full audit is always acceptable.
 *Acceptance criterion:* DECISIONS.md (0) contains at least one challenged assumption
-per category with justification, or a diff-only audit note for spec revisions.
+per category with justification, or a diff-only audit note for spec revisions, or
+a re-use note citing the prior audit's ruleset fingerprint for unaffected categories.
 _Check:_ T89.
 
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
@@ -923,6 +931,28 @@ any content type below 90% fidelity blocks the batch and records a disposition i
 DECISIONS.md (5).
 _Check:_ T93.
 
+**REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
+builder SHALL classify extracted guidance into the six enrichment output modules
+(voice_examples, briefing_order, lore_templates, action_patterns,
+supplementary_guidance, adventure_advice) using the ruleset's own text. Extraction
+sources and confidence: ruleset example-of-play dialogue = HIGH, ruleset GM advice
+chapters = HIGH, ruleset setting descriptions = HIGH, ruleset "Inspirational Reading"
+or Appendix N media citations = HIGH, ruleset encounter tables = HIGH. Ruleset-native
+items carry `[ruleset]` tag with source anchor. This classification is a
+post-processing sort of existing extraction output — no additional ruleset reading is
+required. Items are sorted into module slots: example-of-play dialogue →
+voice_examples, GM advice chapter structure → briefing_order, setting/location
+descriptions → lore_templates, example-of-play resolution sequences →
+action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
+and campaign frameworks → adventure_advice. Ruleset-native enrichment is populated
+at build time and is always present in the Novel (REQ-227). In ruleset-free mode
+(B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
+DECISIONS.md (4).
+*Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
+dialogues produces ruleset-native enrichment items in ≥4 of the 6 modules with
+`[ruleset]` tag and source anchors.
+_Check:_ T-new-225.
+
 *Out of scope:* extraction from non-Markdown sources without prior conversion
 (§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
 system, and semantic interpretation of image-only content.
@@ -976,7 +1006,8 @@ _Check:_ T3, T35.
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
-`enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
+`enrichment://action_patterns`, `enrichment://adventure_advice`,
+`enrichment://narrative_voices`, `enrichment://status`, `adventure://<slug>/<anchor>`, `novel://current`,
 `novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`,
 `spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
@@ -2688,6 +2719,26 @@ the adventure hook and current room in `hat_briefing`; a module without a
 `## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
+**REQ-229 — Adventure enrichment linkage.** After `load_adventure` processes
+`@npc`, `@encounter`, and `@lore` annotations, the server SHALL scan both
+enrichment tiers (ruleset-native and community) for matches against the newly
+loaded adventure content: voice examples matched to NPC creature types via the
+ruleset index, lore templates matched to `@lore` annotation keywords, action
+patterns matched to encounter types, adventure advice matched to adventure
+themes. Matches are surfaced in the `load_adventure` augmentation section:
+"Enrichment found X voice examples for adventure NPCs, Y lore templates for
+adventure locations. Review at `enrichment://status`." Matches are NOT
+automatically activated — they remain inert per REQ-080. The augmentation
+section SHALL appear after the world-model population confirmation. When no
+matches are found, the augmentation section is omitted. When enrichment has not
+been run (community tier empty) and ruleset-native enrichment provides no
+matches, the section is omitted with no error.
+*Acceptance criterion:* Loading an adventure with `@npc(goblin)` and enrichment
+voice_examples containing "goblin" entries produces an augmentation section with
+match count and `enrichment://status` pointer. Loading an adventure with no
+matching enrichment items omits the augmentation section.
+_Check:_ T-new-229.
+
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
 indexed adventure slugs and their build-time content hashes. A resource at
 `adventures://` SHALL list all indexed adventure slugs with their titles and
@@ -2946,23 +2997,37 @@ benchmarks defined in REQ-100.
 
 ### 5.8 Enrichment, Lore, and Macros
 
-**REQ-080 — Enrichment boundaries.** Enrich may ADD content to entity
-voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
-(REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090, §11.1), and
-supplementary guidance. Enrich MUST NOT modify mechanical fields (stats, saves, HP,
-conditions, combat state), build-derived tool registrations, hat gating rules, or
-any [ruleset]-tagged content. Enrich recommendations for prompt ordering, lore templates,
-and adventure advice are inert — they never auto-apply; the GM must explicitly activate
-them via the corresponding tools. Enrichment items that have never been activated and whose
-`collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]`
-in `spec_health` and excluded from enrichment resource surfaces. Stale items are retained
-on disk and reactivate if the GM explicitly activates them. Re-running Enrich refreshes
-timestamps for all items. Every enrich finding carries source_url, quoted_excerpt,
-hat_scope, confidence (derived from source authority, not mechanical completeness),
-output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
+**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers: (1)
+Ruleset-native enrichment — extracted during Discovery from the ruleset's own text
+per REQ-225, populated at build time, always present. Items tagged `[ruleset]` with
+source anchors. (2) Community enrichment — web-researched post-build per §11.1,
+optionally run. Items tagged `[supplementary]` with source URLs. Both tiers coexist
+in the enrichment manifest; community items never replace ruleset-native items. The
+GM activates items from either tier via the same tool calls. Enrichment may ADD
+content to entity voice_examples (REQ-077), prompt ordering recommendations
+(REQ-082), lore templates (REQ-083), action suggestion patterns (REQ-084, REQ-115),
+adventure advice (REQ-090, §11.1), narrative voice profiles (REQ-226), and
+supplementary guidance. Enrichment MUST NOT modify mechanical fields (stats, saves,
+HP, conditions, combat state), build-derived tool registrations, hat gating rules, or
+any ruleset-derived values. Enrichment recommendations for prompt ordering, lore
+templates, and adventure advice are inert — they never auto-apply; the GM must
+explicitly activate them via the corresponding tools. Community enrichment items that
+have never been activated and whose `collected_at` timestamp exceeds
+`TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]` in `spec_health` and excluded
+from enrichment resource surfaces. Ruleset-native items do not carry staleness
+flags — they are canonical. Stale items are retained on disk and reactivate if the
+GM explicitly activates them. Re-running community Enrich refreshes timestamps for
+all community items. Every community enrich finding carries source_url,
+quoted_excerpt, hat_scope, confidence (derived from source authority, not mechanical
+completeness), output_module, and collected_at (ISO 8601 timestamp of collection) —
+all non-empty. Ruleset-native items carry source anchor, confidence, output_module,
+and `[ruleset]` tag. Reverting enrichment (REQ-103) removes only community
+enrichment; ruleset-native items persist.
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
-and source URL; a stale enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
-`[stale]` in `spec_health` and excluded from surfaces.
+and source URL; ruleset-native items carry `[ruleset]` tag and source anchor; a
+stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
+`[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
+community items but preserves ruleset-native items.
 _Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set narrative directives via
@@ -3151,6 +3216,10 @@ and their intents in DECISIONS.md (5) with named uncovered categories.
 _Check:_ T117.
 
 **REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
+tool that removes all community enrichment state (tier 2, `[supplementary]`-tagged
+items) from the Novel per REQ-227. Ruleset-native enrichment (tier 1,
+`[ruleset]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
+ruleset-native enrichment items.
 tool — Game Master only. Removes all enrichment state (six output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
@@ -3168,13 +3237,13 @@ Build-rebuild enrichment behavior is defined in §11.1
 tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
 enrichment state.
 *Acceptance criterion:* After `revert_enrichment()`, all
-`enrichment://` resource URIs (§11.1: `enrichment://voice_examples`,
-`enrichment://briefing_order`, `enrichment://action_patterns`,
-`enrichment://adventure_advice`) return empty or absent; `lore://templates`
-returns only Novel-scoped lore entries, never enrichment-sourced templates;
-`spec_health` reports `enrichment_active: false` with zero counts for all
-six modules. Re-running Enrich repopulates all modules; a second revert
-call changes nothing (idempotent).
+community enrichment surfaces (enrichment resource URIs with `[supplementary]`
+items) return empty or absent; ruleset-native enrichment items (`[ruleset]`-tagged)
+persist unchanged; `lore://templates` returns only Novel-scoped lore entries, never
+community enrichment-sourced templates; `spec_health` reports
+`community_enrichment_active: false` with zero counts for community modules.
+Re-running Enrich repopulates community modules; a second revert call changes
+nothing (idempotent).
 _Check:_ T94, T125.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
@@ -3199,6 +3268,93 @@ enrichment including activated items — requires `revert_enrichment`
 it. Re-run enrich — assert the activated entry persists unchanged. Revert
 enrichment, re-run enrich — assert fresh enrich state replaces all.
 _Check:_ T144.
+
+**REQ-226 — Narrative voice profiles.** The builder SHALL extract media-cited
+narrative voice profiles from the ruleset's inspirational media citations
+("Appendix N," "Inspirational Reading," "Suggested Viewing," or equivalent sections
+discovered during the guidance pass). Each profile records: `name` (e.g., "Sword &
+Sorcery — Conan"), `source` (ruleset anchor), `media_title`, `media_type` (film,
+novel, game, or other), and `description` (narrative techniques and stylistic
+markers from the source material). Community enrichment (§11.1) may add
+supplementary profiles. Stored at `enrichment://narrative_voices`. Profiles are
+inert — the GM applies them via narrative directive (REQ-081) by naming the
+profile. When the ruleset provides no inspirational media section, the module is
+empty — this is not a defect. Ruleset-free builds produce an empty module.
+*Acceptance criterion:* A ruleset citing Conan and The Lord of the Rings produces
+≥2 narrative voice profiles with source anchors and descriptions.
+_Check:_ T-new-226.
+
+**REQ-227 — Two-tier enrichment model.** Enrichment SHALL consist of exactly two
+tiers: Tier 1 (ruleset-native) extracted during Discovery per REQ-225 from the
+ruleset's own text, populated at build time, never removed by `revert_enrichment`.
+Tier 2 (community) optionally collected via web research per §11.1, tagged
+`[supplementary]`, removed by `revert_enrichment`. Both tiers coexist in all
+enrichment resource URIs and `hat_briefing` enrichment sections. The GM activates
+items from either tier via the same tool calls. Community items SHALL NOT replace
+or override ruleset-native items with matching keys — conflicts are recorded with
+`conflicts_with` reference to the ruleset-native item. Ruleset-native enrichment
+is part of the build output; community enrichment is additive post-build.
+*Acceptance criterion:* A build with ruleset content SHALL populate ruleset-native
+enrichment in the Novel at creation time; community enrichment run afterwards adds
+`[supplementary]` items alongside `[ruleset]` items; `revert_enrichment` removes
+only `[supplementary]` items.
+_Check:_ T-new-227.
+
+**REQ-228 — Enrichment consistency during spec-driven updates.** During a
+spec-driven update per REQ-098, after the gap audit identifies changed surfaces,
+the builder SHALL scan all enrichment items (both tiers) for references to surfaces
+identified as changed or removed in the gap audit. Orphan references SHALL be
+classified: `auto-repairable` (tool was renamed — update the enrichment reference
+to the new name), `GM-review` (the referenced surface was removed — the GM should
+review and replace the enrichment item), or `stale-reference` (the surface is
+absent with no obvious replacement). GM-activated items (REQ-130) with orphan
+references carry a `[stale-reference]` tag in `spec_health` until the GM resolves
+them. This check SHALL run before Gauntlet re-execution (§6.7) and SHALL NOT
+trigger web research — it is a cross-reference scan only. Results are recorded in
+DECISIONS.md with the gap audit row reference.
+*Acceptance criterion:* After a Minor update that renames a tool, ruleset-native
+enrichment action patterns referencing the old tool name are flagged
+`auto-repairable` and updated before the re-build completes. A community enrichment
+item referencing a removed ruleset section is flagged `GM-review` with the gap
+audit row cited.
+_Check:_ T-new-228.
+
+**REQ-230 — Enrichment status dashboard.** The server SHALL provide an
+`enrichment://status` resource showing per-module enrichment counts for the active
+Novel: total items, activated items (GM-activated via Novel-scoped tool calls),
+inactive items, stale community items, and pending-suggestion count (enrichment
+items matching current adventure/scene content but not yet activated). Counts are
+per output module (voice_examples, briefing_order, lore_templates, action_patterns,
+supplementary_guidance, adventure_advice, narrative_voices). The resource SHALL
+render as Markdown with a header line "Enrichment Status" and one `##`-level
+section per module. Ruleset-native items are counted separately from community
+items within each module. The status SHALL be dynamically computed from Novel state
+at read time. The resource respects hat filtering per REQ-032. `spec_health`
+SHALL surface a summary: `enrichment_status` with per-module activated/total
+counts.
+*Acceptance criterion:* After activating 2 lore templates and 1 voice example,
+`enrichment://status` shows lore_templates: activated=2, total=N; voice_examples:
+activated=1, total=N. Other modules show activated=0. Player hat sees only
+shared-scope items.
+_Check:_ T-new-230.
+
+**REQ-231 — Per-module enrichment toggle.** The GM may enable or disable
+individual enrichment output modules at runtime via `toggle_enrichment_module(module,
+enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`,
+`lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`,
+`narrative_voices`. Disabling a module SHALL suppress all items in that module
+from `hat_briefing`, `suggest_actions`, `suggest_lore`, and enrichment resource
+URIs for the current Novel. Disabling does not delete items — the items persist in
+Novel state and re-appear when the module is re-enabled. Ruleset-native modules
+default to enabled; community modules default to enabled when community enrichment
+has been run. The toggle state persists with the Novel. Player hat attempts return
+`[ERROR] [FORBIDDEN]`. An unknown module name returns `[INVALID_INPUT]` with valid
+module names enumerated.
+*Acceptance criterion:* `toggle_enrichment_module("voice_examples", false)` removes
+voice examples from `hat_briefing` and `enrichment://voice_examples` for the active
+Novel; re-enabling restores them; an unknown module returns `[INVALID_INPUT]`;
+Player hat returns `[FORBIDDEN]`.
+_Check:_ T-new-231.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
@@ -3872,19 +4028,21 @@ mechanical-section count SHALL be recorded as zero.
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window — chunks are sized to fill approximately 3,000 tokens of
-mechanical prose each, with a floor of 3 mechanical sections and a ceiling of 20.
-The builder determines the token-equivalent section count per chunk by estimating
-the average mechanical-section token size from a sample of the first 5 mechanical
-sections encountered and records the chunking strategy (chunk-size floor/ceiling,
-sample-token estimate) in DECISIONS.md (4). The builder reads each chunk, extracts
-models (see below), then requests the next. Guidance-only sections are read in a
-background pass and don't count against the mechanical-section budget.
+mechanical prose each. After extracting the first 5 mechanical sections, the builder
+measures the average token-per-section and sets per-chunk section count to
+min(20, max(3, floor(3000 / avg_tokens_per_section))). The builder records the
+chunking strategy (per-section token estimate, calibrated section count, floor/ceiling)
+in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
+requests the next. Guidance-only sections are read in a post-processing pass after
+mechanical extraction and do not count against the mechanical-section budget.
 
-**Guidance pass budget.** The background guidance pass SHALL not exceed 50
-guidance-only sections. If the ruleset contains more than 50 guidance-only
-sections, the builder processes them in batches of 50, interleaving each
-batch with the next chunk read to prevent context-window exhaustion. The
-builder records the total guidance-section count and batch count in
+**Guidance pass budget.** Guidance-only sections are read after all mechanical
+chunks have been extracted and Phase 1 confidence metrics converge. Guidance
+extraction is a single post-processing pass, not interleaved with mechanical
+extraction. The guidance pass SHALL not exceed 50
+guidance-only sections per batch. If the ruleset contains more than 50 guidance-only
+sections, the builder processes them in batches of 50.
+The builder records the total guidance-section count and batch count in
 DECISIONS.md (4). A ruleset whose guidance-section count exceeds the
 mechanical-section count by more than 3× SHALL log a `[guidance-heavy]`
 finding in the defect log — informational, not blocking.
@@ -3917,18 +4075,16 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**Inform scaffold installation.** When B1 is not `none` (TTRPG build), the builder SHALL
-install the `@holonovel/inform` npm package at the version specified by B10. The inform
+**@holonovel/inform prerequisite.** When B1 is not `none` (TTRPG build), the builder
+installs the `@holonovel/inform` npm package at the version specified by B10. The inform
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder SHALL add `@holonovel/inform` as a dependency of the TTRPG server and
-import from it per §6.4. No chunked reading or provider-documentation indexing occurs
-during TTRPG builds — the inform package is a build-time dependency, not a per-build
-extraction target. Provider documentation is indexed once when the inform package is
-published; the TTRPG builder consumes the published output. The world-model layer is
-surfaced at the `world://kinds` resource (REQ-202). When B1 is `none` (ruleset-free mode),
-the inform package IS the server — the builder installs it, verifies it starts, and no
-further extraction occurs.
+points. The builder adds `@holonovel/inform` as a dependency of the TTRPG server. No
+chunked reading or provider-documentation indexing occurs during TTRPG builds — the
+inform package is a build-time dependency, not a per-build extraction target. The
+world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
+`none` (ruleset-free mode), the inform package IS the server — the builder installs it,
+verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -3969,6 +4125,18 @@ _Check:_ T173.
   log.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
+
+**Enrichment classification.** After the seven extraction categories are complete,
+the builder SHALL sort extracted guidance into enrichment output module slots per
+REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
+briefing_order, setting/location descriptions → lore_templates, example-of-play
+resolution sequences → action_patterns, GM/player advice prose →
+supplementary_guidance, encounter tables and campaign frameworks →
+adventure_advice. This is a post-processing sort against existing extraction output —
+no additional ruleset reading. Items carry the `[ruleset]` tag and source anchors
+with HIGH confidence. The classified items form the ruleset-native enrichment
+manifest, written to the Novel's enrichment state during construction (Step 5).
+Ruleset-free builds produce an empty manifest.
 
 **Cross-format consistency.** Before server construction, the builder samples 10
 items at random from the model — spanning at least three extraction categories — and
@@ -4025,21 +4193,21 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize from @holonovel/inform scaffold, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by @holonovel/inform scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
-| 5     | State layer: extends @holonovel/inform's state with ruleset-specific types (entity stats, combat, spell slots). World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
+| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
 
 For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
-helpers, state management, macros, enrichment types, and world-model layer (rooms,
+helpers, state management, macros, and world-model layer (rooms,
 things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
 verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
-ruleset-specific content on top of the inform base.
+ruleset-specific content on top of the infrastructure base.
 
 **License.** The server MUST include a `LICENSE.md` file at the project
 root with two sections: a **Ruleset Data** section identifying the source
@@ -4084,9 +4252,11 @@ categories — the builder does not invent terms. The prompt length budget
 *Prepare:* Load files from `build-phase-map.md` Convergence row: 03-build.md §6.5,
 02-requirements.md (all), 05-verification.md.
 
-**Audit steps.** After each workflow completion and each construction step, the builder spawns a
-subagent (fresh context) that audits the work against the requirements cited by that step.
-The subagent reports findings; the builder resolves each before the next step.
+**Audit steps.** After each workflow completion and every two construction steps, the builder spawns a
+subagent (fresh context) that audits the work against the requirements cited by that
+step. Construction steps are audited in two batches: after Steps 1–3 (scaffold, index,
+pipeline) and after Steps 4–6 (tools, state, prompts). The subagent reports findings;
+the builder resolves each before the next batch.
 
 **Auditor pre-flight.** In `production` mode, before the first checkpoint audit
 for a ruleset, and every 5 build sessions thereafter or when the spec version
@@ -4122,8 +4292,12 @@ before any server code is written.
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
-metric's pass/fail is measured), the builder SHALL re-measure all other metrics in
-the same phase. If any previously-passed metric drops below its threshold, the
+metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
+data overlaps with the changed step's domain. Confidence shares source data with
+Extraction completeness and Category floor; Extraction fidelity shares with
+Cross-format consistency; Reconciliation quality is independent. The builder
+records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
+re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
 SHALL resolve the regression before the current step can be marked complete, using
 the current step's remaining iteration budget — no new budget is granted. A
@@ -4142,17 +4316,17 @@ excluded from both numerator and denominator. Completeness below 95% triggers
 re-reading of the highest-priority missed sections (those with the most mechanical
 indicators — procedures, tables, definition lists per §6.3).
 
-**Per-category floor.** In addition to the overall confidence threshold,
-each of the seven extraction categories (§6.3: concepts, entities, actions,
-tables, resolution, roles, guidance) must individually meet a minimum
-confidence floor of 50% HIGH + MEDIUM. A category below 50% triggers a
-targeted re-extraction of that category's source sections. If re-extraction
-cannot raise the category above 50%, the builder records a
+**Per-category floor.** Mechanical categories (Concepts, Entities, Actions,
+Tables, Resolution) must individually meet a minimum confidence floor of 50% HIGH +
+MEDIUM. A mechanical category below 50% triggers a targeted re-extraction of that
+category's source sections. Roles and Guidance categories below 30% record a
+`[category-low-confidence]` finding in the defect log — informational, does not
+trigger a re-extraction cycle unless the operator requests it. If re-extraction
+cannot raise a mechanical category above 50%, the builder records a
 `[category-confidence-block]` finding in DECISIONS.md (5) with: the affected
 category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
-request targeted remediation) before Phase 1 exit. The guidance category is
-exempt from this floor — LOW guidance does not affect tool behavior.
+request targeted remediation) before Phase 1 exit.
 
 Phase 1 exit: all seven metrics meet threshold (conversion-fidelity conditional —
 six when conversion not selected, seven when conversion selected), or an extraction stall
@@ -4284,21 +4458,17 @@ residual gap means the server works with known limitations; an unbuildable dispo
 means the server cannot meet the Definition of Done.
 
 **Post-write verification.** After every file write during construction and
-verification, the builder re-reads the written file and verifies: (a) heading
-structure matches the plan — confirm the expected `##` and `###` headings appear in
-order; (b) no path corruption — search for doubled directory components and missing
-slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
-convergence finding and triggers a fix + re-read iteration. In `production` mode
-this check applies to every file write: source code, test scripts, README,
-DECISIONS.md, and MCP client configuration. In `quick-build` mode it applies to
-critical files only: DECISIONS.md, the MCP client configuration, and the on-disk
-Novel state file. (d) **completeness** — the builder maintains a file manifest
-(list of expected output files recorded after construction planning). The
-manifest is checked during post-write verification: every file in the manifest
-must exist and have non-zero size. A missing or empty file is a convergence
-finding. (e) **terminology** — no deprecated term from Appendix R appears in the
-written file. Grep for each deprecated term; any match is a convergence
-finding.
+verification, the builder re-reads the written file and verifies structural
+integrity. In `production` mode: source code files receive full checks —
+heading structure, path corruption, URLs, manifest completeness, and
+terminology per (a)–(e) below. Artifact files (README.md, DECISIONS.md,
+RULESET_MODEL.md, AGENTS.md) receive structural checks only — headings
+present, non-empty, manifest entry exists. In `quick-build` mode: critical
+files only — DECISIONS.md, MCP client configuration, and on-disk Novel state
+file. Any discrepancy is a convergence finding and triggers a fix + re-read
+iteration. (a) heading structure matches the plan; (b) no path corruption; (c)
+URLs are syntactically valid; (d) completeness — file manifest checked; (e)
+terminology — no deprecated term from Appendix R.
 
 ### 6.5.4 Finding taxonomy
 
@@ -4371,14 +4541,14 @@ DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
 Marking a workflow complete without a passing Gauntlet is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
-**Method.** The builder starts two MCP client connections to the same server process
-sharing one `TTRPG_DATA_DIR` — one connection for the Game Master hat
-(`set_hat("game_master")`), one for the Player hat (`set_hat("player")`).
+**Method.** The builder starts up to two MCP client connections to the same server process
+sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-hat interaction
+(S6, S14h, S17) use one connection for the Game Master hat and one for the Player hat.
+All other sub-workflows use a single connection switching hats as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
-calls between the two connections to simulate realistic turn-taking: the Player acts
-(moves, attacks, asks questions), the GM adjudicates (narrates outcomes, escalates,
-manages state). Every scenario states its objective, the tool calls to make, which
-hat calls each, and the pass criterion.
+calls between the two connections when simulating cross-hat turn-taking. Every scenario
+states its objective, the tool calls to make, which hat calls each, and the pass
+criterion.
 
 **Verification principle.** Gauntlet sub-workflows verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `hat_briefing`,
@@ -4401,14 +4571,22 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep** — call every registered tool at least once with valid input;
-   no crashes, hangs, or unexpected error codes. (Blocking.)
+1. **Tool surface sweep** — call at least one tool from every registered tool category
+   per REQ-015 (read-only, state-reading, command, generation, hybrid), plus all
+   Novel-lifecycle and hat-management tools. Each call uses valid input; additionally,
+   call at least one tool per category with an invalid input (empty string, missing
+   required param) and assert `[INVALID_INPUT]` or `[MISSING_PARAM]` response without
+   crash. (Blocking.)
 2. **Character creation workflow** — step-by-step and quick creation; correct derived
    stats; roster import; undo restores pre-creation state; no active Novel →
    `[STATE_CONFLICT]`. (Blocking.)
 3. **Encounter setup** — combat init with entities and dangers reports round counter, turn order, participant classification.
 4. **Simulated combat session** — turn resolution, HP tracking, condition effects, round
-   advancement over ≥3 rounds with deterministic seeds. (Blocking.)
+   advancement over ≥3 rounds with deterministic seeds. Verify roll transparency per
+   REQ-003: a d20 attack with advantage reports both faces and selected/discarded
+   faces, source-attributed modifiers, and result band. Undo one combat action and
+   verify state restored to pre-action snapshot. Same seed → identical combat sequence.
+   (Blocking.)
 5. **Combat state survival** — HP, conditions, round counter, turn order restored identically
    after restart (verified through tool-observable surfaces). (Blocking.)
 6. **Cross-hat boundary enforcement** — GM-only tools blocked from Player; no GM-only content leaks. (Blocking.)
@@ -4417,16 +4595,22 @@ four items is incomplete and blocks handoff.
    canonical lookups resolve by name and aliases; source quoting present; NOT_FOUND with
    enumeration.
 9. **Condition lifecycle** — conditions apply, affect mechanics, expire by ruleset triggers; manual removal works.
-10. **Undo during combat** — undo reverts combat state; blocked during pending workflows; succeeds after resolution.
-11. **Workflow cancellation** — cancel restores pre-workflow state; tool works after cancellation.
+10. **Undo during combat** — merged into S4. Undo combat action and
+    determinism assertions are validated within the simulated combat session.
+11. **Workflow cancellation** — merged into S20. Workflow cancel, state
+    restore, and pending-workflow drain are validated within the workflow
+    validation sub-workflow.
 12. **Roster durability** — roster baselines immutable; re-import produces fresh copy matching baseline. (Blocking.)
 13. **Novel isolation** — entities, adventures, generated content do not leak between Novels.
-14. **Edge cases** — (a) empty strings/missing params return `[INVALID_INPUT]` or
-    `[MISSING_PARAM]`, no crash; (b) 0 HP triggers ruleset outcome; (c) heal above max
+14. **Edge cases** — (a) moved to S1 (invalid params validated per category);
+    (b) 0 HP triggers ruleset outcome; (c) heal above max
     caps at max; (d) 5 rapid calls complete without timeout/corruption; (e) ambiguous
     alias → `[AMBIGUOUS]` with entries enumerated; (f) unknown decision → `[NOT_FOUND]`
-    with valid IDs; (g) same seed → identical results, different seeds differ;
-    (h) `spec_health` under Player hat returns only player-filtered metrics.
+    with valid IDs; (g) same seed → identical results, different seeds differ
+    (Blocking — verified in S4); (h) `spec_health` under Player hat returns only
+    player-filtered metrics (Blocking — verified in S17);
+    (i) adversarial input: `set_scene_state` with SQL-injection string stores and
+    echoes verbatim; no behavior change, no crash per REQ-054.
 15. **Stress and recovery** — (a) two connections sharing one data directory: reads reflect
     latest writes, no stale reads/write conflicts/deadlocks; (b) corrupted state file →
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
@@ -4438,19 +4622,22 @@ four items is incomplete and blocks handoff.
 17. **Novel lifecycle and persistence** — create/resume/end/switch cycle works; state persists
     to disk and restores; `end_novel` confirmation workflow removes file + backup; ended
     Novel blocks resume and switch. (Blocking.)
-18. **Novel isolation and adventure generation** — generated adventures are Novel-scoped, hat-filtered, searchable, regeneratable.
-19. **Novel setup tracking and encounter generation** — setup metadata tracks completion;
-    `generate_encounter` produces batch state (scene + NPC + lore) as single undo target.
-20. **Hat briefing correctness** — populated Novel: Player sees entity stats without
+18. **Adventure generation and encounter lifecycle** — `generate_adventure` produces Novel-scoped,
+    hat-filtered, searchable content; regeneration replaces prior; `generate_encounter`
+    produces batch state (scene + NPC + lore) as single undo target; setup metadata
+    tracks completion. Generated and indexed adventures coexist in `hat_briefing`.
+19. **Hat briefing correctness** — populated Novel: Player sees entity stats without
     confidence breakdowns/GM-only lore; GM sees all content; briefing adapts to scene type
-    changes. (Blocking.)
-21. **Lorebook interchange** — export → modify → import dry-run (no side effects) → import
+    changes. Verify hat foundations (REQ-062) and anti-slop guidance (REQ-070)
+    sections present and hat-filtered. (Blocking.)
+20. **Lorebook interchange** — export → modify → import dry-run (no side effects) → import
     merge (entry restored) → re-export matches original; import replace overwrites. (Blocking.)
-22. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
+21. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
     combat rounds in 3 confrontations: all lore still triggers, ≥100 audit-log entries,
-    `session_recap` returns correct final state, memory hasn't doubled, Novel file ≤5 MB.
-    (Blocking.)
-23. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
+    verify audit log hash chain integrity per REQ-040 (consecutive entries form valid
+    chain), `session_recap` returns correct final state, memory hasn't doubled,
+    Novel file ≤5 MB. (Blocking.)
+22. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_hat blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
@@ -4489,12 +4676,12 @@ This metric covers Gauntlet sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
 
-A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
-the sub-workflow but is recorded with the actual duration. Three consecutive S22 runs
+A single S21 execution that exceeds 10 minutes of wall-clock time does not fail
+the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
-wall-clock time, except S15 (10 minutes), S22 (10 minutes), and S23 (3
+wall-clock time, except S13 (10 minutes), S21 (10 minutes), and S22 (3
 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
@@ -4525,8 +4712,8 @@ accumulated regression assertions for redundancy. Subsumed assertions are remove
 and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
-failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 15, 17, 20,
-21, 22, and 23 are blocking — Build is incomplete until they pass. Other failures are
+failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
+20, 21, and 22 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
@@ -4577,20 +4764,20 @@ S1 is always selected when new tools are added or existing tool signatures chang
 
 | Changed surface                                             | Gauntlet scenarios selected |
 |-------------------------------------------------------------|-----------------------------|
-| Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S11, S12, S23 |
+| Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S12, S22 |
 | Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
 | Conditions, condition management (REQ-206, REQ-217)         | S9 |
 | Search, canonical lookups (REQ-057, REQ-060, REQ-061)      | S8 |
 | Table generation                                            | S7 |
-| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S20 |
-| Undo, redo, snapshots (REQ-041, REQ-116)                   | S10, S11 |
-| State model, Novel persistence (REQ-065, REQ-092)          | S5, S13, S15, S16 |
-| Novel lifecycle (create/resume/end/switch)                  | S17 |
-| Lore, enrichment, adventure generation                     | S18, S19, S21 |
+| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S19 |
+| Undo, redo, snapshots (REQ-041, REQ-116)                   | S4, S22 |
+| State model, Novel persistence (REQ-065, REQ-092)          | S5, S12, S13, S14 |
+| Novel lifecycle (create/resume/end/switch)                  | S15 |
+| Lore, enrichment, adventure generation                     | S18, S20 |
 | New tool added or tool signature changed                    | S1 + category-mapped scenarios |
-| New prompt, resource, or hat-scoped content                 | S6, S20 + content-specific |
+| New prompt, resource, or hat-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
-| Campaign endurance, stress (REQ-052)                        | S15, S22 |
+| Campaign endurance, stress (REQ-052)                        | S13, S21 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
@@ -4707,7 +4894,7 @@ is built and published.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 23-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -4730,6 +4917,19 @@ existing Novel state loads without error under REQ-065 compatibility rules. Nove
 state fields present in stored state but absent in the updated model are preserved
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
+
+**Enrichment consistency check.** After the gap audit and before Gauntlet
+re-execution, the builder SHALL scan all enrichment items (ruleset-native and
+community tiers) for references to surfaces identified as changed or removed in the
+gap audit per REQ-228. The builder cross-references: action pattern tool names
+against the gap audit's tool rows, briefing order section tokens against the gap
+audit's token vocabulary rows, lore template keywords against the gap audit's
+index-changed rows, supplementary guidance anchors against the gap audit's
+section-removed rows, adventure advice ruleset terms against the index-changed
+rows, and narrative voice profile source anchors against section-removed rows.
+Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
+with the gap audit row reference. This is a cross-reference scan — no web
+research occurs.
 
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
 budget is exceeded before the Gauntlet passes, the builder reports residual gaps
@@ -4968,7 +5168,11 @@ selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
 (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items);
 the Appendix W fixture (World-Model) for ruleset-free builds.
-Assert all contracts the selected fixture's transcript exercises: status prefix
+For Light and Standard tiers (<500 indexed items), the builder replays the first
+100 interactions of the selected fixture and verifies per T185 that all applicable
+contracts are exercised within that span. Full transcript replay is required for
+Heavy and Huge tiers. Assert all contracts the selected fixture's transcript
+exercises: status prefix
 and `isError` semantics (REQ-001), required fields in order, die values pinned
 by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
 (REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
@@ -5213,11 +5417,16 @@ After Enrich completes, re-run the Gauntlet blocking sub-workflows (§6.6 exit c
 previously-passing blocking sub-workflow that now fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
-### 11.1 Hat enrichment
+### 11.1 Community enrichment
 
-Pre-build questions are collected in §6.2 when the `enrich` workflow is selected. Enrich runs
-after Build completes and all verification workflows pass (§8), enhancing the server with community-sourced play
-advice. Build alone produces a fully working server; enrichment makes a good server better.
+Ruleset-native enrichment (tier 1) is extracted during Discovery per REQ-225 and
+shipped with every build. Community enrichment (tier 2) is run after Build
+completes and all verification workflows pass (§8), enhancing the server with
+web-sourced play advice layered on top of ruleset-native enrichment. Pre-build
+questions are collected in §6.2 when the `enrich` workflow is selected. Build
+alone produces a fully working server with ruleset-native enrichment; community
+enrichment adds supplementary content to every module. Community items carry
+`[supplementary]` tag and never replace ruleset-native items (REQ-227).
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
 selected source types (E2). Research depth is deep — at minimum:
@@ -5283,10 +5492,20 @@ output. Enrich produces an enrichment manifest with six output modules:
    table_expansions, or scenario_starters), `content` (Markdown), `source_url`,
    `confidence`, and `hat_scope`. Stored at `enrichment://adventure_advice`. **Inert**
    — the `generate_adventure` and `generate_encounter` tools (REQ-090, REQ-091) may draw
-   from this module to seed scaffolds, but the content never auto-applies.
+    from this module to seed scaffolds, but the content never auto-applies.
 
-**Boundaries.** Enrich may ADD to: entity voice_examples, prompt ordering recommendations,
-lore templates, action suggestion patterns, adventure advice, and supplementary guidance.
+7. **Narrative voice profiles.** Up to 15 community-sourced items. Ruleset-native items
+    extracted during Discovery per REQ-226 already populate the module. Each item
+    records: `name` (e.g., "Sword & Sorcery — Conan"), `media_title`, `media_type` (film,
+    novel, game), `description` (narrative techniques from the source material),
+    `source_url` (for community items; ruleset-native items carry `source` anchor), and
+    `confidence`. Stored at `enrichment://narrative_voices`. **Inert** — the GM applies a
+    profile via `set_narrative_directive` (REQ-081) by naming the profile. Community
+    items tagged `[supplementary]`; ruleset-native items tagged `[ruleset]`.
+
+**Boundaries.** Community enrichment may ADD to: entity voice_examples, prompt ordering
+recommendations, lore templates, action suggestion patterns, adventure advice, narrative
+voice profiles, and supplementary guidance.
 Enrich MUST NOT modify: mechanical fields (stats, saves, HP, conditions, combat state),
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged content
 (REQ-080).
@@ -5312,6 +5531,7 @@ audit. The builder records scope overrides in the enrichment manifest.
 | Action patterns         | 10 total                  | Yes           |
 | Supplementary guidance   | 20 total                  | Yes           |
 | Adventure advice         | 30 total                  | Yes           |
+| Narrative voice profiles   | 15 total                  | Yes           |
 
 Budget cap overrides are accepted via E4 at intake (§6.2). Overrides must be ≥ the
 spec minimum shown in this table. Overrides below the minimum are rejected with a
@@ -5374,8 +5594,8 @@ results in DECISIONS.md:
 5. Hat filtering: GM-scoped enrich content hidden from Player hat. LOW-confidence
    items carry `[LOW]` tag in all hat views.
 6. Budget compliance: no output module exceeds its cap.
-7. Research depth: every output module (modules 1–6) contains ≥1 actionable item. Source
-   domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
+7. Research depth: every output module (modules 1–7) contains ≥1 actionable item. Source
+    domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
    disposition with supplement source audit is recorded in DECISIONS.md.
 8. Content relevance: every enrichment item references the ruleset by name or by a term
    drawn from the ruleset's index. Generic RPG advice without a ruleset-specific anchor
@@ -5404,32 +5624,32 @@ state directory is absent — produces no enrichment unless the Enrich workflow
 is selected at intake. The builder surfaces enrichment status after build in
 `spec_health`.
 
-**Reversion.** Calling `revert_enrichment` (REQ-103) removes all enrichment
-state at runtime without requiring a rebuild. Enrichment manifest and
-verification results remain in DECISIONS.md for audit.
-
-**Default enrichment manifest.** Every build SHALL bundle a default enrichment
-manifest populated with at least one actionable item per output module (voice_examples,
-briefing_order, lore_templates, action_patterns, supplementary_guidance). The default
-manifest serves as a fallback when the Enrich workflow has not been run or when
-`revert_enrichment` has been called. It SHALL be loaded into the Novel's enrichment
-state at novel creation time and during novel resume when the enrichment array is
-empty. The default manifest SHALL carry `[supplementary]` tag and source URLs with
-confidence labels. This ensures enrichment resources render actionable content
-immediately after a cold start without requiring the operator to run the
-Enrich workflow.
+**Reversion.** Calling `revert_enrichment` (REQ-103) removes all community enrichment
+state at runtime without requiring a rebuild. Ruleset-native enrichment persists.
+Enrichment manifest and verification results remain in DECISIONS.md for audit.
 
 **Enrichment resource rendering.** Every enrichment resource URI
 (`enrichment://voice_examples`, `enrichment://briefing_order`,
-`enrichment://action_patterns`, `enrichment://adventure_advice`, `lore://templates`)
+`enrichment://action_patterns`, `enrichment://adventure_advice`, `enrichment://narrative_voices`,
+`lore://templates`)
 and every hat guidance resource that draws from enrichment data
 (`guidance://<hat>/voice`, `guidance://<hat>/tone`) SHALL render from the Novel's
 live enrichment state — not from hardcoded text. When the enrichment array is
 non-empty, the resource output SHALL contain the enrichment items filtered by
-output_module and hat scope. The "(no enrichment data loaded)" placeholder is
-only valid when the enrichment array is genuinely empty — which, with a default
-manifest, SHALL only occur when the default manifest itself contains zero items
-for a given module.
+output_module and hat scope. Ruleset-native items (`[ruleset]`-tagged) are always
+present; community items (`[supplementary]`-tagged) are present when community
+enrichment has been run and not reverted.
+
+**Partial refresh.** The enrichment fingerprint SHALL include per-module hashes in
+addition to the root aggregate hash. When community enrichment is re-run and a
+module's hash matches the stored value, that module is unchanged — its inactive
+items are preserved as-is. When a module's hash differs, only that module's
+inactive items are replaced with fresh output; active (GM-activated) items are
+preserved per REQ-130. Modules whose hashes are individually unchanged SHALL NOT
+be disturbed — their items, timestamps, and activation state remain identical.
+This allows staleness resolution and incremental enrichment without rebuilding
+the entire manifest. The enrichment fingerprint root hash SHALL still aggregate
+all module hashes for quick whole-manifest comparison.
 
 ---
 
@@ -5996,6 +6216,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-139 | Resource URI completeness reporting | 2026-08-06   |
 | REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
 | REQ-224 | Workflow staleness detection     | 2026-08-07 |
+| REQ-225 | Ruleset-native enrichment extraction | 2026-08-07 |
+| REQ-226 | Narrative voice profiles            | 2026-08-07 |
+| REQ-227 | Two-tier enrichment model           | 2026-08-07 |
+| REQ-228 | Enrichment consistency during updates | 2026-08-07 |
+| REQ-229 | Adventure enrichment linkage            | 2026-08-07 |
+| REQ-230 | Enrichment status dashboard             | 2026-08-07 |
+| REQ-231 | Per-module enrichment toggle            | 2026-08-07 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |

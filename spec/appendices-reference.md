@@ -224,6 +224,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-139 | Resource URI completeness reporting | 2026-08-06   |
 | REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
 | REQ-224 | Workflow staleness detection     | 2026-08-07 |
+| REQ-225 | Ruleset-native enrichment extraction | 2026-08-07 |
+| REQ-226 | Narrative voice profiles            | 2026-08-07 |
+| REQ-227 | Two-tier enrichment model           | 2026-08-07 |
+| REQ-228 | Enrichment consistency during updates | 2026-08-07 |
+| REQ-229 | Adventure enrichment linkage            | 2026-08-07 |
+| REQ-230 | Enrichment status dashboard             | 2026-08-07 |
+| REQ-231 | Per-module enrichment toggle            | 2026-08-07 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
