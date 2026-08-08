@@ -236,6 +236,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-234 | Secrets and knowledge                   | 2026-08-08 |
 | REQ-235 | Structured player choices               | 2026-08-08 |
 | REQ-236 | Entity relationships                    | 2026-08-08 |
+| REQ-237 | Session segmentation                    | 2026-08-08 |
+| REQ-238 | Backup rotation                        | 2026-08-08 |
+| REQ-239 | Audit log compaction                   | 2026-08-08 |
+| REQ-240 | Clone Novel                            | 2026-08-08 |
+| REQ-241 | Checkpoints                            | 2026-08-08 |
+| REQ-242 | Notes (GM scratchpad)                  | 2026-08-08 |
+| REQ-243 | Enrichment population during updates | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -583,6 +590,14 @@ diet.
 | T272  | Automated | Session notation: call `session_recap(format="lonelog")` — assert output in Lonelog notation (`###` scene headers, `@` actions, `=>` outcomes). Call `compress_audit(format="lonelog")` — assert compressed Lonelog entries. Assert audit entries contain optional `notation` field. Call `session_recap(format="markdown")` — assert current behavior unchanged. | REQ-072 |
 | T273  | Automated | Player choices: call `present_choices("The goon blocks your path.", [{id:"talk", label:"Talk", description:"Persuade him"}, {id:"fight", label:"Fight", description:"Start combat"}])` — assert returns `[NEED_INPUT]` with two options. Call `respond(decision, "fight")` — assert `[choice]` audit entry and matching countdown advances. Call with `allow_freeform=true` — assert freeform text stored in audit entry. | REQ-235 |
 | T274  | Automated | Secrets and knowledge: call `set_secret("confession", "The butler killed Lord Ashworth")` — assert GM-only lore entry created. Call `reveal_secret("confession", "pc_detective")` — assert `character_sheet("pc_detective")` includes "Known Information" section. Call `check_knowledge("pc_detective")` — assert returns the secret. Call `check_knowledge("pc_guard")` — assert does not return the secret. | REQ-234 |
+| T275  | Automated | Session segmentation: run two sessions with different `TTRPG_SESSION_ID` values — assert audit log contains two `[session_boundary]` markers with session IDs and timestamps. Call `session_recap(session_id="s1")` — assert returns only entries from session s1. Call `session_recap(session_id="s2")` — assert returns only entries from session s2. Call `session_recap()` with no session_id — assert returns all entries. Call `spec_health` — assert per-session metrics array includes entry counts, timespans, and combat rounds for both sessions. | REQ-237 |
+| T276  | Automated | Backup rotation: set `TTRPG_NOVEL_BACKUP_COUNT=3` — after 10 mutations, assert three rotated backup files exist (`.bak.1`, `.bak.2`, `.bak.3`) with descending modification times. Corrupt the primary `.json` file and `.bak.1` — restart the server, assert it restores from `.bak.2` and the audit log contains a `[restored_from_backup]` entry naming backup index 2. Call `end_novel` — assert all backup files and the primary are moved to `.trash/`. | REQ-238 |
+| T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `compact_audit_log()` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `session_recap(session_id="s1")` — assert returns the summary from archive. Call `session_recap()` with no session_id — assert returns only session 2 entries. Call `compact_audit_log(sessions=2)` — assert prompt to retain both sessions. Player hat `compact_audit_log` returns `[FORBIDDEN]`. | REQ-239 |
+| T278  | Automated | Clone Novel: call `clone_novel("my-game", "my-game-fork")` — assert new Novel created at `novels/my-game-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Mutate the clone (add NPC) — assert source Novel unaffected. Call `clone_novel("my-game", "my-game-fork")` again — assert `[STATE_CONFLICT]`. Call `clone_novel("my-game", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player hat `clone_novel` returns `[FORBIDDEN]`. | REQ-240 |
+| T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
+| T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
+| T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
+| T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
 
@@ -1001,19 +1016,34 @@ formats._
 
 **JSON format.** The top-level object contains these keys:
 
-| Key              | Content                                                         |
-| ---------------- | --------------------------------------------------------------- |
-| `novel_metadata` | slug, name, created_at, last_modified_at, spec_version           |
-| `entities`       | Array of entity objects with all mechanical and narrative fields |
-| `npcs`           | Array of NPC objects with all fields                            |
-| `scene`          | Current scene description and scene type                        |
-| `countdowns`     | Array of active countdowns with name, ticks, type                |
-| `lore`           | Array of lore entries (Appendix L schema per entry)              |
-| `enrichment`     | Array of enrichment items across all six output modules          |
-| `adventure`      | Active adventure slug and generated adventure content            |
-| `audit_log`      | Array of audit entries (timestamp, hat, tool, args, output)  |
-| `hat_state`  | Active hat and per-Novel hat preferences                 |
-| `undo_snapshots` | Array of snapshot objects (per-hat stacks)                   |
+| Key                | Content                                                         |
+| ------------------ | --------------------------------------------------------------- |
+| `format_version`   | Integer — the Novel format version at time of export (REQ-092)   |
+| `manifest`         | Portability metadata object (see below)                           |
+| `novel_metadata`   | slug, name, created_at, last_modified_at, spec_version            |
+| `entities`         | Array of entity objects with all mechanical and narrative fields  |
+| `npcs`             | Array of NPC objects with all fields                             |
+| `factions`         | Array of faction objects with clock state (REQ-233)               |
+| `relationships`    | Array of relationship objects (REQ-236)                           |
+| `secrets`          | Array of secret objects with known-by status (REQ-234)            |
+| `dm_context`       | Pause/resume context object (REQ-232)                             |
+| `notes`            | Object mapping note keys to content strings (REQ-242)             |
+| `scene`            | Current scene description and scene type                          |
+| `countdowns`       | Array of active countdowns with name, ticks, type, clock_type     |
+| `lore`             | Array of lore entries (Appendix L schema per entry)               |
+| `enrichment`       | Array of enrichment items across all seven output modules          |
+| `adventure`        | Active adventure slug and generated adventure content            |
+| `audit_log`        | Array of audit entries (timestamp, hat, tool, args, output)       |
+| `checkpoints`      | Array of checkpoint objects `{label, timestamp, state}` (REQ-241) |
+| `hat_state`        | Active hat and per-Novel hat preferences                          |
+| `undo_snapshots`   | Array of snapshot objects (per-hat stacks)                        |
+
+The `manifest` object SHALL contain: `novel_format_version` (integer),
+`server_spec_version` (spec CalVer string), `ruleset_hash` (SHA-256 hex string),
+`builder_implementation` (object with `name` and `version` strings),
+`adventure_module_slugs` (array of strings), `adventures_embedded` (boolean),
+`property_groups_present` (array of populated tier name strings), and
+`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md).
 
 **Markdown format.** HTML-comment-annotated sections following the same key structure
 as the JSON format. Each section begins with `<!-- @section <key> -->` and contains

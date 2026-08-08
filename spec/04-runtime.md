@@ -102,7 +102,7 @@ State tiers:
 | Novel      | Active game state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains six property groups, all
+**Novel properties.** Every Novel contains eleven property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -118,6 +118,7 @@ discarded by `end_novel`):
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
+| Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -148,10 +149,18 @@ consistent order.
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
 | Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | Navigational    | REQ-083             |
 | Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | Mechanical      | REQ-125, REQ-073    |
+| Scene → Faction      | Faction clocks advance one tick on each scene transition                                                              | Mechanical      | REQ-233             |
 | Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | Mechanical      | REQ-043, REQ-075, REQ-124 |
 | Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | Navigational    | REQ-079, REQ-119    |
 | Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | Navigational    | REQ-080, REQ-083    |
 | Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Navigational   | REQ-080             |
+| Faction → Countdown  | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal                               | Mechanical      | REQ-233, REQ-073    |
+| Secret → Relationship| When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended                    | Navigational    | REQ-234, REQ-236    |
+| Relationship → Lore  | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry                | Navigational    | REQ-236             |
+| Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
+| Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
+| DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active                                                  | Navigational   | REQ-242 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`hat_briefing`, resource rendering, suggestion tools) and does not influence

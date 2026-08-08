@@ -85,6 +85,7 @@ defaults without further prompting.
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+| B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -276,16 +277,17 @@ _Check:_ T173.
   code.
 
 **Enrichment classification.** After the seven extraction categories are complete,
-the builder SHALL sort extracted guidance into enrichment output module slots per
+the builder SHALL classify extracted guidance into enrichment output module slots per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
 briefing_order, setting/location descriptions → lore_templates, example-of-play
 resolution sequences → action_patterns, GM/player advice prose →
 supplementary_guidance, encounter tables and campaign frameworks →
-adventure_advice. This is a post-processing sort against existing extraction output —
-no additional ruleset reading. Items carry the `[ruleset]` tag and source anchors
-with HIGH confidence. The classified items form the ruleset-native enrichment
-manifest, written to the Novel's enrichment state during construction (Step 5).
-Ruleset-free builds produce an empty manifest.
+adventure_advice. Classification is feedback-driven per REQ-225: after the initial
+sort, the builder checks each module for content and re-reads source sections for
+any barren module per the REQ-225 re-read mapping. Items carry the `[ruleset]` tag
+and source anchors with HIGH confidence. The classified items form the
+ruleset-native enrichment manifest, written to the Novel's enrichment state during
+construction (Step 5). Ruleset-free builds produce an empty manifest.
 
 **Cross-format consistency.** Before server construction, the builder samples 10
 items at random from the model — spanning at least three extraction categories — and
@@ -439,13 +441,16 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
+| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules | ≥4 populated | Re-read source sections for barren modules per REQ-225 re-read mapping |
+| Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total enrichment items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
-Cross-format consistency; Reconciliation quality is independent. The builder
-records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
+Cross-format consistency; Enrichment population shares source data with Extraction
+completeness; Reconciliation quality and Enrichment term anchoring are independent.
+The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
 SHALL resolve the regression before the current step can be marked complete, using
@@ -477,20 +482,20 @@ category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
 
-Phase 1 exit: all seven metrics meet threshold (conversion-fidelity conditional —
-six when conversion not selected, seven when conversion selected), or an extraction stall
+Phase 1 exit: all nine metrics meet threshold (conversion-fidelity conditional —
+eight when conversion not selected, nine when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains six metrics and the exit
-condition is six metrics meeting threshold.
+conversion was not selected, the table contains eight metrics and the exit
+condition is eight metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
-seven metrics are treated as met. No extraction stall applies — zero-case
+nine metrics are treated as met. No extraction stall applies — zero-case
 dispositions are not a stall.
 
 **Phase 2 — Construction quality.**
@@ -1079,6 +1084,16 @@ rows, and narrative voice profile source anchors against section-removed rows.
 Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
 with the gap audit row reference. This is a cross-reference scan — no web
 research occurs.
+
+**Enrichment population.** After the enrichment consistency check, the builder
+SHALL run a scoped ruleset-native enrichment re-classification per REQ-243:
+identify new or changed surfaces from the gap audit's implemented-disposition
+rows, map each surface to its source ruleset sections via RULESET_MODEL.md
+citations, run REQ-225 classification on only those sections, merge new
+`[ruleset]`-tagged items into the existing enrichment manifest (append, never
+replace), and record the added item count per module in DECISIONS.md. When the
+gap audit identifies no new surfaces (patch-level change), this step SHALL be
+skipped with a "no new surfaces — skipped" annotation. No web research occurs.
 
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
 budget is exceeded before the Gauntlet passes, the builder reports residual gaps

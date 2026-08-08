@@ -299,7 +299,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231           | 20    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 243           | 21    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
@@ -944,15 +944,31 @@ DECISIONS.md (5).
 _Check:_ T93.
 
 **REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
-builder SHALL classify extracted guidance into the six enrichment output modules
+builder SHALL classify extracted guidance into the seven enrichment output modules
 (voice_examples, briefing_order, lore_templates, action_patterns,
-supplementary_guidance, adventure_advice) using the ruleset's own text. Extraction
-sources and confidence: ruleset example-of-play dialogue = HIGH, ruleset GM advice
-chapters = HIGH, ruleset setting descriptions = HIGH, ruleset "Inspirational Reading"
-or Appendix N media citations = HIGH, ruleset encounter tables = HIGH. Ruleset-native
-items carry `[ruleset]` tag with source anchor. This classification is a
-post-processing sort of existing extraction output — no additional ruleset reading is
-required. Items are sorted into module slots: example-of-play dialogue →
+supplementary_guidance, adventure_advice, narrative_voices) using the ruleset's own
+text. Extraction sources and confidence: ruleset example-of-play dialogue = HIGH,
+ruleset GM advice chapters = HIGH, ruleset setting descriptions = HIGH, ruleset
+"Inspirational Reading" or Appendix N media citations = HIGH, ruleset encounter
+tables = HIGH. Ruleset-native items carry `[ruleset]` tag with source anchor.
+
+Classification is feedback-driven, not a one-pass sort. After the initial
+classification pass, the builder SHALL check each module for content. When a module
+is empty, the builder SHALL re-read the source ruleset section most likely to contain
+the missing content and attempt re-classification — one pass per barren module. The
+mapping is:
+
+- Empty voice_examples → re-read example-of-play dialogue sections.
+- Empty briefing_order → re-read GM advice chapter structure.
+- Empty lore_templates → re-read setting/location description sections.
+- Empty action_patterns → re-read example-of-play resolution sequences.
+- Empty supplementary_guidance → re-read imperative advice paragraphs addressed
+  to GM or player.
+- Empty adventure_advice → re-read encounter tables and campaign frameworks.
+- Empty narrative_voices → re-read inspirational-media citation sections
+  (REQ-226).
+
+Items are sorted into module slots: example-of-play dialogue →
 voice_examples, GM advice chapter structure → briefing_order, setting/location
 descriptions → lore_templates, example-of-play resolution sequences →
 action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
@@ -961,7 +977,7 @@ at build time and is always present in the Novel (REQ-227). In ruleset-free mode
 (B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
 DECISIONS.md (4).
 *Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
-dialogues produces ruleset-native enrichment items in ≥4 of the 6 modules with
+dialogues produces ruleset-native enrichment items in ≥4 of the 7 modules with
 `[ruleset]` tag and source anchors.
 _Check:_ T-new-225.
 
@@ -1082,7 +1098,8 @@ DECISIONS.md (5) and the metric's step is aborted per §6.5.1 no-delta
 detection — the velocity stall counts as the stalled iteration. This
 integrates velocity into the existing no-delta detection mechanism without
 adding a separate exit criterion, indexed
-counts (anchors, concepts, entity types, actions, tables, procedures, guidance items),
+counts (anchors, concepts, entity types, actions, tables, procedures, guidance items,
+enrichment items per module — ruleset-native count for each of the seven output modules),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
 last-modified, active — per
@@ -1123,7 +1140,7 @@ _Check:_ T15, T45, T93, T105, T154.
 **REQ-160 — Enrichment health reporting.** `spec_health` SHALL report
 enrichment status with these minimum fields: (a) `enrichment_active` —
 boolean indicating whether enrichment state exists; (b) `module_counts`
-— per-module item count for each of the six output modules (§11.1); (c)
+— per-module item count for each of the seven output modules (§11.1); (c)
 `stale_count` — number of inactive enrichment items whose `collected_at`
 exceeds `TTRPG_ENRICH_STALE_DAYS`; (d) `activated_count` — number of
 enrichment items the Game Master has incorporated into active game state
@@ -1133,9 +1150,9 @@ intake answers). Stale items SHALL appear with the `[stale]` flag when
 listed. When enrichment has never been run, `enrichment_active` is false
 and all count fields are zero.
 When enrichment is absent (never run or reverted), `module_counts`
-SHALL include all six module names — `voice_examples`,
+SHALL include all seven module names — `voice_examples`,
 `briefing_order`, `lore_templates`, `action_patterns`,
-`supplementary_guidance`, `adventure_advice` — each with value zero.
+`supplementary_guidance`, `adventure_advice`, `narrative_voices` — each with value zero.
 An absent `module_counts` field or an empty object does not satisfy
 this contract.
 The enrichment health section is visible
@@ -2004,7 +2021,25 @@ append-only audit log (`audit://novel`), including timestamp, hat, tool name,
 arguments, and output prefix. State queries are not logged. Each audit entry chains the hash of the preceding entry,
 producing a tamper-evident sequence. On load, the server verifies the chain end-to-end and
 reports a mismatch in `spec_health` and stderr. The log survives connection
-restarts for the same Novel.
+restarts for the same Novel. WHEN a new `TTRPG_SESSION_ID` value is detected,
+the server SHALL insert a `[session_boundary]` marker entry (REQ-237) before the
+first mutating entry of the session — the marker is a mutating entry for
+hash-chain purposes and is included in `audit://novel` output.
+
+The audit log SHALL be stored as a separate append-only file:
+`.holonovel-state/novels/<slug>.audit.jsonl` — one JSON object per line,
+appended on each mutating tool call. The Novel JSON SHALL store an
+`audit_log_offset` field (the byte offset in the audit file of the last entry
+included in the last full Novel JSON write). On load, the server reads audit
+entries from the JSONL file starting at the stored offset, replays any entries
+written after the last Novel snapshot, and verifies the hash chain end-to-end.
+An audit JSONL file whose hash chain is broken at a point before the stored
+offset SHALL produce a `[corrupted_audit]` warning in `spec_health` — the
+server loads entries up to the break point. An audit JSONL file absent on
+disk when the Novel JSON references it SHALL produce a `[missing_audit]`
+warning — the server loads with an empty audit log and records the event.
+`end_novel` removes both the Novel JSON and its audit JSONL file.
+`export_novel` (REQ-096) assembles the full audit log from the JSONL file.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
 hat, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
@@ -2235,11 +2270,16 @@ condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls
 REQ-174), and `total_combat_rounds` (integer). Missing or inapplicable fields SHALL be
 present with a typed null or empty array, not omitted. The LLM reconstructs a narrative
 recap from these fields; the tool SHALL NOT generate recap prose.
-`session_recap` accepts optional parameters: `max_transitions` (integer, default 3,
+`session_recap` accepts optional parameters: `session_id` (string — when
+provided, scopes the recap to the audit log range bounded by the matching
+`[session_boundary]` marker and the next marker, or the log end for the current
+session; when omitted, spans the full log range); `max_transitions` (integer, default 3,
 minimum 1, maximum 20) — the number of scene state transitions to return; `max_rolls`
 (integer, default 5, minimum 1, maximum 50) — the number of significant rolls to
 return. Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]`
-with the valid range enumerated.
+with the valid range enumerated. When `session_id` does not match any
+`[session_boundary]` marker, return `[ERROR] [NOT_FOUND]` with valid
+session IDs enumerated.
 *Acceptance criterion:* `session_recap()` returns a structure with all named fields
 present, each field carrying its declared type or null/empty-array when inapplicable;
 the output contains no narrative prose strings outside field values; entity status
@@ -2764,6 +2804,11 @@ State isolation: world-model objects, NPCs, and lore created by adventure
 loading are Novel entities — discarded by `end_novel`. Switching adventures
 replaces the active adventure's world model (if present) and prose content
 but retains Novel entities created outside adventure loading.
+Adventure module content loaded into a Novel SHALL be included in
+`export_novel` (REQ-096): when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true`,
+the module's prose content and world-model assertions are embedded inline;
+when `false`, module slugs are recorded in the export manifest for
+reconstitution at import time.
 *Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")`
 activates the adventure, populates the world-model tier with rooms/things/
 exits from the `## World` section, links `@npc` annotations, and surfaces
@@ -2986,6 +3031,31 @@ value=3)` records a suspicious relationship; `get_relationships("pc_1")` include
 the entry; `character_sheet("pc_1")` shows "Relationships: Guard (suspicious)."
 _Check:_ T270.
 
+**REQ-237 — Session segmentation.** The server SHALL insert a
+`[session_boundary]` audit log marker entry when a new `TTRPG_SESSION_ID`
+value is detected on the first mutating tool call after a server start or
+Novel resume. The marker entry carries: `session_id` (string, the
+`TTRPG_SESSION_ID` value), `started_at` (ISO 8601 timestamp of first
+mutating call), and `ended_at` (ISO 8601 timestamp of the previous session's
+last mutating entry, or null for the first session). The marker is a
+mutating entry for audit-chain purposes (REQ-040) but its output prefix is
+the marker identifier. Markers SHALL be hat-filtered: the Player hat sees
+only session boundary timespans without the `session_id`; the Game Master
+sees the full marker entry. `session_recap` (REQ-072) SHALL accept an
+optional `session_id` parameter — when provided, the recap is scoped to the
+audit log range bounded by the matching `[session_boundary]` entry and the
+next marker (or the log end for the current session). When omitted, the
+recap spans the full log range (current behaviour). `spec_health` (REQ-093)
+SHALL report a `sessions` array in Novel metadata: per-session objects with
+`session_id`, `entry_count`, `timespan_start`, `timespan_end`,
+`combat_rounds`, `significant_roll_count`, and `scene_transitions` —
+derived from audit log marker intervals.
+*Acceptance criterion:* After two sessions with different `TTRPG_SESSION_ID`
+values, the audit log contains two `[session_boundary]` entries;
+`session_recap(session_id="s1")` returns only entries from session s1;
+`spec_health` reports per-session metrics for both sessions.
+_Check:_ T275.
+
 **REQ-073 clock types.** `set_countdown` SHALL accept a `clock_type` parameter
 selecting the clock's interaction model:
 
@@ -3022,6 +3092,86 @@ field storing the Lonelog representation alongside the raw audit data.
 Lonelog notation; `compress_audit(format="lonelog")` produces compressed
 Lonelog entries; audit entries contain the `notation` field.
 _Check:_ T272.
+
+**REQ-239 — Audit log compaction.** The server SHALL provide a
+`compact_audit_log(sessions?)` tool (Game Master only) that archives audit
+entries older than a configurable session window into per-session metadata
+summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS`
+(default 20) — sessions are identified by `[session_boundary]` markers
+(REQ-237). For each archived session, the compaction produces a summary
+containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`,
+`confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174),
+`condition_changes`, `roster_changes`, and `scene_transitions`. Summaries are
+stored in the Novel JSON under an `audit_archive` key; raw audit entries for
+archived sessions are removed from the audit JSONL file (REQ-040). The audit
+hash chain is re-anchored at the first live entry after compaction — the
+chain is not broken, but entries after the compaction boundary form a new
+segment. `session_recap` (REQ-072) SHALL derive from live entries plus archive
+summaries when a `session_id` targets an archived session. Summarized sessions
+are retrievable via `audit://novel/archive` as structured objects. Compaction
+is irreversible — confirmation proceeds through a `[NEED_INPUT]` workflow.
+Calling `compact_audit_log` with a `sessions` parameter (integer, minimum 1)
+sets the number of recent sessions to retain as live; when omitted, the
+`TTRPG_AUDIT_RETENTION_SESSIONS` default is used. Sessions currently active
+(no `ended_at` marker) SHALL NOT be compacted. Player hat attempts return
+`[ERROR] [FORBIDDEN]`.
+*Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two
+sessions, `compact_audit_log()` archives session 1 — audit log shows only
+session 2 entries, `audit://novel/archive` returns session 1 summary,
+`session_recap(session_id="s1")` returns the summary, session 2 entries
+remain live. A third call to `compact_audit_log(sessions=2)` retains both
+sessions 2 and 3.
+_Check:_ T277.
+
+**REQ-241 — Checkpoints.** The server SHALL provide checkpoint tools for the
+active Novel: `set_checkpoint(label)` saves a named, persistent snapshot of
+the full Novel state (all ten property groups, world-model tier, combat state,
+pending workflows, dm_context, metadata, audit log pointer, and undo stacks).
+`list_checkpoints()` returns all checkpoint labels with ISO 8601 timestamps.
+`restore_checkpoint(label)` reverts the Novel to the checkpoint state — emits
+a `[NEED_INPUT]` workflow decision with options `yes` and `cancel` (on `yes`:
+restores the snapshot and records a `[checkpoint_restored]` audit entry; on
+`cancel`: restores pre-invocation state unchanged). `delete_checkpoint(label)`
+removes one checkpoint. Checkpoints survive server restarts, Novel switches,
+and undo/redo cycles — they are independent of undo stacks (REQ-041). Maximum
+checkpoints per Novel is configured via `TTRPG_MAX_CHECKPOINTS` (default 10);
+when at capacity, `set_checkpoint` discards the oldest. Checkpoints
+SHALL be stored in the Novel JSON under a `checkpoints` key (array of
+`{label, timestamp, state}` objects). `end_novel` removes all checkpoints.
+Checkpoints are NOT included in `export_novel` output by default — an
+optional `include_checkpoints` parameter on `export_novel` (default `false`)
+controls inclusion. All checkpoint tools are Game Master only.
+`spec_health` SHALL report checkpoint count and storage size. The snapshot
+SHALL use the same compression setting as the Novel (REQ-092).
+*Acceptance criterion:* `set_checkpoint("before the ritual")` creates a
+checkpoint; `list_checkpoints()` returns one entry with label and timestamp;
+after 5 mutations, `restore_checkpoint("before the ritual")` reverts all 5;
+`end_novel` removes the checkpoint; `export_novel("json", include_checkpoints=
+true)` includes the checkpoints key.
+_Check:_ T279.
+
+**REQ-242 — Notes (GM scratchpad).** The Novel SHALL carry a notes tier —
+key-value freeform text entries invisible to the Player hat. `set_note(key,
+content)` creates or updates a note. `remove_note(key)` removes a note.
+`list_notes()` returns all note keys and a content preview (first 100
+characters). Notes are inert narrative context — they do not trigger lore
+matching, countdown hooks, or any mechanical effect. Notes persist with the
+Novel, survive `revert_enrichment`, and are removed by `end_novel`. Notes
+SHALL be surfaced in `hat_briefing` (Game Master only) under a new `notes`
+section token (added to REQ-082's documented token set), and at
+`notes://<key>` as a retrievable resource. Notes SHALL be included in
+`export_novel` output under the `notes` key (mapping keys to content
+strings), in `clone_novel` (REQ-240) output, and in checkpoint snapshots
+(REQ-241). This tier is the unstructured complement to REQ-232's structured
+`dm_context` — dm_context captures session-transition state with named fields;
+notes capture raw ideas, secrets-in-progress, and session jottings that do
+not fit dm_context's schema. Player hat attempts return `[ERROR] [FORBIDDEN]`.
+*Acceptance criterion:* `set_note("betrayal", "The captain is the real
+villain")` stores the note; `list_notes()` returns `{key: "betrayal",
+preview: "The captain is the real villain"}`; `notes://betrayal` returns full
+content; the Player hat sees no note content in `hat_briefing`; after
+`end_novel`, notes are cleared.
+_Check:_ T280.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -3516,6 +3666,27 @@ Novel; re-enabling restores them; an unknown module returns `[INVALID_INPUT]`;
 Player hat returns `[FORBIDDEN]`.
 _Check:_ T-new-231.
 
+**REQ-243 — Enrichment population during spec-driven updates.** During a
+spec-driven update per REQ-098, after the gap audit implements new or changed
+surfaces and before Gauntlet re-execution, the builder SHALL run a scoped
+ruleset-native enrichment re-classification. The builder: (a) identifies new or
+changed surfaces from the gap audit's implemented-disposition rows — surfaces are
+tools, resources, prompts, or state fields; (b) maps each surface to the source
+ruleset sections that produced it, using the extraction citations in
+RULESET_MODEL.md; (c) runs REQ-225 classification on only those sections,
+producing new `[ruleset]`-tagged items; (d) merges new items into the existing
+enrichment manifest — appending to modules, never replacing existing items;
+(e) records the added item count per module in DECISIONS.md alongside the gap
+audit row reference. When the gap audit identifies no new surfaces (patch-level
+change), this step SHALL be skipped with a "no new surfaces — skipped" annotation.
+The scoped re-classification SHALL NOT trigger a full re-read of the ruleset —
+only the sections that produced the new surfaces are re-read. This step SHALL
+NOT trigger web research. Community enrichment items are not affected.
+*Acceptance criterion:* After a Minor update that adds a new `lookup_<category>`
+tool, ruleset-native action_patterns and supplementary_guidance receive new
+`[ruleset]` items for the new tool. DECISIONS.md records the added count per module.
+_Check:_ T-new-243.
+
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
 `{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
@@ -3747,8 +3918,37 @@ mismatch in `spec_health` and stderr if both are tainted. The checksum algorithm
 name are builder-determined; the convergence loop enforces that tainted state is detected. Undo snapshot stacks
 (REQ-041) persist with the Novel — they survive server restarts alongside all other
 Novel state tiers.
+
+The Novel JSON SHALL include a `novel_format_version` field — an integer,
+initially `1`, incremented when the Novel's on-disk schema changes
+incompatibly. On load, the server compares the stored version to the current
+format version. Version < current: trigger graceful migration per the existing
+load rules (absent-model fields receive ruleset-defined defaults; extra fields
+are preserved as inert data). Version > current: surface a `[WARNING]
+[format_future]` in `spec_health` — the Novel may contain fields the current
+server cannot interpret; the server loads the Novel with the existing graceful
+migration rules and the warning remains active until the format version matches.
+
+The Novel JSON SHALL include an `audit_log_offset` field — an integer byte
+offset pointing to the last audit entry included in the last full Novel JSON
+write, stored in the separate audit JSONL file (REQ-040). On load, the server
+reads audit entries from the JSONL file starting at this offset to recover
+entries written after the last full save.
+
+WHEN `TTRPG_NOVEL_COMPRESS` is `true` (default `false`), the serialized Novel
+JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be
+compressed when the primary is compressed. The 4 MB health warning threshold
+in REQ-097 applies to the on-disk compressed size. `export_novel` output
+(REQ-096) SHALL be uncompressed regardless of this setting — the interchange
+format is always uncompressed JSON or Markdown. `TTRPG_NOVEL_COMPRESS` SHALL
+be recorded in the Novel's metadata for integrity verification on resume:
+a compressed Novel loaded with compression disabled SHALL produce a `[WARNING]
+[compression_mismatch]`; an uncompressed Novel loaded with compression enabled
+loads normally.
 *Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty
 and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string;
+`cat novels/<slug>.json | jq .novel_format_version` returns `1`;
+`cat novels/<slug>.json | jq .audit_log_offset` returns an integer;
 a corrupt primary file triggers backup restore.
 _Check:_ T77, T88, T156.
 
@@ -3757,8 +3957,11 @@ slug, name, last-modified timestamp, active flag. The active Novel's metadata in
 creation timestamp, last-modified timestamp, entity count, adventure source (module slug,
 "generated", or "none"), setup-completion flags, session count (distinct `TTRPG_SESSION_ID`
 values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
-range), last-active scene anchor, current combat round if in-combat, and total combat rounds
-played across this Novel's lifetime. This metadata appears in
+range), last-active scene anchor, current combat round if in-combat, total combat rounds
+played across this Novel's lifetime, and a `sessions` array — per-session objects with
+`session_id`, `entry_count`, `timespan_start`, `timespan_end`, `combat_rounds`,
+`significant_roll_count`, and `scene_transitions` — derived from `[session_boundary]`
+marker intervals (REQ-237). This metadata appears in
 `hat_briefing` under the `novel` section token (added to REQ-082's documented token
 set). `novel://current` and `novel://<slug>` resources return full metadata, including
 the narrative directive (REQ-081).
@@ -3789,23 +3992,73 @@ a lore set consisting solely of the import data. Dry-run mode reports which
 entries would be added, which would be skipped as duplicates, and which would be
 overwritten (replace only), without modifying state.
 
-**REQ-096 — Novel interchange.** `export_novel(format)` (Game Master only, format `json`
-or `markdown`) exports the active Novel's complete state — entities, NPCs, scene,
-countdowns, lore, enrichment, adventure, audit log (full — all entries, structured per
-REQ-040 entry format), snapshots, hat state, and
-metadata — in a self-contained interchange format. `import_novel(data, mode)` (Game Master
-only, mode `dry-run`, `replace`, or `merge`) imports a previously exported Novel.
-`dry-run` reports what would change without side effects. `replace` replaces the active
-Novel's state with the import data. `merge` adds entities and NPCs from the import to the
-active Novel, skipping duplicates by entity or NPC ID. Player hat attempts return
-`[ERROR] [FORBIDDEN]`. Round-trip: export → import → export produces identical output.
-Format schema is defined in Appendix Q. Importing a Novel via `import_novel` restores
-its lore tier alongside all other state; no separate `import_lorebook` call is
-required for story-portability.
+**REQ-096 — Novel interchange.** `export_novel(format, scope?)` (Game Master
+only, format `json` or `markdown`, scope defaults to `full`) exports the active
+Novel's state in a self-contained interchange format per Appendix Q. The
+`scope` parameter selects the payload: `full` (all state tiers, audit log,
+snapshots, checkpoints if `include_checkpoints=true` per REQ-241), `state_only`
+(all tiers except audit log and checkpoints), `lore` (lore tier only),
+`world_model` (rooms, things, exits, properties), `npcs` (NPCs with personality
+fields), `factions` (factions with clock state), `secrets` (secrets with
+known-by status), `relationships` (relationship objects), `dm_context` (pause/
+resume context), `notes` (key-value notes), or `scene_history` (scene-state
+ledger). Each scope outputs Appendix Q schema with omitted keys for excluded
+tiers. Single scope per call.
+
+`import_novel(data, mode, strict?)` (Game Master only, mode `dry-run`,
+`replace`, or `merge`, strict defaults to `false`) imports a previously
+exported Novel. `dry-run` reports what would change without side effects.
+`replace` replaces the active Novel's state with the import data. On import,
+the server SHALL validate: (a) entity IDs within the import are unique,
+(b) NPC references in lore entry trigger lists resolve to NPCs present in the
+import (or the existing Novel for merge mode), (c) faction references in
+`dm_context.active_threads` resolve to factions present in the import,
+(d) relationship targets resolve to entities, NPCs, or factions present in
+the import, (e) world-model exit references resolve to rooms present in the
+import, (f) countdown names are unique within the import, (g) clock `opposes`
+and `unlocks` references resolve to countdowns present in the import,
+(h) adventure content referenced in `manifest.adventure_module_slugs` is
+either embedded or the slugs are recorded as missing with a warning. `dry-run`
+reports all validation failures with each item's path. In `replace` and
+`merge` modes, failures surface as `[WARNING]` with enumerated items but
+import proceeds. When `strict` is `true`, any validation failure blocks the
+import and returns `[ERROR] [STATE_CONFLICT]` for `replace`/`merge` modes
+(returning the failure list in the error body), or produces a failure report
+with `isError: false` for `dry-run`. `merge` adds entities and NPCs from the
+import to the active Novel, skipping duplicates by entity or NPC ID. Player
+hat attempts return `[ERROR] [FORBIDDEN]`. Round-trip: export → import →
+export produces identical output (full scope, same format).
+
+The export SHALL include a `manifest` object containing: `novel_format_version`
+(integer, REQ-092), `server_spec_version` (CalVer from DECISIONS.md),
+`ruleset_hash` (SHA-256 of source ruleset), `builder_implementation` (name and
+version of the builder that produced the server), `adventure_module_slugs`
+(array of module slugs active at export time), `adventures_embedded` (boolean,
+whether module content is embedded inline), `property_groups_present` (array
+of populated tier names), and `waiver_dependent_mechanics` (array of mechanic
+names that depend on REQ-013 waivers recorded in DECISIONS.md). The manifest
+is advisory — `import_novel` surfaces mismatches as warnings but does not
+block import.
+
+`export_novel` SHALL embed loaded adventure module content inline in the
+`adventure` key when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true` (default
+`false`). When `false`, the export's `manifest.adventure_module_slugs` field
+records which adventure modules were active at export time but their content
+is not embedded — the import target must have those modules indexed to
+restore adventure content. Adventure modules embedded inline SHALL include
+their prose content (all narrative sections per REQ-079) and
+world-model assertions (`## World` section); embedded content carries the
+module's build-time content hash for integrity verification on import.
+`TTRPG_EXPORT_EMBED_ADVENTURES` SHALL be recorded in the Novel's build
+fingerprint as part of the Build workflow's Advanced questions (B9 area).
 *Acceptance criterion:* `export_novel("json")` → `import_novel(data, "dry-run")`
 reports changes without side effects; `import_novel(data, "replace")` restores
-the exported state; round-trip is byte-identical.
-_Check:_ T100.
+the exported state; round-trip is byte-identical; `export_novel("json",
+"lore")` produces a payload with only the lore tier present; `import_novel
+(data, "dry-run", strict=true)` with broken references reports all failures and
+blocks import; `export_novel("json")` includes a `manifest` object with all
+declared fields present.
+_Check:_ T100, T281.
 
 **REQ-097 — Novel health.** The `spec_health` tool reports per-Novel health metrics for
 the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore
@@ -3849,6 +4102,48 @@ content, then the NPC (with template stats), then the triggered lore entry,
 then the countdown — in dependency order. The order IS stable across 3
 restarts.
 _Check:_ T145.
+
+**REQ-238 — Backup rotation.** The server SHALL retain the last N backups of
+each Novel, configured via `TTRPG_NOVEL_BACKUP_COUNT` (default 5, minimum 1).
+Backups are named `<slug>.json.bak.1` through `<slug>.json.bak.N`. On each
+atomic write (REQ-092), existing backups are rotated: `<slug>.json.bak.N-1`
+→ `<slug>.json.bak.N`, … `.bak.1` → `.bak.2`, the previous primary file
+(after fsync) → `.bak.1`. On load, if the primary file is corrupt (structural
+JSON error or checksum mismatch per REQ-092), the server attempts backup
+restore in order from `.bak.1` through `.bak.N` — the first parseable backup
+with a valid checksum wins and a `[restored_from_backup]` audit entry records
+the backup index used. If no backup is parseable, the server follows the
+existing recovery path (stderr + `[corrupted_novel]` in `spec_health`).
+`end_novel` moves all backup files to `.trash/` alongside the primary.
+Setting `TTRPG_NOVEL_BACKUP_COUNT=1` retains only the immediate previous
+backup (current behaviour).
+*Acceptance criterion:* After 10 mutations with `TTRPG_NOVEL_BACKUP_COUNT=3`,
+three rotated backup files exist; corrupting the primary and `.bak.1` triggers
+restore from `.bak.2`; `end_novel` removes all backups.
+_Check:_ T276.
+
+**REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
+new_name, trim_audit_sessions?)` tool (callable with no hat active or Game Master
+hat). The tool creates an independent copy of the source Novel as a new Novel at
+`.holonovel-state/novels/<new_slug>.json`. All ten property groups (NPC, Scene,
+Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context)
+plus the world-model tier, combat state, pending workflows, metadata, audit log,
+undo snapshots, and checkpoints (if present, REQ-241) SHALL be copied. Roster
+references are preserved — cloned entities point to the same roster IDs. The
+cloned Novel's `created_at` timestamp SHALL be the clone time; the clone is not
+activated — the caller's active Novel is unchanged. Returns `[STATE_CONFLICT]`
+if the target slug already exists. The optional `trim_audit_sessions` parameter
+(integer, default `null` = full copy) strips audit entries older than N sessions
+from the clone, keeping only the most recent N sessions' entries (session
+boundaries determined by `[session_boundary]` markers per REQ-237). A new
+`clone` audit entry SHALL be recorded in both the source and cloned Novel.
+Player hat attempts return `[ERROR] [FORBIDDEN]`.
+*Acceptance criterion:* `clone_novel("my-game", "my-game-fork")` creates an
+independent copy; mutating the clone does not affect the source; `spec_health`
+lists both Novels; `clone_novel("my-game", "my-game-fork")` a second time
+returns `[STATE_CONFLICT]`; `clone_novel("my-game", "trimmed", trim_audit_
+sessions=2)` clones with only the 2 most recent sessions' audit entries.
+_Check:_ T278.
 
 ### 5.10 World-Model Layer
 
@@ -4139,6 +4434,7 @@ defaults without further prompting.
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+| B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -4330,16 +4626,17 @@ _Check:_ T173.
   code.
 
 **Enrichment classification.** After the seven extraction categories are complete,
-the builder SHALL sort extracted guidance into enrichment output module slots per
+the builder SHALL classify extracted guidance into enrichment output module slots per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
 briefing_order, setting/location descriptions → lore_templates, example-of-play
 resolution sequences → action_patterns, GM/player advice prose →
 supplementary_guidance, encounter tables and campaign frameworks →
-adventure_advice. This is a post-processing sort against existing extraction output —
-no additional ruleset reading. Items carry the `[ruleset]` tag and source anchors
-with HIGH confidence. The classified items form the ruleset-native enrichment
-manifest, written to the Novel's enrichment state during construction (Step 5).
-Ruleset-free builds produce an empty manifest.
+adventure_advice. Classification is feedback-driven per REQ-225: after the initial
+sort, the builder checks each module for content and re-reads source sections for
+any barren module per the REQ-225 re-read mapping. Items carry the `[ruleset]` tag
+and source anchors with HIGH confidence. The classified items form the
+ruleset-native enrichment manifest, written to the Novel's enrichment state during
+construction (Step 5). Ruleset-free builds produce an empty manifest.
 
 **Cross-format consistency.** Before server construction, the builder samples 10
 items at random from the model — spanning at least three extraction categories — and
@@ -4493,13 +4790,16 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
+| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules | ≥4 populated | Re-read source sections for barren modules per REQ-225 re-read mapping |
+| Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total enrichment items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
-Cross-format consistency; Reconciliation quality is independent. The builder
-records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
+Cross-format consistency; Enrichment population shares source data with Extraction
+completeness; Reconciliation quality and Enrichment term anchoring are independent.
+The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
 SHALL resolve the regression before the current step can be marked complete, using
@@ -4531,20 +4831,20 @@ category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
 
-Phase 1 exit: all seven metrics meet threshold (conversion-fidelity conditional —
-six when conversion not selected, seven when conversion selected), or an extraction stall
+Phase 1 exit: all nine metrics meet threshold (conversion-fidelity conditional —
+eight when conversion not selected, nine when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains six metrics and the exit
-condition is six metrics meeting threshold.
+conversion was not selected, the table contains eight metrics and the exit
+condition is eight metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
-seven metrics are treated as met. No extraction stall applies — zero-case
+nine metrics are treated as met. No extraction stall applies — zero-case
 dispositions are not a stall.
 
 **Phase 2 — Construction quality.**
@@ -5134,6 +5434,16 @@ Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
 with the gap audit row reference. This is a cross-reference scan — no web
 research occurs.
 
+**Enrichment population.** After the enrichment consistency check, the builder
+SHALL run a scoped ruleset-native enrichment re-classification per REQ-243:
+identify new or changed surfaces from the gap audit's implemented-disposition
+rows, map each surface to its source ruleset sections via RULESET_MODEL.md
+citations, run REQ-225 classification on only those sections, merge new
+`[ruleset]`-tagged items into the existing enrichment manifest (append, never
+replace), and record the added item count per module in DECISIONS.md. When the
+gap audit identifies no new surfaces (patch-level change), this step SHALL be
+skipped with a "no new surfaces — skipped" annotation. No web research occurs.
+
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
 budget is exceeded before the Gauntlet passes, the builder reports residual gaps
 and the operator chooses: accept the partial update, extend the budget, or revert.
@@ -5260,7 +5570,7 @@ State tiers:
 | Novel      | Active game state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains six property groups, all
+**Novel properties.** Every Novel contains eleven property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -5276,6 +5586,7 @@ discarded by `end_novel`):
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
+| Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -5306,10 +5617,18 @@ consistent order.
 | -------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
 | Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | Navigational    | REQ-083             |
 | Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | Mechanical      | REQ-125, REQ-073    |
+| Scene → Faction      | Faction clocks advance one tick on each scene transition                                                              | Mechanical      | REQ-233             |
 | Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | Mechanical      | REQ-043, REQ-075, REQ-124 |
 | Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | Navigational    | REQ-079, REQ-119    |
 | Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | Navigational    | REQ-080, REQ-083    |
 | Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Navigational   | REQ-080             |
+| Faction → Countdown  | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal                               | Mechanical      | REQ-233, REQ-073    |
+| Secret → Relationship| When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended                    | Navigational    | REQ-234, REQ-236    |
+| Relationship → Lore  | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry                | Navigational    | REQ-236             |
+| Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
+| Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
+| DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active                                                  | Navigational   | REQ-242 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`hat_briefing`, resource rendering, suggestion tools) and does not influence
@@ -5826,10 +6145,13 @@ redistribute source content beyond the Novel's local state.
 Novel properties and follows the Novel's persistence contract (REQ-092) — it
 survives server restarts and same-ruleset rebuilds unchanged. The enrichment
 fingerprint (above) controls re-enrich: unchanged fingerprint → no-op, changed
-fingerprint → replacement. A nuclear rebuild — a build from scratch where the
-state directory is absent — produces no enrichment unless the Enrich workflow
-is selected at intake. The builder surfaces enrichment status after build in
-`spec_health`.
+fingerprint → replacement. Ruleset-native enrichment is subject to the Phase 1
+convergence loop metrics (enrichment population and term anchoring, §6.5) —
+a build that produces a barren enrichment manifest is flagged during
+convergence and triggers re-read of source sections per REQ-225. A nuclear
+rebuild — a build from scratch where the state directory is absent — produces
+no enrichment unless the Enrich workflow is selected at intake. The builder
+surfaces enrichment status after build in `spec_health`.
 
 **Reversion.** Calling `revert_enrichment` (REQ-103) removes all community enrichment
 state at runtime without requiring a rebuild. Ruleset-native enrichment persists.
@@ -6481,6 +6803,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-234 | Secrets and knowledge                   | 2026-08-08 |
 | REQ-235 | Structured player choices               | 2026-08-08 |
 | REQ-236 | Entity relationships                    | 2026-08-08 |
+| REQ-237 | Session segmentation                    | 2026-08-08 |
+| REQ-238 | Backup rotation                        | 2026-08-08 |
+| REQ-239 | Audit log compaction                   | 2026-08-08 |
+| REQ-240 | Clone Novel                            | 2026-08-08 |
+| REQ-241 | Checkpoints                            | 2026-08-08 |
+| REQ-242 | Notes (GM scratchpad)                  | 2026-08-08 |
+| REQ-243 | Enrichment population during updates | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
 | REQ-143 | Category extraction order          | 2026-08-06   |
@@ -6828,6 +7157,14 @@ diet.
 | T272  | Automated | Session notation: call `session_recap(format="lonelog")` — assert output in Lonelog notation (`###` scene headers, `@` actions, `=>` outcomes). Call `compress_audit(format="lonelog")` — assert compressed Lonelog entries. Assert audit entries contain optional `notation` field. Call `session_recap(format="markdown")` — assert current behavior unchanged. | REQ-072 |
 | T273  | Automated | Player choices: call `present_choices("The goon blocks your path.", [{id:"talk", label:"Talk", description:"Persuade him"}, {id:"fight", label:"Fight", description:"Start combat"}])` — assert returns `[NEED_INPUT]` with two options. Call `respond(decision, "fight")` — assert `[choice]` audit entry and matching countdown advances. Call with `allow_freeform=true` — assert freeform text stored in audit entry. | REQ-235 |
 | T274  | Automated | Secrets and knowledge: call `set_secret("confession", "The butler killed Lord Ashworth")` — assert GM-only lore entry created. Call `reveal_secret("confession", "pc_detective")` — assert `character_sheet("pc_detective")` includes "Known Information" section. Call `check_knowledge("pc_detective")` — assert returns the secret. Call `check_knowledge("pc_guard")` — assert does not return the secret. | REQ-234 |
+| T275  | Automated | Session segmentation: run two sessions with different `TTRPG_SESSION_ID` values — assert audit log contains two `[session_boundary]` markers with session IDs and timestamps. Call `session_recap(session_id="s1")` — assert returns only entries from session s1. Call `session_recap(session_id="s2")` — assert returns only entries from session s2. Call `session_recap()` with no session_id — assert returns all entries. Call `spec_health` — assert per-session metrics array includes entry counts, timespans, and combat rounds for both sessions. | REQ-237 |
+| T276  | Automated | Backup rotation: set `TTRPG_NOVEL_BACKUP_COUNT=3` — after 10 mutations, assert three rotated backup files exist (`.bak.1`, `.bak.2`, `.bak.3`) with descending modification times. Corrupt the primary `.json` file and `.bak.1` — restart the server, assert it restores from `.bak.2` and the audit log contains a `[restored_from_backup]` entry naming backup index 2. Call `end_novel` — assert all backup files and the primary are moved to `.trash/`. | REQ-238 |
+| T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `compact_audit_log()` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `session_recap(session_id="s1")` — assert returns the summary from archive. Call `session_recap()` with no session_id — assert returns only session 2 entries. Call `compact_audit_log(sessions=2)` — assert prompt to retain both sessions. Player hat `compact_audit_log` returns `[FORBIDDEN]`. | REQ-239 |
+| T278  | Automated | Clone Novel: call `clone_novel("my-game", "my-game-fork")` — assert new Novel created at `novels/my-game-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Mutate the clone (add NPC) — assert source Novel unaffected. Call `clone_novel("my-game", "my-game-fork")` again — assert `[STATE_CONFLICT]`. Call `clone_novel("my-game", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player hat `clone_novel` returns `[FORBIDDEN]`. | REQ-240 |
+| T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
+| T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
+| T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
+| T-new-243 | Automated | Enrichment population during spec-driven updates: perform a Minor spec-driven update that adds a new `lookup_<category>` tool. Assert the gap audit's implemented-disposition rows include the new tool. Assert DECISIONS.md records the added enrichment item count per module for the new surface. Assert the merged enrichment manifest contains new `[ruleset]`-tagged items in action_patterns or supplementary_guidance that reference the new tool. Assert existing enrichment items for other modules are unchanged (append-only). Assert a patch-level update with no new surfaces skips the enrichment population step with "no new surfaces — skipped" annotation. | REQ-243 |
 
 ---
 
@@ -7615,19 +7952,34 @@ formats._
 
 **JSON format.** The top-level object contains these keys:
 
-| Key              | Content                                                         |
-| ---------------- | --------------------------------------------------------------- |
-| `novel_metadata` | slug, name, created_at, last_modified_at, spec_version           |
-| `entities`       | Array of entity objects with all mechanical and narrative fields |
-| `npcs`           | Array of NPC objects with all fields                            |
-| `scene`          | Current scene description and scene type                        |
-| `countdowns`     | Array of active countdowns with name, ticks, type                |
-| `lore`           | Array of lore entries (Appendix L schema per entry)              |
-| `enrichment`     | Array of enrichment items across all six output modules          |
-| `adventure`      | Active adventure slug and generated adventure content            |
-| `audit_log`      | Array of audit entries (timestamp, hat, tool, args, output)  |
-| `hat_state`  | Active hat and per-Novel hat preferences                 |
-| `undo_snapshots` | Array of snapshot objects (per-hat stacks)                   |
+| Key                | Content                                                         |
+| ------------------ | --------------------------------------------------------------- |
+| `format_version`   | Integer — the Novel format version at time of export (REQ-092)   |
+| `manifest`         | Portability metadata object (see below)                           |
+| `novel_metadata`   | slug, name, created_at, last_modified_at, spec_version            |
+| `entities`         | Array of entity objects with all mechanical and narrative fields  |
+| `npcs`             | Array of NPC objects with all fields                             |
+| `factions`         | Array of faction objects with clock state (REQ-233)               |
+| `relationships`    | Array of relationship objects (REQ-236)                           |
+| `secrets`          | Array of secret objects with known-by status (REQ-234)            |
+| `dm_context`       | Pause/resume context object (REQ-232)                             |
+| `notes`            | Object mapping note keys to content strings (REQ-242)             |
+| `scene`            | Current scene description and scene type                          |
+| `countdowns`       | Array of active countdowns with name, ticks, type, clock_type     |
+| `lore`             | Array of lore entries (Appendix L schema per entry)               |
+| `enrichment`       | Array of enrichment items across all seven output modules          |
+| `adventure`        | Active adventure slug and generated adventure content            |
+| `audit_log`        | Array of audit entries (timestamp, hat, tool, args, output)       |
+| `checkpoints`      | Array of checkpoint objects `{label, timestamp, state}` (REQ-241) |
+| `hat_state`        | Active hat and per-Novel hat preferences                          |
+| `undo_snapshots`   | Array of snapshot objects (per-hat stacks)                        |
+
+The `manifest` object SHALL contain: `novel_format_version` (integer),
+`server_spec_version` (spec CalVer string), `ruleset_hash` (SHA-256 hex string),
+`builder_implementation` (object with `name` and `version` strings),
+`adventure_module_slugs` (array of strings), `adventures_embedded` (boolean),
+`property_groups_present` (array of populated tier name strings), and
+`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md).
 
 **Markdown format.** HTML-comment-annotated sections following the same key structure
 as the JSON format. Each section begins with `<!-- @section <key> -->` and contains
