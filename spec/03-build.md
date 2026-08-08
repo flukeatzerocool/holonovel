@@ -289,6 +289,17 @@ and source anchors with HIGH confidence. The classified items form the
 ruleset-native enrichment manifest, written to the Novel's enrichment state during
 construction (Step 5). Ruleset-free builds produce an empty manifest.
 
+**Enrichment extraction memoization.** Before running REQ-225 classification,
+the builder SHALL check for a pre-built enrichment manifest per REQ-245. When
+a validated manifest is present, REQ-225 extraction and the feedback-driven
+re-classification loop SHALL be skipped. When no pre-built manifest is present,
+the builder SHALL compare the ruleset content hash (REQ-044) against the
+enrichment manifest stored in a prior build's DECISIONS.md (4). A hash match
+indicates the ruleset source is unchanged — the builder MAY skip REQ-225
+extraction and re-classification, recording `cached — ruleset hash match` in
+DECISIONS.md (4). A hash mismatch or absent prior manifest SHALL trigger live
+extraction.
+
 **Cross-format consistency.** Before server construction, the builder samples 10
 items at random from the model — spanning at least three extraction categories — and
 verifies that RULESET_MODEL.md and ruleset_model.json agree on: name, source anchor,
@@ -637,6 +648,60 @@ resource URI completeness, `[C-TRUNC]` truncation accuracy, `[C-INPUT]`
 input-validation gap. The prefix enables cross-build pattern detection;
 findings without a prefix are process-compliance defects.
 
+### 6.5.5 Convergence result caching
+
+Before Phase 1 measurement begins, the builder SHALL compute a convergence
+cache key per REQ-244: ruleset content hash (REQ-044, sentinel `"none"` for
+ruleset-free), specification content hash (REQ-187), inform package version
+(B10), and aggregate hash of the `enrich/` vendor directory. The builder SHALL
+search DECISIONS.md (5) for a prior convergence recording whose cache key
+matches.
+
+When the key matches a prior successful convergence — all metrics met their
+tiered thresholds and no residual gaps block handoff — the builder SHALL report
+the following metrics as `cached — convergence fingerprint match` without
+re-running the measurement/improvement iteration loop:
+
+- **Phase 1 (all nine):** Confidence, Extraction fidelity, Conversion fidelity
+  (when selected), Extraction completeness, Category floor, Cross-format
+  consistency, Reconciliation quality, Enrichment population, Enrichment term
+  anchoring.
+- **Phase 2 (extraction-dependent):** Mechanics fidelity, Suggestion coverage.
+
+The following metrics SHALL always run fresh regardless of cache-key match —
+they measure builder implementation quality, not input stability:
+
+- MUST coverage, Process compliance, Surface terminology, Prompt health,
+  Resource URI completeness, Truncation accuracy.
+
+The builder SHALL record the cache-key match and the list of skipped metrics
+in DECISIONS.md (5) alongside the cache key. The cached-metric annotation is a
+convergence event — it does not count as an iteration and does not consume the
+3-attempt budget.
+
+**Partial match.** When a single component of the cache key differs — the spec
+version advanced but the ruleset hash, inform version, and enrichment hash are
+unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
+extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
+extraction model is verified unchanged by a gap audit (§6.7). A partial-match
+annotation in DECISIONS.md (5) SHALL name which component differed and which
+metrics were cached.
+
+**Operator override.** The `--no-cache` flag at intake bypasses all caching and
+forces the full convergence loop. Non-interactive runs use the cache by default.
+A cold checkout — no prior DECISIONS.md (5) from which to retrieve a cache key
+— runs the full convergence loop.
+
+**Ruleset-free builds.** When Phase 1 is skipped per Standing Rule 9, the
+convergence cache key is computed for Phase 2 caching only. Ruleset-free Phase 2
+extraction-dependent metrics (mechanics fidelity, suggestion coverage) are also
+skipped per Standing Rule 9 — the cache key covers the remaining fresh-metric
+domain (MUST coverage against infrastructure categories, process compliance,
+surface terminology, prompt health, resource URI completeness, truncation
+accuracy). For ruleset-free builds consuming a specific inform package version,
+the inform convergence manifest (REQ-245) takes precedence over the convergence
+cache key for Phase 2 metrics — the manifest provides pre-computed results.
+
 ### 6.6 The Gauntlet
 
 *Prepare:* Load files from `build-phase-map.md` Gauntlet row: 03-build.md §6.6,
@@ -937,6 +1002,23 @@ This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
 syncs — not only the blanket Gauntlet run.
 
+**Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
+(REQ-044) nor the specification content hash (REQ-187) have changed since the
+prior successful Gauntlet execution — recorded in DECISIONS.md (6) with its
+Gauntlet fingerprint (ruleset hash + spec hash + inform version) — the builder
+SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
+surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
+The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
+
+When the specification version has advanced but the ruleset hash is unchanged,
+the builder SHALL run the gap audit (§6.7) and select Gauntlet sub-workflows
+per the surface-to-scenario mapping — only sub-workflows exercising changed
+surfaces execute. The full 22-sub-workflow Gauntlet is not required when the
+gap audit identifies no ruleset-facing surface changes.
+
+The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
+intake, forcing all 22 sub-workflows regardless of fingerprint match.
+
 #### Inform Gauntlet
 
 The Inform server — the `@holonovel/inform` npm package (ruleset-free per §6.2) — is
@@ -947,6 +1029,16 @@ consume the published inform package as a build-time dependency and skip the Inf
 Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
 Budget, and Structured encoding contracts apply (§6.6). Blocking sub-workflows SHALL
 pass; non-blocking failures are recorded as accepted limitations.
+
+**Version-bound results.** When the inform package version (B10) matches a
+prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
+specification version has not advanced, the builder MAY reuse the prior
+results — recording `cached — inform vX.Y.Z Gauntlet results` in DECISIONS.md
+(6) — instead of re-executing the 10 sub-workflows. A specification version
+advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
+manifest (REQ-245) carries pre-computed Gauntlet results for the version it
+was built against; the manifest takes precedence over prior-build DECISIONS.md
+records.
 
 **Inform Gauntlet sub-workflows.**
 

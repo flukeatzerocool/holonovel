@@ -11,7 +11,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 243           | 21    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 243–245       | 23    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
@@ -3398,6 +3398,74 @@ NOT trigger web research. Community enrichment items are not affected.
 tool, ruleset-native action_patterns and supplementary_guidance receive new
 `[ruleset]` items for the new tool. DECISIONS.md records the added count per module.
 _Check:_ T-new-243.
+
+**REQ-244 — Convergence cache key.** The builder SHALL compute a convergence
+cache key at the start of Phase 1, composed of four components: the ruleset
+content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
+content hash (REQ-187), the inform package version (B10), and an aggregate hash
+of the `enrich/` vendor directory. When the cache key matches a prior successful
+convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
+whose inputs are fully captured by the key — all nine metrics when the key
+matches, or individual metrics when a partial match is detected. Phase 2 metrics
+that depend on extraction quality (mechanics fidelity, suggestion coverage) MAY
+be skipped when the extraction model is unchanged; Phase 2 metrics that depend
+on builder implementation quality (MUST coverage, process compliance, surface
+terminology, prompt health, resource URI completeness, truncation accuracy)
+SHALL always run fresh. Every skipped metric SHALL be recorded in DECISIONS.md
+(5) with the annotation `cached — convergence fingerprint match` and the cache
+key that produced the match. The operator MAY override the cache at intake with a
+`--no-cache` flag that forces the full convergence loop regardless of cache-key
+match. In non-interactive mode the defaults apply — cached results are reused
+when available. A full rebuild (cold checkout, no prior DECISIONS.md) has no
+cache key to match and runs the full convergence loop. In `quick-build` mode the
+cache key is still computed but Phase 1 metrics are always reported fresh —
+quick-build runs the full convergence loop for speed-versus-correctness
+trade-off tracking. A partial match — one component differs while the rest
+are unchanged — SHALL record which component differed and which metrics were
+cached in DECISIONS.md (5).
+*Acceptance criterion:* A TTRPG build against a ruleset whose prior build
+recorded a matching convergence cache key in DECISIONS.md (5) reports Phase 1
+metrics as `cached — convergence fingerprint match` and skips the
+measurement/improvement iteration loop. A build with `--no-cache` runs the full
+convergence loop regardless of key match. A cold checkout (no prior
+DECISIONS.md) runs the full convergence loop.
+_Check:_ T-new-244.
+
+**REQ-245 — Pre-computed enrichment manifest.** The inform package SHALL ship a
+`CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
+results per package version: the inform version, the specification version the
+manifest was computed against, all eight Phase 2 convergence metric results, and
+Inform Gauntlet sub-workflow outcomes (I1–I10, per-sub-workflow pass/fail with
+ISO 8601 timestamps). When the specification version recorded in the manifest
+matches the current specification version, the inform builder MAY skip Phase 2
+convergence and the Inform Gauntlet, recording `cached — inform vX.Y.Z
+convergence manifest` in DECISIONS.md (5) and (6). When the specification
+version has advanced, the builder SHALL run convergence and the Inform
+Gauntlet fresh and update the manifest with the new results and spec version.
+TTRPG builders consuming the inform package as a dependency SHALL NOT load or
+reference this manifest — it applies only to inform package builds.
+
+A ruleset source MAY include a pre-built enrichment manifest
+(`enrichment_manifest.json` alongside the ruleset Markdown) containing the
+seven-module REQ-225 extraction output, each module's `[ruleset]`-tagged items
+with source anchors and confidence labels, the ruleset content hash it was
+extracted from, and the specification version used for extraction. During
+Discovery, before running REQ-225 classification, the builder SHALL check for
+this manifest. When the manifest is present AND the specification version
+recorded in the manifest matches the current specification version AND the
+manifest's ruleset content hash matches the current ruleset content hash: the
+builder SHALL use the pre-built manifest, recording `pre-built enrichment
+manifest — validated` in DECISIONS.md (4). When any validation condition fails,
+the builder SHALL fall back to live REQ-225 extraction with the annotation
+`pre-built enrichment manifest — <failure reason>, live extraction` in
+DECISIONS.md (4). When no manifest is present, the builder proceeds with live
+extraction as normal.
+*Acceptance criterion:* An inform package build whose CONVERGENCE.md spec
+version matches the current spec reports Phase 2 metrics and Inform Gauntlet
+results as cached. A TTRPG build against a ruleset with a valid pre-built
+enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
+without a manifest runs live REQ-225 extraction as before.
+_Check:_ T-new-245.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:

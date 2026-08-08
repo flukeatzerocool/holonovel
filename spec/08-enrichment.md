@@ -289,3 +289,27 @@ content hashes alongside the community enrichment fingerprint. Vendor content
 changes (updates to `enrich/` files) trigger module replacement per the partial
 refresh contract; unchanged vendor modules are not disturbed.
 
+**Pre-verified enrichment manifest.** The `enrich/` directory SHALL include a
+`MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
+source: module name, module content hash, item count, confidence distribution
+(HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
+valid ruleset index terms), and the timestamp of last verification. The manifest
+is computed by the specification maintainer against the current specification
+version and vendor source content.
+
+During Phase 1 enrichment convergence metrics, the builder SHALL compare each
+module's content hash against the MANIFEST.md entry. When the hash matches, the
+builder SHALL use the pre-verified confidence distribution and term anchoring
+score from the manifest, recording `cached — MANIFEST.md match` in DECISIONS.md
+(5) for the enrichment population and term anchoring metrics. When a module's
+hash differs from the manifest (vendor content was updated), the builder SHALL
+re-audit only the changed module — computing fresh confidence and term anchoring
+scores — and update the manifest with the new hash and scores. Modules whose
+hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
+contract in §11.1.
+
+When the `enrich/` directory contains no MANIFEST.md, the builder SHALL audit
+all vendor content from source and record the results — no manifest match is
+attempted. The builder MAY produce a MANIFEST.md from the audit results for use
+in subsequent builds.
+
