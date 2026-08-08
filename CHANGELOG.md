@@ -24,6 +24,16 @@
   implemented (REQ-248, REQ-250), two build-time REQs waived (REQ-247, REQ-249).
   Spec hash updated.
 
+- Executed all seven SPEC-QUEUE research items — Holodeck-driven spec improvements
+  across three tiers. Added generation intent guard (REQ-251 — Moriarty problem),
+  parser command discoverability (REQ-196 extension — suggestions on unrecognized
+  verbs, command("help")), dual-register speech separation (REQ-064 extension — player
+  register signal, suggest_actions meta-intent support), narrative fast-forward
+  (REQ-252 — skip with bridging summary), NPC depth signaling (REQ-075 — appearance
+  count, recurring/campaign/distant markers), progressive detail control (REQ-197 —
+  brief/verbose/normal modes, detail player signal), and tool-output verbosity control
+  (REQ-253 — terse mode for lookups and combat). All marked DONE.
+
 ## 2026-08-08 — Story lifecycle, narrative memory, one-file Novel
 
 - Defined the story lifecycle: entering a Novel now starts in editing
