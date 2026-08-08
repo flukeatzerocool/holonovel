@@ -25,18 +25,23 @@ deprecated outside this section.
 
 1. **Structural integrity.** Verify the ruleset Markdown (or converted source)
    passes the Appendix H checklist: well-formed, all headings unique, tables
-   regular, references resolvable. Run at intake.
+   regular, references resolvable. Run at intake. Per Standing Rule 9, a
+   ruleset-free build SHALL report a passing result with the finding "no ruleset —
+   skipped."
 
 2. **MCP conformance.** Verify the running server against the Appendix D
    checklist. Every check must pass. Run the MCP Inspector or equivalent
-   against a server built from the active fixture (the Appendix B fixture for
-    rulesets <100 indexed items; Appendix N for rulesets ≥100 indexed items).
+   against a server built from the active fixture: the Appendix B fixture
+   (Tin Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N
+   fixture (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed
+   items); the Appendix W fixture (World-Model) for ruleset-free builds.
 
 **Verification workflow G2 — Golden transcript replay (fixture workflow).**
 Build a server from a fixture and replay its transcript. The fixture is
-selected by ruleset complexity per REQ-100 tier: the Appendix B fixture (Tin
+selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
-(Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items).
+(Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items);
+the Appendix W fixture (World-Model) for ruleset-free builds.
 Assert all contracts the selected fixture's transcript exercises: status prefix
 and `isError` semantics (REQ-001), required fields in order, die values pinned
 by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
@@ -53,7 +58,7 @@ for exact wording.
 
 Before handoff, re-run G2 once from a cold checkout of the four artifacts,
 following only README.md and AGENTS.md. A reproduction failure stops the line.
-_Verify:_ T90 (N fixture), Golden transcript replay (B fixture).
+_Verify:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
 
 **G2 coverage completeness.** After the golden transcript passes, the builder
 SHALL verify that every behavioral contract the selected fixture exercises
@@ -78,13 +83,15 @@ reason in DECISIONS.md. Automated tests must ship a runnable script
 tests must document the verification procedure and expected output shape in
 DECISIONS.md.
 
-**Verification workflow G5 — The Gauntlet (operational verification).** Run
-the 23-sub-workflow Gauntlet defined in §6.6. All blocking sub-workflows
-(S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22, S23) must pass. Non-blocking
-failures are recorded as accepted limitations with re-activation conditions.
-The Gauntlet re-runs after every server code change: during Build completion,
-after Enrich (§11), after spec-driven updates (REQ-098), and after any manual
-code modification.
+**Verification workflow G5 — The Gauntlet (operational verification).** For a
+ruleset server, run the 23-sub-workflow Gauntlet defined in §6.6. All blocking
+sub-workflows (S1, S2, S4, S5, S6, S12, S15, S17, S20, S21, S22, S23) must pass.
+For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
+in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
+Non-blocking failures are recorded as accepted limitations with re-activation
+conditions. The Gauntlet re-runs after every server code change: during Build
+completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
+any manual code modification.
 
 **T18 anti-hat sub-workflows:**
 
