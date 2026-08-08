@@ -171,19 +171,21 @@ mechanical-section count SHALL be recorded as zero.
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window — chunks are sized to fill approximately 3,000 tokens of
-mechanical prose each, with a floor of 3 mechanical sections and a ceiling of 20.
-The builder determines the token-equivalent section count per chunk by estimating
-the average mechanical-section token size from a sample of the first 5 mechanical
-sections encountered and records the chunking strategy (chunk-size floor/ceiling,
-sample-token estimate) in DECISIONS.md (4). The builder reads each chunk, extracts
-models (see below), then requests the next. Guidance-only sections are read in a
-background pass and don't count against the mechanical-section budget.
+mechanical prose each. After extracting the first 5 mechanical sections, the builder
+measures the average token-per-section and sets per-chunk section count to
+min(20, max(3, floor(3000 / avg_tokens_per_section))). The builder records the
+chunking strategy (per-section token estimate, calibrated section count, floor/ceiling)
+in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
+requests the next. Guidance-only sections are read in a post-processing pass after
+mechanical extraction and do not count against the mechanical-section budget.
 
-**Guidance pass budget.** The background guidance pass SHALL not exceed 50
-guidance-only sections. If the ruleset contains more than 50 guidance-only
-sections, the builder processes them in batches of 50, interleaving each
-batch with the next chunk read to prevent context-window exhaustion. The
-builder records the total guidance-section count and batch count in
+**Guidance pass budget.** Guidance-only sections are read after all mechanical
+chunks have been extracted and Phase 1 confidence metrics converge. Guidance
+extraction is a single post-processing pass, not interleaved with mechanical
+extraction. The guidance pass SHALL not exceed 50
+guidance-only sections per batch. If the ruleset contains more than 50 guidance-only
+sections, the builder processes them in batches of 50.
+The builder records the total guidance-section count and batch count in
 DECISIONS.md (4). A ruleset whose guidance-section count exceeds the
 mechanical-section count by more than 3× SHALL log a `[guidance-heavy]`
 finding in the defect log — informational, not blocking.
@@ -216,18 +218,16 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**Inform scaffold installation.** When B1 is not `none` (TTRPG build), the builder SHALL
-install the `@holonovel/inform` npm package at the version specified by B10. The inform
+**@holonovel/inform prerequisite.** When B1 is not `none` (TTRPG build), the builder
+installs the `@holonovel/inform` npm package at the version specified by B10. The inform
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder SHALL add `@holonovel/inform` as a dependency of the TTRPG server and
-import from it per §6.4. No chunked reading or provider-documentation indexing occurs
-during TTRPG builds — the inform package is a build-time dependency, not a per-build
-extraction target. Provider documentation is indexed once when the inform package is
-published; the TTRPG builder consumes the published output. The world-model layer is
-surfaced at the `world://kinds` resource (REQ-202). When B1 is `none` (ruleset-free mode),
-the inform package IS the server — the builder installs it, verifies it starts, and no
-further extraction occurs.
+points. The builder adds `@holonovel/inform` as a dependency of the TTRPG server. No
+chunked reading or provider-documentation indexing occurs during TTRPG builds — the
+inform package is a build-time dependency, not a per-build extraction target. The
+world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
+`none` (ruleset-free mode), the inform package IS the server — the builder installs it,
+verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
 
@@ -268,6 +268,18 @@ _Check:_ T173.
   log.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
+
+**Enrichment classification.** After the seven extraction categories are complete,
+the builder SHALL sort extracted guidance into enrichment output module slots per
+REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
+briefing_order, setting/location descriptions → lore_templates, example-of-play
+resolution sequences → action_patterns, GM/player advice prose →
+supplementary_guidance, encounter tables and campaign frameworks →
+adventure_advice. This is a post-processing sort against existing extraction output —
+no additional ruleset reading. Items carry the `[ruleset]` tag and source anchors
+with HIGH confidence. The classified items form the ruleset-native enrichment
+manifest, written to the Novel's enrichment state during construction (Step 5).
+Ruleset-free builds produce an empty manifest.
 
 **Cross-format consistency.** Before server construction, the builder samples 10
 items at random from the model — spanning at least three extraction categories — and
@@ -324,21 +336,21 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize from @holonovel/inform scaffold, tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by @holonovel/inform scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
-| 5     | State layer: extends @holonovel/inform's state with ruleset-specific types (entity stats, combat, spell slots). World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
+| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
 
 For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
-helpers, state management, macros, enrichment types, and world-model layer (rooms,
+helpers, state management, macros, and world-model layer (rooms,
 things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
 verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
-ruleset-specific content on top of the inform base.
+ruleset-specific content on top of the infrastructure base.
 
 **License.** The server MUST include a `LICENSE.md` file at the project
 root with two sections: a **Ruleset Data** section identifying the source
@@ -383,9 +395,11 @@ categories — the builder does not invent terms. The prompt length budget
 *Prepare:* Load files from `build-phase-map.md` Convergence row: 03-build.md §6.5,
 02-requirements.md (all), 05-verification.md.
 
-**Audit steps.** After each workflow completion and each construction step, the builder spawns a
-subagent (fresh context) that audits the work against the requirements cited by that step.
-The subagent reports findings; the builder resolves each before the next step.
+**Audit steps.** After each workflow completion and every two construction steps, the builder spawns a
+subagent (fresh context) that audits the work against the requirements cited by that
+step. Construction steps are audited in two batches: after Steps 1–3 (scaffold, index,
+pipeline) and after Steps 4–6 (tools, state, prompts). The subagent reports findings;
+the builder resolves each before the next batch.
 
 **Auditor pre-flight.** In `production` mode, before the first checkpoint audit
 for a ruleset, and every 5 build sessions thereafter or when the spec version
@@ -421,8 +435,12 @@ before any server code is written.
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
-metric's pass/fail is measured), the builder SHALL re-measure all other metrics in
-the same phase. If any previously-passed metric drops below its threshold, the
+metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
+data overlaps with the changed step's domain. Confidence shares source data with
+Extraction completeness and Category floor; Extraction fidelity shares with
+Cross-format consistency; Reconciliation quality is independent. The builder
+records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
+re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
 SHALL resolve the regression before the current step can be marked complete, using
 the current step's remaining iteration budget — no new budget is granted. A
@@ -441,17 +459,17 @@ excluded from both numerator and denominator. Completeness below 95% triggers
 re-reading of the highest-priority missed sections (those with the most mechanical
 indicators — procedures, tables, definition lists per §6.3).
 
-**Per-category floor.** In addition to the overall confidence threshold,
-each of the seven extraction categories (§6.3: concepts, entities, actions,
-tables, resolution, roles, guidance) must individually meet a minimum
-confidence floor of 50% HIGH + MEDIUM. A category below 50% triggers a
-targeted re-extraction of that category's source sections. If re-extraction
-cannot raise the category above 50%, the builder records a
+**Per-category floor.** Mechanical categories (Concepts, Entities, Actions,
+Tables, Resolution) must individually meet a minimum confidence floor of 50% HIGH +
+MEDIUM. A mechanical category below 50% triggers a targeted re-extraction of that
+category's source sections. Roles and Guidance categories below 30% record a
+`[category-low-confidence]` finding in the defect log — informational, does not
+trigger a re-extraction cycle unless the operator requests it. If re-extraction
+cannot raise a mechanical category above 50%, the builder records a
 `[category-confidence-block]` finding in DECISIONS.md (5) with: the affected
 category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
-request targeted remediation) before Phase 1 exit. The guidance category is
-exempt from this floor — LOW guidance does not affect tool behavior.
+request targeted remediation) before Phase 1 exit.
 
 Phase 1 exit: all seven metrics meet threshold (conversion-fidelity conditional —
 six when conversion not selected, seven when conversion selected), or an extraction stall
@@ -583,21 +601,17 @@ residual gap means the server works with known limitations; an unbuildable dispo
 means the server cannot meet the Definition of Done.
 
 **Post-write verification.** After every file write during construction and
-verification, the builder re-reads the written file and verifies: (a) heading
-structure matches the plan — confirm the expected `##` and `###` headings appear in
-order; (b) no path corruption — search for doubled directory components and missing
-slashes in code blocks; (c) URLs are syntactically valid. Any discrepancy is a
-convergence finding and triggers a fix + re-read iteration. In `production` mode
-this check applies to every file write: source code, test scripts, README,
-DECISIONS.md, and MCP client configuration. In `quick-build` mode it applies to
-critical files only: DECISIONS.md, the MCP client configuration, and the on-disk
-Novel state file. (d) **completeness** — the builder maintains a file manifest
-(list of expected output files recorded after construction planning). The
-manifest is checked during post-write verification: every file in the manifest
-must exist and have non-zero size. A missing or empty file is a convergence
-finding. (e) **terminology** — no deprecated term from Appendix R appears in the
-written file. Grep for each deprecated term; any match is a convergence
-finding.
+verification, the builder re-reads the written file and verifies structural
+integrity. In `production` mode: source code files receive full checks —
+heading structure, path corruption, URLs, manifest completeness, and
+terminology per (a)–(e) below. Artifact files (README.md, DECISIONS.md,
+RULESET_MODEL.md, AGENTS.md) receive structural checks only — headings
+present, non-empty, manifest entry exists. In `quick-build` mode: critical
+files only — DECISIONS.md, MCP client configuration, and on-disk Novel state
+file. Any discrepancy is a convergence finding and triggers a fix + re-read
+iteration. (a) heading structure matches the plan; (b) no path corruption; (c)
+URLs are syntactically valid; (d) completeness — file manifest checked; (e)
+terminology — no deprecated term from Appendix R.
 
 ### 6.5.4 Finding taxonomy
 
@@ -670,14 +684,14 @@ DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
 Marking a workflow complete without a passing Gauntlet is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
-**Method.** The builder starts two MCP client connections to the same server process
-sharing one `TTRPG_DATA_DIR` — one connection for the Game Master hat
-(`set_hat("game_master")`), one for the Player hat (`set_hat("player")`).
+**Method.** The builder starts up to two MCP client connections to the same server process
+sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-hat interaction
+(S6, S14h, S17) use one connection for the Game Master hat and one for the Player hat.
+All other sub-workflows use a single connection switching hats as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
-calls between the two connections to simulate realistic turn-taking: the Player acts
-(moves, attacks, asks questions), the GM adjudicates (narrates outcomes, escalates,
-manages state). Every scenario states its objective, the tool calls to make, which
-hat calls each, and the pass criterion.
+calls between the two connections when simulating cross-hat turn-taking. Every scenario
+states its objective, the tool calls to make, which hat calls each, and the pass
+criterion.
 
 **Verification principle.** Gauntlet sub-workflows verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `hat_briefing`,
@@ -700,14 +714,22 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep** — call every registered tool at least once with valid input;
-   no crashes, hangs, or unexpected error codes. (Blocking.)
+1. **Tool surface sweep** — call at least one tool from every registered tool category
+   per REQ-015 (read-only, state-reading, command, generation, hybrid), plus all
+   Novel-lifecycle and hat-management tools. Each call uses valid input; additionally,
+   call at least one tool per category with an invalid input (empty string, missing
+   required param) and assert `[INVALID_INPUT]` or `[MISSING_PARAM]` response without
+   crash. (Blocking.)
 2. **Character creation workflow** — step-by-step and quick creation; correct derived
    stats; roster import; undo restores pre-creation state; no active Novel →
    `[STATE_CONFLICT]`. (Blocking.)
 3. **Encounter setup** — combat init with entities and dangers reports round counter, turn order, participant classification.
 4. **Simulated combat session** — turn resolution, HP tracking, condition effects, round
-   advancement over ≥3 rounds with deterministic seeds. (Blocking.)
+   advancement over ≥3 rounds with deterministic seeds. Verify roll transparency per
+   REQ-003: a d20 attack with advantage reports both faces and selected/discarded
+   faces, source-attributed modifiers, and result band. Undo one combat action and
+   verify state restored to pre-action snapshot. Same seed → identical combat sequence.
+   (Blocking.)
 5. **Combat state survival** — HP, conditions, round counter, turn order restored identically
    after restart (verified through tool-observable surfaces). (Blocking.)
 6. **Cross-hat boundary enforcement** — GM-only tools blocked from Player; no GM-only content leaks. (Blocking.)
@@ -716,16 +738,22 @@ four items is incomplete and blocks handoff.
    canonical lookups resolve by name and aliases; source quoting present; NOT_FOUND with
    enumeration.
 9. **Condition lifecycle** — conditions apply, affect mechanics, expire by ruleset triggers; manual removal works.
-10. **Undo during combat** — undo reverts combat state; blocked during pending workflows; succeeds after resolution.
-11. **Workflow cancellation** — cancel restores pre-workflow state; tool works after cancellation.
+10. **Undo during combat** — merged into S4. Undo combat action and
+    determinism assertions are validated within the simulated combat session.
+11. **Workflow cancellation** — merged into S20. Workflow cancel, state
+    restore, and pending-workflow drain are validated within the workflow
+    validation sub-workflow.
 12. **Roster durability** — roster baselines immutable; re-import produces fresh copy matching baseline. (Blocking.)
 13. **Novel isolation** — entities, adventures, generated content do not leak between Novels.
-14. **Edge cases** — (a) empty strings/missing params return `[INVALID_INPUT]` or
-    `[MISSING_PARAM]`, no crash; (b) 0 HP triggers ruleset outcome; (c) heal above max
+14. **Edge cases** — (a) moved to S1 (invalid params validated per category);
+    (b) 0 HP triggers ruleset outcome; (c) heal above max
     caps at max; (d) 5 rapid calls complete without timeout/corruption; (e) ambiguous
     alias → `[AMBIGUOUS]` with entries enumerated; (f) unknown decision → `[NOT_FOUND]`
-    with valid IDs; (g) same seed → identical results, different seeds differ;
-    (h) `spec_health` under Player hat returns only player-filtered metrics.
+    with valid IDs; (g) same seed → identical results, different seeds differ
+    (Blocking — verified in S4); (h) `spec_health` under Player hat returns only
+    player-filtered metrics (Blocking — verified in S17);
+    (i) adversarial input: `set_scene_state` with SQL-injection string stores and
+    echoes verbatim; no behavior change, no crash per REQ-054.
 15. **Stress and recovery** — (a) two connections sharing one data directory: reads reflect
     latest writes, no stale reads/write conflicts/deadlocks; (b) corrupted state file →
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
@@ -737,19 +765,22 @@ four items is incomplete and blocks handoff.
 17. **Novel lifecycle and persistence** — create/resume/end/switch cycle works; state persists
     to disk and restores; `end_novel` confirmation workflow removes file + backup; ended
     Novel blocks resume and switch. (Blocking.)
-18. **Novel isolation and adventure generation** — generated adventures are Novel-scoped, hat-filtered, searchable, regeneratable.
-19. **Novel setup tracking and encounter generation** — setup metadata tracks completion;
-    `generate_encounter` produces batch state (scene + NPC + lore) as single undo target.
-20. **Hat briefing correctness** — populated Novel: Player sees entity stats without
+18. **Adventure generation and encounter lifecycle** — `generate_adventure` produces Novel-scoped,
+    hat-filtered, searchable content; regeneration replaces prior; `generate_encounter`
+    produces batch state (scene + NPC + lore) as single undo target; setup metadata
+    tracks completion. Generated and indexed adventures coexist in `hat_briefing`.
+19. **Hat briefing correctness** — populated Novel: Player sees entity stats without
     confidence breakdowns/GM-only lore; GM sees all content; briefing adapts to scene type
-    changes. (Blocking.)
-21. **Lorebook interchange** — export → modify → import dry-run (no side effects) → import
+    changes. Verify hat foundations (REQ-062) and anti-slop guidance (REQ-070)
+    sections present and hat-filtered. (Blocking.)
+20. **Lorebook interchange** — export → modify → import dry-run (no side effects) → import
     merge (entry restored) → re-export matches original; import replace overwrites. (Blocking.)
-22. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
+21. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
     combat rounds in 3 confrontations: all lore still triggers, ≥100 audit-log entries,
-    `session_recap` returns correct final state, memory hasn't doubled, Novel file ≤5 MB.
-    (Blocking.)
-23. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
+    verify audit log hash chain integrity per REQ-040 (consecutive entries form valid
+    chain), `session_recap` returns correct final state, memory hasn't doubled,
+    Novel file ≤5 MB. (Blocking.)
+22. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_hat blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
@@ -788,12 +819,12 @@ This metric covers Gauntlet sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
 
-A single S22 execution that exceeds 10 minutes of wall-clock time does not fail
-the sub-workflow but is recorded with the actual duration. Three consecutive S22 runs
+A single S21 execution that exceeds 10 minutes of wall-clock time does not fail
+the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
-wall-clock time, except S15 (10 minutes), S22 (10 minutes), and S23 (3
+wall-clock time, except S13 (10 minutes), S21 (10 minutes), and S22 (3
 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
@@ -824,8 +855,8 @@ accumulated regression assertions for redundancy. Subsumed assertions are remove
 and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
-failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 15, 17, 20,
-21, 22, and 23 are blocking — Build is incomplete until they pass. Other failures are
+failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
+20, 21, and 22 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
@@ -876,20 +907,20 @@ S1 is always selected when new tools are added or existing tool signatures chang
 
 | Changed surface                                             | Gauntlet scenarios selected |
 |-------------------------------------------------------------|-----------------------------|
-| Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S11, S12, S23 |
+| Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S12, S22 |
 | Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
 | Conditions, condition management (REQ-206, REQ-217)         | S9 |
 | Search, canonical lookups (REQ-057, REQ-060, REQ-061)      | S8 |
 | Table generation                                            | S7 |
-| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S20 |
-| Undo, redo, snapshots (REQ-041, REQ-116)                   | S10, S11 |
-| State model, Novel persistence (REQ-065, REQ-092)          | S5, S13, S15, S16 |
-| Novel lifecycle (create/resume/end/switch)                  | S17 |
-| Lore, enrichment, adventure generation                     | S18, S19, S21 |
+| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S19 |
+| Undo, redo, snapshots (REQ-041, REQ-116)                   | S4, S22 |
+| State model, Novel persistence (REQ-065, REQ-092)          | S5, S12, S13, S14 |
+| Novel lifecycle (create/resume/end/switch)                  | S15 |
+| Lore, enrichment, adventure generation                     | S18, S20 |
 | New tool added or tool signature changed                    | S1 + category-mapped scenarios |
-| New prompt, resource, or hat-scoped content                 | S6, S20 + content-specific |
+| New prompt, resource, or hat-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
-| Campaign endurance, stress (REQ-052)                        | S15, S22 |
+| Campaign endurance, stress (REQ-052)                        | S13, S21 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
@@ -1006,7 +1037,7 @@ is built and published.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 23-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -1029,6 +1060,19 @@ existing Novel state loads without error under REQ-065 compatibility rules. Nove
 state fields present in stored state but absent in the updated model are preserved
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
+
+**Enrichment consistency check.** After the gap audit and before Gauntlet
+re-execution, the builder SHALL scan all enrichment items (ruleset-native and
+community tiers) for references to surfaces identified as changed or removed in the
+gap audit per REQ-228. The builder cross-references: action pattern tool names
+against the gap audit's tool rows, briefing order section tokens against the gap
+audit's token vocabulary rows, lore template keywords against the gap audit's
+index-changed rows, supplementary guidance anchors against the gap audit's
+section-removed rows, adventure advice ruleset terms against the index-changed
+rows, and narrative voice profile source anchors against section-removed rows.
+Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
+with the gap audit row reference. This is a cross-reference scan — no web
+research occurs.
 
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
 budget is exceeded before the Gauntlet passes, the builder reports residual gaps

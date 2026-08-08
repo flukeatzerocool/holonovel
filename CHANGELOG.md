@@ -1,5 +1,79 @@
 # Changelog
 
+## 2026-08-07 — Two-tier enrichment, Inform relegation, and spec-wide efficiency
+
+- Enrichment is now two-tiered: ruleset-native enrichment is extracted during
+  Discovery from the ruleset's own text (example-of-play dialogue, GM advice,
+  setting descriptions, inspirational media citations) and shipped with every
+  build. Community enrichment (web-sourced) is layered on top as an optional
+  additive workflow. Ruleset-native items carry `[ruleset]` tag and are never
+  removed by `revert_enrichment`. (REQ-225, REQ-226, REQ-227)
+
+- The Quick Reference and §1 play model now frame the tabletop RPG ruleset as
+  the primary driver — Inform is infrastructure, not a peer layer. Parser
+  commands are secondary navigation tools; ruleset resolution mechanics are the
+  focus during play. (§1, §2, §4)
+
+- Added narrative voice profiles pulled from the ruleset's own inspirational
+  media citations ("Appendix N," "Suggested Viewing") — the builder extracts the
+  books, films, and games the designers cite as influences and structures them
+  into enrichment profiles the GM can apply via narrative directives.
+  (REQ-226, enrichment Module 7)
+
+- Spec-driven updates now include an enrichment consistency check after the gap
+  audit. Orphan enrichment references to changed/removed surfaces are classified
+  as auto-repairable, GM-review, or stale-reference and recorded before the
+  Gauntlet re-run. (REQ-228)
+
+- Adventures loaded into a Novel now surface enrichment matches — voice examples
+  for adventure NPCs, lore templates for adventure locations, and action
+  patterns for encounters — in an augmentation section with a pointer to the
+  enrichment status dashboard. (REQ-229)
+
+- Added per-module enrichment dashboard (`enrichment://status`) showing
+  activated/inactive/stale/pending counts per output module, and per-module
+  toggle (`toggle_enrichment_module`) so the GM can disable entire categories
+  without removing items. (REQ-230, REQ-231)
+
+- Community enrichment now supports partial refresh — only modules whose content
+  hash differs are replaced; unchanged modules and activated items are
+  preserved. (§11.1)
+
+- The Gauntlet was restructured from 23 to 22 sub-workflows: merged undo-during-
+  combat into simulated combat (S4), workflow cancellation into workflow
+  validation (S22), and adventure generation + encounter lifecycle (S18–S19)
+  into one. Invalid-param testing moved to tool surface sweep (S1). Roll
+  transparency, audit hash chain integrity, and adversarial input safety now
+  have dedicated Gauntlet assertions. (§6.6)
+
+- The Gauntlet Method now uses a second MCP connection only for sub-workflows
+  exercising cross-hat interaction — single-hat scenarios use one connection.
+
+- Convergence loop efficiency improvements: audit subagents now batch every two
+  construction steps instead of after every step; regression gates re-measure
+  only source-overlapping metrics instead of all metrics; guidance pass is
+  deferred to a post-mechanical-extraction batch; Roles and Guidance categories
+  have a lower confidence floor (30%) that triggers a finding without forcing
+  re-extraction. (§6.5, §6.3)
+
+- Discovery chunk size is now dynamically calibrated — after extracting the
+  first 5 mechanical sections, section count per chunk is set to the context
+  budget divided by the measured average tokens-per-section. (§6.3)
+
+- Post-write verification in production mode now uses tiered depth: source files
+  get full checks, artifact files get structural-only checks. (§6.5)
+
+- Golden transcript replay for Light and Standard tiers now uses the first 100
+  interactions of the fixture, with T185 contract coverage verifying all
+  applicable contracts are exercised. Full transcript only for Heavy/Huge tiers.
+  (§8)
+
+- The assumption audit now supports re-use across same-spec builds against
+  different rulesets — categories unaffected by the ruleset paradigm delta
+  carry forward prior audit results. (REQ-101)
+
+- Appendix W: World-model golden fixture for ruleset-free builds.
+
 ## 2026-08-07 — Build process efficiency: dynamic chunking, regression gates, and question-tiering
 
 - Discovery now sizes rulebook-reading chunks by token budget instead of a

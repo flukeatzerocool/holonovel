@@ -256,16 +256,38 @@ EOF
   echo ""
   if $do_sync; then
     echo -e "${YELLOW}── Checking server/spec sync (${sync_count} item(s) since last sync) ──${NC}"
-    if npm run spec-delta --silent 2>/dev/null; then
-      echo -e "${GREEN}Sync: server already in sync — skipped${NC}"
+
+    local sync_failed=false
+
+    # Sync Inform server
+    if npm run spec-delta -- --server inform --silent 2>/dev/null; then
+      echo -e "${GREEN}Sync (inform): already in sync — skipped${NC}"
     else
-      echo -e "${YELLOW}── Delta detected — running spec-queue-sync (holonovel-update) ──${NC}"
-      if "$PROJECT_DIR/scripts/spec-queue-sync.sh"; then
-        echo -e "${GREEN}Sync: DONE${NC}"
+      echo -e "${YELLOW}── Inform delta detected — running spec-queue-sync ──${NC}"
+      if "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server inform; then
+        echo -e "${GREEN}Sync (inform): DONE${NC}"
       else
-        echo -e "${RED}Sync: FAILED — spec changes applied but dnd5e server not synced. Re-run sync manually.${NC}"
-        exit 1
+        echo -e "${RED}Sync (inform): FAILED${NC}"
+        sync_failed=true
       fi
+    fi
+
+    # Sync dnd5e server
+    if npm run spec-delta -- --server dnd5e --silent 2>/dev/null; then
+      echo -e "${GREEN}Sync (dnd5e): already in sync — skipped${NC}"
+    else
+      echo -e "${YELLOW}── Dnd5e delta detected — running spec-queue-sync ──${NC}"
+      if "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server dnd5e; then
+        echo -e "${GREEN}Sync (dnd5e): DONE${NC}"
+      else
+        echo -e "${RED}Sync (dnd5e): FAILED${NC}"
+        sync_failed=true
+      fi
+    fi
+
+    if $sync_failed; then
+      echo -e "${RED}Sync: FAILED — one or both servers not synced. Re-run sync manually.${NC}"
+      exit 1
     fi
     echo 0 > "$sync_counter_file"
   else
@@ -338,7 +360,7 @@ EOF
 
   echo ""
   echo -e "${YELLOW}── Staging changes ──${NC}"
-  git add holonovel.md SPEC-QUEUE.md CHANGELOG.md dnd5e/ \
+  git add holonovel.md SPEC-QUEUE.md CHANGELOG.md dnd5e/ inform/ \
     .holonovel-state/knowledge-base/INDEX.md 2>/dev/null || true
 
   if git diff --staged --quiet 2>/dev/null; then

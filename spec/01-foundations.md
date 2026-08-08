@@ -1,26 +1,23 @@
 # Holonovel
 
-> **Quick Reference.** An AI build prompt for an MCP server that always builds with
-> the `@holonovel/inform` world-model layer (rooms, things, exits, properties,
-> parser commands, kind hierarchy) and optionally layers a tabletop RPG ruleset on
-> top. The AI reads the ruleset (when provided), extracts
-> mechanics, builds the server, and proves it works. Output: a running MCP server
-> with the Inform world-model layer
-> (rooms, things, exits, properties, parser commands), hybrid adventure modules,
-> dice, combat, character management, rules lookup, narrative directives, dynamic
-> lore, action suggestions, voice examples, macros, scene-type tagging, audit
-> compression, scene-state tracking, NPC management, countdowns, and session
-> recap — plus four handoff artifacts (plus LICENSE.md) (RULESET_MODEL.md,
-> DECISIONS.md, README.md, AGENTS.md). Optional enrichment workflow adds
-> community-sourced play advice. Quality enforced by verification workflows, 14
-> handoff verification steps, and a golden-transcript replay. One server per ruleset.
-> No network at runtime (REQ-051). The Player hat is the human at the table; the Game
-> Master hat is the AI narrator (REQ-032), switchable via `set_hat` (REQ-066).
-> Multi-character support: one player may control multiple entities (REQ-074).
-> Adventures load as hybrid world-model + prose modules (REQ-079). State tiers: world
-> model, roster, Novels, lore, and enrichment tiers enhance guidance; connections are
-> ephemeral transport; Novel audit logs persist. RNG deterministic and seedable.
-> Requirements state the contract; verification loops enforce quality.
+> **Quick Reference.** An AI build prompt for an MCP server that reads a tabletop RPG
+> ruleset, extracts mechanics, builds the server, and proves it works. Output: a running
+> MCP server with dice, combat, character management, rules lookup, narrative directives,
+> dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
+> compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
+> adventure modules, and ruleset-native enrichment — plus four handoff artifacts (plus
+> LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
+> infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) is
+> provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
+> play advice. Quality enforced by verification workflows, 14 handoff verification steps,
+> and a golden-transcript replay. One server per ruleset. No network at runtime
+> (REQ-051). The Player hat is the human at the table; the Game Master hat is the AI
+> narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support: one
+> player may control multiple entities (REQ-074). Adventures load as hybrid world-model
+> and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
+> enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
+> persist. RNG deterministic and seedable. Requirements state the contract; verification
+> loops enforce quality.
 
 ## Contents
 
@@ -96,8 +93,10 @@ session zero) happens with no hat active (full access per REQ-031). Create a Nov
 populate its world model (load a hybrid adventure module, generate one from a
 premise, or build with CRUD tools), set up characters, then activate the Player hat
 via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
-player issues text commands (`go north`, `examine sword`, `take lamp`) resolved
-against the world model and TTRPG mechanics. Switch to Game Master hat to correct,
+player acts through the ruleset's resolution mechanics — skill checks, attacks,
+spells, exploration actions. World-model navigation (parser commands like `go north`
+or `take lamp`) is available when adventures provide spatial maps; the ruleset, not
+the world model, drives the game. Switch to Game Master hat to correct,
 undo, or directly manage Novel state. `set_hat` works without restart. One user per
 MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
 player, one AI Game Master. One player may control multiple characters (REQ-074).
@@ -114,9 +113,10 @@ cold checkout, comparing its results against the builder's own.
 
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
-and security, extraction and confidence, tools and resources, world-model layer
-(rooms, things, exits, properties, parser commands, hybrid source conversion),
-Novel state and persistence, guidance, determinism, input safety, and durability.
+and security, extraction and confidence, tools and resources, Novel state and
+persistence, guidance, determinism, input safety, durability, and infrastructure
+(the world-model layer: rooms, things, exits, properties, parser commands, hybrid
+source conversion).
 Each is one paragraph in §5. The manifest is the packing list for the
 DECISIONS.md traceability table and is mechanically verified by
 `scripts/validate.ts`.
@@ -253,10 +253,11 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 23 sub-workflows against a running server. |
+| Gauntlet         | Operational verification suite (§6.6) — 22 sub-workflows against a running server. |
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
+| World model  | Infrastructure layer providing rooms, things, exits, and parser commands via `@holonovel/inform`. When a TTRPG ruleset is present, the world model serves narration; the ruleset drives resolution. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides infrastructure tools and world-model interactions only. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no

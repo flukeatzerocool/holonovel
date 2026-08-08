@@ -5,13 +5,13 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215           | 18    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224                     | 7     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221 | 33    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229 | 34    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157                                   | 8     |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158           | 15    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231           | 20    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131                                   | 12    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
@@ -26,8 +26,15 @@ challenged assumption per category — technology, AI-as-builder, extraction and
 MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec
 process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a
 diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+For same-spec builds against different rulesets, when a prior assumption audit exists for
+the same spec version, only assumptions in categories affected by the ruleset paradigm
+delta are re-audited. Categories unaffected by the ruleset change (technology, MCP
+ecosystem, verification model, build process) carry forward the prior audit results.
+The builder records the prior audit's ruleset fingerprint for traceability. Audit re-use
+does not block the build — a full audit is always acceptable.
 *Acceptance criterion:* DECISIONS.md (0) contains at least one challenged assumption
-per category with justification, or a diff-only audit note for spec revisions.
+per category with justification, or a diff-only audit note for spec revisions, or
+a re-use note citing the prior audit's ruleset fingerprint for unaffected categories.
 _Check:_ T89.
 
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
@@ -648,6 +655,28 @@ any content type below 90% fidelity blocks the batch and records a disposition i
 DECISIONS.md (5).
 _Check:_ T93.
 
+**REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
+builder SHALL classify extracted guidance into the six enrichment output modules
+(voice_examples, briefing_order, lore_templates, action_patterns,
+supplementary_guidance, adventure_advice) using the ruleset's own text. Extraction
+sources and confidence: ruleset example-of-play dialogue = HIGH, ruleset GM advice
+chapters = HIGH, ruleset setting descriptions = HIGH, ruleset "Inspirational Reading"
+or Appendix N media citations = HIGH, ruleset encounter tables = HIGH. Ruleset-native
+items carry `[ruleset]` tag with source anchor. This classification is a
+post-processing sort of existing extraction output — no additional ruleset reading is
+required. Items are sorted into module slots: example-of-play dialogue →
+voice_examples, GM advice chapter structure → briefing_order, setting/location
+descriptions → lore_templates, example-of-play resolution sequences →
+action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
+and campaign frameworks → adventure_advice. Ruleset-native enrichment is populated
+at build time and is always present in the Novel (REQ-227). In ruleset-free mode
+(B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
+DECISIONS.md (4).
+*Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
+dialogues produces ruleset-native enrichment items in ≥4 of the 6 modules with
+`[ruleset]` tag and source anchors.
+_Check:_ T-new-225.
+
 *Out of scope:* extraction from non-Markdown sources without prior conversion
 (§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
 system, and semantic interpretation of image-only content.
@@ -701,7 +730,8 @@ _Check:_ T3, T35.
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
-`enrichment://action_patterns`, `enrichment://adventure_advice`, `adventure://<slug>/<anchor>`, `novel://current`,
+`enrichment://action_patterns`, `enrichment://adventure_advice`,
+`enrichment://narrative_voices`, `enrichment://status`, `adventure://<slug>/<anchor>`, `novel://current`,
 `novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`,
 `spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
@@ -2413,6 +2443,26 @@ the adventure hook and current room in `hat_briefing`; a module without a
 `## World` section loads as flat indexed content.
 _Check:_ T59, T60, T61.
 
+**REQ-229 — Adventure enrichment linkage.** After `load_adventure` processes
+`@npc`, `@encounter`, and `@lore` annotations, the server SHALL scan both
+enrichment tiers (ruleset-native and community) for matches against the newly
+loaded adventure content: voice examples matched to NPC creature types via the
+ruleset index, lore templates matched to `@lore` annotation keywords, action
+patterns matched to encounter types, adventure advice matched to adventure
+themes. Matches are surfaced in the `load_adventure` augmentation section:
+"Enrichment found X voice examples for adventure NPCs, Y lore templates for
+adventure locations. Review at `enrichment://status`." Matches are NOT
+automatically activated — they remain inert per REQ-080. The augmentation
+section SHALL appear after the world-model population confirmation. When no
+matches are found, the augmentation section is omitted. When enrichment has not
+been run (community tier empty) and ruleset-native enrichment provides no
+matches, the section is omitted with no error.
+*Acceptance criterion:* Loading an adventure with `@npc(goblin)` and enrichment
+voice_examples containing "goblin" entries produces an augmentation section with
+match count and `enrichment://status` pointer. Loading an adventure with no
+matching enrichment items omits the augmentation section.
+_Check:_ T-new-229.
+
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
 indexed adventure slugs and their build-time content hashes. A resource at
 `adventures://` SHALL list all indexed adventure slugs with their titles and
@@ -2671,23 +2721,37 @@ benchmarks defined in REQ-100.
 
 ### 5.8 Enrichment, Lore, and Macros
 
-**REQ-080 — Enrichment boundaries.** Enrich may ADD content to entity
-voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
-(REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090, §11.1), and
-supplementary guidance. Enrich MUST NOT modify mechanical fields (stats, saves, HP,
-conditions, combat state), build-derived tool registrations, hat gating rules, or
-any [ruleset]-tagged content. Enrich recommendations for prompt ordering, lore templates,
-and adventure advice are inert — they never auto-apply; the GM must explicitly activate
-them via the corresponding tools. Enrichment items that have never been activated and whose
-`collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]`
-in `spec_health` and excluded from enrichment resource surfaces. Stale items are retained
-on disk and reactivate if the GM explicitly activates them. Re-running Enrich refreshes
-timestamps for all items. Every enrich finding carries source_url, quoted_excerpt,
-hat_scope, confidence (derived from source authority, not mechanical completeness),
-output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty.
+**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers: (1)
+Ruleset-native enrichment — extracted during Discovery from the ruleset's own text
+per REQ-225, populated at build time, always present. Items tagged `[ruleset]` with
+source anchors. (2) Community enrichment — web-researched post-build per §11.1,
+optionally run. Items tagged `[supplementary]` with source URLs. Both tiers coexist
+in the enrichment manifest; community items never replace ruleset-native items. The
+GM activates items from either tier via the same tool calls. Enrichment may ADD
+content to entity voice_examples (REQ-077), prompt ordering recommendations
+(REQ-082), lore templates (REQ-083), action suggestion patterns (REQ-084, REQ-115),
+adventure advice (REQ-090, §11.1), narrative voice profiles (REQ-226), and
+supplementary guidance. Enrichment MUST NOT modify mechanical fields (stats, saves,
+HP, conditions, combat state), build-derived tool registrations, hat gating rules, or
+any ruleset-derived values. Enrichment recommendations for prompt ordering, lore
+templates, and adventure advice are inert — they never auto-apply; the GM must
+explicitly activate them via the corresponding tools. Community enrichment items that
+have never been activated and whose `collected_at` timestamp exceeds
+`TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]` in `spec_health` and excluded
+from enrichment resource surfaces. Ruleset-native items do not carry staleness
+flags — they are canonical. Stale items are retained on disk and reactivate if the
+GM explicitly activates them. Re-running community Enrich refreshes timestamps for
+all community items. Every community enrich finding carries source_url,
+quoted_excerpt, hat_scope, confidence (derived from source authority, not mechanical
+completeness), output_module, and collected_at (ISO 8601 timestamp of collection) —
+all non-empty. Ruleset-native items carry source anchor, confidence, output_module,
+and `[ruleset]` tag. Reverting enrichment (REQ-103) removes only community
+enrichment; ruleset-native items persist.
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
-and source URL; a stale enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
-`[stale]` in `spec_health` and excluded from surfaces.
+and source URL; ruleset-native items carry `[ruleset]` tag and source anchor; a
+stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
+`[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
+community items but preserves ruleset-native items.
 _Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set narrative directives via
@@ -2876,6 +2940,10 @@ and their intents in DECISIONS.md (5) with named uncovered categories.
 _Check:_ T117.
 
 **REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
+tool that removes all community enrichment state (tier 2, `[supplementary]`-tagged
+items) from the Novel per REQ-227. Ruleset-native enrichment (tier 1,
+`[ruleset]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
+ruleset-native enrichment items.
 tool — Game Master only. Removes all enrichment state (six output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
 build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
@@ -2893,13 +2961,13 @@ Build-rebuild enrichment behavior is defined in §11.1
 tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
 enrichment state.
 *Acceptance criterion:* After `revert_enrichment()`, all
-`enrichment://` resource URIs (§11.1: `enrichment://voice_examples`,
-`enrichment://briefing_order`, `enrichment://action_patterns`,
-`enrichment://adventure_advice`) return empty or absent; `lore://templates`
-returns only Novel-scoped lore entries, never enrichment-sourced templates;
-`spec_health` reports `enrichment_active: false` with zero counts for all
-six modules. Re-running Enrich repopulates all modules; a second revert
-call changes nothing (idempotent).
+community enrichment surfaces (enrichment resource URIs with `[supplementary]`
+items) return empty or absent; ruleset-native enrichment items (`[ruleset]`-tagged)
+persist unchanged; `lore://templates` returns only Novel-scoped lore entries, never
+community enrichment-sourced templates; `spec_health` reports
+`community_enrichment_active: false` with zero counts for community modules.
+Re-running Enrich repopulates community modules; a second revert call changes
+nothing (idempotent).
 _Check:_ T94, T125.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
@@ -2924,6 +2992,93 @@ enrichment including activated items — requires `revert_enrichment`
 it. Re-run enrich — assert the activated entry persists unchanged. Revert
 enrichment, re-run enrich — assert fresh enrich state replaces all.
 _Check:_ T144.
+
+**REQ-226 — Narrative voice profiles.** The builder SHALL extract media-cited
+narrative voice profiles from the ruleset's inspirational media citations
+("Appendix N," "Inspirational Reading," "Suggested Viewing," or equivalent sections
+discovered during the guidance pass). Each profile records: `name` (e.g., "Sword &
+Sorcery — Conan"), `source` (ruleset anchor), `media_title`, `media_type` (film,
+novel, game, or other), and `description` (narrative techniques and stylistic
+markers from the source material). Community enrichment (§11.1) may add
+supplementary profiles. Stored at `enrichment://narrative_voices`. Profiles are
+inert — the GM applies them via narrative directive (REQ-081) by naming the
+profile. When the ruleset provides no inspirational media section, the module is
+empty — this is not a defect. Ruleset-free builds produce an empty module.
+*Acceptance criterion:* A ruleset citing Conan and The Lord of the Rings produces
+≥2 narrative voice profiles with source anchors and descriptions.
+_Check:_ T-new-226.
+
+**REQ-227 — Two-tier enrichment model.** Enrichment SHALL consist of exactly two
+tiers: Tier 1 (ruleset-native) extracted during Discovery per REQ-225 from the
+ruleset's own text, populated at build time, never removed by `revert_enrichment`.
+Tier 2 (community) optionally collected via web research per §11.1, tagged
+`[supplementary]`, removed by `revert_enrichment`. Both tiers coexist in all
+enrichment resource URIs and `hat_briefing` enrichment sections. The GM activates
+items from either tier via the same tool calls. Community items SHALL NOT replace
+or override ruleset-native items with matching keys — conflicts are recorded with
+`conflicts_with` reference to the ruleset-native item. Ruleset-native enrichment
+is part of the build output; community enrichment is additive post-build.
+*Acceptance criterion:* A build with ruleset content SHALL populate ruleset-native
+enrichment in the Novel at creation time; community enrichment run afterwards adds
+`[supplementary]` items alongside `[ruleset]` items; `revert_enrichment` removes
+only `[supplementary]` items.
+_Check:_ T-new-227.
+
+**REQ-228 — Enrichment consistency during spec-driven updates.** During a
+spec-driven update per REQ-098, after the gap audit identifies changed surfaces,
+the builder SHALL scan all enrichment items (both tiers) for references to surfaces
+identified as changed or removed in the gap audit. Orphan references SHALL be
+classified: `auto-repairable` (tool was renamed — update the enrichment reference
+to the new name), `GM-review` (the referenced surface was removed — the GM should
+review and replace the enrichment item), or `stale-reference` (the surface is
+absent with no obvious replacement). GM-activated items (REQ-130) with orphan
+references carry a `[stale-reference]` tag in `spec_health` until the GM resolves
+them. This check SHALL run before Gauntlet re-execution (§6.7) and SHALL NOT
+trigger web research — it is a cross-reference scan only. Results are recorded in
+DECISIONS.md with the gap audit row reference.
+*Acceptance criterion:* After a Minor update that renames a tool, ruleset-native
+enrichment action patterns referencing the old tool name are flagged
+`auto-repairable` and updated before the re-build completes. A community enrichment
+item referencing a removed ruleset section is flagged `GM-review` with the gap
+audit row cited.
+_Check:_ T-new-228.
+
+**REQ-230 — Enrichment status dashboard.** The server SHALL provide an
+`enrichment://status` resource showing per-module enrichment counts for the active
+Novel: total items, activated items (GM-activated via Novel-scoped tool calls),
+inactive items, stale community items, and pending-suggestion count (enrichment
+items matching current adventure/scene content but not yet activated). Counts are
+per output module (voice_examples, briefing_order, lore_templates, action_patterns,
+supplementary_guidance, adventure_advice, narrative_voices). The resource SHALL
+render as Markdown with a header line "Enrichment Status" and one `##`-level
+section per module. Ruleset-native items are counted separately from community
+items within each module. The status SHALL be dynamically computed from Novel state
+at read time. The resource respects hat filtering per REQ-032. `spec_health`
+SHALL surface a summary: `enrichment_status` with per-module activated/total
+counts.
+*Acceptance criterion:* After activating 2 lore templates and 1 voice example,
+`enrichment://status` shows lore_templates: activated=2, total=N; voice_examples:
+activated=1, total=N. Other modules show activated=0. Player hat sees only
+shared-scope items.
+_Check:_ T-new-230.
+
+**REQ-231 — Per-module enrichment toggle.** The GM may enable or disable
+individual enrichment output modules at runtime via `toggle_enrichment_module(module,
+enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`,
+`lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`,
+`narrative_voices`. Disabling a module SHALL suppress all items in that module
+from `hat_briefing`, `suggest_actions`, `suggest_lore`, and enrichment resource
+URIs for the current Novel. Disabling does not delete items — the items persist in
+Novel state and re-appear when the module is re-enabled. Ruleset-native modules
+default to enabled; community modules default to enabled when community enrichment
+has been run. The toggle state persists with the Novel. Player hat attempts return
+`[ERROR] [FORBIDDEN]`. An unknown module name returns `[INVALID_INPUT]` with valid
+module names enumerated.
+*Acceptance criterion:* `toggle_enrichment_module("voice_examples", false)` removes
+voice examples from `hat_briefing` and `enrichment://voice_examples` for the active
+Novel; re-enabling restores them; an unknown module returns `[INVALID_INPUT]`;
+Player hat returns `[FORBIDDEN]`.
+_Check:_ T-new-231.
 
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
