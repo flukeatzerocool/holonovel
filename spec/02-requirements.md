@@ -11,8 +11,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250, 252 | 46    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245       | 24    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240                         | 14    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–261 | 26    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 18    |
 | 5.10    | World-Model Layer                     | 195–202, 222                                       | 9     |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
@@ -744,12 +744,24 @@ combat encounter management, table rolling, and session recap are the minimum to
 ruleset deserves; missing categories are recorded as waivers.
 
 Tools in the following categories exist independent of ruleset content and SHALL
-always be present in `tools/list`: Novel lifecycle, hat and workflow, scene and
-narrative state, NPC management, countdowns, dynamic lore, entity and roster
-management, personality, briefing ordering, export and import (Novel and
-lorebook), search and action suggestions, adventure and encounter generation,
-session tools, utility (`help`, `spec_health`), and enrichment reversion. These
-categories are never waived.
+always be present in `tools/list`:
+
+- **World** — room, thing, exit, and property CRUD; parser command dispatch;
+  `convert_source`. (`@holonovel/inform` package.)
+- **Novels** — save-file operations: lifecycle (`create_novel`, `resume_novel`,
+  `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`,
+  `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints
+  (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`,
+  `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`),
+  resume state (`save_pause_context`, `get_resume_context`), and archive
+  (`compact_audit_log`).
+- **Narrative** — scenes and narrative state, NPC management, countdowns,
+  dynamic lore, entity and roster management, personality, briefing ordering,
+  search and action suggestions, adventure and encounter generation, session
+  tools, utility (`help`, `spec_health`), enrichment reversion, story journal,
+  hats and workflow. New narrative tools: Factions, Secrets, Player Choices,
+  Relationships, Clock taxonomy, Session notation. All infrastructure resources
+  and prompts. These categories are never waived.
 
 The `help` tool SHALL present these infrastructure categories as the base
 grouping for its task map. The builder MAY subdivide or rename categories for
@@ -853,8 +865,8 @@ counts (anchors, concepts, entity types, actions, tables, procedures, guidance i
 enrichment items per module — ruleset-native count for each of the seven output modules),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
-last-modified, active — per
-REQ-093), and prompt health — each registered prompt's name, presence
+last-modified, active — per REQ-093; the dedicated `list_novels` tool — REQ-257 — is the
+primary save-file browsing surface), and prompt health — each registered prompt's name, presence
 (present/absent), length relative to its configured budget, and stale references
 (tool or resource names appearing in prompt text that do not match any registered
 tool or resource). Counts are derived from live registrations at call time — the
@@ -1099,6 +1111,14 @@ actions a player can take. The tone is engaging and energetic; the anti-slop cat
 prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
+
+When `TTRPG_NOVEL` is unset at startup and one or more Novels exist on disk, the
+`intro` prompt SHALL present them as a browsable library: each Novel's name,
+description preview (first sentence or first 120 characters), session count,
+last-played date, and enrichment status (Tier 1 activated item count, Tier 2 item count).
+The prompt ends with: "You have N Novels. Which would you like to resume, or create
+a new one?" When no Novels exist, the prompt directs the user to `create_novel`
+with a plain-English description of what a Novel is.
 *Acceptance criterion:* `intro` prompt is ≤300 words, opens with the publisher
 tagline (or a generic server-name identification when the server is ruleset-free),
 includes a dynamic sourcebook listing from the live index (or a message indicating the
@@ -2607,7 +2627,9 @@ constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS` (default 50); Entities per No
 SHALL return `[ERROR] [STATE_CONFLICT]` with counts reported; Roster entities —
 `TTRPG_MAX_ROSTER_ENTITIES` (default 200), exceeding on `create_character` SHALL return
 `[ERROR] [STATE_CONFLICT]` before any state mutation; Enrichment
-items per output module — `TTRPG_MAX_ENRICHMENT_ITEMS` (default 100).
+items per output module — `TTRPG_MAX_ENRICHMENT_ITEMS` (default 100);
+Story journal entries — `TTRPG_MAX_STORY_ENTRIES` (default 500), exceeding
+on `record_story` SHALL return `[ERROR] [STATE_CONFLICT]`.
 Scene history entries are capped per REQ-076. Setting a maximum to zero
 SHALL disable that group's mutating tools — create, set, and update
 operations return `[STATE_CONFLICT]`. `spec_health` SHALL report the
@@ -3316,63 +3338,99 @@ benchmarks defined in REQ-100.
 
 ### 5.8 Enrichment, Lore, and Macros
 
-**REQ-246 — Story journal.** The server provides a `record_story(type, entry)` tool — Game
-Master only. Records a narrative memory in the Novel's `story_journal` array. `type` SHALL
-be one of `decision`, `moment`, `revelation`, `bond`, or `consequence`. `entry` is free-form
-text — recommended one to four sentences. The entry SHALL record the current scene anchor,
-active entity IDs, and an ISO 8601 timestamp. Each type signals retrieval context:
-`decision` (a choice with consequences), `moment` (an emotional beat or roleplay highlight),
-`revelation` (new information that changed understanding), `bond` (a relationship formed or
-deepened), `consequence` (something happened because of a prior choice). The tool SHALL
-include a style guide in its help text: focus on narrative elements the mechanical audit log
-does not capture — motivations, emotional stakes, world changes, off-screen events. Entries
-are Novel-scoped, survive restarts, and are discarded by `end_novel`. Story journal entries
-are not mutating state operations for undo/redo purposes — `undo` SHALL NOT reverse a story
-journal entry. Player hat returns `[FORBIDDEN]`.
+**REQ-246 — Story journal.** The server provides story journal tools — Game Master only.
+`record_story(type, entry)` records a narrative memory in the Novel's
+`story_journal` array. `update_story(index, entry?, type?)` edits an existing entry
+by array index; editing a `decision` or `consequence` type entry SHALL return
+`[ERROR] [RULE_VIOLATION]` — past decisions and their consequences are immutable.
+Editing other types where the entry's scene anchor predates the current scene SHALL
+return `[WARNING]` but the edit proceeds. `remove_story(index)` deletes an entry by
+array index; remaining entries retain their indices (gaps allowed). `list_stories(filter?,
+offset?, limit?)` returns paginated entries with optional `type` filter; offset-based
+pagination with default limit 20.
+
+`type` SHALL be one of `decision`, `moment`, `revelation`, `bond`, or `consequence`.
+`entry` is free-form text — recommended one to four sentences. The entry SHALL record
+the current scene anchor, active entity IDs, and an ISO 8601 timestamp. Each type signals
+retrieval context: `decision` (a choice with consequences), `moment` (an emotional beat
+or roleplay highlight), `revelation` (new information that changed understanding), `bond`
+(a relationship formed or deepened), `consequence` (something happened because of a prior
+choice). The tool SHALL include a style guide in its help text: focus on narrative
+elements the mechanical audit log does not capture — motivations, emotional stakes,
+world changes, off-screen events. Entries are Novel-scoped, survive restarts, and are
+discarded by `end_novel`. Story journal entries are not mutating state operations for
+undo/redo purposes — `undo` SHALL NOT reverse a story journal entry. Player hat returns
+`[FORBIDDEN]`.
 
 Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
-field — most recent N entries, default 10; (b) in `hat_briefing` under a `story` section
-token — entries whose `entity_ids` overlap the current active entities or whose
-`scene_anchor` matches the current scene; (c) in `export_novel` output under
-`story_journal`; (d) in `clone_novel` as a copied array. The `story_journal` array is
-stored in the Novel JSON per REQ-092 and grows with each recorded entry.
+field — paginated via `offset`/`limit` params, default 10; (b) in `hat_briefing` under
+a `story` section token, configurable via `TTRPG_STORY_JOURNAL_DISPLAY` (default 5) —
+entries whose `entity_ids` overlap the current active entities or whose `scene_anchor`
+matches the current scene; (c) in `export_novel` output under `story_journal`; (d) in
+`clone_novel` as a copied array. The `story_journal` array is stored in the Novel JSON
+per REQ-092 and grows with each recorded entry. Growth is bounded by
+`TTRPG_MAX_STORY_ENTRIES` (default 500) per REQ-129; exceeding returns
+`[STATE_CONFLICT]`. `spec_health` SHALL report `story_journal_count_by_type` —
+per-type entry counts — and warn at 80% of the maximum.
 *Acceptance criterion:* `record_story("moment", "The ferryman told a story...")` appends
-an entry with type, entry text, timestamp, scene anchor, and entity IDs; the entry appears
-in `session_recap.story_entries`, `hat_briefing` when the ferryman scene is active, and
-`export_novel("json")` output; undo does not remove it; Player hat returns `[FORBIDDEN]`.
+an entry; `list_stories(type="moment")` returns entries filtered by type;
+`update_story(0, "Corrected entry.")` edits the first entry; editing a `decision` type
+returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not remove
+entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
 
-**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers: (1)
-Ruleset-native enrichment — extracted during Discovery from the ruleset's own text
-per REQ-225, populated at build time, always present. Items tagged `[ruleset]` with
-source anchors. (2) Community enrichment — web-researched post-build per §11.1,
-optionally run. Items tagged `[supplementary]` with source URLs. Both tiers coexist
-in the enrichment manifest; community items never replace ruleset-native items. The
-GM activates items from either tier via the same tool calls. Enrichment may ADD
-content to entity voice_examples (REQ-077), prompt ordering recommendations
-(REQ-082), lore templates (REQ-083), action suggestion patterns (REQ-084, REQ-115),
-adventure advice (REQ-090, §11.1), narrative voice profiles (REQ-226), and
-supplementary guidance. Enrichment MUST NOT modify mechanical fields (stats, saves,
-HP, conditions, combat state), build-derived tool registrations, hat gating rules, or
-any ruleset-derived values. Enrichment recommendations for prompt ordering, lore
-templates, and adventure advice are inert — they never auto-apply; the GM must
-explicitly activate them via the corresponding tools. Community enrichment items that
-have never been activated and whose `collected_at` timestamp exceeds
-`TTRPG_ENRICH_STALE_DAYS` are flagged as `[stale]` in `spec_health` and excluded
-from enrichment resource surfaces. Ruleset-native items do not carry staleness
-flags — they are canonical. Stale items are retained on disk and reactivate if the
-GM explicitly activates them. Re-running community Enrich refreshes timestamps for
-all community items. Every community enrich finding carries source_url,
-quoted_excerpt, hat_scope, confidence (derived from source authority, not mechanical
-completeness), output_module, and collected_at (ISO 8601 timestamp of collection) —
-all non-empty. Ruleset-native items carry source anchor, confidence, output_module,
-and `[ruleset]` tag. Reverting enrichment (REQ-103) removes only community
-enrichment; ruleset-native items persist.
+**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers with
+distinct storage models:
+
+1. **Tier 1 (ruleset-native)** — extracted during Discovery from the ruleset's own
+text per REQ-225, populated at build time. Tier 1 content is **build output**: full
+item definitions (voice_examples, lore templates, action patterns, etc.) live in the
+build's extraction directory, not in the Novel JSON. The Novel stores only activation
+keys under `enrichment_activated: {module: [key, ...]}`, recording which Tier 1 items
+the GM has activated. Items tagged `[ruleset]` with source anchors.
+
+2. **Tier 2 (community)** — web-researched post-build per §11.1, optionally run.
+Tier 2 items are stored in full within the Novel JSON. Items tagged
+`[supplementary]` with source URLs.
+
+On Novel startup, Tier 1 activation keys resolve against the build's current tier 1
+extraction. Keys that match stay active with the latest extracted content. Vanished
+keys — those whose anchors no longer resolve — silently drop and are reported in
+`spec_health` as `[enrichment_gap]` entries. New Tier 1 items discovered in the current
+extraction but not present in the activation keys start inactive. When a ruleset
+rebuild occurs, fresh extraction replaces the build output directory; the same key
+resolution logic applies on next Novel startup.
+
+Community items never replace ruleset-native items. The GM activates items from
+either tier via the same tool calls. Enrichment may ADD content to entity
+voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
+(REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090,
+§11.1), narrative voice profiles (REQ-226), and supplementary guidance. Enrichment
+MUST NOT modify mechanical fields (stats, saves, HP, conditions, combat state),
+build-derived tool registrations, hat gating rules, or any ruleset-derived values.
+Enrichment recommendations for prompt ordering, lore templates, and adventure advice
+are inert — they never auto-apply; the GM must explicitly activate them via the
+corresponding tools. Community enrichment items that have never been activated and
+whose `collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as
+`[stale]` in `spec_health` and excluded from enrichment resource surfaces.
+Ruleset-native items do not carry staleness flags — they are canonical. Stale items
+are retained on disk and reactivate if the GM explicitly activates them. Re-running
+community Enrich refreshes timestamps for all community items. Every community enrich
+finding carries source_url, quoted_excerpt, hat_scope, confidence (derived from
+source authority, not mechanical completeness), output_module, and collected_at (ISO
+8601 timestamp of collection) — all non-empty. Ruleset-native items carry source
+anchor, confidence, output_module, and `[ruleset]` tag. Reverting enrichment
+(REQ-103) removes only community enrichment; ruleset-native items persist.
+
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
 and source URL; ruleset-native items carry `[ruleset]` tag and source anchor; a
 stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
 `[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
-community items but preserves ruleset-native items.
+community items but preserves ruleset-native items; a Novel's Tier 1 activation key that
+no longer resolves against the build's current extraction appears as an
+`[enrichment_gap]` entry in `spec_health`; new Tier 1 items in the current extraction
+with no matching activation key start inactive.
+
 _Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set narrative directives via
@@ -3594,6 +3652,51 @@ community enrichment-sourced templates; `spec_health` reports
 Re-running Enrich repopulates community modules; a second revert call changes
 nothing (idempotent).
 _Check:_ T94, T125.
+
+**REQ-260 — Granular enrichment activation.** The Game Master may manage
+enrichment items individually. `list_enrichment_items(module?, tier?)` returns
+all available enrichment items with key, preview, source, and activated status —
+Tier 1 resolved from current build output, Tier 2 from Novel JSON.
+`activate_enrichment_item(module, key)` activates one item: Tier 1 adds the key to
+the Novel's `enrichment_activated` keys; Tier 2 marks the item active in Novel
+JSON. `deactivate_enrichment_item(module, key)` deactivates without removal —
+Tier 1 removes the key from the activation set; Tier 2 marks the item inactive in
+Novel JSON. `remove_enrichment_item(module, key)` permanently deletes a Tier 2 item
+from the Novel JSON. Calling `remove_enrichment_item` on a Tier 1 item SHALL return
+`[ERROR] [RULE_VIOLATION]` directing the caller to `deactivate_enrichment_item` —
+Tier 1 items cannot be removed, only deactivated. All tools are Game Master only.
+Activation and deactivation state persists with the Novel. Existing
+`toggle_enrichment_module` and `revert_enrichment` tools remain unchanged as
+convenience shortcuts.
+
+*Acceptance criterion:*
+`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status;
+`activate_enrichment_item("voice_examples", "goblin-snarl")` activates the item
+and it appears in enrichment surfaces;
+`deactivate_enrichment_item("voice_examples", "goblin-snarl")` removes it from
+surfaces; `remove_enrichment_item("voice_examples", "goblin-snarl")` on a Tier 1 item
+returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it.
+
+_Check:_ T-new-260.
+
+**REQ-261 — Player enrichment suppression.** The player may suppress individual
+enrichment items from their player-facing surfaces.
+`player_suppress_enrichment(module, key)` hides an item;
+`player_unsuppress_enrichment(module, key)` restores it;
+`player_list_suppressed_enrichment()` lists all suppressed items with module and
+key. Suppression state is stored as `player_enrichment_suppressed: {module: [key,
+...]}` in the Novel and survives restarts. Suppression is per-item and does not
+communicate to the GM. Player hat only.
+
+*Acceptance criterion:*
+`player_suppress_enrichment("action_patterns", "feint-suggestion")` removes the
+item from the player's `suggest_actions` output;
+`player_unsuppress_enrichment("action_patterns", "feint-suggestion")` restores
+it; suppressed items appear in `player_list_suppressed_enrichment()`; GM hat
+returns `[FORBIDDEN]` on player enrichment tools; suppression state survives
+server restart.
+
+_Check:_ T-new-261.
 
 **REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
 enrichment state SHALL preserve every enrichment item that the Game
@@ -3885,8 +3988,10 @@ _Check:_ T274.
 ### 5.9 Novel Persistence and Transport
 
 **REQ-088 — Novel lifecycle.** A Novel is a named, persistent save file on disk.
-`create_novel(name)` creates a new Novel at `.holonovel-state/novels/<slug>.json` and
-activates it for the calling connection. `resume_novel(slug)` activates an existing Novel
+`create_novel(name, description?)` creates a new Novel at `.holonovel-state/novels/<slug>.json`
+and activates it for the calling connection. `description` is an optional free-text field
+(one paragraph recommended), stored in the Novel JSON, surfaced in `novel://current`,
+`list_novels`, `novel_info`, and `export_novel` manifest. `resume_novel(slug)` activates an existing Novel
 from disk. `switch_novel(slug)` (REQ-095) switches the active Novel for a connection.
 `end_novel()` emits a `[NEED_INPUT]` workflow decision — "End Novel `<slug>`?" — with
 options `yes` and `cancel`. On `yes`: deactivates hat, clears undo stacks, removes
@@ -3913,9 +4018,10 @@ first tool call or prompt is served. If `TTRPG_NOVEL` is set but activation
 fails for any reason other than non-existence (e.g., corrupt file, checksum
 mismatch), the server reports the error in stderr and `spec_health`, and
 proceeds with no Novel active — it does not silently swallow the error.
-*Acceptance criterion:* `create_novel("my-novel")` creates `novels/my-novel.json`;
-`end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved
-to `.trash/` and the roster survives.
+*Acceptance criterion:* `create_novel("my-novel",
+"A noir detective story set in a rain-soaked city.")` creates `novels/my-novel.json`
+and stores the description; `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on
+"yes", the file is moved to `.trash/` and the roster survives.
 _Check:_ T72, T73, T98, T159.
 
 **REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
@@ -3944,6 +4050,64 @@ two connections may have different Novels active simultaneously.
 and activates the target; the target's persisted hat is restored; switching to a
 nonexistent slug returns `[STATE_CONFLICT]`.
 _Check:_ T98.
+
+**REQ-256 — Rename Novel.** `rename_novel(new_slug)` (Game Master
+only) renames the active Novel's save file on disk and updates the slug in
+state. Returns `[STATE_CONFLICT]` if the target slug already exists on disk
+or if the active Novel is active in another connection. The Novel's
+`.bak.N` files are renamed to match. The rename is atomic — the server
+SHALL NOT leave the Novel in a state where the slug differs from the
+filename. The Novel must be active when called. Hat state, enrichment
+activation keys, and all property groups are preserved under the new slug.
+The new slug is reflected in `list_novels`, `novel_info`, and `spec_health`.
+*Acceptance criterion:* `rename_novel("new-name")` renames
+`novels/old-name.json` to `novels/new-name.json`; `list_novels()` lists
+the Novel under the new slug; duplicate slug returns `[STATE_CONFLICT]`;
+the old slug returns `[NOT_FOUND]` on `resume_novel`.
+_Check:_ T-new-256.
+
+**REQ-259 — Update Novel description.** `update_novel_description(description)` (Game
+Master only) sets or replaces the active Novel's description. An empty string clears
+the description. The updated description is surfaced immediately in `novel://current`,
+`list_novels`, `novel_info`, and `hat_briefing` under the `novel` section token.
+The description is stored in the Novel JSON per REQ-092. Calling with no Novel
+active returns `[STATE_CONFLICT]`. *Acceptance criterion:*
+`update_novel_description("A new premise.")` updates the description;
+`novel_info()` returns the new description; an empty string clears it.
+_Check:_ T-new-259.
+
+**REQ-257 — List Novels.** `list_novels()` (always callable) returns all
+Novels on disk with these fields per Novel: slug, name, description,
+last-modified timestamp, session count, cumulative play time, on-disk file
+size in bytes, story journal entry count, enrichment item counts (Tier 1
+activated key count per module, Tier 2 item count per module), and active flag.
+Hat-filtered: the Player hat sees only Novels with `shared` scope
+adventure hooks and excludes GM-only metadata. When no Novels exist, the
+response SHALL include an explicit empty-state message. This is the dedicated
+save-file browsing surface — `spec_health` (REQ-093) continues to report
+Novels as part of its build-health dashboard, but `list_novels` is the
+primary interface for the save-file library.
+*Acceptance criterion:* After creating two Novels, `list_novels()` returns
+two entries; after `end_novel`, the ended Novel is absent; empty disk
+returns an empty-state message; Player hat sees filtered metadata.
+_Check:_ T-new-257.
+
+**REQ-258 — Novel info.** `novel_info(slug?)` (always callable, defaults
+to the active Novel) returns extended metadata for a single Novel: slug,
+name, description, creation timestamp, last-modified timestamp, session
+count, cumulative play time, on-disk file size, story journal entry counts
+by type, checkpoint count, notes count, adventure source (slug, "generated",
+or "none"), setup-completion flags, format version, compression flag,
+enrichment status (Tier 1 activated key count per module, Tier 2 item count per
+module, stale item count), and the active hat. Hat-filtered. When the
+specified slug doesn't exist on disk, returns `[NOT_FOUND]` with available
+slugs enumerated. When no slug is given and no Novel is active, returns
+`[NOT_FOUND]` directing the caller to `list_novels` or `create_novel`.
+*Acceptance criterion:* `novel_info()` returns extended metadata for the
+active Novel; `novel_info("other-novel")` returns metadata for a different
+Novel without activating it; nonexistent slug returns `[NOT_FOUND]` with
+available slugs; Player hat sees filtered metadata.
+_Check:_ T-new-258.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
 `prompts/list`). It SHALL present a guided setup wizard in three sequential steps: (1)
@@ -4077,7 +4241,10 @@ file triggers backup restore.
 _Check:_ T77, T88, T156, T282.
 
 **REQ-093 — Novel listing and metadata.** `spec_health` reports available Novels on disk:
-slug, name, last-modified timestamp, active flag. The active Novel's metadata includes:
+slug, name, last-modified timestamp, active flag. `list_novels` (REQ-257)
+is the dedicated save-file browsing surface — `spec_health` is the
+build-health dashboard. `novel_info(slug?)` (REQ-258) returns extended
+metadata for a single Novel. The active Novel's metadata includes:
 creation timestamp, last-modified timestamp, entity count, adventure source (module slug,
 "generated", or "none"), setup-completion flags, story journal entry count, session count (distinct `TTRPG_SESSION_ID`
 values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
@@ -4127,8 +4294,10 @@ fields), `factions` (factions with clock state), `secrets` (secrets with
 known-by status), `relationships` (relationship objects), `dm_context` (pause/
 resume context), `notes` (key-value notes), `story_journal` (story journal entries
 per REQ-246), or `scene_history` (scene-state
-ledger). Each scope outputs Appendix Q schema with omitted keys for excluded
-tiers. Single scope per call.
+ledger). No dedicated `enrichment` scope — Tier 1 activation keys export as part of
+`full` scope in the manifest's `enrichment_activation` field; Tier 2 items export as
+the `enrichment` key in `full` scope (per Appendix Q). Each scope outputs
+Appendix Q schema with omitted keys for excluded tiers. Single scope per call.
 
 `import_novel(data, mode, strict?)` (Game Master only, mode `dry-run`,
 `replace`, or `merge`, strict defaults to `false`) imports a previously
@@ -4143,7 +4312,14 @@ the import, (e) world-model exit references resolve to rooms present in the
 import, (f) countdown names are unique within the import, (g) clock `opposes`
 and `unlocks` references resolve to countdowns present in the import,
 (h) adventure content referenced in `manifest.adventure_module_slugs` is
-either embedded or the slugs are recorded as missing with a warning. `dry-run`
+either embedded or the slugs are recorded as missing with a warning, (i) Tier 2
+enrichment items whose `source_url` the target server never fetched SHALL be
+flagged `[stale]`, (j) Tier 1 enrichment activation keys whose anchor does not
+resolve against the target build's current extraction SHALL be flagged
+`[orphan]`. Tier 2 stale items and Tier 1 orphan items are imported inert (inactive).
+Module toggle state that references absent enrichment modules produces a
+warning. When `strict` is `true`, any staleness or orphan enrichment items also
+block the import. `dry-run`
 reports all validation failures with each item's path. In `replace` and
 `merge` modes, failures surface as `[WARNING]` with enumerated items but
 import proceeds. When `strict` is `true`, any validation failure blocks the
@@ -4190,19 +4366,21 @@ the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configur
 entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log
 entry count, story journal entry count, story journal total characters (on-disk byte count),
 snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
-configured), on-disk file size in bytes (with warning if exceeding 4 MB), and a `healthy`
-flag — set to false if any warning is active). `spec_health` reports a sliding window of
-Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct
-`TTRPG_SESSION_ID` values in the audit log, bounded to the last 7 by default). A Novel
-whose growth trajectory projects an on-disk file size exceeding 4 MB within the next 3
-sessions is flagged with a `[size_growth]` warning. The file-size metric reported
-in `spec_health` SHALL match the on-disk file size as reported by the operating
-system, including all serialization overhead (encoding, checksum field,
-whitespace formatting). A file reported at size S bytes in `spec_health` whose
-on-disk size differs by more than 1% is a `[size_mismatch]` warning —
-indicating a durability or serialization defect. The growth trajectory SHALL use
-the on-disk size, not the in-memory representation size. Health metrics are hat-filtered:
-Player sees entity-level health only; GM sees all.
+configured), on-disk file size in bytes (with warning if exceeding 4 MB),
+`enrichment_gap_count` — the number of activated Tier 1 keys that no longer resolve
+against the current build's extraction (per REQ-080, surfaced as `[enrichment_gap]`
+entries), and a `healthy` flag — set to false if any warning is active.
+`spec_health` reports a sliding window of Novel file-size deltas and snapshot depth
+deltas over the most recent sessions (distinct `TTRPG_SESSION_ID` values in the audit
+log, bounded to the last 7 by default). A Novel whose growth trajectory projects an
+on-disk file size exceeding 4 MB within the next 3 sessions is flagged with a
+`[size_growth]` warning. The file-size metric reported in `spec_health` SHALL match
+the on-disk file size as reported by the operating system, including all serialization
+overhead (encoding, checksum field, whitespace formatting). A file reported at size S
+bytes in `spec_health` whose on-disk size differs by more than 1% is a
+`[size_mismatch]` warning — indicating a durability or serialization defect. The
+growth trajectory SHALL use the on-disk size, not the in-memory representation size.
+Health metrics are hat-filtered: Player sees entity-level health only; GM sees all.
 *Acceptance criterion:* When NPC count approaches `TTRPG_MAX_NPCS`, `spec_health`
 reports a warning and `healthy` is false; a Novel at 3.9 MB with growth trajectory
 projects a `[size_growth]` warning.
@@ -4214,9 +4392,13 @@ dependencies are satisfied before dependents are loaded (see §7.7.1).
 Dependencies are: Adventure content before NPCs (NPCs may reference adventure
 stat block templates per REQ-119), NPCs before Lore entries (Lore content may
 reference NPCs), Scene state last among property groups (Scene changes trigger
-Lore matching and Countdown hooks per REQ-083, REQ-125). Combat state, pending
-workflows, enrichment state, and audit log entries SHALL be restored after all
-property groups. An out-of-order initialization that produces observable
+Lore matching and Countdown hooks per REQ-083, REQ-125). Enrichment activation keys
+(`enrichment_activated`, REQ-080) SHALL be
+loaded before enrichment state resolution, so that Tier 1 key resolution against
+current build output determines which enrichment items are active before any
+enrichment surfaces are computed. Combat state, pending workflows, remaining
+enrichment state, and audit log entries SHALL be restored after all property
+groups. An out-of-order initialization that produces observable
 differences in `hat_briefing` content, resource URI output, or tool behavior
 between two invocations of the same Novel against the same builder is a
 convergence finding. The builder records the initialization order in
@@ -4285,23 +4467,25 @@ Conflict-resolution order:
 1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
    override all infrastructure behavior. The TTRPG ruleset drives resolution;
    infrastructure tools serve narration, state management, and scene composition.
-2. Narrative infrastructure tools (REQ-020 categories, §5.6–5.8) are purely
+2. Novel save-file operations (World): lifecycle, exchange, checkpoints, notes,
+   resume state, and archive — manage the save-file container.
+3. Narrative infrastructure tools (REQ-020 categories, §5.6–5.8) are purely
    additive. They never conflict with TTRPG mechanics — they provide scene
    management, character personality, lore tracking, and GM-facing narrative
    scaffolding. Narrative tools and TTRPG mechanics address separate domains
    (narrative vs. mechanical); no override is needed between them.
-3. The Inform layer provides optional spatial navigation. It is always secondary
-   surface — backgrounded in all builds. Parser commands are available when a
-    world model is populated; they never drive the story's resolution layer.
+4. The World layer provides optional spatial navigation. It is always secondary
+    surface — backgrounded in all builds. Parser commands are available when a
+     world model is populated; they never drive the story's resolution layer.
 _Check:_ T237.
 
-**Inform secondary surface.** In TTRPG builds, the parser `command` SHALL be
+**World secondary surface.** In TTRPG builds, the parser `command` SHALL be
 the only world-model tool visible in the primary help surface — and only when
-a world model is populated. All other Inform tools (`create_room`, `delete_room`,
+a world model is populated. All other World tools (`create_room`, `delete_room`,
 `create_thing`, `delete_thing`, `create_exit`, `delete_exit`, `convert_source`)
 SHALL be placed in a secondary "World (Setup)" category at the bottom of the
 help task map. In ruleset-free builds, the same rule applies — the freeform
-narrative tools (Not Inform) are the primary surface; Inform serves as optional
+narrative tools (Narrative) are the primary surface; World serves as optional
 spatial scaffolding in the secondary category.
 
 **REQ-195 — World-model state tier.** Every Novel SHALL carry a world-model
@@ -4474,8 +4658,8 @@ different rulesets.
 **REQ-218 — Ruleset-free build.** WHEN the Build workflow is selected with B1 set to
 `none` THE builder SHALL operate in ruleset-free mode. THE builder SHALL NOT perform
 chunked reading, extraction, or mechanical modeling of ruleset content. THE server
-SHALL register every REQ-020 infrastructure tool category, every REQ-022 resource URI,
-and every REQ-023 prompt. Ruleset-dependent tools — canonical lookups, dice-resolution
+SHALL register every REQ-020 infrastructure tool category (World, Novels, Narrative),
+every REQ-022 resource URI, and every REQ-023 prompt. Ruleset-dependent tools — canonical lookups, dice-resolution
 tools, and any tool whose registry depends on extracted mechanics — SHALL be waived
 under REQ-013 or registered with empty domains that return content-absent responses.
 The world-model layer (§5.10) SHALL be populated from the provider documentation

@@ -136,7 +136,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (enrich/ directory) | yes / no                          | yes                  |
+| E5  | Enrich with vendor content? (inform/docs_md/ directory) | yes / no                          | yes                  |
 
 **Update workflow.** Asked when `update` is selected.
 
@@ -662,7 +662,7 @@ findings without a prefix are process-compliance defects.
 Before Phase 1 measurement begins, the builder SHALL compute a convergence
 cache key per REQ-244: ruleset content hash (REQ-044, sentinel `"none"` for
 ruleset-free), specification content hash (REQ-187), inform package version
-(B10), and aggregate hash of the `enrich/` vendor directory. The builder SHALL
+(B10), and aggregate hash of the `inform/docs_md/` vendor directory. The builder SHALL
 search DECISIONS.md (5) for a prior convergence recording whose cache key
 matches.
 

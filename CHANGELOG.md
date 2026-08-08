@@ -1,6 +1,49 @@
 # Changelog
 
-## 2026-08-08 — Hat boundary directive
+## 2026-08-08 — Novels: World / Novels / Narrative recategorization & save-file model
+
+- Replaced the binary "Inform / Not Inform" infrastructure split with three
+  categories: World (the @holonovel/inform spatial layer), Novels (save-file
+  operations), and Narrative (story content tools, resources, and prompts).
+  The terminology table, §2, REQ-020 tool categories, §5.10 conflict-resolution
+  order, and REQ-218 ruleset-free mode all reflect the new structure.
+
+- Save-file tools added: `rename_novel` renaming a Novel on disk,
+  `list_novels` browsing available save files with descriptions and enrichment
+  status, and `novel_info` returning extended metadata for a single Novel.
+  `spec_health` continues to report Novel listings as part of the build-health
+  dashboard; the new tools are the dedicated save-file browsing surface.
+  (REQ-256, REQ-257, REQ-258)
+
+- The story journal (`record_story`) gained full CRUD: `update_story` for
+  editing entries (immutable decision/consequence types), `remove_story` for
+  deletion, and `list_stories` with type-filtered offset-based pagination.
+  Growth is bounded by `TTRPG_MAX_STORY_ENTRIES` (default 500) with a
+  configurable briefing display limit. (REQ-246, REQ-129)
+
+- Enrichment Tier 1 (ruleset-native) content is no longer stored in the Novel
+  JSON — the Novel stores only activation keys, resolved against the build's
+  current extraction on startup. When a ruleset rebuild occurs, keys that still
+  match stay active with updated content; vanished keys are reported as
+  `[enrichment_gap]`. Tier 2 (community) stays in Novel JSON. (REQ-080)
+
+- Granular enrichment control: the GM can browse, activate, deactivate, and
+  remove individual enrichment items per-module instead of only toggling whole
+  modules. The player can suppress items from their surfaces independently.
+  Activation and suppression state persists with the Novel across restarts.
+  (REQ-260, REQ-261)
+
+- Enrichment state is now validated on import: Tier 2 items from unfetched
+  sources are flagged `[stale]`, Tier 1 keys with unresolvable anchors are
+  flagged `[orphan]` — both import inert. `strict=true` blocks import on any
+  staleness. (REQ-096)
+
+- Holodeck-inspired save-file improvements: `create_novel` gained an optional
+  `description` field (surfaced in listing, info, and Novel metadata) and
+  `update_novel_description` provides post-creation editing. When Novels exist
+  on disk at startup, the `intro` prompt presents them as a browsable library
+  with descriptions, play counts, and enrichment status. (REQ-088, REQ-063,
+  REQ-259)
 
 - Wearing a hat now comes with an explicit behavioral contract: `hat_briefing`
   includes a boundary directive reminding the operator — whether human or AI,
