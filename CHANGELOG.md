@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-08 — Inform Gauntlet narrative surface hashing
+
+- The Inform Gauntlet now tracks narrative tools alongside world-model tools: three new
+  non-blocking sub-workflows (I11–I13) exercise NPC CRUD, lore and countdown lifecycle,
+  and scene state/guidance. Narrative surfaces get the same per-sub-workflow surface-hash
+  skipping as world-model surfaces — when unchanged between builds, their verification is
+  cached individually. (REQ-244, REQ-245)
+- The convergence cache key gains a fifth component — a narrative surface hash computed
+  from all narrative-category tool names, resource URIs, and prompt names (excluding
+  Novel lifecycle and Hat & Workflow tools). This enables finer-grained caching: a
+  world-model change that bumps the inform version no longer forces re-verification of
+  unchanged narrative tools. (REQ-244)
+
 ## 2026-08-08 — Observer hat, AI role, autonomy, subsystem classification fixes
 
 - The world-model layer's "always secondary surface" constraint is now configurable via

@@ -100,7 +100,7 @@ transcript) and operational behavior by G5 (Gauntlet scenarios).
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
+For the Inform server, run the 13-sub-workflow Inform Gauntlet (I1–I13) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
