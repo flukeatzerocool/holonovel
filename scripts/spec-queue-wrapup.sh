@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# spec-queue-wrapup.sh — Post-queue completion wrap-up: full audit, Inform
-# server rebuild + scan, dnd5e server rebuild + scan, README/wiki update,
+# spec-queue-wrapup.sh — Post-queue rebuild and audit: full spec read-through,
+# Inform server rebuild + scan, dnd5e server rebuild + scan, README/wiki update,
 # commit, push.
 #
-# Runs after spec-queue-cycle.sh run-all exhausts the queue. This is the final
-# step: validate everything, rebuild both servers from the updated spec,
-# refresh documentation, and ship.
+# Triggered by the pipeline orchestrator at queue exhaustion and every
+# TTRPG_REBUILD_INTERVAL runs (default 5). This is the deep-clean — full
+# from-scratch rebuild of both servers, dead-data audit, and documentation
+# refresh.
 #
 # Usage:
 #   ./scripts/spec-queue-wrapup.sh

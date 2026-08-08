@@ -336,6 +336,13 @@ is canonical. An `[authority-tie]` is produced when criteria 1–4 all
 produce a tie.
 _Check:_ T174.
 
+**Adventure structure extraction.** After the seven extraction categories and
+enrichment classification, the builder SHALL run adventure structure extraction
+(REQ-247) against every adventure module file present in the build input. The
+builder records the adventure index — structural TOC, extracted NPC references,
+location entries, and faction references — in DECISIONS.md (4). The step is
+skipped when no adventure files are present.
+
 ### 6.4 Server construction
 
 *Prepare:* Load files from `build-phase-map.md` Construction row: 03-build.md §6.4,
@@ -1183,6 +1190,10 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-239 | S24 | Audit log compaction |
 | REQ-241 | S25 | Checkpoints |
 | REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-247 | S2, S18 | Adventure structure extraction |
+| REQ-248 | S18 | Adventure overview resource |
+| REQ-249 | S18 | Adventure navigation resource |
+| REQ-250 | S16, S18 | Adventure scene waypoint |
 | REQ-050 | S4, S7 | Determinism (PRNG) |
 | REQ-051 | G4 | No runtime network access |
 | REQ-052 | S13, S21 | Path containment |
@@ -1335,7 +1346,9 @@ are selected for changed surfaces.
 ### 6.7 Spec-driven updates
 
 *Prepare:* Load files from `build-phase-map.md` Spec-driven update row:
-03-build.md §6.7 plus files changed per git diff.
+03-build.md §6.7 plus files changed per git diff. Before reading spec sections
+for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
+spec summaries and implementation analysis — use fresh entries to reduce re-reading.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps across the tool

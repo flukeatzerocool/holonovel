@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # spec-queue-cycle.sh — Top-level orchestrator for the spec-engineering queue
-# pipeline. Three modes: research (launch read-only sessions), status (check
-# all items), execute (review, apply, sync, KB update, commit).
+# pipeline. Default (no args) runs the full phased pipeline: research all →
+# validate plans → execute + recover → sync → commit → push.
+#
+# Phases:
+#   A — Research all items in parallel batches (pre-warm KB, bundles, groups)
+#   B — Validate all [PLAN_READY] plans
+#   C — Execute sequentially, recover failures, sync servers, push
+#   D — Periodic full rebuild (every N runs, at queue exhaustion)
 #
 # Usage:
-#   ./scripts/spec-queue-cycle.sh research [N]   # launch N research sessions
-#   ./scripts/spec-queue-cycle.sh status          # check all items
-#   ./scripts/spec-queue-cycle.sh execute         # review → apply → sync → commit
+#   ./scripts/spec-queue-cycle.sh                  # full pipeline (default)
+#   ./scripts/spec-queue-cycle.sh --batch N        # full pipeline, batch size N
+#   ./scripts/spec-queue-cycle.sh research [N]     # launch N research sessions
+#   ./scripts/spec-queue-cycle.sh status            # check all items
+#   ./scripts/spec-queue-cycle.sh execute [--auto]  # review → apply → sync → push
+#   ./scripts/spec-queue-cycle.sh --help            # show usage
 
 set -euo pipefail
 
@@ -235,65 +244,84 @@ EOF
     echo ""
   done
 
-  # ── sync ──────────────────────────────────────────────────────────────
+  # ── recovery loop on residual failures ────────────────────────────────
 
-  local sync_counter_file="$PLANS_DIR/.sync-counter"
-  local sync_threshold="${TTRPG_SYNC_THRESHOLD:-3}"
-  local sync_count=0
-  [[ -f "$sync_counter_file" ]] && sync_count=$(cat "$sync_counter_file" 2>/dev/null || echo 0)
-  sync_count=$((sync_count + ${#approved[@]}))
+  local recovery_cycles="${TTRPG_RECOVERY_CYCLES:-2}"
+  local recovery_round=0
 
-  local queue_remaining=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-  local queue_plan_ready=$(grep -c '\[PLAN_READY\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
-  local queue_exhausted=false
-  [[ $queue_remaining -eq 0 ]] && [[ $queue_plan_ready -eq 0 ]] && queue_exhausted=true
+  while true; do
+    local failed_count
+    failed_count=$(grep -c '\[FAILED\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+    [[ $failed_count -eq 0 ]] && break
+    [[ $recovery_round -ge $recovery_cycles ]] && break
 
-  local do_sync=false
-  if $force_sync || $queue_exhausted || [[ $sync_count -ge $sync_threshold ]]; then
-    do_sync=true
-  fi
+    recovery_round=$((recovery_round + 1))
+    echo ""
+    echo -e "${YELLOW}── Recovery round $recovery_round/$recovery_cycles ($failed_count failed item(s)) ──${NC}"
+
+    local recovered=()
+    while IFS= read -r num; do
+      [[ -z "$num" ]] && continue
+      echo -e "${YELLOW}Recovering item $num...${NC}"
+      if "$PROJECT_DIR/scripts/spec-queue-recover.sh" "$num"; then
+        "$PROJECT_DIR/scripts/spec-queue-execute.sh" "$num" && {
+          sed -i "/^${num}\. /d" "$SPEC_QUEUE"
+          echo -e "${GREEN}Item $num: RECOVERED + DONE${NC}"
+          recovered+=("$num")
+        } || {
+          marker "$num" "FAILED"
+          echo -e "${RED}Item $num: recovery applied but re-execute FAILED${NC}"
+        }
+      else
+        echo -e "${RED}Item $num: recovery FAILED${NC}"
+      fi
+    done < <(grep -Po '^\d+\.\s\[FAILED\]' "$SPEC_QUEUE" | grep -Po '\d+')
+
+    echo ""
+    if [[ ${#recovered[@]} -gt 0 ]]; then
+      echo -e "${GREEN}Recovered ${#recovered[@]} item(s) this round.${NC}"
+    fi
+  done
+
+  # ── sync (always runs after every pipeline execution) ──────────────────
 
   echo ""
-  if $do_sync; then
-    echo -e "${YELLOW}── Checking server/spec sync (${sync_count} item(s) since last sync) ──${NC}"
+  echo -e "${YELLOW}── Syncing servers with spec ──${NC}"
 
+  local sync_failures=()
+  local sync_servers=("inform" "dnd5e")
+
+  for server in "${sync_servers[@]}"; do
     local sync_failed=false
+    local sync_attempt=0
+    local max_sync_attempts=2
 
-    # Sync Inform server
-    if npm run spec-delta -- --server inform --silent 2>/dev/null; then
-      echo -e "${GREEN}Sync (inform): already in sync — skipped${NC}"
-    else
-      echo -e "${YELLOW}── Inform delta detected — running spec-queue-sync ──${NC}"
-      if "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server inform; then
-        echo -e "${GREEN}Sync (inform): DONE${NC}"
-      else
-        echo -e "${RED}Sync (inform): FAILED${NC}"
-        sync_failed=true
+    while [[ $sync_attempt -lt $max_sync_attempts ]]; do
+      sync_attempt=$((sync_attempt + 1))
+      if [[ $sync_attempt -gt 1 ]]; then
+        echo -e "${YELLOW}  Sync $server retry $sync_attempt/$max_sync_attempts...${NC}"
       fi
-    fi
 
-    # Sync dnd5e server
-    if npm run spec-delta -- --server dnd5e --silent 2>/dev/null; then
-      echo -e "${GREEN}Sync (dnd5e): already in sync — skipped${NC}"
-    else
-      echo -e "${YELLOW}── Dnd5e delta detected — running spec-queue-sync ──${NC}"
-      if "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server dnd5e; then
-        echo -e "${GREEN}Sync (dnd5e): DONE${NC}"
-      else
-        echo -e "${RED}Sync (dnd5e): FAILED${NC}"
-        sync_failed=true
+      if npm run spec-delta -- --server "$server" --silent 2>/dev/null; then
+        echo -e "${GREEN}  Sync ($server): already in sync${NC}"
+        sync_failed=false
+        break
       fi
-    fi
+
+      echo -e "${YELLOW}  Sync ($server): delta detected — running holonovel-update...${NC}"
+      if "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server "$server"; then
+        echo -e "${GREEN}  Sync ($server): DONE${NC}"
+        sync_failed=false
+        break
+      fi
+      sync_failed=true
+    done
 
     if $sync_failed; then
-      echo -e "${RED}Sync: FAILED — one or both servers not synced. Re-run sync manually.${NC}"
-      exit 1
+      sync_failures+=("$server")
+      echo -e "${RED}  Sync ($server): FAILED after $max_sync_attempts attempts — continuing${NC}"
     fi
-    echo 0 > "$sync_counter_file"
-  else
-    echo "$sync_count" > "$sync_counter_file"
-    echo -e "${YELLOW}Sync deferred — ${sync_count} of ${sync_threshold} items since last sync. Use --force-sync to override.${NC}"
-  fi
+  done
 
   # ── validate ──────────────────────────────────────────────────────────
 
@@ -356,7 +384,7 @@ EOF
     echo -e "${GREEN}KB update: skipped (no new research in this batch)${NC}"
   fi
 
-  # ── commit ────────────────────────────────────────────────────────────
+  # ── commit + push ────────────────────────────────────────────────────
 
   echo ""
   echo -e "${YELLOW}── Staging changes ──${NC}"
@@ -379,124 +407,236 @@ EOF
     done
     git commit -F /tmp/cycle-commit-msg.txt
     echo -e "${GREEN}Commit: DONE${NC}"
+
+    echo ""
+    echo -e "${YELLOW}── Pushing to origin ──${NC}"
+    if git push origin main 2>&1; then
+      echo -e "${GREEN}Push: DONE${NC}"
+    else
+      echo -e "${RED}Push: FAILED — manual push required${NC}"
+    fi
   fi
 
   # ── summary ───────────────────────────────────────────────────────────
+
+  local final_failed
+  final_failed=$(grep -c '\[FAILED\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+  local final_rejected
+  final_rejected=$(grep -c '\[REJECTED\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
 
   echo ""
   echo "═══════════════════════════════════════════════"
   echo -e "${GREEN}Pipeline cycle complete.${NC}"
   echo ""
-  for num in "${rejected[@]}"; do echo -e "  ${YELLOW}Item $num: REJECTED${NC}"; done
-  for num in "${execute_failures[@]}"; do echo -e "  ${RED}Item $num: FAILED${NC}"; done
+  echo "  Items executed: ${#approved[@]}"
+  [[ ${#rejected[@]} -gt 0 ]] && echo -e "  ${YELLOW}Rejected: ${#rejected[@]}${NC}"
+  [[ $final_failed -gt 0 ]] && echo -e "  ${RED}Failed (recovery exhausted): $final_failed${NC}"
+  [[ $final_rejected -gt 0 ]] && echo -e "  ${YELLOW}Rejected (in queue): $final_rejected${NC}"
+  [[ ${#sync_failures[@]} -gt 0 ]] && echo -e "  ${RED}Sync failures: ${sync_failures[*]}${NC}"
   echo ""
-  echo -e "${GREEN}Ready to push.${NC}"
+  echo -e "${GREEN}Pushed to origin.${NC}"
   echo "═══════════════════════════════════════════════"
 }
 
-# ── cmd_run_all: automated full-queue pipeline ─────────────────────────
+# ── cmd_pipeline: full phased A-B-C-D pipeline ──────────────────────────
 
-cmd_run_all() {
-  local batch_size="${1:-3}"
-  local cycle=0
+cmd_pipeline() {
+  local batch_size="${1:-${TTRPG_RESEARCH_BATCH_SIZE:-5}}"
 
   echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
-  echo -e "${GREEN}Holonovel spec queue — full-auto pipeline${NC}"
+  echo -e "${GREEN}Holonovel spec queue — phased pipeline${NC}"
   echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
   echo ""
 
+  # ──────────────────────────────────────────────────────────────────────
+  # PHASE A — Research all items (parallel batches)
+  # ──────────────────────────────────────────────────────────────────────
+
+  echo -e "${GREEN}────────── Phase A: Research all ──────────${NC}"
+  echo ""
+
+  # A.1 — Pre-warm KB (batch web calibration)
+  local kb_marker="$KB_DIR/.web-recalibrated"
+  local prewarm_needed=true
+  if [[ -f "$kb_marker" ]]; then
+    local marker_date
+    marker_date=$(cat "$kb_marker" 2>/dev/null || echo "")
+    [[ "$marker_date" == "$(date +%Y-%m-%d)" ]] && prewarm_needed=false
+  fi
+  if $prewarm_needed; then
+    echo -e "${YELLOW}── A.1: Pre-warming knowledge base ──${NC}"
+    if "$PROJECT_DIR/scripts/spec-queue-prewarm-kb.sh"; then
+      echo -e "${GREEN}Pre-warm: DONE${NC}"
+    else
+      echo -e "${YELLOW}Pre-warm: FAILED — continuing without cached web data${NC}"
+    fi
+    echo ""
+  else
+    echo -e "${GREEN}── A.1: KB already pre-warmed today — skipped${NC}"
+    echo ""
+  fi
+
+  # A.2 — Prep per-item spec bundles
+  echo -e "${YELLOW}── A.2: Preparing reference bundles ──${NC}"
+  if "$PROJECT_DIR/scripts/spec-queue-prep-bundles.sh"; then
+    echo -e "${GREEN}Bundles: DONE${NC}"
+  else
+    echo -e "${YELLOW}Bundles: FAILED — research sessions will grep spec directly${NC}"
+  fi
+  echo ""
+
+  # A.3 — Group overlapping items
+  echo -e "${YELLOW}── A.3: Grouping items by REQ overlap ──${NC}"
+  "$PROJECT_DIR/scripts/spec-queue-group-items.sh"
+  local group_file="$PLANS_DIR/.item-groups.json"
+  echo ""
+
+  # A.4 — Research loop
+  echo -e "${GREEN}── A.4: Launching research sessions ──${NC}"
+  echo ""
+
+  local retry_count=0
+  local max_research_retries=3
+
   while true; do
-    cycle=$((cycle + 1))
-    echo -e "${YELLOW}── Cycle $cycle ───────────────────────────────────────────${NC}"
-    echo ""
+    local unstarted
+    unstarted=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+    local in_flight
+    in_flight=$(grep -cE '\[RESEARCH\]' "$SPEC_QUEUE" 2>/dev/null || echo 0)
 
-    # Count items by state
-    local unstarted=$(grep -cE '^[0-9]+\. [^[]' "$SPEC_QUEUE" 2>/dev/null); unstarted=${unstarted:-0}
-    local plan_ready=$(grep -c '\[PLAN_READY\]' "$SPEC_QUEUE" 2>/dev/null); plan_ready=${plan_ready:-0}
-    local in_flight=$(grep -cE '\[RESEARCH\]|\[EXECUTING\]' "$SPEC_QUEUE" 2>/dev/null); in_flight=${in_flight:-0}
-    local done=$(grep -c '\[DONE\]' "$SPEC_QUEUE" 2>/dev/null); done=${done:-0}
-    local terminal=$(grep -cE '\[REJECTED\]|\[FAILED\]' "$SPEC_QUEUE" 2>/dev/null); terminal=${terminal:-0}
-    local jobs=$(grep -c '\[JOB\]' "$SPEC_QUEUE" 2>/dev/null); jobs=${jobs:-0}
-
-    echo "  Unstarted: $unstarted | Jobs: $jobs | Plan-ready: $plan_ready | In-flight: $in_flight | Done: $done | Terminal: $terminal"
-    echo ""
-
-    # Exit condition: nothing left to process
-    if [[ $unstarted -eq 0 ]] && [[ $jobs -eq 0 ]] && [[ $plan_ready -eq 0 ]] && [[ $in_flight -eq 0 ]]; then
-      echo -e "${GREEN}Queue exhausted.${NC}"
-      echo ""
-      echo -e "${GREEN}Results: $done items DONE, $terminal items terminal${NC}"
-      echo ""
+    if [[ $unstarted -eq 0 ]] && [[ $in_flight -eq 0 ]]; then
+      echo -e "${GREEN}All items researched.${NC}"
       break
     fi
 
-    # If jobs or plan-ready items exist, execute them first
-    if [[ $jobs -gt 0 ]] || [[ $plan_ready -gt 0 ]]; then
-      echo -e "${YELLOW}Executing $plan_ready plan-ready item(s)...${NC}"
-      if cmd_execute "--auto"; then
-        echo ""
-      else
-        echo -e "${RED}Execute failed — aborting pipeline. Fix issues before re-running.${NC}"
-        echo -e "${RED}Check logs in .holonovel-state/queue-plans/ for details.${NC}"
-        exit 1
-      fi
-      # After execute, re-check state
-      continue
-    fi
-
-    # If unstarted items exist, launch research
     if [[ $unstarted -gt 0 ]]; then
       local launch_count=$batch_size
       [[ $unstarted -lt $batch_size ]] && launch_count=$unstarted
-      echo -e "${YELLOW}Launching research for $launch_count item(s)...${NC}"
+      echo -e "${YELLOW}Launching $launch_count research session(s) ($unstarted unstarted)...${NC}"
       if "$PROJECT_DIR/scripts/spec-queue-runner.sh" "$launch_count"; then
-        echo ""
         echo -e "${YELLOW}Watching for completion...${NC}"
         "$PROJECT_DIR/scripts/spec-queue-runner.sh" --watch || {
-          echo -e "${RED}Research watch failed — aborting pipeline.${NC}"
-          exit 1
+          retry_count=$((retry_count + 1))
+          if [[ $retry_count -ge $max_research_retries ]]; then
+            echo -e "${RED}Research watch failed $retry_count times — aborting.${NC}"
+            exit 1
+          fi
+          echo -e "${YELLOW}Research watch had failures — retrying (${retry_count}/$max_research_retries)...${NC}"
         }
       else
         echo -e "${RED}Research launch failed.${NC}"
         exit 1
       fi
-    fi
-
-    # Handle in-flight items (edge case: markers exist but no PID file)
-    if [[ $in_flight -gt 0 ]]; then
-      echo -e "${YELLOW}Waiting for $in_flight in-flight item(s)...${NC}"
+    elif [[ $in_flight -gt 0 ]]; then
+      echo -e "${YELLOW}Waiting for $in_flight in-flight session(s)...${NC}"
       "$PROJECT_DIR/scripts/spec-queue-runner.sh" --watch || {
-        echo -e "${RED}In-flight watch failed — aborting pipeline.${NC}"
-        exit 1
+        retry_count=$((retry_count + 1))
+        if [[ $retry_count -ge $max_research_retries ]]; then
+          echo -e "${RED}In-flight watch failed $retry_count times — aborting.${NC}"
+          exit 1
+        fi
       }
     fi
+    echo ""
   done
 
-  # ── wrap-up ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────
+  # PHASE B — Validate all plans
+  # ──────────────────────────────────────────────────────────────────────
 
-  echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
-  echo -e "${GREEN}Running post-queue wrap-up...${NC}"
-  echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
   echo ""
-
-  if [[ -x "$PROJECT_DIR/scripts/spec-queue-wrapup.sh" ]]; then
-    "$PROJECT_DIR/scripts/spec-queue-wrapup.sh"
+  echo -e "${GREEN}────────── Phase B: Validate plans ──────────${NC}"
+  echo ""
+  if "$PROJECT_DIR/scripts/spec-queue-validate-plans.sh"; then
+    echo -e "${GREEN}Phase B: all plans valid${NC}"
   else
-    echo -e "${RED}Wrap-up script not found at scripts/spec-queue-wrapup.sh${NC}"
-    echo -e "${YELLOW}Pipeline complete. Run wrap-up manually when available.${NC}"
-    exit 1
+    echo -e "${YELLOW}Phase B: some plans invalid — marked [FAILED]${NC}"
+  fi
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PHASE C — Execute + Recover + Sync + Push
+  # ──────────────────────────────────────────────────────────────────────
+
+  echo ""
+  echo -e "${GREEN}────────── Phase C: Execute + Recover ──────────${NC}"
+
+  cmd_execute --auto
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PHASE D — Periodic rebuild (every N runs, at queue exhaustion)
+  # ──────────────────────────────────────────────────────────────────────
+
+  local rebuild_counter_file="$PLANS_DIR/.rebuild-counter"
+  local rebuild_interval="${TTRPG_REBUILD_INTERVAL:-5}"
+  local queue_exhausted=false
+
+  local remaining
+  remaining=$(grep -cE '^[0-9]+\. ' "$SPEC_QUEUE" 2>/dev/null || echo 0)
+  [[ $remaining -eq 0 ]] && queue_exhausted=true
+
+  local rebuild_count=0
+  [[ -f "$rebuild_counter_file" ]] && rebuild_count=$(cat "$rebuild_counter_file" 2>/dev/null || echo 0)
+  rebuild_count=$((rebuild_count + 1))
+
+  local do_rebuild=false
+  if $queue_exhausted; then
+    do_rebuild=true
+    echo "0" > "$rebuild_counter_file"
+  elif [[ $rebuild_count -ge $rebuild_interval ]]; then
+    do_rebuild=true
+    echo "0" > "$rebuild_counter_file"
+  else
+    echo "$rebuild_count" > "$rebuild_counter_file"
+  fi
+
+  if $do_rebuild; then
+    echo ""
+    echo -e "${GREEN}────────── Phase D: Rebuild servers ──────────${NC}"
+    echo ""
+    if [[ -x "$PROJECT_DIR/scripts/spec-queue-wrapup.sh" ]]; then
+      "$PROJECT_DIR/scripts/spec-queue-wrapup.sh"
+    else
+      echo -e "${RED}Wrap-up/rebuild script not found at scripts/spec-queue-wrapup.sh${NC}"
+      echo -e "${YELLOW}Pipeline complete. Run rebuild manually when available.${NC}"
+      exit 1
+    fi
+  else
+    echo ""
+    echo -e "${YELLOW}Rebuild deferred — ${rebuild_count}/${rebuild_interval} runs since last rebuild${NC}"
   fi
 }
 
 # ── dispatch ─────────────────────────────────────────────────────────────
 
 case "${1:-}" in
+  --help|-h)
+    echo "Usage: $0 [--batch N] [command] [args...]"
+    echo ""
+    echo "  (no args)         Full phased pipeline (default)"
+    echo "  --batch N         Set research batch size (default 5)"
+    echo ""
+    echo "Commands:"
+    echo "  pipeline [N]      Full pipeline: research → validate → execute → push"
+    echo "  research [N] [--notify]  Launch N research sessions + watch"
+    echo "  watch [secs]      Poll progress until all sessions complete"
+    echo "  status            List all SPEC-QUEUE items with marker state"
+    echo "  execute [--auto]  Review plans → apply → sync → push"
+    echo ""
+    echo "Env vars:"
+    echo "  TTRPG_RESEARCH_BATCH_SIZE   Research batch size (default 5)"
+    echo "  TTRPG_MAX_RESEARCH_SESSIONS Max concurrent sessions (default 5)"
+    echo "  TTRPG_RECOVERY_CYCLES       Recovery retry cycles (default 2)"
+    echo "  TTRPG_REBUILD_INTERVAL      Runs between full rebuilds (default 5)"
+    echo "  TTRPG_GROUP_OVERLAP_THRESHOLD  Min shared REQs to group items (default 2)"
+    echo "  TTRPG_MAX_GROUP_SIZE        Max items per research group (default 3)"
+    exit 0
+    ;;
   status)   cmd_status ;;
   execute)  shift; cmd_execute "${@}" ;;
-  run-all)
+  pipeline|run-all)
     shift
-    cmd_run_all "${@}"
-    ;; 
+    cmd_pipeline "${@}"
+    ;;
   research)
     shift
     use_notify=false
@@ -517,20 +657,18 @@ case "${1:-}" in
       echo -e "${GREEN}Sessions launched. Waiting for completion...${NC}"
       exec "$PROJECT_DIR/scripts/spec-queue-runner.sh" --watch
     fi
-    ;; 
+    ;;
   watch)
     shift
     exec "$PROJECT_DIR/scripts/spec-queue-runner.sh" --watch "${@}"
-    ;; 
+    ;;
   *)
-    echo "Usage: $0 {research [N] [--notify]|watch [interval]|status|execute [--auto] [--force-sync]|run-all [N]}"
-    echo ""
-    echo "  research [N] [--notify]  Launch N sessions + watch (--notify: background)"
-    echo "  watch [secs]   Poll progress until all sessions complete (default 30s)"
-    echo "  status         List all SPEC-QUEUE items with marker state"
-    echo "  execute [--auto] [--force-sync]  Review plans → approve → apply → sync → commit (--auto: approve all, --force-sync: sync regardless of counter)"
-    echo "  run-all [N]    Full-auto pipeline: research → execute → repeat until queue exhausted"
-    echo "                  Interrupt-safe — re-run to resume from current queue state"
-    exit 1
-    ;; 
+    # Default: full pipeline
+    batch=""
+    for arg in "$@"; do
+      if [[ "$arg" == "--batch" ]]; then continue; fi
+      [[ -n "$batch" ]] && batch="$arg"
+    done
+    cmd_pipeline "${batch:-}"
+    ;;
 esac
