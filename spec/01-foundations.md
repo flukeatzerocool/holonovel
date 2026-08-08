@@ -86,18 +86,20 @@ token and time costs. The builder prefers incremental updates when the spec delt
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
 
-**The play model (TTRPG).** Two hats, enforced server-side during play. The Novel is the
-container — a named, persistent save file holding the world model, entities, scenes,
-and all session state. Novel setup (create Novel, load adventure, import characters,
-session zero) happens with no hat active (full access per REQ-031). Create a Novel,
-populate its narrative state (load an adventure module — a session-zero Novel — or
-build with scene, NPC, and faction tools), set up characters, then activate the Player
-hat via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
-player acts through the ruleset's resolution mechanics — skill checks, attacks,
-spells, exploration actions. World-model navigation (parser commands like `go north`
-or `take lamp`) is available when adventures provide spatial maps; the ruleset, not
-the world model, drives the game. Switch to Game Master hat to correct,
-undo, or directly manage Novel state. `set_hat` works without restart. One user per
+**The play model (TTRPG).** Two hats, enforced server-side when the story is active.
+The Novel is the container — a named, persistent save file holding the world model,
+entities, scenes, and all state. Entering a Novel (create or resume) starts in editing
+mode with no hat active (full access per REQ-031). Work on characters, load an
+adventure, build the world, refine lore — the Novel is yours to shape before the story
+begins. When ready, activate a hat via `set_hat` (REQ-066): wearing the player or
+game_master hat means you are in the story. Hat gating (REQ-032) activates. Under the
+Player hat, the player acts through the ruleset's resolution mechanics — skill checks,
+attacks, spells, exploration actions. World-model navigation (parser commands like `go
+north` or `take lamp`) is available when adventures provide spatial maps; the ruleset,
+not the world model, drives the story. Switch to the Game Master hat to correct, undo,
+or directly manage Novel state while staying in the story. End the story with
+`set_hat("none")` — return to editing mode with the Novel intact. End the Novel with
+`end_novel` — the save file is deleted. `set_hat` works without restart. One user per
 MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
 player, one AI Game Master. One player may control multiple characters (REQ-074).
 
@@ -107,8 +109,8 @@ freeform narrative roleplay. The primary interaction is through the GM's narrati
 `present_choices` to offer structured decisions, and `set_lore_entry`
 to build the world as you play. Player tools (`set_personality`, `player_signal`,
 `character_sheet`) let the player describe their character and communicate
-preferences. Parser navigation (`command("go north")`) is available when an adventure
-module populates rooms — it is never required for play. Adventures are starting-state
+preferences. Parser navigation (`go north`) is available when an adventure
+module populates rooms — it is never required to be in the story. Adventures are starting-state
 Novels: factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
 **Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
@@ -218,7 +220,7 @@ guard, the gap is explicit.
 4. The server trusts nothing client-supplied; every tool validates its inputs (REQ-054).
 5. Hat gating is enforced server-side (REQ-032).
 6. **LLMs propose intentions; the engine validates and executes.** The AI narrator
-   never directly mutates game state — every change flows through validated
+    never directly mutates story state — every change flows through validated
    tools. This is the same architecture as rpg-mcp's embodiment model, enforced
    server-side by hat gating (REQ-032), tool-result fidelity (REQ-058),
    and parameter canon validation (REQ-059).
@@ -236,12 +238,23 @@ guard, the gap is explicit.
    spec-authoring discipline — not a mechanical check — and is exercised by the author,
     not the builder. No _Check:_ citation attaches.
 9. **Ruleset-free skip rule.** When B1 is `none`, every check, metric, or
-   workflow that requires ruleset content SHALL be skipped with a `ruleset-free —
-   skipped` annotation in DECISIONS.md. The builder SHALL NOT attempt to measure,
-   score, or verify ruleset-derived properties in ruleset-free mode. Fixture
-   selections, workflow branches, and verification steps that carry explicit
-   ruleset-free clauses in their own sections SHALL follow those specific clauses
-   in preference to this general rule.
+    workflow that requires ruleset content SHALL be skipped with a `ruleset-free —
+    skipped` annotation in DECISIONS.md. The builder SHALL NOT attempt to measure,
+    score, or verify ruleset-derived properties in ruleset-free mode. Fixture
+    selections, workflow branches, and verification steps that carry explicit
+    ruleset-free clauses in their own sections SHALL follow those specific clauses
+    in preference to this general rule.
+10. **Plain English, no tool names.** User-facing narrative prompts — `intro`,
+    `session_zero`, and `novel_setup` — SHALL describe capabilities in plain
+    English with plaintext examples: what the user does, not what the tool is
+    called. Tool names, parameter shapes, and technical syntax SHALL NOT appear
+    in these prompts. The builder writes as if instructing a person, not
+    documenting an API. Narrative capability descriptions SHALL use plaintext
+    examples: a sentence the player or GM would write, not a function signature.
+    Operational prompts (`hat_briefing`, `run_workflow`) and tool output
+    (`suggest_actions`) are exempt — their content contracts are defined by their
+    respective REQs. This rule is verified at G4 and G5 — narrative prompts
+    containing tool names or technical syntax are a construction defect.
 
 **Terminology.**
 
@@ -252,11 +265,16 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Hat        | Active hat — `player`, `game_master`, or none (full access) (REQ-031, REQ-066).         |
+| Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
+| Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
+| In the story | Hat is active. Player or GM is making decisions, narration is flowing. |
+| Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
-|               | audit log, snapshots, and hat state for a single ruleset playthrough.         |
+|               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
+|               | can be edited without a hat active (editing mode). The story begins when a       |
+|               | hat is activated and ends when the hat is removed — the Novel persists.          |
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
 |               | and rebuilds. Removed from disk by `end_novel`. Multiple Novels per server       |
 |               | instance; one active per connection. Isolated from other Novels.                  |
@@ -264,7 +282,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 22 sub-workflows against a running server. |
+| Gauntlet         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |

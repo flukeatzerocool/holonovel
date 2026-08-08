@@ -595,6 +595,99 @@ function checkStaleGateReferences(text: string): string[] {
   return issues;
 }
 
+function checkGauntletCoverageMap(text: string, reqIndex: Map<string, string>): string[] {
+  const issues: string[] = [];
+
+  const coverageStart = text.indexOf("**REQ Gauntlet coverage map.**");
+  if (coverageStart === -1) {
+    issues.push("REQ Gauntlet coverage map not found in §6.6");
+    return issues;
+  }
+
+  const coverageEnd = text.indexOf("| REQ-002", coverageStart);
+  if (coverageEnd === -1) {
+    issues.push("REQ Gauntlet coverage map table not found");
+    return issues;
+  }
+
+  const mapSection = text.slice(coverageStart, coverageEnd + 500);
+  const mapReqs = new Set<string>();
+  for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z]?)\s*\|/g)) {
+    mapReqs.add("REQ-" + match[1]);
+  }
+
+  if (mapReqs.size === 0) {
+    issues.push("REQ Gauntlet coverage map contains no REQ entries");
+    return issues;
+  }
+
+  const sectionMapStart = text.indexOf("| §       | Title");
+  if (sectionMapStart === -1) {
+    issues.push("§5 section map not found");
+    return issues;
+  }
+  const sectionMapEnd = text.indexOf("\n### 5.1", sectionMapStart);
+  if (sectionMapEnd === -1) {
+    issues.push("§5.1 heading not found after section map");
+    return issues;
+  }
+  const sectionMap = text.slice(sectionMapStart, sectionMapEnd);
+
+  const coveredSections = ["5.5", "5.6", "5.7"];
+  const sectionReqs = new Set<string>();
+
+  for (const line of sectionMap.split("\n")) {
+    for (const sec of coveredSections) {
+      if (line.includes(`| ${sec}`)) {
+        const reqs = line.match(/REQ-\d{3}[a-z]?/g);
+        if (reqs) {
+          for (const r of reqs) sectionReqs.add(r);
+        }
+        const ranges = line.match(/(\d{3}[a-z]?)–(\d{3}[a-z]?)/g);
+        if (ranges) {
+          for (const range of ranges) {
+            const [lo, hi] = range.split("–");
+            const loNum = parseInt(lo);
+            const hiNum = parseInt(hi);
+            if (!isNaN(loNum) && !isNaN(hiNum)) {
+              for (let n = loNum; n <= hiNum; n++) {
+                const padded = String(n).padStart(3, "0");
+                const candidate = "REQ-" + padded;
+                if (reqIndex.has(candidate)) {
+                  sectionReqs.add(candidate);
+                }
+                for (const r2 of (reqs || [])) {
+                  if (r2.endsWith(padded) && reqIndex.has(r2)) {
+                    sectionReqs.add(r2);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const r of [...sectionReqs].sort()) {
+    if (!mapReqs.has(r)) {
+      issues.push(`ERROR: ${r} in §5.5/5.6/5.7 but missing from Gauntlet coverage map`);
+    }
+  }
+
+  for (const r of [...mapReqs].sort()) {
+    if (!reqIndex.has(r)) {
+      issues.push(`WARNING: ${r} in Gauntlet coverage map but not in Appendix E`);
+    }
+  }
+
+  if (sectionReqs.size === 0) {
+    issues.push("Could not extract §5.5/5.6/5.7 REQs from section map");
+  }
+
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -737,6 +830,22 @@ function main(): void {
     } else {
       console.log("\n=== COVERAGE COMPLETENESS ===\nPASS: No coverage gaps detected");
     }
+  }
+
+  const gauntletCoverageIssues = checkGauntletCoverageMap(text, reqIndex);
+  if (gauntletCoverageIssues.length > 0) {
+    console.log("\n=== GAUNTLET REQ COVERAGE MAP ===\n");
+    for (const issue of gauntletCoverageIssues) {
+      if (issue.startsWith("ERROR")) {
+        console.log(issue);
+        errors++;
+      } else {
+        console.log(issue);
+        warnings++;
+      }
+    }
+  } else {
+    console.log("PASS: Gauntlet REQ coverage map complete");
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);

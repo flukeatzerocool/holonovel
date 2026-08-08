@@ -118,7 +118,7 @@ A correct extraction of the fixture includes at least:
 - **Entities**: delver — Name; Grit/Nerve/Wits from {+2, +1, 0}; Harm 0–6 (a pool);
   Conditions; lifecycle: creation is defined and modeled [HIGH for creation]; advancement
   and deletion are undefined (the advancement cross-reference is broken — defect 3), so no
-  advance or delete tool exists (REQ-013). The confrontation is a game-scoped state object
+  advance or delete tool exists (REQ-013). The confrontation is a Novel-scoped state object
   — participants, round counter, turn order — not an entity (REQ-043). Dangers are
   non-entity participants (REQ-043).
 - **Actions**: `roll_move` (Resolution, MUST), `create_delver` (Command, MUST —
@@ -186,7 +186,7 @@ Corrective action: ask the Keeper to roll, or switch to game_master hat via `set
 → roll_on_table { "table": "knacks", "seed": 42 }
 [OK] Knacks (knacks): rolled 2 — Iron Stomach: immune to ingested poisons
 
-# --- same game, new connection, hat: Lantern Keeper ---
+# --- same Novel, new connection, hat: Lantern Keeper ---
 → start_confrontation { "participants": ["delver_01"], "dangers": ["hollow-man"] }
 [OK] Confrontation active. Round 1. Turn order: Moss, hollow man.
 

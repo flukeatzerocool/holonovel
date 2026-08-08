@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-08-08 — Gauntlet expansion, efficiency improvements, and auto-detection
+
+- Added seven new TTRPG Gauntlet sub-workflows (S23–S29) covering all
+  DMCP-sourced narrative features — pause/resume context, factions, player
+  choices, relationships, secrets, notes, clock taxonomy — plus Narrative
+  POV, enrichment lifecycle, briefing ordering, voice examples, session
+  notation, and Novel export/import. The Gauntlet now has 29 sub-workflows,
+  with S23 (narrative sweep), S25 (backups/checkpoints/clones), S26 (POV),
+  and S29 (export/import) classified as blocking.
+
+- Five efficiency improvements reduce Gauntlet token costs: (1) structured
+  encoding now mandates a runnable test harness so re-runs cost zero AI
+  tokens; (2) the S1 tool surface sweep skips categories exercised by other
+  blocking sub-workflows; (3) per-sub-workflow surface hashes skip unchanged
+  scenarios individually rather than all-or-nothing; (4) a gauntlet manifest
+  caches results by spec version and ruleset hash, reusing them across
+  builds; (5) convergence-loop-driven scoping skips mechanics-fidelity
+  sub-workflows when the ruleset hash is unchanged. All five applied to the
+  TTRPG Gauntlet; (1) and (3) applied to the Inform Gauntlet as well.
+
+- A normative REQ Gauntlet coverage map maps every requirement in §5.5,
+  §5.6, §5.7, and REQ-002 to its covering sub-workflow(s). `scripts/validate.ts`
+  mechanically enforces it — when a spec revision adds a new REQ to these
+  sections, validate reports an error until the map is updated. This closes
+  the loop between spec changes and Gauntlet coverage.
+
+- Fixed a pre-existing desync where the verification file referenced a
+  23-sub-workflow Gauntlet and a ghost S23 sub-workflow that didn't exist in
+  the build specification. The section map REQ counts now include the
+  DMCP-sourced REQs (232–242) that were previously absent.
+
+- Terminology refresh: "game" replaced with "Novel" throughout the spec,
+  and the play model now distinguishes editing mode (no hat) from story mode
+  (hat active), with `set_hat("none")` returning to editing mode.
+
 ## 2026-08-08 — Convergence cache key, enrichment memoization, Gauntlet fingerprint caching
 
 - Builders can now skip the convergence loop when the inputs haven't changed:

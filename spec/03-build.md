@@ -7,7 +7,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 
 | Workflow | What it does                                                | Required sections        |
 | ------- | ----------------------------------------------------------- | ------------------------ |
-| Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the game. | §6.2, Appendix G, H      |
+| Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the ruleset. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
 | Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet sub-workflows. | §6.7, §6.2      |
@@ -401,9 +401,11 @@ live state. The builder constructs prompts from these sources, in this order:
    active hat's filter.
 
 5. **Required contract elements.** Every prompt that carries a specification
-   contract (intro pointer in `hat_briefing` per REQ-063, `player_signal`
-   and `set_personality` directives in `session_zero` per REQ-078) includes
-   those elements before any truncation.
+    contract (intro pointer in `hat_briefing` per REQ-063, plain-English
+    guidance sections and examples in `session_zero` per REQ-078, conversational
+    wizard steps in `novel_setup` per REQ-089) includes
+    those elements before any truncation. Standing Rule 10 applies — prompt
+    bodies SHALL contain no tool names or technical syntax.
 
 Prompts use the ruleset's own terminology for mechanics, tool names, and
 categories — the builder does not invent terms. The prompt length budget
@@ -746,6 +748,20 @@ code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
 fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
 
+**Convergence-loop-driven scoping.** When the convergence loop (§6.5) exits with all
+metrics within their tiered thresholds and the ruleset content hash (REQ-044)
+matches the prior build, the subsequent Gauntlet run SHALL skip
+mechanics-fidelity sub-workflows — those whose failures would be
+extraction-dependent: S2 (character creation), S3 (encounter setup), S4
+(simulated combat), S7 (table generation), S8 (search and canonical lookup), and
+S9 (condition lifecycle). Each skipped sub-workflow is recorded as
+`skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
+sub-workflows — all others (S1, S5, S6, S10–S29) — always execute, as they
+verify runtime contracts independent of extraction quality. This scoping applies
+to both the initial build-time Gauntlet and subsequent re-runs after enrichment
+or spec-driven updates. The operator MAY override with `--full-gauntlet` to force
+all sub-workflows.
+
 **Workflow completion.** The Build workflow is not complete until the Gauntlet
 exits with all Gauntlet sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
@@ -762,7 +778,7 @@ Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts up to two MCP client connections to the same server process
 sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-hat interaction
-(S6, S14h, S17) use one connection for the Game Master hat and one for the Player hat.
+(S6, S14h, S17, S23, S26) use one connection for the Game Master hat and one for the Player hat.
 All other sub-workflows use a single connection switching hats as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
 calls between the two connections when simulating cross-hat turn-taking. Every scenario
@@ -790,10 +806,10 @@ snapshot captured immediately after the failure; (iv) a diagnostic trail showing
 narrowing steps taken to identify the root cause. A finding that omits any of these
 four items is incomplete and blocks handoff.
 
-1. **Tool surface sweep** — call at least one tool from every registered tool category
-   per REQ-015 (read-only, state-reading, command, generation, hybrid), plus all
-   Novel-lifecycle and hat-management tools. Each call uses valid input; additionally,
-   call at least one tool per category with an invalid input (empty string, missing
+1. **Tool surface sweep** — call one read-only tool from each REQ-015 category not
+   exercised by another blocking sub-workflow, plus all Novel-lifecycle and
+   hat-management tools. Each call uses valid input; additionally,
+   call each with an invalid input (empty string, missing
    required param) and assert `[INVALID_INPUT]` or `[MISSING_PARAM]` response without
    crash. (Blocking.)
 2. **Character creation workflow** — step-by-step and quick creation; correct derived
@@ -860,6 +876,81 @@ four items is incomplete and blocks handoff.
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_hat blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
+23. **Narrative features sweep** — exercise all six DMCP narrative tools end to end:
+    `save_pause_context` / `get_resume_context` round-trip with auto-captured faction
+    clocks, countdown positions, NPC dispositions, and entity relationships;
+    `end_novel` clears dm_context; `create_faction` with faction-type countdown,
+    `faction://` resource, `advance_countdown` coupling, scene transition advances
+    faction clock, `remove_faction` removes clock; `set_secret` / `reveal_secret` /
+    `check_knowledge` cycle with character_sheet "Known Information" section;
+    `present_choices` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
+    audit tag, countdown and faction clock coupling on resolved id; `set_relationship`
+    / `get_relationships` cycle, character_sheet shows "Relationships" section,
+    relationship change between `ally` and `rival` prompts lore entry in
+    `hat_briefing`; `set_note` / `list_notes` / `notes://<key>` round-trip, Player hat
+    excluded from notes content. Verify clock taxonomy: `racing` clock pair resolves
+    correctly (first to full wins), `linked` clock chain triggers child on parent
+    completion, `tug_of_war` retreated to zero does not trigger, `mission` clock
+    decrements on `resume_novel`. All mutations appear in audit log and
+    `session_recap`. (Blocking.)
+24. **Session segmentation and audit compaction** — two sessions with different
+    `TTRPG_SESSION_ID` values: assert two `[session_boundary]` markers in audit log
+    with session IDs and timestamps; `session_recap(session_id="s1")` returns only s1
+    entries; `session_recap(session_id="s2")` returns only s2 entries; `session_recap()`
+    returns all entries; `spec_health` reports per-session metrics array. With
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `compact_audit_log()` prompts `[NEED_INPUT]`
+    confirmation; on confirm, session 1 entries removed from live log,
+    `audit://novel/archive` returns session 1 summary; `session_recap(session_id="s1")`
+    returns the summary from archive; `session_recap()` returns only session 2 entries.
+    Player hat `compact_audit_log` returns `[FORBIDDEN]`. (Non-blocking.)
+25. **State durability: backups, checkpoints, clones** — with
+    `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
+    files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
+    `[restored_from_backup]` audit entry; `end_novel` removes all backups.
+    `set_checkpoint("a")` → 5 mutations → `restore_checkpoint("a")` with `[NEED_INPUT]`
+    confirm → assert all 5 mutations reversed; `delete_checkpoint` removes entry;
+    `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
+    and Novel switch; `export_novel(json, include_checkpoints=true)` includes
+    checkpoints key; Player hat returns `[FORBIDDEN]`. `clone_novel("src", "dst")`
+    creates independent Novel; mutating clone does not affect source; duplicate slug
+    returns `[STATE_CONFLICT]`; `trim_audit_sessions=2` retains only 2 most recent
+    sessions; Player hat returns `[FORBIDDEN]`. (Blocking.)
+26. **Narrative POV** — import two entities; `set_active_entity("char_01")` — assert
+    `hat_briefing` includes POV directive naming char_01 with narrative instruction
+    and personality fields; `set_active_entity("char_02")` — assert directive updates
+    to char_02. `set_active_entity("char_01", pov="omniscient")` — assert
+    `hat_briefing` shows "POV: none — narration is omniscient" with char_01 still
+    active; `set_active_entity("char_02")` preserves omniscient mode;
+    `set_active_entity("char_02", pov="character")` switches to character-locked POV
+    for char_02. POV mode persists across server restart. POV directive is never
+    truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
+27. **Enrichment lifecycle** — requires enrichment to have been run. Assert
+    `enrichment://status` reports active modules with per-module item counts.
+    Deactivate a module via `set_enrichment_module(module_name, false)` — assert items
+    from that module absent from enrichment surfaces. Reactivate — assert items return.
+    `revert_enrichment()` — assert community enrichment items removed, ruleset-native
+    items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
+    items. Assert `hat_briefing` enrichment content follows activation state: active
+    modules' content appears, deactivated modules' content absent. Entity
+    `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
+    sourcing. (Non-blocking.)
+28. **Briefing ordering, voice examples, session notation** —
+    `set_briefing_order(["scene", "entities", "lore"])` — assert `hat_briefing`
+    sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
+    enumerated; `set_briefing_order([])` resets to builder defaults.
+    `set_voice_examples(entity_id, [{context:"greeting", dialogue:"Hello",
+    tag:"formal"}])` — assert `entity://<id>/voice_examples` returns examples;
+    `entity://<id>/personality` reflects `set_personality` fields.
+    `session_recap(format="lonelog")` — assert output in Lonelog notation (`###` scene
+    headers, `@` actions, `=>` outcomes); `compress_audit(format="lonelog")` —
+    assert compressed Lonelog entries. (Non-blocking.)
+29. **Novel export/import cycle** — `export_novel("json")` → `import_novel(data,
+    "dry-run")` reports changes without side effects → `import_novel(data, "replace")`
+    restores exported state → re-`export_novel("json")` matches original.
+    `export_novel("json", "lore")` produces lore-only payload. `import_novel(data,
+    "dry-run", strict=true)` with broken references reports all failures and blocks
+    import. Assert `suggest_actions("attack the goblin")` returns at least one
+    combat-category tool with registered name and REQ-015 classification. (Blocking.)
 
 **REQ-108 — Gauntlet traceability.** The builder must ensure at least one
 Gauntlet sub-workflow exercises each requirement in §5.5 (Hats and Access),
@@ -900,8 +991,8 @@ the sub-workflow but is recorded with the actual duration. Three consecutive S21
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
 
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
-wall-clock time, except S13 (10 minutes), S21 (10 minutes), and S22 (3
-minutes). A sub-workflow exceeding its individual budget does not fail but
+wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3
+minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
@@ -915,6 +1006,19 @@ exceeding 2,000 indexed items (REQ-100 Huge tier).
 **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
 as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
 descriptions above are canonical; the structured encoding is a lossless transcription.
+
+The structured encoding SHALL be accompanied by a single runnable test harness
+(`scripts/run_gauntlet.ts`) that reads the encoded sub-workflow records and executes
+each against the live MCP server. The harness SHALL: (a) start the server process,
+(b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion
+against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
+Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
+non-blocking failures per the Exit criteria. The harness enables operator re-execution
+of the full Gauntlet without AI builder reasoning — re-runs after enrichment, after
+spec-driven updates, or after code changes consume zero AI tokens. The harness output
+SHALL include the Gauntlet execution timestamp and per-sub-workflow verdicts with
+failure details when applicable. The harness is recorded as a handoff artifact
+(§9 H13a).
 
 **Convergence integration.** The convergence handshake (see Timing block above)
 governs the Gauntlet ↔ Phase 2 feedback loop.
@@ -932,7 +1036,7 @@ and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
-20, 21, and 22 are blocking — Build is incomplete until they pass. Other failures are
+20, 21, 22, 23, 25, 26, and 29 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
@@ -997,10 +1101,99 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | New prompt, resource, or hat-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
 | Campaign endurance, stress (REQ-052)                        | S13, S21 |
+| Pause/resume, factions, player choices, relationships, secrets, notes, clock types | S23 |
+| Session segmentation, audit compaction                      | S24 |
+| Backup rotation, checkpoints, clone novel                   | S25 |
+| Narrative POV (REQ-220, REQ-223)                            | S26 |
+| Enrichment lifecycle, status, toggles                       | S27 |
+| Briefing ordering, voice examples, session notation         | S28 |
+| Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
 syncs — not only the blanket Gauntlet run.
+
+**REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
+(Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
+Performance), and REQ-002 (Error taxonomy) to at least one Gauntlet sub-workflow
+that exercises its contract. This table is normative — it ships with the
+specification and is mechanically verified by `scripts/validate.ts`. When a spec
+revision adds a new REQ to these sections, the maintainer SHALL add at least one
+row mapping it to a Gauntlet sub-workflow (existing or new). When no existing
+sub-workflow exercises the new REQ's contract, the maintainer SHALL add a new
+sub-workflow. Gaps detected by validation are errors — they block assembly.
+
+| REQ | Sub-workflows | Feature |
+|-----|---------------|---------|
+| REQ-030 | S6, S17 | Single-user connection |
+| REQ-031 | S6, S22 | Hat activation |
+| REQ-032 | S6, S14h, S19 | Server-side hat gating |
+| REQ-066 | S6, S15 | set_hat tool |
+| REQ-109 | S19 | Hat briefing composition |
+| REQ-133 | S6 | Forbidden-call audit |
+| REQ-134 | S6 | Minimum Player tool surface |
+| REQ-135 | S19, S26 | Hat briefing size budget |
+| REQ-136 | S19 | Null-hat briefing |
+| REQ-137 | S6 | Gate classification auditability |
+| REQ-148 | S6, S19 | Entity ownership filter |
+| REQ-149 | S6, S19 | Hat-filtered resources |
+| REQ-150 | S6 | Server-settable entity visibility |
+| REQ-159 | S19, S27 | Enrichment briefing integration |
+| REQ-216 | S7 | Generation table hat filtering |
+| REQ-220 | S26 | Narrative point of view |
+| REQ-223 | S26 | POV mode control |
+| REQ-040 | S16, S21 | Audit log |
+| REQ-041 | S4, S22, S25 | Undo/redo/snapshots |
+| REQ-043 | S3, S4, S5 | Combat lifecycle |
+| REQ-044 | S17 | Ruleset hash recording |
+| REQ-065 | S5, S17 | Build fingerprint |
+| REQ-069 | S16 | Player feedback signal |
+| REQ-072 | S21, S28 | Session recap (incl. Lonelog) |
+| REQ-073 | S16, S23 | Countdowns (incl. clock taxonomy) |
+| REQ-074 | S17, S19 | Multi-entity support |
+| REQ-075 | S16 | Named-NPC state |
+| REQ-076 | S16, S17 | Scene-state ledger |
+| REQ-076a | S16 | Structured scene fields |
+| REQ-077 | S2, S19, S28 | Entity personality fields |
+| REQ-079 | S18, S29 | Adventure modules |
+| REQ-116 | S4, S22 | Redo |
+| REQ-119 | S16 | NPC stat block reference |
+| REQ-120 | S16 | NPC rendering |
+| REQ-121 | S16 | NPC resource URIs |
+| REQ-122 | S16 | NPC narrative fields |
+| REQ-123 | S16 | Builder-defined NPC stat fields |
+| REQ-124 | S16 | NPC damage resolution |
+| REQ-126 | S19, S28 | Voice examples rendering |
+| REQ-127 | S2, S19 | Ruleset-native personality mapping |
+| REQ-128 | S16 | Signal briefing surface |
+| REQ-129 | S16 | Property group cardinality |
+| REQ-132 | S18 | Adventure generation lifecycle |
+| REQ-156 | S16 | Countdown persistence |
+| REQ-203 | S15 | Corrupted state recovery |
+| REQ-204 | S15 | State directory isolation |
+| REQ-205 | S5, S15, S17 | State survival under restart |
+| REQ-206 | S4, S9 | Condition management |
+| REQ-217 | S9 | Condition lifecycle |
+| REQ-221 | S23 | Combat-navigation interaction |
+| REQ-229 | S18 | Adventure enrichment linkage |
+| REQ-232 | S23 | Pause/resume context |
+| REQ-233 | S23 | Factions |
+| REQ-236 | S23 | Entity relationships |
+| REQ-237 | S24 | Session segmentation |
+| REQ-239 | S24 | Audit log compaction |
+| REQ-241 | S25 | Checkpoints |
+| REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-050 | S4, S7 | Determinism (PRNG) |
+| REQ-051 | G4 | No runtime network access |
+| REQ-052 | S13, S21 | Path containment |
+| REQ-054 | S14i | Input safety |
+| REQ-055 | S5, S17 | Durability and resume |
+| REQ-100 | S13, S21 | Performance benchmark |
+| REQ-157 | S4 | Combat determinism |
+| REQ-002 | S1, S14e, S14f, S22 | Error taxonomy |
+| REQ-002a | S9 | Extended error category semantics |
+| REQ-002b | S1, S14e | Corrective-action contract |
+| REQ-002c | S6 | Hat-filtered error values |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
@@ -1010,14 +1203,30 @@ SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
 The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
 
-When the specification version has advanced but the ruleset hash is unchanged,
-the builder SHALL run the gap audit (§6.7) and select Gauntlet sub-workflows
-per the surface-to-scenario mapping — only sub-workflows exercising changed
-surfaces execute. The full 22-sub-workflow Gauntlet is not required when the
+**Per-sub-workflow surface fingerprints.** Each sub-workflow's structured encoding
+SHALL carry a `surface_hash` — a SHA-256 of the sorted, concatenated tool names,
+resource URIs, and prompt names the sub-workflow exercises. When the
+specification version has advanced but the ruleset hash is unchanged, the builder
+SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
+Sub-workflows whose `surface_hash` matches the prior Gauntlet execution SHALL be
+skipped individually — recorded as `cached — surface hash match for S<N>` in
+DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
+The full 29-sub-workflow Gauntlet is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
+**Gauntlet results manifest.** The builder SHALL record a `gauntlet_manifest`
+alongside the build fingerprint (REQ-065): per-sub-workflow pass/fail status,
+surface hash, and execution timestamp, keyed to spec version + ruleset hash.
+When the spec version and ruleset hash both match a prior manifest entry, all
+sub-workflow results are reused — recorded as `cached — gauntlet manifest match`
+in DECISIONS.md (6) — instead of re-executing any sub-workflow. When the spec
+version has advanced, sub-workflows with unchanged surface hashes carry forward
+their prior results per the per-sub-workflow fingerprint rule; sub-workflows with
+changed surface hashes re-execute. The manifest takes precedence over the
+DECISIONS.md (6) execution record for re-use decisions.
+
 The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
-intake, forcing all 22 sub-workflows regardless of fingerprint match.
+intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
 #### Inform Gauntlet
 
@@ -1027,8 +1236,11 @@ Gauntlet runs when the inform package is built and before it is published, as pa
 the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
 consume the published inform package as a build-time dependency and skip the Inform
 Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
-Budget, and Structured encoding contracts apply (§6.6). Blocking sub-workflows SHALL
-pass; non-blocking failures are recorded as accepted limitations.
+Budget, and Structured encoding contracts apply (§6.6), including the executable
+test harness mandate — the Inform build SHALL produce a runnable harness
+(`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
+sub-workflows SHALL pass; non-blocking failures are recorded as accepted
+limitations.
 
 **Version-bound results.** When the inform package version (B10) matches a
 prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
@@ -1039,6 +1251,16 @@ advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
+
+**Per-sub-workflow surface fingerprints.** Each Inform sub-workflow's structured
+encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
+resource URIs, and prompt names the sub-workflow exercises. When the
+specification version has advanced but the inform package version is unchanged,
+sub-workflows whose `surface_hash` matches the prior Inform Gauntlet execution
+SHALL be skipped individually — recorded as `cached — surface hash match for
+I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
+re-execute. The surface-to-scenario mapping below governs which sub-workflows
+are selected for changed surfaces.
 
 **Inform Gauntlet sub-workflows.**
 
@@ -1140,7 +1362,7 @@ is built and published.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 22-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
