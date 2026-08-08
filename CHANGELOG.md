@@ -1,6 +1,28 @@
 # Changelog
 
-## 2026-08-08 — Spec engineering: verification, artifacts, fixtures
+## 2026-08-08 — Observer hat, AI role, autonomy, and subsystem classification fixes
+
+- The human can now spectate via the Observer hat (`set_hat("observer")`) — the AI plays
+  both Player and Game Master while the human watches, stepping in for mechanical decisions
+  at a configurable autonomy level. Observer is read-only. (REQ-305, REQ-032)
+- The AI's narrative role is now the counterpart of the active hat: human as Player → AI
+  as Game Master, human as Game Master → AI as Player. Configurable via `TTRPG_AI_ROLE` to
+  lock the AI to a fixed role. (REQ-304)
+- Adjustable autonomy controls how much the AI auto-plays vs. defers to the human, with
+  independent sliders for level, confirmation, safety, and creativity. (REQ-306)
+- Entity presence tracking gates knowledge acquisition by attendance — characters only
+  learn what happened in scenes they were present for. (REQ-307, REQ-308)
+- Server notes now survive Novels and rebuilds, stored at the server level. (REQ-285)
+- Subsystem classification fixes: duplicate checkpoint/resume tools removed from Narrative
+  → Session Management (already under Novels), `(World)` parenthetical corrected to
+  `(Novels)` in the §5.10 conflict-resolution order, and `compress_audit` moved from
+  Enrichment Controls to Story Memory where it pairs with `session_recap`. Notes moved from
+  Narrative to Novels to match their save-file nature.
+- Restored missing Appendix G (Source Conversion) heading — its G.1–G.6 sub-sections were
+  orphaned between F and H and excluded from the assembled spec.
+- dnd5e server grew from ~64 to ~106 tools: added factions, secrets, relationships, vows,
+  story journal, notes, server notes, checkpoints, pause/resume, oracle, adventures,
+  and the observer/autonomy/presence/knowledge infrastructure.
 
 - Split verification workflow G0 into G0a (structural integrity) and G0b (MCP
   conformance) — source quality and server quality are now independently verifiable

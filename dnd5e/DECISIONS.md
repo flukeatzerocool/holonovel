@@ -141,6 +141,42 @@
 | REQ-210 | Extraction categories | Waived — build-time REQ; not server runtime |
 | REQ-211 | Evidence record field contract | Waived — build-time REQ; documentation convention |
 | REQ-212 | Generation table rolling | `src/index.ts` — roll_on_table gen table registry, hat-filtered, seeded dice notation |
+| REQ-214 | Table classification | Waived — build-time REQ; not server runtime |
+| REQ-215 | Table content extraction | Waived — build-time REQ; not server runtime |
+| REQ-232 | Pause/resume context | `src/index.ts` — save_pause_context, get_resume_context; `src/state.ts` — dm_context |
+| REQ-233 | Factions | `src/index.ts` — create_faction, update_faction, remove_faction; `src/state.ts` — factions[] |
+| REQ-234 | Secrets and knowledge | `src/index.ts` — set_secret, reveal_secret, check_knowledge; `src/state.ts` — secrets[] |
+| REQ-235 | Structured player choices | `src/index.ts` — present_choices with NEED_INPUT workflow |
+| REQ-236 | Entity relationships | `src/index.ts` — set_relationship, get_relationships; `src/state.ts` — relationships[] |
+| REQ-241 | Checkpoints | `src/index.ts` — set_checkpoint, list_checkpoints, restore_checkpoint, delete_checkpoint; `src/state.ts` — checkpoints[] |
+| REQ-242 | Notes | `src/index.ts` — set_note, remove_note, list_notes; `src/state.ts` — notes[] |
+| REQ-246 | Story journal | `src/index.ts` — record_story, update_story, remove_story, list_stories; `src/state.ts` — story_journal[] |
+| REQ-256 | Rename Novel | `src/index.ts` — rename_novel |
+| REQ-257 | List Novels | `src/index.ts` — list_novels |
+| REQ-258 | Novel info | `src/index.ts` — novel_info |
+| REQ-259 | Update Novel description | `src/state.ts` — description field; `src/index.ts` — create_novel accepts description |
+| REQ-260 | Granular enrichment activation | Deferred — per-item activation not yet implemented |
+| REQ-261 | Player enrichment | Deferred — player-authored enrichment not yet implemented |
+| REQ-262 | Novel enrichment tier | Deferred — [novel] enrichment not yet implemented |
+| REQ-263 | Novel enrichment synthesis | Deferred — synthesize_novel_enrichment not yet implemented |
+| REQ-264 | Novel enrichment auto-trigger | Deferred — auto-trigger not yet implemented |
+| REQ-265 | Novel enrichment removal | Deferred — revert_novel_enrichment not yet implemented |
+| REQ-266 | Novel enrichment confidence | Deferred — confidence model not yet implemented |
+| REQ-267 | Novel enrichment briefing | Deferred — briefing integration not yet implemented |
+| REQ-268 | Novel enrichment dashboard | Deferred — dashboard not yet implemented |
+| REQ-279 | Narrative orientation | `src/index.ts` — session_recap narrative_orientation field |
+| REQ-281 | Narrative-threads token | `src/index.ts` — hat_briefing narrative_threads section |
+| REQ-282 | NPC voice directive | Deferred — voice directive synthesis not yet implemented |
+| REQ-285 | Server notes | `src/index.ts` — set_server_note, remove_server_note, list_server_notes |
+| REQ-289 | Vow tracking | `src/index.ts` — set_vow, mark_milestone, resolve_vow, forsake_vow; `src/state.ts` — vows[] |
+| REQ-291 | Oracle tool | `src/index.ts` — ask_oracle |
+| REQ-292 | Adventure catalog | `src/index.ts` — list_adventures |
+| REQ-296 | Knowledge-graph resource | Deferred — graph://novel resource not yet registered |
+| REQ-294 | Genre declaration | `src/state.ts` — genre field |
+| REQ-295 | Genre-filtered generation | Deferred — genre filtering not yet applied to generate_adventure/encounter |
+| REQ-238 | Backup rotation | Deferred — multi-backup rotation not yet implemented |
+| REQ-239 | Audit log compaction | Deferred — compact_audit_log not yet implemented |
+| REQ-240 | Clone Novel | `src/index.ts` — clone_novel |
 
 <!-- @section normalizations -->
 ## 4. Assumptions, Normalizations, and Capabilities

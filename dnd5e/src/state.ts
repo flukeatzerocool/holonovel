@@ -82,6 +82,98 @@ export interface Countdown {
   type: "round" | "narrative";
   scope?: string;
   direction?: string;
+  on_scene_transition?: boolean;
+  clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
+  opposes?: string;
+  unlocks?: string;
+}
+
+export interface StoryEntry {
+  index: number;
+  type: "decision" | "moment" | "revelation" | "bond" | "consequence";
+  entry: string;
+  scene_anchor: string;
+  entity_ids: string[];
+  timestamp: string;
+}
+
+export interface FactionState {
+  id: string;
+  name: string;
+  description: string;
+  goals: string[];
+  resources: string;
+  clock: number;
+  clock_max: number;
+  status: string;
+}
+
+export interface SecretState {
+  key: string;
+  content: string;
+  triggers: string[];
+  hat_scope: "game_master" | "shared";
+  known_by: string[];
+}
+
+export interface Relationship {
+  entity_a: string;
+  entity_b: string;
+  type: "ally" | "rival" | "neutral" | "mentor" | "dependent" | "suspicious";
+  value?: number;
+  description?: string;
+}
+
+export interface DMContext {
+  current_scene?: string;
+  immediate_situation?: string;
+  pending_player_action?: string;
+  short_term_plans?: string;
+  long_term_plans?: string;
+  active_threads?: { name: string; status: string; urgency: string; description: string }[];
+  npc_attitudes?: Record<string, string>;
+  player_goals?: string;
+  saved_at?: string;
+  story_context?: string[];
+  active_vows?: { name: string; difficulty: string; milestone_count: number }[];
+}
+
+export interface VowState {
+  name: string;
+  description: string;
+  parties: string[];
+  difficulty: "troublesome" | "dangerous" | "formidable" | "extreme" | "epic";
+  scope: "gm" | "shared" | "faction" | "party";
+  milestones: number;
+  rank_track: number;
+  state: "active" | "resolved" | "forsaken";
+  outcome?: string;
+  consequences?: string;
+  reason?: string;
+}
+
+export interface NoteEntry {
+  key: string;
+  content: string;
+  hat_scope: "game_master" | "player" | "shared";
+}
+
+export interface NovelEnrichmentItem {
+  key: string;
+  module: string;
+  content: string;
+  confidence: "MEDIUM" | "LOW";
+  trigger_tags?: string[];
+  source: string;
+  collected_at: string;
+  activated: boolean;
+  hat_scope: "game_master" | "shared" | "player";
+}
+
+export interface Checkpoint {
+  label: string;
+  timestamp: string;
+  state: any;
 }
 
 export interface CombatState {
@@ -139,6 +231,19 @@ export interface NovelState {
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
   help_category_overrides: Record<string, string>;
+  story_journal: StoryEntry[];
+  factions: FactionState[];
+  secrets: SecretState[];
+  relationships: Relationship[];
+  dm_context: DMContext;
+  notes: NoteEntry[];
+  vows: VowState[];
+  novel_enrichment: Record<string, NovelEnrichmentItem[]>;
+  novel_enrichment_fingerprint: string;
+  novel_enrichment_last_synthesis: string;
+  checkpoints: Checkpoint[];
+  description: string;
+  genre: string;
   metadata: {
     created: string;
     modified: string;
@@ -311,6 +416,19 @@ export class StateManager {
     pending_staleness_counter: 0,
     pov_mode: "character",
       help_category_overrides: {},
+      story_journal: [],
+      factions: [],
+      secrets: [],
+      relationships: [],
+      dm_context: {},
+      notes: [],
+      vows: [],
+      novel_enrichment: {},
+      novel_enrichment_fingerprint: "",
+      novel_enrichment_last_synthesis: "",
+      checkpoints: [],
+      description: "",
+      genre: "",
       metadata: {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -400,6 +518,19 @@ export class StateManager {
       pending_staleness_counter: data.pending_staleness_counter ?? 0,
       pov_mode: data.pov_mode ?? "character",
       help_category_overrides: data.help_category_overrides ?? {},
+      story_journal: data.story_journal ?? [],
+      factions: data.factions ?? [],
+      secrets: data.secrets ?? [],
+      relationships: data.relationships ?? [],
+      dm_context: data.dm_context ?? {},
+      notes: data.notes ?? [],
+      vows: data.vows ?? [],
+      novel_enrichment: data.novel_enrichment ?? {},
+      novel_enrichment_fingerprint: data.novel_enrichment_fingerprint ?? "",
+      novel_enrichment_last_synthesis: data.novel_enrichment_last_synthesis ?? "",
+      checkpoints: data.checkpoints ?? [],
+      description: data.description ?? "",
+      genre: data.genre ?? "",
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -499,6 +630,19 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
+    novel.story_journal = restored.story_journal;
+    novel.factions = restored.factions;
+    novel.secrets = restored.secrets;
+    novel.relationships = restored.relationships;
+    novel.dm_context = restored.dm_context;
+    novel.notes = restored.notes;
+    novel.vows = restored.vows;
+    novel.novel_enrichment = restored.novel_enrichment;
+    novel.novel_enrichment_fingerprint = restored.novel_enrichment_fingerprint;
+    novel.novel_enrichment_last_synthesis = restored.novel_enrichment_last_synthesis;
+    novel.checkpoints = restored.checkpoints;
+    novel.description = restored.description;
+    novel.genre = restored.genre;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -530,6 +674,19 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
+    novel.story_journal = restored.story_journal;
+    novel.factions = restored.factions;
+    novel.secrets = restored.secrets;
+    novel.relationships = restored.relationships;
+    novel.dm_context = restored.dm_context;
+    novel.notes = restored.notes;
+    novel.vows = restored.vows;
+    novel.novel_enrichment = restored.novel_enrichment;
+    novel.novel_enrichment_fingerprint = restored.novel_enrichment_fingerprint;
+    novel.novel_enrichment_last_synthesis = restored.novel_enrichment_last_synthesis;
+    novel.checkpoints = restored.checkpoints;
+    novel.description = restored.description;
+    novel.genre = restored.genre;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -1043,7 +1200,20 @@ function novelToJSON(novel: NovelState): any {
     connection_counter: novel.connection_counter,
     pending_staleness_counter: novel.pending_staleness_counter,
     pov_mode: novel.pov_mode,
-    help_category_overrides: novel.help_category_overrides,
+      help_category_overrides: novel.help_category_overrides,
+      story_journal: novel.story_journal,
+      factions: novel.factions,
+      secrets: novel.secrets,
+      relationships: novel.relationships,
+      dm_context: novel.dm_context,
+      notes: novel.notes,
+      vows: novel.vows,
+      novel_enrichment: novel.novel_enrichment,
+      novel_enrichment_fingerprint: novel.novel_enrichment_fingerprint,
+      novel_enrichment_last_synthesis: novel.novel_enrichment_last_synthesis,
+      checkpoints: novel.checkpoints,
+      description: novel.description,
+      genre: novel.genre,
     metadata: novel.metadata,
   };
 }
@@ -1085,8 +1255,21 @@ function novelFromJSON(data: any): NovelState {
     connection_counter: data.connection_counter ?? 0,
     pending_staleness_counter: data.pending_staleness_counter ?? 0,
     pov_mode: data.pov_mode ?? "character",
-    help_category_overrides: data.help_category_overrides ?? {},
-    metadata: data.metadata ?? {
+      help_category_overrides: data.help_category_overrides ?? {},
+      story_journal: data.story_journal ?? [],
+      factions: data.factions ?? [],
+      secrets: data.secrets ?? [],
+      relationships: data.relationships ?? [],
+      dm_context: data.dm_context ?? {},
+      notes: data.notes ?? [],
+      vows: data.vows ?? [],
+      novel_enrichment: data.novel_enrichment ?? {},
+      novel_enrichment_fingerprint: data.novel_enrichment_fingerprint ?? "",
+      novel_enrichment_last_synthesis: data.novel_enrichment_last_synthesis ?? "",
+      checkpoints: data.checkpoints ?? [],
+      description: data.description ?? "",
+      genre: data.genre ?? "",
+      metadata: data.metadata ?? {
       created: new Date().toISOString(),
       modified: new Date().toISOString(),
       session_count: 0,

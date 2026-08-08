@@ -78,7 +78,8 @@ switching. See §6.4 for the full creation contract.
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
-| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
+| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `observer`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
+| `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active hat), `game_master`, or `player`. Determines orientation content in `hat_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -119,7 +120,8 @@ discarded by `end_novel`):
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
-| Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
+| Notes       | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
+| Server Notes| read/write/create/delete (REQ-285)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 | Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
 
@@ -163,7 +165,7 @@ consistent order.
 | Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
 | Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
 | DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
-| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active                                                  | Navigational   | REQ-242 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — hat-filtered per REQ-242 scope | Navigational   | REQ-242 |
 | Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
 | Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
 | Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |

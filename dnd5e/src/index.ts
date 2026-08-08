@@ -640,6 +640,35 @@ server.registerTool("player_signal", {
   return ok(`Signal '${signal}' recorded.`);
 });
 
+server.registerTool("present_choices", {
+  title: "Present Choices",
+  description: "Present structured choice prompts to the player. Resolved via respond. Game Master only.",
+  inputSchema: {
+    prompt: z.string(),
+    choices: z.array(z.object({
+      id: z.string(),
+      label: z.string(),
+      description: z.string().optional(),
+    })),
+    allow_freeform: z.boolean().optional(),
+    context: z.record(z.string(), z.any()).optional(),
+  },
+}, async ({ prompt, choices, allow_freeform, context }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.pending_workflow) return err("STATE_CONFLICT", `A workflow is already pending: "${novel.pending_workflow.decision}".`);
+  if (choices.length > 25) return err("INVALID_INPUT", "Maximum 25 choices allowed.");
+  novelSnapshot();
+  const options = choices.map((c: any) => `- ${c.id}: ${c.label}${c.description ? ` — ${c.description}` : ""}`).join("\n");
+  const cancelOption = "- cancel: Cancel";
+  novel.pending_workflow = {
+    decision: prompt,
+    snapshot: JSON.parse(JSON.stringify({ ...novel, entities: Object.fromEntries(novel.entities), npcs: Object.fromEntries(novel.npcs), countdowns: Object.fromEntries(novel.countdowns), lore: Object.fromEntries(novel.lore) })),
+  };
+  state.saveNovel(novel);
+  return { content: [{ type: "text", text: `[NEED_INPUT] ${prompt}\n\n${options}${allow_freeform ? "\n- *freeform*: Enter any response" : ""}\n${cancelOption}` }] };
+});
+
 // --- Dice & Resolution ---
 
 server.registerTool("roll_save", {
@@ -1549,6 +1578,256 @@ server.registerTool("remove_npc", {
   return ok("NPC removed.");
 });
 
+// --- Factions ---
+
+server.registerTool("create_faction", {
+  title: "Create Faction",
+  description: "Create a named faction with goals, resources, and a progress clock. Game Master only.",
+  inputSchema: {
+    name: z.string(),
+    description: z.string().optional(),
+    goals: z.array(z.string()).optional(),
+    resources: z.string().optional(),
+  },
+}, async ({ name, description, goals, resources }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.factions.some(f => f.name === name)) return err("STATE_CONFLICT", `Faction '${name}' already exists.`);
+  const id = `fac_${Date.now()}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+  const faction = {
+    id, name, description: description ?? "", goals: goals ?? [], resources: resources ?? "",
+    clock: 0, clock_max: 6, status: "neutral",
+  };
+  novel.factions.push(faction);
+  // Auto-create faction countdown
+  novel.countdowns.set(`faction:${name}`, {
+    name: `faction:${name}`, ticks: 0, total: faction.clock_max,
+    type: "narrative", clock_type: "faction", on_scene_transition: true,
+  });
+  audit("create_faction", { name, description, goals }, `Faction '${name}' created.`);
+  state.saveNovel(novel);
+  return ok(`Faction '${name}' created (ID: ${id}).`);
+});
+
+server.registerTool("update_faction", {
+  title: "Update Faction",
+  description: "Update a faction's fields. Game Master only.",
+  inputSchema: {
+    faction_id: z.string(),
+    description: z.string().optional(),
+    goals: z.array(z.string()).optional(),
+    resources: z.string().optional(),
+  },
+}, async ({ faction_id, ...fields }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const faction = novel.factions.find(f => f.id === faction_id);
+  if (!faction) return err("NOT_FOUND", `Faction '${faction_id}' not found. Valid factions: ${novel.factions.map(f => f.name).join(", ")}`);
+  Object.assign(faction, fields);
+  state.saveNovel(novel);
+  return ok(`Faction '${faction.name}' updated.`);
+});
+
+server.registerTool("remove_faction", {
+  title: "Remove Faction",
+  description: "Remove a faction and its clock. Game Master only.",
+  inputSchema: { faction_id: z.string() },
+}, async ({ faction_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const idx = novel.factions.findIndex(f => f.id === faction_id);
+  if (idx === -1) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
+  const name = novel.factions[idx].name;
+  novel.factions.splice(idx, 1);
+  novel.countdowns.delete(`faction:${name}`);
+  audit("remove_faction", { faction_id }, `Faction '${name}' removed.`);
+  state.saveNovel(novel);
+  return ok(`Faction '${name}' removed.`);
+});
+
+// --- Vows ---
+
+const DIFFICULTY_TRACKS: Record<string, number> = { troublesome: 10, dangerous: 20, formidable: 30, extreme: 40, epic: 50 };
+
+server.registerTool("set_vow", {
+  title: "Set Vow",
+  description: "Track a narrative vow, quest, or obligation. Game Master only.",
+  inputSchema: {
+    name: z.string(),
+    description: z.string(),
+    parties: z.array(z.string()),
+    difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]),
+    scope: z.enum(["gm", "shared", "faction", "party"]).optional(),
+  },
+}, async ({ name, description, parties, difficulty, scope }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.vows.some(v => v.name === name)) return err("STATE_CONFLICT", `Vow '${name}' already exists.`);
+  novel.vows.push({
+    name, description, parties, difficulty, scope: scope ?? "shared",
+    milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty], state: "active",
+  });
+  audit("set_vow", { name, difficulty }, `Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones).`);
+  state.saveNovel(novel);
+  return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones).`);
+});
+
+server.registerTool("mark_milestone", {
+  title: "Mark Milestone",
+  description: "Advance a vow's progress by one milestone. Game Master only.",
+  inputSchema: { vow_name: z.string() },
+}, async ({ vow_name }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const vow = novel.vows.find(v => v.name === vow_name);
+  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
+  if (vow.state !== "active") return err("STATE_CONFLICT", `Vow '${vow_name}' is ${vow.state}.`);
+  vow.milestones++;
+  if (vow.milestones >= vow.rank_track) {
+    audit("mark_milestone", { vow_name }, `Vow '${vow_name}' complete (${vow.milestones}/${vow.rank_track}). Call resolve_vow.`);
+    return ok(`Vow '${vow_name}' reached ${vow.milestones}/${vow.rank_track} — ready to resolve!`);
+  }
+  state.saveNovel(novel);
+  return ok(`Vow '${vow_name}': ${vow.milestones}/${vow.rank_track} milestones.`);
+});
+
+server.registerTool("resolve_vow", {
+  title: "Resolve Vow",
+  description: "Close a completed vow with outcome and consequences. Game Master only.",
+  inputSchema: {
+    vow_name: z.string(),
+    outcome: z.string(),
+    consequences: z.string().optional(),
+  },
+}, async ({ vow_name, outcome, consequences }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const vow = novel.vows.find(v => v.name === vow_name);
+  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
+  if (vow.state !== "active") return err("STATE_CONFLICT", `Vow '${vow_name}' is already ${vow.state}.`);
+  vow.state = "resolved";
+  vow.outcome = outcome;
+  vow.consequences = consequences;
+  // Record as story journal consequence
+  novel.story_journal.push({
+    index: novel.story_journal.length, type: "consequence",
+    entry: `Vow resolved: ${vow_name} — ${outcome}${consequences ? `. ${consequences}` : ""}`,
+    scene_anchor: novel.scene_description?.substring(0, 100) ?? "", entity_ids: vow.parties,
+    timestamp: new Date().toISOString(),
+  });
+  audit("resolve_vow", { vow_name, outcome }, `Vow '${vow_name}' resolved.`);
+  state.saveNovel(novel);
+  return ok(`Vow '${vow_name}' resolved.`);
+});
+
+server.registerTool("forsake_vow", {
+  title: "Forsake Vow",
+  description: "Abandon a vow with a reason. Game Master only.",
+  inputSchema: { vow_name: z.string(), reason: z.string() },
+}, async ({ vow_name, reason }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const vow = novel.vows.find(v => v.name === vow_name);
+  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
+  if (vow.state !== "active") return err("STATE_CONFLICT", `Vow '${vow_name}' is already ${vow.state}.`);
+  vow.state = "forsaken";
+  vow.reason = reason;
+  audit("forsake_vow", { vow_name, reason }, `Vow '${vow_name}' forsaken.`);
+  state.saveNovel(novel);
+  return ok(`Vow '${vow_name}' forsaken.`);
+});
+
+// --- Secrets ---
+
+server.registerTool("set_secret", {
+  title: "Set Secret",
+  description: "Create a secret lore entry. GM-only; visible to entities after reveal_secret. Game Master only.",
+  inputSchema: {
+    key: z.string(),
+    content: z.string(),
+    triggers: z.array(z.string()).optional(),
+    hat_scope: z.enum(["game_master", "shared"]).optional(),
+  },
+}, async ({ key, content, triggers, hat_scope }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.secrets.some(s => s.key === key)) return err("STATE_CONFLICT", `Secret '${key}' already exists.`);
+  novel.secrets.push({ key, content, triggers: triggers ?? [], hat_scope: hat_scope ?? "game_master", known_by: [] });
+  audit("set_secret", { key }, `Secret '${key}' created.`);
+  state.saveNovel(novel);
+  return ok(`Secret '${key}' created.`);
+});
+
+server.registerTool("reveal_secret", {
+  title: "Reveal Secret",
+  description: "Make a secret known to a specific entity. Game Master only.",
+  inputSchema: { key: z.string(), entity_id: z.string() },
+}, async ({ key, entity_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const secret = novel.secrets.find(s => s.key === key);
+  if (!secret) return err("NOT_FOUND", `Secret '${key}' not found.`);
+  if (secret.known_by.includes(entity_id)) return err("STATE_CONFLICT", `Entity '${entity_id}' already knows secret '${key}'.`);
+  secret.known_by.push(entity_id);
+  audit("reveal_secret", { key, entity_id }, `Secret '${key}' revealed to '${entity_id}'.`);
+  state.saveNovel(novel);
+  return ok(`Secret '${key}' revealed to '${entity_id}'.`);
+});
+
+server.registerTool("check_knowledge", {
+  title: "Check Knowledge",
+  description: "Return what secrets an entity knows. Game Master only.",
+  inputSchema: {
+    entity_id: z.string(),
+    key: z.string().optional(),
+  },
+}, async ({ entity_id, key }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const known = novel.secrets.filter(s => s.known_by.includes(entity_id) && (!key || s.key === key));
+  if (known.length === 0) return ok(`Entity '${entity_id}' knows no secrets.`);
+  const lines = known.map(s => `- **${s.key}**: ${s.content}`);
+  return ok(lines.join("\n"));
+});
+
+// --- Relationships ---
+
+server.registerTool("set_relationship", {
+  title: "Set Relationship",
+  description: "Set a directed relationship between entities, NPCs, or factions. Types: ally, rival, neutral, mentor, dependent, suspicious. Game Master only.",
+  inputSchema: {
+    entity_a: z.string(),
+    entity_b: z.string(),
+    type: z.enum(["ally", "rival", "neutral", "mentor", "dependent", "suspicious"]),
+    value: z.number().optional(),
+    description: z.string().optional(),
+  },
+}, async ({ entity_a, entity_b, type, value, description }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  novel.relationships.push({ entity_a, entity_b, type, value, description });
+  audit("set_relationship", { entity_a, entity_b, type }, `Relationship: ${entity_a} -> ${entity_b} (${type})`);
+  state.saveNovel(novel);
+  return ok(`Relationship set: ${entity_a} → ${entity_b} (${type}).`);
+});
+
+server.registerTool("get_relationships", {
+  title: "Get Relationships",
+  description: "Return all relationships (incoming and outgoing) for an entity. Game Master only.",
+  inputSchema: { entity_id: z.string() },
+}, async ({ entity_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const rels = novel.relationships.filter(r => r.entity_a === entity_id || r.entity_b === entity_id);
+  if (rels.length === 0) return ok(`No relationships for entity '${entity_id}'.`);
+  const lines = rels.map(r => {
+    const dir = r.entity_a === entity_id ? "→" : "←";
+    const target = r.entity_a === entity_id ? r.entity_b : r.entity_a;
+    return `- ${dir} ${target} (${r.type}${r.value !== undefined ? `, ${r.value}` : ""}): ${r.description ?? ""}`;
+  });
+  return ok(`Relationships for ${entity_id}:\n${lines.join("\n")}`);
+});
+
 // --- Countdowns ---
 
 server.registerTool("set_countdown", {
@@ -1839,6 +2118,131 @@ server.registerTool("import_lorebook", {
 
 // --- Guidance ---
 
+server.registerTool("save_pause_context", {
+  title: "Save Pause Context",
+  description: "Save GM context for session resumption. Automatically captures faction clocks, countdown positions, NPC dispositions, relationships, and story/vow state. Game Master only.",
+  inputSchema: {
+    current_scene: z.string().optional(),
+    immediate_situation: z.string().optional(),
+    pending_player_action: z.string().optional(),
+    short_term_plans: z.string().optional(),
+    long_term_plans: z.string().optional(),
+    player_goals: z.string().optional(),
+  },
+}, async (fields: any) => {
+  requireGM();
+  const novel = requireNovel();
+  novel.dm_context = { ...novel.dm_context, ...fields };
+  // Auto-capture faction state
+  novel.dm_context.npc_attitudes = {};
+  for (const npc of novel.npcs.values()) {
+    if (npc.disposition && npc.disposition !== "neutral") {
+      novel.dm_context.npc_attitudes[npc.id] = npc.disposition;
+    }
+  }
+  // Auto-capture last 3 decision/bond story entries
+  const decisionBond = novel.story_journal.filter(e => e.type === "decision" || e.type === "bond").slice(-3);
+  novel.dm_context.story_context = decisionBond.map(e => `[${e.type}] ${e.entry.substring(0, 120)}`);
+  // Auto-capture vow state
+  novel.dm_context.active_vows = novel.vows
+    .filter(v => v.state === "active")
+    .map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones }));
+  novel.dm_context.saved_at = new Date().toISOString();
+  audit("save_pause_context", fields, "Pause context saved.");
+  state.saveNovel(novel);
+  return ok("Pause context saved. Ready for session resumption.");
+});
+
+server.registerTool("get_resume_context", {
+  title: "Get Resume Context",
+  description: "Return the saved GM context plus Novel state summary for session resumption.",
+  inputSchema: {},
+}, async () => {
+  requireGM();
+  const novel = requireNovel();
+  const ctx = novel.dm_context;
+  const lines: string[] = ["## Session Resume Context"];
+  if (ctx.current_scene) lines.push(`**Scene:** ${ctx.current_scene}`);
+  if (ctx.immediate_situation) lines.push(`**Situation:** ${ctx.immediate_situation}`);
+  if (ctx.pending_player_action) lines.push(`**Pending:** ${ctx.pending_player_action}`);
+  if (ctx.short_term_plans) lines.push(`**Short-term:** ${ctx.short_term_plans}`);
+  if (ctx.long_term_plans) lines.push(`**Long-term:** ${ctx.long_term_plans}`);
+  if (ctx.player_goals) lines.push(`**Player focus:** ${ctx.player_goals}`);
+  if (ctx.story_context?.length) {
+    lines.push("\n**Recent story:**");
+    for (const s of ctx.story_context) lines.push(`- ${s}`);
+  }
+  if (ctx.active_vows?.length) {
+    lines.push("\n**Active vows:**");
+    for (const v of ctx.active_vows) lines.push(`- ${v.name} (${v.difficulty}, ${v.milestone_count} milestones)`);
+  }
+  if (ctx.npc_attitudes && Object.keys(ctx.npc_attitudes).length) {
+    lines.push("\n**NPC attitudes:**");
+    for (const [id, disp] of Object.entries(ctx.npc_attitudes)) {
+      const npc = novel.npcs.get(id);
+      lines.push(`- ${npc?.name ?? id}: ${disp}`);
+    }
+  }
+  if (ctx.saved_at) lines.push(`\n*Saved: ${ctx.saved_at}*`);
+  if (lines.length === 1) lines.push("[No saved context — start fresh.]");
+  return ok(lines.join("\n"));
+});
+
+server.registerTool("set_note", {
+  title: "Set Note",
+  description: "Create or update a key-value note. Hat-scoped: game_master (default), player, or shared.",
+  inputSchema: {
+    key: z.string(),
+    content: z.string(),
+    hat_scope: z.enum(["game_master", "player", "shared"]).optional(),
+  },
+}, async ({ key, content, hat_scope }: any) => {
+  const hat = getHat();
+  const novel = requireNovel();
+  const scope = hat_scope ?? (hat === "player" ? "player" : "game_master");
+  if (hat === "player" && scope === "game_master") return err("FORBIDDEN", "Players cannot create game_master-scoped notes. Use set_hat to switch.");
+  const existing = novel.notes.find(n => n.key === key);
+  if (existing) {
+    existing.content = content;
+    existing.hat_scope = scope;
+  } else {
+    novel.notes.push({ key, content, hat_scope: scope });
+  }
+  state.saveNovel(novel);
+  return ok(`Note '${key}' saved.`);
+});
+
+server.registerTool("remove_note", {
+  title: "Remove Note",
+  description: "Remove a note by key. Hat-scoped: caller's hat must own the scope.",
+  inputSchema: { key: z.string() },
+}, async ({ key }: any) => {
+  const hat = getHat();
+  const novel = requireNovel();
+  const idx = novel.notes.findIndex(n => n.key === key);
+  if (idx === -1) return err("NOT_FOUND", `Note '${key}' not found.`);
+  const note = novel.notes[idx];
+  if (hat === "player" && note.hat_scope !== "player" && note.hat_scope !== "shared") return err("FORBIDDEN", "Players can only remove player/shared-scoped notes.");
+  novel.notes.splice(idx, 1);
+  state.saveNovel(novel);
+  return ok(`Note '${key}' removed.`);
+});
+
+server.registerTool("list_notes", {
+  title: "List Notes",
+  description: "List all notes, hat-filtered.",
+  inputSchema: {},
+}, async () => {
+  const hat = getHat();
+  const novel = requireNovel();
+  const visible = hat === "game_master"
+    ? novel.notes
+    : novel.notes.filter(n => n.hat_scope === "player" || n.hat_scope === "shared");
+  if (visible.length === 0) return ok("[No notes.]");
+  const lines = visible.map(n => `- **${n.key}** [${n.hat_scope}]: ${n.content.substring(0, 100)}${n.content.length > 100 ? "…" : ""}`);
+  return ok(`Notes (${visible.length}):\n${lines.join("\n")}`);
+});
+
 server.registerTool("set_briefing_order", {
   title: "Set Briefing Order",
   description: "Reorder sections of hat_briefing. Game Master only.",
@@ -1880,6 +2284,109 @@ server.registerTool("compress_audit", {
   });
 
   return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+});
+
+// --- Story Journal ---
+
+const MAX_STORY_ENTRIES = parseInt(process.env.TTRPG_MAX_STORY_ENTRIES ?? "500", 10);
+const STORY_DISPLAY_DEFAULT = parseInt(process.env.TTRPG_STORY_JOURNAL_DISPLAY ?? "5", 10);
+
+server.registerTool("record_story", {
+  title: "Record Story Entry",
+  description: "Record a narrative memory in the story journal. Types: decision, moment, revelation, bond, consequence. Game Master only.",
+  inputSchema: {
+    type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]),
+    entry: z.string(),
+  },
+}, async ({ type, entry }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.story_journal.length >= MAX_STORY_ENTRIES) {
+    return err("STATE_CONFLICT", `Maximum story entries (${MAX_STORY_ENTRIES}) reached.`);
+  }
+  const entity = getActiveEntity();
+  const storyEntry = {
+    index: novel.story_journal.length,
+    type,
+    entry,
+    scene_anchor: novel.scene_description ? novel.scene_description.substring(0, 100) : "",
+    entity_ids: entity ? [entity.id] : [],
+    timestamp: new Date().toISOString(),
+  };
+  novel.story_journal.push(storyEntry);
+  audit("record_story", { type, entry }, `Story entry recorded: ${type}`);
+  state.saveNovel(novel);
+  return ok(`[${type}] Recorded. Index: ${storyEntry.index}.`);
+});
+
+server.registerTool("update_story", {
+  title: "Update Story Entry",
+  description: "Edit a story journal entry by index. Decision and consequence entries are immutable. Game Master only.",
+  inputSchema: {
+    index: z.number().min(0),
+    type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(),
+    entry: z.string().optional(),
+  },
+}, async ({ index, type, entry }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (index >= novel.story_journal.length) {
+    return err("NOT_FOUND", `No story entry at index ${index}. Valid range: 0-${novel.story_journal.length - 1}.`);
+  }
+  const current = novel.story_journal[index];
+  if (current.type === "decision" || current.type === "consequence") {
+    return err("RULE_VIOLATION", `${current.type} entries are immutable.`);
+  }
+  if (!type && !entry) return err("INVALID_INPUT", "Provide at least type or entry to update.");
+  if (type) current.type = type;
+  if (entry) current.entry = entry;
+  current.timestamp = new Date().toISOString();
+  audit("update_story", { index, type, entry }, `Story entry ${index} updated.`);
+  state.saveNovel(novel);
+  return ok(`Story entry ${index} updated.`);
+});
+
+server.registerTool("remove_story", {
+  title: "Remove Story Entry",
+  description: "Delete a story journal entry by index. Game Master only.",
+  inputSchema: {
+    index: z.number().min(0),
+  },
+}, async ({ index }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (index >= novel.story_journal.length) {
+    return err("NOT_FOUND", `No story entry at index ${index}.`);
+  }
+  novel.story_journal.splice(index, 1);
+  // Re-index remaining entries
+  for (let i = index; i < novel.story_journal.length; i++) {
+    novel.story_journal[i].index = i;
+  }
+  audit("remove_story", { index }, `Story entry ${index} removed.`);
+  state.saveNovel(novel);
+  return ok(`Story entry ${index} removed.`);
+});
+
+server.registerTool("list_stories", {
+  title: "List Stories",
+  description: "List story journal entries with optional type filter and pagination. Game Master only.",
+  inputSchema: {
+    filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(),
+    offset: z.number().min(0).optional(),
+    limit: z.number().min(0).optional(),
+  },
+}, async ({ filter, offset, limit }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  let entries = [...novel.story_journal];
+  if (filter) entries = entries.filter(e => e.type === filter);
+  const start = offset ?? 0;
+  const end = start + (limit ?? 20);
+  const page = entries.slice(start, end);
+  if (page.length === 0) return ok("[No story entries match.]");
+  const lines = page.map(e => `[${e.index}] ${e.type}: ${e.entry.substring(0, 100)}${e.entry.length > 100 ? "…" : ""}`);
+  return ok(`Story journal (${entries.length} total, showing ${page.length}):\n${lines.join("\n")}`);
 });
 
 server.registerTool("load_adventure", {
@@ -2045,6 +2552,7 @@ server.registerTool("session_recap", {
 
   const hat = getHat();
   const entries = novel.audit_log.slice(-10);
+  const countdowns = Array.from(novel.countdowns.values()).filter(c => c.ticks > 0);
   const entities = Array.from(novel.entities.values()).map(e => ({
     name: e.name,
     hp: `${e.hp}/${e.max_hp}`,
@@ -2052,7 +2560,43 @@ server.registerTool("session_recap", {
   }));
   const npcs = Array.from(novel.npcs.values()).map(n => ({ name: n.name, disposition: n.disposition, location: n.location }));
 
+  // Narrative orientation (REQ-279)
+  let orientation = "[No narrative history yet — your story begins here.]";
+  const recentDecisions = novel.story_journal.filter(e => e.type === "decision" || e.type === "bond").slice(-3);
+  if (recentDecisions.length || novel.vows.some(v => v.state === "active") || countdowns.length || (novel.narrative_directive && novel.narrative_directive.length > 0)) {
+    const parts: string[] = [];
+    if (recentDecisions.length) {
+      parts.push(recentDecisions.map(e => e.entry).join(" "));
+    }
+    if (novel.vows.some(v => v.state === "active")) {
+      for (const v of novel.vows.filter(v => v.state === "active")) {
+        parts.push(`The vow "${v.name}" stands at ${v.milestones}/${v.rank_track} milestones.`);
+      }
+    }
+    if (countdowns.length) {
+      for (const c of countdowns) {
+        parts.push(`${c.name} has ${c.ticks} ticks remaining.`);
+      }
+    }
+    if (novel.narrative_directive) {
+      parts.push(`Narrative tone: ${novel.narrative_directive}.`);
+    }
+    orientation = parts.join(" ") || orientation;
+  }
+
+  // Story entries
+  const storyEntries = novel.story_journal.slice(-10);
+
+  // Faction and vow state
+  const factionState = novel.factions.map(f => ({
+    name: f.name,
+    clock: `${f.clock}/${f.clock_max}`,
+    status: f.status,
+  }));
+
   let recap = `## Session Recap — ${novel.name}
+
+**Narrative:** ${orientation}
 
 **Scene:** ${novel.scene_description || "None set"}${novel.scene_location ? `\n**Location:** ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\n**Time of Day:** ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\n**Atmosphere:** ${novel.scene_atmosphere}` : ""}
 **Scene Type:** ${novel.scene_type.join(", ")}
@@ -2063,6 +2607,9 @@ ${entities.map(e => `- **${e.name}** — HP: ${e.hp}${e.conditions.length ? ` ($
 
 ### NPCs
 ${npcs.length ? npcs.map(n => `- **${n.name}** — ${n.disposition ?? "neutral"}${n.location ? ` @ ${n.location}` : ""}`).join("\n") : "None"}
+
+${factionState.length ? `### Factions\n${factionState.map(f => `- **${f.name}** — ${f.clock} (${f.status})`).join("\n")}\n` : ""}
+${storyEntries.length ? `### Story Journal\n${storyEntries.map(s => `[${s.index}] ${s.type}: ${s.entry.substring(0, 120)}${s.entry.length > 120 ? "…" : ""}`).join("\n")}\n` : ""}
 
 ### Recent Activity
 ${entries.map(e => `- [${e.timestamp}] ${e.tool}`).join("\n")}`;
@@ -2156,6 +2703,265 @@ server.registerTool("import_novel", {
   const mode_ = mode ?? "dry-run";
   if (mode_ === "dry-run") return ok("Dry-run: novel import would proceed. No changes made.");
   return ok(`Novel ${mode_ === "replace" ? "replaced" : "merged"}.`);
+});
+
+// --- Oracle ---
+
+server.registerTool("ask_oracle", {
+  title: "Ask Oracle",
+  description: "Resolve uncertainty with a d100 roll. Likelihoods: certain (90%), likely (70%), even (50%), unlikely (30%), impossible (10%). Game Master only.",
+  inputSchema: {
+    question: z.string(),
+    likelihood: z.enum(["certain", "likely", "even", "unlikely", "impossible"]),
+    seed: z.string().optional(),
+  },
+}, async ({ question, likelihood, seed: seedParam }: any) => {
+  requireGM();
+  if (requireNovel().pending_workflow) return err("STATE_CONFLICT", "A workflow is pending.");
+  const likelihoods: Record<string, number> = { certain: 90, likely: 70, even: 50, unlikely: 30, impossible: 10 };
+  const threshold = likelihoods[likelihood];
+  const roll = seedParam ? ((hashString(seedParam) % 100) + 1) : (Math.floor(Math.random() * 100) + 1);
+  let result: string;
+  if (roll <= threshold) {
+    result = roll % 11 === 0 ? "[EXCEPTIONAL_YES]" : "[YES]";
+  } else {
+    result = roll % 11 === 0 ? "[EXCEPTIONAL_NO]" : "[NO]";
+  }
+  audit("ask_oracle", { question, likelihood }, `Oracle: ${result}`);
+  return ok(`${result}\n\nQuestion: ${question}\nOdds: ${likelihood} (${threshold}%)`);
+});
+
+// --- Server Notes ---
+
+const serverNotesPath = path.join(DATA_DIR, "server-notes.json");
+
+function loadServerNotes(): Record<string, string> {
+  try { return JSON.parse(fs.readFileSync(serverNotesPath, "utf-8")); } catch { return {}; }
+}
+
+function saveServerNotes(notes: Record<string, string>): void {
+  const tmp = serverNotesPath + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(notes, null, 2));
+  fs.renameSync(tmp, serverNotesPath);
+}
+
+server.registerTool("set_server_note", {
+  title: "Set Server Note",
+  description: "Create or update a server-level note. Game Master only.",
+  inputSchema: { key: z.string(), content: z.string() },
+}, async ({ key, content }: any) => {
+  requireGM();
+  const notes = loadServerNotes();
+  notes[key] = content;
+  saveServerNotes(notes);
+  return ok(`Server note '${key}' saved.`);
+});
+
+server.registerTool("remove_server_note", {
+  title: "Remove Server Note",
+  description: "Remove a server-level note. Game Master only.",
+  inputSchema: { key: z.string() },
+}, async ({ key }: any) => {
+  requireGM();
+  const notes = loadServerNotes();
+  if (!notes[key]) return err("NOT_FOUND", `Server note '${key}' not found.`);
+  delete notes[key];
+  saveServerNotes(notes);
+  return ok(`Server note '${key}' removed.`);
+});
+
+server.registerTool("list_server_notes", {
+  title: "List Server Notes",
+  description: "List all server-level notes. Game Master only.",
+  inputSchema: {},
+}, async () => {
+  requireGM();
+  const notes = loadServerNotes();
+  const keys = Object.keys(notes);
+  if (keys.length === 0) return ok("[No server notes.]");
+  const lines = keys.map(k => `- **${k}**: ${notes[k].substring(0, 100)}${notes[k].length > 100 ? "…" : ""}`);
+  return ok(`Server notes (${keys.length}):\n${lines.join("\n")}`);
+});
+
+// --- Adventure Catalog ---
+
+server.registerTool("list_adventures", {
+  title: "List Adventures",
+  description: "List available adventure modules. Always callable.",
+  inputSchema: { filter: z.string().optional() },
+}, async ({ filter: filterTag }: any) => {
+  const adventureDir = process.env.TTRPG_ADVENTURE ?? path.join(DATA_DIR, "adventures");
+  if (!fs.existsSync(adventureDir)) return ok("[No adventure modules found.]");
+  const files = fs.readdirSync(adventureDir).filter(f => f.endsWith(".json"));
+  if (files.length === 0) return ok("[No adventure modules found.]");
+  const entries: string[] = [];
+  for (const file of files) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(adventureDir, file), "utf-8"));
+      const slug = file.replace(".json", "");
+      const tags: string[] = data.genre_tags ?? [];
+      if (filterTag && !tags.includes(filterTag)) continue;
+      entries.push(`- **${slug}**: ${data.title ?? slug} (${data.room_count ?? "?"} rooms, ${data.npc_count ?? "?"} NPCs) ${tags.length ? `[${tags.join(", ")}]` : ""}`);
+    } catch { /* skip corrupt */ }
+  }
+  if (entries.length === 0) return ok("[No adventure modules match filter.]");
+  return ok(`Adventure catalog (${entries.length}):\n${entries.join("\n")}`);
+});
+
+// --- Checkpoints ---
+
+server.registerTool("set_checkpoint", {
+  title: "Set Checkpoint",
+  description: "Save a named checkpoint of the full Novel state. Game Master only.",
+  inputSchema: { label: z.string() },
+}, async ({ label }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const max = parseInt(process.env.TTRPG_MAX_CHECKPOINTS ?? "10", 10);
+  if (novel.checkpoints.length >= max) novel.checkpoints.shift();
+  novel.checkpoints.push({ label, timestamp: new Date().toISOString(), state: JSON.parse(JSON.stringify(novel)) });
+  audit("set_checkpoint", { label }, `Checkpoint '${label}' saved.`);
+  state.saveNovel(novel);
+  return ok(`Checkpoint '${label}' saved (${novel.checkpoints.length}/${max}).`);
+});
+
+server.registerTool("list_checkpoints", {
+  title: "List Checkpoints",
+  description: "List all checkpoints for the active Novel. Game Master only.",
+  inputSchema: {},
+}, async () => {
+  requireGM();
+  const novel = requireNovel();
+  if (novel.checkpoints.length === 0) return ok("[No checkpoints.]");
+  const lines = novel.checkpoints.map((c, i) => `${i + 1}. ${c.label} — ${c.timestamp}`);
+  return ok(`Checkpoints:\n${lines.join("\n")}`);
+});
+
+server.registerTool("restore_checkpoint", {
+  title: "Restore Checkpoint",
+  description: "Restore a checkpoint (confirmation required). Game Master only.",
+  inputSchema: { label: z.string() },
+}, async ({ label }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const cp = novel.checkpoints.find(c => c.label === label);
+  if (!cp) return err("NOT_FOUND", `Checkpoint '${label}' not found.`);
+  if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow is pending.");
+  novel.pending_workflow = { decision: `Restore checkpoint '${label}'?`, snapshot: null };
+  state.saveNovel(novel);
+  return raw(`[NEED_INPUT] Restore checkpoint '${label}'?\n- yes: Restore\n- cancel: Cancel`);
+});
+
+server.registerTool("delete_checkpoint", {
+  title: "Delete Checkpoint",
+  description: "Delete a named checkpoint. Game Master only.",
+  inputSchema: { label: z.string() },
+}, async ({ label }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const idx = novel.checkpoints.findIndex(c => c.label === label);
+  if (idx === -1) return err("NOT_FOUND", `Checkpoint '${label}' not found.`);
+  novel.checkpoints.splice(idx, 1);
+  state.saveNovel(novel);
+  return ok(`Checkpoint '${label}' deleted.`);
+});
+
+// --- Novel Management ---
+
+server.registerTool("list_novels", {
+  title: "List Novels",
+  description: "List all Novels on disk with metadata. Always callable.",
+  inputSchema: {},
+}, async () => {
+  const novelsDir = path.join(DATA_DIR, "novels");
+  if (!fs.existsSync(novelsDir)) return ok("[No Novels found.]");
+  const files = fs.readdirSync(novelsDir).filter(f => f.endsWith(".json"));
+  if (files.length === 0) return ok("[No Novels found.]");
+  const lines: string[] = [];
+  for (const file of files) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(novelsDir, file), "utf-8"));
+      const active = state.activeNovelId === data.slug ? " [active]" : "";
+      lines.push(`- **${data.slug}**${active}: ${data.name ?? data.slug}`);
+    } catch { /* skip */ }
+  }
+  return ok(`Novels (${lines.length}):\n${lines.join("\n")}`);
+});
+
+server.registerTool("novel_info", {
+  title: "Novel Info",
+  description: "Return extended metadata for a Novel. Always callable.",
+  inputSchema: { slug: z.string().optional() },
+}, async ({ slug }: any) => {
+  const target = slug ?? state.activeNovelId;
+  if (!target) return err("NOT_FOUND", "No Novel specified and none active.");
+  const novel = slug ? state.novels.get(slug) : state.activeNovel;
+  if (!novel) return err("NOT_FOUND", `Novel '${slug}' not found.`);
+  const info = [
+    `**Name:** ${novel.name}`, `**Slug:** ${novel.slug}`, `**Hat:** ${novel.hat ?? "none"}`,
+    `**Entities:** ${novel.entities.size}`, `**NPCs:** ${novel.npcs.size}`,
+    `**Factions:** ${novel.factions.length}`, `**Vows:** ${novel.vows.length}`,
+    `**Stories:** ${novel.story_journal.length}`, `**Adventure:** ${novel.adventure_slug ?? "none"}`,
+  ];
+  return ok(info.join("\n"));
+});
+
+server.registerTool("rename_novel", {
+  title: "Rename Novel",
+  description: "Rename the active Novel on disk. Game Master only.",
+  inputSchema: { new_slug: z.string() },
+}, async ({ new_slug }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const oldFile = path.join(DATA_DIR, "novels", `${novel.slug}.json`);
+  const newFile = path.join(DATA_DIR, "novels", `${new_slug}.json`);
+  if (fs.existsSync(newFile)) return err("STATE_CONFLICT", `Novel '${new_slug}' already exists.`);
+  fs.renameSync(oldFile, newFile);
+  const oldBak = oldFile + ".bak";
+  if (fs.existsSync(oldBak)) fs.renameSync(oldBak, newFile + ".bak");
+  state.novels.delete(novel.slug);
+  novel.slug = new_slug;
+  state.novels.set(new_slug, novel);
+  state.activeNovelId = new_slug;
+  state.saveNovel(novel);
+  return ok(`Novel renamed to '${new_slug}'.`);
+});
+
+server.registerTool("clone_novel", {
+  title: "Clone Novel",
+  description: "Create an independent copy of a Novel. Game Master only.",
+  inputSchema: { source_slug: z.string(), new_name: z.string(), trim_audit_sessions: z.number().min(0).optional() },
+}, async ({ source_slug, new_name, trim_audit_sessions }: any) => {
+  requireGM();
+  const cloneSlug = new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (state.novels.has(cloneSlug)) return err("STATE_CONFLICT", `Novel '${cloneSlug}' already exists.`);
+  const srcPath = path.join(DATA_DIR, "novels", `${source_slug}.json`);
+  if (!fs.existsSync(srcPath)) return err("NOT_FOUND", `Novel '${source_slug}' not found.`);
+  const srcData = JSON.parse(fs.readFileSync(srcPath, "utf-8"));
+  const clonePath = path.join(DATA_DIR, "novels", `${cloneSlug}.json`);
+  srcData.slug = cloneSlug;
+  srcData.name = new_name;
+  srcData.hat = null;
+  srcData.active_entity_id = null;
+  srcData.pending_workflow = null;
+  if (srcData.metadata) {
+    srcData.metadata.created = new Date().toISOString();
+    srcData.metadata.modified = new Date().toISOString();
+  }
+  if (trim_audit_sessions && srcData.audit_log?.length) {
+    const boundaries = srcData.audit_log.filter((e: any) => e.output_prefix === "[session_boundary]");
+    const keep = Math.min(trim_audit_sessions, boundaries.length);
+    if (keep > 0) {
+      const cutoffIndex = srcData.audit_log.indexOf(boundaries[boundaries.length - keep]);
+      srcData.audit_log = srcData.audit_log.slice(cutoffIndex);
+    }
+  }
+  const tmp = clonePath + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(srcData, null, 2));
+  fs.renameSync(tmp, clonePath);
+  state.resumeNovel(cloneSlug);
+  audit("clone_novel", { source_slug, new_name }, `Clone '${cloneSlug}' created.`);
+  return ok(`Novel cloned as '${cloneSlug}'.`);
 });
 
 // --- Enrichment ---
@@ -2338,6 +3144,53 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 
   if (!loreText) loreText = "None";
 
+  // Story journal entries matching active entities or scene
+  const storyDisplay = parseInt(process.env.TTRPG_STORY_JOURNAL_DISPLAY ?? "5", 10);
+  const activeEntityIds = [...novel.entities.keys()];
+  const matchingStories = novel.story_journal
+    .filter(s => s.entity_ids.some(eid => activeEntityIds.includes(eid)) || s.scene_anchor === novel.scene_description?.substring(0, 100))
+    .slice(-storyDisplay);
+  const storyText = matchingStories.length
+    ? matchingStories.map(s => `[${s.index}] ${s.type}: ${s.entry.substring(0, 150)}${s.entry.length > 150 ? "…" : ""}`).join("\n")
+    : "None";
+
+  // Narrative threads
+  const threads: string[] = [];
+  for (const s of novel.story_journal) {
+    if (s.type === "decision" && !novel.story_journal.some(e => e.type === "consequence" && e.entity_ids.some(eid => s.entity_ids.includes(eid)))) {
+      threads.push(`Unresolved decision: ${s.entry.substring(0, 80)}`);
+    }
+  }
+  for (const v of novel.vows) {
+    if (v.state === "active") threads.push(`Vow: ${v.name} (${v.milestones}/${v.rank_track} ${v.difficulty})`);
+  }
+  const npcDispositions = Array.from(novel.npcs.values())
+    .filter(n => n.disposition && n.disposition !== "neutral");
+  for (const n of npcDispositions) {
+    threads.push(`${n.name} (${n.disposition})`);
+  }
+  const threadsText = threads.length ? threads.map(t => `- ${t}`).join("\n") : "[No unresolved threads.]";
+
+  // Factions
+  const factionsText = novel.factions.length
+    ? novel.factions.map(f => `- **${f.name}** — Clock: ${f.clock}/${f.clock_max} | ${f.status}${f.goals.length ? `\n  Goals: ${f.goals.join(", ")}` : ""}`).join("\n")
+    : "None";
+
+  // Vows
+  const vowsText = novel.vows.filter(v => v.state === "active").length
+    ? novel.vows.filter(v => v.state === "active").map(v => `- **${v.name}** (${v.difficulty}): ${v.milestones}/${v.rank_track} — ${v.description.substring(0, 80)}`).join("\n")
+    : "None";
+
+  // Knowledge state (secrets known to active entity)
+  let knowledgeText = "[No known information.]";
+  const activeEntityId = novel.active_entity_id;
+  if (activeEntityId) {
+    const known = novel.secrets.filter(s => s.known_by.includes(activeEntityId));
+    if (known.length) {
+      knowledgeText = known.map(s => `- **${s.key}** (revealed): ${s.content.substring(0, 100)}`).join("\n");
+    }
+  }
+
   const countdowns = Array.from(novel.countdowns.values()).filter(c => c.ticks > 0);
 
   let briefing = `## Hat Briefing — ${hat === "player" ? "Player" : hat === "game_master" ? "Game Master" : "No Hat"}
@@ -2346,6 +3199,7 @@ server.registerPrompt("hat_briefing", { description: "Per-hat guidance, state, a
 ${novel.scene_description || "None set"}${novel.scene_location ? `\nLocation: ${novel.scene_location}` : ""}${novel.scene_time_of_day ? `\nTime of Day: ${novel.scene_time_of_day}` : ""}${novel.scene_atmosphere ? `\nAtmosphere: ${novel.scene_atmosphere}` : ""}
 ${novel.adventure_scene_waypoint ? `\nAdventure Scene: ${novel.adventure_scene_waypoint.description}` : ""}
 Scene Type: ${novel.scene_type.join(", ")}
+${novel.narrative_directive ? `\nNarrative Directive: ${novel.narrative_directive}` : ""}
 
 ### POV
 ${(() => {
@@ -2358,6 +3212,9 @@ ${(() => {
   return `POV: ${entity.name} — describe the scene through this character's eyes and senses. Other characters' internal states are inaccessible unless ${entity.name} could observe or infer them.${details ? `\nVoice: ${details}` : ""}`;
 })()}
 
+${hat === "game_master" ? `### Narrative Threads\n${threadsText}\n` : ""}
+${activeEntityId ? `### Knowledge State\n${knowledgeText}\n` : ""}
+
 ### Combat${state.combatReport(novel)}
 
 ### Entities
@@ -2369,8 +3226,13 @@ ${npcs.join("\n") || "None"}
 ### Countdowns
 ${countdowns.length ? countdowns.map(c => `- **${c.name}:** ${c.ticks}/${c.total} ticks`).join("\n") : "None"}
 
+${hat === "game_master" ? `### Factions\n${factionsText}\n` : ""}
+${hat === "game_master" ? `### Vows\n${vowsText}\n` : ""}
+
 ### Lore (Triggered)
 ${loreText}
+
+${hat === "game_master" ? `### Story Journal\n${storyText}\n` : ""}
 
 ${!novel.session_zero_completed ? "**Session zero not yet completed — run session_zero prompt.**\n" : ""}
 

@@ -11,9 +11,14 @@
 > provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
 > play advice. Quality enforced by verification workflows, 14 handoff verification steps,
 > and a golden-transcript replay. One server per ruleset. No network at runtime
-> (REQ-051). The Player hat is the human at the table; the Game Master hat is the AI
-> narrator (REQ-032), switchable via `set_hat` (REQ-066). Multi-character support: one
-> player may control multiple entities (REQ-074). Adventures load as hybrid world-model
+> (REQ-051). Hats control tool-access gating (REQ-032): `player`, `game_master`,
+> `observer`, or `none`, switchable via `set_hat` (REQ-066). The AI's narrative role is
+> the counterpart of the active hat by default — human as Player → AI as Game Master,
+> human as Game Master → AI as Player — configurable via `TTRPG_AI_ROLE` (REQ-304).
+> Observer mode (REQ-305) lets the human spectate while the AI plays both roles.
+> Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
+> human. Multi-character support with entity presence (REQ-307) and knowledge gating by
+> presence (REQ-308): one Adventures load as hybrid world-model
 > and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
 > enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
 > persist. RNG deterministic and seedable. Requirements state the contract; verification
@@ -100,11 +105,18 @@ Player hat, the player acts through the ruleset's resolution mechanics — skill
 attacks, spells, exploration actions. World-model navigation (parser commands like `go
 north` or `take lamp`) is available when adventures provide spatial maps; the ruleset,
 not the world model, drives the story. Switch to the Game Master hat to correct, undo,
-or directly manage Novel state while staying in the story. End the story with
-`set_hat("none")` — return to editing mode with the Novel intact. End the Novel with
-`end_novel` — the save file is deleted. `set_hat` works without restart. One user per
-MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
-player, one AI Game Master. One player may control multiple characters (REQ-074).
+or directly manage Novel state while staying in the story. Switch to the Observer hat
+(REQ-305) to spectate — the AI plays both Player and Game Master while you watch,
+intervening only for mechanical decisions at your configured autonomy level (REQ-306).
+End the story with `set_hat("none")` — return to editing mode with the Novel intact.
+End the Novel with `end_novel` — the save file is deleted. `set_hat` works without
+restart. One user per MCP connection (REQ-030) — no multiplayer. Holonovel targets
+solo play: one human operator, one AI counterpart. By default, the human wears the
+Player hat and the AI briefs as Game Master (REQ-304). The human may switch hats
+freely — the AI's narrative role follows as counterpart, or can be locked to a fixed
+role via `TTRPG_AI_ROLE`. One player may control multiple characters (REQ-074) with
+entity presence tracking (REQ-307) and knowledge gated by who was present for each
+scene (REQ-308).
 
 **The play model (ruleset-free).** When no TTRPG ruleset is present, the server provides
 freeform narrative roleplay. The primary interaction is through the GM's narrative tools:
@@ -269,12 +281,13 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Hat        | Active hat — `player`, `game_master`, or `none` (editing mode, full access). Wearing the player or game_master hat means you are in the story. REQ-031, REQ-066.         |
+| Hat        | Active hat — `player`, `game_master`, `observer`, or `none` (editing mode, full access). Wearing the player, game_master, or observer hat means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a hat is active and narration is happening. Starts with `set_hat("player")` or `set_hat("game_master")`. Ends with `set_hat("none")`. Multiple stories can occur within one Novel's lifetime. |
 | In the story | Hat is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_hat("none")` is stepping away from the table. |
 | Editing mode | No hat active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
+| Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
@@ -292,9 +305,14 @@ guard, the gap is explicit.
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
-| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). All are Game Master only. |
-| Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side. `hat_briefing` (REQ-109) composes guidance, state, lore, and registry content hat-filtered. Hat behavioral boundaries (REQ-064), hat foundations (REQ-062), anti-slop guidance (REQ-070), and narrative tone samples (REQ-071) supply hat-specific orientation. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
-| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap, notes), Session Management (pause/resume, checkpoints, briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
+| Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
+| AI Role           | The narrative role the AI plays — derived as the counterpart of the active hat by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `hat_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
+| Observer          | Spectator mode (REQ-305). The human wears the Observer hat (`set_hat("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
+| Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
+| Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `set_scene_state`. Non-present entities are marked `[not present]` in `hat_briefing` and the party resource. The GM controls presence with `set_party_presence`. |
+| Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
+| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
@@ -321,8 +339,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223 | 17    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250, 252 | 46    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 304–306 | 20    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250, 252, 285, 307–308 | 49    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 32    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 18    |
@@ -644,19 +662,23 @@ voice, with source anchor and confidence.
 _Check:_ T26.
 
 **REQ-064 — Hat behavioral boundaries.** The server respects hat boundaries in
-all tool output. The Game Master hat describes situations and surfaces information; it
-never takes action or makes decisions on behalf of the player. The Player hat describes
-character intent; it never prescribes world facts or narrative outcomes without Game
-Master confirmation.
+all tool output. The AI's behavioral boundaries are role-dependent. When the AI's
+narrative role is Game Master, it describes situations and surfaces information; it
+never takes action or makes decisions on behalf of the player. When the AI's
+narrative role is Player, it describes character intent; it never prescribes world
+facts or narrative outcomes without Game Master confirmation. These boundaries are
+delivered in the `hat_briefing` orientation content, determined by the AI's role
+per REQ-304. When the AI has no narrative role (null-hat), tool output follows the
+active hat's boundary conventions.
 
 When a player's natural-language input carries both in-character and meta-intent
 simultaneously — e.g., "I examine the altar" (character action) + "what does my
 character see?" (meta-query) — the `suggest_actions` tool SHALL return both
 tool categories: the in-character resolution (roll_skill_check, examine) and the
-meta-inquiry (search_rules for altar lore). The Game Master AI, informed by
-`hat_briefing`, SHALL resolve the in-character component through narration and
-redirect the meta-intent component through tool calls — it SHALL NOT silently
-treat a meta-query as an in-character action resolved without the player's
+meta-inquiry (search_rules for altar lore). The AI (when in the Game Master role),
+informed by `hat_briefing`, SHALL resolve the in-character component through
+narration and redirect the meta-intent component through tool calls — it SHALL NOT
+silently treat a meta-query as an in-character action resolved without the player's
 knowledge.
 
 The `player_signal` tool SHALL accept a `register` signal with values `character`
@@ -1135,7 +1157,8 @@ always be present in `tools/list`:
   (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`,
   `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`),
   resume state (`save_pause_context`, `get_resume_context`), and archive
-  (`compact_audit_log`).
+  (`compact_audit_log`), and server notes (`set_server_note`,
+  `remove_server_note`, `list_server_notes`).
 - **Hats & Workflow** — `set_hat`, `respond`, `undo`, `redo`, `help`.
   The identity and permission layer — never waived.
 - **Narrative** — story-content tools, grouped by function: Scene & Tone
@@ -1150,15 +1173,13 @@ always be present in `tools/list`:
   `set_secret`, `reveal_secret`, `check_knowledge`), Player Interaction
   (`present_choices`, `suggest_actions`, `player_signal`), Story Memory
   (`record_story`, `update_story`, `remove_story`, `list_stories`,
-  `session_recap`, `set_note`, `remove_note`, `list_notes`), Session
-  Management (`save_pause_context`, `get_resume_context`, `set_checkpoint`,
-  `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`,
-  `set_briefing_order`, `load_adventure`, `generate_adventure`), and
+   `session_recap`, `compress_audit`), Session
+  Management (`set_briefing_order`, `load_adventure`, `generate_adventure`), and
   Enrichment Controls (`revert_enrichment`, `list_enrichment_items`,
   `activate_enrichment_item`, `deactivate_enrichment_item`,
   `remove_enrichment_item`, `toggle_action_patterns`,
   `player_enrich`, `player_remove_enrichment`,
-  `player_list_enrichment`, `compress_audit`). These categories
+  `player_list_enrichment`). These categories
   are never waived.
 
 The `help` tool SHALL present these infrastructure categories as the base
@@ -1979,28 +2000,37 @@ full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
 **REQ-066 — set_hat tool.** The server provides a `set_hat` tool accepting
-`player`, `game_master`, or `none`. Returns `[OK] Active hat: <hat>` on
-success — `"none"` returns `[OK] Active hat: none — Novel editing mode`. Returns
+`player`, `game_master`, `observer`, or `none`. Returns `[OK] Active hat: <hat>` on
+success — `"none"` returns `[OK] Active hat: none — Novel editing mode`,
+`"observer"` returns `[OK] Active hat: observer — read-only spectator mode`. Returns
 `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
 hat-gated — it is always callable regardless of current hat. The hat switch
 takes effect immediately on the next tool call. `set_hat("none")` deactivates
 the hat and returns to editing mode with full access; the Novel persists
 untouched.
 *Acceptance criterion:* `set_hat("player")` returns `[OK] Active hat: player`
-and the next tool call is gated; `set_hat("none")` returns
+and the next tool call is gated; `set_hat("observer")` returns
+`[OK] Active hat: observer — read-only spectator mode`; `set_hat("none")` returns
 `[OK] Active hat: none — Novel editing mode` and full access is restored;
 `set_hat(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
 **REQ-032 — Server-side gating.** When a hat is active, the server enforces hat
 access on every endpoint. Player tools, resources, and prompts are a strict subset of
-GM-visible ones. `tools/list` and related metadata surfaces are filtered. Guidance items
-are filtered. `spec_health` metrics are filtered. `[FORBIDDEN]` responses direct callers
-to use `set_hat` to switch hats. When no hat is active, no gating applies — all
-endpoints return full content and all tools are callable.
+GM-visible ones. Observer tools are a read-only subset: state-query tools
+(`character_sheet`, `session_recap`, `help`, `scene://current`, `entities://`,
+etc.) are permitted; mutating tools (commands, generation, hybrid per REQ-015)
+return `[FORBIDDEN]` with the corrective action "Observer mode is read-only.
+Switch hats with `set_hat` to interact." `tools/list` and related metadata surfaces
+are filtered. Guidance items are filtered. `spec_health` metrics are filtered.
+`[FORBIDDEN]` responses direct callers to use `set_hat` to switch hats. When no
+hat is active, no gating applies — all endpoints return full content and all tools
+are callable.
 *Acceptance criterion:* Under the Player hat, `create_npc(...)` returns
 `[FORBIDDEN]`; switching to Game Master hat makes the same call succeed;
-switching back and calling again returns `[FORBIDDEN]`.
+switching back and calling again returns `[FORBIDDEN]`. Under the Observer hat,
+`set_scene_state(...)` returns `[FORBIDDEN]` directing to `set_hat`; `help()`
+succeeds.
 _Check:_ T9, T13, T15, T18,
 T26, T44, T148, T151.
 
@@ -2050,8 +2080,8 @@ the active entity carries narrative POV (point of view) semantics: the player is
 inhabiting this character — speaking as them, perceiving through their senses. The
 server SHALL include a POV directive in `hat_briefing`, positioned in the
 decision-critical group after scene state and before the entity listing. The
-directive contains: (a) the active entity's name; (b) an instruction to the Game
-Master AI: describe the scene through this character's eyes and senses — other
+directive contains: (a) the active entity's name; (b) an instruction to the AI:
+describe the scene through this character's eyes and senses — other
 characters' internal states (thoughts, feelings, unexpressed intentions) are
 inaccessible unless the POV character could observe or infer them; (c) the active
 entity's personality fields and voice examples (REQ-077) in compact inline form as
@@ -2087,30 +2117,111 @@ the active entity; `set_active_entity("char_02")` preserves omniscient mode;
 POV for char_02.
 _Check:_ T265.
 
+**REQ-304 — Counterpart AI role.** The AI's narrative role is the counterpart of the
+active hat by default: when the human wears `player`, the AI briefs as Game Master;
+when the human wears `game_master`, the AI briefs as Player; when no hat is active,
+the AI has no narrative role (null-hat briefing per REQ-136). The server accepts a
+`TTRPG_AI_ROLE` environment variable with values `counterpart` (default),
+`game_master`, or `player`. When set to a fixed value, the AI's narrative role is
+locked — `game_master` forces GM-oriented briefing regardless of the human's hat,
+`player` forces player-oriented briefing. The AI role determines the orientation
+sections in `hat_briefing` (foundations, anti-slop, tone samples, behavioral boundary
+directive per REQ-109) while the active hat determines the state surface and tool
+filtering. `TTRPG_AI_ROLE` is read at startup and applies to all connections and
+Novels. The active hat controls tool-access gating; the AI role controls narrative
+orientation. The default `counterpart` preserves current behavior when the human
+wears the Player hat (AI briefs as GM) and enables human-GM + AI-Player
+configuration when the human wears the Game Master hat.
+*Acceptance criterion:* With `TTRPG_AI_ROLE=counterpart` and human wearing the
+Player hat, `hat_briefing` orientation content is GM-oriented. Same hat but
+`TTRPG_AI_ROLE=player` forces player-oriented orientation. Human wearing the GM hat
+with `counterpart` shows player-oriented orientation. Null-hat with any
+`TTRPG_AI_ROLE` shows null-hat briefing per REQ-136.
+_Check:_ T-new-304.
+
+**REQ-305 — Observer mode.** `set_hat("observer")` activates spectator mode — the
+human observes while the AI plays both Player and Game Master roles. Tool gating
+(REQ-032) restricts the human to read-only access: state-query tools succeed;
+all mutating tools return `[FORBIDDEN]` directing the caller to switch hats.
+`hat_briefing` orientation content instructs the AI: "You are both Game Master
+and Player. The human is observing. Narrate scenes, make decisions for all player
+characters, advance combat, play the Novel." The state surface is unfiltered
+(GM-level visibility). The human may step out by calling `set_hat` with any other
+value. Observer mode is Novel-scoped — it persists with the Novel and is visible
+in `spec_health`.
+*Acceptance criterion:* `set_hat("observer")` returns `[OK] Active hat: observer
+— read-only spectator mode`. `create_npc("Test")` returns `[FORBIDDEN]` with
+corrective action citing `set_hat`. `help()` succeeds. `hat_briefing` includes
+the dual-role orientation instruction.
+_Check:_ T-new-305.
+
+**REQ-306 — Adjustable autonomy.** The server provides a `set_autonomy(options)`
+tool — Game Master only, Novel-scoped. The tool accepts an object with four
+independent sliders, each with a default middle value:
+
+| Slider | Values | Default | Controls |
+|--------|--------|---------|----------|
+| `level` | `full` / `mechanical_prompt` / `manual` | `mechanical_prompt` | Who decides what. `full` — AI auto-plays everything. `mechanical_prompt` — AI auto-plays narrative decisions (dialogue, exploration direction, social approach), world-model navigation, and character flavor, but SHALL pause for TTRPG ruleset mechanical decisions: dice rolls, combat actions, spell selection, condition management, character advancement, and ruleset-derived generation tables. `manual` — human decides everything (current default, formalized). |
+| `confirmation` | `auto` / `confirm` / `prompt` | `prompt` | How decisions are presented. `auto` — AI executes without asking. `confirm` — AI proposes its chosen action as the default option in `present_choices`, human confirms or vetoes. `prompt` — AI presents options via `present_choices` without a default, human chooses. |
+| `safety` | `safe` / `moderate` / `hardcore` | `moderate` | Consequence severity. `safe` — no permanent character death; lethal damage reduces HP to 1 and applies incapacitation. `moderate` — death possible but telegraphed; dramatic but survivable challenges. `hardcore` — full consequences; death permanent; no warnings. |
+| `creativity` | `predictable` / `standard` / `chaotic` | `standard` | How much the AI surprises the player. `predictable` — optimal, rational decisions. `standard` — occasional complications and character flaws. `chaotic` — dramatic twists, suboptimal emotional choices, unwinnable encounters. |
+
+The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived
+resolution mechanics — tools classified as command or hybrid per REQ-015 whose
+behavior is derived from the ruleset, not from the world model or narrative
+infrastructure. Inform parser commands (`go north`, `take lamp`) and narrative
+state tools (`set_scene_state`, `create_npc`) are never paused. At
+`mechanical_prompt` level, when a mechanical decision point is reached, the AI
+SHALL call `present_choices` (REQ-235) with `[NEED_INPUT]` to present the
+decision; the human responds via `respond`. All four slider values SHALL be
+visible in `hat_briefing` and `spec_health`. Autonomy composes with any hat
+— a human Player with `level=full` lets the AI auto-play their character; a
+human GM with `level=full` lets the AI run all NPCs and player characters.
+*Acceptance criterion:* `set_autonomy({level: "full", confirmation: "auto",
+safety: "safe", creativity: "standard"})` returns `[OK]`. `hat_briefing`
+includes the autonomy state. With `level=mechanical_prompt` and
+`confirmation=prompt`, the AI auto-narrates exploration but pauses via
+`present_choices` for combat actions; the human responds via `respond`.
+_Check:_ T-new-306.
+
 **REQ-109 — Hat briefing composition.** `hat_briefing` surfaces
-these hat-filtered information groups: hat foundations (REQ-062),
-anti-slop guidance (REQ-070), narrative tone samples (REQ-071), current scene state
-(REQ-076), narrative POV directive (REQ-220), active entities with summary stats (REQ-074), active NPCs
-(REQ-075), active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries (REQ-083),
-active adventure content (REQ-079), registered tools relevant to the
-current scene type (REQ-087), active combat state — round, turn order, and
-current participant (if in-combat; REQ-043), active entity personality fields and voice
-examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM
-only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata
-(REQ-089, including a "Session zero not yet completed" reminder when
-`session_zero_completed` is false), a pointer to the intro prompt (REQ-063), and
-story journal entries — entries whose entity IDs overlap the active entities or
-whose scene anchor matches the current scene (GM only, REQ-246). Groups whose data
-source is empty SHALL include an explicit empty-state marker describing which
-category is empty. Markers preserve the expected briefing structure and prevent the
-caller from inferring non-existent content. The enumeration order above is the
-builder's required default section ordering for `hat_briefing`. Decision-critical
-groups (scene state, the POV directive, entities, combat state, triggered lore, active NPCs, and active
-countdowns, and narrative threads) precede the section boundary; supplementary guidance and navigation groups
-(hat foundations, anti-slop guidance, narrative tone samples, active adventure content,
-registered tools, entity personality fields, the narrative directive, player signals,
-Novel setup metadata, and the intro pointer) follow. The Game Master may override this
-order via `set_briefing_order` (REQ-082).
+these groups, split into two sourcing layers:
+
+**Orientation layer** (sourced from the AI's narrative role per REQ-304):
+hat foundations (REQ-062), anti-slop guidance (REQ-070), narrative tone samples
+(REQ-071), and hat behavioral boundary directive (REQ-064). When the AI's role is
+Game Master, these groups contain GM-oriented content; when the AI's role is Player,
+player-oriented content. Under observer mode (REQ-305), the orientation layer SHALL
+include a dual-role instruction: "You are both Game Master and Player. The human is
+observing. Narrate scenes, make decisions for all player characters, advance combat.
+Play the Novel."
+
+**State surface layer** (sourced from the active hat per REQ-032):
+current scene state (REQ-076), narrative POV directive (REQ-220), active entities
+with summary stats and presence markers (REQ-074, REQ-307), active NPCs (REQ-075),
+active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries
+(REQ-083), active adventure content (REQ-079), registered tools relevant to the
+current scene type (REQ-087), active combat state — round, turn order, and current
+participant (if in-combat; REQ-043), active entity personality fields and voice
+examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM only,
+REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089,
+including a "Session zero not yet completed" reminder when `session_zero_completed`
+is false), a pointer to the intro prompt (REQ-063), story journal entries — entries
+whose entity IDs overlap the active entities or whose scene anchor matches the current
+scene (GM only, REQ-246), and the current autonomy state — all four slider values
+from `set_autonomy` (REQ-306) when set.
+
+Groups whose data source is empty SHALL include an explicit empty-state marker
+describing which category is empty. Markers preserve the expected briefing structure
+and prevent the caller from inferring non-existent content. The enumeration order
+above is the builder's required default section ordering for `hat_briefing`.
+Decision-critical groups (scene state, the POV directive, entities, combat state,
+triggered lore, active NPCs, and active countdowns, and narrative threads) precede
+the section boundary; supplementary guidance and navigation groups (hat foundations,
+anti-slop guidance, narrative tone samples, active adventure content, registered
+tools, entity personality fields, the narrative directive, player signals, Novel
+setup metadata, autonomy state, and the intro pointer) follow. The Game Master may
+override this order via `set_briefing_order` (REQ-082).
 *Acceptance criterion:* `hat_briefing` for a Novel with entities, combat,
 countdowns, and lore includes all mandatory groups; an empty data source displays
 its empty-state marker; decision-critical groups appear before supplementary groups.
@@ -2143,12 +2254,17 @@ _Check:_ T-new-281.
 group showing what the active entity currently knows: (a) revealed secrets (key and
 reveal timestamp); (b) known NPC relationships where the active entity is a participant;
 (c) `shared`-scope lore entries whose trigger keywords have appeared in scenes the active
-entity was present for. When no active entity is set, the section renders "[No active
-entity — knowledge state unavailable.]" When the active entity knows nothing, it renders
-"[No known information.]" The section SHALL NOT include GM-only secrets, unrevealed lore,
-or relationships where the active entity is not a participant. On a fresh Novel,
-`hat_briefing` renders the empty-state marker — narrative tools fade into the background
-per §5.10.
+entity was present for. Knowledge SHALL be scoped by entity presence per REQ-308: an
+entity only learns percepts from scenes where it was present (listed in
+`characters_present` per REQ-076). Percepts gained from scenes the entity attended are
+retained regardless of current presence. When the active entity is not present in the
+current scene, the section renders "[Entity not present in this scene]" above the
+entity's retained knowledge. When no active entity is set, the section renders "[No
+active entity — knowledge state unavailable.]" When the active entity knows nothing, it
+renders "[No known information.]" The section SHALL NOT include GM-only secrets,
+unrevealed lore, or relationships where the active entity is not a participant. On a
+fresh Novel, `hat_briefing` renders the empty-state marker — narrative tools fade into
+the background per §5.10.
 
 **REQ-159 — Enrichment briefing integration.** When enrichment is active
 (§11.1), `hat_briefing` SHALL include enrichment-derived content as
@@ -2171,12 +2287,14 @@ game_master-scoped enrichment items are absent. After
 `revert_enrichment`, enrichment content is absent from all hat views.
 _Check:_ T194.
 
-*Out of scope:* role-based access control beyond the two-hat model,
-authentication or authorization mechanisms, multi-connection hat
+*Out of scope:* authentication or authorization mechanisms, multi-connection hat
 synchronization, and hat inheritance across Novels. The spec assumes a
 single trusted operator — `set_hat` is always callable without
-authentication. The hat model is a convenience and narrative-integrity
-feature, not a security boundary (see Appendix P for threat model).
+authentication. The hat model supports configurable AI narrative role (REQ-304),
+observer mode (REQ-305), and adjustable autonomy (REQ-306) while maintaining
+two-hat tool-access gating. The hat model is a convenience and
+narrative-integrity feature, not a security boundary (see Appendix P for threat
+model).
 
 **REQ-135 — Hat briefing size budget.** The total size of `hat_briefing`
 output is bounded by a configurable limit. When the briefing would exceed
@@ -2717,8 +2835,10 @@ default target for tools that accept an `entity_id` when no `entity_id` is suppl
 first imported entity is the active entity by default. `set_active_entity(entity_id)`
 switches the active entity and is always callable regardless of hat. The `party`
 resource (`party://current`) lists all player-owned entities with summary stats: name,
-active status, HP, and conditions. REQ-030 scoping is unchanged — one user per
-connection, no multiplayer. The active entity also establishes the narrative POV per REQ-220.
+active status, HP, conditions, and `present` flag (derived from the most recent
+`set_scene_state` `characters_present` parameter per REQ-307). REQ-030 scoping is
+unchanged — one user per connection, no multiplayer. The active entity also establishes the
+narrative POV per REQ-220.
 *Acceptance criterion:* Creating and importing two entities produces two entries
 in `entities://`; `set_active_entity(entity_02)` switches the default target for
 entity_id-optional tools.
@@ -2900,8 +3020,9 @@ _Check:_ T131.
 **REQ-076 — Scene-state ledger.** The server maintains a Novel-scoped narrative scene
 via `set_scene_state(description, ...)`. In addition to `description` (required), the
 tool accepts optional fields: `location`, `time_of_day`, `atmosphere` (per REQ-076a),
-`scene_type` (per REQ-087), `narrative_directive` (per REQ-081), and
-`skip_transition_hook` (per REQ-125). Each call creates a timestamped entry in
+`scene_type` (per REQ-087), `narrative_directive` (per REQ-081),
+`skip_transition_hook` (per REQ-125), and `characters_present` (per REQ-307 — array of
+entity IDs present in this scene; omitted defaults to all imported entities). Each call creates a timestamped entry in
 the audit log; previous entries are retained in audit history. `scene://current` returns
 the most recent scene state. `scene://history` returns up to a configurable maximum of
 the most recent entries (default 50). When the cap is exceeded, the most recent entries
@@ -2980,6 +3101,50 @@ produces an audit entry with the bridging summary, advances narrative countdowns
 days, and updates guard_1's location. Undo restores the pre-fast-forward scene state
 and countdown positions.
 _Check:_ T-new-252.
+
+**REQ-307 — Entity presence.** Entities carry a Novel-scoped `present` flag and
+`last_location` field, derived from the most recent `set_scene_state` call that
+listed the entity in its `characters_present` parameter (REQ-076). When
+`characters_present` is omitted, all imported entities are considered present
+(backward compatible). `party://current` SHALL include a `present` boolean per
+entity. Entities listed in `hat_briefing` SHALL carry a `[not present]` marker
+and their `last_location` when their `present` flag is false. `set_active_entity`
+to a non-present entity SHALL NOT produce an error — the active entity switches
+and the `knowledge_state` section renders the "Entity not present" marker per
+REQ-109. A GM-only `set_party_presence(entity_ids, location?)` tool SHALL
+allow the GM to declare presence explicitly — setting `characters_present` on
+the current scene without altering other scene fields. Calling
+`set_party_presence([])` marks all entities as not present; calling it with all
+entity IDs restores full-party presence. Presence state persists with the Novel.
+*Acceptance criterion:* After `set_scene_state("Dark corridor",
+characters_present=["rogue_01"])`, `party://current` shows the rogue as present
+and other entities as not present. `set_party_presence(["wizard_01"], "Camp")`
+updates presence without changing scene description. Entity listing in
+`hat_briefing` marks non-present entities with `[not present]`.
+_Check:_ T-new-307.
+
+**REQ-308 — Knowledge gating by presence.** An entity's knowledge state SHALL be
+scoped to the scenes it attended. An entity gains percepts — revealed secrets,
+triggered lore, NPC relationship changes — only from scenes where it was listed in
+`characters_present` (REQ-307). Percepts gained from attended scenes are
+retained regardless of current presence. When the active entity was not present for a
+percept, that percept SHALL NOT appear in the entity's `knowledge_state` section.
+When the active entity is not present in the current scene, the `knowledge_state`
+section SHALL render "[Entity not present in this scene]" above the entity's
+retained knowledge. The GM controls when information crosses character boundaries
+via existing tools — `reveal_secret` makes secrets known to other entities,
+`set_lore_entry` with appropriate triggers extends lore to entities that were not
+present, and story journal entries record character-to-character information sharing.
+*Acceptance criterion:*
+
+1. Set scene to corridor with rogue only present. `reveal_secret("floor_trap",
+"rogue_01")`. Rogue's `knowledge_state` includes the trap.
+2. Set scene to camp with wizard only present. Wizard's `knowledge_state` does NOT
+include the trap.
+3. Reunite party (`characters_present` includes all). Rogue's knowledge is retained;
+wizard's knowledge still excludes the trap until `reveal_secret("floor_trap",
+"wizard_01")` is called.
+_Check:_ T-new-308.
 
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields:
@@ -3785,28 +3950,52 @@ after 5 mutations, `restore_checkpoint("before the ritual")` reverts all 5;
 true)` includes the checkpoints key.
 _Check:_ T279.
 
-**REQ-242 — Notes (GM scratchpad).** The Novel SHALL carry a notes tier —
-key-value freeform text entries invisible to the Player hat. `set_note(key,
-content)` creates or updates a note. `remove_note(key)` removes a note.
-`list_notes()` returns all note keys and a content preview (first 100
-characters). Notes are inert narrative context — they do not trigger lore
-matching, countdown hooks, or any mechanical effect. Notes persist with the
-Novel, survive `revert_enrichment`, and are removed by `end_novel`. Notes
-SHALL be surfaced in `hat_briefing` (Game Master only) under a new `notes`
-section token (added to REQ-082's documented token set), and at
-`notes://<key>` as a retrievable resource. Notes SHALL be included in
-`export_novel` output under the `notes` key (mapping keys to content
-strings), in `clone_novel` (REQ-240) output, and in checkpoint snapshots
-(REQ-241). This tier is the unstructured complement to REQ-232's structured
-`dm_context` — dm_context captures session-transition state with named fields;
-notes capture raw ideas, secrets-in-progress, and session jottings that do
-not fit dm_context's schema. Player hat attempts return `[ERROR] [FORBIDDEN]`.
-*Acceptance criterion:* `set_note("betrayal", "The captain is the real
-villain")` stores the note; `list_notes()` returns `{key: "betrayal",
-preview: "The captain is the real villain"}`; `notes://betrayal` returns full
-content; the Player hat sees no note content in `hat_briefing`; after
-`end_novel`, notes are cleared.
+**REQ-242 — Notes.** The Novel SHALL carry a notes tier — key-value freeform text
+entries each carrying a `hat_scope` of `game_master`, `player`, or `shared`. WHEN no
+scope is provided, THE system SHALL default to `game_master`. `set_note(key, content,
+hat_scope?)` creates or updates a note. `remove_note(key)` removes a note — the
+caller's hat must own the scope, or be Game Master. `list_notes()` returns note keys,
+content previews (first 100 characters), and hat_scope — hat-filtered. Notes are inert
+narrative context — they do not trigger lore matching, countdown hooks, or any
+mechanical effect. Notes persist with the Novel, survive `revert_enrichment`, and are
+removed by `end_novel`. Notes SHALL be surfaced in `hat_briefing` under the `notes`
+section token — Game Master sees all scopes; Player sees `player` and `shared` scopes
+only. Notes SHALL be retrievable at `notes://<key>` as a hat-filtered resource. Notes
+SHALL be included in `export_novel` output under the `notes` key (mapping keys to
+`{content, hat_scope}` objects), in `clone_novel` (REQ-240) output, and in checkpoint
+snapshots (REQ-241). This tier is the unstructured complement to REQ-232's structured
+`dm_context` — dm_context captures session-transition state with named fields; notes
+capture raw ideas, secrets-in-progress, and session jottings that do not fit
+dm_context's schema. IF the Player hat calls `set_note` with scope `game_master`,
+`remove_note` on a `game_master`-scoped note, or attempts to access `game_master`-scoped
+content, THEN THE system SHALL return `[FORBIDDEN]`.
+*Acceptance criterion:* `set_note("betrayal", "The captain is the real villain")` stores
+the note with default `game_master` scope; `list_notes()` under Game Master hat returns
+the note with scope `game_master`; `notes://betrayal` returns full content; the Player
+hat sees no `game_master`-scoped notes in `hat_briefing`; `set_note("clue", "The key is
+in the clock", "player")` is visible to both Player and GM; after `end_novel`, all
+notes are cleared.
 _Check:_ T280.
+
+**REQ-285 — Server notes.** THE server SHALL carry a server-level notes store —
+key-value freeform text entries that persist across Novels and survive server
+restarts. `set_server_note(key, content)` creates or updates a server note.
+`remove_server_note(key)` removes a server note. `list_server_notes()` returns all
+server note keys and a content preview (first 100 characters). Server notes are
+inert narrative context — they do not trigger any mechanical effect within
+Novels. Server notes persist to `.holonovel-state/server-notes.json` with atomic
+writes and backup rotation. Server notes survive `end_novel`,
+`revert_enrichment`, and server rebuilds. Server notes SHALL be surfaced in
+`spec_health` under a `server_notes` key (count). Server notes SHALL be
+retrievable at `server-notes://<key>` as a resource. Server notes SHALL NOT
+appear in `export_novel`, `clone_novel`, or checkpoint snapshots. WHEN the Player
+hat calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
+*Acceptance criterion:* `set_server_note("campaign-bible", "The old gods were
+banished to the outer dark")` stores the note; server restart preserves it;
+`end_novel` preserves it; `server-notes://campaign-bible` returns full content;
+`list_server_notes()` returns the note; Player hat returns `[FORBIDDEN]`;
+`spec_health` reports the server note count.
+_Check:_ T-new-285.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -5448,7 +5637,7 @@ Conflict-resolution order:
 1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
    override all infrastructure behavior. The TTRPG ruleset drives resolution;
    infrastructure tools serve narration, state management, and scene composition.
-2. Novel save-file operations (World): lifecycle, exchange, checkpoints, notes,
+2. Novel save-file operations (Novels): lifecycle, exchange, checkpoints, notes,
    resume state, and archive — manage the save-file container.
 3. Narrative infrastructure tools (REQ-020 categories, §5.6–5.8) are purely
    additive. They never conflict with TTRPG mechanics — they provide scene
@@ -6914,6 +7103,11 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-216 | S7 | Generation table hat filtering |
 | REQ-220 | S26 | Narrative point of view |
 | REQ-223 | S26 | POV mode control |
+| REQ-304 | S19 | Counterpart AI role |
+| REQ-305 | S6, S19 | Observer mode |
+| REQ-306 | S19, S22 | Adjustable autonomy |
+| REQ-307 | S16, S17 | Entity presence |
+| REQ-308 | S16, S19 | Knowledge gating by presence |
 | REQ-040 | S16, S21 | Audit log |
 | REQ-041 | S4, S22, S25 | Undo/redo/snapshots |
 | REQ-043 | S3, S4, S5 | Combat lifecycle |
@@ -6955,7 +7149,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-237 | S24 | Session segmentation |
 | REQ-239 | S24 | Audit log compaction |
 | REQ-241 | S25 | Checkpoints |
-| REQ-242 | S23 | Notes (GM scratchpad) |
+| REQ-242 | S23 | Notes |
 | REQ-247 | S2, S18 | Adventure structure extraction |
 | REQ-248 | S18 | Adventure overview resource |
 | REQ-249 | S18 | Adventure navigation resource |
@@ -7321,7 +7515,8 @@ switching. See §6.4 for the full creation contract.
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
-| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
+| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `observer`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
+| `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active hat), `game_master`, or `player`. Determines orientation content in `hat_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -7362,7 +7557,8 @@ discarded by `end_novel`):
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
-| Notes       | read/write/create/delete (REQ-242)                                   | Game Master only                                 |
+| Notes       | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
+| Server Notes| read/write/create/delete (REQ-285)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 | Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
 
@@ -7406,7 +7602,7 @@ consistent order.
 | Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
 | Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
 | DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
-| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active                                                  | Navigational   | REQ-242 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — hat-filtered per REQ-242 scope | Navigational   | REQ-242 |
 | Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
 | Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
 | Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
@@ -8813,7 +9009,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-239 | Audit log compaction                   | 2026-08-08 |
 | REQ-240 | Clone Novel                            | 2026-08-08 |
 | REQ-241 | Checkpoints                            | 2026-08-08 |
-| REQ-242 | Notes (GM scratchpad)                  | 2026-08-08 |
+| REQ-242 | Notes                                  | 2026-08-08 |
 | REQ-243 | Enrichment population during updates | 2026-08-08 |
 | REQ-244 | Convergence cache key | 2026-08-08 |
 | REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
@@ -8930,6 +9126,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-282 | NPC voice directive | 2026-08-08 |
 | REQ-283 | Verb coverage tiers | 2026-08-08 |
 | REQ-284 | Implicit action hints | 2026-08-08 |
+| REQ-285 | Server notes | 2026-08-08 |
 | REQ-289 | Vow tracking | 2026-08-08 |
 | REQ-291 | Oracle tool | 2026-08-08 |
 | REQ-292 | Adventure catalog | 2026-08-08 |
@@ -8941,6 +9138,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-301 | Convergence loop audit trail | 2026-08-08 |
 | REQ-302 | Per-section content hashing | 2026-08-08 |
 | REQ-303 | Scoped re-verification | 2026-08-08 |
+| REQ-304 | Counterpart AI role | 2026-08-08 |
+| REQ-305 | Observer mode | 2026-08-08 |
+| REQ-306 | Adjustable autonomy | 2026-08-08 |
+| REQ-307 | Entity presence | 2026-08-08 |
+| REQ-308 | Knowledge gating by presence | 2026-08-08 |
 
 ---
 
@@ -9219,7 +9421,7 @@ diet.
 | T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `compact_audit_log()` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `session_recap(session_id="s1")` — assert returns the summary from archive. Call `session_recap()` with no session_id — assert returns only session 2 entries. Call `compact_audit_log(sessions=2)` — assert prompt to retain both sessions. Player hat `compact_audit_log` returns `[FORBIDDEN]`. | REQ-239 |
 | T278  | Automated | Clone Novel: call `clone_novel("my-novel", "my-novel-fork")` — assert new Novel created at `novels/my-novel-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Mutate the clone (add NPC) — assert source Novel unaffected. Call `clone_novel("my-novel", "my-novel-fork")` again — assert `[STATE_CONFLICT]`. Call `clone_novel("my-novel", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player hat `clone_novel` returns `[FORBIDDEN]`. | REQ-240 |
 | T279  | Automated | Checkpoints: call `set_checkpoint("before-ritual")` — assert checkpoint created, `list_checkpoints()` returns `{label: "before-ritual", ...}`. Perform 5 mutations. Call `restore_checkpoint("before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `delete_checkpoint("before-ritual")` — assert `list_checkpoints()` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `end_novel()` — assert checkpoints cleared. `export_novel("json", include_checkpoints=true)` — assert `checkpoints` key present. Player hat returns `[FORBIDDEN]`. | REQ-241 |
-| T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored. Call `list_notes()` — assert returns `{key: "twist", preview: "The king is the dragon"}`. Call `notes://twist` — assert full content returned. Switch to Player hat — assert `hat_briefing` contains no notes, `notes://twist` returns `[FORBIDDEN]`. Switch to Game Master hat — assert `hat_briefing` includes notes section. Call `remove_note("twist")` — assert `list_notes()` is empty. `export_novel("json")` — assert `notes` key present. `end_novel()` — assert notes cleared. | REQ-242 |
+| T280  | Automated | Notes: call `set_note("twist", "The king is the dragon")` — assert stored with default `game_master` scope. Call `set_note("clue", "The key is in the clock", "player")` — assert stored with `player` scope. Call `list_notes()` under Game Master hat — assert returns both notes with their hat_scope values. Switch to Player hat — assert `list_notes()` returns only the `player`-scoped note; `notes://twist` returns `[FORBIDDEN]`; `notes://clue` returns full content. Assert Player `hat_briefing` `notes` section shows only the player-scoped note. Assert GM `hat_briefing` `notes` section shows both notes. Call `set_note("gm_only", "secret", "game_master")` under Player hat — assert `[FORBIDDEN]`. Call `remove_note("twist")` — assert note removed. `export_novel("json")` — assert `notes` key present with `{content, hat_scope}` objects. `end_novel()` — assert notes cleared. | REQ-242 |
 | T281  | Automated | Novel interchange validation: call `export_novel("json")` — assert `manifest` object present with all declared fields (novel_format_version, server_spec_version, ruleset_hash, builder_implementation, adventure_module_slugs, adventures_embedded, property_groups_present, waiver_dependent_mechanics). Call `export_novel("json", "lore")` — assert only `format_version`, `manifest`, `lore`, and `novel_metadata` keys present. Call `export_novel("json", "dm_context")` — assert only `format_version`, `manifest`, `dm_context`, and `novel_metadata` present. Export with full scope, introduce a broken NPC reference in a lore trigger via manual JSON editing — call `import_novel(modified_data, "dry-run")` — assert validation failure reporting the broken reference with item path. Call `import_novel(modified_data, "replace")` — assert `[WARNING]` with broken reference enumerated but import succeeds. Call `import_novel(modified_data, "replace", strict=true)` — assert `[ERROR] [STATE_CONFLICT]` with failure list, state unchanged. Call `import_novel(modified_data, "dry-run", strict=true)` — assert `isError: false` with failure report. | REQ-096 |
 | T282  | Automated | Story journal: call `record_story("moment", "The ferryman told a story...")` during an active scene with entity "eira" on scene "river-crossing" — assert entry appended to `story_journal` array in Novel JSON with `type: "moment"`, `entry`, `timestamp` (ISO 8601), `scene_anchor: "river-crossing"`, and `entity_ids: ["eira"]`. Call `undo` — assert story journal entry persists (not undone). Call `export_novel("json")` — assert `story_journal` key present with one entry. Call `record_story("moment", "...")` under Player hat — assert `[FORBIDDEN]`. Call `record_story("invalid_type", "...")` — assert `[ERROR] [INVALID_INPUT]` with valid type enumeration. Invoke `session_recap()` — assert `story_entries` field present as array with at most 10 most recent entries. Invoke `hat_briefing` with scene set to "river-crossing" and entity "eira" active — assert `story` section token present containing the ferryman entry. Call `end_novel()` — assert `story_journal` cleared. | REQ-246 |
 | T283  | Automated | Adventure structure extraction: build with a non-Appendix-K adventure module (raw prose, no `## World`, no `@npc` annotations). Assert structural index produced with scene headings, NPC references, and location entries. Assert extracted NPC names appear in DECISIONS.md (4) adventure index. Assert a module with entirely garbled OCR text (no discoverable structure) produces an empty index without error. Assert no `[malformed_adventure]` flag for non-conforming adventures — structural extraction is independent of Appendix K validation. | REQ-247, REQ-171 |
@@ -9246,6 +9448,7 @@ diet.
 | T-new-266 | Automated | Novel enrichment confidence: create a Novel with an NPC carrying explicit personality text. Call `synthesize_novel_enrichment()` — assert voice example item carries `[novel] [MEDIUM]`. Create a story journal entry and call synthesis — assert theme-detection item carries `[novel] [LOW]`. Edit the NPC personality, call synthesis — assert `collected_at` timestamp updated. Assert `MEDIUM` items always correspond to explicit-field sources; `LOW` items always correspond to inference sources. | REQ-266 |
 | T-new-267 | Automated | Novel enrichment in hat_briefing: create a Novel with active `[novel]` enrichment items. Call `hat_briefing` under GM hat — assert `[novel]` items appear under respective enrichment sections tagged `[novel]` alongside `[ruleset]`, `[supplementary]`, and `[player]` items. Switch to Player hat — assert only `[novel]` items with scope `shared` or `player` visible; `game_master`-scoped items absent. Call `deactivate_enrichment_item` on a `[novel]` item scoped `shared` — assert item hidden from Player hat. Call `revert_novel_enrichment` — assert no `[novel]` section in `hat_briefing` (no empty-section marker). | REQ-267, REQ-032, REQ-260 |
 | T-new-268 | Automated | Novel enrichment in enrichment dashboard: create a Novel with `[novel]` enrichment items in voice_examples and lore_templates modules. Call `resources/read` on `enrichment://status` — assert `novel` column present in per-module table alongside `ruleset-native` and `community` columns. Assert non-zero counts for voice_examples and lore_templates in the `novel` column. Call `spec_health` — assert `novel_enrichment_status` with per-module activated/total counts and `novel_enrichment_last_synthesis` timestamp. Call `revert_novel_enrichment` — assert `novel` column shows zero counts. | REQ-268, REQ-230 |
+| T-new-285 | Automated | Server notes: call `set_server_note("campaign-bible", "The old gods were banished to the outer dark")` — assert stored. Call `list_server_notes()` — assert returns `{key: "campaign-bible", preview: "The old gods were banished to the outer dark"}`. Call `server-notes://campaign-bible` — assert full content returned. Restart server — assert server note survives. Create and `end_novel` — assert server notes persist. Switch to Player hat — assert `set_server_note`, `remove_server_note`, `list_server_notes`, and `server-notes://<key>` all return `[FORBIDDEN]`. Call `spec_health` — assert `server_notes` count present. Call `remove_server_note("campaign-bible")` — assert `list_server_notes()` is empty. | REQ-285 |
 | T289    | Automated | Safety protocol status: build a server with a known hat-gating defect — assert `spec_health.safety_protocols.hat_boundary` reports `offline`. Fix the defect — assert reports `online`. Induce a non-blocking failure in S16 (narrative state) — assert relevant property reports `degraded`. Assert all four properties present in `spec_health` output. Assert a ruleset-free build reports `state_loss` and `hat_boundary` as `online`, `data_corruption` and `unrecoverable_crash` as `unverified`. | REQ-269 |
 | T290    | Automated | Artifact version identification: build a server and inspect the first line of each handoff artifact — assert each begins with `<!-- built against Holonovel spec vXX.XX.XX -->` matching `spec_health.spec_version`. Remove the comment from one artifact — assert handoff verification flags a defect. Assert version mismatch between artifact and `spec_health` is a handoff defect. | REQ-270 |
 | T291    | Automated | AGENTS.md structure: build a server and inspect AGENTS.md — assert four sections present in order: Code Map, Verification, Troubleshooting, Build Context. Assert each section has non-empty content. Assert Build Context includes spec version, build date (ISO 8601), builder model identifier, ruleset content hash, and @holonovel/inform version. Assert missing section or empty content produces a handoff defect. | REQ-271, REQ-153 |
@@ -9256,6 +9459,11 @@ diet.
 | T296    | Automated | Verifier model criteria: execute independent verification with same-provider-same-architecture model — assert verifier records the finding but does not block. Execute with different-provider model — assert no finding. Assert verifier evidence record includes model identity fields. | REQ-276 |
 | T297    | Automated | Fixture evolution: modify the Tin Lanterns ruleset source such that Appendix B.3 golden transcript fails replay. Assert the fixture version bumps per the evolution contract. Assert the citing REQ is recorded in the fixture changelog comment. Assert transcript and witness values are updated. Assert a fixture with mismatched transcript and witness values is flagged as a spec defect by `npm run validate`. | REQ-277 |
 | T298    | Automated | Build-phase-map staleness: run `npm run assemble` — assert `spec/build-phase-map.md` content hash comment is updated. Modify one spec file — assert `npm run validate` reports a stale-hash warning with the file name. Compute the current hash and overwrite the stale one — assert warning clears on next validate run. | REQ-278 |
+| T-new-304 | Automated | Counterpart AI role: set `TTRPG_AI_ROLE=counterpart`. Call `set_hat("player")` — invoke `hat_briefing` and assert orientation content (foundations, anti-slop, tone) is GM-oriented. Call `set_hat("game_master")` — assert orientation content is Player-oriented. Call `set_hat("none")` — assert null-hat briefing per REQ-136. Set `TTRPG_AI_ROLE=game_master` — assert `hat_briefing` orientation is always GM-oriented regardless of active hat. Set `TTRPG_AI_ROLE=player` — assert orientation is always Player-oriented. | REQ-304 |
+| T-new-305 | Automated | Observer mode: call `set_hat("observer")` — assert returns `[OK] Active hat: observer — read-only spectator mode`. Call `set_scene_state("test")` — assert `[FORBIDDEN]` with corrective action citing `set_hat`. Call `help()` — assert succeeds. Call `hat_briefing` — assert orientation includes dual-role instruction. Call `character_sheet(entity_id)` — assert succeeds. Switch to player hat then back to observer — assert `[FORBIDDEN]` still applies for mutating tools. | REQ-305 |
+| T-new-306 | Automated | Adjustable autonomy: call `set_autonomy({level: "full", confirmation: "auto", safety: "safe", creativity: "standard"})` — assert `[OK]`. Invoke `hat_briefing` — assert autonomy state visible. Set `level=mechanical_prompt, confirmation=prompt` — assert AI auto-narrates exploration but pauses via `present_choices` for combat actions; human responds via `respond`. Set `safety=safe` — assert lethal damage reduces HP to 1 and applies incapacitation instead of death. Set `safety=hardcore` — assert death permanent, no warnings. Set `creativity=chaotic` — assert AI makes unexpected, dramatic choices. Assert Player hat `set_autonomy` returns `[FORBIDDEN]`. Assert autonomy persists across Novel restart. | REQ-306 |
+| T-new-307 | Automated | Entity presence: call `set_scene_state("Dark corridor", characters_present=["rogue_01"])` — assert `party://current` shows rogue present, wizard not present with `[not present]`. Call `set_party_presence(["wizard_01"], "Camp")` — assert scene description unchanged, wizard present. Call `set_party_presence([])` — assert all entities not present. Entity listing in `hat_briefing` — assert `[not present]` markers and `last_location` fields. `set_active_entity` to non-present entity — assert no error, `knowledge_state` renders "Entity not present" marker. | REQ-307 |
+| T-new-308 | Automated | Knowledge gating by presence: set scene to corridor with rogue only present. Call `reveal_secret("floor_trap", "rogue_01")` — assert rogue's `knowledge_state` includes trap. Set scene to camp with wizard only present — assert wizard's `knowledge_state` does NOT include trap. Reunite party (`characters_present` includes all). Assert rogue's trap knowledge retained, wizard's still excludes trap. Call `reveal_secret("floor_trap", "wizard_01")` — assert wizard now knows trap. | REQ-308 |
 
 ---
 
@@ -10196,7 +10404,7 @@ formats._
 | `relationships`    | Array of relationship objects (REQ-236)                           |
 | `secrets`          | Array of secret objects with known-by status (REQ-234)            |
 | `dm_context`       | Pause/resume context object (REQ-232)                             |
-| `notes`            | Object mapping note keys to content strings (REQ-242)             |
+| `notes`            | Object mapping note keys to `{content, hat_scope}` objects (REQ-242)             |
 | `scene`            | Current scene description and scene type                          |
 | `countdowns`       | Array of active countdowns with name, ticks, type, clock_type     |
 | `lore`             | Array of lore entries (Appendix L schema per entry)               |
