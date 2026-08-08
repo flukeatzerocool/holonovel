@@ -37,4 +37,4 @@ Ruleset data: OGL + CC BY 4.0. Server code: MIT. See `LICENSE.md`.
 
 ## Spec
 
-Built by [Holonovel](https://git.gay/flukeatzerocool/Holonovel) v2026.08.06.
+Built by [Holonovel](https://git.gay/flukeatzerocool/Holonovel) v2026.08.08.

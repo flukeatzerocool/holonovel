@@ -34,7 +34,7 @@
 - **TypeScript:** 7.x (dev dependency)
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Spec hash:** 6bf19ec5110fe9b74c4ebff07e211799c87a0a7d5b94059f00953cd326806949
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
@@ -194,7 +194,7 @@
 ### Gate 5 — Gauntlet
 - **Timestamp:** 2026-08-06
 - **Result:** PASSED (blocking sub-workflows) / DEFERRED (non-blocking)
-- **Environment:** Node.js 20+, Linux, dnd5e-holonovel v2026.08.06
+- **Environment:** Node.js 20+, Linux, dnd5e-holonovel v2026.08.08
 - **Blocking sub-workflows:**
   - S1 (Tool sweep): PASSED — 51 tools called, 0 crashes, 0 unexpected errors.
   - S2 (Character creation): PASSED — quick creation with all params, correct derived stats.
@@ -239,7 +239,7 @@
 
 ### Spec-Driven Update (REQ-098) — First Spec-Queue Cycle Sync
 - **Date:** 2026-08-06
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — new REQs (138-140), amended REQs (023, 025, 042, 043, 088, 092, 097)
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -263,9 +263,9 @@
 - **Gauntlet:** automated test suite not present — typecheck only. Manual Gauntlet TBD.
 - **Spec hash:** 3ba7c48561c40e70f47277e970041adcbc7b38ec53a7bb681cc6cbb0b9527513
 
-### Spec-Driven Update (REQ-098) — Full Spec Synchronization v2026.08.06
+### Spec-Driven Update (REQ-098) — Full Spec Synchronization v2026.08.08
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — full spec revision (911 diff lines, all sections changed)
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -297,7 +297,7 @@
 
 ### Spec-Driven Update (REQ-098) — Macro Expansion, Help Categories, Audit Access
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — new REQ-067a, amended REQs 067, 085, 086
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -313,9 +313,9 @@
 - **Gauntlet:** automated test suite directory empty — manual verification via spec_health smoke test
 - **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
 
-### Spec-Driven Update (REQ-098) — Spec Synchronization v2026.08.06 (Cycle 3)
+### Spec-Driven Update (REQ-098) — Spec Synchronization v2026.08.08 (Cycle 3)
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — full spec revision (379 diff lines, all sections changed)
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -345,7 +345,7 @@
 
 ### Spec-Driven Update (REQ-098) — Spec Queue Pipeline Cycle Sync
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — spec restructured into source files; REQ-059/085/086/181 amended, new REQ-059a/179-183 added
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -364,7 +364,7 @@
 
 ### Spec-Driven Update (REQ-098) — Spec File Structure Reorganization Sync
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — spec restructured into numbered source files (01-foundations through appendices); all sections rewritten, REQ-053 removed, sub-REQs added (001a, 001b, 002a, 002b, 002c, 004a), new REQs 168/174/175/184/194 added
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -393,7 +393,7 @@
 
 ### Full Rebuild (REQ-098)
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Full rebuild — ruleset index re-extracted, all gates re-verified
 - **Build fingerprint:** 2e5362c4e99b02663ca0af3aeb3c81076a8f84b602e7c18fa55b6a26fa5f57e0
 - **Gap audit:**
@@ -408,7 +408,7 @@
 
 ### Spec-Driven Update (REQ-098) — Combat Enhancements + World-Model Layer (195-208)
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — new REQs 195-208: world-model layer (195-202) plus combat enhancements (203-206), build-time REQs (207-208)
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -434,7 +434,7 @@
 
 ### Spec-Driven Update (REQ-098) — Spec Revision Sync (REQ-209/210/211, World-Model Prose)
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — spec prose updated with world-model layer references, new build-time REQs 209/210/211, F7 failure mode, multiplayer clarification
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -451,7 +451,7 @@
 
 ### Spec-Driven Update (REQ-098) — Structured Scene Fields + Parameterized Tables
 - **Date:** 2026-08-07
-- **Spec version:** 2026.08.06
+- **Spec version:** 2026.08.08
 - **Classification:** Major — new REQ-076a (structured scene fields), new REQ-212 (generation table rolling), updated REQ-025 (spec_health additions)
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -470,7 +470,7 @@
 
 ### Spec-Driven Update Gap Disposition (REQ-098)
 - **Date:** 2026-08-08
-- **Spec version:** 2026.08.06 → 2026.08.06
+- **Spec version:** 2026.08.08 → 2026.08.08
 - **Classification:** major
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
@@ -487,7 +487,7 @@
 
 ### Spec-Driven Update Gap Disposition (REQ-098) — Queue Research
 - **Date:** 2026-08-08
-- **Spec version:** 2026.08.06 → 2026.08.06
+- **Spec version:** 2026.08.08 → 2026.08.08
 - **Classification:** major
 - **Gap audit:**
   | REQ | Gap | Disposition | Reason |
