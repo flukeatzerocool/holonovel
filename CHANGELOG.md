@@ -1,6 +1,37 @@
 # Changelog
 
-## 2026-08-07 — Two-tier enrichment, Inform relegation, and spec-wide efficiency
+## 2026-08-08 — Infrastructure reorg, DMCP/BitD/Lonelog imports, vendor enrichment
+
+- Infrastructure taxonomy formalized: two subcategories — Inform (world-model
+  layer, always secondary) and Not Inform (REQ-020 categories + new narrative
+  tools). Ruleset-derived tools explicitly not infrastructure.
+- Not Inform consolidations: lore upsert (REQ-083), scene unification
+  (REQ-076/76a/81/87 merged into `set_scene_state`), personality merge
+  (REQ-077 absorbs `set_voice_examples`). 7 tools reduced to 3.
+- DMCP-sourced features: Pause/Resume context (REQ-232), Factions (REQ-233),
+  Secrets/Knowledge (REQ-234), Player Choices (REQ-235), Relationships
+  (REQ-236). All with cross-tool coupling clauses.
+- BitD clock taxonomy: `clock_type` parameter on countdowns — racing, linked,
+  tug-of-war, faction, and mission clocks. Extends REQ-073.
+- Lonelog session notation: `format` parameter on `session_recap` and
+  `compress_audit`. Optional `notation` field on audit entries. Extends
+  REQ-072 and REQ-040.
+- Adventure = Novel at session zero: narrative adventure sections (Premise,
+  Factions, Scenes, NPCs, Lore, Seeds) co-exist with spatial `## World`
+  sections. REQ-078 session zero surfaces adventure pre-populated state.
+  REQ-079 adventure modules accept narrative-only content.
+- Conflict resolution simplified to 3-level hierarchy: TTRPG ruleset >
+  narrative infrastructure > Inform (always secondary surface).
+- Ruleset-free server redefined as freeform narrative roleplay. Parser
+  navigation is optional scaffolding, never primary interface.
+- Vendor enrichment (§11.2): four open-source source bundles in `enrich/`
+  directory — DMCP (MIT), Blades in the Dark SRD (CC-BY 3.0), Lonelog
+  (CC BY-SA 4.0), IF Craft Corpus (CC-BY 4.0). No separate infrastructure
+  web enrichment needed.
+- Enrich intake: new E5 question for vendor content.
+- State tiers updated: dm_context, Faction, Secret, Relationship, DM Context
+  added to Novel properties table.
+- Appendix E: REQ-232–236 added. Test catalogue: T268–T274 added.
 
 - Enrichment is now two-tiered: ruleset-native enrichment is extracted during
   Discovery from the ruleset's own text (example-of-play dialogue, GM advice,

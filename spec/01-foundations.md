@@ -86,13 +86,13 @@ token and time costs. The builder prefers incremental updates when the spec delt
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
 
-**The play model.** Two hats, enforced server-side during play. The Novel is the
+**The play model (TTRPG).** Two hats, enforced server-side during play. The Novel is the
 container — a named, persistent save file holding the world model, entities, scenes,
 and all session state. Novel setup (create Novel, load adventure, import characters,
 session zero) happens with no hat active (full access per REQ-031). Create a Novel,
-populate its world model (load a hybrid adventure module, generate one from a
-premise, or build with CRUD tools), set up characters, then activate the Player hat
-via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
+populate its narrative state (load an adventure module — a session-zero Novel — or
+build with scene, NPC, and faction tools), set up characters, then activate the Player
+hat via `set_hat` (REQ-066) to enforce hat gating (REQ-032). Under the Player hat, the
 player acts through the ruleset's resolution mechanics — skill checks, attacks,
 spells, exploration actions. World-model navigation (parser commands like `go north`
 or `take lamp`) is available when adventures provide spatial maps; the ruleset, not
@@ -100,6 +100,16 @@ the world model, drives the game. Switch to Game Master hat to correct,
 undo, or directly manage Novel state. `set_hat` works without restart. One user per
 MCP connection (REQ-030) — no multiplayer. Holonovel targets solo play: one human
 player, one AI Game Master. One player may control multiple characters (REQ-074).
+
+**The play model (ruleset-free).** When no TTRPG ruleset is present, the server provides
+freeform narrative roleplay. The primary interaction is through the GM's narrative tools:
+`set_scene_state` to describe a scene, `create_npc` to introduce characters,
+`present_choices` to offer structured decisions, and `set_lore_entry`
+to build the world as you play. Player tools (`set_personality`, `player_signal`,
+`character_sheet`) let the player describe their character and communicate
+preferences. Parser navigation (`command("go north")`) is available when an adventure
+module populates rooms — it is never required for play. Adventures are starting-state
+Novels: factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
 **Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
@@ -114,9 +124,10 @@ cold checkout, comparing its results against the builder's own.
 The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
 — requirements covering output contracts, error taxonomy, roll transparency, hats
 and security, extraction and confidence, tools and resources, Novel state and
-persistence, guidance, determinism, input safety, durability, and infrastructure
-(the world-model layer: rooms, things, exits, properties, parser commands, hybrid
-source conversion).
+persistence, guidance, determinism, input safety, durability, and infrastructure — Inform
+(the world-model layer: rooms, things, exits, properties, parser commands, hybrid source
+conversion) and Not Inform (narrative infrastructure: scenes, NPCs, factions, countdowns,
+lore, pause/resume, player choices, and all REQ-020 base tools).
 Each is one paragraph in §5. The manifest is the packing list for the
 DECISIONS.md traceability table and is mechanically verified by
 `scripts/validate.ts`.
@@ -257,8 +268,9 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| World model  | Infrastructure layer providing rooms, things, exits, and parser commands via `@holonovel/inform`. When a TTRPG ruleset is present, the world model serves narration; the ruleset drives resolution. |
-| Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides infrastructure tools and world-model interactions only. REQ-218. |
+| Infrastructure — Inform | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Always secondary surface — backgrounded in all builds. §5.10. |
+| Infrastructure — Not Inform | All other infrastructure: REQ-020 tool categories (Novels, hats, scenes, NPCs, countdowns, lore, entities, personality, briefing, export/import, adventure generation, session, utility, enrichment, combat), new narrative tools (Pause/Resume, Factions, Secrets, Player Choices, Relationships, Clock taxonomy, Session notation), all infrastructure resources, and all infrastructure prompts. Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e reference

@@ -92,13 +92,18 @@ defaults are recorded with a `(defaults accepted)` annotation.
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
 are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
-package (B10) and infrastructure tools (REQ-020) alone. The builder records ruleset-free
-mode in DECISIONS.md (1), runs `npm install @holonovel/inform` at the version specified by B10,
-and proceeds to server construction (§6.4) using the inform scaffold as the starting point.
-Extraction discovery and its dependent metrics are skipped. A build declared ruleset-free MUST NOT attempt
-to index, extract, or model any ruleset content; the server's `search_rules` tool returns empty
-results, its canonical lookup tools are waived (REQ-013), and no dice-resolution tools are
-registered. The server's ruleset content hash is the sentinel hash per REQ-044.
+package (B10) and infrastructure tools (REQ-020) alone. The server provides a freeform
+narrative roleplay surface: scene management (`set_scene_state` with scene_type and
+narrative_directive), NPC creation, lore tracking, faction management, player choices,
+pause/resume context, countdowns with full clock taxonomy, and session notation — all
+with world-model spatial navigation available as optional scaffolding. The builder
+records ruleset-free mode in DECISIONS.md (1), runs `npm install @holonovel/inform`
+at the version specified by B10, and proceeds to server construction (§6.4) using
+the inform scaffold as the starting point. Extraction discovery and its dependent
+metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
+or model any ruleset content; the server's `search_rules` tool returns empty results, its
+canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
+The server's ruleset content hash is the sentinel hash per REQ-044.
 
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
@@ -130,6 +135,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
+| E5  | Enrich with vendor content? (enrich/ directory) | yes / no                          | yes                  |
 
 **Update workflow.** Asked when `update` is selected.
 
