@@ -1,8 +1,28 @@
+## Fixture Coverage Matrix
+
+| Extraction path                      | Tin Lanterns (B) | Captain Proton (N) | Weather (C) | Serpent Crown (W) | Social (X) | Stress (Y) |
+| ------------------------------------ | :-----------: | :----------------: | :---------: | :---------------: | :--------: | :--------: |
+| Single-file extraction               | ✓             |                    | ✓           | ✓                 | ✓          | ✓          |
+| Cross-file dedup                     | ✓ (gear)      | ✓ (foes, gadgets)  |             |                   |            |            |
+| Inline stat blocks in prose          |               | ✓ (De-Coherence Ray)|             |                   |            |            |
+| Broken cross-references              | ✓ (advancement)| ✓ (momentum)      |             |                   |            |            |
+| Mechanical contradictions            | ✓ (Pushing)   | ✓ (nat-1/Peril)    |             |                   |            |            |
+| Prompt injection resistance          |               |                    | ✓           |                   |            |            |
+| GM-only content hat gating            | ✓             | ✓                  | ✓           | ✓                 | ✓          | ✓          |
+| World-model parser commands          |               |                    |             | ✓                 |            |            |
+| Social mechanics (no combat)         |               |                    |             |                   | ✓          |            |
+| 7-level heading nesting              |               |                    |             |                   |            | ✓          |
+| 100-row table extraction             |               |                    |             |                   |            | ✓          |
+| Unicode/zero-width resilience         |               |                    |             |                   |            | ✓          |
+
+---
+
 ## Appendix B: Golden Fixture
 
 _Tin Lanterns is a synthetic test fixture — a dark-fantasy holo-novel in the tradition_
 _of the Captain Proton program. Like Appendix N, its mechanics are fabricated for_
 _testing and bear no relation to any published game._
+<!-- fixture version 1 -->
 
 ### B.1 Fixture ruleset (`tin_lanterns.md`)
 
@@ -250,11 +270,11 @@ Ruleset version: matches intake snapshot
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify this
 table before running Gate 2. Draw consumption and seeding are as defined in REQ-050.
 
-The witness values were generated using a 32-bit linear congruential generator:
+The witness table below is the normative contract; any deterministic PRNG that
+reproduces these witness sequences exactly is conformant. For reference, the values
+were generated using a 32-bit linear congruential generator:
 `state ← (state × 1664525 + 1013904223) mod 2³²` with initial state
 `parseInt(seed, 10)`, d6 draw `⌊next() × 6⌋ + 1`, and d20 draw `⌊next() × 20⌋ + 1`.
-The builder may use any deterministic PRNG that reproduces these witness sequences
-exactly; the table below is the contract.
 
 | Seed | First 10 d6 faces            | First 10 d20 faces                          |
 | ---- | ---------------------------- | ------------------------------------------- |
@@ -336,6 +356,7 @@ GM-only guidance items.
 ---
 
 ## Appendix N: Complex Fixture
+<!-- fixture version 1 -->
 
 _This fixture is synthetic — a test instrument, not a published game. Production rulesets_
 _are selected from the permissively-licensed catalog in [Appendix I](#appendix-i-permissively-licensed-ruleset-catalog)._
@@ -916,4 +937,153 @@ locked door blocks passage, assert fixed things cannot be taken, assert unrecogn
 commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
 door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
 (hybrid source conversion via convert_source populates rooms, things, and exits).
+
+---
+
+## Appendix X: Social Interaction Fixture
+<!-- fixture version 1 -->
+
+_A synthetic test fixture for rulesets where the primary resolution mechanic is
+social — persuasion, bargaining, faction politics — rather than combat. Like
+Appendices B and N, its mechanics are fabricated for testing and bear no
+relation to any published game._
+
+### X.1 Fixture fixture (`court_intrigue.md`)
+
+```markdown
+# Court Intrigue
+
+_A game of whispered words and shifting alliances. One Game Master, one or more Courtiers._
+
+## Roles
+
+Each player controls a **Courtier**. The **Game Master** portrays the
+court — nobles, spies, and the shifting currents of favor. Sections marked _GM only_
+are secret from Courtiers.
+
+## Courtiers
+
+A Courtier has:
+
+- **Name**: a title with a house affiliation.
+- **Charm**: silver tongues and warm smiles.
+- **Insight**: reading faces, catching lies.
+- **Presence**: commanding a room, projecting authority.
+- **Standing**: the Courtier's favor at court. Starts at 0. Ranges from −5 (exiled)
+  to +5 (royal confidant).
+- **Conditions**: temporary states; see Conditions.
+
+## Dice
+
+Social gambits are resolved with **2d6 plus a stat**. A total of 10+ is a clean
+success; 7–9 is a partial success (it works with a cost or complication); 6 or
+less is a failure, and the GM makes a move. A natural 2 always fails; a natural 12
+always succeeds cleanly.
+
+## Gambits
+
+When a Courtier attempts a social maneuver, the GM names the stat and the player rolls.
+
+- **Persuade**: convince someone to act. Roll +Charm.
+- **Read Person**: discern motives, catch a lie. Roll +Insight.
+- **Command**: assert authority, silence dissent. Roll +Presence.
+- **Bargain**: negotiate terms, call in a debt. Roll +Charm or Presence (player's choice).
+
+## Conditions
+
+- **Disgraced**: −1 to Command and Persuade rolls. Expires after one scene of public
+  vindication.
+- **Indebted**: the Courtier owes a favor. The creditor (a named NPC or faction) may
+  call it in once per session to force a Persuade or Bargain reroll.
+
+## Creating a Courtier
+
+1. Choose a name and house.
+2. Assign +2, +1, and 0 to Charm, Insight, and Presence in any order.
+3. Choose one boon from the Court Boons table.
+4. Set Standing to 0.
+
+## Factions
+
+The court contains factions, each with a **Standing** track for each Courtier
+(−3 to +3). Faction Standing changes as an outcome of Gambits. When a Courtier
+acts against a faction's interests, the faction may retaliate — the GM records
+the shift and narrates the consequence. There are no combat rules; all conflict
+is social.
+
+## Court Boons
+
+| d6  | Boon                                   |
+| --- | -------------------------------------- |
+| 1   | Silver Tongue: +1 to Persuade          |
+| 2   | Eyes Everywhere: once per session, ask one question the GM must answer truthfully |
+| 3   | Born to Rule                            |
+| 4   | Iron Resolve: +1 to Presence           |
+| 5   | Well-Connected                          |
+| 6   | Master of Secrets: +1 to Read Person   |
+
+See also [Advancement](court_advancement.md) for gaining new Boons.
+```
+
+### X.2 Expected model excerpt
+
+A correct extraction of the fixture includes at least:
+
+- **Concepts**: stats (Charm, Insight, Presence) [HIGH]; conditions (Disgraced,
+  Indebted) [HIGH]; gambits [HIGH]; Boons [HIGH — two content-finding rows, see
+  defects]; factions [HIGH]; Standing [HIGH].
+- **Entities**: Courtier — Name; Charm/Insight/Presence from {+2, +1, 0};
+  Standing −5 to +5; Conditions; one Boon; lifecycle: creation is defined and
+  modeled [HIGH]; advancement is undefined (the cross-reference is broken —
+  defect 1), so no advance tool exists.
+- **Actions**: `roll_gambit` (Resolution, MUST), `create_courtier` (Command, MUST —
+  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `apply_condition` /
+  `remove_condition` (Command, MUST), `roll_on_table` (Generation, MUST). Four MUST
+  tools registered.
+- **Tables**: Court Boons (lookup + generation — rows 3 and 5 lack descriptions,
+  a content finding).
+- **Roles**: player (Courtier) and Game Master; no GM-only sections defined,
+  all tools are both-hat.
+- **Defects**: (1) broken cross-reference to `court_advancement.md`; (2) Boons
+  rows 3 (Born to Rule) and 5 (Well-Connected) lack descriptions — well-formed
+  rows with no mechanical text.
+
+---
+
+## Appendix Y: Structural Stress-Test Fixture
+<!-- fixture version 1 -->
+
+_A fixture for G0a structural edge cases: deeply nested headings, large tables, mixed
+inline formatting, and Unicode resilience. Not a playable ruleset — a structural
+instrument for the Appendix H checklist._
+
+### Y.1 Structural stress source
+
+The fixture source (`stress_test.md`) contains:
+
+1. **7-level heading nesting**: `#`, `##`, `###`, `####`, `#####`, `######`, and a
+   seventh level via HTML `<h7>` — the builder SHALL flatten to 6 levels per Appendix A
+   with unambiguous anchor derivation at every level.
+2. **100-row table**: a character-creation table with 100 rows, each containing a name,
+   three stat fields, and a multi-line description column. The builder SHALL parse all
+   100 rows without truncation or positional shift.
+3. **Mixed inline formatting**: a rule paragraph containing `**bold**`, `*italic*`,
+   `***bold-italic***`, `~~strikethrough~~`, and `==highlight==` (non-standard Markdown)
+   in a single sentence. The builder SHALL render standard Markdown and preserve the
+   non-standard syntax as literal text.
+4. **Unicode edge cases**: a monster name containing a zero-width space (`\u200B`), a
+   right-to-left Arabic section title, and an em-dash vs. en-dash vs. hyphen
+   distinction in three adjacent lines. The builder SHALL preserve Unicode characters
+   without normalization and derive anchors from the displayed glyph sequence.
+5. **Adversarial table structure**: a table with varying column counts (2, 3, 4, 5
+   columns) across rows. The builder SHALL detect the irregularity and record it as a
+   structural finding while parsing what it can.
+
+### Y.2 Expected structural checks
+
+The Appendix H checklist applied to this fixture SHALL pass all standard checks and
+additionally verify: heading nesting is flattened without loss; 100-row table is fully
+parsed; zero-width space is preserved in anchor derivation but stripped from display
+labels; mixed formatting renders correctly; and irregular table column counts produce a
+findings entry, not a parse failure.
 

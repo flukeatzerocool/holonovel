@@ -1,7 +1,9 @@
 ## 9. Artifacts and Handoff
 
-Four handoff documents (plus `LICENSE.md`). Verification workflow evidence is embedded in DECISIONS.md, never stored as
-separate files.
+Four handoff documents (plus `LICENSE.md`). Each artifact SHALL carry its build-time
+specification version in the first line: `<!-- built against Holonovel spec vX.Y.Z -->`.
+The version SHALL match the value reported by `spec_health.spec_version`. Verification
+workflow evidence is embedded in DECISIONS.md, never stored as separate files.
 
 - **RULESET_MODEL.md** — the semantic model with citations, confidence labels, and
   defect log.
@@ -12,8 +14,12 @@ separate files.
   normalizations, and capabilities inventory; `<!-- @section waivers -->` (5) waivers and
   accepted limitations — including mechanics-deviation entries for every hardcoded table,
   each with justification, impact, and re-activation condition; `<!-- @section evidence
-  -->` (6) verification workflow evidence, audit findings, verification record, and structured task
-  list.
+  -->` (6) verification workflow evidence organized in sub-sections: `<!-- @section
+  evidence-g0a -->`, `<!-- @section evidence-g0b -->`, `<!-- @section evidence-g2 -->`,
+  `<!-- @section evidence-g3 -->`, `<!-- @section evidence-g4 -->`,
+  `<!-- @section evidence-g5 -->`, `<!-- @section evidence-g6 -->`,
+  `<!-- @section audit -->` audit findings and verification record,
+  `<!-- @section task-list -->` structured task list.
 - **README.md** — setup, usage, hat model, state model, RNG continuity, and
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
@@ -21,7 +27,13 @@ separate files.
   operator-reported failure modes (config mismatch, corrupted state, hat confusion,
   missing environment variables).
 
-**Handoff verification workflow.** Before declaring done, run these verification steps in order. Every step must
+**Handoff verification workflow.** Before declaring done, run these verification steps in order.
+
+The Novel export format (§7.7, `export_novel`) is the runtime equivalent of a holo-novel
+program artifact — a self-contained single-file representation of complete game state
+importable on any conformant server. The export manifest (REQ-096) carries the spec version,
+making the exported Novel traceable to the build that produced it independently of the
+handoff artifacts. Every step must
 have a recorded result in DECISIONS.md.
 
 | Step | Covers   | Procedure                                              | Pass criterion                                                                                                       |
@@ -38,7 +50,7 @@ have a recorded result in DECISIONS.md.
 | H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. |
-| H13   | T189   | Check Gauntlet evidence timestamp in DECISIONS.md (6) against most recent source file modification | Gauntlet was re-run (G5 record present) with timestamp after the most recent source file modification timestamp. |
+| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Gauntlet was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
 | H14   | T190   | Four-artifact diet                                                    | Handoff directory contains exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md; no other regular files. Automated test scripts in `scripts/` and `.holonovel-state/` directory are exempt. |
 
 A verification step may be waived if the ruleset lacks the feature it tests; the waiver is recorded in

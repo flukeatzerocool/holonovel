@@ -46,54 +46,56 @@ Phase 1 — blind re-execution, in order:
 5. Run the automated handoff verification workflow (H1–H14) and record the results.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
-   and re-execute them with your own tool calls — do not replay the builder's
-   recorded calls. Use a different random seed for each re-execution. Assert
-   every assertion in each sub-workflow's pass criterion holds. Record any
-   discrepancy as `DISPUTED` with both your result and the builder's recorded
-   result. The five selected sub-workflows must span at least three distinct
-   REQ categories (hat gating, state survival, combat resolution, error
-   handling, undo, or novel lifecycle). Report the selection and the category
-   mapping.
-   Document the random selection mechanism and seed used. If the operator re-runs
-   a DISPUTED adversarial item, the operator SHALL use the documented seed to
-   reproduce the same sub-workflow selection. If the documented mechanism cannot
-   select five blocking sub-workflows spanning ≥3 REQ categories (e.g., fewer than
-   three categories have blocking sub-workflows), the verifier SHALL select all
-   available blocking sub-workflows and record the shortfall as a finding.
+    from a weighted pool and re-execute them with your own tool calls — do not
+    replay the builder's recorded calls. Sub-workflows with prior failures in the
+    builder's evidence (from DECISIONS.md §6) are weighted 3×; sub-workflows
+    involving state mutation (S2–S5, S9, S13, S15, S17, S22, S25) are weighted
+    2×; all other blocking sub-workflows are weighted 1×. Use a different random
+    seed for each re-execution. Assert every assertion in each sub-workflow's pass
+    criterion holds. The selected set SHALL span ≥3 distinct REQ categories (§5.5–§5.7).
+    Record any discrepancy as `DISPUTED` with both your result and the builder's
+    recorded result. Report the selection, the pool weights, and the category mapping.
+    Document the random selection mechanism and seed used. If the operator re-runs
+    a DISPUTED adversarial item, the operator SHALL use the documented seed to
+    reproduce the same sub-workflow selection. If the documented mechanism cannot
+    select five blocking sub-workflows spanning ≥3 REQ categories (e.g., fewer than
+    three categories have blocking sub-workflows), the verifier SHALL select all
+    available blocking sub-workflows and record the shortfall as a finding.
 
-Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md`:
+Phase 2 — comparison, only after the operator supplies the unredacted `DECISIONS.md` and the
+hash matches the commitment (REQ-275):
 8. Compare your evidence entries against the recorded ones field by field, on salient
-   values only — commands, pins, exit statuses, diff summaries, determinate counts;
-   never wording or timestamps. Per-workflow salient values:
-   - G0 step 2: per-checklist-item pass/fail status; Appendix D check count.
-   - G2: die values pinned by per-call seeds (REQ-050); coverage gap enumeration
-     (which REQs are flagged as unexercised); status prefix assertions.
-   - G3: registry diff line count; resource listing diff line count; whether the
-     diff is clean (identical except for the new section's anchor and GM-only items).
-   - G4: per-test pass/fail count; automated vs. manual test counts; any waived
-     test IDs and their REQ-013 grounds.
-   - S4 simulated combat: dice totals, outcomes, state transitions, character sheet
-     diffs (as step 10).
-   - Gauntlet sub-workflows re-executed in step 7: per-sub-workflow pass/fail,
-     per-assertion results.
+    values only — commands, pins, exit statuses, diff summaries, determinate counts;
+    never wording or timestamps. Salient values are defined per workflow by the table
+    below:
+
+| Workflow | Fields to compare         | Comparison rule                                |
+| -------- | ------------------------- | ---------------------------------------------- |
+| G0a      | checklist pass/fail       | Exact match on pass/fail per checklist item     |
+| G0b      | Appendix D pass/fail      | Exact match on pass/fail per checklist item     |
+| G2       | die values, status prefixes, isError, gating decisions, coverage count | Seed-pinned dice match exactly; status prefixes match; contract coverage count matches within zero tolerance |
+| G3       | tool registry diff        | Identical diff (zero added or removed tools)    |
+| G4       | per-test pass/fail        | Exact match for each test ID; waived tests cite matching REQ-013 grounds |
+| G5       | per-sub-workflow verdicts | Per REQ-273 tolerance: blocking/non-blocking classification matches; seed-pinned dice match; structural match for prose |
+| G6       | per-module counts, tag presence | per-module active/inactive counts match within zero tolerance; all items carry source tags |
+
 9. Classify every mismatch:
-   - Discrepancy: a field in the builder's evidence record contradicts the verifier's
-     independently produced evidence for the same input conditions — identical
-     pinned seeds, identical fixture, identical workflow parameters produce different
-     outputs.
-   - Pin drift: a field differs because the execution environment changed between
-     builder and verifier — runtime version, OS kernel, protocol version, or any
-     other environment pin differed at execution time. Differences in outputs
-     attributable to different pinned seeds (step 7 adversarial re-execution) are
-     pin drift — the verifier used a different seed by design.
-   - Unclassifiable: record the mismatch and both parties' values; flag for operator
-     adjudication. The operator's classification is binding.
- 10. Compare the simulated-combat-session transcripts on salient events only —
-    dice totals, outcomes, state transitions, character sheet diffs;
-     ignore prose wording, timestamps, and turn-by-turn narration.
- 11. Compare your handoff verification workflow results (from Phase 1 step 5) against
-     the builder's recorded H1–H14 results field by field; classify any mismatch as a
-     discrepancy or pin drift per step 9.
+    - Discrepancy: a field in the builder's evidence record contradicts the verifier's
+      independently produced evidence for the same input conditions — identical
+      pinned seeds, identical fixture, identical workflow parameters produce different
+      outputs.
+    - Pin drift: a field differs because the execution environment changed between
+      builder and verifier — runtime version, OS kernel, protocol version, or any
+      other environment pin differed at execution time. Differences in outputs
+      attributable to different pinned seeds (step 7 adversarial re-execution) are
+      pin drift — the verifier used a different seed by design.
+    - Unclassifiable: record the mismatch and both parties' values; flag for operator
+      adjudication. The operator's classification is binding.
+  10. Compute the overall confidence score per REQ-274 across all compared workflows —
+      Discrepancies count as 0, Pin drifts as 0.2× (operator-confirmed), structural and
+      exact matches as 1.0. A score below 0.80 is FAIL; 0.80–0.95 is PARTIAL with
+      enumerated reservations; above 0.95 is PASS. Record the score and per-workflow
+      component weights in the verifier's evidence.
 
 Report in the format below.
 ```

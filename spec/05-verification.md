@@ -9,35 +9,41 @@ Verification workflows are either **fixture workflows** (run once per builder
 implementation — their results apply to every ruleset served by that builder)
 or **ruleset-facing** (each ruleset must pass them independently).
 
-| Workflow | Scope  | What it verifies                                           |
-| -------- | ------ | ---------------------------------------------------------- |
-| G0       | Ruleset | Structural integrity + MCP conformance                   |
-| G2       | Fixture | Golden transcript replay (fixture scoped by complexity)   |
-| G3       | Fixture | Injection resistance                                      |
-| G4       | Ruleset | Derived test catalogue                                    |
-| G5       | Ruleset | The Gauntlet — operational verification                   |
+| Workflow | Scope   | What it verifies                              |
+| -------- | ------- | --------------------------------------------- |
+| G0a      | Ruleset | Structural integrity                           |
+| G0b      | Ruleset | MCP conformance                                |
+| G2       | Fixture | Golden transcript replay (fixture scoped by complexity) |
+| G3       | Fixture | Injection resistance                           |
+| G4       | Ruleset | Derived test catalogue                         |
+| G5       | Ruleset | The Gauntlet — operational verification        |
+| G6       | Ruleset | Enrichment lifecycle                           |
 
 In prose, verification workflows are referred to by their canonical `GN` form
 (G0, G2, etc.), established in this table. The legacy "Gate N" form is
 deprecated outside this section.
 
-**Verification workflow G0 — Intake integrity.** Two checks, run in order:
+**Verification workflow G0a — Structural integrity.** Verify the ruleset Markdown (or converted
+source) passes the Appendix H checklist: well-formed, all headings unique, tables
+regular, references resolvable. Run at intake. Per Standing Rule 9, a ruleset-free
+build SHALL report a passing result with the finding "no ruleset — skipped." This
+workflow uniquely verifies source quality independent of the running server; structural
+checks are distinct from MCP conformance (G0b).
 
-1. **Structural integrity.** Verify the ruleset Markdown (or converted source)
-   passes the Appendix H checklist: well-formed, all headings unique, tables
-   regular, references resolvable. Run at intake. Per Standing Rule 9, a
-   ruleset-free build SHALL report a passing result with the finding "no ruleset —
-   skipped."
-
-2. **MCP conformance.** Verify the running server against the Appendix D
-   checklist. Every check must pass. Run the MCP Inspector or equivalent
-   against a server built from the active fixture: the Appendix B fixture
-   (Tin Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N
-   fixture (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed
-   items); the Appendix W fixture (World-Model) for ruleset-free builds.
+**Verification workflow G0b — MCP conformance.** Verify the running server against the
+Appendix D checklist. Every check must pass. Run the MCP Inspector or equivalent
+against a server built from the active fixture: the Appendix B fixture (Tin Lanterns)
+for Light-tier rulesets (<100 indexed items); the Appendix N fixture (Captain Proton)
+for Standard, Heavy, and Huge tiers (≥100 indexed items); the Appendix W fixture
+(World-Model) for ruleset-free builds. This workflow uniquely verifies the server
+registry, tool schemas, and resource URIs against the MCP protocol — it does not
+verify structural correctness of the ruleset source (G0a).
 
 **Verification workflow G2 — Golden transcript replay (fixture workflow).**
-Build a server from a fixture and replay its transcript. The fixture is
+Build a server from a fixture and replay its transcript. This workflow uniquely
+verifies deterministic reproduction of known interaction sequences — hat gating
+is exercised separately by G3 (tool registry), G5 S6 (cross-hat operations), and
+G5 S17 (resource filtering). The fixture is
 selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
 (Captain Proton) for Standard, Heavy, and Huge tiers (≥100 indexed items);
@@ -77,7 +83,9 @@ _Check:_ T185.
 over the Appendix C fixture. Verify the capability surface, hat gating, and
 metadata filtering are unchanged. Tool registry and resource listings diff
 clean (identical except for the new section's anchor and its GM-only guidance
-items).
+items). This workflow uniquely verifies that adversarial source content
+(prompt injection, HTML comments, embedded directives) remains inert data;
+structural integrity of indexed content is verified by G0a.
 
 **Verification workflow G4 — Derived tests.** Execute the tests in
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
@@ -85,13 +93,27 @@ disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
 reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual
 tests must document the verification procedure and expected output shape in
-DECISIONS.md.
+DECISIONS.md. This workflow uniquely verifies the server against the formal
+test catalogue — individual tool contracts are exercised by G2 (fixture
+transcript) and operational behavior by G5 (Gauntlet scenarios).
 
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
 For the Inform server, run the 10-sub-workflow Inform Gauntlet (I1–I10) defined
 in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
+This workflow uniquely verifies operational behavior under AI-simulated play —
+deterministic tool contracts are verified by G2 (golden transcript) and G4
+(derived tests).
+
+**Verification workflow G6 — Enrichment lifecycle (ruleset-facing).** After the
+enrichment workflow (§11) completes, verify: all enrichment items carry a source
+tag (`[ruleset]`, `[supplementary]`, `[novel]`, or `[player]`); `[ruleset]`-tagged
+items survive server rebuild with unchanged ruleset hash; deactivated items are
+absent from `hat_briefing` and `suggest_actions` output; `enrichment://status`
+reports correct per-module active/inactive counts; `revert_enrichment` removes all
+`[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
+items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
@@ -107,4 +129,14 @@ any manual code modification.
 | Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        | Calls `search_rules` on a topic the ruleset defines in two conflicting sections.                                                  |
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
+
+Each persona archetype exercises at least one Gauntlet sub-workflow:
+
+| Persona              | Gauntlet scenario(s) | Contract exercised                               |
+| -------------------- | -------------------- | ------------------------------------------------- |
+| Power Gamer          | S4, S21              | Combat determinism, max-round endurance           |
+| New Player           | S1, S22              | Invalid-param handling, unknown-decision errors   |
+| Curious Player       | S8, S18              | Search ambiguity, adventure generation            |
+| Rules Lawyer         | S8                   | Ambiguous alias → `[AMBIGUOUS]` with enumeration  |
+| Forgetful Player ×2  | S22, S24             | Workflow staleness, session-boundary recovery     |
 

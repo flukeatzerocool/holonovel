@@ -61,6 +61,19 @@ true`.
 ruleset texts produces `[PARTIAL]` with both texts cited.
 _Check:_ T175.
 
+**REQ-277 — Fixture evolution contract.** When a specification change causes a
+golden transcript assertion (Appendix B.3, N.3, W.3, X.3) to fail, the maintainer
+SHALL:
+
+1. Version-bump the fixture — the fixture carries a `<!-- fixture version N -->` comment.
+2. Record the citing REQ that caused the break in the fixture's changelog comment.
+3. Update the transcript and RNG witness values to match the new expected behavior.
+
+A fixture transcript that fails replay under a conformant server is a spec defect
+— the fixture SHALL be updated, not treated as a regression. The fixture version
+SHALL increment on any transcript or witness-value change.
+_Check:_ T297.
+
 **REQ-002 — Error taxonomy.** _(F1)_ Every error carries a category: `[FORBIDDEN]`,
 `[NOT_FOUND]`, `[INVALID_INPUT]`, `[STATE_CONFLICT]`, `[RULE_VIOLATION]`,
 `[UNIMPLEMENTED]`, `[AMBIGUOUS]`, or `[MISSING_PARAM]`.
@@ -430,6 +443,29 @@ initialize handshake succeeds with `serverInfo.name` matching the config
 key.
 _Check:_ T187.
 
+**REQ-270 — Artifact version identification.** Each of the four handoff artifacts
+(RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md) SHALL carry its build-time
+specification version in a standardized position — the first HTML comment line of
+each file: `<!-- built against Holonovel spec vX.Y.Z -->`. The version SHALL match
+the value reported by `spec_health.spec_version`. An artifact missing this
+identifier or carrying a version that does not match `spec_health` is a handoff
+defect recorded in DECISIONS.md (6).
+_Check:_ T290.
+
+**REQ-271 — AGENTS.md structure contract.** Every build's AGENTS.md SHALL include
+four sections in order:
+
+1. **Code Map** — a REQ-to-source-file mapping listing every REQ implemented in the
+   server and the primary file(s) exercising its contract.
+2. **Verification** — the commands to run gates G0–G5 with expected exit codes and
+   per-workflow pass criteria.
+3. **Troubleshooting** — common operator-reported failure modes per REQ-153.
+4. **Build Context** — spec version, build date in ISO 8601, builder model identifier,
+   ruleset content hash (REQ-044), and the `@holonovel/inform` version used.
+
+Missing sections or sections without content are handoff defects.
+_Check:_ T291.
+
 **REQ-099 — Confidence-floor acknowledgment.** When the overall confidence threshold drops
 below 80% — whether via the convergence loop's adjusted-threshold provision or acceptance of
 residual gaps — the builder records the drop in DECISIONS.md (5) with the adjusted threshold,
@@ -672,6 +708,17 @@ generation tables.
 
 *Check:* T256.
 
+**REQ-272 — Stock elements catalog.** The builder SHALL record ruleset-derived
+reusable templates in DECISIONS.md (4) as a structured catalog — a `stock_elements`
+table enumerating character archetypes, monster stat-block libraries, location
+templates, lore patterns, and generation tables extracted during Discovery (§6.3).
+Each entry carries a key, a description, and the source anchor(s) from which it was
+derived. Future builds against the same ruleset target with an unchanged ruleset
+content hash (REQ-044) SHALL reference this catalog rather than re-extracting;
+changed entries are re-extracted per the delta. The catalog is a normalizations
+record, not a runtime surface — it lives in DECISIONS.md only.
+_Check:_ T292.
+
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G. The builder SHALL select a
 converter from the Appendix G.1 catalog or record a justified alternative in
@@ -775,8 +822,8 @@ always be present in `tools/list`:
   Enrichment Controls (`revert_enrichment`, `list_enrichment_items`,
   `activate_enrichment_item`, `deactivate_enrichment_item`,
   `remove_enrichment_item`, `toggle_action_patterns`,
-  `player_suppress_enrichment`, `player_unsuppress_enrichment`,
-  `player_list_suppressed_enrichment`, `compress_audit`). These categories
+  `player_enrich`, `player_remove_enrichment`,
+  `player_list_enrichment`, `compress_audit`). These categories
   are never waived.
 
 The `help` tool SHALL present these infrastructure categories as the base
@@ -987,6 +1034,22 @@ with presence; registering a new resource adds an entry immediately; removing a
 resource changes its presence to `absent`.
 _Check:_ T153.
 
+**REQ-269 — Safety protocol status.** The server SHALL report, through `spec_health`,
+a `safety_protocols` object enumerating each safety property protected by the build
+and its status:
+
+- `state_loss` — Novel state is recoverable after restart
+- `hat_boundary` — GM-only content never leaks to Player hat
+- `data_corruption` — corrupted state files are detected and isolated
+- `unrecoverable_crash` — the server handles adversarial input without crash
+
+Each property carries a `status` of `online`, `degraded` (one or more non-blocking
+Gauntlet failures in relevant sub-workflows), or `offline` (blocking failure
+unresolved). Properties with no exercising Gauntlet sub-workflow SHALL report
+`unverified`. Per-safety-property status is recorded in DECISIONS.md (6) alongside the
+Gauntlet fingerprint.
+_Check:_ T289.
+
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
 full text of the specification that built the server as Markdown, embedded in the
@@ -1036,6 +1099,17 @@ produces the value recorded in `state.buildFingerprint.specHash`; modifying the
 embedded file and restarting produces a drift warning; `spec_health` reports the
 stored hash alongside a `spec_hash_current` boolean.
 _Check:_ T226.
+
+**REQ-278 — Build-phase-map staleness detection.** The build-phase-map
+(`spec/build-phase-map.md`) SHALL carry a SHA-256 hash of the concatenated,
+normalized content of the spec files it references, computed at assembly time
+(`npm run assemble`). The builder SHALL compute the hash of the loaded spec
+files and compare against the map's recorded hash. A mismatch SHALL be recorded
+as a process-compliance finding in DECISIONS.md (6) — the builder proceeds with
+the map but records the stale-hash warning with the list of files whose content
+differs. The `npm run validate` check SHALL verify the map's hash matches the
+current spec file set.
+_Check:_ T298.
 
 **REQ-161 — Intake workflow contract.** Before any workflow begins, the builder SHALL
 present the operator with Q0 (workflow selection) and, when two or more workflows are
@@ -1831,6 +1905,26 @@ Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
 parsed to extract workflow identifier, timestamp, environment pins, pass/fail status,
 and sub-check enumeration without depending on prose interpretation.
 _Check:_ T253, T188.
+
+**REQ-275 — Evidence hash commitment.** Before Phase 1 of independent verification
+(§10), the builder SHALL compute and record a SHA-256 hash of the full DECISIONS.md
+in the redacted copy supplied to the verifier. After Phase 1, when the operator
+supplies the unredacted DECISIONS.md, the verifier SHALL compute its SHA-256 hash
+and compare against the commitment. A hash mismatch SHALL be recorded as a
+Discrepancy with the "evidence tampered" classification. Hash match is a
+prerequisite for Phase 2 comparison — mismatch blocks Phase 2.
+_Check:_ T295.
+
+**REQ-276 — Independent verifier model criteria.** The independent verifier
+(§10) SHALL be a model from a different provider or a different architecture
+family than the builder model. A model from the same provider with a version
+increment (e.g., provider-model-v3 vs. provider-model-v4) is insufficient. The
+verifier SHALL record its model identity (provider, model name, version) in its
+evidence record. The operator SHALL verify the model-difference criterion before
+beginning Phase 1; a same-provider-same-architecture verifier SHALL be noted as
+a process-compliance finding and does not block the verification but SHALL be
+recorded in DECISIONS.md (6).
+_Check:_ T296.
 
 ### 5.6 State and Lifecycle
 
@@ -3201,6 +3295,42 @@ d20 face on two separate server restarts; a per-call seed does not advance the
 session PRNG position.
 _Check:_ Gate 2, T27, T111.
 
+**REQ-273 — Independent verification reproducibility tolerance.** When the
+independent verifier (§10) compares its results to the builder's, the following
+count as a structural match rather than a discrepancy:
+
+1. Seed-pinned dice rolls SHALL match exactly.
+2. Status prefixes (`[OK]`, `[ERROR]`, `[WARNING]`, `[NEED_INPUT]`) SHALL match
+   exactly.
+3. Exit codes SHALL match.
+4. Tool names and parameter values SHALL match.
+5. Natural-language prose (scene descriptions, NPC dialogue, lore content) is
+   non-adversarial — a match is structural (non-empty and within ±20% word count)
+   rather than verbatim.
+6. Counts (entity count, lore entry count, audit entry count) SHALL match within
+   zero tolerance for exact-count fields and ±1 for open-ended fields (audit log
+   entries, session recap entries).
+
+A comparison that satisfies all applicable tolerance rules is a match. Any
+violation of rules 1–4 is a Discrepancy. Any violation of rule 5 is Unclassifiable
+(operator's call). Any violation of rule 6 is Pin drift unless rule 1–4 also fail.
+_Check:_ T293.
+
+**REQ-274 — Independent verifier confidence score.** The independent verifier
+(§10) SHALL produce an overall confidence score between 0 and 1 across all
+compared workflows, computed as:
+
+- Each Discrepancy: weight 0
+- Each Pin drift: weight 0.2 × (1 if operator confirms pin drift, 0 if operator
+  flags as discrepancy)
+- Each Structural match under REQ-273 tolerance: weight 1.0
+- Each Exact match: weight 1.0
+
+Score = sum(weights) / total_comparisons. A score below 0.80 is FAIL; 0.80–0.95
+is PARTIAL with enumerated reservations; above 0.95 is PASS. The score and
+per-workflow component weights are recorded in the verifier's evidence.
+_Check:_ T294.
+
 **REQ-213 — Weighted table result mapping.** When a generation table defines a
 dice-range-to-result mapping, `roll_on_table` SHALL roll the specified dice
 expression, match the result against the defined ranges, and return the matched
@@ -3395,8 +3525,8 @@ returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not rem
 entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
 
-**REQ-080 — Enrichment boundaries.** Enrichment consists of two tiers with
-distinct storage models:
+**REQ-080 — Enrichment boundaries.** Enrichment consists of three source
+categories with distinct storage models:
 
 1. **Tier 1 (ruleset-native)** — extracted during Discovery from the ruleset's own
 text per REQ-225, populated at build time. Tier 1 content is **build output**: full
@@ -3409,6 +3539,17 @@ the GM has activated. Items tagged `[ruleset]` with source anchors.
 Tier 2 items are stored in full within the Novel JSON. Items tagged
 `[supplementary]` with source URLs.
 
+3. **Player-authored (player)** — created at runtime by the Player hat via
+`player_enrich` (REQ-261). Items are stored in full within the Novel JSON under a
+`player_enrichment` key, organized by output module. Items are tagged `[player]`
+and are active immediately upon creation in the player-facing subset of modules:
+`voice_examples`, `action_patterns`, `supplementary_guidance`, `narrative_voices`,
+and `lore_templates`. Default hat scope is `shared` (visible to both hats); the
+player may scope items `player` (private). Player items are subject to a per-module
+cap of 15 items. The GM may not modify or remove `[player]` items but may override
+their `hat_scope` to `game_master` to incorporate them into the GM's active
+enrichment set.
+
 On Novel startup, Tier 1 activation keys resolve against the build's current tier 1
 extraction. Keys that match stay active with the latest extracted content. Vanished
 keys — those whose anchors no longer resolve — silently drop and are reported in
@@ -3417,8 +3558,11 @@ extraction but not present in the activation keys start inactive. When a ruleset
 rebuild occurs, fresh extraction replaces the build output directory; the same key
 resolution logic applies on next Novel startup.
 
-Community items never replace ruleset-native items. The GM activates items from
-either tier via the same tool calls. Enrichment may ADD content to entity
+Community items never replace ruleset-native items. Player items never replace
+ruleset-native or community items — the three source categories coexist. The GM
+activates items from Tier 1 and Tier 2 via the same tool calls. Player items are
+active immediately upon creation; the player may deactivate their own items via
+`deactivate_enrichment_item` (REQ-260). Enrichment may ADD content to entity
 voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
 (REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090,
 §11.1), narrative voice profiles (REQ-226), and supplementary guidance. Enrichment
@@ -3436,13 +3580,16 @@ finding carries source_url, quoted_excerpt, hat_scope, confidence (derived from
 source authority, not mechanical completeness), output_module, and collected_at (ISO
 8601 timestamp of collection) — all non-empty. Ruleset-native items carry source
 anchor, confidence, output_module, and `[ruleset]` tag. Reverting enrichment
-(REQ-103) removes only community enrichment; ruleset-native items persist.
+(REQ-103) removes only community enrichment; ruleset-native and
+player items persist.
 
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
-and source URL; ruleset-native items carry `[ruleset]` tag and source anchor; a
+and source URL; ruleset-native items carry `[ruleset]` tag and source anchor;
+player-authored items carry `[player]` tag and appear in both Player and GM
+`hat_briefing` by default; a
 stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
 `[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
-community items but preserves ruleset-native items; a Novel's Tier 1 activation key that
+community items but preserves ruleset-native and player items; a Novel's Tier 1 activation key that
 no longer resolves against the build's current extraction appears as an
 `[enrichment_gap]` entry in `spec_health`; new Tier 1 items in the current extraction
 with no matching activation key start inactive.
@@ -3671,8 +3818,8 @@ _Check:_ T94, T125.
 
 **REQ-260 — Granular enrichment activation.** The Game Master may manage
 enrichment items individually. `list_enrichment_items(module?, tier?)` returns
-all available enrichment items with key, preview, source, and activated status —
-Tier 1 resolved from current build output, Tier 2 from Novel JSON.
+all available enrichment items with key, preview, source, source tag, and activated
+status — Tier 1 resolved from current build output, Tier 2 from Novel JSON.
 `activate_enrichment_item(module, key)` activates one item: Tier 1 adds the key to
 the Novel's `enrichment_activated` keys; Tier 2 marks the item active in Novel
 JSON. `deactivate_enrichment_item(module, key)` deactivates without removal —
@@ -3680,37 +3827,75 @@ Tier 1 removes the key from the activation set; Tier 2 marks the item inactive i
 Novel JSON. `remove_enrichment_item(module, key)` permanently deletes a Tier 2 item
 from the Novel JSON. Calling `remove_enrichment_item` on a Tier 1 item SHALL return
 `[ERROR] [RULE_VIOLATION]` directing the caller to `deactivate_enrichment_item` —
-Tier 1 items cannot be removed, only deactivated. All tools are Game Master only.
-Activation and deactivation state persists with the Novel. Existing
-`toggle_enrichment_module` and `revert_enrichment` tools remain unchanged as
-convenience shortcuts.
+Tier 1 items cannot be removed, only deactivated. The above activation, deactivation,
+and removal tools are Game Master only. Activation and deactivation state persists
+with the Novel. Existing `toggle_enrichment_module` and `revert_enrichment` tools
+remain unchanged as convenience shortcuts.
+
+The Player hat may call `activate_enrichment_item` and `deactivate_enrichment_item`
+on items they authored (tagged `[player]`) — items stored under the
+`player_enrichment` key in Novel JSON. Player-created items are active immediately
+upon creation; `deactivate_enrichment_item` suppresses a player item from the player's
+`hat_briefing` and enrichment surfaces without deleting it. The Player may NOT call
+`remove_enrichment_item` — they use `player_remove_enrichment` (REQ-261) for their
+own items. Player hat attempts to activate, deactivate, or remove any item NOT tagged
+`[player]` SHALL return `[ERROR] [FORBIDDEN]`.
 
 *Acceptance criterion:*
-`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status;
+`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status
+and source tag;
 `activate_enrichment_item("voice_examples", "goblin-snarl")` activates the item
 and it appears in enrichment surfaces;
 `deactivate_enrichment_item("voice_examples", "goblin-snarl")` removes it from
 surfaces; `remove_enrichment_item("voice_examples", "goblin-snarl")` on a Tier 1 item
-returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it.
+returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it;
+Player calls `deactivate_enrichment_item` on a `[player]` item — item hidden from
+player briefing; Player calls `activate_enrichment_item` on a `[ruleset]` item —
+returns `[FORBIDDEN]`.
 
 _Check:_ T-new-260.
 
-**REQ-261 — Player enrichment suppression.** The player may suppress individual
-enrichment items from their player-facing surfaces.
-`player_suppress_enrichment(module, key)` hides an item;
-`player_unsuppress_enrichment(module, key)` restores it;
-`player_list_suppressed_enrichment()` lists all suppressed items with module and
-key. Suppression state is stored as `player_enrichment_suppressed: {module: [key,
-...]}` in the Novel and survives restarts. Suppression is per-item and does not
-communicate to the GM. Player hat only.
+**REQ-261 — Player enrichment.** The player may create enrichment items in a
+player-facing subset of enrichment modules: `voice_examples`, `action_patterns`,
+`supplementary_guidance`, `narrative_voices`, and `lore_templates` — modules where
+player-authored content enriches the shared story experience. Three tools provide
+player enrichment:
+
+`player_enrich(module, key, content, triggers?, hat_scope?)` creates a `[player]`-tagged
+enrichment item in the specified module. `key` is a unique snake_case slug within
+the module. `content` is a Markdown string. `triggers` is an optional keyword array
+for lore_templates (ignored for other modules). `hat_scope` defaults to `shared`
+— the item is visible to both Player and GM hats. The player may set `hat_scope` to
+`player` to keep the item private. `player_remove_enrichment(module, key)` removes a
+`[player]`-tagged item. Returns `[RULE_VIOLATION]` if the item is not player-authored.
+`player_list_enrichment(module?)` lists all `[player]`-tagged items, optionally filtered
+by module, with key, preview, scope, and activated status.
+
+Player-created items are stored in the Novel JSON under a `player_enrichment` key,
+organized by module. Items survive restarts and follow the Novel's persistence
+contract (REQ-092). Player items are active immediately upon creation — the player
+does not need to activate them separately. The player may `deactivate_enrichment_item`
+on their own items to suppress them from their briefing without deletion. Player items
+are subject to the same per-module budget caps as community enrichment (§11.1), with a
+per-module player cap of 15 items each. The GM hat sees player enrichment items in
+`list_enrichment_items` and in `hat_briefing` filtered by the item's `hat_scope`.
+The GM may not modify or remove player enrichment items — attempts return
+`[FORBIDDEN]` — but may override an item's `hat_scope` from `shared` to `game_master`
+to incorporate it into the GM's active enrichment set. `revert_enrichment` (REQ-103)
+and `revert_novel_enrichment` (REQ-265) SHALL NOT remove `[player]` items.
+Player hat only.
 
 *Acceptance criterion:*
-`player_suppress_enrichment("action_patterns", "feint-suggestion")` removes the
-item from the player's `suggest_actions` output;
-`player_unsuppress_enrichment("action_patterns", "feint-suggestion")` restores
-it; suppressed items appear in `player_list_suppressed_enrichment()`; GM hat
-returns `[FORBIDDEN]` on player enrichment tools; suppression state survives
-server restart.
+`player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest
+deception check")` creates an item that appears in the player's `suggest_actions`
+output and in the GM's `hat_briefing` (default shared scope);
+`player_enrich("voice_examples", "growl", "Get away from my hoard!", [],
+"player")` creates a private item visible only to the Player hat;
+`player_remove_enrichment("action_patterns", "feint-suggestion")` removes it;
+`player_remove_enrichment` on a Tier 1 `[ruleset]` item returns `[RULE_VIOLATION]`;
+`player_list_enrichment()` returns all player-authored items with module, key,
+preview, and scope; GM hat returns `[FORBIDDEN]` on player enrichment tools;
+player items survive server restart.
 
 _Check:_ T-new-261.
 
@@ -3724,8 +3909,9 @@ Novel-scoped — they do not transfer between Novels. Items are removed by
 `revert_novel_enrichment` (REQ-265), not by `revert_enrichment` (REQ-103).
 Items are inert — they do not auto-apply to any surface. The GM activates
 individual `[novel]` items via the same granular tools as Tier 1 and Tier 2
-(REQ-260). The Player may suppress individual `[novel]` items via
-`player_suppress_enrichment` (REQ-261).
+(REQ-260). The Player may deactivate individual `[novel]` items via
+`deactivate_enrichment_item` when the GM has overridden their scope to
+`shared` or `player` (REQ-261).
 
 *Acceptance criterion:* `list_enrichment_items(tier=3)` returns items tagged
 `[novel]` with Novel-scoped source citations. `revert_enrichment` does not
@@ -3837,21 +4023,23 @@ _Check:_ T-new-266.
 
 **REQ-267 — Novel enrichment in hat_briefing.** `[novel]` items appear in
 `hat_briefing` under their respective enrichment sections, tagged `[novel]`
-with confidence, alongside Tier 1 and Tier 2 items. Hat filtering follows
+with confidence, alongside Tier 1, Tier 2, and `[player]` items. Hat filtering follows
 the same rules as Tier 2 items (REQ-159): items assigned `hat_scope:
 game_master` are hidden from the Player hat. `[novel]` item hat scope
 defaults to `game_master` — they are GM prep aids by nature. The GM may
-override the scope to `shared` or `player`. The Player may suppress individual
-`[novel]` items via `player_suppress_enrichment` (REQ-261). When no `[novel]`
+override the scope to `shared` or `player`. The Player may deactivate individual
+`[novel]` items via `deactivate_enrichment_item` when the GM has overridden their
+scope to `shared` or `player` (REQ-260). When no `[novel]`
 items are active, `hat_briefing` SHALL NOT include an empty `[novel]` section —
 unlike Tier 1 and Tier 2 enrichment sections which require explicit
 empty-state markers per REQ-109. The absence of `[novel]` content is not a
 deficiency to signal.
 
 *Acceptance criterion:* `[novel]` items appear in `hat_briefing` under their
-respective enrichment sections tagged with `[novel]` and confidence. Player
-hat sees only items whose scope is `shared` or `player`. Suppressed items via
-REQ-261 are hidden from the Player hat. After `revert_novel_enrichment`,
+respective enrichment sections tagged with `[novel]` and confidence, alongside
+`[ruleset]`, `[supplementary]`, and `[player]` items. Player
+hat sees only items whose scope is `shared` or `player`. Deactivated items via
+REQ-260 are hidden from the Player hat. After `revert_novel_enrichment`,
 `[novel]` items are absent from `hat_briefing` with no empty-section marker.
 
 _Check:_ T-new-267.
