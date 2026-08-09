@@ -1,20 +1,16 @@
-// State Manager — Novels, Roster, NPCs, Snapshots, Audit, Hat Gating, Persistence
+// State Manager — Novels, Roster, NPCs, World Model, Snapshots, Audit, Hat Gating, Persistence
 // REQ-040, REQ-041, REQ-043, REQ-055, REQ-065, REQ-073, REQ-074, REQ-075,
 // REQ-076, REQ-077, REQ-079, REQ-081, REQ-082, REQ-083, REQ-084,
 // REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-095, REQ-096,
-// REQ-097, REQ-116, REQ-247, REQ-248, REQ-250
+// REQ-097, REQ-116, REQ-195, REQ-198, REQ-199, REQ-218, REQ-219
 
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import { seed, snapshotSeed, getState, rollD20, withIsolatedSeed } from "./dice.js";
-import { RACES, CLASSES } from "./data.js";
-import { abilityModifier } from "./dice.js";
-import { createEmptyWorldModel } from "holonovel/world";
-import type { WorldModel } from "holonovel/world";
+import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 
 const SPEC_VERSION: string = JSON.parse(
-  fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8")
+  fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
 ).version;
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -24,25 +20,9 @@ export type Hat = "player" | "game_master" | null;
 export interface NovelEntity {
   id: string;
   name: string;
-  race: string;
-  class_name: string;
-  level: number;
-  background: string;
-  stats: Record<string, number>;
-  hp: number;
-  max_hp: number;
-  temp_hp: number;
-  ac: number;
-  speed: number;
-  initiative: number;
-  conditions: string[];
-  condition_rounds: Record<string, number>;
-  hit_dice: { total: number; remaining: number; die: number };
-  proficiencies: { armor: string[]; weapons: string[]; tools: string[]; saves: string[]; skills: string[] };
-  features: string[];
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
-  inventory: string[];
+  inventory: string[]; // thing lowercased names held
   current_room: string | null;
 }
 
@@ -52,13 +32,6 @@ export interface NpcState {
   description?: string;
   disposition?: string;
   location?: string;
-  ac?: number;
-  hp?: number;
-  max_hp?: number;
-  speed?: number;
-  conditions?: string[];
-  condition_rounds?: Record<string, number>;
-  stats?: Record<string, number>;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
 }
@@ -82,103 +55,11 @@ export interface Countdown {
   type: "round" | "narrative";
   scope?: string;
   direction?: string;
-  on_scene_transition?: boolean;
-  clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
-  opposes?: string;
-  unlocks?: string;
-}
-
-export interface StoryEntry {
-  index: number;
-  type: "decision" | "moment" | "revelation" | "bond" | "consequence";
-  entry: string;
-  scene_anchor: string;
-  entity_ids: string[];
-  timestamp: string;
-}
-
-export interface FactionState {
-  id: string;
-  name: string;
-  description: string;
-  goals: string[];
-  resources: string;
-  clock: number;
-  clock_max: number;
-  status: string;
-}
-
-export interface SecretState {
-  key: string;
-  content: string;
-  triggers: string[];
-  hat_scope: "game_master" | "shared";
-  known_by: string[];
-}
-
-export interface Relationship {
-  entity_a: string;
-  entity_b: string;
-  type: "ally" | "rival" | "neutral" | "mentor" | "dependent" | "suspicious";
-  value?: number;
-  description?: string;
-}
-
-export interface DMContext {
-  current_scene?: string;
-  immediate_situation?: string;
-  pending_player_action?: string;
-  short_term_plans?: string;
-  long_term_plans?: string;
-  active_threads?: { name: string; status: string; urgency: string; description: string }[];
-  npc_attitudes?: Record<string, string>;
-  player_goals?: string;
-  saved_at?: string;
-  story_context?: string[];
-  active_vows?: { name: string; difficulty: string; milestone_count: number }[];
-}
-
-export interface VowState {
-  name: string;
-  description: string;
-  parties: string[];
-  difficulty: "troublesome" | "dangerous" | "formidable" | "extreme" | "epic";
-  scope: "gm" | "shared" | "faction" | "party";
-  milestones: number;
-  rank_track: number;
-  state: "active" | "resolved" | "forsaken";
-  outcome?: string;
-  consequences?: string;
-  reason?: string;
-}
-
-export interface NoteEntry {
-  key: string;
-  content: string;
-  hat_scope: "game_master" | "player" | "shared";
-}
-
-export interface NovelEnrichmentItem {
-  key: string;
-  module: string;
-  content: string;
-  confidence: "MEDIUM" | "LOW";
-  trigger_tags?: string[];
-  source: string;
-  collected_at: string;
-  activated: boolean;
-  hat_scope: "game_master" | "shared" | "player";
-}
-
-export interface Checkpoint {
-  label: string;
-  timestamp: string;
-  state: any;
 }
 
 export interface CombatState {
   participants: string[];
-  dangers: { name: string; ac: number; hp: number; max_hp: number; initiative_bonus?: number }[];
+  dangers: { name: string; ac?: number; hp?: number; max_hp?: number; initiative_bonus?: number }[];
   round: number;
   turn_order: string[];
   current_turn: number;
@@ -209,15 +90,12 @@ export interface NovelState {
   scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
   combat: CombatState | null;
-  world: WorldModel;
   countdowns: Map<string, Countdown>;
   lore: Map<string, LoreEntry>;
   briefing_assembly_count: number;
   player_signals: Record<string, string>;
   adventure_slug: string | null;
   generated_adventure: any | null;
-  adventure_scene_waypoint: { anchor: string; description: string } | null;
-  adventure_index: { npcs: Array<{ name: string; description?: string; stats?: any }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[] } | null;
   audit_log: AuditEntry[];
   undo_stacks: Record<string, NovelState[]>;
   redo_stacks: Record<string, NovelState[]>;
@@ -231,19 +109,8 @@ export interface NovelState {
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
   help_category_overrides: Record<string, string>;
-  story_journal: StoryEntry[];
-  factions: FactionState[];
-  secrets: SecretState[];
-  relationships: Relationship[];
-  dm_context: DMContext;
-  notes: NoteEntry[];
-  vows: VowState[];
-  novel_enrichment: Record<string, NovelEnrichmentItem[]>;
-  novel_enrichment_fingerprint: string;
-  novel_enrichment_last_synthesis: string;
-  checkpoints: Checkpoint[];
-  description: string;
-  genre: string;
+  // World-model tier
+  world: WorldModel;
   metadata: {
     created: string;
     modified: string;
@@ -269,6 +136,51 @@ function normalizeSceneType(raw: unknown): SceneType[] {
     return [raw as SceneType];
   }
   return ["neutral"];
+}
+
+function worldToJSON(world: WorldModel): any {
+  return {
+    rooms: Object.fromEntries(world.rooms),
+    things: Object.fromEntries(world.things),
+  };
+}
+
+function worldFromJSON(data: any): WorldModel {
+  const world = createEmptyWorldModel();
+  if (data?.rooms) {
+    for (const [key, room] of Object.entries(data.rooms)) {
+      const r = room as any;
+      world.rooms.set(key, {
+        name: r.name,
+        description: r.description || "",
+        exits: new Map(Object.entries(r.exits || {})),
+        doorRefs: new Map(Object.entries(r.doorRefs || {})),
+        annotations: r.annotations || {},
+      });
+    }
+  }
+  if (data?.things) {
+    for (const [key, thing] of Object.entries(data.things)) {
+      const t = thing as any;
+      world.things.set(key, {
+        name: t.name,
+        description: t.description || "",
+        kind: t.kind || "thing",
+        location: t.location ?? null,
+        locationType: t.locationType ?? null,
+        portable: t.portable ?? true,
+        openable: t.openable ?? false,
+        open: t.open ?? false,
+        lockable: t.lockable ?? false,
+        locked: t.locked ?? false,
+        lit: t.lit ?? false,
+        capacity: t.capacity,
+        doorConnects: t.doorConnects,
+        annotations: t.annotations || {},
+      });
+    }
+  }
+  return world;
 }
 
 // ── State Manager ──────────────────────────────────────────────────
@@ -302,29 +214,13 @@ export class StateManager {
       specVersion: SPEC_VERSION,
       specRepoUrl: "https://github.com/anomalyco/Holonovel",
       specHash: "unknown",
-      rulesetHash: this.computeRulesetHash() ?? "unknown",
+      rulesetHash: "ruleset-free",
       buildTimestamp: new Date().toISOString(),
     };
     const budgetRaw = process.env.TTRPG_MAX_LORE_TOKENS;
     if (budgetRaw) {
       const budget = parseInt(budgetRaw, 10);
       if (!isNaN(budget) && budget > 0) this.maxLoreTokens = budget;
-    }
-  }
-
-  private computeRulesetHash(): string {
-    try {
-      const rulesetDir = path.join(process.cwd(), "ruleset");
-      if (!fs.existsSync(rulesetDir)) return crypto.randomBytes(8).toString("hex");
-      const files = walkDir(rulesetDir, ".md");
-      files.sort();
-      const hash = crypto.createHash("sha256");
-      for (const file of files) {
-        hash.update(fs.readFileSync(file));
-      }
-      return hash.digest("hex").substring(0, 16);
-    } catch {
-      return "unknown";
     }
   }
 
@@ -394,15 +290,12 @@ export class StateManager {
       scene_type: ["neutral"],
       narrative_directive: "",
       combat: null,
-      world: createEmptyWorldModel(),
       countdowns: new Map(),
       lore: new Map(),
       briefing_assembly_count: 0,
       player_signals: {},
       adventure_slug: null,
       generated_adventure: null,
-      adventure_scene_waypoint: null,
-      adventure_index: null,
       audit_log: [],
       undo_stacks: { player: [], game_master: [], null: [] },
       redo_stacks: { player: [], game_master: [], null: [] },
@@ -412,23 +305,11 @@ export class StateManager {
       characters_present: false,
       adventure_set: false,
       pending_workflow: null,
-    connection_counter: 0,
-    pending_staleness_counter: 0,
-    pov_mode: "character",
+      connection_counter: 0,
+      pending_staleness_counter: 0,
+      pov_mode: "character",
       help_category_overrides: {},
-      story_journal: [],
-      factions: [],
-      secrets: [],
-      relationships: [],
-      dm_context: {},
-      notes: [],
-      vows: [],
-      novel_enrichment: {},
-      novel_enrichment_fingerprint: "",
-      novel_enrichment_last_synthesis: "",
-      checkpoints: [],
-      description: "",
-      genre: "",
+      world: createEmptyWorldModel(),
       metadata: {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -452,13 +333,11 @@ export class StateManager {
     const raw = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw);
 
-    // Checksum verification (REQ-092)
     if (data._checksum) {
       const payload = { ...data };
       delete (payload as any)._checksum;
       const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
       if (computed !== data._checksum) {
-        // Try backup restore
         const bakPath = filePath + ".bak";
         if (fs.existsSync(bakPath)) {
           const bakRaw = fs.readFileSync(bakPath, "utf-8");
@@ -496,15 +375,12 @@ export class StateManager {
       scene_type: normalizeSceneType(data.scene_type),
       narrative_directive: data.narrative_directive ?? "",
       combat: data.combat ?? null,
-      world: worldFromJSON(data.world),
       countdowns: new Map(Object.entries(data.countdowns ?? {}) as any),
       lore: new Map(Object.entries(data.lore ?? {}) as any),
       briefing_assembly_count: data.briefing_assembly_count ?? 0,
       player_signals: data.player_signals ?? {},
       adventure_slug: data.adventure_slug ?? null,
       generated_adventure: data.generated_adventure ?? null,
-      adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
-      adventure_index: data.adventure_index ?? null,
       audit_log: data.audit_log ?? [],
       undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
       redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },
@@ -518,19 +394,7 @@ export class StateManager {
       pending_staleness_counter: data.pending_staleness_counter ?? 0,
       pov_mode: data.pov_mode ?? "character",
       help_category_overrides: data.help_category_overrides ?? {},
-      story_journal: data.story_journal ?? [],
-      factions: data.factions ?? [],
-      secrets: data.secrets ?? [],
-      relationships: data.relationships ?? [],
-      dm_context: data.dm_context ?? {},
-      notes: data.notes ?? [],
-      vows: data.vows ?? [],
-      novel_enrichment: data.novel_enrichment ?? {},
-      novel_enrichment_fingerprint: data.novel_enrichment_fingerprint ?? "",
-      novel_enrichment_last_synthesis: data.novel_enrichment_last_synthesis ?? "",
-      checkpoints: data.checkpoints ?? [],
-      description: data.description ?? "",
-      genre: data.genre ?? "",
+      world: worldFromJSON(data.world),
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -555,20 +419,16 @@ export class StateManager {
 
   endNovel(novel: NovelState, dispose: "yes" | "cancel"): { removed: boolean } {
     if (dispose === "cancel") return { removed: false };
-
-    // Move to trash (REQ-117)
     const trashDir = path.join(this.stateDir, ".trash");
     fs.mkdirSync(trashDir, { recursive: true });
     const novelFile = path.join(this.stateDir, "novels", `${novel.slug}.json`);
     const bakFile = novelFile + ".bak";
-
     if (fs.existsSync(novelFile)) {
       fs.renameSync(novelFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json`));
     }
     if (fs.existsSync(bakFile)) {
       fs.renameSync(bakFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json.bak`));
     }
-
     this.novels.delete(novel.slug);
     if (this.activeNovelId === novel.slug) {
       this.activeNovelId = null;
@@ -613,7 +473,6 @@ export class StateManager {
 
     const restore = stack.pop()!;
     const restored = novelFromJSON(restore);
-    // Apply restored state fields back into novel
     novel.entities = restored.entities;
     novel.active_entity_id = restored.active_entity_id;
     novel.npcs = restored.npcs;
@@ -630,19 +489,7 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
-    novel.story_journal = restored.story_journal;
-    novel.factions = restored.factions;
-    novel.secrets = restored.secrets;
-    novel.relationships = restored.relationships;
-    novel.dm_context = restored.dm_context;
-    novel.notes = restored.notes;
-    novel.vows = restored.vows;
-    novel.novel_enrichment = restored.novel_enrichment;
-    novel.novel_enrichment_fingerprint = restored.novel_enrichment_fingerprint;
-    novel.novel_enrichment_last_synthesis = restored.novel_enrichment_last_synthesis;
-    novel.checkpoints = restored.checkpoints;
-    novel.description = restored.description;
-    novel.genre = restored.genre;
+    novel.world = restored.world;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -674,19 +521,7 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
-    novel.story_journal = restored.story_journal;
-    novel.factions = restored.factions;
-    novel.secrets = restored.secrets;
-    novel.relationships = restored.relationships;
-    novel.dm_context = restored.dm_context;
-    novel.notes = restored.notes;
-    novel.vows = restored.vows;
-    novel.novel_enrichment = restored.novel_enrichment;
-    novel.novel_enrichment_fingerprint = restored.novel_enrichment_fingerprint;
-    novel.novel_enrichment_last_synthesis = restored.novel_enrichment_last_synthesis;
-    novel.checkpoints = restored.checkpoints;
-    novel.description = restored.description;
-    novel.genre = restored.genre;
+    novel.world = restored.world;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
     return { data: restore };
@@ -772,44 +607,19 @@ export class StateManager {
 
   // ── Combat ────────────────────────────────────────────────────
 
-  initCombat(novel: NovelState, participants: string[], dangers: { name: string; ac: number; hp: number; max_hp?: number; initiative_bonus?: number }[], seedStr?: string): CombatState {
+  initCombat(novel: NovelState, participants: string[], dangers: { name: string; ac?: number; hp?: number; max_hp?: number; initiative_bonus?: number }[], seedStr?: string): CombatState {
     const turn_order: string[] = [];
-    const initiative: [string, number][] = [];
-
+    // Simple ordering: entities first, then dangers — no initiative rolling in ruleset-free mode
     for (const pid of participants) {
-      const entity = novel.entities.get(pid);
-      const init = entity ? entity.initiative : 10;
-      initiative.push([pid, init]);
+      if (!turn_order.includes(pid)) turn_order.push(pid);
     }
     for (const d of dangers) {
-      const bonus = d.initiative_bonus ?? 0;
-      const roll = seedStr
-        ? withIsolatedSeed(hashStringSeed(seedStr), () => rollD20()) + bonus
-        : rollD20() + bonus;
-      initiative.push([d.name, roll]);
-    }
-
-    // Resolve ties: entity > NPC > danger, then alphabetically
-    initiative.sort((a, b) => {
-      if (b[1] !== a[1]) return b[1] - a[1];
-      const aIsEntity = novel.entities.has(a[0]);
-      const bIsEntity = novel.entities.has(b[0]);
-      const aIsDanger = dangers.some(d => d.name === a[0]);
-      const bIsDanger = dangers.some(d => d.name === b[0]);
-      if (aIsEntity && !bIsEntity) return -1;
-      if (!aIsEntity && bIsEntity) return 1;
-      if (aIsDanger && !bIsDanger) return 1;
-      if (!aIsDanger && bIsDanger) return -1;
-      return a[0].localeCompare(b[0]);
-    });
-
-    for (const [name] of initiative) {
-      turn_order.push(name);
+      if (!turn_order.includes(d.name)) turn_order.push(d.name);
     }
 
     const combat: CombatState = {
       participants,
-      dangers: dangers.map(d => ({ ...d, hp: d.max_hp ?? d.hp, max_hp: d.max_hp ?? d.hp })),
+      dangers: dangers.map(d => ({ ...d, hp: d.max_hp ?? d.hp ?? 1, max_hp: d.max_hp ?? d.hp ?? 1 })),
       round: 1,
       turn_order,
       current_turn: 0,
@@ -829,19 +639,7 @@ export class StateManager {
     const isNpc = novel.npcs.has(currentName);
     const isDanger = combat.dangers.some(d => d.name === currentName);
 
-    // REQ-206: condition expiry on the participant whose turn just resolved
-    if (isEntity) {
-      const entity = novel.entities.get(currentName)!;
-      processConditionExpiry(novel, entity, currentName, combat.round);
-    } else if (isNpc) {
-      const npc = novel.npcs.get(currentName)!;
-      processConditionExpiry(novel, npc, currentName, combat.round);
-    }
-
-    // Statless NPCs (no ac/hp set) and dangers auto-advance
-    const npcData = isNpc ? novel.npcs.get(currentName) : null;
-    const isStatless = isDanger || (isNpc && npcData && npcData.ac === undefined && npcData.hp === undefined);
-
+    // In ruleset-free mode, everyone auto-advances
     combat.current_turn++;
     if (combat.current_turn >= combat.turn_order.length) {
       combat.current_turn = 0;
@@ -858,12 +656,11 @@ export class StateManager {
       }
     }
 
-    const actionMarker = isStatless ? " [AUTO]" : "";
     this.audit(novel, novel.hat, "advance_combat", {
       participant: currentName,
       round: combat.round,
       turn: combat.current_turn,
-      statless: isStatless,
+      statless: true,
     });
     return combat;
   }
@@ -889,6 +686,9 @@ export class StateManager {
     combat.turn_order.splice(insertIdx, 0, participantId);
     if (combat.current_turn >= insertIdx) {
       combat.current_turn++;
+    }
+    if (!combat.participants.includes(participantId)) {
+      combat.participants.push(participantId);
     }
     this.audit(novel, novel.hat, "add_combat_participant", { participant_id: participantId });
     return combat;
@@ -917,6 +717,7 @@ export class StateManager {
     if (idx < combat.current_turn) {
       combat.current_turn--;
     }
+    combat.participants = combat.participants.filter(p => p !== participantId);
     this.audit(novel, novel.hat, "remove_combat_participant", { participant_id: participantId });
     return { combat, ended: false };
   }
@@ -928,11 +729,17 @@ export class StateManager {
     const turnOrder = c.turn_order.map((name, i) => {
       const marker = i === c.current_turn ? "← current" : "";
       const isEntity = novel.entities.has(name);
-      if (!gm && !isEntity) return null; // Player hat: redact NPC/danger
+      if (!gm && !isEntity) return null;
       return `  ${i + 1}. ${name}${marker}`;
     }).filter(Boolean).join("\n");
     return `\nRound ${c.round} — Turn ${c.current_turn + 1} of ${c.turn_order.length}
 ${turnOrder}`;
+  }
+
+  // ── World-model helpers ───────────────────────────────────────
+
+  worldHasRooms(novel: NovelState): boolean {
+    return novel.world.rooms.size > 0;
   }
 
   // ── Persistence ───────────────────────────────────────────────
@@ -966,7 +773,14 @@ ${turnOrder}`;
     fs.mkdirSync(dir, { recursive: true });
     const rosterData: Record<string, any> = {};
     for (const [id, entity] of this.roster) {
-      rosterData[id] = { ...entity, personality: entity.personality, voice_examples: entity.voice_examples };
+      rosterData[id] = {
+        id: entity.id,
+        name: entity.name,
+        personality: entity.personality,
+        voice_examples: entity.voice_examples,
+        inventory: entity.inventory,
+        current_room: entity.current_room,
+      };
     }
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(rosterData, null, 2), "utf-8");
   }
@@ -977,57 +791,30 @@ ${turnOrder}`;
     const raw = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw);
     for (const [id, entity] of Object.entries(data)) {
-      this.roster.set(id, entity as RosterEntity);
+      const e = entity as any;
+      this.roster.set(id, {
+        id: e.id || id,
+        name: e.name,
+        personality: e.personality,
+        voice_examples: e.voice_examples,
+        inventory: e.inventory || [],
+        current_room: e.current_room || null,
+      });
     }
   }
 
-  // ── Entity Factory ────────────────────────────────────────────
+  // ── Entity Factory (ruleset-free, REQ-219) ────────────────────
 
-  createEntity(name: string, race: string, className: string, background: string, stats: Record<string, number>): NovelEntity {
+  createEntity(name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }): NovelEntity {
     this.entityCounter++;
     const id = `character_${String(this.entityCounter).padStart(2, "0")}`;
-
-    const raceKey = race.toLowerCase();
-    const classKey = className.toLowerCase();
-
-    if (!RACES[raceKey]) throw new Error(`[NOT_FOUND] Race '${race}' not found. Valid: ${Object.keys(RACES).join(", ")}`);
-    if (!CLASSES[classKey]) throw new Error(`[NOT_FOUND] Class '${className}' not found. Valid: ${Object.keys(CLASSES).join(", ")}`);
-
-    const raceData = RACES[raceKey];
-    const classData = CLASSES[classKey];
-
-    const conMod = abilityModifier(stats.constitution);
-    const dexMod = abilityModifier(stats.dexterity);
-
     const entity: NovelEntity = {
       id,
       name,
-      race: raceData.name,
-      class_name: classData.name,
-      level: 1,
-      background,
-      stats,
-      max_hp: classData.hp_1st + conMod,
-      hp: classData.hp_1st + conMod,
-      temp_hp: 0,
-      ac: computeAC(classData, stats),
-      speed: raceData.speed,
-      initiative: dexMod,
-      conditions: [],
-      condition_rounds: {},
-      hit_dice: { total: 1, remaining: 1, die: classData.hit_dice },
-      proficiencies: {
-        armor: classData.proficiencies.armor,
-        weapons: classData.proficiencies.weapons,
-        tools: classData.proficiencies.tools,
-        saves: classData.proficiencies.saves,
-        skills: classData.proficiencies.skills.slice(0, classData.skill_choices),
-      },
-      features: classData.features[1] ?? [],
+      personality,
       inventory: [],
       current_room: null,
     };
-
     return entity;
   }
 
@@ -1040,128 +827,7 @@ ${turnOrder}`;
   }
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────
-
-function processConditionExpiry(
-  novel: NovelState,
-  entity: { conditions?: string[]; condition_rounds?: Record<string, number> },
-  name: string,
-  round: number
-): void {
-  if (!entity.condition_rounds || Object.keys(entity.condition_rounds).length === 0) return;
-  if (!entity.conditions) return;
-
-  const expired: string[] = [];
-  for (const [condition, remaining] of Object.entries(entity.condition_rounds)) {
-    if (remaining <= 0) continue;
-    const newRemaining = remaining - 1;
-    if (newRemaining <= 0) {
-      delete entity.condition_rounds[condition];
-      entity.conditions = entity.conditions.filter(c => c !== condition);
-      expired.push(condition);
-    } else {
-      entity.condition_rounds[condition] = newRemaining;
-    }
-  }
-
-  for (const condition of expired) {
-    novel.audit_log.push({
-      timestamp: new Date().toISOString(),
-      hat: novel.hat,
-      tool: "condition_expired",
-      args: JSON.stringify({ entity_id: name, condition, round }),
-      output_prefix: "",
-      hash: novel.audit_log.length > 0
-        ? crypto.createHash("sha256").update(novel.audit_log[novel.audit_log.length - 1].hash + "condition_expired" + JSON.stringify({ entity_id: name, condition })).digest("hex").substring(0, 8)
-        : crypto.createHash("sha256").update("00000000" + "condition_expired" + JSON.stringify({ entity_id: name, condition })).digest("hex").substring(0, 8),
-    });
-  }
-}
-
-function hashStringSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  return h >>> 0;
-}
-
-function computeAC(classData: any, stats: Record<string, number>): number {
-  const dexMod = Math.floor((stats.dexterity - 10) / 2);
-  if (classData.name === "Barbarian") {
-    const conMod = Math.floor((stats.constitution - 10) / 2);
-    return 10 + dexMod + conMod;
-  }
-  if (classData.name === "Monk") {
-    const wisMod = Math.floor((stats.wisdom - 10) / 2);
-    return 10 + dexMod + wisMod;
-  }
-  if (classData.name === "Sorcerer" && classData.subclasses?.draconic) {
-    return 13 + dexMod;
-  }
-  // Default leather-equivalent
-  return 11 + dexMod;
-}
-
-function walkDir(dir: string, ext: string): string[] {
-  const files: string[] = [];
-  if (!fs.existsSync(dir)) return files;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walkDir(full, ext));
-    } else if (entry.name.endsWith(ext)) {
-      files.push(full);
-    }
-  }
-  return files;
-}
-
-function worldToJSON(world: WorldModel): any {
-  return {
-    rooms: Object.fromEntries(world.rooms),
-    things: Object.fromEntries(world.things),
-  };
-}
-
-function worldFromJSON(data: any): WorldModel {
-  const world = createEmptyWorldModel();
-  if (data?.rooms) {
-    for (const [key, room] of Object.entries(data.rooms)) {
-      const r = room as any;
-      world.rooms.set(key, {
-        name: r.name,
-        description: r.description || "",
-        exits: new Map(Object.entries(r.exits || {})),
-        doorRefs: new Map(Object.entries(r.doorRefs || {})),
-        annotations: r.annotations || {},
-      });
-    }
-  }
-  if (data?.things) {
-    for (const [key, thing] of Object.entries(data.things)) {
-      const t = thing as any;
-      world.things.set(key, {
-        name: t.name,
-        description: t.description || "",
-        kind: t.kind || "thing",
-        location: t.location ?? null,
-        locationType: t.locationType ?? null,
-        portable: t.portable ?? true,
-        openable: t.openable ?? false,
-        open: t.open ?? false,
-        lockable: t.lockable ?? false,
-        locked: t.locked ?? false,
-        lit: t.lit ?? false,
-        capacity: t.capacity,
-        doorConnects: t.doorConnects,
-        annotations: t.annotations || {},
-      });
-    }
-  }
-  return world;
-}
+// ── Serialization helpers ──────────────────────────────────────────
 
 function novelToJSON(novel: NovelState): any {
   return {
@@ -1179,15 +845,12 @@ function novelToJSON(novel: NovelState): any {
     scene_type: novel.scene_type,
     narrative_directive: novel.narrative_directive,
     combat: novel.combat,
-    world: worldToJSON(novel.world),
     countdowns: Object.fromEntries(novel.countdowns),
     lore: Object.fromEntries(novel.lore),
     briefing_assembly_count: novel.briefing_assembly_count,
     player_signals: novel.player_signals,
     adventure_slug: novel.adventure_slug,
     generated_adventure: novel.generated_adventure,
-    adventure_scene_waypoint: novel.adventure_scene_waypoint,
-    adventure_index: novel.adventure_index,
     audit_log: novel.audit_log,
     undo_stacks: novel.undo_stacks,
     redo_stacks: novel.redo_stacks,
@@ -1200,20 +863,8 @@ function novelToJSON(novel: NovelState): any {
     connection_counter: novel.connection_counter,
     pending_staleness_counter: novel.pending_staleness_counter,
     pov_mode: novel.pov_mode,
-      help_category_overrides: novel.help_category_overrides,
-      story_journal: novel.story_journal,
-      factions: novel.factions,
-      secrets: novel.secrets,
-      relationships: novel.relationships,
-      dm_context: novel.dm_context,
-      notes: novel.notes,
-      vows: novel.vows,
-      novel_enrichment: novel.novel_enrichment,
-      novel_enrichment_fingerprint: novel.novel_enrichment_fingerprint,
-      novel_enrichment_last_synthesis: novel.novel_enrichment_last_synthesis,
-      checkpoints: novel.checkpoints,
-      description: novel.description,
-      genre: novel.genre,
+    help_category_overrides: novel.help_category_overrides,
+    world: worldToJSON(novel.world),
     metadata: novel.metadata,
   };
 }
@@ -1234,15 +885,12 @@ function novelFromJSON(data: any): NovelState {
     scene_type: normalizeSceneType(data.scene_type),
     narrative_directive: data.narrative_directive ?? "",
     combat: data.combat ?? null,
-    world: worldFromJSON(data.world),
     countdowns: new Map(Object.entries(data.countdowns ?? {})),
     lore: new Map(Object.entries(data.lore ?? {})),
     briefing_assembly_count: data.briefing_assembly_count ?? 0,
     player_signals: data.player_signals ?? {},
     adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
-    adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
-    adventure_index: data.adventure_index ?? null,
     audit_log: data.audit_log ?? [],
     undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
     redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },
@@ -1255,21 +903,9 @@ function novelFromJSON(data: any): NovelState {
     connection_counter: data.connection_counter ?? 0,
     pending_staleness_counter: data.pending_staleness_counter ?? 0,
     pov_mode: data.pov_mode ?? "character",
-      help_category_overrides: data.help_category_overrides ?? {},
-      story_journal: data.story_journal ?? [],
-      factions: data.factions ?? [],
-      secrets: data.secrets ?? [],
-      relationships: data.relationships ?? [],
-      dm_context: data.dm_context ?? {},
-      notes: data.notes ?? [],
-      vows: data.vows ?? [],
-      novel_enrichment: data.novel_enrichment ?? {},
-      novel_enrichment_fingerprint: data.novel_enrichment_fingerprint ?? "",
-      novel_enrichment_last_synthesis: data.novel_enrichment_last_synthesis ?? "",
-      checkpoints: data.checkpoints ?? [],
-      description: data.description ?? "",
-      genre: data.genre ?? "",
-      metadata: data.metadata ?? {
+    help_category_overrides: data.help_category_overrides ?? {},
+    world: worldFromJSON(data.world),
+    metadata: data.metadata ?? {
       created: new Date().toISOString(),
       modified: new Date().toISOString(),
       session_count: 0,

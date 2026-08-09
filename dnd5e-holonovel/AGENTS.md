@@ -26,10 +26,11 @@ src/macros.ts           expandMacros — {{entity.name}}, {{entity.hp}},
                         {{countdown.<n>.remaining}}, {{countdown.<n>.total}},
                         {{novel.slug}}, {{hat.active}}, {{party.size}}.
         ↓
-src/enrichment.ts       Enrichment manifest — 6 output modules:
+src/enrichment.ts       Enrichment manifest — 7 output modules:
                         voice_examples, briefing_order, lore_templates,
                         action_patterns, supplementary_guidance,
-                        adventure_advice. Additive, inert, idempotent.
+                        adventure_advice, narrative_voices. Tier 1
+                        (ruleset-native + vendor), additive, inert.
         ↓
 src/index.ts            McpServer: ~106 tools, ~29 resources, 5 prompts.
                         Entry point for STDIO transport. Hat gating via
@@ -67,7 +68,7 @@ src/index.ts            McpServer: ~106 tools, ~29 resources, 5 prompts.
 ## Running
 
 ```bash
-cd dnd5e && npm run start          # start server
+cd dnd5e-holonovel && npm run start          # start server
 npm run build-index                 # regenerate extraction data
 npm run typecheck                   # TypeScript type checking
 ```
