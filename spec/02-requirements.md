@@ -1878,15 +1878,18 @@ REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089,
 including a "Session zero not yet completed" reminder when `session_zero_completed`
 is false), a pointer to the intro prompt (REQ-063), story journal entries — entries
 whose entity IDs overlap the active entities or whose scene anchor matches the current
-scene (GM only, REQ-246), and the current autonomy state — all four slider values
-from `set_autonomy` (REQ-306) when set.
+scene (GM only, REQ-246), the current autonomy state — all four slider values
+from `set_autonomy` (REQ-306) when set, campaign memory facts (GM only, REQ-310),
+world in motion entries (GM only, REQ-233a), and proactive available actions
+(REQ-084a).
 
 Groups whose data source is empty SHALL include an explicit empty-state marker
 describing which category is empty. Markers preserve the expected briefing structure
 and prevent the caller from inferring non-existent content. The enumeration order
 above is the builder's required default section ordering for `hat_briefing`.
 Decision-critical groups (scene state, the POV directive, entities, combat state,
-triggered lore, active NPCs, and active countdowns, and narrative threads) precede
+triggered lore, active NPCs, active countdowns, narrative threads, campaign memory
+(REQ-310), world in motion (REQ-233a), and available actions (REQ-084a)) precede
 the section boundary; supplementary guidance and navigation groups (hat foundations,
 anti-slop guidance, narrative tone samples, active adventure content, registered
 tools, entity personality fields, the narrative directive, player signals, Novel
@@ -2816,6 +2819,56 @@ wizard's knowledge still excludes the trap until `reveal_secret("floor_trap",
 "wizard_01")` is called.
 _Check:_ T-new-308.
 
+**REQ-311 — NPC memory model.** EACH NPC SHALL maintain a per-NPC memory of its
+interactions with player entities, independent of the global knowledge system (REQ-308).
+The NPC memory records:
+
+- **Witnessed events.** WHEN an NPC is present in a scene (`characters_present` per
+  REQ-307), THE engine SHALL record a memory for what the NPC observed: entity actions,
+  dialogue context, and mechanical outcomes (damage dealt, conditions applied, countdowns
+  fired). This is scoped to what the NPC could perceive — an NPC in the tavern does not
+  learn what happened in the dungeon.
+
+- **Party knowledge.** FOR each player entity the NPC has interacted with, THE engine
+  SHALL record what the NPC knows: the entity's name, apparent capabilities (class,
+  visible equipment), relationship status (REQ-236), and recent interactions (the last 3
+  interactions with timestamps). An NPC who has never met an entity SHALL carry a "no
+  prior contact" marker for that entity.
+
+- **Emotional state.** THE engine SHALL derive the NPC's current emotional state from
+  recent interactions: disposition trends (hostile → neutral → friendly), stress markers
+  (number of combats survived, allies lost), and goal proximity (goal-relevant events per
+  REQ-311). The emotional state SHALL be surfaced as a one-sentence summary in
+  `hat_briefing` alongside the NPC's personality fields.
+
+- **State evolution.** WHEN a player entity interacts with an NPC — via combat (REQ-043),
+  social skill checks, or mechanical outcomes that affect the NPC — THE engine SHALL
+  update the NPC's memory and disposition without requiring a GM tool call. A player who
+  threatens an NPC SHALL produce `disposition: hostile` automatically. A player who helps
+  an NPC SHALL produce `disposition: friendly`. The GM may override automated disposition
+  changes via `update_npc`.
+
+WHEN an NPC is present in the current scene, THE engine SHALL surface the NPC's memory in
+`hat_briefing` as an `## NPC Memory` section within the entity personality group
+(REQ-109). The section SHALL include: a one-sentence emotional state summary, a summary
+of the NPC's last 3 interactions with present player entities, and any goals the NPC is
+pursuing. NPC memory SHALL be gated by presence (REQ-307) — only NPCs in the current
+scene surface their memory. Memory facts persist with the Novel. `spec_health` SHALL
+report `npc_memory_count` — the total number of NPC memory entries across all NPCs.
+
+*Coupling:* NPC memory entries SHALL populate campaign memory facts (REQ-310) per-NPC
+category when the event involves significant state changes (goal advancement, disposition
+flip, relationship change).
+
+*Acceptance criterion:* After a session where an NPC (blacksmith) is threatened by a
+player entity, `update_npc` is not called, but `hat_briefing` under GM hat includes the
+NPC's memory section showing `disposition: hostile` and the threat event. After a second
+session where the same player entity helps the blacksmith, the NPC's memory section shows
+`disposition: friendly` and the disposition flip is a campaign memory fact. An NPC who
+has never met the party shows "no prior contact." `spec_health` reports
+`npc_memory_count ≥ 1`.
+_Check:_ T-new-312.
+
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields:
 
@@ -3413,8 +3466,8 @@ comparison is field-by-field:
   intake hash. Emits a `[ruleset_drift]` warning on stderr and in spec_health listing the
   stored and current hashes. This is the source immutability drift check traceable to
   REQ-014.
-- **Inform version mismatch** — the installed inform package version differs from the
-  build-time version recorded in the fingerprint. Emits an `[inform_drift]` warning on
+- **Holonovel version mismatch** — the installed holonovel package version differs from the
+  build-time version recorded in the fingerprint. Emits an `[holonovel_drift]` warning on
   stderr and in spec_health listing the stored and current versions.
 - **Build timestamp** — expected to differ across restarts; does not emit a warning.
 
@@ -3423,7 +3476,7 @@ or degrade service. The active build's specification version, ruleset hash, and 
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
 Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
-the constructor-derived version, hash, inform version, and timestamp are immutable for
+the constructor-derived version, hash, holonovel package version, and timestamp are immutable for
 the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
 fields required by the current model but absent from existing state receive their
@@ -3491,6 +3544,46 @@ direction.
 goals=["Expand to East Dock"])` creates a faction with a `faction`-type clock;
 `faction://<id>` returns the faction with its current clock position.
 _Check:_ T269.
+
+**REQ-233a — World reactivity.** WHEN scene_transition (REQ-125) fires, THE engine SHALL
+autonomously advance the world state beyond faction clocks:
+
+- **NPC goal pursuit.** FOR each NPC with `goals` (REQ-077) whose last-known location
+  differs from a goal-relevant entity's current scene, THE engine SHALL check whether
+  the NPC made progress toward their goal between scenes. A success SHALL produce a
+  campaign memory fact (REQ-310) describing the advancement: the NPC acted on their
+  goal. A failure SHALL produce a fact noting the NPC's stalled pursuit.
+
+- **Consequence propagation.** WHEN a player action triggers a state change in a
+  connected entity — a relationship type change (REQ-236), a secret revelation
+  (REQ-234), or a faction clock filling (REQ-233) — THE engine SHALL trace ripple
+  effects through directly connected entities. An entity with an `ally` relationship
+  to the affected entity SHALL receive a campaign memory fact noting the ally's state
+  change. An entity with a `rival` relationship SHALL receive a fact noting the rival's
+  change as an opportunity. Propagation extends one hop from the affected entity.
+
+- **GM approval surface.** The GM SHALL see a `## World in Motion` section in
+  `hat_briefing` — a decision-critical group ordered after Narrative Threads
+  (REQ-281) — listing pending world changes produced by this cycle. Each entry
+  carries: the source (NPC goal / faction / consequence), a one-sentence summary of
+  the proposed change, and an accept/modify/defer label. Accept applies the change
+  to canonical state. Modify raises a `[NEED_INPUT]` workflow (REQ-042) for the GM
+  to edit the change. Defer suppresses the change — it does not produce a campaign
+  memory fact and will be re-evaluated at the next scene transition. Deferred
+  changes SHALL accumulate no more than 3 deferrals; on the fourth, the engine SHALL
+  escalate to a `[WARNING]` in `spec_health`.
+
+A setting `TTRPG_WORLD_REACTIVITY` (default `on`) controls whether the reactivity
+cycle runs. When `off`, scene transitions advance faction clocks only (current
+behavior).
+
+*Acceptance criterion:* With `TTRPG_WORLD_REACTIVITY=on`, an NPC with
+`goals="Steal the crown"` produces a World in Motion entry at scene transition
+showing goal pursuit progress. A relationship change on entity A (`ally` → `rival`
+with entity B) produces a campaign memory fact on entity B. The GM accepts a
+proposed change — it appears in campaign memory. The GM defers a change — it
+re-appears at the next scene transition.
+_Check:_ T-new-314.
 
 **REQ-236 — Entity relationships.** The Game Master may set directed relationships
 between entities, NPCs, and factions. `set_relationship(entity_a, entity_b, type,
@@ -3909,6 +4002,48 @@ _Check:_ T9, T31, T108.
 verification of input safety, and performance under adversarial load beyond the tier
 benchmarks defined in REQ-100.
 
+**REQ-312 — Pre-narration validation gate.** WHEN the AI narrator proposes narration that
+implies a mechanical outcome — damage dealt, condition applied, spell effect resolved,
+ruleset-defined state change — THE engine SHALL validate the proposal against ruleset
+constraints before the narration reaches the player. Validation SHALL check:
+
+- **Bounds conformance.** Mechanical claims (damage amounts, DC values, spell slot
+  expenditures, condition applicability) SHALL NOT exceed ruleset-defined maxima. A
+  narration claiming Fireball deals 12d6 damage SHALL be rejected with a corrective
+  suggestion naming the ruleset maximum.
+
+- **Permission conformance.** Mechanical claims SHALL NOT assert outcomes a character is
+  not capable of — the entity must possess the referenced capability (class feature,
+  spell slot, equipment, feat). A narration claiming a Fighter casts a spell they do not
+  know SHALL be rejected.
+
+- **State conformance.** Mechanical claims SHALL NOT contradict current state — a
+  narration claiming a dead NPC acts SHALL be rejected. A narration claiming a condition
+  the entity already has is applied again SHALL be rejected.
+
+Invalid proposals SHALL be rejected behind the server interface — the player never sees
+the invalid narration. The rejection SHALL produce a corrective suggestion: `[REJECTED]
+Proposed narration implies <claim>. Ruleset constraint: <constraint>. Corrective
+suggestion: <rewrite>`. The AI narrator receives the correction and may retry. Validation
+leverages existing ruleset extraction (REQ-010–018) and the server's indexed capabilities
+catalogue. Validation is a per-narration gate, not a continuous scanner — it activates
+only when a state-mutating tool call is preceded by AI narration.
+
+A setting `TTRPG_NARRATION_VALIDATION` (default `on`) controls the gate. When `off`,
+narration passes through unvalidated (current behavior). `spec_health` SHALL report
+`narration_validation: enabled | disabled` and `narration_rejection_count` — cumulative
+rejections since last Novel resume.
+
+*Out of scope:* Validation of narrative style, tone, or prose quality — these are AI
+judgment, not mechanical integrity.
+
+*Acceptance criterion:* With `TTRPG_NARRATION_VALIDATION=on`, the AI proposes narration
+claiming a dead NPC speaks — the engine rejects it with a corrective suggestion citing
+the NPC's deceased state. The player never sees the invalid narration. The AI retries
+with a corrected narration. `spec_health` reports `narration_rejection_count: 1`. With
+`TTRPG_NARRATION_VALIDATION=off`, the same narration passes through.
+_Check:_ T-new-313.
+
 ### 5.8 Enrichment, Lore, and Macros
 
 **REQ-246 — Story journal.** The server provides story journal tools — Game Master only.
@@ -3951,6 +4086,47 @@ an entry; `list_stories(type="moment")` returns entries filtered by type;
 returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not remove
 entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
+
+**REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
+memory — a per-entity fact store derived automatically from state-changing tool calls,
+surviving process restart and full rebuild. Facts are recorded by the engine, not the AI,
+and SHALL be stored in the Novel JSON per REQ-092. The campaign memory tracks three
+categories:
+
+- **Per-NPC facts.** WHEN an NPC participates in combat (REQ-043), appears in a scene
+  (`characters_present` per REQ-307), undergoes a relationship change (REQ-236), or
+  receives a personality update (REQ-077), THE engine SHALL record a fact capturing the
+  nature of the event, the scene anchor, and a timestamp. Per-NPC facts SHALL NOT duplicate
+  the NPC's own personality fields or depth metadata (REQ-075) — they capture events, not
+  traits.
+
+- **Per-thread facts.** WHEN a faction clock (REQ-233) advances, a countdown with narrative
+  scope fires, a story journal `decision` entry has no corresponding `consequence`
+  (REQ-246), or an active vow (REQ-289) accumulates milestones, THE engine SHALL record a
+  fact linking the thread to the entities involved.
+
+- **Per-location facts.** WHEN scene state (REQ-076) records a notable event or NPC
+  presence at a location, THE engine SHALL record a fact associating the location with the
+  event, timestamp, and involved entities.
+
+WHEN `hat_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory
+facts under a `## Campaign Memory` section. This section is a decision-critical group
+(REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by
+relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships
+to present entities, (c) active thread facts involving present entities, (d) location
+facts for the current scene, (e) recency (most recent first). The section SHALL render at
+most 10 facts, ordered by priority. Campaign memory facts SHALL NOT introduce new mutating
+tools — they are a surfacing layer over existing state. `spec_health` SHALL report
+`campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total.
+`export_novel` SHALL include `campaign_memory` in its payload.
+
+*Acceptance criterion:* After a session with two NPCs (each appearing in a scene and
+combat), three scene changes, one faction clock advancement, and one story journal
+decision, `spec_health` reports `campaign_memory.npcs ≥ 2`, `campaign_memory.threads ≥ 1`,
+`campaign_memory.locations ≥ 1`. `hat_briefing` includes `## Campaign Memory` with facts
+prioritized by scene relevance. Facts survive Novel persistence and are present in
+`export_novel("json")`.
+_Check:_ T-new-311.
 
 **REQ-080 — Enrichment boundaries.** Enrichment consists of three source
 categories with distinct storage models:
@@ -4200,6 +4376,39 @@ eliminates the redundancy of maintaining two surfaces for the same capability.
 tools; `suggest_actions("xyzzy")` returns an empty list; enrichment patterns are
 excluded from results until activated via `toggle_action_patterns`.
 _Check:_ T68, T96, T120.
+
+**REQ-084a — Proactive action surfacing.** IN addition to reactive intent-to-tool
+mapping, THE server SHALL surface a `## Available Actions` section in `hat_briefing`
+(REQ-109) — a decision-critical group after combat state and before lore. This section
+lists mechanically legal actions the active entity can take given the current scene
+state, entity capabilities, and ruleset. Actions SHALL be filtered:
+
+- **Scene-type filtering.** Combat scenes (REQ-087) SHALL surface attack, dodge, spell,
+  and condition-clearance actions. Social scenes SHALL surface persuasion, deception,
+  and insight actions. Exploration scenes SHALL surface perception, investigation,
+  and navigation actions.
+
+- **Capability gating.** An action SHALL appear only when its mechanical prerequisites
+  are met — a spell appears only when the entity has the required spell slot available;
+  a class feature appears only when the entity possesses it and its per-rest uses are
+  not exhausted; an equipment-dependent action appears only when the entity carries
+  the equipment.
+
+- **Count gating.** The section SHALL render at most 8 actions, prioritized by relevance
+  to the current scene type. Actions are drawn from the registered tool surface — no
+  fabricated actions. `suggest_actions` (REQ-084) remains the canonical intent-to-tool
+  mapping; the proactive surface is a discovery aide, not a replacement.
+
+`hat_briefing` SHALL include an `available_actions` section token following the
+existing token contract (REQ-082, REQ-185).
+
+*Acceptance criterion:* During combat, `hat_briefing` `## Available Actions` lists
+weapon attack, spell, and condition-clearance actions, filtered to the active entity's
+capabilities. A wizard with no 3rd-level slots does not see "Cast Fireball." An entity
+in a social scene sees persuasion and deception actions instead of combat actions.
+`suggest_actions` continues to return reactive suggestions independently of the
+proactive listing.
+_Check:_ T-new-315.
 
 **REQ-115 — Action pattern activation.** The server provides a
 `toggle_action_patterns` tool — Game Master only. Calling it flips
@@ -4644,8 +4853,8 @@ _Check:_ T-new-243.
 **REQ-244 — Convergence cache key.** The builder SHALL compute a convergence
 cache key at the start of Phase 1, composed of five components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
-content hash (REQ-187), the inform package version (B10), an aggregate hash
-of the `inform/docs_md/` vendor directory, and a narrative surface hash — a
+content hash (REQ-187), the holonovel package version (B10), an aggregate hash
+of the `holonovel/narrative_world_model/` vendor directory, and a narrative surface hash — a
 SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names
 for all narrative-category tools (excluding Novel lifecycle and Hat & Workflow
 tools). When the cache key matches a prior successful
@@ -4676,19 +4885,19 @@ convergence loop regardless of key match. A cold checkout (no prior
 DECISIONS.md) runs the full convergence loop.
 _Check:_ T-new-244.
 
-**REQ-245 — Pre-computed enrichment manifest.** The inform package SHALL ship a
+**REQ-245 — Pre-computed enrichment manifest.** The holonovel package SHALL ship a
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
-results per package version: the inform version, the specification version the
+results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Inform Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
+Holonovel Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
-matches the current specification version, the inform builder MAY skip Phase 2
-convergence and the Inform Gauntlet, recording `cached — inform vX.Y.Z
+matches the current specification version, the holonovel package builder MAY skip Phase 2
+convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
 convergence manifest` in DECISIONS.md (5) and (6). When the specification
-version has advanced, the builder SHALL run convergence and the Inform
+version has advanced, the builder SHALL run convergence and the Holonovel
 Gauntlet fresh and update the manifest with the new results and spec version.
-TTRPG builders consuming the inform package as a dependency SHALL NOT load or
-reference this manifest — it applies only to inform package builds.
+TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
+reference this manifest — it applies only to holonovel package builds.
 
 A ruleset source MAY include a pre-built enrichment manifest
 (`enrichment_manifest.json` alongside the ruleset Markdown) containing the
@@ -4705,8 +4914,8 @@ the builder SHALL fall back to live REQ-225 extraction with the annotation
 `pre-built enrichment manifest — <failure reason>, live extraction` in
 DECISIONS.md (4). When no manifest is present, the builder proceeds with live
 extraction as normal.
-*Acceptance criterion:* An inform package build whose CONVERGENCE.md spec
-version matches the current spec reports Phase 2 metrics and Inform Gauntlet
+*Acceptance criterion:* A holonovel package build whose CONVERGENCE.md spec
+version matches the current spec reports Phase 2 metrics and Holonovel Gauntlet
 results as cached. A TTRPG build against a ruleset with a valid pre-built
 enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
 without a manifest runs live REQ-225 extraction as before.
@@ -5348,7 +5557,7 @@ spatial scaffolding in the secondary category.
 This backgrounding principle extends to all narrative infrastructure tools that are
 not part of the TTRPG rules engine: vows (REQ-289), oracles (REQ-291), genre declaration
 (REQ-294), knowledge-graph resources (REQ-296), and any future narrative tools. These
-tools follow the Inform design philosophy in both directions:
+tools follow the Holonovel design philosophy in both directions:
 
 **When you are not using them, they are invisible.** Narrative tools that render briefing
 sections (vows, narrative threads, knowledge state) render their sections only when data
