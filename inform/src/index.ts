@@ -28,7 +28,7 @@ const __filename = new URL(import.meta.url).pathname;
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, "..", ".holonovel-state");
-const SPEC_HASH = "55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6";
+const SPEC_HASH = "dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd";
 
 // ── State ──────────────────────────────────────────────────────────
 

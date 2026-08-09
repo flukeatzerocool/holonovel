@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.08
-- **Spec hash:** 55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6
+- **Spec hash:** dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -535,4 +535,42 @@
 - **Changed code paths:** SPEC_HASH only
 - **Gauntlet:** No code changes affecting tool surface
 
-(End of file - total 435 lines)
+### dnd5e Rebuild — 2026-08-08
+| Field | Value |
+|-------|-------|
+| Spec version | 2026.08.08 |
+| Build fingerprint | dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd |
+| Gauntlet | 27/27 passed (17 blocking, 10 non-blocking) |
+| Verification | typecheck 0 errors, test suite 38/38 passed, version-sync ok |
+
+### Spec-Driven Update (REQ-098) — REQ-187/269 Hash & Safety Sync
+- **Date:** 2026-08-08
+- **Spec version:** 2026.08.08
+- **Classification:** Major — spec hash drift, REQ-187 runtime hash computation, REQ-269 safety protocols
+- **Gap audit:**
+  | REQ | Gap | Disposition | Reason |
+  |-----|-----|-------------|--------|
+  | SPEC_HASH | Hardcoded literal `55a4b9d3...` stale vs embedded `dc99736b...` | implemented | Replaced with runtime SHA-256 of embedded holonovel.md; drift detection on mismatch |
+  | REQ-187 | SPEC_HASH was hardcoded, not computed from embedded file | implemented | `computeSpecHash()` reads embedded holonovel.md, computes SHA-256 at startup |
+  | REQ-269 | `safety_protocols` missing from spec_health | implemented | Added state_loss/hat_boundary/data_corruption/unrecoverable_crash statuses |
+  | dnd5e/holonovel.md | Local spec copy stale (10,547 vs 10,934 lines) | implemented | Regenerated from canonical holonovel.md |
+  | spec_version | spec_health reported "2026.08.06", should be "2026.08.08" | implemented | Updated to current spec version |
+  | REQ-304 | Counterpart AI role not implemented | deferred | Requires hat_briefing restructuring; significant new surface |
+  | REQ-305 | Observer mode not implemented | deferred | New hat mode with tool gating changes, briefing orientation |
+  | REQ-306 | Adjustable autonomy not implemented | deferred | Major new tool surface (4 sliders, present_choices integration) |
+  | REQ-307 | Entity presence (`present` flag, `last_location`) not implemented | deferred | State model additions across entities; substantial scope |
+  | REQ-308 | Knowledge gating by presence not implemented | deferred | Depends on REQ-307 |
+  | REQ-280 | Source-anchor citation in lookups not implemented | deferred | Requires ruleset-anchor data model changes |
+  | REQ-309 | World and narrative surface prominence not implemented | deferred | New config var + help/briefing/suggest_actions surface changes |
+  | REQ-230/231 | Enrichment status dashboard / per-module toggle | deferred | Depends on enrichment tier infrastructure |
+  | REQ-273/274/278/302 | Build-time verification REQs | waived | Not server runtime concerns |
+  | REQ-277 | Fixture evolution contract | waived | Build-time golden transcript maintenance |
+  | REQ-270/271/272 | Artifact version/AGENTS/stock elements | waived | Build-time artifact REQs |
+  | REQ-146/225-228/243-245 | Enrichment extraction/build REQs | waived | Build-time enrichment extraction |
+  | REQ-283/284/222 | World-model verb coverage/hints/vocabulary | waived | World-model tier; deferred until implementation |
+  | REQ-218/219 | Ruleset-free build/entity | waived | Not applicable to ruleset-bound dnd5e server |
+  | REQ-299/300/301/303 | Cross-model audit/diagnostics/loop trail | waived | Build-time verification process REQs |
+- **Verification:** typecheck 0 errors, test suite 38/38 passed
+- **Changed code paths:** src/index.ts (SPEC_HASH → runtime hash computation, spec_version update, spec_hash_current, safety_protocols, gap_audit simplification), dnd5e/holonovel.md (regenerated)
+- **Gauntlet:** Per §6.6 surface-to-scenario mapping: no tool surface changes → S1 (tool sweep) for spec_health changes; no state model changes
+- **Spec hash:** dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd

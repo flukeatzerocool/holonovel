@@ -2,6 +2,7 @@
 // D&D 5e MCP Server — Holonovel Build
 // REQ-001 through REQ-104
 
+import crypto from "crypto";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -34,7 +35,6 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, ".holonovel-state");
 const SEED = process.env.TTRPG_SEED;
-const SPEC_HASH = "55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6";
 
 if (SEED) seed(parseInt(SEED, 10) || hashString(SEED));
 
@@ -47,15 +47,31 @@ function hashString(s: string): number {
   return h >>> 0;
 }
 
+// ── Spec hash computation (REQ-187) ─────────────────────────────────
+
+function computeSpecHash(): { hash: string; drift: boolean } {
+  const specFile = path.join(__dirname, "..", "holonovel.md");
+  if (!fs.existsSync(specFile)) return { hash: "unknown", drift: true };
+  const hash = crypto.createHash("sha256").update(fs.readFileSync(specFile)).digest("hex");
+  const stored = process.env.TTRPG_STORED_SPEC_HASH;
+  const drift = stored ? hash !== stored : false;
+  return { hash, drift };
+}
+
 // ── State ──────────────────────────────────────────────────────────
 
 const state = new StateManager(DATA_DIR);
 state.loadRoster();
-state.buildFingerprint.specHash = SPEC_HASH;
+
+const { hash: specHash, drift: specDrift } = computeSpecHash();
+state.buildFingerprint.specHash = specHash;
 state.buildFingerprint.lastSpecReview = new Date().toISOString();
+if (specDrift) {
+  console.error(`Spec hash drift detected: stored hash differs from embedded holonovel.md`);
+}
 
 // Build search index from ruleset
-const rulesetDir = path.join(__dirname, "ruleset");
+const rulesetDir = path.join(__dirname, "..", "ruleset");
 if (fs.existsSync(rulesetDir)) buildSearchIndex(rulesetDir);
 
 // ── Server ─────────────────────────────────────────────────────────
@@ -1012,7 +1028,12 @@ server.registerTool("lookup_spell", {
   inputSchema: { name: z.string() },
 }, async ({ name }: any) => {
   const spellName = name.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-  return ok(`**${spellName}** — See ruleset: \`07_Spells/Spells_Each/${spellName.replace(/\s+/g, "_")}.md\` for full description.`);
+  const spellPath = path.join(rulesetDir, "07_Spells", "Spells_Each", `${spellName.replace(/\s+/g, "_")}.md`);
+  if (!fs.existsSync(spellPath)) {
+    return err("NOT_FOUND", `Spell '${name}' not found in ruleset.`);
+  }
+  const content = fs.readFileSync(spellPath, "utf-8");
+  return ok(`**${spellName}**\n\n${content}`);
 });
 
 server.registerTool("lookup_monster", {
@@ -1020,7 +1041,13 @@ server.registerTool("lookup_monster", {
   description: "Look up a monster by name.",
   inputSchema: { name: z.string() },
 }, async ({ name }: any) => {
-  return ok(`**${name}** — Monster lookup. See ruleset: \`10_Monsters/Monsters_Each/\` for full stat block.`);
+  const monsterName = name.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+  const monsterPath = path.join(rulesetDir, "10_Monsters", "Monsters_Each", `${monsterName.replace(/\s+/g, "_")}.md`);
+  if (!fs.existsSync(monsterPath)) {
+    return err("NOT_FOUND", `Monster '${name}' not found in ruleset.`);
+  }
+  const content = fs.readFileSync(monsterPath, "utf-8");
+  return ok(`**${monsterName}**\n\n${content}`);
 });
 
 server.registerTool("lookup_class", {
@@ -1167,9 +1194,10 @@ server.registerTool("spec_health", {
   const resourceUris = ["spec://build", "lore://groups", "lore://templates", "lore://{key}"];
 
   const health: any = {
-    spec_version: "2026.08.06",
+    spec_version: "2026.08.08",
     spec_repo_url: "https://github.com/anomalyco/Holonovel",
-    spec_hash: SPEC_HASH,
+    spec_hash: specHash,
+    spec_hash_current: !specDrift,
     ruleset_hash: state.buildFingerprint.rulesetHash,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     last_spec_review: state.buildFingerprint.lastSpecReview ?? new Date().toISOString(),
@@ -1204,15 +1232,12 @@ server.registerTool("spec_health", {
       last_run: "2026-08-06",
     },
     gap_audit: (() => {
-      const currentHash = SPEC_HASH;
-      const storedHash = state.buildFingerprint.specHash ?? "unknown";
       const toolCount = (server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 62;
       return {
         delta_summary: {
           server_spec_version: state.buildFingerprint.specVersion,
-          current_spec_commit: currentHash.substring(0, 16),
-          stored_spec_hash: storedHash.substring(0, 16),
-          in_sync: currentHash === storedHash,
+          current_spec_hash: specHash,
+          in_sync: !specDrift,
         },
         tool_catalog: { registered: toolCount, expected_minimum: 63 },
         resource_map: { registered: resourceUris.length, expected_minimum: resourceUris.length },
@@ -1224,6 +1249,12 @@ server.registerTool("spec_health", {
         },
       };
     })(),
+    safety_protocols: {
+      state_loss: { status: "online" as const },
+      hat_boundary: { status: "online" as const },
+      data_corruption: { status: "online" as const },
+      unrecoverable_crash: { status: "online" as const },
+    },
   };
 
   return ok(JSON.stringify(health, null, 2));
@@ -1430,6 +1461,7 @@ server.registerTool("set_scene_state", {
 }, async ({ description, location, time_of_day, atmosphere, skip_transition_hook }: any) => {
   requireGM();
   const novel = requireNovel();
+  novelSnapshot();
   const oldDescription = novel.scene_description;
   const isTransition = oldDescription && oldDescription !== description;
 

@@ -1,6 +1,39 @@
 # DECISIONS.md — Inform MCP Server
 
-**Spec hash:** 55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6
+**Spec hash:** dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd
+
+### Inform Rebuild — 2026-08-09
+
+| Field | Value |
+|-------|-------|
+| Spec version | 2026.08.08 |
+| Build fingerprint | dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd |
+| Gauntlet (I1-I13) | I1 PASS, I2 PASS, I3 PASS, I4 PASS, I5 PASS, I6 PASS, I7 PASS, I8 PASS, I9 PASS, I10 PASS, I11 PASS, I12 PASS, I13 PASS |
+| Blocking (I1-I6, I10) | All PASS |
+| Verification | typecheck 0 errors, spec-delta sync |
+
+## 2026-08-09 — Rebuild (Gauntlet I1-I13 verified)
+
+- Added I11 (Narrative CRUD cycle), I12 (Lore and countdown lifecycle), I13 (Scene state and guidance) to the gauntlet harness, completing the full 13-sub-workflow Inform Gauntlet per §6.6.
+- Updated spec hash to current holonovel.md (`dc99736bf...`).
+- Fixed `doAction` prompt response extraction to handle MCP prompt message format (`content.text` vs `text`).
+- Added lazy argument evaluation (`TL` helper) to gauntlet for capturing dynamic IDs (NPC ids).
+- All 13 sub-workflows PASS. Blocking sub-workflows (I1-I6, I10): all PASS. Non-blocking (I7-I9, I11-I13): all PASS.
+- Surface hash: `355f234ce91886d8fb4d3cd8717044966019e546eea3e9e78189c8280f5bc93d`.
+
+### Verification
+
+- `npm run typecheck` — passes (0 errors).
+- `npm run spec-delta -- --server inform` — in sync with spec.
+- Gauntlet: 13/13 PASS, 0 blocking failures.
+
+### Known limitations
+
+- `convert_source` does not parse the multi-direction door form (`X is north of Y and south of Z`).
+- `create_thing` does not support `locationType` control — things always default to `locationType: "room"`.
+- Parser command `take` only scans room things (`locationType: "room"`), not things on supporters or in open containers.
+
+---
 
 ## 2026-08-08 — Rebuild (Gauntlet verified)
 

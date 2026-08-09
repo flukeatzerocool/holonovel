@@ -113,15 +113,16 @@ survives every rebuild.
 
 > "Put on the Game Master hat. I need to fix something."
 > "Switch to my Player hat. Let's play."
+> "Observer mode. Sit back and watch the AI run the whole table."
 
-Two enforced hats, switched without restart. The AI narrates and
-adjudicates as GM. Switch to your Player hat and GM secrets vanish — hat
-gating is enforced server-side. You're never locked out of your own
-game. Every other AI GM trusts a prompt to keep secrets between
-hats; Holonovel enforces hat boundaries server-side — switch
-hats and player-side secrets actually stay hidden. Jump behind the
-screen mid-session to tweak state, inject a complication, or add an
-NPC on the fly.
+Player, Game Master, Observer, editing mode — four roles switched
+without restart. The AI narrates and adjudicates as GM. Observer mode
+lets the AI play both Player and Game Master while you watch, stepping
+in for mechanical decisions at your chosen autonomy level. Hat gating
+is enforced server-side — GM secrets vanish from the Player view. Every
+other AI GM trusts a prompt to keep secrets between hats; Holonovel
+enforces hat boundaries server-side — switch hats and secrets actually
+stay hidden. Four roles. No restart.
 
 ### Rules Access
 
@@ -174,6 +175,21 @@ single undoable steps. Load adventure modules from Markdown files.
 Freeform AI storytellers generate disconnected scenes with no
 through-line and no way back; Holonovel scaffolds a full campaign from
 one sentence and snapshots every encounter as a single undoable step.
+
+### World Model
+
+> "Go north."
+> "Take the lamp from the altar."
+> "Look around."
+
+Your adventures come with rooms, exits, and things — real spatial maps
+the AI remembers. Parser commands navigate the world: go, take, drop,
+open, close, lock, unlock. Rooms track what they contain. Exits connect
+automatically in both directions. Convert World sections from adventure
+sources or build rooms by hand. Most AI RPG tools have no spatial model
+— the AI pretends to remember where things are. Holonovel tracks rooms,
+exits, containers, and objects with real containment logic. Your map is
+real.
 
 ### Dice
 
@@ -228,8 +244,9 @@ to be.
 
 ## The specification
 
-Your books become a server. The spec becomes your toolchain.
-Everything you build survives every rebuild.
+272 requirements across 11 subsections. 8 verification gates.
+22 appendices. Your books become a server. The spec becomes your
+toolchain. Everything you build survives every rebuild.
 
 ### Convert
 
@@ -250,7 +267,7 @@ rest is automatic.
 No hallucinated spells. No invented armor classes. Discovery reads
 every mechanic, table, entity, and procedure from your books in
 chunks. Construction assembles a complete MCP server in six
-dependency-ordered steps. A convergence loop measures six quality
+dependency-ordered steps. A convergence loop measures nine quality
 metrics and iterates until every threshold is met. A second model
 cross-audits the first — catching defects a single model would miss.
 Every MCP RPG server today is hand-coded for a single system;
@@ -275,16 +292,16 @@ call.
 
 > "Run the gauntlet after the Build workflow."
 
-The Gauntlet finds what structure checks miss. Twenty-three adversarial
-scenarios. Two simulated hats — player and game master — share
-one server and one novel. Combat endurance. Hat boundary
-enforcement. Corrupted state recovery. Campaign survival: 30 rounds
-of combat, 3 confrontations, over 100 audit log entries. Blocking
-scenarios must pass. Re-runs after every server change. No AI RPG
-tool ships with an adversarial test suite — users find the bugs;
-Holonovel's 22 scenarios with simulated hats test combat
-endurance, boundary enforcement, and state recovery before you ever
-see a defect. If it breaks, the Gauntlet finds it before you do.
+The Gauntlet finds what structure checks miss. 29 sub-workflows —
+two simulated hats, player and game master, sharing one server and
+one novel. Combat endurance. Hat boundary enforcement. Corrupted
+state recovery. Campaign survival: 30 rounds of combat,
+3 confrontations, over 100 audit log entries. Blocking sub-workflows
+must pass. Re-runs after every server change. No AI RPG tool ships
+with an adversarial test suite — users find the bugs; Holonovel's
+29 sub-workflows with simulated hats test combat endurance, boundary
+enforcement, and state recovery before you ever see a defect. If it
+breaks, the Gauntlet finds it before you do.
 
 ### Spec Update
 
@@ -318,7 +335,7 @@ The specification is the permanent artifact. Rebuild the server whenever
 the spec evolves — your campaigns don't notice. New sourcebook? Drop
 it in. New system? Build it. One spec. Any game. Zero code.
 
-Last researched: August 5, 2026.
+Last updated: 2026-08-08.
 
 ## Contribute
 
