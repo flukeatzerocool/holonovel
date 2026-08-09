@@ -4334,7 +4334,7 @@ Appendix B fixture (which lacks combat, countdowns, lore, and adventures)
 produces a subset mapping — the token set shrinks but token names for shared
 groups are identical.
 
-_Check:_ T224.
+_Check:_ T300.
 
 **REQ-186 — Section token discoverability.** The valid section token set SHALL
 be discoverable without triggering an error. `spec_health` SHALL include a
@@ -4406,7 +4406,7 @@ scene to B (no trigger keywords) — assert counter decrements by 1 per scene ch
 Call `hat_briefing` twice on scene B — assert counter unchanged. After 3 scene
 changes without re-triggering, assert entry no longer appears in `hat_briefing`
 lore section. Revert scene back to A — assert counter resets to 3.
-_Check:_ T190.
+_Check:_ T299.
 
 **REQ-158 — Independent verification obligation.** A build claimed as complete SHALL
 be accompanied by an independent verification report (§10) with a final verdict of
