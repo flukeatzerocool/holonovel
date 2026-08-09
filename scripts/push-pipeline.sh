@@ -76,7 +76,7 @@ if [[ -d "$WIKI_DIR/.git" ]]; then
     echo -e "${YELLOW}No wiki changes.${NC}"
   else
     git -C "$WIKI_DIR" commit -m "Wiki refresh $(date +%Y-%m-%d)" || true
-    git -C "$WIKI_DIR" push origin master
+    git -C "$WIKI_DIR" push origin main
   fi
 else
   echo -e "${YELLOW}Wiki directory not found, skipping.${NC}"
