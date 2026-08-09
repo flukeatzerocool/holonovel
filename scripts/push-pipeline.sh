@@ -37,6 +37,91 @@ NC='\033[0m'
 
 mkdir -p "$PROJECT_DIR/.holonovel-state/queue-plans"
 
+# Default timeout per opencode subprocess (seconds, 0 = no timeout)
+OPC_TIMEOUT="${OPC_TIMEOUT:-1800}"
+
+# ── shared: run_opencode ───────────────────────────────────────────────────
+# Usage: run_opencode <session-title> <out-file> ["$PROMPT_VAR"] [--retry]
+# Runs opencode with a configurable timeout. With --retry, retries once on failure.
+# Sets global OPC_RC with the exit code.
+run_opencode() {
+  local session_title="$1"
+  local out_file="$2"
+  local prompt="$3"
+  local retry=false
+  if [[ "${4:-}" == "--retry" ]]; then
+    retry=true
+  fi
+
+  local timeout_cmd=("opencode")
+  if [[ "${OPC_TIMEOUT:-0}" -gt 0 ]] && command -v timeout >/dev/null 2>&1; then
+    timeout_cmd=("timeout" "$OPC_TIMEOUT" "opencode")
+  fi
+
+  set +e
+  "${timeout_cmd[@]}" run \
+    --agent build \
+    --auto \
+    --title "$session_title" \
+    --dir "$PROJECT_DIR" \
+    "$prompt" \
+    > "$out_file" 2>> "$WRAP_LOG"
+  OPC_RC=$?
+  set -e
+
+  if [[ $OPC_RC -ne 0 ]] && $retry; then
+    echo -e "${YELLOW}Session '${session_title}' failed (exit ${OPC_RC}) — retrying once...${NC}"
+    set +e
+    "${timeout_cmd[@]}" run \
+      --agent build \
+      --auto \
+      --title "${session_title}-retry" \
+      --dir "$PROJECT_DIR" \
+      "$prompt" \
+      > "$out_file" 2>> "$WRAP_LOG"
+    OPC_RC=$?
+    set -e
+  fi
+}
+
+# ── pre-flight checks ──────────────────────────────────────────────────────
+FAILED_PRECHECKS=""
+
+if ! command -v opencode >/dev/null 2>&1; then
+  echo -e "${RED}opencode not found in PATH — required for AI-driven build sessions${NC}"
+  FAILED_PRECHECKS="opencode"
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo -e "${RED}node not found in PATH${NC}"
+  FAILED_PRECHECKS="$FAILED_PRECHECKS node"
+else
+  NODE_VERSION=$(node -v 2>/dev/null | grep -oP '\d+' | head -1 || echo "0")
+  if [[ "$NODE_VERSION" -lt 20 ]]; then
+    echo -e "${RED}node 20+ required, found $(node -v)${NC}"
+    FAILED_PRECHECKS="$FAILED_PRECHECKS node-version"
+  fi
+fi
+
+if ! command -v npx >/dev/null 2>&1; then
+  echo -e "${RED}npx not found in PATH${NC}"
+  FAILED_PRECHECKS="$FAILED_PRECHECKS npx"
+fi
+
+if ! npm ls --depth=0 2>/dev/null >/dev/null; then
+  echo -e "${RED}npm dependencies missing — run 'npm install' first${NC}"
+  FAILED_PRECHECKS="$FAILED_PRECHECKS npm-deps"
+fi
+
+if [[ -n "$FAILED_PRECHECKS" ]]; then
+  echo ""
+  echo -e "${RED}Pre-flight checks FAILED:$FAILED_PRECHECKS${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}Pre-flight checks: PASSED${NC}"
+echo ""
+
 # ── shared: run_dead_data_scan ─────────────────────────────────────────────
 # Usage: run_dead_data_scan --dir <subdir> --label <display-name> --out <log-path> --session-title <title>
 # Launches a read-only audit for dead/outdated data in the given directory.
@@ -76,16 +161,8 @@ fix. Separate findings by server directory (${dir}/).
 End with '${label} SCAN COMPLETE. N findings.' (N is the count — N=0 means
 clean, no dead data found)."
 
-  set +e
-  opencode run \
-    --agent build \
-    --auto \
-    --title "$session_title" \
-    --dir "$PROJECT_DIR" \
-    "$SCAN_PROMPT" \
-    > "$out" 2>> "$WRAP_LOG"
-  local rc=$?
-  set -e
+  run_opencode "$session_title" "$out" "$SCAN_PROMPT" --retry
+  local rc=$OPC_RC
 
   if [[ $rc -ne 0 ]]; then
     echo -e "${RED}${label} scan FAILED. Check $out.${NC}"
@@ -108,7 +185,7 @@ echo ""
 # 1a: lint spec/ source files (in addition to assembled doc)
 echo -e "${YELLOW}Linting spec/ source files...${NC}"
 set +e
-markdownlint spec/*.md 2>/dev/null
+npx markdownlint spec/*.md 2>/dev/null
 SPECLINT_RC=$?
 set -e
 if [[ $SPECLINT_RC -ne 0 ]]; then
@@ -182,16 +259,8 @@ Gate: halt on critical > 0. Warn on high > 0. Info is advisory."
 
 echo -e "${YELLOW}Launching read-through session...${NC}"
 mkdir -p "$PROJECT_DIR/.holonovel-state/queue-plans"
-set +e
-opencode run \
-  --agent build \
-  --auto \
-  --title "spec-wrapup-readthrough" \
-  --dir "$PROJECT_DIR" \
-  "$READTHROUGH_PROMPT" \
-  > "$WRAP_READTHROUGH_OUT" 2>> "$WRAP_LOG"
-READTHROUGH_RC=$?
-set -e
+run_opencode "spec-wrapup-readthrough" "$WRAP_READTHROUGH_OUT" "$READTHROUGH_PROMPT" --retry
+READTHROUGH_RC=$OPC_RC
 
 if [[ $READTHROUGH_RC -ne 0 ]]; then
   echo -e "${RED}Read-through FAILED. Check $WRAP_READTHROUGH_OUT.${NC}"
@@ -250,7 +319,7 @@ world-model provider documentation at inform/docs_md/ (B10).
    \`command(\"look\")\` on a populated model — verify no crashes.
 7. Run the Inform Gauntlet — the 13 sub-workflows (I1-I13) defined in §6.6
    Inform Gauntlet. All blocking sub-workflows (I1-I6, I10) must pass.
-8. Run \`npm run spec-delta -- --server inform\` and confirm the Inform server
+8. Run \`npx tsx scripts/spec-delta.ts -- --server inform\` and confirm the Inform server
    is in sync with the spec. If not, close the gaps.
 9. Update inform/DECISIONS.md with a rebuild entry in standard format:
 
@@ -267,14 +336,8 @@ Do NOT commit. End with 'INFORM REBUILD COMPLETE.' if all steps pass."
 
 echo -e "${YELLOW}Launching Inform rebuild session...${NC}"
 mkdir -p "$PROJECT_DIR/.holonovel-state/queue-plans"
-opencode run \
-  --agent build \
-  --auto \
-  --title "spec-wrapup-inform-rebuild" \
-  --dir "$PROJECT_DIR" \
-  "$INFORM_REBUILD_PROMPT" \
-  > "$WRAP_INFORM_REBUILD_OUT" 2>> "$WRAP_LOG"
-INFORM_REBUILD_RC=$?
+run_opencode "spec-wrapup-inform-rebuild" "$WRAP_INFORM_REBUILD_OUT" "$INFORM_REBUILD_PROMPT" --retry
+INFORM_REBUILD_RC=$OPC_RC
 
 if [[ $INFORM_REBUILD_RC -ne 0 ]]; then
   echo -e "${RED}Inform rebuild FAILED. Check $WRAP_INFORM_REBUILD_OUT.${NC}"
@@ -315,7 +378,7 @@ Use the provider model from the inform/ server's indexed output.
 3. Run the full test suite: \`cd dnd5e && npx tsx scripts/test_scripts/run_all.ts\`
    — fix any test failures.
 4. Run the blocking Gauntlet sub-workflows per §6.6 exit criteria.
-5. Run \`npm run version-sync\` to align all version strings.
+5. Run \`npx tsx scripts/version-bump.ts\` to align all version strings.
 6. Update dnd5e/DECISIONS.md with a rebuild entry in standard format:
 
    ### dnd5e Rebuild — YYYY-MM-DD
@@ -331,14 +394,8 @@ Do NOT commit. End with 'REBUILD COMPLETE.' if all steps pass."
 
 echo -e "${YELLOW}Launching rebuild session...${NC}"
 mkdir -p "$PROJECT_DIR/.holonovel-state/queue-plans"
-opencode run \
-  --agent build \
-  --auto \
-  --title "spec-wrapup-rebuild" \
-  --dir "$PROJECT_DIR" \
-  "$REBUILD_PROMPT" \
-  > "$WRAP_REBUILD_OUT" 2>> "$WRAP_LOG"
-REBUILD_RC=$?
+run_opencode "spec-wrapup-rebuild" "$WRAP_REBUILD_OUT" "$REBUILD_PROMPT" --retry
+REBUILD_RC=$OPC_RC
 
 if [[ $REBUILD_RC -ne 0 ]]; then
   echo -e "${RED}Server rebuild FAILED. Check $WRAP_REBUILD_OUT.${NC}"
@@ -377,7 +434,7 @@ INFORM_SYNC_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/wrapup-inform-sync-${
 INFORM_SYNC_PROMPT="Run the spec-driven update workflow against the Inform server in inform/.
 The specification (holonovel.md) may have changed since the last Inform server sync.
 
-Phase 1 — Detect: Run \`npm run spec-delta -- --server inform\`. If exit 0, the server
+Phase 1 — Detect: Run \`npx tsx scripts/spec-delta.ts -- --server inform\`. If exit 0, the server
   is in sync — report and stop. If exit 1, classify the delta: patch (wording only),
   minor (REQ bodies changed, no state-model change), major (state model, tool surface,
   or gating contract changed).
@@ -394,7 +451,7 @@ Phase 3 — Implement: Apply all implemented gaps.
   Run \`npx tsx inform/scripts/run_gauntlet.ts\` after all changes.
 
 Phase 4 — Close: Update inform/DECISIONS.md with gap-disposition entry.
-  Run \`npm run version-sync\` then \`npm run spec-delta -- --server inform\` to confirm sync.
+  Run \`npx tsx scripts/version-bump.ts\` then \`npx tsx scripts/spec-delta.ts -- --server inform\` to confirm sync.
 
 Smoke test: After all changes, call the Inform server's \`spec_health\` tool and verify:
   - Tool count has not decreased from baseline
@@ -416,20 +473,12 @@ convergence iterations:
 Report completion: gaps implemented/deferred/waived, verification results,
 Gauntlet pass/fail per sub-workflow. End with 'SYNC COMPLETE.' if all steps pass."
 
-if npm run spec-delta -- --server inform 2>/dev/null; then
+if npx tsx scripts/spec-delta.ts -- --server inform 2>/dev/null; then
   echo -e "${GREEN}Inform server in sync with spec.${NC}"
 else
   echo -e "${YELLOW}Inform delta detected — running sync workflow...${NC}"
-  set +e
-  opencode run \
-    --agent build \
-    --auto \
-    --title "push-pipeline-inform-sync" \
-    --dir "$PROJECT_DIR" \
-    "$INFORM_SYNC_PROMPT" \
-    > "$INFORM_SYNC_OUT" 2>> "$WRAP_LOG"
-  INFORM_SYNC_RC=$?
-  set -e
+  run_opencode "push-pipeline-inform-sync" "$INFORM_SYNC_OUT" "$INFORM_SYNC_PROMPT" --retry
+  INFORM_SYNC_RC=$OPC_RC
   if [[ $INFORM_SYNC_RC -ne 0 ]]; then
     echo -e "${RED}Inform sync FAILED. Check $INFORM_SYNC_OUT.${NC}"
     exit 1
@@ -444,7 +493,7 @@ DND5E_SYNC_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/wrapup-dnd5e-sync-${TI
 DND5E_SYNC_PROMPT="Run the spec-driven update workflow against the dnd5e server.
 The specification (holonovel.md) may have changed since the last server sync.
 
-Phase 1 — Detect: Run \`npm run spec-delta -- --server dnd5e\`. If exit 0, the server
+Phase 1 — Detect: Run \`npx tsx scripts/spec-delta.ts -- --server dnd5e\`. If exit 0, the server
   is in sync — report and stop. If exit 1, classify the delta: patch (wording only),
   minor (REQ bodies changed, no state-model change), major (state model, tool surface,
   or gating contract changed).
@@ -460,7 +509,7 @@ Phase 3 — Implement: Apply all implemented gaps.
   Run \`cd dnd5e && npx tsx scripts/test_scripts/run_all.ts\` after all changes.
 
 Phase 4 — Close: Update dnd5e/DECISIONS.md with gap-disposition entry.
-  Run \`npm run version-sync\` then \`npm run spec-delta -- --server dnd5e\` to confirm sync.
+  Run \`npx tsx scripts/version-bump.ts\` then \`npx tsx scripts/spec-delta.ts -- --server dnd5e\` to confirm sync.
 
 Smoke test: After all changes, call the server's \`spec_health\` tool and verify:
   - Tool count has not decreased from baseline
@@ -482,20 +531,12 @@ mapping in holonovel.md §6.6. Maximum 2 convergence iterations:
 Report completion: gaps implemented/deferred/waived, verification results,
 Gauntlet pass/fail. End with 'SYNC COMPLETE.' if all steps pass."
 
-if npm run spec-delta -- --server dnd5e 2>/dev/null; then
+if npx tsx scripts/spec-delta.ts -- --server dnd5e 2>/dev/null; then
   echo -e "${GREEN}Dnd5e server in sync with spec.${NC}"
 else
   echo -e "${YELLOW}Dnd5e delta detected — running sync workflow...${NC}"
-  set +e
-  opencode run \
-    --agent build \
-    --auto \
-    --title "push-pipeline-dnd5e-sync" \
-    --dir "$PROJECT_DIR" \
-    "$DND5E_SYNC_PROMPT" \
-    > "$DND5E_SYNC_OUT" 2>> "$WRAP_LOG"
-  DND5E_SYNC_RC=$?
-  set -e
+  run_opencode "push-pipeline-dnd5e-sync" "$DND5E_SYNC_OUT" "$DND5E_SYNC_PROMPT" --retry
+  DND5E_SYNC_RC=$OPC_RC
   if [[ $DND5E_SYNC_RC -ne 0 ]]; then
     echo -e "${RED}Dnd5e sync FAILED. Check $DND5E_SYNC_OUT.${NC}"
     exit 1
@@ -534,14 +575,8 @@ gate count, tool count, resource count, prompt count, and feature blurb list.
 Do NOT commit. End with 'README UPDATE COMPLETE.'"
 
 echo -e "${YELLOW}Launching README update session...${NC}"
-opencode run \
-  --agent build \
-  --auto \
-  --title "spec-wrapup-readme" \
-  --dir "$PROJECT_DIR" \
-  "$README_PROMPT" \
-  > "$WRAP_README_OUT" 2>> "$WRAP_LOG"
-README_RC=$?
+run_opencode "spec-wrapup-readme" "$WRAP_README_OUT" "$README_PROMPT" --retry
+README_RC=$OPC_RC
 
 if [[ $README_RC -ne 0 ]]; then
   echo -e "${RED}README update FAILED. Check $WRAP_README_OUT.${NC}"
@@ -615,14 +650,8 @@ Do NOT commit and do NOT push. End with 'WIKI UPDATE COMPLETE.' and list which
 pages were changed."
 
 echo -e "${YELLOW}Launching wiki update session...${NC}"
-opencode run \
-  --agent build \
-  --auto \
-  --title "spec-wrapup-wiki" \
-  --dir "$PROJECT_DIR" \
-  "$WIKI_PROMPT" \
-  > "$WRAP_WIKI_OUT" 2>> "$WRAP_LOG"
-WIKI_RC=$?
+run_opencode "spec-wrapup-wiki" "$WRAP_WIKI_OUT" "$WIKI_PROMPT" --retry
+WIKI_RC=$OPC_RC
 
 if [[ $WIKI_RC -ne 0 ]]; then
   echo -e "${RED}Wiki update FAILED. Check $WRAP_WIKI_OUT.${NC}"

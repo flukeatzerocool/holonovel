@@ -22,6 +22,14 @@
   proofreading, merge conflict detection, and coverage of all wiki pages.
 - The pipeline tags successful runs, verifies the remote after push, and checks
   for accidental node_modules staging before commit.
+- Pipeline scripts (spec-delta, version-bump, version-check) are no longer
+  gitignored — they ship with the repo so the pipeline can run on a fresh clone.
+- Git hooks (.githooks/) ship with the repo; the pre-push hook now directs
+  operators to the push pipeline instead of the removed holonovel-update skill.
+- Every opencode subprocess is wrapped in a configurable timeout with single-retry;
+  pre-flight checks verify opencode, node, npx, and npm deps before any work begins.
+- Undefined npm script references fixed — spec-delta and version-sync invoke
+  npx tsx directly; markdownlint runs via npx.
 
 ## 2026-08-08 — Per-section extraction caching and inform version drift detection
 
