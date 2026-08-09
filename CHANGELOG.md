@@ -16,6 +16,10 @@
   threshold. (REQ-225, REQ-226)
 - Fixed three stale "six output modules" references — the enrichment
   manifest has seven modules since REQ-226 added `narrative_voices`.
+- README restructured: Convert/Build and Enrich now have their own pillar
+  sections alongside World Model, Narrative Model, Novels, and Hats.
+  Gauntlet and enrichment detail moved out of Novels. Four pillars became
+  six.
 
 ## 2026-08-08 — Holodeck benchmark improvements
 

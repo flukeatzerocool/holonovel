@@ -10,20 +10,19 @@ README DESIGN:
     How it compares → Contribute → Footer.
   Audience split: §2 is for players who want a server now
     (holonovel and dnd5e-holonovel quick-starts). §3 describes the
-    server architecture through four infrastructure pillars.
+    server architecture through six infrastructure pillars.
     §5 is for contributors.
   No tables for feature descriptions. No repetition. One story
     vector per section.
-  MCP server pillars: Four infrastructure pillars under §3 — World
-    Model, Narrative Model, Novels, Hats — follow a build-then-play
-    arc: the spatial foundation, the living world, the persistent
-    campaign file, the role architecture. Each pillar gets two
-    paragraphs: what it is, what you can do. Spec concepts (Convert,
-    Build, Enrich, Gauntlet) are woven in as supporting detail — the
-    server is the product, the spec is how it was built.
-  Enrichment: Described in the Novels pillar — three tiers
-    enriching the campaign with ruleset-native, community, and
-    novel-generated content.
+  MCP server pillars: Six infrastructure pillars under §3 — World
+    Model, Narrative Model, Convert and Build, Novels, Hats, Enrich —
+    follow a build-then-play arc: the spatial foundation, the living
+    world, how rulebooks become servers, the persistent campaign file,
+    the role architecture, the evolving game. Each pillar gets two
+    paragraphs: what it is, what you can do.
+  Enrichment: Its own section after Hats — three tiers enriching the
+    campaign with ruleset-native, community, and novel-generated
+    content. Independent removal boundaries.
   World Model: Mentions the Inform programming language exactly
     once — "powered by the Inform programming language."
   Comparison table: Three columns (Tool name | What you're used to |
@@ -100,7 +99,7 @@ SRD data: CC BY 4.0 + OGL 1.0a (Wizards of the Coast). Server code: MIT.
 
 ## Holonovel MCP Server
 
-Holonovel is built on four infrastructure pillars. Together they deliver a
+Holonovel is built on six infrastructure pillars. Together they deliver a
 complete tabletop RPG server — your rulebooks become the referee, you run the
 table.
 
@@ -112,12 +111,8 @@ maintains a real containment graph, not a paragraph of prose it hopes the AI
 remembers.
 
 The world model is powered by the Inform programming language — the same engine
-behind decades of interactive fiction classics. Holonovel reads your adventure
-modules and sourcebooks, extracts every location description, and builds the
-spatial model automatically. The Convert workflow turns your PDFs into clean
-Markdown. The Build workflow assembles the rooms, exits, and containment
-relationships. Go north. The room is there. Take the lamp. It moves from the
-altar to your inventory. Your map is real.
+behind decades of interactive fiction classics. Go north. The room is there. Take
+the lamp. It moves from the altar to your inventory. Your map is real.
 
 > "Go north."
 > "Take the lamp from the altar."
@@ -125,8 +120,7 @@ altar to your inventory. Your map is real.
 
 Parser commands navigate the world with real containment logic. Rooms track what
 they contain. Exits connect automatically in both directions. Open containers,
-lock doors, examine surroundings. Exits are typed and directional. Convert
-`## World` sections from adventure sources or build rooms by hand. Most AI RPG
+lock doors, examine surroundings. Exits are typed and directional. Most AI RPG
 tools have no spatial model — the AI pretends to remember where things are.
 Holonovel tracks rooms, exits, containers, and objects with real containment
 logic. Your map is real.
@@ -164,6 +158,31 @@ Countdowns escalate tension on cue. Standing GM directives shape every response.
 Other tools ask the AI to remember your world. Holonovel writes it to disk —
 structured, queryable, permanent.
 
+### Convert and Build
+
+Convert takes your PDFs, HTML pages, and web scrapes and turns them into clean
+Markdown. Column detection reassembles tables that span page breaks. OCR catches
+text embedded in images. The output is structurally sound — every heading
+resolved, every reference traced. You drop in a book; Convert hands back a
+source file the Build workflow can read.
+
+> "Take this 300-page PDF of the rulebook and turn it into something the spec
+> can understand."
+
+Build reads that Markdown and extracts every mechanic. Dice procedures, combat
+systems, spell catalogues, equipment tables, condition tracks — every structured
+element becomes a tool, resource, or prompt. Guidance prose becomes narrative
+material. The discovery engine samples the source, measures extraction
+confidence, and iterates until every mechanical section is accounted for. What
+can't be modeled stays searchable — nothing is fabricated to fill a gap.
+
+> "Build me a server from these ruleset files."
+
+The output is a running MCP server with zero hand-coding. Lookup spells. Roll
+dice. Manage conditions. Track combat. Navigate the world. The same spec that
+read D&D 5e will read Mothership, Cairn, or your own homebrew. One spec. Any
+rulebook. Zero code.
+
 ### Novels
 
 A Novel is your entire campaign in one file — party, NPCs, scenes, lore, combat
@@ -182,24 +201,6 @@ property group is typed, validated, and checksummed against corruption.
 Create, resume, rename, clone. Export and share. Import from other GMs. Undo any
 mutation. Session recaps summarize play. Save pause context — step away and
 return to the exact same state.
-
-Enrichment works on the Novel across three tiers. Ruleset-native enrichment is
-extracted from your books during Build: voice examples, lore templates, action
-patterns — all anchored to your ruleset's own text. Community enrichment adds
-web-sourced GM advice, actual-play breakdowns, and designer notes — tagged with
-source URLs, confidence scores, and freshness timestamps. Novel-generated
-enrichment synthesizes from your own world state as you play: NPC personality
-profiles become voice examples, unresolved story threads become scene hooks,
-faction tensions become countdown warnings. Every enrichment item is inert by
-default — the GM activates what matters. Each tier has an independent removal
-boundary. Revert any tier without affecting the others.
-
-Before you ever see a defect, the Gauntlet subjects every Novel operation to 29
-adversarial sub-workflows: simulated combat endurance across 30 rounds, hat
-boundary probes from adversarial personas, corrupted-state recovery, campaign
-survival across restarts. Two simulated hats — player and GM — share one server
-and one Novel. Blocking sub-workflows must pass. If it breaks, the Gauntlet
-finds it before you do.
 
 ### Hats
 
@@ -224,6 +225,36 @@ Switch hats mid-scene. The AI adapts instantly. Player signals give you
 structured, persistent control: set pace, difficulty, tone, focus, and topic
 boundaries. Every signal persists in the GM's briefing, shaping every response
 until you change it. You don't have to hope the AI reads the room. You tell it.
+
+### Enrich
+
+Enrichment deepens your campaign across three independent tiers. Ruleset-native
+enrichment is extracted from your books during Build — voice examples from
+example-of-play dialogue, lore templates from setting descriptions, action
+patterns from resolution sequences, narrative voice profiles from inspirational
+media citations, all anchored to your ruleset's own text. Community enrichment
+adds web-sourced GM advice, actual-play breakdowns, and designer notes — tagged
+with source URLs, confidence scores, and freshness timestamps. Novel-generated
+enrichment synthesizes from your own world state as you play — NPC personality
+profiles become voice examples, unresolved story threads become scene hooks,
+faction tensions become countdown warnings.
+
+> "Find me GM advice and play examples for running horror one-shots."
+
+Every enrichment item is inert by default. The GM activates what matters — a
+goblin voice example, a lore template for the haunted forest, an action pattern
+for chase scenes. Toggle modules on and off at runtime. Player-authored items
+live alongside ruleset and community content. Activation state persists with the
+Novel.
+
+> "Activate the chase-scene action patterns. Deactivate the horror voice
+> examples."
+
+Each tier has an independent removal boundary. Revert community enrichment
+without touching ruleset-native material. Remove novel-synthesized items without
+affecting the other two tiers. Re-running enrichment replaces inactive items
+while preserving everything the GM has activated. The game evolves without losing
+what you've built.
 
 ## How it compares
 
