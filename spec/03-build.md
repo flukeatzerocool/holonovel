@@ -190,6 +190,12 @@ in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), 
 requests the next. Guidance-only sections are read in a post-processing pass after
 mechanical extraction and do not count against the mechanical-section budget.
 
+**Per-section hash skip.** When per-section hashes from a prior build are present in
+DECISIONS.md (4), the builder SHALL compare each section's hash before reading.
+Sections whose hash matches the prior build SHALL be skipped — their prior extraction
+output is referenced per REQ-302. Sections whose hash differs or is absent from the
+prior record SHALL be read and extracted.
+
 **Guidance pass budget.** Guidance-only sections are read after all mechanical
 chunks have been extracted and Phase 1 confidence metrics converge. Guidance
 extraction is a single post-processing pass, not interleaved with mechanical
@@ -716,7 +722,11 @@ convergence event — it does not count as an iteration and does not consume the
 version advanced but the ruleset hash, inform version, and enrichment hash are
 unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
 extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
-extraction model is verified unchanged by a gap audit (§6.7). A partial-match
+extraction model is verified unchanged by a gap audit (§6.7). When the ruleset
+hash changed but per-section hashes (REQ-302) reveal that only a subset of
+sections were modified or added, the builder SHALL limit Phase 1 extraction to
+the delta — unchanged sections reference their prior extraction output per
+REQ-302. A partial-match
 annotation in DECISIONS.md (5) SHALL name which component differed and which
 metrics were cached.
 
@@ -1141,8 +1151,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
-syncs — not only the blanket Gauntlet run.
+spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
 
 **REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
 (Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
@@ -1469,7 +1478,13 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
-**Gap audit method.** The builder first compares the server's recorded spec version
+**Gap audit method.** Before the version comparison, the builder SHALL compare the
+installed inform package version against the build-time inform version recorded in the
+server's build fingerprint (REQ-065). A mismatch SHALL be recorded as an informational
+finding in the gap audit — the Update workflow proceeds, but DECISIONS.md records the
+version delta with a recommendation to re-run Build.
+
+The builder then compares the server's recorded spec version
 (`spec_health.spec_version`) against the current spec version. When the
 current version is unchanged, the builder reports `[OK] Server is current
 (spec version <version>)` and exits without mutation. When the current version

@@ -65,7 +65,7 @@ which files to load for the gap audit.
 Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
 contracts-over-implementations and red-team disciplines), then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
-before committing. The SPEC-QUEUE.md tracks subsystems awaiting review.
+before committing.
 Cached domain research at `.holonovel-state/knowledge-base/` provides cross-session
 efficiency — web findings, spec summaries, and implementation analysis with
 defined freshness windows.
@@ -3713,7 +3713,9 @@ _Check:_ T17.
 heading section in the ruleset Markdown source. Each section hash SHALL use SHA-256 over
 the normalized section content. Per-section hashes SHALL be recorded in DECISIONS.md (4).
 
-During incremental rebuild (§6.7), sections whose hash is unchanged SHALL be skipped —
+During Build (§6.2–§6.3) when per-section hashes from a prior build are recorded in
+DECISIONS.md (4), and during spec-driven updates (§6.7), sections whose hash is
+unchanged SHALL be skipped —
 their prior extraction output is referenced. Sections whose hash changed SHALL be
 re-extracted. The builder SHALL record a per-section delta summary: total sections,
 sections unchanged, sections changed, sections added, sections removed. This SHALL NOT
@@ -3726,8 +3728,9 @@ _Check:_ T-new-302.
 
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
 directory: the specification version, the specification content hash (from the embedded
-holonovel.md, REQ-105), the ruleset content hash (REQ-044), the spec repository URL
-(REQ-106), and the build timestamp. The fingerprint is persisted alongside Novel state so
+holonovel.md, REQ-105), the ruleset content hash (REQ-044), the @holonovel/inform
+version (from B10), the spec repository URL (REQ-106), and the build timestamp.
+The fingerprint is persisted alongside Novel state so
 it survives server restarts. On startup with existing state, the server reloads the stored
 fingerprint and compares it against the freshly computed current-build fingerprint. The
 comparison is field-by-field:
@@ -3742,6 +3745,9 @@ comparison is field-by-field:
   intake hash. Emits a `[ruleset_drift]` warning on stderr and in spec_health listing the
   stored and current hashes. This is the source immutability drift check traceable to
   REQ-014.
+- **Inform version mismatch** — the installed inform package version differs from the
+  build-time version recorded in the fingerprint. Emits an `[inform_drift]` warning on
+  stderr and in spec_health listing the stored and current versions.
 - **Build timestamp** — expected to differ across restarts; does not emit a warning.
 
 Drift warnings are diagnostic surfaces, not safety interlocks — they do not block startup
@@ -3749,8 +3755,8 @@ or degrade service. The active build's specification version, ruleset hash, and 
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
 Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
-the constructor-derived version, hash, and timestamp are immutable for the build's
-lifetime. The server must load existing state gracefully: fields present in state but
+the constructor-derived version, hash, inform version, and timestamp are immutable for
+the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
 fields required by the current model but absent from existing state receive their
 ruleset-defined defaults. Roster baselines remain immutable across rebuilds. Unrecoverable
@@ -6179,6 +6185,12 @@ in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), 
 requests the next. Guidance-only sections are read in a post-processing pass after
 mechanical extraction and do not count against the mechanical-section budget.
 
+**Per-section hash skip.** When per-section hashes from a prior build are present in
+DECISIONS.md (4), the builder SHALL compare each section's hash before reading.
+Sections whose hash matches the prior build SHALL be skipped — their prior extraction
+output is referenced per REQ-302. Sections whose hash differs or is absent from the
+prior record SHALL be read and extracted.
+
 **Guidance pass budget.** Guidance-only sections are read after all mechanical
 chunks have been extracted and Phase 1 confidence metrics converge. Guidance
 extraction is a single post-processing pass, not interleaved with mechanical
@@ -6705,7 +6717,11 @@ convergence event — it does not count as an iteration and does not consume the
 version advanced but the ruleset hash, inform version, and enrichment hash are
 unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
 extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
-extraction model is verified unchanged by a gap audit (§6.7). A partial-match
+extraction model is verified unchanged by a gap audit (§6.7). When the ruleset
+hash changed but per-section hashes (REQ-302) reveal that only a subset of
+sections were modified or added, the builder SHALL limit Phase 1 extraction to
+the delta — unchanged sections reference their prior extraction output per
+REQ-302. A partial-match
 annotation in DECISIONS.md (5) SHALL name which component differed and which
 metrics were cached.
 
@@ -7130,8 +7146,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
-syncs — not only the blanket Gauntlet run.
+spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
 
 **REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
 (Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
@@ -7458,7 +7473,13 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
-**Gap audit method.** The builder first compares the server's recorded spec version
+**Gap audit method.** Before the version comparison, the builder SHALL compare the
+installed inform package version against the build-time inform version recorded in the
+server's build fingerprint (REQ-065). A mismatch SHALL be recorded as an informational
+finding in the gap audit — the Update workflow proceeds, but DECISIONS.md records the
+version delta with a recommendation to re-run Build.
+
+The builder then compares the server's recorded spec version
 (`spec_health.spec_version`) against the current spec version. When the
 current version is unchanged, the builder reports `[OK] Server is current
 (spec version <version>)` and exits without mutation. When the current version
@@ -9030,7 +9051,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-097 | Novel health              | 2026-08-02   |
 | REQ-056 | Advancement workflow      | 2026-08-02   |
 | REQ-063 | Connection introduction   | 2026-08-02   |
-| REQ-065 | Build fingerprint         | 2026-08-07   |
+| REQ-065 | Build fingerprint         | 2026-08-08   |
 | REQ-066 | set_hat                   | 2026-08-02   |
 | REQ-102 | Source conversion contract  | 2026-08-05   |
 | REQ-103 | Enrichment reversion      | 2026-08-07   |
@@ -9290,7 +9311,7 @@ diet.
 | T51   | Manual   | Hat behavioral boundaries: invoke a Player-hat session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both hats and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T-new-hat-boundary | Automated | Hat boundary directive: invoke `hat_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_hat(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
-| T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
+| T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Modify the installed inform package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [inform_drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
 | T53   | Automated | Session recap: invoke `session_recap` after a combat session, assert the summary includes entities with final HP and conditions, combat outcomes, scene state, active lore entries with trigger status, narrative directive, current scene type, and last scene state transitions. Assert entity status reports "alive" when HP > 0, "unconscious" at HP = 0, "dead" when death condition active. Assert all 14 named fields present with typed values. Call `session_recap(max_transitions=2, max_rolls=3)` — assert at most 2 transitions and 3 rolls. Call `session_recap(max_transitions=0)` — assert `[ERROR] [INVALID_INPUT]`. Invoke as Player hat — assert only own-entity data appears and narrative elements are hat-filtered. Invoke as Game Master — assert all entity data and narrative elements appear.                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-072, REQ-032, REQ-174, REQ-175          |
 | T54   | Automated | Countdowns: set a `round` countdown (5 ticks), run 3 combat rounds, assert remaining ticks = 2. Set a `narrative` countdown (3 ticks), advance twice manually, assert remaining = 1. Advance again — assert countdown fires and is removed from active countdowns but present in audit log.                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-073                                     |
