@@ -84,7 +84,7 @@ defaults without further prompting.
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
-| B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+| B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
 | B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
 
@@ -93,15 +93,15 @@ DECISIONS.md (1). When the operator declines the Advanced prompt, the
 defaults are recorded with a `(defaults accepted)` annotation.
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
-are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
+are indexed, no extraction occurs, and the server is built from the `holonovel`
 package (B10) and infrastructure tools (REQ-020) alone. The server provides a freeform
 narrative roleplay surface: scene management (`set_scene_state` with scene_type and
 narrative_directive), NPC creation, lore tracking, faction management, player choices,
 pause/resume context, countdowns with full clock taxonomy, and session notation — all
 with world-model spatial navigation available as optional scaffolding. The builder
-records ruleset-free mode in DECISIONS.md (1), runs `npm install @holonovel/inform`
+records ruleset-free mode in DECISIONS.md (1), runs `npm install holonovel`
 at the version specified by B10, and proceeds to server construction (§6.4) using
-the inform scaffold as the starting point. Extraction discovery and its dependent
+the holonovel scaffold as the starting point. Extraction discovery and its dependent
 metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
 or model any ruleset content; the server's `search_rules` tool returns empty results, its
 canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
@@ -140,7 +140,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (inform/docs_md/ directory) | yes / no                          | yes                  |
+| E5  | Enrich with vendor content? (holonovel/narrative_world_model/ directory) | yes / no                          | yes                  |
 
 **Update workflow.** Asked when `update` is selected.
 
@@ -235,15 +235,15 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**@holonovel/inform prerequisite.** When B1 is not `none` (TTRPG build), the builder
-installs the `@holonovel/inform` npm package at the version specified by B10. The inform
+**holonovel prerequisite.** When B1 is not `none` (TTRPG build), the builder
+installs the `holonovel` npm package at the version specified by B10. The holonovel
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder adds `@holonovel/inform` as a dependency of the TTRPG server. No
+points. The builder adds `holonovel` as a dependency of the TTRPG server. No
 chunked reading or provider-documentation indexing occurs during TTRPG builds — the
-inform package is a build-time dependency, not a per-build extraction target. The
+holonovel package is a build-time dependency, not a per-build extraction target. The
 world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
-`none` (ruleset-free mode), the inform package IS the server — the builder installs it,
+`none` (ruleset-free mode), the holonovel package IS the server — the builder installs it,
 verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
@@ -372,17 +372,17 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by @holonovel/inform scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
-| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
+| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
 
-For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
+For Step 1, the holonovel scaffold provides the MCP skeleton with hat gating
 helpers, state management, macros, and world-model layer (rooms,
 things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
 verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
@@ -392,7 +392,7 @@ ruleset-specific content on top of the infrastructure base.
 root with two sections: a **Ruleset Data** section identifying the source
 material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
-`package.json`). The dnd5e server's `LICENSE.md` is the canonical
+`package.json`). The dnd5e-holonovel server's `LICENSE.md` is the canonical
 template.
 
 ### 6.4.1 Prompt composition
@@ -691,8 +691,8 @@ findings without a prefix are process-compliance defects.
 
 Before Phase 1 measurement begins, the builder SHALL compute a convergence
 cache key per REQ-244: ruleset content hash (REQ-044, sentinel `"none"` for
-ruleset-free), specification content hash (REQ-187), inform package version
-(B10), and aggregate hash of the `inform/docs_md/` vendor directory. The builder SHALL
+ruleset-free), specification content hash (REQ-187), holonovel package version
+(B10), and aggregate hash of the `holonovel/narrative_world_model/` vendor directory. The builder SHALL
 search DECISIONS.md (5) for a prior convergence recording whose cache key
 matches.
 
@@ -719,7 +719,7 @@ convergence event — it does not count as an iteration and does not consume the
 3-attempt budget.
 
 **Partial match.** When a single component of the cache key differs — the spec
-version advanced but the ruleset hash, inform version, and enrichment hash are
+version advanced but the ruleset hash, holonovel package version, and enrichment hash are
 unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
 extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
 extraction model is verified unchanged by a gap audit (§6.7). When the ruleset
@@ -741,8 +741,8 @@ extraction-dependent metrics (mechanics fidelity, suggestion coverage) are also
 skipped per Standing Rule 9 — the cache key covers the remaining fresh-metric
 domain (MUST coverage against infrastructure categories, process compliance,
 surface terminology, prompt health, resource URI completeness, truncation
-accuracy). For ruleset-free builds consuming a specific inform package version,
-the inform convergence manifest (REQ-245) takes precedence over the convergence
+accuracy). For ruleset-free builds consuming a specific holonovel package version,
+the holonovel convergence manifest (REQ-245) takes precedence over the convergence
 cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
 ### 6.6 The Gauntlet
@@ -1248,7 +1248,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
 prior successful Gauntlet execution — recorded in DECISIONS.md (6) with its
-Gauntlet fingerprint (ruleset hash + spec hash + inform version) — the builder
+Gauntlet fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
 SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
 The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
@@ -1278,41 +1278,41 @@ DECISIONS.md (6) execution record for re-use decisions.
 The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
 intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
-#### Inform Gauntlet
+#### Holonovel Gauntlet
 
-The Inform server — the `@holonovel/inform` npm package (ruleset-free per §6.2) — is
-verified through a separate Gauntlet of world-model-specific sub-workflows. The Inform
-Gauntlet runs when the inform package is built and before it is published, as part of
-the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
-consume the published inform package as a build-time dependency and skip the Inform
+The Holonovel server — the `holonovel` npm package (ruleset-free per §6.2) — is
+verified through a separate Gauntlet of world-model-specific sub-workflows. The Holonovel
+Gauntlet runs when the holonovel package is built and before it is published, as part of
+the holonovel package's own verification. It is not part of TTRPG builds — TTRPG servers
+consume the published holonovel package as a build-time dependency and skip the Holonovel
 Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
 Budget, and Structured encoding contracts apply (§6.6), including the executable
-test harness mandate — the Inform build SHALL produce a runnable harness
+test harness mandate — the holonovel package build SHALL produce a runnable harness
 (`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
 sub-workflows SHALL pass; non-blocking failures are recorded as accepted
 limitations.
 
-**Version-bound results.** When the inform package version (B10) matches a
-prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
+**Version-bound results.** When the holonovel package version (B10) matches a
+prior Holonovel Gauntlet execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
-results — recording `cached — inform vX.Y.Z Gauntlet results` in DECISIONS.md
+results — recording `cached — holonovel vX.Y.Z Gauntlet results` in DECISIONS.md
 (6) — instead of re-executing the 13 sub-workflows. A specification version
-advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
+advance SHALL trigger a fresh Holonovel Gauntlet execution. The holonovel convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
 
-**Per-sub-workflow surface fingerprints.** Each Inform sub-workflow's structured
+**Per-sub-workflow surface fingerprints.** Each Holonovel sub-workflow's structured
 encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
-specification version has advanced but the inform package version is unchanged,
-sub-workflows whose `surface_hash` matches the prior Inform Gauntlet execution
+specification version has advanced but the holonovel package version is unchanged,
+sub-workflows whose `surface_hash` matches the prior Holonovel Gauntlet execution
 SHALL be skipped individually — recorded as `cached — surface hash match for
 I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
 re-execute. The surface-to-scenario mapping below governs which sub-workflows
 are selected for changed surfaces.
 
-**Inform Gauntlet sub-workflows.**
+**Holonovel Gauntlet sub-workflows.**
 
 1. **Parser command sweep** — call every registered parser command (look, go
    north/east/south/west, examine, take, drop, open, close, inventory, wait)
@@ -1394,11 +1394,11 @@ are selected for changed surfaces.
     sections appear in the specified order. Assert `set_scene_state` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
-**Inform Gauntlet surface-to-scenario mapping.**
+**Holonovel Gauntlet surface-to-scenario mapping.**
 
-| Changed surface                                    | Inform Gauntlet scenarios |
+| Changed surface                                    | Holonovel Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| @holonovel/inform package changed (new version)     | All (1–13)                |
+| holonovel package changed (new version)     | All (1–13)                |
 | Room navigation, parser commands                   | 1, 2, 8                   |
 | Object interaction, properties                     | 3, 6                      |
 | CRUD, state mutations                              | 4                         |
@@ -1462,8 +1462,8 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Inform Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
-spec-driven updates — they are run separately when the `@holonovel/inform` package
+The Holonovel Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
 **Delta classes.**
@@ -1478,8 +1478,21 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
+**Implementation fingerprint comparison.** Before the gap audit begins, the builder
+SHALL compute the five implementation fingerprint components (REQ-313) and compare
+them against the stored fingerprints from the prior build recorded in DECISIONS.md
+(1). When all five components are unchanged and the spec version is unchanged, the
+builder reports `[OK] Server is current` and exits without mutation. When the spec
+version has advanced but no implementation fingerprints changed, the builder proceeds
+to gap audit normally. When one or more implementation fingerprints changed, the
+builder applies the partial-rebuild scoping rules (REQ-314) to determine which
+verification steps to skip: unchanged components reuse their prior verification
+output; only components with changed fingerprints run fresh verification. The
+fingerprint delta summary — which components changed, which remain unchanged, and
+the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
+
 **Gap audit method.** Before the version comparison, the builder SHALL compare the
-installed inform package version against the build-time inform version recorded in the
+installed holonovel package version against the build-time holonovel package version recorded in the
 server's build fingerprint (REQ-065). A mismatch SHALL be recorded as an informational
 finding in the gap audit — the Update workflow proceeds, but DECISIONS.md records the
 version delta with a recommendation to re-run Build.

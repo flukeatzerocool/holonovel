@@ -8,7 +8,7 @@
 > adventure modules, and ruleset-native enrichment — plus four handoff artifacts (plus
 > LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
 > infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) is
-> provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
+> provided by `holonovel`. Optional community enrichment workflow adds web-sourced
 > play advice. Quality enforced by verification workflows, 14 handoff verification steps,
 > and a golden-transcript replay. One server per ruleset. No network at runtime
 > (REQ-051). Hats control tool-access gating (REQ-032): `player`, `game_master`,
@@ -75,7 +75,7 @@ defined freshness windows.
 The verification workflows are executable — follow them in order. Use the assembled
 `holonovel.md` or load spec files per `build-phase-map.md`.
 
-**Reference material** (Appendices A–S) is supplementary. Glance at Appendix E
+**Reference material** (Appendices A–Y) is supplementary. Glance at Appendix E
 (Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
 Test Catalogue) to understand test coverage, and Appendix S (Builder Glossary) for
 domain terminology. The remaining appendices are consulted on demand during specific
@@ -304,7 +304,7 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
+| World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `hat_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
 | Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
@@ -317,7 +317,7 @@ guard, the gap is explicit.
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
-database, no external services. This is the prescribed stack; the dnd5e reference
+database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
 implementation uses it. Builders may select an alternative language, runtime, or
 transport if the resulting server passes every verification workflow and the full Gauntlet
 — the alternative choice must be recorded with justification in DECISIONS.md (2).

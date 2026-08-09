@@ -246,7 +246,7 @@ all module hashes for quick whole-manifest comparison.
 ### 11.2 Vendor enrichment
 
 Vendor enrichment draws from curated, licensed documentation vendored in the
-`inform/docs_md/` directory at the Holonovel repository root. It supplements community
+`holonovel/narrative_world_model/` directory at the Holonovel repository root. It supplements community
 enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
 fiction design, GM tooling, and solo RPG communities.
 
@@ -276,7 +276,7 @@ web enrichment pass is not run — it would find redundant or lower-quality cont
 compared to the combination of ruleset-anchored web search and vendor sources.
 
 **Indexing.** The builder SHALL index all vendored enrichment sources from
-`inform/docs_md/` alongside web-sourced community enrichment. Vendor content SHALL carry
+`holonovel/narrative_world_model/` alongside web-sourced community enrichment. Vendor content SHALL carry
 `[supplementary]` tag with source URL pointing to the vendor file within the
 repository. Vendor content follows the same budgets, confidence model, and
 deduplication rules as community enrichment (§11.1). Vendor content confidence
@@ -286,10 +286,10 @@ content.
 
 **Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
 content hashes alongside the community enrichment fingerprint. Vendor content
-changes (updates to `inform/docs_md/` files) trigger module replacement per the partial
+changes (updates to `holonovel/narrative_world_model/` files) trigger module replacement per the partial
 refresh contract; unchanged vendor modules are not disturbed.
 
-**Pre-verified enrichment manifest.** The `inform/docs_md/` directory SHALL include a
+**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory SHALL include a
 `MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
 source: module name, module content hash, item count, confidence distribution
 (HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
@@ -308,7 +308,7 @@ scores — and update the manifest with the new hash and scores. Modules whose
 hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
 contract in §11.1.
 
-When the `inform/docs_md/` directory contains no MANIFEST.md, the builder SHALL audit
+When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the builder SHALL audit
 all vendor content from source and record the results — no manifest match is
 attempted. The builder MAY produce a MANIFEST.md from the audit results for use
 in subsequent builds.

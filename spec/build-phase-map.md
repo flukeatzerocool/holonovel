@@ -12,11 +12,11 @@ independently specify file lists.**
 |-------------------------------|-------------------------------------------------------------------------------|---------|
 | G0 structural integrity        | 01-foundations.md §1–§3, 03-build.md §6.1–§6.2                                | 2,500   |
 | Convert (if selected)          | 03-build.md §6.2 Convert, appendices-reference.md §G                          | 3,000   |
-| Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2 (provider indexing replaced by `@holonovel/inform` install) | 5,000   |
+| Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2 (provider indexing replaced by `holonovel` install) | 5,000   |
 | Construction (§6.4)            | 03-build.md §6.4, 02-requirements.md §5.3–§5.7, 04-runtime.md                 | 7,500   |
 | Convergence (§6.5)             | 03-build.md §6.5, 02-requirements.md (all), 05-verification.md, 08-enrichment.md §11.2 (when enrichment metrics in scope) | 9,200   |
 | Ruleset Gauntlet (§6.6)         | 03-build.md §6.6, 05-verification.md, 06-artifacts.md                         | 3,000   |
-| Inform Gauntlet (§6.6)         | 03-build.md §6.6 Inform Gauntlet (inform package verification only — not part of TTRPG builds)   | 1,800   |
+| Holonovel Gauntlet (§6.6)         | 03-build.md §6.6 Holonovel Gauntlet (holonovel package verification only — not part of TTRPG builds)   | 1,800   |
 | Gates G0–G5 (§8)               | 05-verification.md (full)                                                     | 1,800   |
 | Handoff (§9)                   | 06-artifacts.md, 07-independent.md                                            | 2,000   |
 | Community enrichment (§11, optional) | 08-enrichment.md, appendices-reference.md §J                                  | 2,500   |
