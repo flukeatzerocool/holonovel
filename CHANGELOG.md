@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-08 — Push pipeline hardening
+
+- The push-pipeline script now verifies the assembled spec matches its source
+  files and lints spec/ directly, catching format drift before the audit runs.
+- Spec read-through runs in Build mode with auto-fix for low-severity findings;
+  severity-based gating blocks only on critical violations.
+- The Inform Gauntlet count is corrected from 10 to 13 sub-workflows, a smoke
+  test runs before the full Gauntlet, typecheck runs as part of the rebuild, and
+  stale build artifacts are cleaned before each rebuild.
+- Server rebuild steps delegate all spec-delta sync to a unified Step 6,
+  eliminating redundant sync calls during rebuild.
+- Dead-data scans are extracted into a shared parameterized function, findings
+  are captured for downstream gating, and the commit message dynamically reflects
+  what actually ran.
+- The spec-driven update workflow (formerly the holonovel-update skill) is inlined
+  into Step 6 as a four-phase Detect/Audit/Implement/Close workflow with
+  surface-to-scenario Gauntlet selection and a two-iteration convergence cap for
+  both servers.
+- README validation runs as a post-session shell gate; wiki updates include
+  proofreading, merge conflict detection, and coverage of all wiki pages.
+- The pipeline tags successful runs, verifies the remote after push, and checks
+  for accidental node_modules staging before commit.
+
 ## 2026-08-08 — Per-section extraction caching and inform version drift detection
 
 - Adding a rulebook to an existing ruleset no longer forces full re-extraction of
