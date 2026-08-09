@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-09 — Enrichment tier restructure
+
+- Vendor content (DMCP, BitD SRD, Lonelog, IF Craft Corpus) is now Tier 1
+  enrichment — processed at build time alongside ruleset-native extraction
+  rather than gated behind a post-build intake question. Both `[ruleset]`
+  and `[vendor]` items survive `revert_enrichment`. (REQ-225, REQ-227)
+- Community enrichment (Tier 2 web research) now defaults to off — it
+  remains defined as an optional workflow but no longer runs by default
+  after every build. The intake E5 question now asks about community
+  enrichment instead of vendor content. (§11.1, REQ-227)
+- When a ruleset has no inspirational media citations (e.g., the D&D SRD's
+  missing Appendix N), vendor content fills the `narrative_voices` module
+  so the enrichment manifest reaches the ≥4-of-7-modules populated
+  threshold. (REQ-225, REQ-226)
+- Fixed three stale "six output modules" references — the enrichment
+  manifest has seven modules since REQ-226 added `narrative_voices`.
+
 ## 2026-08-08 — Holodeck benchmark improvements
 
 - The engine now maintains a Campaign Memory — a per-NPC, per-thread, and

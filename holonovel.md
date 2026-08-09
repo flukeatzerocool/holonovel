@@ -1137,12 +1137,24 @@ mapping is:
 - Empty narrative_voices → re-read inspirational-media citation sections
   (REQ-226).
 
+When ruleset-native extraction leaves a module barren after the re-read mapping
+pass, the builder SHALL attempt to populate that module from vendor content
+(§11.2). The vendor mapping is: voice_examples → DMCP NPC voice design;
+briefing_order → DMCP campaign lifecycle structure; lore_templates → IF Craft
+Corpus worldbuilding; action_patterns → DMCP combat management;
+supplementary_guidance → DMCP NPC guidance + Lonelog session notation;
+adventure_advice → DMCP campaign lifecycle + BitD clock patterns;
+narrative_voices → IF Craft Corpus genre conventions + BitD thematic advice.
+Vendor items carry `[vendor]` tag with source anchor pointing to the vendor file.
+A module populated only by vendor content counts toward the ≥4 of 7 modules
+populated acceptance criterion.
+
 Items are sorted into module slots: example-of-play dialogue →
 voice_examples, GM advice chapter structure → briefing_order, setting/location
 descriptions → lore_templates, example-of-play resolution sequences →
 action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
-and campaign frameworks → adventure_advice. Ruleset-native enrichment is populated
-at build time and is always present in the Novel (REQ-227). In ruleset-free mode
+and campaign frameworks → adventure_advice. Tier 1 enrichment (ruleset-native +
+vendor) is populated at build time and is always present in the Novel (REQ-227). In ruleset-free mode
 (B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
 DECISIONS.md (4).
 *Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
@@ -4848,13 +4860,13 @@ _Check:_ T117.
 
 **REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
 tool that removes all community enrichment state (tier 2, `[supplementary]`-tagged
-items) from the Novel per REQ-227. Ruleset-native enrichment (tier 1,
-`[ruleset]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
-ruleset-native enrichment items.
-tool — Game Master only. Removes all enrichment state (six output modules from
+items) from the Novel per REQ-227. Tier 1 enrichment (`[ruleset]`-tagged and
+`[vendor]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
+Tier 1 enrichment items.
+tool — Game Master only. Removes all enrichment state (seven output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
-build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
-content. Does not modify DECISIONS.md — the enrichment manifest and verification
+build-derived tool registrations, hat gating rules, or any Tier 1 enrichment
+content (tagged `[ruleset]` or `[vendor]`). Does not modify DECISIONS.md — the enrichment manifest and verification
 results remain for audit.
 GM-configured Novel state that references enrichment content —
 briefing_order set via `set_briefing_order` (REQ-082) and the
@@ -5157,26 +5169,33 @@ novel, game, or other), and `description` (narrative techniques and stylistic
 markers from the source material). Community enrichment (§11.1) may add
 supplementary profiles. Stored at `enrichment://narrative_voices`. Profiles are
 inert — the GM applies them via narrative directive (REQ-081) by naming the
-profile. When the ruleset provides no inspirational media section, the module is
-empty — this is not a defect. Ruleset-free builds produce an empty module.
+profile. When the ruleset provides no inspirational media section, the builder SHALL
+attempt to populate the module from vendor content — IF Craft Corpus genre
+conventions and BitD thematic advice (§11.2). When both ruleset and vendor
+sources produce no narrative voice profiles, the module is empty — this is
+not a defect. Ruleset-free builds produce an empty module when vendor content
+is also absent.
 *Acceptance criterion:* A ruleset citing Conan and The Lord of the Rings produces
 ≥2 narrative voice profiles with source anchors and descriptions.
 _Check:_ T-new-226.
 
 **REQ-227 — Two-tier enrichment model.** Enrichment SHALL consist of exactly two
-tiers: Tier 1 (ruleset-native) extracted during Discovery per REQ-225 from the
-ruleset's own text, populated at build time, never removed by `revert_enrichment`.
-Tier 2 (community) optionally collected via web research per §11.1, tagged
-`[supplementary]`, removed by `revert_enrichment`. Both tiers coexist in all
-enrichment resource URIs and `hat_briefing` enrichment sections. The GM activates
-items from either tier via the same tool calls. Community items SHALL NOT replace
-or override ruleset-native items with matching keys — conflicts are recorded with
-`conflicts_with` reference to the ruleset-native item. Ruleset-native enrichment
-is part of the build output; community enrichment is additive post-build.
-*Acceptance criterion:* A build with ruleset content SHALL populate ruleset-native
-enrichment in the Novel at creation time; community enrichment run afterwards adds
-`[supplementary]` items alongside `[ruleset]` items; `revert_enrichment` removes
-only `[supplementary]` items.
+tiers: Tier 1 (ruleset-native + vendor) extracted at build time from two sources —
+the ruleset's own text per REQ-225 and the vendor content bundles in
+`holonovel/narrative_world_model/` per §11.2 — populated at build time, never
+removed by `revert_enrichment`. Tier 1 items carry `[ruleset]` or `[vendor]` tags
+with source anchors. Tier 2 (community) optionally collected via web research per
+§11.1, defaults to off at intake, tagged `[supplementary]`, removed by
+`revert_enrichment`. Both tiers coexist in all enrichment resource URIs and
+`hat_briefing` enrichment sections. The GM activates items from either tier via the
+same tool calls. Community items SHALL NOT replace or override ruleset-native or
+vendor items with matching keys — conflicts are recorded with `conflicts_with`
+reference to the Tier 1 item. Tier 1 enrichment is part of the build output;
+community enrichment is additive post-build and off by default.
+*Acceptance criterion:* A build with ruleset content SHALL populate Tier 1
+enrichment (ruleset-native + vendor) in the Novel at creation time; community
+enrichment, when run, adds `[supplementary]` items alongside `[ruleset]` and
+`[vendor]` items; `revert_enrichment` removes only `[supplementary]` items.
 _Check:_ T-new-227.
 
 **REQ-228 — Enrichment consistency during spec-driven updates.** During a
@@ -6418,7 +6437,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (holonovel/narrative_world_model/ directory) | yes / no                          | yes                  |
+| E5  | Run community enrichment? (web-sourced, off by default) | yes / no                          | no                   |
 
 **Update workflow.** Asked when `update` is selected.
 
@@ -8407,14 +8426,16 @@ before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Community enrichment
 
-Ruleset-native enrichment (tier 1) is extracted during Discovery per REQ-225 and
-shipped with every build. Community enrichment (tier 2) is run after Build
+Ruleset-native and vendor enrichment (tier 1) is extracted at build time per
+REQ-225 and REQ-227 and is always present in the Novel. Community enrichment
+(tier 2) is an optional, default-off workflow that may be run after Build
 completes and all verification workflows pass (§8), enhancing the server with
-web-sourced play advice layered on top of ruleset-native enrichment. Pre-build
-questions are collected in §6.2 when the `enrich` workflow is selected. Build
-alone produces a fully working server with ruleset-native enrichment; community
+web-sourced play advice layered on top of tier 1 enrichment. At intake (§6.2),
+the Enrich workflow defaults to "none" (no community enrichment). Selecting
+"community" runs the research phase described below. Build alone produces a
+fully working server with tier 1 enrichment (ruleset-native + vendor); community
 enrichment adds supplementary content to every module. Community items carry
-`[supplementary]` tag and never replace ruleset-native items (REQ-227).
+`[supplementary]` tag and never replace tier 1 items (REQ-227).
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
 selected source types (E2). Research depth is deep — at minimum:
@@ -8437,9 +8458,9 @@ threshold (e.g., "re-run when ≥3 new domains are reachable"). An incomplete
 disposition requires a supplement source audit in DECISIONS.md (6) listing which
 modules drew from supplemental content and which are from live research.
 
-**Structured outputs.** Every item across all six modules records a `collected_at` ISO 8601
+**Structured outputs.** Every item across all seven modules records a `collected_at` ISO 8601
 timestamp, enabling staleness detection. The timestamp is surfaced in enrichment resource
-output. Enrich produces an enrichment manifest with six output modules:
+output. Enrich produces an enrichment manifest with seven output modules:
 
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
    `text` (the dialogue), `context` (situation tag), `source_url`, and `confidence`.
@@ -8642,12 +8663,12 @@ This allows staleness resolution and incremental enrichment without rebuilding
 the entire manifest. The enrichment fingerprint root hash SHALL still aggregate
 all module hashes for quick whole-manifest comparison.
 
-### 11.2 Vendor enrichment
+### 11.2 Vendor content processing (Tier 1)
 
-Vendor enrichment draws from curated, licensed documentation vendored in the
-`holonovel/narrative_world_model/` directory at the Holonovel repository root. It supplements community
-enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
-fiction design, GM tooling, and solo RPG communities.
+Vendor content draws from curated, licensed documentation vendored in the
+`holonovel/narrative_world_model/` directory at the Holonovel repository root. It is
+processed at build time as part of Tier 1 enrichment alongside ruleset-native extraction
+per REQ-225.
 
 **Sources.** Four source bundles, all open-source licensed:
 
@@ -8658,67 +8679,52 @@ fiction design, GM tooling, and solo RPG communities.
 | Lonelog (lonelog.org) | CC BY-SA 4.0 | Session notation structure, scene/action/outcome separation |
 | IF Craft Corpus (pvliesdonk) | CC-BY 4.0 | Narrative structure, character voice, worldbuilding, scene structure, genre conventions |
 
-**When vendor enrichment runs.** Vendor enrichment SHALL run when the operator sets
-E5 to `yes` (default). It runs alongside community enrichment (§11.1): for TTRPG
-builds, vendor enrichment provides infrastructure craft advice that complements
-the ruleset-anchored community enrichment. For ruleset-free builds, vendor
-enrichment is the primary enrichment source — community enrichment (§11.1) SHALL
-use infrastructure-level search terms (freeform roleplay, GM techniques, narrative
-design) in place of ruleset-anchored terms, and vendor content carries higher
-weight.
+**When vendor enrichment runs.** Vendor processing SHALL run at build time for
+all non-ruleset-free builds. For TTRPG builds, vendor content provides
+infrastructure craft advice that complements ruleset-native enrichment. For
+ruleset-free builds, vendor enrichment is the primary Tier 1 enrichment source —
+ruleset-native extraction produces an empty manifest; vendor content fills all
+seven output modules with infrastructure-level craft advice.
 
-**No separate infrastructure web enrichment.** For TTRPG builds, the ruleset-anchored
-community enrichment (§11.1) already captures infrastructure concepts through the
-ruleset's lens (e.g., "D&D 5e NPC personality" returns NPC design advice). Vendor
-enrichment fills remaining gaps at higher quality. A separate infrastructure-only
-web enrichment pass is not run — it would find redundant or lower-quality content
-compared to the combination of ruleset-anchored web search and vendor sources.
-
-**Indexing.** The builder SHALL index all vendored enrichment sources from
-`holonovel/narrative_world_model/` alongside web-sourced community enrichment. Vendor content SHALL carry
-`[supplementary]` tag with source URL pointing to the vendor file within the
-repository. Vendor content follows the same budgets, confidence model, and
-deduplication rules as community enrichment (§11.1). Vendor content confidence
-defaults to HIGH (curated, licensed, reviewed) with MEDIUM overrides for
-opinion content within vendor documents and LOW overrides for experimental
-content.
+Vendor content SHALL be indexed alongside ruleset-native extraction. Vendor
+items carry `[vendor]` tag with source anchor pointing to the vendor file within
+the repository. Vendor content follows the same budgets and confidence model as
+community enrichment (§11.1). Vendor content confidence defaults to HIGH
+(curated, licensed, reviewed) with MEDIUM overrides for opinion content within
+vendor documents and LOW overrides for experimental content.
 
 **Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
-content hashes alongside the community enrichment fingerprint. Vendor content
-changes (updates to `holonovel/narrative_world_model/` files) trigger module replacement per the partial
-refresh contract; unchanged vendor modules are not disturbed.
+content hashes alongside the ruleset content hash. Vendor content changes
+(updates to `holonovel/narrative_world_model/` files) trigger module replacement per the
+partial refresh contract; unchanged vendor modules are not disturbed.
 
-**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory SHALL include a
-`MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
-source: module name, module content hash, item count, confidence distribution
-(HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
-valid ruleset index terms), and the timestamp of last verification. The manifest
-is computed by the specification maintainer against the current specification
-version and vendor source content.
+**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory
+SHALL include a `MANIFEST.md` recording per-module pre-audited enrichment data for
+each vendor source: module name, module content hash, item count, confidence
+distribution (HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items
+referencing valid ruleset index terms), and the timestamp of last verification.
 
 During Phase 1 enrichment convergence metrics, the builder SHALL compare each
 module's content hash against the MANIFEST.md entry. When the hash matches, the
 builder SHALL use the pre-verified confidence distribution and term anchoring
-score from the manifest, recording `cached — MANIFEST.md match` in DECISIONS.md
-(5) for the enrichment population and term anchoring metrics. When a module's
-hash differs from the manifest (vendor content was updated), the builder SHALL
-re-audit only the changed module — computing fresh confidence and term anchoring
-scores — and update the manifest with the new hash and scores. Modules whose
-hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
-contract in §11.1.
+score from the manifest. When a module's hash differs from the manifest (vendor
+content was updated), the builder SHALL re-audit only the changed module —
+computing fresh confidence and term anchoring scores — and update the manifest
+with the new hash and scores. Modules whose hashes are individually unchanged
+SHALL NOT be disturbed, per the partial-refresh contract in §11.1.
 
-When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the builder SHALL audit
-all vendor content from source and record the results — no manifest match is
-attempted. The builder MAY produce a MANIFEST.md from the audit results for use
-in subsequent builds.
+When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the
+builder SHALL audit all vendor content from source and record the results — no
+manifest match is attempted. The builder MAY produce a MANIFEST.md from the audit
+results for use in subsequent builds.
 
 ### 11.3 Novel enrichment
 
 Novel enrichment (tier 3) synthesizes enrichment items from the active Novel's
 own state — NPCs, lore entries, the story journal, scene history, factions,
 secrets, relationships, and countdowns. Unlike community enrichment (§11.1),
-which is web-researched, and vendor enrichment (§11.2), which draws from curated
-documentation, novel enrichment is generated by the server at runtime. Items are
+which is web-researched, and vendor content (§11.2), which is processed at build
+time as part of Tier 1, novel enrichment is generated by the server at runtime. Items are
 tagged `[novel]` and stored in the Novel JSON under a `novel_enrichment` key.
 
 **Synthesis tool.** The GM runs `synthesize_novel_enrichment` (REQ-263) to
@@ -9693,7 +9699,7 @@ diet.
 | T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all enrichment resource URIs (`enrichment://voice_examples`, `enrichment://briefing_order`, `enrichment://action_patterns`, `enrichment://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run enrich — assert repopulation succeeds. Player hat attempt returns `[FORBIDDEN]`. Assert enrichment briefing_order tokens are a subset of `spec_health.section_tokens`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080, REQ-185                            |
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `hat_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
 | T96   | Automated | Action pattern inertness: run enrich. Assert `suggest_actions(intent)` does not return enrich-derived patterns while the action pattern toggle (REQ-115) is disabled. Activate patterns via `toggle_action_patterns` — assert patterns appear in results for matching intents. Deactivate via `toggle_action_patterns` — assert patterns excluded again. GM-only tool patterns excluded from Player results whether activated or not. Player hat attempt on `toggle_action_patterns` returns `[ERROR] [FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-084                                     |
-| T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all six output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
+| T97   | Automated | Enrichment collected_at: run enrich. Inspect every item in all seven output modules — assert `collected_at` is present, non-empty, valid ISO 8601, and within ±1 minute of current time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-080                                     |
 | T98   | Automated | Novel switching: create two Novels (A and B) with distinct state. Switch from A to B via `switch_novel` — assert B's state restored independently. Switch back to A — assert A's state unchanged. Assert `switch_novel` with non-existent slug returns `[STATE_CONFLICT]`. Assert switching to ended Novel returns `[STATE_CONFLICT]`. Assert two connections with different active Novels operate independently. Verify hat state restores per Novel on switch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-095, REQ-088, REQ-055                   |
 | T99   | Automated | Novel metadata enrichment: create a Novel with entities, play through 3 sessions with distinct `TTRPG_SESSION_ID` values, run combat rounds. Assert `spec_health` and `hat_briefing` report session count, cumulative play time, last-active scene anchor, current combat round, and total combat rounds played. Assert metadata appears under the `novel` section token in `hat_briefing`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | REQ-093                                     |
 | T100  | Automated | Novel interchange: create a populated Novel with entities, NPCs, scene, countdowns, lore, and combat state. Export as JSON — assert output matches Appendix Q schema. Assert exported audit_log contains all entries with full structure per REQ-040 entry format (not a truncated preview). Import as `dry-run` — assert preview and no side effects. Import as `replace` — assert state matches exported data. Import as `merge` — assert entities and NPCs added, duplicates skipped. Verify round-trip: export → import → export produces identical output. Player hat attempts return `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQ-096, REQ-032, REQ-040, REQ-168          |

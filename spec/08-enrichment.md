@@ -8,14 +8,16 @@ before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Community enrichment
 
-Ruleset-native enrichment (tier 1) is extracted during Discovery per REQ-225 and
-shipped with every build. Community enrichment (tier 2) is run after Build
+Ruleset-native and vendor enrichment (tier 1) is extracted at build time per
+REQ-225 and REQ-227 and is always present in the Novel. Community enrichment
+(tier 2) is an optional, default-off workflow that may be run after Build
 completes and all verification workflows pass (§8), enhancing the server with
-web-sourced play advice layered on top of ruleset-native enrichment. Pre-build
-questions are collected in §6.2 when the `enrich` workflow is selected. Build
-alone produces a fully working server with ruleset-native enrichment; community
+web-sourced play advice layered on top of tier 1 enrichment. At intake (§6.2),
+the Enrich workflow defaults to "none" (no community enrichment). Selecting
+"community" runs the research phase described below. Build alone produces a
+fully working server with tier 1 enrichment (ruleset-native + vendor); community
 enrichment adds supplementary content to every module. Community items carry
-`[supplementary]` tag and never replace ruleset-native items (REQ-227).
+`[supplementary]` tag and never replace tier 1 items (REQ-227).
 
 **Research requirements.** Search the web for ruleset-specific play advice across all
 selected source types (E2). Research depth is deep — at minimum:
@@ -38,9 +40,9 @@ threshold (e.g., "re-run when ≥3 new domains are reachable"). An incomplete
 disposition requires a supplement source audit in DECISIONS.md (6) listing which
 modules drew from supplemental content and which are from live research.
 
-**Structured outputs.** Every item across all six modules records a `collected_at` ISO 8601
+**Structured outputs.** Every item across all seven modules records a `collected_at` ISO 8601
 timestamp, enabling staleness detection. The timestamp is surfaced in enrichment resource
-output. Enrich produces an enrichment manifest with six output modules:
+output. Enrich produces an enrichment manifest with seven output modules:
 
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
    `text` (the dialogue), `context` (situation tag), `source_url`, and `confidence`.
@@ -243,12 +245,12 @@ This allows staleness resolution and incremental enrichment without rebuilding
 the entire manifest. The enrichment fingerprint root hash SHALL still aggregate
 all module hashes for quick whole-manifest comparison.
 
-### 11.2 Vendor enrichment
+### 11.2 Vendor content processing (Tier 1)
 
-Vendor enrichment draws from curated, licensed documentation vendored in the
-`holonovel/narrative_world_model/` directory at the Holonovel repository root. It supplements community
-enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
-fiction design, GM tooling, and solo RPG communities.
+Vendor content draws from curated, licensed documentation vendored in the
+`holonovel/narrative_world_model/` directory at the Holonovel repository root. It is
+processed at build time as part of Tier 1 enrichment alongside ruleset-native extraction
+per REQ-225.
 
 **Sources.** Four source bundles, all open-source licensed:
 
@@ -259,67 +261,52 @@ fiction design, GM tooling, and solo RPG communities.
 | Lonelog (lonelog.org) | CC BY-SA 4.0 | Session notation structure, scene/action/outcome separation |
 | IF Craft Corpus (pvliesdonk) | CC-BY 4.0 | Narrative structure, character voice, worldbuilding, scene structure, genre conventions |
 
-**When vendor enrichment runs.** Vendor enrichment SHALL run when the operator sets
-E5 to `yes` (default). It runs alongside community enrichment (§11.1): for TTRPG
-builds, vendor enrichment provides infrastructure craft advice that complements
-the ruleset-anchored community enrichment. For ruleset-free builds, vendor
-enrichment is the primary enrichment source — community enrichment (§11.1) SHALL
-use infrastructure-level search terms (freeform roleplay, GM techniques, narrative
-design) in place of ruleset-anchored terms, and vendor content carries higher
-weight.
+**When vendor enrichment runs.** Vendor processing SHALL run at build time for
+all non-ruleset-free builds. For TTRPG builds, vendor content provides
+infrastructure craft advice that complements ruleset-native enrichment. For
+ruleset-free builds, vendor enrichment is the primary Tier 1 enrichment source —
+ruleset-native extraction produces an empty manifest; vendor content fills all
+seven output modules with infrastructure-level craft advice.
 
-**No separate infrastructure web enrichment.** For TTRPG builds, the ruleset-anchored
-community enrichment (§11.1) already captures infrastructure concepts through the
-ruleset's lens (e.g., "D&D 5e NPC personality" returns NPC design advice). Vendor
-enrichment fills remaining gaps at higher quality. A separate infrastructure-only
-web enrichment pass is not run — it would find redundant or lower-quality content
-compared to the combination of ruleset-anchored web search and vendor sources.
-
-**Indexing.** The builder SHALL index all vendored enrichment sources from
-`holonovel/narrative_world_model/` alongside web-sourced community enrichment. Vendor content SHALL carry
-`[supplementary]` tag with source URL pointing to the vendor file within the
-repository. Vendor content follows the same budgets, confidence model, and
-deduplication rules as community enrichment (§11.1). Vendor content confidence
-defaults to HIGH (curated, licensed, reviewed) with MEDIUM overrides for
-opinion content within vendor documents and LOW overrides for experimental
-content.
+Vendor content SHALL be indexed alongside ruleset-native extraction. Vendor
+items carry `[vendor]` tag with source anchor pointing to the vendor file within
+the repository. Vendor content follows the same budgets and confidence model as
+community enrichment (§11.1). Vendor content confidence defaults to HIGH
+(curated, licensed, reviewed) with MEDIUM overrides for opinion content within
+vendor documents and LOW overrides for experimental content.
 
 **Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
-content hashes alongside the community enrichment fingerprint. Vendor content
-changes (updates to `holonovel/narrative_world_model/` files) trigger module replacement per the partial
-refresh contract; unchanged vendor modules are not disturbed.
+content hashes alongside the ruleset content hash. Vendor content changes
+(updates to `holonovel/narrative_world_model/` files) trigger module replacement per the
+partial refresh contract; unchanged vendor modules are not disturbed.
 
-**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory SHALL include a
-`MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
-source: module name, module content hash, item count, confidence distribution
-(HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
-valid ruleset index terms), and the timestamp of last verification. The manifest
-is computed by the specification maintainer against the current specification
-version and vendor source content.
+**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory
+SHALL include a `MANIFEST.md` recording per-module pre-audited enrichment data for
+each vendor source: module name, module content hash, item count, confidence
+distribution (HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items
+referencing valid ruleset index terms), and the timestamp of last verification.
 
 During Phase 1 enrichment convergence metrics, the builder SHALL compare each
 module's content hash against the MANIFEST.md entry. When the hash matches, the
 builder SHALL use the pre-verified confidence distribution and term anchoring
-score from the manifest, recording `cached — MANIFEST.md match` in DECISIONS.md
-(5) for the enrichment population and term anchoring metrics. When a module's
-hash differs from the manifest (vendor content was updated), the builder SHALL
-re-audit only the changed module — computing fresh confidence and term anchoring
-scores — and update the manifest with the new hash and scores. Modules whose
-hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
-contract in §11.1.
+score from the manifest. When a module's hash differs from the manifest (vendor
+content was updated), the builder SHALL re-audit only the changed module —
+computing fresh confidence and term anchoring scores — and update the manifest
+with the new hash and scores. Modules whose hashes are individually unchanged
+SHALL NOT be disturbed, per the partial-refresh contract in §11.1.
 
-When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the builder SHALL audit
-all vendor content from source and record the results — no manifest match is
-attempted. The builder MAY produce a MANIFEST.md from the audit results for use
-in subsequent builds.
+When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the
+builder SHALL audit all vendor content from source and record the results — no
+manifest match is attempted. The builder MAY produce a MANIFEST.md from the audit
+results for use in subsequent builds.
 
 ### 11.3 Novel enrichment
 
 Novel enrichment (tier 3) synthesizes enrichment items from the active Novel's
 own state — NPCs, lore entries, the story journal, scene history, factions,
 secrets, relationships, and countdowns. Unlike community enrichment (§11.1),
-which is web-researched, and vendor enrichment (§11.2), which draws from curated
-documentation, novel enrichment is generated by the server at runtime. Items are
+which is web-researched, and vendor content (§11.2), which is processed at build
+time as part of Tier 1, novel enrichment is generated by the server at runtime. Items are
 tagged `[novel]` and stored in the Novel JSON under a `novel_enrichment` key.
 
 **Synthesis tool.** The GM runs `synthesize_novel_enrichment` (REQ-263) to

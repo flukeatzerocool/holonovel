@@ -140,7 +140,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (holonovel/narrative_world_model/ directory) | yes / no                          | yes                  |
+| E5  | Run community enrichment? (web-sourced, off by default) | yes / no                          | no                   |
 
 **Update workflow.** Asked when `update` is selected.
 

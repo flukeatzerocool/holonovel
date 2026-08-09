@@ -805,12 +805,24 @@ mapping is:
 - Empty narrative_voices → re-read inspirational-media citation sections
   (REQ-226).
 
+When ruleset-native extraction leaves a module barren after the re-read mapping
+pass, the builder SHALL attempt to populate that module from vendor content
+(§11.2). The vendor mapping is: voice_examples → DMCP NPC voice design;
+briefing_order → DMCP campaign lifecycle structure; lore_templates → IF Craft
+Corpus worldbuilding; action_patterns → DMCP combat management;
+supplementary_guidance → DMCP NPC guidance + Lonelog session notation;
+adventure_advice → DMCP campaign lifecycle + BitD clock patterns;
+narrative_voices → IF Craft Corpus genre conventions + BitD thematic advice.
+Vendor items carry `[vendor]` tag with source anchor pointing to the vendor file.
+A module populated only by vendor content counts toward the ≥4 of 7 modules
+populated acceptance criterion.
+
 Items are sorted into module slots: example-of-play dialogue →
 voice_examples, GM advice chapter structure → briefing_order, setting/location
 descriptions → lore_templates, example-of-play resolution sequences →
 action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
-and campaign frameworks → adventure_advice. Ruleset-native enrichment is populated
-at build time and is always present in the Novel (REQ-227). In ruleset-free mode
+and campaign frameworks → adventure_advice. Tier 1 enrichment (ruleset-native +
+vendor) is populated at build time and is always present in the Novel (REQ-227). In ruleset-free mode
 (B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
 DECISIONS.md (4).
 *Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
@@ -4516,13 +4528,13 @@ _Check:_ T117.
 
 **REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
 tool that removes all community enrichment state (tier 2, `[supplementary]`-tagged
-items) from the Novel per REQ-227. Ruleset-native enrichment (tier 1,
-`[ruleset]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
-ruleset-native enrichment items.
-tool — Game Master only. Removes all enrichment state (six output modules from
+items) from the Novel per REQ-227. Tier 1 enrichment (`[ruleset]`-tagged and
+`[vendor]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
+Tier 1 enrichment items.
+tool — Game Master only. Removes all enrichment state (seven output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
-build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged
-content. Does not modify DECISIONS.md — the enrichment manifest and verification
+build-derived tool registrations, hat gating rules, or any Tier 1 enrichment
+content (tagged `[ruleset]` or `[vendor]`). Does not modify DECISIONS.md — the enrichment manifest and verification
 results remain for audit.
 GM-configured Novel state that references enrichment content —
 briefing_order set via `set_briefing_order` (REQ-082) and the
@@ -4825,26 +4837,33 @@ novel, game, or other), and `description` (narrative techniques and stylistic
 markers from the source material). Community enrichment (§11.1) may add
 supplementary profiles. Stored at `enrichment://narrative_voices`. Profiles are
 inert — the GM applies them via narrative directive (REQ-081) by naming the
-profile. When the ruleset provides no inspirational media section, the module is
-empty — this is not a defect. Ruleset-free builds produce an empty module.
+profile. When the ruleset provides no inspirational media section, the builder SHALL
+attempt to populate the module from vendor content — IF Craft Corpus genre
+conventions and BitD thematic advice (§11.2). When both ruleset and vendor
+sources produce no narrative voice profiles, the module is empty — this is
+not a defect. Ruleset-free builds produce an empty module when vendor content
+is also absent.
 *Acceptance criterion:* A ruleset citing Conan and The Lord of the Rings produces
 ≥2 narrative voice profiles with source anchors and descriptions.
 _Check:_ T-new-226.
 
 **REQ-227 — Two-tier enrichment model.** Enrichment SHALL consist of exactly two
-tiers: Tier 1 (ruleset-native) extracted during Discovery per REQ-225 from the
-ruleset's own text, populated at build time, never removed by `revert_enrichment`.
-Tier 2 (community) optionally collected via web research per §11.1, tagged
-`[supplementary]`, removed by `revert_enrichment`. Both tiers coexist in all
-enrichment resource URIs and `hat_briefing` enrichment sections. The GM activates
-items from either tier via the same tool calls. Community items SHALL NOT replace
-or override ruleset-native items with matching keys — conflicts are recorded with
-`conflicts_with` reference to the ruleset-native item. Ruleset-native enrichment
-is part of the build output; community enrichment is additive post-build.
-*Acceptance criterion:* A build with ruleset content SHALL populate ruleset-native
-enrichment in the Novel at creation time; community enrichment run afterwards adds
-`[supplementary]` items alongside `[ruleset]` items; `revert_enrichment` removes
-only `[supplementary]` items.
+tiers: Tier 1 (ruleset-native + vendor) extracted at build time from two sources —
+the ruleset's own text per REQ-225 and the vendor content bundles in
+`holonovel/narrative_world_model/` per §11.2 — populated at build time, never
+removed by `revert_enrichment`. Tier 1 items carry `[ruleset]` or `[vendor]` tags
+with source anchors. Tier 2 (community) optionally collected via web research per
+§11.1, defaults to off at intake, tagged `[supplementary]`, removed by
+`revert_enrichment`. Both tiers coexist in all enrichment resource URIs and
+`hat_briefing` enrichment sections. The GM activates items from either tier via the
+same tool calls. Community items SHALL NOT replace or override ruleset-native or
+vendor items with matching keys — conflicts are recorded with `conflicts_with`
+reference to the Tier 1 item. Tier 1 enrichment is part of the build output;
+community enrichment is additive post-build and off by default.
+*Acceptance criterion:* A build with ruleset content SHALL populate Tier 1
+enrichment (ruleset-native + vendor) in the Novel at creation time; community
+enrichment, when run, adds `[supplementary]` items alongside `[ruleset]` and
+`[vendor]` items; `revert_enrichment` removes only `[supplementary]` items.
 _Check:_ T-new-227.
 
 **REQ-228 — Enrichment consistency during spec-driven updates.** During a
