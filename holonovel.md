@@ -75,7 +75,7 @@ defined freshness windows.
 The verification workflows are executable — follow them in order. Use the assembled
 `holonovel.md` or load spec files per `build-phase-map.md`.
 
-**Reference material** (Appendices A–S) is supplementary. Glance at Appendix E
+**Reference material** (Appendices A–Y) is supplementary. Glance at Appendix E
 (Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
 Test Catalogue) to understand test coverage, and Appendix S (Builder Glossary) for
 domain terminology. The remaining appendices are consulted on demand during specific

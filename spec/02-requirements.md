@@ -486,7 +486,7 @@ four sections in order:
    per-workflow pass criteria.
 3. **Troubleshooting** — common operator-reported failure modes per REQ-153.
 4. **Build Context** — spec version, build date in ISO 8601, builder model identifier,
-   ruleset content hash (REQ-044), and the `@holonovel/inform` version used.
+   ruleset content hash (REQ-044), and the `holonovel` version used.
 
 Missing sections or sections without content are handoff defects.
 _Check:_ T291.
@@ -819,7 +819,7 @@ Tools in the following categories exist independent of ruleset content and SHALL
 always be present in `tools/list`:
 
 - **World** — room, thing, exit, and property CRUD; parser command dispatch;
-  `convert_source`. (`@holonovel/inform` package.)
+  `convert_source`. (`holonovel` package.)
 - **Novels** — save-file operations: lifecycle (`create_novel`, `resume_novel`,
   `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`,
   `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints
@@ -3449,7 +3449,7 @@ _Check:_ T-new-302.
 
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
 directory: the specification version, the specification content hash (from the embedded
-holonovel.md, REQ-105), the ruleset content hash (REQ-044), the @holonovel/inform
+holonovel.md, REQ-105), the ruleset content hash (REQ-044), the holonovel
 version (from B10), the spec repository URL (REQ-106), and the build timestamp.
 The fingerprint is persisted alongside Novel state so
 it survives server restarts. On startup with existing state, the server reloads the stored
@@ -3497,6 +3497,58 @@ _Check:_ T52, T224.
 *Out of scope:* relational database backends, distributed state across processes,
 cloud synchronization, and state migration between incompatible specification versions
 without the Update workflow (§6.7).
+
+**REQ-313 — Server implementation fingerprinting.** The builder SHALL compute SHA-256
+content hashes for five server implementation components at every build and record
+them alongside the build fingerprint (REQ-065) in DECISIONS.md (1). The five
+components are: server source code (all files in the server's source directory, sorted
+by path and concatenated), server configuration (the build configuration files
+governing compilation and dependencies), the dependency lockfile (recording the exact
+dependency tree), generated extraction data (ruleset extraction output produced during
+Discovery), and registered surfaces (the sorted, concatenated list of registered tool
+names, resource URIs, and prompt names). When generated extraction data is absent
+(ruleset-free builds or servers without extraction), the generated-data component
+records a sentinel indicating no extraction was performed. Each component hash SHALL
+be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT
+use these hashes to gate startup — they exist for scoping subsequent builds and
+updates (REQ-314).
+*Acceptance criterion:* A build records five component hashes in DECISIONS.md (1)
+alongside the build fingerprint; a subsequent build with unchanged source code
+produces an identical source code hash. A ruleset-free build records the sentinel
+for generated extraction data.
+_Check:_ T-new-313.
+
+**REQ-314 — Fingerprint-driven partial rebuild.** During Build (§6.2–§6.6) or
+spec-driven updates (§6.7), the builder SHALL compare the current implementation
+fingerprints (REQ-313) against the stored fingerprints from the prior build. When
+one or more components changed but others are unchanged, the builder SHALL scope
+the rebuild to only the changed components and their dependents, reusing prior
+output for unchanged components. The scoping rules are:
+
+- **Source code changed** (configuration and dependencies unchanged) → typecheck
+  the server, then run only the Gauntlet sub-workflows whose surface-to-scenario
+  mapping (§6.6) covers the surfaces implemented by the changed source files.
+- **Configuration or dependencies changed** (source unchanged) → reinstall
+  dependencies and typecheck; no Gauntlet re-run required.
+- **Generated extraction data changed** (ruleset content hash REQ-044 unchanged) →
+  re-index generation data only, reusing prior extraction output for unchanged
+  ruleset sections per REQ-302.
+- **Registered surfaces changed** → run Gauntlet sub-workflows per the
+  surface-to-scenario mapping (§6.6) for the changed tools, resources, or prompts.
+- **Specification content hash changed** (REQ-187) → gap audit per REQ-098, then
+  implement only changed surfaces; unchanged components reuse prior verification.
+
+Cold checkout (no stored fingerprints) and builds where more than half the
+fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6).
+The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which
+components changed, which remained unchanged, the scoping decision, and which
+prior outputs were reused.
+*Acceptance criterion:* A build where only the source code changed reuses the stored
+generated-data hash, skips extraction, and runs only surface-dependent Gauntlet
+sub-workflows. A cold checkout with no stored fingerprints runs the full Build
+workflow without scoping. When four of five components changed, the full Build
+workflow runs regardless of individual scoping rules.
+_Check:_ T-new-314.
 
 **REQ-232 — Pause/resume context.** The Novel SHALL persist a `dm_context` object
 alongside other Novel state. Fields: `current_scene` (narrative summary of the active
