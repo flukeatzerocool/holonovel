@@ -8,7 +8,7 @@
 > adventure modules, and ruleset-native enrichment — plus four handoff artifacts (plus
 > LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
 > infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) is
-> provided by `@holonovel/inform`. Optional community enrichment workflow adds web-sourced
+> provided by `holonovel`. Optional community enrichment workflow adds web-sourced
 > play advice. Quality enforced by verification workflows, 14 handoff verification steps,
 > and a golden-transcript replay. One server per ruleset. No network at runtime
 > (REQ-051). Hats control tool-access gating (REQ-032): `player`, `game_master`,
@@ -304,7 +304,7 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| World             | The world-model package (`@holonovel/inform`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
+| World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `hat_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
 | Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
@@ -317,7 +317,7 @@ guard, the gap is explicit.
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
-database, no external services. This is the prescribed stack; the dnd5e reference
+database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
 implementation uses it. Builders may select an alternative language, runtime, or
 transport if the resulting server passes every verification workflow and the full Gauntlet
 — the alternative choice must be recorded with justification in DECISIONS.md (2).
@@ -818,7 +818,7 @@ four sections in order:
    per-workflow pass criteria.
 3. **Troubleshooting** — common operator-reported failure modes per REQ-153.
 4. **Build Context** — spec version, build date in ISO 8601, builder model identifier,
-   ruleset content hash (REQ-044), and the `@holonovel/inform` version used.
+   ruleset content hash (REQ-044), and the `holonovel` version used.
 
 Missing sections or sections without content are handoff defects.
 _Check:_ T291.
@@ -1151,7 +1151,7 @@ Tools in the following categories exist independent of ruleset content and SHALL
 always be present in `tools/list`:
 
 - **World** — room, thing, exit, and property CRUD; parser command dispatch;
-  `convert_source`. (`@holonovel/inform` package.)
+  `convert_source`. (`holonovel` package.)
 - **Novels** — save-file operations: lifecycle (`create_novel`, `resume_novel`,
   `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`,
   `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints
@@ -2210,15 +2210,18 @@ REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089,
 including a "Session zero not yet completed" reminder when `session_zero_completed`
 is false), a pointer to the intro prompt (REQ-063), story journal entries — entries
 whose entity IDs overlap the active entities or whose scene anchor matches the current
-scene (GM only, REQ-246), and the current autonomy state — all four slider values
-from `set_autonomy` (REQ-306) when set.
+scene (GM only, REQ-246), the current autonomy state — all four slider values
+from `set_autonomy` (REQ-306) when set, campaign memory facts (GM only, REQ-310),
+world in motion entries (GM only, REQ-233a), and proactive available actions
+(REQ-084a).
 
 Groups whose data source is empty SHALL include an explicit empty-state marker
 describing which category is empty. Markers preserve the expected briefing structure
 and prevent the caller from inferring non-existent content. The enumeration order
 above is the builder's required default section ordering for `hat_briefing`.
 Decision-critical groups (scene state, the POV directive, entities, combat state,
-triggered lore, active NPCs, and active countdowns, and narrative threads) precede
+triggered lore, active NPCs, active countdowns, narrative threads, campaign memory
+(REQ-310), world in motion (REQ-233a), and available actions (REQ-084a)) precede
 the section boundary; supplementary guidance and navigation groups (hat foundations,
 anti-slop guidance, narrative tone samples, active adventure content, registered
 tools, entity personality fields, the narrative directive, player signals, Novel
@@ -3148,6 +3151,56 @@ wizard's knowledge still excludes the trap until `reveal_secret("floor_trap",
 "wizard_01")` is called.
 _Check:_ T-new-308.
 
+**REQ-311 — NPC memory model.** EACH NPC SHALL maintain a per-NPC memory of its
+interactions with player entities, independent of the global knowledge system (REQ-308).
+The NPC memory records:
+
+- **Witnessed events.** WHEN an NPC is present in a scene (`characters_present` per
+  REQ-307), THE engine SHALL record a memory for what the NPC observed: entity actions,
+  dialogue context, and mechanical outcomes (damage dealt, conditions applied, countdowns
+  fired). This is scoped to what the NPC could perceive — an NPC in the tavern does not
+  learn what happened in the dungeon.
+
+- **Party knowledge.** FOR each player entity the NPC has interacted with, THE engine
+  SHALL record what the NPC knows: the entity's name, apparent capabilities (class,
+  visible equipment), relationship status (REQ-236), and recent interactions (the last 3
+  interactions with timestamps). An NPC who has never met an entity SHALL carry a "no
+  prior contact" marker for that entity.
+
+- **Emotional state.** THE engine SHALL derive the NPC's current emotional state from
+  recent interactions: disposition trends (hostile → neutral → friendly), stress markers
+  (number of combats survived, allies lost), and goal proximity (goal-relevant events per
+  REQ-311). The emotional state SHALL be surfaced as a one-sentence summary in
+  `hat_briefing` alongside the NPC's personality fields.
+
+- **State evolution.** WHEN a player entity interacts with an NPC — via combat (REQ-043),
+  social skill checks, or mechanical outcomes that affect the NPC — THE engine SHALL
+  update the NPC's memory and disposition without requiring a GM tool call. A player who
+  threatens an NPC SHALL produce `disposition: hostile` automatically. A player who helps
+  an NPC SHALL produce `disposition: friendly`. The GM may override automated disposition
+  changes via `update_npc`.
+
+WHEN an NPC is present in the current scene, THE engine SHALL surface the NPC's memory in
+`hat_briefing` as an `## NPC Memory` section within the entity personality group
+(REQ-109). The section SHALL include: a one-sentence emotional state summary, a summary
+of the NPC's last 3 interactions with present player entities, and any goals the NPC is
+pursuing. NPC memory SHALL be gated by presence (REQ-307) — only NPCs in the current
+scene surface their memory. Memory facts persist with the Novel. `spec_health` SHALL
+report `npc_memory_count` — the total number of NPC memory entries across all NPCs.
+
+*Coupling:* NPC memory entries SHALL populate campaign memory facts (REQ-310) per-NPC
+category when the event involves significant state changes (goal advancement, disposition
+flip, relationship change).
+
+*Acceptance criterion:* After a session where an NPC (blacksmith) is threatened by a
+player entity, `update_npc` is not called, but `hat_briefing` under GM hat includes the
+NPC's memory section showing `disposition: hostile` and the threat event. After a second
+session where the same player entity helps the blacksmith, the NPC's memory section shows
+`disposition: friendly` and the disposition flip is a campaign memory fact. An NPC who
+has never met the party shows "no prior contact." `spec_health` reports
+`npc_memory_count ≥ 1`.
+_Check:_ T-new-312.
+
 **REQ-077 — Entity personality fields.** Each roster entity may carry optional narrative
 fields:
 
@@ -3728,7 +3781,7 @@ _Check:_ T-new-302.
 
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
 directory: the specification version, the specification content hash (from the embedded
-holonovel.md, REQ-105), the ruleset content hash (REQ-044), the @holonovel/inform
+holonovel.md, REQ-105), the ruleset content hash (REQ-044), the holonovel
 version (from B10), the spec repository URL (REQ-106), and the build timestamp.
 The fingerprint is persisted alongside Novel state so
 it survives server restarts. On startup with existing state, the server reloads the stored
@@ -3745,8 +3798,8 @@ comparison is field-by-field:
   intake hash. Emits a `[ruleset_drift]` warning on stderr and in spec_health listing the
   stored and current hashes. This is the source immutability drift check traceable to
   REQ-014.
-- **Inform version mismatch** — the installed inform package version differs from the
-  build-time version recorded in the fingerprint. Emits an `[inform_drift]` warning on
+- **Holonovel version mismatch** — the installed holonovel package version differs from the
+  build-time version recorded in the fingerprint. Emits an `[holonovel_drift]` warning on
   stderr and in spec_health listing the stored and current versions.
 - **Build timestamp** — expected to differ across restarts; does not emit a warning.
 
@@ -3755,7 +3808,7 @@ or degrade service. The active build's specification version, ruleset hash, and 
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
 Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
-the constructor-derived version, hash, inform version, and timestamp are immutable for
+the constructor-derived version, hash, holonovel package version, and timestamp are immutable for
 the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
 fields required by the current model but absent from existing state receive their
@@ -3776,6 +3829,58 @@ _Check:_ T52, T224.
 *Out of scope:* relational database backends, distributed state across processes,
 cloud synchronization, and state migration between incompatible specification versions
 without the Update workflow (§6.7).
+
+**REQ-313 — Server implementation fingerprinting.** The builder SHALL compute SHA-256
+content hashes for five server implementation components at every build and record
+them alongside the build fingerprint (REQ-065) in DECISIONS.md (1). The five
+components are: server source code (all files in the server's source directory, sorted
+by path and concatenated), server configuration (the build configuration files
+governing compilation and dependencies), the dependency lockfile (recording the exact
+dependency tree), generated extraction data (ruleset extraction output produced during
+Discovery), and registered surfaces (the sorted, concatenated list of registered tool
+names, resource URIs, and prompt names). When generated extraction data is absent
+(ruleset-free builds or servers without extraction), the generated-data component
+records a sentinel indicating no extraction was performed. Each component hash SHALL
+be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT
+use these hashes to gate startup — they exist for scoping subsequent builds and
+updates (REQ-314).
+*Acceptance criterion:* A build records five component hashes in DECISIONS.md (1)
+alongside the build fingerprint; a subsequent build with unchanged source code
+produces an identical source code hash. A ruleset-free build records the sentinel
+for generated extraction data.
+_Check:_ T-new-313.
+
+**REQ-314 — Fingerprint-driven partial rebuild.** During Build (§6.2–§6.6) or
+spec-driven updates (§6.7), the builder SHALL compare the current implementation
+fingerprints (REQ-313) against the stored fingerprints from the prior build. When
+one or more components changed but others are unchanged, the builder SHALL scope
+the rebuild to only the changed components and their dependents, reusing prior
+output for unchanged components. The scoping rules are:
+
+- **Source code changed** (configuration and dependencies unchanged) → typecheck
+  the server, then run only the Gauntlet sub-workflows whose surface-to-scenario
+  mapping (§6.6) covers the surfaces implemented by the changed source files.
+- **Configuration or dependencies changed** (source unchanged) → reinstall
+  dependencies and typecheck; no Gauntlet re-run required.
+- **Generated extraction data changed** (ruleset content hash REQ-044 unchanged) →
+  re-index generation data only, reusing prior extraction output for unchanged
+  ruleset sections per REQ-302.
+- **Registered surfaces changed** → run Gauntlet sub-workflows per the
+  surface-to-scenario mapping (§6.6) for the changed tools, resources, or prompts.
+- **Specification content hash changed** (REQ-187) → gap audit per REQ-098, then
+  implement only changed surfaces; unchanged components reuse prior verification.
+
+Cold checkout (no stored fingerprints) and builds where more than half the
+fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6).
+The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which
+components changed, which remained unchanged, the scoping decision, and which
+prior outputs were reused.
+*Acceptance criterion:* A build where only the source code changed reuses the stored
+generated-data hash, skips extraction, and runs only surface-dependent Gauntlet
+sub-workflows. A cold checkout with no stored fingerprints runs the full Build
+workflow without scoping. When four of five components changed, the full Build
+workflow runs regardless of individual scoping rules.
+_Check:_ T-new-314.
 
 **REQ-232 — Pause/resume context.** The Novel SHALL persist a `dm_context` object
 alongside other Novel state. Fields: `current_scene` (narrative summary of the active
@@ -3823,6 +3928,46 @@ direction.
 goals=["Expand to East Dock"])` creates a faction with a `faction`-type clock;
 `faction://<id>` returns the faction with its current clock position.
 _Check:_ T269.
+
+**REQ-233a — World reactivity.** WHEN scene_transition (REQ-125) fires, THE engine SHALL
+autonomously advance the world state beyond faction clocks:
+
+- **NPC goal pursuit.** FOR each NPC with `goals` (REQ-077) whose last-known location
+  differs from a goal-relevant entity's current scene, THE engine SHALL check whether
+  the NPC made progress toward their goal between scenes. A success SHALL produce a
+  campaign memory fact (REQ-310) describing the advancement: the NPC acted on their
+  goal. A failure SHALL produce a fact noting the NPC's stalled pursuit.
+
+- **Consequence propagation.** WHEN a player action triggers a state change in a
+  connected entity — a relationship type change (REQ-236), a secret revelation
+  (REQ-234), or a faction clock filling (REQ-233) — THE engine SHALL trace ripple
+  effects through directly connected entities. An entity with an `ally` relationship
+  to the affected entity SHALL receive a campaign memory fact noting the ally's state
+  change. An entity with a `rival` relationship SHALL receive a fact noting the rival's
+  change as an opportunity. Propagation extends one hop from the affected entity.
+
+- **GM approval surface.** The GM SHALL see a `## World in Motion` section in
+  `hat_briefing` — a decision-critical group ordered after Narrative Threads
+  (REQ-281) — listing pending world changes produced by this cycle. Each entry
+  carries: the source (NPC goal / faction / consequence), a one-sentence summary of
+  the proposed change, and an accept/modify/defer label. Accept applies the change
+  to canonical state. Modify raises a `[NEED_INPUT]` workflow (REQ-042) for the GM
+  to edit the change. Defer suppresses the change — it does not produce a campaign
+  memory fact and will be re-evaluated at the next scene transition. Deferred
+  changes SHALL accumulate no more than 3 deferrals; on the fourth, the engine SHALL
+  escalate to a `[WARNING]` in `spec_health`.
+
+A setting `TTRPG_WORLD_REACTIVITY` (default `on`) controls whether the reactivity
+cycle runs. When `off`, scene transitions advance faction clocks only (current
+behavior).
+
+*Acceptance criterion:* With `TTRPG_WORLD_REACTIVITY=on`, an NPC with
+`goals="Steal the crown"` produces a World in Motion entry at scene transition
+showing goal pursuit progress. A relationship change on entity A (`ally` → `rival`
+with entity B) produces a campaign memory fact on entity B. The GM accepts a
+proposed change — it appears in campaign memory. The GM defers a change — it
+re-appears at the next scene transition.
+_Check:_ T-new-314.
 
 **REQ-236 — Entity relationships.** The Game Master may set directed relationships
 between entities, NPCs, and factions. `set_relationship(entity_a, entity_b, type,
@@ -4241,6 +4386,48 @@ _Check:_ T9, T31, T108.
 verification of input safety, and performance under adversarial load beyond the tier
 benchmarks defined in REQ-100.
 
+**REQ-312 — Pre-narration validation gate.** WHEN the AI narrator proposes narration that
+implies a mechanical outcome — damage dealt, condition applied, spell effect resolved,
+ruleset-defined state change — THE engine SHALL validate the proposal against ruleset
+constraints before the narration reaches the player. Validation SHALL check:
+
+- **Bounds conformance.** Mechanical claims (damage amounts, DC values, spell slot
+  expenditures, condition applicability) SHALL NOT exceed ruleset-defined maxima. A
+  narration claiming Fireball deals 12d6 damage SHALL be rejected with a corrective
+  suggestion naming the ruleset maximum.
+
+- **Permission conformance.** Mechanical claims SHALL NOT assert outcomes a character is
+  not capable of — the entity must possess the referenced capability (class feature,
+  spell slot, equipment, feat). A narration claiming a Fighter casts a spell they do not
+  know SHALL be rejected.
+
+- **State conformance.** Mechanical claims SHALL NOT contradict current state — a
+  narration claiming a dead NPC acts SHALL be rejected. A narration claiming a condition
+  the entity already has is applied again SHALL be rejected.
+
+Invalid proposals SHALL be rejected behind the server interface — the player never sees
+the invalid narration. The rejection SHALL produce a corrective suggestion: `[REJECTED]
+Proposed narration implies <claim>. Ruleset constraint: <constraint>. Corrective
+suggestion: <rewrite>`. The AI narrator receives the correction and may retry. Validation
+leverages existing ruleset extraction (REQ-010–018) and the server's indexed capabilities
+catalogue. Validation is a per-narration gate, not a continuous scanner — it activates
+only when a state-mutating tool call is preceded by AI narration.
+
+A setting `TTRPG_NARRATION_VALIDATION` (default `on`) controls the gate. When `off`,
+narration passes through unvalidated (current behavior). `spec_health` SHALL report
+`narration_validation: enabled | disabled` and `narration_rejection_count` — cumulative
+rejections since last Novel resume.
+
+*Out of scope:* Validation of narrative style, tone, or prose quality — these are AI
+judgment, not mechanical integrity.
+
+*Acceptance criterion:* With `TTRPG_NARRATION_VALIDATION=on`, the AI proposes narration
+claiming a dead NPC speaks — the engine rejects it with a corrective suggestion citing
+the NPC's deceased state. The player never sees the invalid narration. The AI retries
+with a corrected narration. `spec_health` reports `narration_rejection_count: 1`. With
+`TTRPG_NARRATION_VALIDATION=off`, the same narration passes through.
+_Check:_ T-new-313.
+
 ### 5.8 Enrichment, Lore, and Macros
 
 **REQ-246 — Story journal.** The server provides story journal tools — Game Master only.
@@ -4283,6 +4470,47 @@ an entry; `list_stories(type="moment")` returns entries filtered by type;
 returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not remove
 entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
+
+**REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
+memory — a per-entity fact store derived automatically from state-changing tool calls,
+surviving process restart and full rebuild. Facts are recorded by the engine, not the AI,
+and SHALL be stored in the Novel JSON per REQ-092. The campaign memory tracks three
+categories:
+
+- **Per-NPC facts.** WHEN an NPC participates in combat (REQ-043), appears in a scene
+  (`characters_present` per REQ-307), undergoes a relationship change (REQ-236), or
+  receives a personality update (REQ-077), THE engine SHALL record a fact capturing the
+  nature of the event, the scene anchor, and a timestamp. Per-NPC facts SHALL NOT duplicate
+  the NPC's own personality fields or depth metadata (REQ-075) — they capture events, not
+  traits.
+
+- **Per-thread facts.** WHEN a faction clock (REQ-233) advances, a countdown with narrative
+  scope fires, a story journal `decision` entry has no corresponding `consequence`
+  (REQ-246), or an active vow (REQ-289) accumulates milestones, THE engine SHALL record a
+  fact linking the thread to the entities involved.
+
+- **Per-location facts.** WHEN scene state (REQ-076) records a notable event or NPC
+  presence at a location, THE engine SHALL record a fact associating the location with the
+  event, timestamp, and involved entities.
+
+WHEN `hat_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory
+facts under a `## Campaign Memory` section. This section is a decision-critical group
+(REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by
+relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships
+to present entities, (c) active thread facts involving present entities, (d) location
+facts for the current scene, (e) recency (most recent first). The section SHALL render at
+most 10 facts, ordered by priority. Campaign memory facts SHALL NOT introduce new mutating
+tools — they are a surfacing layer over existing state. `spec_health` SHALL report
+`campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total.
+`export_novel` SHALL include `campaign_memory` in its payload.
+
+*Acceptance criterion:* After a session with two NPCs (each appearing in a scene and
+combat), three scene changes, one faction clock advancement, and one story journal
+decision, `spec_health` reports `campaign_memory.npcs ≥ 2`, `campaign_memory.threads ≥ 1`,
+`campaign_memory.locations ≥ 1`. `hat_briefing` includes `## Campaign Memory` with facts
+prioritized by scene relevance. Facts survive Novel persistence and are present in
+`export_novel("json")`.
+_Check:_ T-new-311.
 
 **REQ-080 — Enrichment boundaries.** Enrichment consists of three source
 categories with distinct storage models:
@@ -4532,6 +4760,39 @@ eliminates the redundancy of maintaining two surfaces for the same capability.
 tools; `suggest_actions("xyzzy")` returns an empty list; enrichment patterns are
 excluded from results until activated via `toggle_action_patterns`.
 _Check:_ T68, T96, T120.
+
+**REQ-084a — Proactive action surfacing.** IN addition to reactive intent-to-tool
+mapping, THE server SHALL surface a `## Available Actions` section in `hat_briefing`
+(REQ-109) — a decision-critical group after combat state and before lore. This section
+lists mechanically legal actions the active entity can take given the current scene
+state, entity capabilities, and ruleset. Actions SHALL be filtered:
+
+- **Scene-type filtering.** Combat scenes (REQ-087) SHALL surface attack, dodge, spell,
+  and condition-clearance actions. Social scenes SHALL surface persuasion, deception,
+  and insight actions. Exploration scenes SHALL surface perception, investigation,
+  and navigation actions.
+
+- **Capability gating.** An action SHALL appear only when its mechanical prerequisites
+  are met — a spell appears only when the entity has the required spell slot available;
+  a class feature appears only when the entity possesses it and its per-rest uses are
+  not exhausted; an equipment-dependent action appears only when the entity carries
+  the equipment.
+
+- **Count gating.** The section SHALL render at most 8 actions, prioritized by relevance
+  to the current scene type. Actions are drawn from the registered tool surface — no
+  fabricated actions. `suggest_actions` (REQ-084) remains the canonical intent-to-tool
+  mapping; the proactive surface is a discovery aide, not a replacement.
+
+`hat_briefing` SHALL include an `available_actions` section token following the
+existing token contract (REQ-082, REQ-185).
+
+*Acceptance criterion:* During combat, `hat_briefing` `## Available Actions` lists
+weapon attack, spell, and condition-clearance actions, filtered to the active entity's
+capabilities. A wizard with no 3rd-level slots does not see "Cast Fireball." An entity
+in a social scene sees persuasion and deception actions instead of combat actions.
+`suggest_actions` continues to return reactive suggestions independently of the
+proactive listing.
+_Check:_ T-new-315.
 
 **REQ-115 — Action pattern activation.** The server provides a
 `toggle_action_patterns` tool — Game Master only. Calling it flips
@@ -4976,8 +5237,8 @@ _Check:_ T-new-243.
 **REQ-244 — Convergence cache key.** The builder SHALL compute a convergence
 cache key at the start of Phase 1, composed of five components: the ruleset
 content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
-content hash (REQ-187), the inform package version (B10), an aggregate hash
-of the `inform/docs_md/` vendor directory, and a narrative surface hash — a
+content hash (REQ-187), the holonovel package version (B10), an aggregate hash
+of the `holonovel/narrative_world_model/` vendor directory, and a narrative surface hash — a
 SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names
 for all narrative-category tools (excluding Novel lifecycle and Hat & Workflow
 tools). When the cache key matches a prior successful
@@ -5008,19 +5269,19 @@ convergence loop regardless of key match. A cold checkout (no prior
 DECISIONS.md) runs the full convergence loop.
 _Check:_ T-new-244.
 
-**REQ-245 — Pre-computed enrichment manifest.** The inform package SHALL ship a
+**REQ-245 — Pre-computed enrichment manifest.** The holonovel package SHALL ship a
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
-results per package version: the inform version, the specification version the
+results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Inform Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
+Holonovel Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
-matches the current specification version, the inform builder MAY skip Phase 2
-convergence and the Inform Gauntlet, recording `cached — inform vX.Y.Z
+matches the current specification version, the holonovel package builder MAY skip Phase 2
+convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
 convergence manifest` in DECISIONS.md (5) and (6). When the specification
-version has advanced, the builder SHALL run convergence and the Inform
+version has advanced, the builder SHALL run convergence and the Holonovel
 Gauntlet fresh and update the manifest with the new results and spec version.
-TTRPG builders consuming the inform package as a dependency SHALL NOT load or
-reference this manifest — it applies only to inform package builds.
+TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
+reference this manifest — it applies only to holonovel package builds.
 
 A ruleset source MAY include a pre-built enrichment manifest
 (`enrichment_manifest.json` alongside the ruleset Markdown) containing the
@@ -5037,8 +5298,8 @@ the builder SHALL fall back to live REQ-225 extraction with the annotation
 `pre-built enrichment manifest — <failure reason>, live extraction` in
 DECISIONS.md (4). When no manifest is present, the builder proceeds with live
 extraction as normal.
-*Acceptance criterion:* An inform package build whose CONVERGENCE.md spec
-version matches the current spec reports Phase 2 metrics and Inform Gauntlet
+*Acceptance criterion:* A holonovel package build whose CONVERGENCE.md spec
+version matches the current spec reports Phase 2 metrics and Holonovel Gauntlet
 results as cached. A TTRPG build against a ruleset with a valid pre-built
 enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
 without a manifest runs live REQ-225 extraction as before.
@@ -5680,7 +5941,7 @@ spatial scaffolding in the secondary category.
 This backgrounding principle extends to all narrative infrastructure tools that are
 not part of the TTRPG rules engine: vows (REQ-289), oracles (REQ-291), genre declaration
 (REQ-294), knowledge-graph resources (REQ-296), and any future narrative tools. These
-tools follow the Inform design philosophy in both directions:
+tools follow the Holonovel design philosophy in both directions:
 
 **When you are not using them, they are invisible.** Narrative tools that render briefing
 sections (vows, narrative threads, knowledge state) render their sections only when data
@@ -6079,7 +6340,7 @@ defaults without further prompting.
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
 | B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
 | B9  | Build mode                   | production / quick-build           | production          |
-| B10 | Which version of @holonovel/inform to use as world-model base? | npm version or `latest` | `latest` |
+| B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
 | B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
 
@@ -6088,15 +6349,15 @@ DECISIONS.md (1). When the operator declines the Advanced prompt, the
 defaults are recorded with a `(defaults accepted)` annotation.
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
-are indexed, no extraction occurs, and the server is built from the `@holonovel/inform`
+are indexed, no extraction occurs, and the server is built from the `holonovel`
 package (B10) and infrastructure tools (REQ-020) alone. The server provides a freeform
 narrative roleplay surface: scene management (`set_scene_state` with scene_type and
 narrative_directive), NPC creation, lore tracking, faction management, player choices,
 pause/resume context, countdowns with full clock taxonomy, and session notation — all
 with world-model spatial navigation available as optional scaffolding. The builder
-records ruleset-free mode in DECISIONS.md (1), runs `npm install @holonovel/inform`
+records ruleset-free mode in DECISIONS.md (1), runs `npm install holonovel`
 at the version specified by B10, and proceeds to server construction (§6.4) using
-the inform scaffold as the starting point. Extraction discovery and its dependent
+the holonovel scaffold as the starting point. Extraction discovery and its dependent
 metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
 or model any ruleset content; the server's `search_rules` tool returns empty results, its
 canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
@@ -6135,7 +6396,7 @@ initialize handshake succeeds, and confirm `serverInfo.name` matches the
 | E2  | What kinds of advice to search? | all / choose: community forums, actual plays, strategy guides, genre advice, designer notes, media influences (movies, TV, video games) | all |
 | E3  | Minimum confidence           | high / medium / low               | medium              |
 | E4  | Override module budget caps? | use defaults / custom (provide caps per module) | use defaults           |
-| E5  | Enrich with vendor content? (inform/docs_md/ directory) | yes / no                          | yes                  |
+| E5  | Enrich with vendor content? (holonovel/narrative_world_model/ directory) | yes / no                          | yes                  |
 
 **Update workflow.** Asked when `update` is selected.
 
@@ -6230,15 +6491,15 @@ broken reference appears in the defect log with severity and source
 location.
 _Check:_ T172.
 
-**@holonovel/inform prerequisite.** When B1 is not `none` (TTRPG build), the builder
-installs the `@holonovel/inform` npm package at the version specified by B10. The inform
+**holonovel prerequisite.** When B1 is not `none` (TTRPG build), the builder
+installs the `holonovel` npm package at the version specified by B10. The holonovel
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder adds `@holonovel/inform` as a dependency of the TTRPG server. No
+points. The builder adds `holonovel` as a dependency of the TTRPG server. No
 chunked reading or provider-documentation indexing occurs during TTRPG builds — the
-inform package is a build-time dependency, not a per-build extraction target. The
+holonovel package is a build-time dependency, not a per-build extraction target. The
 world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
-`none` (ruleset-free mode), the inform package IS the server — the builder installs it,
+`none` (ruleset-free mode), the holonovel package IS the server — the builder installs it,
 verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
@@ -6367,17 +6628,17 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by @holonovel/inform scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
-| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the inform scaffold. | T9 pass (hat test)                                       |
+| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (hat test)                                       |
 | 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
 
-For Step 1, the @holonovel/inform scaffold provides the MCP skeleton with hat gating
+For Step 1, the holonovel scaffold provides the MCP skeleton with hat gating
 helpers, state management, macros, and world-model layer (rooms,
 things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
 verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
@@ -6387,7 +6648,7 @@ ruleset-specific content on top of the infrastructure base.
 root with two sections: a **Ruleset Data** section identifying the source
 material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
-`package.json`). The dnd5e server's `LICENSE.md` is the canonical
+`package.json`). The dnd5e-holonovel server's `LICENSE.md` is the canonical
 template.
 
 ### 6.4.1 Prompt composition
@@ -6686,8 +6947,8 @@ findings without a prefix are process-compliance defects.
 
 Before Phase 1 measurement begins, the builder SHALL compute a convergence
 cache key per REQ-244: ruleset content hash (REQ-044, sentinel `"none"` for
-ruleset-free), specification content hash (REQ-187), inform package version
-(B10), and aggregate hash of the `inform/docs_md/` vendor directory. The builder SHALL
+ruleset-free), specification content hash (REQ-187), holonovel package version
+(B10), and aggregate hash of the `holonovel/narrative_world_model/` vendor directory. The builder SHALL
 search DECISIONS.md (5) for a prior convergence recording whose cache key
 matches.
 
@@ -6714,7 +6975,7 @@ convergence event — it does not count as an iteration and does not consume the
 3-attempt budget.
 
 **Partial match.** When a single component of the cache key differs — the spec
-version advanced but the ruleset hash, inform version, and enrichment hash are
+version advanced but the ruleset hash, holonovel package version, and enrichment hash are
 unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
 extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
 extraction model is verified unchanged by a gap audit (§6.7). When the ruleset
@@ -6736,8 +6997,8 @@ extraction-dependent metrics (mechanics fidelity, suggestion coverage) are also
 skipped per Standing Rule 9 — the cache key covers the remaining fresh-metric
 domain (MUST coverage against infrastructure categories, process compliance,
 surface terminology, prompt health, resource URI completeness, truncation
-accuracy). For ruleset-free builds consuming a specific inform package version,
-the inform convergence manifest (REQ-245) takes precedence over the convergence
+accuracy). For ruleset-free builds consuming a specific holonovel package version,
+the holonovel convergence manifest (REQ-245) takes precedence over the convergence
 cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
 ### 6.6 The Gauntlet
@@ -7243,7 +7504,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
 prior successful Gauntlet execution — recorded in DECISIONS.md (6) with its
-Gauntlet fingerprint (ruleset hash + spec hash + inform version) — the builder
+Gauntlet fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
 SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
 The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
@@ -7273,41 +7534,41 @@ DECISIONS.md (6) execution record for re-use decisions.
 The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
 intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
-#### Inform Gauntlet
+#### Holonovel Gauntlet
 
-The Inform server — the `@holonovel/inform` npm package (ruleset-free per §6.2) — is
-verified through a separate Gauntlet of world-model-specific sub-workflows. The Inform
-Gauntlet runs when the inform package is built and before it is published, as part of
-the inform package's own verification. It is not part of TTRPG builds — TTRPG servers
-consume the published inform package as a build-time dependency and skip the Inform
+The Holonovel server — the `holonovel` npm package (ruleset-free per §6.2) — is
+verified through a separate Gauntlet of world-model-specific sub-workflows. The Holonovel
+Gauntlet runs when the holonovel package is built and before it is published, as part of
+the holonovel package's own verification. It is not part of TTRPG builds — TTRPG servers
+consume the published holonovel package as a build-time dependency and skip the Holonovel
 Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
 Budget, and Structured encoding contracts apply (§6.6), including the executable
-test harness mandate — the Inform build SHALL produce a runnable harness
+test harness mandate — the holonovel package build SHALL produce a runnable harness
 (`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
 sub-workflows SHALL pass; non-blocking failures are recorded as accepted
 limitations.
 
-**Version-bound results.** When the inform package version (B10) matches a
-prior Inform Gauntlet execution recorded in DECISIONS.md (6), and the
+**Version-bound results.** When the holonovel package version (B10) matches a
+prior Holonovel Gauntlet execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
-results — recording `cached — inform vX.Y.Z Gauntlet results` in DECISIONS.md
+results — recording `cached — holonovel vX.Y.Z Gauntlet results` in DECISIONS.md
 (6) — instead of re-executing the 13 sub-workflows. A specification version
-advance SHALL trigger a fresh Inform Gauntlet execution. The inform convergence
+advance SHALL trigger a fresh Holonovel Gauntlet execution. The holonovel convergence
 manifest (REQ-245) carries pre-computed Gauntlet results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
 
-**Per-sub-workflow surface fingerprints.** Each Inform sub-workflow's structured
+**Per-sub-workflow surface fingerprints.** Each Holonovel sub-workflow's structured
 encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
-specification version has advanced but the inform package version is unchanged,
-sub-workflows whose `surface_hash` matches the prior Inform Gauntlet execution
+specification version has advanced but the holonovel package version is unchanged,
+sub-workflows whose `surface_hash` matches the prior Holonovel Gauntlet execution
 SHALL be skipped individually — recorded as `cached — surface hash match for
 I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
 re-execute. The surface-to-scenario mapping below governs which sub-workflows
 are selected for changed surfaces.
 
-**Inform Gauntlet sub-workflows.**
+**Holonovel Gauntlet sub-workflows.**
 
 1. **Parser command sweep** — call every registered parser command (look, go
    north/east/south/west, examine, take, drop, open, close, inventory, wait)
@@ -7389,11 +7650,11 @@ are selected for changed surfaces.
     sections appear in the specified order. Assert `set_scene_state` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
-**Inform Gauntlet surface-to-scenario mapping.**
+**Holonovel Gauntlet surface-to-scenario mapping.**
 
-| Changed surface                                    | Inform Gauntlet scenarios |
+| Changed surface                                    | Holonovel Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| @holonovel/inform package changed (new version)     | All (1–13)                |
+| holonovel package changed (new version)     | All (1–13)                |
 | Room navigation, parser commands                   | 1, 2, 8                   |
 | Object interaction, properties                     | 3, 6                      |
 | CRUD, state mutations                              | 4                         |
@@ -7457,8 +7718,8 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Inform Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
-spec-driven updates — they are run separately when the `@holonovel/inform` package
+The Holonovel Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
 **Delta classes.**
@@ -7473,8 +7734,21 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
+**Implementation fingerprint comparison.** Before the gap audit begins, the builder
+SHALL compute the five implementation fingerprint components (REQ-313) and compare
+them against the stored fingerprints from the prior build recorded in DECISIONS.md
+(1). When all five components are unchanged and the spec version is unchanged, the
+builder reports `[OK] Server is current` and exits without mutation. When the spec
+version has advanced but no implementation fingerprints changed, the builder proceeds
+to gap audit normally. When one or more implementation fingerprints changed, the
+builder applies the partial-rebuild scoping rules (REQ-314) to determine which
+verification steps to skip: unchanged components reuse their prior verification
+output; only components with changed fingerprints run fresh verification. The
+fingerprint delta summary — which components changed, which remain unchanged, and
+the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
+
 **Gap audit method.** Before the version comparison, the builder SHALL compare the
-installed inform package version against the build-time inform version recorded in the
+installed holonovel package version against the build-time holonovel package version recorded in the
 server's build fingerprint (REQ-065). A mismatch SHALL be recorded as an informational
 finding in the gap audit — the Update workflow proceeds, but DECISIONS.md records the
 version delta with a recommendation to re-run Build.
@@ -7600,6 +7874,37 @@ Error output example:
 Corrective action: <action>
 ```
 
+### 7.3a Narrative Freshness
+
+The Holonovel architecture enforces a structural separation between narrative prose and
+canonical state. This principle — the engine owns the truth; the AI renders the moment —
+prevents the copy-of-a-copy degeneration that affects transcript-only AI roleplaying
+systems:
+
+- **AI narrative output is archived, not re-injected.** The AI narrator's prose is
+  preserved in the audit log (REQ-040) and story journal (REQ-246), but SHALL NOT be
+  re-injected into future context windows as raw text. What enters the LLM's context is
+  the structured state delta — entity conditions, NPC dispositions, faction clock
+  positions, campaign memory facts — not the previous turn's narrative paragraph.
+
+- **Narrative voice profiles are standing directives.** WHEN a narrative voice profile is
+  active (enrichment Tier 1 per REQ-225, or set by the GM via REQ-081), THE profile's
+  description SHALL be injected as a system-level directive in every context window, not
+  merged into the conversational transcript where it can be diluted by chat history.
+
+- **Scene-type anchoring.** WHEN a scene is tagged `combat`, `social`, `exploration`, or
+  `neutral` (REQ-087), THE AI narrator SHALL receive a corresponding tone directive that
+  persists for the scene's duration. This directive is a system-level instruction, not
+  conversational context.
+
+- **Anti-slop precedence.** The anti-slop catalogue (REQ-070, Appendix J) SHALL be
+  weighted above conversational context in the AI's priority stack, ensuring forbidden
+  narrative patterns are suppressed even in long-running sessions.
+
+These conventions are builder-level implementation constraints, not runtime-enforced tool
+behavior. Builders SHALL document how their prompt construction satisfies each clause in
+DECISIONS.md.
+
 ### 7.4 Tool-surface conventions
 
 | Convention | Rule | Source |
@@ -7668,6 +7973,7 @@ discarded by `end_novel`):
 | Server Notes| read/write/create/delete (REQ-285)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 | Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
+| Campaign Memory | read (engine-maintained; GM-filtered)                                       | read-only (GM-filtered)                         |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -7713,6 +8019,10 @@ consistent order.
 | Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
 | Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
 | Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
+| NPC → NPC Memory | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | Mechanical | REQ-311 |
+| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `hat_briefing` | Navigational | REQ-310 |
+| World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | Mechanical | REQ-233a, REQ-310 |
+| NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Navigational | REQ-311, REQ-310 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`hat_briefing`, resource rendering, suggestion tools) and does not influence
@@ -7836,8 +8146,8 @@ transcript) and operational behavior by G5 (Gauntlet scenarios).
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Inform server, run the 13-sub-workflow Inform Gauntlet (I1–I13) defined
-in §6.6 Inform Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
+For the Holonovel server, run the 13-sub-workflow Holonovel Gauntlet (I1–I13) defined
+in §6.6 Holonovel Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).
@@ -8313,7 +8623,7 @@ all module hashes for quick whole-manifest comparison.
 ### 11.2 Vendor enrichment
 
 Vendor enrichment draws from curated, licensed documentation vendored in the
-`inform/docs_md/` directory at the Holonovel repository root. It supplements community
+`holonovel/narrative_world_model/` directory at the Holonovel repository root. It supplements community
 enrichment (§11.1) with infrastructure-level craft advice sourced from interactive
 fiction design, GM tooling, and solo RPG communities.
 
@@ -8343,7 +8653,7 @@ web enrichment pass is not run — it would find redundant or lower-quality cont
 compared to the combination of ruleset-anchored web search and vendor sources.
 
 **Indexing.** The builder SHALL index all vendored enrichment sources from
-`inform/docs_md/` alongside web-sourced community enrichment. Vendor content SHALL carry
+`holonovel/narrative_world_model/` alongside web-sourced community enrichment. Vendor content SHALL carry
 `[supplementary]` tag with source URL pointing to the vendor file within the
 repository. Vendor content follows the same budgets, confidence model, and
 deduplication rules as community enrichment (§11.1). Vendor content confidence
@@ -8353,10 +8663,10 @@ content.
 
 **Enrichment fingerprint.** The enrichment fingerprint SHALL include the vendor
 content hashes alongside the community enrichment fingerprint. Vendor content
-changes (updates to `inform/docs_md/` files) trigger module replacement per the partial
+changes (updates to `holonovel/narrative_world_model/` files) trigger module replacement per the partial
 refresh contract; unchanged vendor modules are not disturbed.
 
-**Pre-verified enrichment manifest.** The `inform/docs_md/` directory SHALL include a
+**Pre-verified enrichment manifest.** The `holonovel/narrative_world_model/` directory SHALL include a
 `MANIFEST.md` recording per-module pre-audited enrichment data for each vendor
 source: module name, module content hash, item count, confidence distribution
 (HIGH/MEDIUM/LOW counts), term anchoring score (percentage of items referencing
@@ -8375,7 +8685,7 @@ scores — and update the manifest with the new hash and scores. Modules whose
 hashes are individually unchanged SHALL NOT be disturbed, per the partial-refresh
 contract in §11.1.
 
-When the `inform/docs_md/` directory contains no MANIFEST.md, the builder SHALL audit
+When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, the builder SHALL audit
 all vendor content from source and record the results — no manifest match is
 attempted. The builder MAY produce a MANIFEST.md from the audit results for use
 in subsequent builds.
@@ -9035,6 +9345,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-082 | Prompt section ordering   | 2026-08-04   |
 | REQ-083 | Dynamic lore              | 2026-08-05   |
 | REQ-084 | Action suggestions        | 2026-08-04   |
+| REQ-084a | Proactive action surfacing | 2026-08-08 |
 | REQ-085 | Macro system              | 2026-08-04   |
 | REQ-086 | Audit compression         | 2026-08-07   |
 | REQ-087 | Scene type tagging        | 2026-08-06   |
@@ -9107,6 +9418,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-231 | Per-module enrichment toggle            | 2026-08-07 |
 | REQ-232 | Pause/resume context                    | 2026-08-08 |
 | REQ-233 | Factions                                | 2026-08-08 |
+| REQ-233a | World reactivity                       | 2026-08-08 |
 | REQ-234 | Secrets and knowledge                   | 2026-08-08 |
 | REQ-235 | Structured player choices               | 2026-08-08 |
 | REQ-236 | Entity relationships                    | 2026-08-08 |
@@ -9247,6 +9559,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-307 | Entity presence | 2026-08-08 |
 | REQ-308 | Knowledge gating by presence | 2026-08-08 |
 | REQ-309 | World and narrative surface prominence | 2026-08-08 |
+| REQ-310 | Campaign Memory | 2026-08-08 |
+| REQ-311 | NPC memory model | 2026-08-08 |
+| REQ-312 | Pre-narration validation gate | 2026-08-08 |
+| REQ-313 | Server implementation fingerprinting | 2026-08-09 |
+| REQ-314 | Fingerprint-driven partial rebuild | 2026-08-09 |
 
 ---
 
@@ -9307,7 +9624,7 @@ diet.
 | T51   | Manual   | Hat behavioral boundaries: invoke a Player-hat session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both hats and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T-new-hat-boundary | Automated | Hat boundary directive: invoke `hat_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_hat(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
-| T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Modify the installed inform package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [inform_drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
+| T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel_drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
 | T53   | Automated | Session recap: invoke `session_recap` after a combat session, assert the summary includes entities with final HP and conditions, combat outcomes, scene state, active lore entries with trigger status, narrative directive, current scene type, and last scene state transitions. Assert entity status reports "alive" when HP > 0, "unconscious" at HP = 0, "dead" when death condition active. Assert all 14 named fields present with typed values. Call `session_recap(max_transitions=2, max_rolls=3)` — assert at most 2 transitions and 3 rolls. Call `session_recap(max_transitions=0)` — assert `[ERROR] [INVALID_INPUT]`. Invoke as Player hat — assert only own-entity data appears and narrative elements are hat-filtered. Invoke as Game Master — assert all entity data and narrative elements appear.                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-072, REQ-032, REQ-174, REQ-175          |
 | T54   | Automated | Countdowns: set a `round` countdown (5 ticks), run 3 combat rounds, assert remaining ticks = 2. Set a `narrative` countdown (3 ticks), advance twice manually, assert remaining = 1. Advance again — assert countdown fires and is removed from active countdowns but present in audit log.                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-073                                     |
@@ -9555,7 +9872,7 @@ diet.
 | T-new-285 | Automated | Server notes: call `set_server_note("campaign-bible", "The old gods were banished to the outer dark")` — assert stored. Call `list_server_notes()` — assert returns `{key: "campaign-bible", preview: "The old gods were banished to the outer dark"}`. Call `server-notes://campaign-bible` — assert full content returned. Restart server — assert server note survives. Create and `end_novel` — assert server notes persist. Switch to Player hat — assert `set_server_note`, `remove_server_note`, `list_server_notes`, and `server-notes://<key>` all return `[FORBIDDEN]`. Call `spec_health` — assert `server_notes` count present. Call `remove_server_note("campaign-bible")` — assert `list_server_notes()` is empty. | REQ-285 |
 | T289    | Automated | Safety protocol status: build a server with a known hat-gating defect — assert `spec_health.safety_protocols.hat_boundary` reports `offline`. Fix the defect — assert reports `online`. Induce a non-blocking failure in S16 (narrative state) — assert relevant property reports `degraded`. Assert all four properties present in `spec_health` output. Assert a ruleset-free build reports `state_loss` and `hat_boundary` as `online`, `data_corruption` and `unrecoverable_crash` as `unverified`. | REQ-269 |
 | T290    | Automated | Artifact version identification: build a server and inspect the first line of each handoff artifact — assert each begins with `<!-- built against Holonovel spec vXX.XX.XX -->` matching `spec_health.spec_version`. Remove the comment from one artifact — assert handoff verification flags a defect. Assert version mismatch between artifact and `spec_health` is a handoff defect. | REQ-270 |
-| T291    | Automated | AGENTS.md structure: build a server and inspect AGENTS.md — assert four sections present in order: Code Map, Verification, Troubleshooting, Build Context. Assert each section has non-empty content. Assert Build Context includes spec version, build date (ISO 8601), builder model identifier, ruleset content hash, and @holonovel/inform version. Assert missing section or empty content produces a handoff defect. | REQ-271, REQ-153 |
+| T291    | Automated | AGENTS.md structure: build a server and inspect AGENTS.md — assert four sections present in order: Code Map, Verification, Troubleshooting, Build Context. Assert each section has non-empty content. Assert Build Context includes spec version, build date (ISO 8601), builder model identifier, ruleset content hash, and holonovel version. Assert missing section or empty content produces a handoff defect. | REQ-271, REQ-153 |
 | T292    | Automated | Stock elements catalog: build a server against Tin Lanterns — assert DECISIONS.md (4) contains a `stock_elements` table with character archetype, monster, location, lore pattern, and generation table entries. Rebuild with unchanged ruleset hash — assert the catalog is referenced, not re-extracted. Mutate the source — assert delta extraction updates only changed entries. | REQ-272, REQ-044 |
 | T293    | Automated | Reproducibility tolerance: execute Phase 1 independent verification against a known-good build. Assert seed-pinned dice and status prefixes match exactly. Assert natural-language prose matches structurally (non-empty, ±20% word count) without verbatim comparison. Assert a dice mismatch classifies as Discrepancy. Assert a prose-only mismatch classifies as Unclassifiable. Assert count mismatch within zero tolerance classifies as Pin drift. | REQ-273 |
 | T294    | Automated | Verifier confidence score: execute Phase 2 comparison with 3 Discrepancies out of 10 total comparisons — assert confidence score = 0.70 (FAIL). With 1 Discrepancy, 2 Pin drifts (operator-confirmed), 7 matches — assert score = 0.84 (PARTIAL). With 0 Discrepancies, 10 matches — assert score = 1.0 (PASS). Assert per-workflow component weights are recorded in verifier evidence. | REQ-274 |
@@ -9577,7 +9894,7 @@ diet.
 | T-new-230 | Automated | Enrichment status dashboard: call `resources/read` on `enrichment://status` — assert per-module table with ruleset, community, and novel columns and per-tier counts. Assert `spec_health` reports enrichment_status with per-module activated/total counts. Assert dashboard is accessible under both hats. | REQ-230 |
 | T-new-231 | Automated | Per-module enrichment toggle: call `toggle_enrichment_module("voice_examples", false)` — assert voice_example items absent from `hat_briefing`. Call `toggle_enrichment_module("voice_examples", true)` — assert items restored. Assert toggle of unknown module returns `[NOT_FOUND]`. Assert toggle is Novel-scoped and persists across restarts. | REQ-231 |
 | T-new-244 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the B10 provider doc hash. | REQ-244 |
-| T-new-245 | Automated | Pre-computed enrichment manifest: build inform/ with a provider doc containing enrichment data. Assert `inform/build/enrichment.json` is populated with `[ruleset]` items per module. Assert manifest includes items with source anchors, confidence, and module tags. Assert ruleset-free build produces empty `enrichment.json`. | REQ-245 |
+| T-new-245 | Automated | Pre-computed enrichment manifest: build holonovel/ with a provider doc containing enrichment data. Assert `holonovel/build/enrichment.json` is populated with `[ruleset]` items per module. Assert manifest includes items with source anchors, confidence, and module tags. Assert ruleset-free build produces empty `enrichment.json`. | REQ-245 |
 | T-new-279 | Automated | Narrative orientation: call `session_recap` after a session with scene changes. Assert `narrative_orientation` section includes recent plot beats, unresolved threads, and party state. Call `end_novel` then `create_novel` — assert `session_recap` returns empty orientation. Assert orientation references lore entries that fired during the session. | REQ-279 |
 | T-new-280 | Automated | Source-anchor citation: call `lookup_spell("fireball")` — assert output includes source anchor (section/file reference). Call `lookup_monster("goblin")` — assert source anchor present. Assert `lookup_equipment` output includes source anchor. Assert ruleset-free mode does not include source anchors in lookup responses. | REQ-280 |
 | T-new-281 | Automated | Narrative-threads section token: create a Novel, set a lore entry with triggers, and call `hat_briefing` under GM hat. Assert Narrative Threads section token appears with threads derived from lore entries. Assert each thread includes trigger, content preview, and priority. Assert empty-Novel briefing omits the Narrative Threads section. | REQ-281 |
@@ -9597,6 +9914,11 @@ diet.
 | T-new-302 | Automated | Per-section content hashing: build with a ruleset containing 10 sections. After initial build, change one section's content. Assert the delta detection identifies the single changed section. Assert only the changed section re-runs extraction. Assert `spec_health.section_hashes` includes per-section hashes. Assert unchanged sections produce "[section unchanged — re-validating from previous build]" annotations. | REQ-302 |
 | T-new-303 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Gauntlet sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Gauntlet summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
 | T-new-310 | Automated | Implicit action hints: create a world model with a locked chest and an iron key in the room. Call `command("open chest")` — assert `[RULE_VIOLATION]` with hint naming the iron key and its location. Call `command("unlock chest")` — assert `[OK]`. Call `command("open chest")` — assert `[OK]`. Remove the iron key, call `command("open chest")` on a new locked chest — assert `[RULE_VIOLATION]` with no hint (no reachable key). Assert hint format matches: `Hint: You need the <object name> (<location>) first.` | REQ-284 |
+| T-new-311 | Automated | Campaign Memory: after a session with 2 NPCs, 3 scene changes, 1 faction clock advancement, and 1 story journal decision, assert `spec_health` campaign_memory counts ≥ thresholds. Assert `hat_briefing` includes `## Campaign Memory` section with facts prioritized by scene relevance. Create an NPC with personality fields — assert per-NPC fact appears after NPC participates in combat (REQ-043). Advance a faction clock — assert per-thread fact appears. Change scene 3 times — assert per-location facts appear. Assert `export_novel("json")` includes `campaign_memory`. Assert facts survive Novel persistence. | REQ-310 |
+| T-new-312 | Automated | NPC memory model: create NPC "Blacksmith" with `goals="Repay debt"`. Import player entity "Fighter". Set scene to forge with both present. Call `apply_condition("blacksmith", "frightened")` — assert NPC memory records the event with `disposition: hostile`. Assert `hat_briefing` `## NPC Memory` shows emotional state and the interaction. Set scene with only Fighter present — assert Blacksmith memory absent (not present in scene). Switch back — assert memory persists. Create second NPC "Innkeeper" with no prior contact — assert "no prior contact" marker. Assert `spec_health.npc_memory_count ≥ 1`. | REQ-311, REQ-307, REQ-308 |
+| T-new-313 | Automated | Pre-narration validation: create NPC, apply dead condition. Simulate AI narration claiming the dead NPC speaks. Assert engine rejects with `[REJECTED]` and corrective suggestion citing deceased state. Assert `spec_health.narration_rejection_count: 1`. Set `TTRPG_NARRATION_VALIDATION=off` — assert same narration passes through. Assert validation rejects damage claims exceeding ruleset maxima. Assert Player hat never receives invalid narration text. | REQ-312 |
+| T-new-314 | Automated | World reactivity: set `TTRPG_WORLD_REACTIVITY=on`. Create NPC with `goals="Steal the crown"`. Call `set_scene_state("Throne room")` — assert `## World in Motion` section includes NPC goal pursuit entry. Create relationship (entity A `ally` entity B), then flip entity A to `rival` — assert campaign memory fact propagated to entity B. Accept a world change — assert it appears in campaign memory. Defer a change — assert it re-appears at next scene transition. Assert 4th deferral produces `[WARNING]` in `spec_health`. Set `TTRPG_WORLD_REACTIVITY=off` — assert `## World in Motion` absent. | REQ-233, REQ-233a, REQ-310 |
+| T-new-315 | Automated | Proactive action surfacing: create wizard entity with known 3rd-level spell slots. Set scene type to combat. Assert `hat_briefing` `## Available Actions` includes weapon attack and spell actions. Assert "Cast Fireball" appears only when 3rd-level slot available — spend the slot, assert "Cast Fireball" absent. Set scene type to social. Assert persuasion and deception actions appear instead of combat actions. Assert `suggest_actions("fight")` continues to return reactive results independently. Assert at most 8 actions listed. | REQ-084, REQ-084a, REQ-109 |
 
 ---
 
