@@ -340,7 +340,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315 | 27    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 304–306 | 25    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311 | 74    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
@@ -520,7 +520,7 @@ full untruncated tool output as Markdown, hat-filtered per REQ-032. The resource
 SHALL declare MIME type `text/markdown` and a title of the form
 "<tool_name> output #<counter>". Output payloads SHALL be session-local — they do
 not survive server restart. When the session's output storage exceeds a
-configurable limit (default 50 payloads), the oldest payload SHALL be evicted and
+configurable limit, the oldest payload SHALL be evicted and
 its URI SHALL return `[ERROR] [NOT_FOUND]` with a message indicating eviction.
 *Acceptance criterion:* After a tool produces output exceeding 32,000 bytes,
 `resources/templates/list` includes `output://{tool_name}/{counter}`; reading
@@ -1376,7 +1376,7 @@ build time), `indexed_headings` (the count of headings with entries in the
 runtime search index), and `coverage_pct` (indexed_headings / total_headings ×
 100). A coverage below 100% SHALL include an `unmapped_sections` array listing
 each unmapped heading with its source file and anchor. Coverage below the
-configurable threshold (default 95%) SHALL surface a `[search-coverage-warning]`
+configurable threshold SHALL surface a `[search-coverage-warning]`
 annotation.
 
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
@@ -1968,7 +1968,7 @@ _Check:_ T158.
 **REQ-224 — Workflow staleness detection.** THE server SHALL track a
 per-workflow staleness counter — an integer incremented each time a new MCP
 connection is established while the workflow is pending. When the staleness
-counter reaches a configurable threshold (default 5 connections), the pending
+counter reaches a configurable threshold, the pending
 workflow SHALL auto-cancel with the same behavior as `respond("cancel")`: the
 pre-workflow snapshot is restored, a `[workflow_stale]` audit entry is recorded
 with the decision text and connection count, and `undo` becomes callable. The
@@ -1989,7 +1989,7 @@ _Check:_ T266.
 choice prompts to the player. `present_choices(prompt, choices[], allow_freeform?,
 context?)` returns a `[NEED_INPUT]` decision workflow (REQ-042). Each choice in
 the `choices` array SHALL have `id` (kebab-cased identifier), `label` (display
-text), and `description` (detail text). `allow_freeform` (default false) permits
+text), and `description` (detail text). `allow_freeform` (configurable) permits
 the player to provide a free-text response instead of selecting a listed option.
 `context` is an optional metadata object (e.g., `{urgency: "medium"}`). The player
 responds via `respond(decision, option)`. The outcome SHALL be appended to the
@@ -2492,6 +2492,8 @@ _Check:_ T296.
 
 ### 5.6 State, Lifecycle, Entities, and Adventure Content
 
+#### Core State and Lifecycle
+
 **REQ-040 — Audit log.** Every tool call that mutates Novel state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
 append-only audit log (`audit://novel`), including timestamp, hat, tool name,
@@ -2736,9 +2738,9 @@ derived mechanical flag: "alive" when HP > 0, "unconscious" at HP = 0, "dead" wh
 ruleset's death condition is applied; rulesets without a death condition SHALL report
 "alive" and "incapacitated"), completed confrontations, pending confrontations, current
 scene state, active lore entries and their trigger status, the current narrative directive,
-current scene type, the last N scene state transitions (default 3, configurable), roster
+current scene type, the last N scene state transitions (configurable), roster
 changes (entities created or removed in this Novel during the audit-log timespan), condition
-changes, and the last N significant rolls (default 5, configurable). `session_recap` output
+changes, and the last N significant rolls (configurable). `session_recap` output
 is hat-filtered: the Player hat sees only own-entity data; the Game Master hat
 sees all. `session_recap` output does not produce narrative prose — it returns structured
 data the LLM uses to narrate the recap. The output SHALL be a machine-parseable structure.
@@ -2875,6 +2877,8 @@ a 20-milestone track. `mark_milestone("Find the Crown")` advances the counter.
 kingdom is restored")` moves the vow to resolved. `forsake_vow("other_vow", "Too
 dangerous")` marks it forsaken.
 _Check:_ T-new-286.
+
+#### Entities, NPCs, and Adventure Content
 
 **REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
 same hat. The roster may hold multiple entities for the player. `entities://` lists
@@ -3073,7 +3077,7 @@ tool accepts optional fields: `location`, `time_of_day`, `atmosphere` (per REQ-0
 entity IDs present in this scene; omitted defaults to all imported entities). Each call creates a timestamped entry in
 the audit log; previous entries are retained in audit history. `scene://current` returns
 the most recent scene state. `scene://history` returns up to a configurable maximum of
-the most recent entries (default 50). When the cap is exceeded, the most recent entries
+the most recent entries. When the cap is exceeded, the most recent entries
 are returned with a count of suppressed entries and a `[truncated]` marker. The full
 scene history is available in the audit log (REQ-040). All entries are hat-filtered.
 Scene state is narrative context. It does not influence mechanical resolution or search
@@ -3486,17 +3490,17 @@ _Check:_ T211.
 group has an enforced maximum item count. Exceeding the maximum on a create
 or set operation SHALL return `[ERROR] [STATE_CONFLICT]` with the affected
 group named and the current and maximum counts reported. Maximums and their
-configuration sources are: NPCs — `TTRPG_MAX_NPCS` (default 500, also used
+configuration sources are: NPCs — `TTRPG_MAX_NPCS` (also used
 by REQ-097 for health warnings; this REQ adds enforcement at the same
-threshold); Lore entries — `TTRPG_MAX_LORE_ENTRIES` (default 200, also
+threshold); Lore entries — `TTRPG_MAX_LORE_ENTRIES` (also
 used by REQ-097; the lore token budget per REQ-083 is an independent
-constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS` (default 50); Entities per Novel —
-`TTRPG_MAX_ENTITIES` (default 50), exceeding on `import_character` or `create_character`
+constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS`; Entities per Novel —
+`TTRPG_MAX_ENTITIES`, exceeding on `import_character` or `create_character`
 SHALL return `[ERROR] [STATE_CONFLICT]` with counts reported; Roster entities —
-`TTRPG_MAX_ROSTER_ENTITIES` (default 200), exceeding on `create_character` SHALL return
+`TTRPG_MAX_ROSTER_ENTITIES`, exceeding on `create_character` SHALL return
 `[ERROR] [STATE_CONFLICT]` before any state mutation; Enrichment
-items per output module — `TTRPG_MAX_ENRICHMENT_ITEMS` (default 100);
-Story journal entries — `TTRPG_MAX_STORY_ENTRIES` (default 500), exceeding
+items per output module — `TTRPG_MAX_ENRICHMENT_ITEMS`;
+Story journal entries — `TTRPG_MAX_STORY_ENTRIES`, exceeding
 on `record_story` SHALL return `[ERROR] [STATE_CONFLICT]`.
 Scene history entries are capped per REQ-076. Setting a maximum to zero
 SHALL disable that group's mutating tools — create, set, and update
@@ -3792,6 +3796,8 @@ server preserves the generated adventure; `end_novel` discards it;
 a second `generate_adventure` replaces the first.
 _Check:_ T146.
 
+#### Fingerprinting and State Integrity
+
 **REQ-044 — Ruleset hash recording.** The server computes a SHA-256 content hash of the
 ruleset Markdown files at build time and records it in the build fingerprint (REQ-065).
 The hash is computed from the sorted, concatenated contents of every ruleset source file
@@ -3999,7 +4005,7 @@ autonomously advance the world state beyond faction clocks:
   changes SHALL accumulate no more than 3 deferrals; on the fourth, the engine SHALL
   escalate to a `[WARNING]` in `spec_health`.
 
-A setting `TTRPG_WORLD_REACTIVITY` (default `on`) controls whether the reactivity
+A setting `TTRPG_WORLD_REACTIVITY` (defaults to active) controls whether the reactivity
 cycle runs. When `off`, scene transitions advance faction clocks only (current
 behavior).
 
@@ -4092,7 +4098,7 @@ _Check:_ T272.
 `compact_audit_log(sessions?)` tool (Game Master only) that archives audit
 entries older than a configurable session window into per-session metadata
 summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS`
-(default 20) — sessions are identified by `[session_boundary]` markers
+configurable) — sessions are identified by `[session_boundary]` markers
 (REQ-237). For each archived session, the compaction produces a summary
 containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`,
 `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174),
@@ -4129,12 +4135,12 @@ restores the snapshot and records a `[checkpoint_restored]` audit entry; on
 `cancel`: restores pre-invocation state unchanged). `delete_checkpoint(label)`
 removes one checkpoint. Checkpoints survive server restarts, Novel switches,
 and undo/redo cycles — they are independent of undo stacks (REQ-041). Maximum
-checkpoints per Novel is configured via `TTRPG_MAX_CHECKPOINTS` (default 10);
+checkpoints per Novel is configured via `TTRPG_MAX_CHECKPOINTS`;
 when at capacity, `set_checkpoint` discards the oldest. Checkpoints
 SHALL be stored in the Novel JSON under a `checkpoints` key (array of
 `{label, timestamp, state}` objects). `end_novel` removes all checkpoints.
 Checkpoints are NOT included in `export_novel` output by default — an
-optional `include_checkpoints` parameter on `export_novel` (default `false`)
+optional `include_checkpoints` parameter on `export_novel` (configurable)
 controls inclusion. All checkpoint tools are Game Master only.
 `spec_health` SHALL report checkpoint count and storage size. The snapshot
 SHALL use the same compression setting as the Novel (REQ-092).
@@ -4455,7 +4461,7 @@ leverages existing ruleset extraction (REQ-010–018) and the server's indexed c
 catalogue. Validation is a per-narration gate, not a continuous scanner — it activates
 only when a state-mutating tool call is preceded by AI narration.
 
-A setting `TTRPG_NARRATION_VALIDATION` (default `on`) controls the gate. When `off`,
+A setting `TTRPG_NARRATION_VALIDATION` (defaults to active) controls the gate. When `off`,
 narration passes through unvalidated (current behavior). `spec_health` SHALL report
 `narration_validation: enabled | disabled` and `narration_rejection_count` — cumulative
 rejections since last Novel resume.
@@ -4498,12 +4504,12 @@ undo/redo purposes — `undo` SHALL NOT reverse a story journal entry. Player ha
 
 Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
 field — paginated via `offset`/`limit` params, default 10; (b) in `hat_briefing` under
-a `story` section token, configurable via `TTRPG_STORY_JOURNAL_DISPLAY` (default 5) —
+a `story` section token, configurable via `TTRPG_STORY_JOURNAL_DISPLAY` —
 entries whose `entity_ids` overlap the current active entities or whose `scene_anchor`
 matches the current scene; (c) in `export_novel` output under `story_journal`; (d) in
 `clone_novel` as a copied array. The `story_journal` array is stored in the Novel JSON
 per REQ-092 and grows with each recorded entry. Growth is bounded by
-`TTRPG_MAX_STORY_ENTRIES` (default 500) per REQ-129; exceeding returns
+`TTRPG_MAX_STORY_ENTRIES` per REQ-129; exceeding returns
 `[STATE_CONFLICT]`. `spec_health` SHALL report `story_journal_count_by_type` —
 per-type entry counts — and warn at 80% of the maximum.
 *Acceptance criterion:* `record_story("moment", "The ferryman told a story...")` appends
@@ -4730,7 +4736,7 @@ _Check:_ T67, T79, T81, T82,
 T83.
 
 Extend `set_lore_entry` and `update_lore_entry`: each lore entry SHALL carry a
-`visibility` field — one of `gm_only` (default for new entries), `shared` (visible to
+`visibility` field — one of `gm_only` (applied to new entries), `shared` (visible to
 Player hat immediately), or `player_discovered` (set automatically when `reveal_secret`
 is called for this entry's key). `gm_only` entries are excluded from Player-hat surfaces
 including `hat_briefing`, `lore://active`, and `graph://novel`. `shared` entries are
@@ -4969,7 +4975,7 @@ Player hat only.
 *Acceptance criterion:*
 `player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest
 deception check")` creates an item that appears in the player's `suggest_actions`
-output and in the GM's `hat_briefing` (default shared scope);
+output and in the GM's `hat_briefing` (shared scope);
 `player_enrich("voice_examples", "growl", "Get away from my hoard!", [],
 "player")` creates a private item visible only to the Player hat;
 `player_remove_enrichment("action_patterns", "feint-suggestion")` removes it;
@@ -5716,7 +5722,7 @@ and set `novel_format_version` to `2`. Version > current: surface a `[WARNING]
 cannot interpret; the server loads the Novel with the existing graceful migration
 rules and the warning remains active until the format version matches.
 
-WHEN `TTRPG_NOVEL_COMPRESS` is `true` (default `false`), the serialized Novel
+WHEN `TTRPG_NOVEL_COMPRESS` is `true` (configurable), the serialized Novel
 JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be
 compressed when the primary is compressed. The 4 MB health warning threshold
 in REQ-097 applies to the on-disk compressed size. `export_novel` output
@@ -5906,7 +5912,7 @@ restarts.
 _Check:_ T145.
 
 **REQ-238 — Backup rotation.** The server SHALL retain the last N backups of
-each Novel, configured via `TTRPG_NOVEL_BACKUP_COUNT` (default 5, minimum 1).
+each Novel, configured via `TTRPG_NOVEL_BACKUP_COUNT` (minimum 1).
 Backups are named `<slug>.json.bak.1` through `<slug>.json.bak.N`. On each
 atomic write (REQ-092), existing backups are rotated: `<slug>.json.bak.N-1`
 → `<slug>.json.bak.N`, … `.bak.1` → `.bak.2`, the previous primary file
@@ -6117,7 +6123,7 @@ tier is empty. `spec_health` SHALL report the current description mode.
 
 The `player_signal` interface SHALL accept a `detail` signal with values `terse`
 (room name + exits only, minimal combat feedback — participant name + result, no
-full roll transparency), `normal` (default balance), and `rich` (full descriptions,
+full roll transparency), `normal` (balanced output), and `rich` (full descriptions,
 complete roll transparency, lore trigger notifications). Setting `detail=terse`
 SHALL override both the room description mode and combat verbosity — all tool
 output follows the selected detail level. The detail signal is session-scoped

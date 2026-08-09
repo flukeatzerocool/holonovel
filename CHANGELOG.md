@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-09 — Spec review follow-ups
+
+- Extended `validate.ts` with subsection-count verification — the check
+  compares the §5 navigation table Count column against actual REQ blocks
+  per subsection and warns on mismatches. This eliminates the manual
+  recount maintenance burden.
+- Removed 26 Default-clause annotations from REQ bodies — every
+  `(default N)` and `(default 'value')` pattern rewritten to preserve
+  contract meaning without prescribing builder defaults. (Appendix M)
+- Added `####` sub-headings within §5.6 to improve navigation across
+  74 REQs: Core State and Lifecycle, Entities/NPCs/Adventure Content,
+  and Fingerprinting/State Integrity. The section title already reflected
+  this scope; sub-headings make it scannable.
+
 ## 2026-08-09 — Spec review remediation
 
 - Fixed the appendix range in the reading guide — it claimed A–Y but T, U,
