@@ -21,7 +21,7 @@
   - B7: Connect after build = yes
   - B8: Spec repo = https://git.gay/flukeatzerocool/Holonovel
   - B9: Build mode = production
-  - E1: Server path = `dnd5e/`
+  - E1: Server path = `dnd5e-holonovel/`
   - E2: Source types = all
   - E3: Minimum confidence = MEDIUM
   - E4: Override module budget caps = use defaults
@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.08
-- **Spec hash:** dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd
+- **Spec hash:** abc67d1cd8e89697b3b7f2152754cb339b5d42bd91bc317f26ab096e41b19bce
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -573,4 +573,4 @@
 - **Verification:** typecheck 0 errors, test suite 38/38 passed
 - **Changed code paths:** src/index.ts (SPEC_HASH → runtime hash computation, spec_version update, spec_hash_current, safety_protocols, gap_audit simplification), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: no tool surface changes → S1 (tool sweep) for spec_health changes; no state model changes
-- **Spec hash:** dc99736bfdcf26f20fb0d8939fdeaef74f8c7f9897779f24799948f434da4ccd
+- **Spec hash:** abc67d1cd8e89697b3b7f2152754cb339b5d42bd91bc317f26ab096e41b19bce
