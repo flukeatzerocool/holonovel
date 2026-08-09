@@ -10,8 +10,8 @@ import * as crypto from "crypto";
 import { seed, snapshotSeed, getState, rollD20, withIsolatedSeed } from "./dice.js";
 import { RACES, CLASSES } from "./data.js";
 import { abilityModifier } from "./dice.js";
-import { createEmptyWorldModel } from "holonovel/world";
-import type { WorldModel } from "holonovel/world";
+import { createEmptyWorldModel } from "./world-model.js";
+import type { WorldModel } from "./world-model.js";
 
 const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../package.json", import.meta.url), "utf-8")

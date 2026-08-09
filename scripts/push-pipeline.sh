@@ -82,4 +82,25 @@ else
   echo -e "${YELLOW}Wiki directory not found, skipping.${NC}"
 fi
 
+echo -e "${GREEN}=== 10. Deploy to MCP target ===${NC}"
+DEPLOY_DIR="$HOME/Holonovel-deployed"
+if [[ -d "$DEPLOY_DIR/.git" ]]; then
+  DEPLOY_PREV=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null)
+  git -C "$DEPLOY_DIR" pull --ff-only origin main 2>&1 || echo -e "${YELLOW}Deploy pull skipped (non-ff or conflict).${NC}"
+  DEPLOY_NEW=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null)
+  if [[ "$DEPLOY_PREV" != "$DEPLOY_NEW" ]]; then
+    echo "Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
+    SERVER_DIR=""
+    if [[ -d "$DEPLOY_DIR/dnd5e-holonovel" ]]; then SERVER_DIR="dnd5e-holonovel"; elif [[ -d "$DEPLOY_DIR/dnd5e" ]]; then SERVER_DIR="dnd5e"; fi
+    if [[ -n "$SERVER_DIR" ]]; then
+      (cd "$DEPLOY_DIR/$SERVER_DIR" && npm install --quiet && npm run build --if-present)
+      echo "Dependencies and build updated in $SERVER_DIR"
+    fi
+  else
+    echo "Deployed copy already at latest."
+  fi
+else
+  echo -e "${YELLOW}Deploy directory not found at $DEPLOY_DIR, skipping.${NC}"
+fi
+
 echo -e "${GREEN}Done.${NC}"

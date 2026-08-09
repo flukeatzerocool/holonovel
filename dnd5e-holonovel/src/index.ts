@@ -22,11 +22,11 @@ import { StateManager, Hat, NovelState, LoreEntry } from "./state.js";
 import { expandMacros } from "./macros.js";
 import { DEFAULT_ENRICHMENT } from "./enrichment.js";
 import {
-  dispatchCommand, resolveGoMovement,
   WorldModel, WorldThing, WorldRoom, WorldKind,
   ROOM_DIRECTIONS, oppositeDirection, convertSource,
-} from "@holonovel/inform/world";
-import type { ParserContext, ParserResult } from "@holonovel/inform/world";
+} from "./world-model.js";
+import { dispatchCommand, resolveGoMovement,
+  type ParserContext, type ParserResult } from "./parser.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 
