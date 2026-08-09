@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-08 — Per-section extraction caching and inform version drift detection
+
+- Adding a rulebook to an existing ruleset no longer forces full re-extraction of
+  unchanged sections. Per-section hashing (REQ-302) now applies during Build intake
+  as well as spec-driven updates — sections matching a prior build's hash reference
+  their previous extraction output. (REQ-302)
+- The build fingerprint now records the @holonovel/inform version, and the server
+  detects inform version drift at startup alongside existing spec and ruleset drift
+  checks. The Update workflow also checks inform version before beginning a gap
+  audit, so operators get a signal when only the scaffold changed. (REQ-065, REQ-098)
+
 ## 2026-08-08 — Inform Gauntlet narrative surface hashing
 
 - The Inform Gauntlet now tracks narrative tools alongside world-model tools: three new
@@ -187,18 +198,7 @@
   input matches an active boundary value, without suppressing the operation.
   The boundary advisory is never truncated by briefing size budgets. (REQ-255)
 
-- Added SPEC-QUEUE entries for the two remaining Holodeck episodes not covered
-  in the first research pass: *Ship in a Bottle* (nested state — already
-  addressed by REQ-241 checkpoints) and *Hollow Pursuits* (persona safety —
-  addressed by REQ-255 boundary enforcement). Both marked DONE. Items 8 and 9.
-
-## 2026-08-08 — Holodeck queue, adventure extraction
-
-- Cleared stale SPEC-QUEUE items (world-model layer and ruleset-free build are
-  both implemented in @holonovel/inform) and repopulated with seven Holodeck-driven
-  items ranked across three tiers. Every item maps to a Star Trek episode scene, a
-  competitive benchmark, or a persona quit moment from the knowledge base, scored on
-  fidelity, friction, and safety against the Holodeck's eight evaluation axes.
+## 2026-08-08 — Adventure extraction
 
 - Adventure modules now support structural extraction: loading an adventure
   pre-populates NPCs, location lore, faction entities, and scene waypoints from
@@ -215,16 +215,6 @@
   extracted adventure data, surfaced waypoint in hat_briefing. Two new REQs
   implemented (REQ-248, REQ-250), two build-time REQs waived (REQ-247, REQ-249).
   Spec hash updated.
-
-- Executed all seven SPEC-QUEUE research items — Holodeck-driven spec improvements
-  across three tiers. Added generation intent guard (REQ-251 — Moriarty problem),
-  parser command discoverability (REQ-196 extension — suggestions on unrecognized
-  verbs, command("help")), dual-register speech separation (REQ-064 extension — player
-  register signal, suggest_actions meta-intent support), narrative fast-forward
-  (REQ-252 — skip with bridging summary), NPC depth signaling (REQ-075 — appearance
-  count, recurring/campaign/distant markers), progressive detail control (REQ-197 —
-  brief/verbose/normal modes, detail player signal), and tool-output verbosity control
-  (REQ-253 — terse mode for lookups and combat). All marked DONE.
 
 ## 2026-08-08 — Story lifecycle, narrative memory, one-file Novel
 
@@ -547,14 +537,9 @@
   the Inform Gauntlet (§6.6) runs when inform is published, not during
   TTRPG builds. (spec/01-foundations.md, spec/03-build.md,
   spec/build-phase-map.md)
-- SPEC-QUEUE item 3 added for tracking the @holonovel/inform package
-  as a reusable base.
 
-## 2026-08-07 — SPEC-QUEUE items 1, 3, 4 implemented (combat, POV, workflow staleness)
+## 2026-08-07 — Combat, Narrative POV, and workflow staleness
 
-- SPEC-QUEUE items 1 (combat), 3 (Narrative POV), 4 (workflow decisions)
-  now fully implemented in the dnd5e server and marked DONE. Items 2
-  (world-model layer) and 5 (ruleset-free build) remain for the next cycle.
 - Abandoned decision workflows now auto-cancel after a configurable number
   of connection restarts, restoring pre-workflow state. The staleness
   threshold is set via `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` (default 5).
@@ -571,7 +556,7 @@
   `pending_staleness_counter`, and `connection_counter` already serialized.
   Auto-cancel restoration uses the pre-workflow snapshot when available.
 
-## 2026-08-07 — Spec queue cleanup and 4 new REQs from research cycle
+## 2026-08-07 — Combat navigation, parser vocabulary, POV mode, and workflow staleness
 
 - Combat-navigation interaction: the world-model layer now blocks parser
   navigation commands during active combat — inspection and non-spatial
@@ -591,9 +576,6 @@
   pre-workflow state and recording a `[workflow_stale]` audit entry. The
   threshold is configurable via `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`.
   (REQ-224)
-- SPEC-QUEUE cleaned up: 48 completed items removed, 2 malformed items
-  fixed and removed, 3 new subsystems added (world-model layer, narrative
-  POV, ruleset-free build mode). Queue now 5 active research items.
 
 ## 2026-08-07 — Narrative POV: player perspective controls for multi-character play
 
@@ -657,7 +639,7 @@
 - Updated spec repository URL to git.gay/flukeatzerocool/Holonovel across
   build config, handoff artifacts, and README.
 
-## 2026-08-07 — Spec-queue pipeline: 10 subsystems hardened across tiers 2 and 3
+## 2026-08-07 — 10 subsystems hardened across tiers
 
 - Added converter selection, image-content disposition, progressive sampling,
   and content sanitization contracts to the Convert workflow, completing the
@@ -765,7 +747,7 @@
   the `AGENTS.md` layer map to document file numbering conventions, and the
   `README.md` spec description to reflect the source/build split.
 
-## 2026-08-06 — First spec-queue research cycle: 13 spec improvements across 3 subsystems
+## 2026-08-06 — 13 spec improvements across 3 subsystems
 
 - `spec_health` now carries a `gap_audit` section for the spec-driven update
   workflow: a delta summary, tool-catalog comparison, resource-map comparison,
@@ -802,35 +784,8 @@
   redaction for the Player hat. (REQ-043, REQ-109)
 - The total combat rounds counter now increments on round wrap instead of
   `end_combat`, keeping it live mid-combat and safe under undo. (REQ-043)
-- Fixed `opencode run` argument ordering in `spec-queue-runner.sh` and
-  `spec-queue-execute.sh` — the positional message must precede `--file`
-  to avoid being consumed as a file argument.
 
-## 2026-08-06 — Spec queue pipeline: automated research-to-commit cycle with knowledge base
-
-- SPEC-QUEUE.md now follows a 5-state pipeline — `[RESEARCH]` →
-  `[PLAN_READY]` → `[EXECUTING]` → (done), with `[REJECTED]` and `[FAILED]`
-  for terminal states — driven by three new scripts.
-- `scripts/spec-queue-cycle.sh` is the single entry point: `research` launches
-  parallel read-only sessions, `status` shows all items, `execute` runs the
-  full review → approve → apply → sync → validate → commit flow as one batch.
-- `scripts/spec-queue-execute.sh` applies a research plan to the specification
-  via an opencode build session, running `npm run check` after each change.
-- `scripts/spec-queue-sync.sh` runs the spec-driven update workflow
-  (holonovel-update) — gap audit, implementation, scoped Gauntlet — to sync
-  the dnd5e server with spec changes.
-- `scripts/research-protocol.md` extracts the Phase 0-2 methodology into a
-  shared file, cutting ~1,500 tokens per research session. The protocol
-  includes knowledge base checks, implementation comparison with lag
-  disclaimer, web calibration, reflexion gate, and machine-readable plan
-  delimiters (`<!-- PLAN_BEGIN -->` / `<!-- CHANGE_BEGIN N -->`).
-- The knowledge base at `.holonovel-state/knowledge-base/INDEX.md` caches web
-  research findings, spec section summaries, and implementation analysis
-  across cycles. Cached data subdirectories (`web/`, `spec/`,
-  `implementation/`) are in `.gitignore`. Combined with the shared protocol
-  and plan dedup, later items in the 55-item queue see ~50% token reduction.
-
-## 2026-08-06 — Spec-driven update efficiency: Gauntlet scoping and queue automation
+## 2026-08-06 — Gauntlet scoping for spec-driven updates
 
 - REQ-098 no longer requires blanket Gauntlet re-run during spec-driven updates
   — the builder now selects only sub-workflows exercising the surfaces changed
@@ -839,15 +794,6 @@
   surface (character creation, combat, conditions, search, etc.) to the specific
   Gauntlet scenarios that exercise it, plus overrides for out-of-mapping cases
   like new tools or prompts.
-- The SPEC-QUEUE now runs Spec-driven updates (formerly item 7) as item 2, so
-  the dnd5e server gets synced to the current spec before downstream items
-  compare their implementation against it — eliminating false-drift findings.
-- New `scripts/spec-queue-runner.sh` launches detached, parallel `opencode`
-  research sessions for SPEC-QUEUE items using `nohup` + `disown` so the
-  launcher exits immediately. Supports `--status` (check progress, auto-cleanup
-  completion markers) and `--cleanup` (revert stale [IN PROGRESS] markers).
-  Each session runs Phases 0-2 of the spec-engineering-loop: discovery,
-  research with web calibration, and a concrete implementation plan output.
 
 ## 2026-08-06 — Hat gating hardening: audit logging, surface contracts, and scope clarification
 
@@ -873,8 +819,6 @@
 - Documented that the hat model is a narrative-integrity feature, not a
   security boundary — `set_hat` remains always callable without
   authentication, by design for solo play. (REQ-109, Appendix P)
-- Completed spec-engineering loop on the server-side hat gating subsystem
-  — removed from SPEC-QUEUE.
 
 <!--
   CHANGELOG WRITING STYLE
@@ -951,23 +895,6 @@
   2026-07-28 specification's removal of protocol-level sessions. The
   behavioral contract is unchanged; the renaming clarifies that Session state
   is scoped within the Holonovel process, not the MCP channel.
-
-- The completed "State model & 6 property groups" research item was removed
-  from SPEC-QUEUE.md and the remaining 55 items renumbered.
-
-## 2026-08-06 — Spec queue: full feature inventory with multi-axis prioritization
-
-- Rewrote the spec-engineering queue from a 19-item sketch to a complete
-  56-feature inventory, covering every REQ, subsystem, and convention in
-  holonovel.md. Every item carries a priority score derived from six axes:
-  use frequency, criticality, implementation complexity, coupling,
-  specification maturity, and existing verification coverage.
-- Organized into three tiers — 19 top candidates (state model, hat gating,
-  combat, Gauntlet, convergence), 18 tool-surface features (action
-  suggestions, lore, scene state, enrichment), and 19 infrastructure items
-  (help, macros, truncation, runtime conventions) — each tier ordered by
-  weighted priority score so the most critical and frequently-exercised
-  features are reviewed first.
 
 ## 2026-08-06 — Spec review automation: validation guardrails and pre-commit checklist
 
@@ -1179,9 +1106,6 @@
   decisions, rejected options, cancellation state restoration, concurrent
   workflow rejection, restart survival, and blocked-tool assertions. (S23)
 - Added T138 (workflow lifecycle) to the test catalogue.
-- Removed Decision/workflow system from the spec-engineering queue.
-  Removed completed NPC management from the queue (pending from prior
-  session).
 
 ## 2026-08-06 — Scene management subsystem hardening
 
@@ -1211,8 +1135,6 @@
 - Added a Novel-scoped `scene_tick` pacing counter, recording the number of
   combat rounds elapsed in the current scene (resets on transition). Visible
   in GM hat_briefing as a pacing aid. (REQ-076, T137)
-- Added "GM session notes — real-life session prep" to the spec-engineering
-  queue. Removed scene management from the queue (completed).
 
 ## 2026-08-06 — D&D 5e MCP server rebuild, terminology audit, and spec hardening
 
@@ -1230,18 +1152,6 @@
   close the feedback loop. (REQ-074)
 - Updated DECISIONS.md with Gauntlet run evidence, terminology audit record,
   and gap disposition.
-
-## 2026-08-06 — Add spec-engineering queue for cross-session task tracking
-
-- New `SPEC-QUEUE.md` file — a prioritized backlog of subsystems awaiting
-  spec-engineering loop review, organized by tier (Major features, Top
-  candidates, Tool-surface, Infrastructure). 23 items queued from today's
-  session-log audit. Items are deleted on completion; CHANGELOG and git
-  history provide the audit trail.
-- AGENTS.md Layer Map updated to include `SPEC-QUEUE.md` with its
-  `@SPEC-QUEUE.md next | add:` usage convention.
-- Fixed stale "persona enrichment" reference in AGENTS.md (§11 description
-  now reads "hat enrichment").
 
 ## 2026-08-06 — README fact-check and polish
 

@@ -3381,7 +3381,9 @@ _Check:_ T17.
 heading section in the ruleset Markdown source. Each section hash SHALL use SHA-256 over
 the normalized section content. Per-section hashes SHALL be recorded in DECISIONS.md (4).
 
-During incremental rebuild (§6.7), sections whose hash is unchanged SHALL be skipped —
+During Build (§6.2–§6.3) when per-section hashes from a prior build are recorded in
+DECISIONS.md (4), and during spec-driven updates (§6.7), sections whose hash is
+unchanged SHALL be skipped —
 their prior extraction output is referenced. Sections whose hash changed SHALL be
 re-extracted. The builder SHALL record a per-section delta summary: total sections,
 sections unchanged, sections changed, sections added, sections removed. This SHALL NOT
@@ -3394,8 +3396,9 @@ _Check:_ T-new-302.
 
 **REQ-065 — Build fingerprint.** The server records a build fingerprint in its state
 directory: the specification version, the specification content hash (from the embedded
-holonovel.md, REQ-105), the ruleset content hash (REQ-044), the spec repository URL
-(REQ-106), and the build timestamp. The fingerprint is persisted alongside Novel state so
+holonovel.md, REQ-105), the ruleset content hash (REQ-044), the @holonovel/inform
+version (from B10), the spec repository URL (REQ-106), and the build timestamp.
+The fingerprint is persisted alongside Novel state so
 it survives server restarts. On startup with existing state, the server reloads the stored
 fingerprint and compares it against the freshly computed current-build fingerprint. The
 comparison is field-by-field:
@@ -3410,6 +3413,9 @@ comparison is field-by-field:
   intake hash. Emits a `[ruleset_drift]` warning on stderr and in spec_health listing the
   stored and current hashes. This is the source immutability drift check traceable to
   REQ-014.
+- **Inform version mismatch** — the installed inform package version differs from the
+  build-time version recorded in the fingerprint. Emits an `[inform_drift]` warning on
+  stderr and in spec_health listing the stored and current versions.
 - **Build timestamp** — expected to differ across restarts; does not emit a warning.
 
 Drift warnings are diagnostic surfaces, not safety interlocks — they do not block startup
@@ -3417,8 +3423,8 @@ or degrade service. The active build's specification version, ruleset hash, and 
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
 Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
-the constructor-derived version, hash, and timestamp are immutable for the build's
-lifetime. The server must load existing state gracefully: fields present in state but
+the constructor-derived version, hash, inform version, and timestamp are immutable for
+the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
 fields required by the current model but absent from existing state receive their
 ruleset-defined defaults. Roster baselines remain immutable across rebuilds. Unrecoverable
