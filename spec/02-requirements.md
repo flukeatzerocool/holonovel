@@ -2712,7 +2712,6 @@ last participant to first). It appears in `hat_briefing` for the Game Master hat
 in the Scene section. The tick is a pacing aid — it does not trigger mechanics. The
 `set_scene_state` tool is Game Master only; the Player hat reads scene state via
 `hat_briefing` and `scene://current`. Scene state persists with the Novel.
-scene state is narrative context and does not change search results for mechanical terms.
 *Acceptance criterion:* Three `set_scene_state(...)` calls produce three
 timestamped entries in `scene://history`; scene state is narrative context and
 does not change search results for mechanical terms.
