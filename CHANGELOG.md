@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-09 — Standalone dnd5e-holonovel + auto-deploy pipeline
+
+- dnd5e-holonovel no longer imports holonovel at runtime — it composes the
+  shared infrastructure (world model, parser, enrichment types) at build
+  time. The `holonovel` file dependency is removed from package.json,
+  making dnd5e-holonovel a fully standalone MCP server.
+- push-pipeline.sh now deploys to the MCP target after a successful push
+  — pulls the deployed copy from git.gay, installs dependencies, and
+  rebuilds the server. A cron job running every 15 minutes serves as a
+  fallback for pushes made from other machines.
+
 ## 2026-08-09 — Spec review follow-ups
 
 - Extended `validate.ts` with subsection-count verification — the check
