@@ -5,7 +5,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225           | 19    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225, 315      | 20    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 304–306 | 20    |
@@ -529,6 +529,20 @@ Search returns the expected section in the top 3 results for exact, prefix, and 
 URI from `search_rules` for an exact title query in the top 3 results.
 _Check:_ Gate 2, T4.
 
+**REQ-315 — Full-text ruleset indexing.** Every heading and its content from the
+ruleset Markdown SHALL be indexed by `search_rules` at runtime. The index SHALL
+cover the entire ruleset — every `##` and `###` heading with its associated body
+text, regardless of whether the section content was extracted into a tool, resource,
+or model. Partial coverage where some ruleset sections are invisible to
+`search_rules` is a construction defect. The builder SHALL verify at build time
+that the ruleset's table of contents maps to the search index and SHALL record any
+unmapped sections in DECISIONS.md (4) with justification. Sections omitted by the
+`Convert` workflow's artifact-disposition waivers are exempt.
+*Acceptance criterion:* `search_rules("ability scores")` returns results from the
+ruleset's character creation chapter. Every heading in the ruleset's own table of
+contents resolves to at least one search result for a heading-text query.
+_Check:_ T-new-316.
+
 **REQ-111 — Search result quality.** Search results include match context — the
 surrounding text from which each match was drawn — sufficient for the caller to
 distinguish the match's relevance to the query. Results are ordered by
@@ -1011,6 +1025,15 @@ be flagged as a `[regression]` in the `unresolved` list.
 timestamp of the most recent Gauntlet execution, absent if never run).
 When `last_run` is absent, `passed` and `total` are absent. The field is
 hat-filtered: Player hat sees this field; no GM-only content is exposed.
+
+`spec_health` SHALL include a `search_index_coverage` field containing:
+`total_headings` (the count of `##` and `###` headings in the ruleset source at
+build time), `indexed_headings` (the count of headings with entries in the
+runtime search index), and `coverage_pct` (indexed_headings / total_headings ×
+100). A coverage below 100% SHALL include an `unmapped_sections` array listing
+each unmapped heading with its source file and anchor. Coverage below the
+configurable threshold (default 95%) SHALL surface a `[search-coverage-warning]`
+annotation.
 
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
 a tool, resource, or prompt increments the count immediately; counts are derived
