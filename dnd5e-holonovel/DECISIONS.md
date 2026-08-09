@@ -34,7 +34,7 @@
 - **TypeScript:** 7.x (dev dependency)
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
-- **Spec version:** 2026.08.08
+- **Spec version:** 2026.08.09
 - **Spec hash:** abc67d1cd8e89697b3b7f2152754cb339b5d42bd91bc317f26ab096e41b19bce
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 

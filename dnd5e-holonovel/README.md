@@ -5,7 +5,7 @@ AI-powered D&D 5th Edition Game Master, built by the Holonovel specification.
 ## Quick Start
 
 ```bash
-cd dnd5e
+cd dnd5e-holonovel
 npm install
 npm run build    # index ruleset files
 npm run start    # launch MCP server
@@ -13,7 +13,7 @@ npm run start    # launch MCP server
 
 ## Tools
 
-**51 tools** covering character management, dice rolling, combat, conditions, NPCs, lore, countdowns, rules lookup, adventure generation, session recap, and novel lifecycle.
+**106 tools** covering character management, dice rolling, combat, conditions, NPCs, factions, secrets, relationships, lore, countdowns, rules lookup, adventure generation, session recap, and novel lifecycle.
 
 ## Ruleset
 
@@ -37,4 +37,4 @@ Ruleset data: OGL + CC BY 4.0. Server code: MIT. See `LICENSE.md`.
 
 ## Spec
 
-Built by [Holonovel](https://git.gay/flukeatzerocool/Holonovel) v2026.08.08.
+Built by [Holonovel](https://git.gay/flukeatzerocool/Holonovel) v2026.08.09.
