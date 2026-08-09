@@ -19,7 +19,7 @@ const CORE_FILES = [
 
 const APPENDIX_REF = "appendices-reference.md";
 const APPENDIX_FIX = "appendices-fixtures.md";
-const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRS";
+const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRSTUVWXY";
 
 function readFile(filePath: string): string {
   const fp = path.join(SPEC_DIR, filePath);
@@ -41,7 +41,7 @@ function parseAppendices(text: string): { header: string; blocks: Map<string, st
     if (headerEnd !== -1) {
       header = parts[0].slice(0, headerEnd + 2); // "# Appendices\n\n"
       const block = parts[0].slice(headerEnd + 2); // "## Appendix A: ..."
-      const m = block.match(/^## Appendix ([A-S]):/);
+      const m = block.match(/^## Appendix ([A-Z]):/);
       if (m) blocks.set(m[1], block);
     } else {
       header = parts[0];
@@ -50,7 +50,7 @@ function parseAppendices(text: string): { header: string; blocks: Map<string, st
   }
 
   for (let i = restIdx; i < parts.length; i++) {
-    const m = parts[i].match(/^## Appendix ([A-S]):/);
+    const m = parts[i].match(/^## Appendix ([A-Z]):/);
     if (m) blocks.set(m[1], parts[i]);
   }
 
@@ -78,7 +78,7 @@ function assemble(): { content: string; report: string[] } {
   const ordered: string[] = [];
   for (const letter of APPENDIX_ORDER) {
     const block = allBlocks.get(letter);
-    if (block) ordered.push(block);
+    if (block) ordered.push(block.replace(/\n+$/, ""));
   }
 
   const appendixContent = refHeader + ordered.join("\n\n---\n\n") + "\n";

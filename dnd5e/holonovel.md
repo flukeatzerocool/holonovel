@@ -65,7 +65,7 @@ which files to load for the gap audit.
 Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
 contracts-over-implementations and red-team disciplines), then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
-before committing. The SPEC-QUEUE.md tracks subsystems awaiting review.
+before committing.
 Cached domain research at `.holonovel-state/knowledge-base/` provides cross-session
 efficiency — web findings, spec summaries, and implementation analysis with
 defined freshness windows.
@@ -7130,8 +7130,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7), enrichment re-runs (§11), and spec-queue-cycle
-syncs — not only the blanket Gauntlet run.
+spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
 
 **REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
 (Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and

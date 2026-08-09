@@ -5453,7 +5453,7 @@ player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the
 room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
 and its location. Remove the key from the world model — `command("open chest")` returns
 `[RULE_VIOLATION]` with no hint.
-_Check:_ T-new-285.
+_Check:_ T-new-310.
 
 **REQ-197 — Room description generation.** WHEN the player enters a room
 or issues a look command THE system SHALL return the room's name, its

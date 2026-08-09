@@ -5785,7 +5785,7 @@ player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the
 room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
 and its location. Remove the key from the world model — `command("open chest")` returns
 `[RULE_VIOLATION]` with no hint.
-_Check:_ T-new-285.
+_Check:_ T-new-310.
 
 **REQ-197 — Room description generation.** WHEN the player enters a room
 or issues a look command THE system SHALL return the room's name, its
@@ -9003,7 +9003,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-030 | Single-user connection    | 2026-08-02   |
 | REQ-031 | Full access — no hat active | 2026-08-02   |
 | REQ-032 | Hat gating                | 2026-08-02   |
-| REQ-033 | Adjudicator term          | 2026-08-02   |
 | REQ-040 | Audit log                 | 2026-08-02   |
 | REQ-041 | State snapshotting        | 2026-08-02   |
 | REQ-042 | Decision workflows        | 2026-08-02   |
@@ -9131,9 +9130,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-255 | Boundary signal propagation | 2026-08-08 |
 | REQ-141 | Input-validation convergence metric | 2026-08-06   |
 | REQ-142 | Blocking classification principle | 2026-08-06   |
-| REQ-143 | Category extraction order          | 2026-08-06   |
-| REQ-144 | Cross-chunk reference resolution   | 2026-08-06   |
-| REQ-145 | Guidance pass budget               | 2026-08-06   |
 | REQ-146 | Reconciliation authority criteria  | 2026-08-06   |
 | REQ-147 | Confidence aggregation             | 2026-08-06   |
 | REQ-148 | Structural integrity gate | 2026-08-06   |
@@ -9462,9 +9458,9 @@ diet.
 | T168  | Automated | Resource URI convergence: after build, assert `spec_health.convergence_summary.resource_uri_completeness` = 100%. Assert every REQ-022 URI template has a `present` entry in the convergence_summary. | REQ-139 |
 | T169  | Manual   | Gauntlet→Phase 1 re-entry: induce an extraction defect (miscategorized action) that survives Phase 1 and Phase 2 convergence but produces a Gauntlet failure. Assert the builder traces the root cause to Phase 1, records the affected Phase 1 metric, and re-enters Phase 1 for that metric. Assert the re-entry counts against the Phase 1 iteration budget. Assert DECISIONS.md (6) records the root-cause trace. | §6.6 |
 | T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. After a build requiring ≥2 iterations with zero velocity on iteration 3 while below threshold, assert a `[velocity-stall]` finding in DECISIONS.md (5) and assert the metric's step count does not increment beyond the stall. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
-| T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-145 |
-| T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-144 |
-| T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-143, REQ-210 |
+| T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-025 |
+| T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-210 |
+| T173  | Automated | Category extraction order: after a build, assert a ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. Assert a reference to a Concept term not yet extracted within the chunk produces a deferred-reference annotation in the defect log. Assert the deferred reference is resolved correctly after cross-chunk resolution. | REQ-210 |
 | T174  | Automated | Reconciliation authority criteria: after a build with a mechanic restated in three sections (core-mechanics chapter, summary table, supplement), assert canonical status is assigned to the core-mechanics section via criterion 3. With a ruleset whose index points to the summary table, assert criterion 1 overrides. Assert an `[authority-tie]` defect is produced when criteria 1–4 all produce a tie, and assert the defect log records which criterion resolved each reconciliation. | REQ-146 |
 | T175  | Automated | Warning and Partial semantics: simulate a corrupted Novel on disk — assert `spec_health` returns `[WARNING]` with the Novel slug enumerated. Submit a search query returning contradictory ruleset texts — assert `[PARTIAL]` with both texts cited. Assert neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. | REQ-001a |
 | T176  | Automated | Extended error category semantics: call `apply_condition` with an already-active condition — assert `[ERROR] [RULE_VIOLATION]` citing the ruleset anchor. Call a tool for a waived subsystem — assert `[ERROR] [UNIMPLEMENTED]` with the waiver reference. | REQ-002a |
@@ -9573,6 +9569,34 @@ diet.
 | T-new-307 | Automated | Entity presence: call `set_scene_state("Dark corridor", characters_present=["rogue_01"])` — assert `party://current` shows rogue present, wizard not present with `[not present]`. Call `set_party_presence(["wizard_01"], "Camp")` — assert scene description unchanged, wizard present. Call `set_party_presence([])` — assert all entities not present. Entity listing in `hat_briefing` — assert `[not present]` markers and `last_location` fields. `set_active_entity` to non-present entity — assert no error, `knowledge_state` renders "Entity not present" marker. | REQ-307 |
 | T-new-308 | Automated | Knowledge gating by presence: set scene to corridor with rogue only present. Call `reveal_secret("floor_trap", "rogue_01")` — assert rogue's `knowledge_state` includes trap. Set scene to camp with wizard only present — assert wizard's `knowledge_state` does NOT include trap. Reunite party (`characters_present` includes all). Assert rogue's trap knowledge retained, wizard's still excludes trap. Call `reveal_secret("floor_trap", "wizard_01")` — assert wizard now knows trap. | REQ-308 |
 | T-new-309 | Automated | World and narrative surface prominence: build with `TTRPG_WORLD_PROMINENCE=secondary` — assert World tools in secondary help category, world-model state folded into scene state in `hat_briefing`, `suggest_actions("go north")` returns no parser commands. Build with `TTRPG_WORLD_PROMINENCE=visible` — assert world-model and narrative tools in primary help categories, dedicated world-model state section in `hat_briefing` with empty-state marker when unpopulated, `suggest_actions("go north")` returns parser command alongside TTRPG tools. Build with `TTRPG_WORLD_PROMINENCE=prominent` — assert parser `command` is a top-level help entry, world CRUD tools in primary setup category, world-model state in decision-critical `hat_briefing` group, `suggest_actions("go north")` returns parser command before TTRPG tools. Assert ruleset-free build skips B12 and records no `TTRPG_WORLD_PROMINENCE` value. | REQ-309 |
+| T-new-225 | Automated | Ruleset-native enrichment extraction: run Discovery on a ruleset with GM advice chapters and example-of-play dialogues. Assert enrichment items produced in ≥4 of 7 modules with `[ruleset]` tag and source anchors. Assert items are sorted into correct module slots (example-of-play → voice_examples, GM advice → briefing_order, etc.). Assert ruleset-free mode (B1=none) produces empty enrichment modules recorded as "ruleset-free" in DECISIONS.md. | REQ-225 |
+| T-new-226 | Automated | Narrative voice profiles: run Discovery on a ruleset with `Suggested Reading`, `Suggested Viewing`, or equivalent sections. Assert narrative voice items extracted with source anchors. Assert items tagged `[ruleset]` and placed in narrative_voices module. Assert ruleset without such sections produces no narrative voice items. | REQ-226 |
+| T-new-227 | Automated | Two-tier enrichment model: build with enrichment active. Assert `list_enrichment_items(tier=1)` returns only ruleset-native `[ruleset]` items. Assert `list_enrichment_items(tier=2)` returns `[supplementary]` items. Assert `revert_enrichment` removes Tier 2 only. Assert Tier 1 items survive `revert_enrichment`. | REQ-227 |
+| T-new-228 | Automated | Enrichment consistency during spec-driven updates: perform a Minor spec-driven update that adds a tool surface. Assert the gap audit records the old surface was removed and enrichment items for that surface are flagged for GM review. Assert `hat_briefing` under GM hat includes advisory about removed surface. Assert `revert_enrichment`+re-activation preserves existing items for unchanged surfaces. | REQ-228 |
+| T-new-229 | Automated | Adventure enrichment linkage: call `load_adventure` on an adventure with enrichment data. Assert adventure-linked enrichment items appear in `list_enrichment_items` tagged with the adventure slug. Assert `end_novel` removes adventure-linked items. Assert `revert_enrichment` does not remove adventure-linked items. | REQ-229 |
+| T-new-230 | Automated | Enrichment status dashboard: call `resources/read` on `enrichment://status` — assert per-module table with ruleset, community, and novel columns and per-tier counts. Assert `spec_health` reports enrichment_status with per-module activated/total counts. Assert dashboard is accessible under both hats. | REQ-230 |
+| T-new-231 | Automated | Per-module enrichment toggle: call `toggle_enrichment_module("voice_examples", false)` — assert voice_example items absent from `hat_briefing`. Call `toggle_enrichment_module("voice_examples", true)` — assert items restored. Assert toggle of unknown module returns `[NOT_FOUND]`. Assert toggle is Novel-scoped and persists across restarts. | REQ-231 |
+| T-new-244 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the B10 provider doc hash. | REQ-244 |
+| T-new-245 | Automated | Pre-computed enrichment manifest: build inform/ with a provider doc containing enrichment data. Assert `inform/build/enrichment.json` is populated with `[ruleset]` items per module. Assert manifest includes items with source anchors, confidence, and module tags. Assert ruleset-free build produces empty `enrichment.json`. | REQ-245 |
+| T-new-279 | Automated | Narrative orientation: call `session_recap` after a session with scene changes. Assert `narrative_orientation` section includes recent plot beats, unresolved threads, and party state. Call `end_novel` then `create_novel` — assert `session_recap` returns empty orientation. Assert orientation references lore entries that fired during the session. | REQ-279 |
+| T-new-280 | Automated | Source-anchor citation: call `lookup_spell("fireball")` — assert output includes source anchor (section/file reference). Call `lookup_monster("goblin")` — assert source anchor present. Assert `lookup_equipment` output includes source anchor. Assert ruleset-free mode does not include source anchors in lookup responses. | REQ-280 |
+| T-new-281 | Automated | Narrative-threads section token: create a Novel, set a lore entry with triggers, and call `hat_briefing` under GM hat. Assert Narrative Threads section token appears with threads derived from lore entries. Assert each thread includes trigger, content preview, and priority. Assert empty-Novel briefing omits the Narrative Threads section. | REQ-281 |
+| T-new-282 | Automated | Scene-state ledger: call `set_scene_state("Tavern", "Merry tavern")`. Assert hat_briefing includes scene token with current location and description. Call `set_scene_state("Forest", "Dark forest")` — assert prior scene pushed to ledger. Call `undo` — assert ledger restored to prior scene. Assert `session_recap` includes scene transitions. | REQ-076 |
+| T-new-283 | Automated | NPC voice directive: call `set_personality(npc_id, voice="Gruff and impatient")` on an NPC. Assert `hat_briefing` under GM hat includes NPC voice directive with the personality fields. Assert the voice directive includes positive framing ("SHALL") and negative counsel ("should NOT") per REQ-282. Assert Player hat does not see GM-only voice directives. | REQ-282 |
+| T-new-284 | Automated | Verb coverage tiers: build with a populated world model containing openable doors, readable books, and wearable items. Assert `command("help")` enumerates core tier verbs (7), standard tier verbs (12+ depending on world-model supports), and extended tier verbs per REQ-222. Assert ruleset with no additional verbs reports 0 extended. Assert `command("verbs")` produces same output as `command("help")`. | REQ-283 |
+| T-new-286 | Automated | Vow tracking: call `set_vow("vengeance", "Track down and defeat the brigand leader", entity_id)`. Assert `hat_briefing` includes Vows section with the vow description, target, and entity. Call `fulfill_vow("vengeance")` — assert vow marked fulfilled in briefing. Call `break_vow("vengeance")` — assert vow marked broken with `[VOW_BROKEN]` marker. Assert `list_vows()` returns all active/broken vows. | REQ-289 |
+| T-new-291 | Automated | Oracle tool: call `ask_oracle("Is the door locked?", "unlikely", seed="test")` — assert returns Yes/No with modifier annotation. Call `ask_oracle("What's behind the door?", "50/50", seed="test")` — assert returns result. Assert deterministic output with same seed. Assert `ask_oracle` without likelihood returns `[ERROR] [INVALID_INPUT]`. | REQ-291 |
+| T-new-292 | Automated | Adventure catalog: call `list_adventures()` on a server with indexed adventure modules. Assert each entry includes slug, title, and ruleset compatibility. Call `list_adventures(filter="fantasy")` — assert filtered results. Assert `list_adventures()` on empty catalog returns empty-state marker. | REQ-292 |
+| T-new-294 | Automated | Genre declaration: call `set_genre("horror")` on an active Novel. Assert `novel_info()` reports genre. Assert `spec_health` includes genre field. Call `set_genre("fantasy")` — assert updated. Assert `set_genre("invalid_genre")` returns `[ERROR] [INVALID_INPUT]` with valid genres enumerated. | REQ-294 |
+| T-new-295 | Automated | Genre-filtered generation: set genre to "horror" on a Novel. Call `generate_encounter("forest clearing")` — assert encounter elements include horror-appropriate tropes. Set genre to "fantasy" — assert encounter elements shift to fantasy-appropriate tropes. Assert `generate_adventure("dungeon")` respects genre in adventure scaffold. | REQ-295 |
+| T-new-296 | Automated | Knowledge-graph resource: create a Novel with entities, NPCs, lore entries, and an adventure. Call `graph://novel` — assert nodes for entities, NPCs, and lore entries with edges for relationships (disposition, location, adventure linkage). Assert `graph://novel?format=json` returns structured data. Assert empty Novel returns graph with only the novel root node. | REQ-296 |
+| T-new-298 | Automated | Dynamic lore: call `set_lore_entry("tavern_secret", "The barkeep is a retired assassin", triggers=["tavern", "barkeep"])`. Assert `hat_briefing` includes lore item when scene description matches triggers. Call `toggle_lore_entry("tavern_secret")` to disable — assert item absent from briefing. Call `toggle_lore_entry("tavern_secret")` to enable — assert item returns. Call `remove_lore_entry("tavern_secret")` — assert item removed. | REQ-083 |
+| T-new-299 | Automated | Adjusted thresholds: build with a ruleset whose indexed-item count exceeds 200. Assert the confidence threshold is lowered per REQ-098 and DECISIONS.md records the adjusted threshold with justification. Assert ruleset under 200 indexed items uses the standard threshold. Assert adjusted thresholds survive convergence re-verification. | REQ-299 |
+| T-new-300 | Automated | Structured failure diagnostics: induce a Gate 2 failure on init_combat turn-order mismatch. Assert DECISIONS.md (5) contains a diagnostic record with gate name, failing test ID, REQ citation, expected turn order, actual turn order, and a diff. Assert resolution field transitions from pending to converged on fix. | REQ-300 |
+| T-new-301 | Automated | Convergence loop audit trail: run convergence with ≥2 iterations. Assert DECISIONS.md (5) contains traceable records per iteration: iteration number, REQ/test addressed, change summary, re-test result, and token cost. Assert convergence_summary includes total iterations, final disposition per REQ, and aggregate token cost. | REQ-301 |
+| T-new-302 | Automated | Per-section content hashing: build with a ruleset containing 10 sections. After initial build, change one section's content. Assert the delta detection identifies the single changed section. Assert only the changed section re-runs extraction. Assert `spec_health.section_hashes` includes per-section hashes. Assert unchanged sections produce "[section unchanged — re-validating from previous build]" annotations. | REQ-302 |
+| T-new-303 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Gauntlet sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Gauntlet summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
+| T-new-310 | Automated | Implicit action hints: create a world model with a locked chest and an iron key in the room. Call `command("open chest")` — assert `[RULE_VIOLATION]` with hint naming the iron key and its location. Call `command("unlock chest")` — assert `[OK]`. Call `command("open chest")` — assert `[OK]`. Remove the iron key, call `command("open chest")` on a new locked chest — assert `[RULE_VIOLATION]` with no hint (no reachable key). Assert hint format matches: `Hint: You need the <object name> (<location>) first.` | REQ-284 |
 
 ---
 
@@ -10567,3 +10591,344 @@ match as a finding.
 ## Appendix S: Builder Glossary
 
 Domain terms are defined in §4 (Terminology). This appendix is a forward reference.
+
+---
+
+## Appendix W: World-Model Golden Fixture
+
+_A synthetic test fixture for ruleset-free Holonovel builds. No dice, no stats, no combat
+mechanics — only parser commands, world-model state, hat gating, Novel lifecycle, lore,
+countdowns, and undo. Exercises the same behavioral contracts as Appendix B (REQ-001,
+REQ-032, REQ-041, REQ-042, REQ-055, REQ-072, REQ-073, REQ-092) over infrastructure-only
+surfaces._
+
+### W.1 Fixture world model
+
+```
+The Entrance Chamber is a room. "A vast hall carved from living stone. Torches gutter in
+iron sconces, casting dancing shadows across the polished floor. A heavy oaken door leads
+north. A wrought-iron lever protrudes from the eastern wall."
+
+The Hall of Statues is a room. "Tall statues line both walls — kings, warriors, and
+creatures of legend, their stone eyes following you. The air is cold and still. The oaken
+door leads back south. An obsidian door, carved with serpentine patterns, leads north."
+
+The Throne Room is a room. "A single throne of black stone dominates the chamber. Dust
+lies thick on every surface. The Serpent Crown rests on the throne's seat, its emerald
+eyes glinting. The obsidian door leads back south."
+
+North of the Entrance Chamber is the Hall of Statues.
+North of the Hall of Statues is the Throne Room.
+
+A wrought-iron lever is in the Entrance Chamber. It is fixed.
+The obsidian door is a door. It is closed and locked.
+The Serpent Crown is in the Throne Room. "A golden crown set with emerald eyes. Cold
+to the touch."
+```
+
+### W.2 Expected model
+
+A correct indexing of the fixture includes: 3 rooms with descriptions, 4 directional
+exits (with implicit reverse exits), 1 thing (the Serpent Crown, portable), 1 fixed thing
+(the lever), 1 door (openable, lockable, closed, locked). All descriptions are verbatim
+from the source. The lever is fixed (cannot be taken). The door blocks passage north from
+the Hall of Statues when closed.
+
+### W.3 Golden transcript
+
+```
+→ create_novel { "name": "The Serpent Crown" }
+[OK] Novel created: the-serpent-crown (novel://current)
+
+→ convert_source { "source": "<W.1 fixture text>" }
+[OK] World model populated: 3 rooms, 2 things, 4 exits. Linked annotations: 0.
+Linked annotation counts — encounters: 0, NPCs: 0, traps: 0, lore: 0.
+
+→ set_scene_state { "description": "The entrance chamber. Torches flicker." }
+[OK] Scene set: The entrance chamber. Torches flicker.
+
+# World-model parser commands under Player hat
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Entrance Chamber
+A vast hall carved from living stone. Torches gutter in iron sconces, casting dancing
+shadows across the polished floor. A heavy oaken door leads north. A wrought-iron lever
+protrudes from the eastern wall.
+You can see: a wrought-iron lever (fixed).
+Exits: north (oaken door).
+
+→ command { "command": "go north" }
+[OK] The Hall of Statues
+Tall statues line both walls — kings, warriors, and creatures of legend, their stone
+eyes following you. The air is cold and still.
+Exits: south (oaken door), north (obsidian door — closed, locked).
+
+→ command { "command": "go north" }
+[WARNING] The obsidian door is closed.
+
+→ command { "command": "open obsidian door" }
+[WARNING] The obsidian door is locked.
+
+→ command { "command": "go south" }
+[OK] The Entrance Chamber
+A vast hall carved from living stone...
+Exits: north (oaken door).
+
+→ command { "command": "take lever" }
+[ERROR] [RULE_VIOLATION] The wrought-iron lever is fixed.
+Corrective action: fixed objects cannot be taken.
+
+→ command { "command": "xyzzy" }
+[ERROR] [NOT_FOUND] "xyzzy" is not a recognized command.
+Corrective action: try look, go <direction>, take <thing>, drop <thing>,
+open <door>, close <door>, inventory, or wait.
+
+# Cross-hat boundary
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ init_combat { "participants": [], "dangers": [{"name": "stone-guardian"}] }
+[ERROR] [FORBIDDEN] init_combat is restricted to the game_master hat.
+Corrective action: switch hats via `set_hat("game_master")`.
+
+# GM hat — manage state, set lore and countdown
+→ set_hat { "hat": "game_master" }
+[OK] Active hat: game_master
+
+→ set_lore_entry { "key": "serpent-crown-lore", "content": "The Serpent Crown was
+forged by the Serpent King to bind the seven winds. It grants the wearer command
+over storms.", "triggers": ["serpent crown", "throne room"] }
+[OK] Lore entry created: serpent-crown-lore
+
+→ set_countdown { "name": "torch-fade", "ticks": 3, "type": "narrative" }
+[OK] Countdown set: torch-fade (3 ticks, narrative)
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade: 2 ticks remaining.
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade: 1 tick remaining.
+
+→ advance_countdown { "name": "torch-fade" }
+[OK] Countdown torch-fade expired. Recorded in audit log.
+
+# Player triggers lore by entering the Throne Room (GM sets scene)
+→ set_scene_state { "description": "The Throne Room. The Serpent Crown gleams
+on the black stone throne." }
+[OK] Scene set. Transition recorded.
+
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Throne Room
+A single throne of black stone dominates the chamber. Dust lies thick on every surface.
+The Serpent Crown rests on the throne's seat, its emerald eyes glinting.
+You can see: the Serpent Crown.
+Exits: south (obsidian door).
+
+→ command { "command": "take serpent crown" }
+[OK] You take the Serpent Crown.
+
+# GM verifies lore triggered by Serpent Crown
+→ set_hat { "hat": "game_master" }
+[OK] Active hat: game_master
+
+→ hat_briefing {}
+[OK] Lore: [serpent-crown-lore] The Serpent Crown was forged by the Serpent King...
+
+→ session_recap {}
+[OK] Active Novel: the-serpent-crown. Scene: The Throne Room. World model: 3 rooms,
+1 thing held by player, 1 fixed lever, 1 door (open).
+
+→ undo {}
+[OK] Reverted: command("take serpent crown"). The Serpent Crown is back on the throne.
+
+→ set_hat { "hat": "player" }
+[OK] Active hat: player
+
+→ command { "command": "look" }
+[OK] The Throne Room
+A single throne of black stone dominates the chamber. Dust lies thick on every surface.
+The Serpent Crown rests on the throne's seat, its emerald eyes glinting.
+You can see: the Serpent Crown.
+Exits: south (obsidian door).
+
+→ command { "command": "take serpent crown" }
+[OK] You take the Serpent Crown.
+
+→ end_novel {}
+[NEED_INPUT] Decision: -end_novel-confirm
+Question: End Novel "The Serpent Crown"?
+Options: yes, cancel
+
+→ respond { "decision": "-end_novel-confirm", "option": "yes" }
+[OK] Novel ended: the-serpent-crown. Roster survives.
+```
+
+### W.4 Behavioral contracts exercised
+
+The Appendix W transcript exercises: REQ-001 (status prefixes on `[OK]`, `[WARNING]`,
+`[ERROR]`, `[NEED_INPUT]`), REQ-032 (hat gating — `init_combat` blocked from Player,
+`set_hat` switches hats), REQ-041 (undo round-trip restores item position on the
+throne), REQ-042 (decision workflow — `[NEED_INPUT]` with yes/cancel, concluded via
+`respond`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
+survives `end_novel`), REQ-072 (session_recap reports scene state, entity inventory,
+world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, audit),
+REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file
+removal), REQ-196 (parser commands — look, go north, go south, take, open, assert
+locked door blocks passage, assert fixed things cannot be taken, assert unrecognized
+commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
+door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
+(hybrid source conversion via convert_source populates rooms, things, and exits).
+
+---
+
+## Appendix X: Social Interaction Fixture
+<!-- fixture version 1 -->
+
+_A synthetic test fixture for rulesets where the primary resolution mechanic is
+social — persuasion, bargaining, faction politics — rather than combat. Like
+Appendices B and N, its mechanics are fabricated for testing and bear no
+relation to any published game._
+
+### X.1 Fixture fixture (`court_intrigue.md`)
+
+```markdown
+# Court Intrigue
+
+_A game of whispered words and shifting alliances. One Game Master, one or more Courtiers._
+
+## Roles
+
+Each player controls a **Courtier**. The **Game Master** portrays the
+court — nobles, spies, and the shifting currents of favor. Sections marked _GM only_
+are secret from Courtiers.
+
+## Courtiers
+
+A Courtier has:
+
+- **Name**: a title with a house affiliation.
+- **Charm**: silver tongues and warm smiles.
+- **Insight**: reading faces, catching lies.
+- **Presence**: commanding a room, projecting authority.
+- **Standing**: the Courtier's favor at court. Starts at 0. Ranges from −5 (exiled)
+  to +5 (royal confidant).
+- **Conditions**: temporary states; see Conditions.
+
+## Dice
+
+Social gambits are resolved with **2d6 plus a stat**. A total of 10+ is a clean
+success; 7–9 is a partial success (it works with a cost or complication); 6 or
+less is a failure, and the GM makes a move. A natural 2 always fails; a natural 12
+always succeeds cleanly.
+
+## Gambits
+
+When a Courtier attempts a social maneuver, the GM names the stat and the player rolls.
+
+- **Persuade**: convince someone to act. Roll +Charm.
+- **Read Person**: discern motives, catch a lie. Roll +Insight.
+- **Command**: assert authority, silence dissent. Roll +Presence.
+- **Bargain**: negotiate terms, call in a debt. Roll +Charm or Presence (player's choice).
+
+## Conditions
+
+- **Disgraced**: −1 to Command and Persuade rolls. Expires after one scene of public
+  vindication.
+- **Indebted**: the Courtier owes a favor. The creditor (a named NPC or faction) may
+  call it in once per session to force a Persuade or Bargain reroll.
+
+## Creating a Courtier
+
+1. Choose a name and house.
+2. Assign +2, +1, and 0 to Charm, Insight, and Presence in any order.
+3. Choose one boon from the Court Boons table.
+4. Set Standing to 0.
+
+## Factions
+
+The court contains factions, each with a **Standing** track for each Courtier
+(−3 to +3). Faction Standing changes as an outcome of Gambits. When a Courtier
+acts against a faction's interests, the faction may retaliate — the GM records
+the shift and narrates the consequence. There are no combat rules; all conflict
+is social.
+
+## Court Boons
+
+| d6  | Boon                                   |
+| --- | -------------------------------------- |
+| 1   | Silver Tongue: +1 to Persuade          |
+| 2   | Eyes Everywhere: once per session, ask one question the GM must answer truthfully |
+| 3   | Born to Rule                            |
+| 4   | Iron Resolve: +1 to Presence           |
+| 5   | Well-Connected                          |
+| 6   | Master of Secrets: +1 to Read Person   |
+
+See also [Advancement](court_advancement.md) for gaining new Boons.
+```
+
+### X.2 Expected model excerpt
+
+A correct extraction of the fixture includes at least:
+
+- **Concepts**: stats (Charm, Insight, Presence) [HIGH]; conditions (Disgraced,
+  Indebted) [HIGH]; gambits [HIGH]; Boons [HIGH — two content-finding rows, see
+  defects]; factions [HIGH]; Standing [HIGH].
+- **Entities**: Courtier — Name; Charm/Insight/Presence from {+2, +1, 0};
+  Standing −5 to +5; Conditions; one Boon; lifecycle: creation is defined and
+  modeled [HIGH]; advancement is undefined (the cross-reference is broken —
+  defect 1), so no advance tool exists.
+- **Actions**: `roll_gambit` (Resolution, MUST), `create_courtier` (Command, MUST —
+  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `apply_condition` /
+  `remove_condition` (Command, MUST), `roll_on_table` (Generation, MUST). Four MUST
+  tools registered.
+- **Tables**: Court Boons (lookup + generation — rows 3 and 5 lack descriptions,
+  a content finding).
+- **Roles**: player (Courtier) and Game Master; no GM-only sections defined,
+  all tools are both-hat.
+- **Defects**: (1) broken cross-reference to `court_advancement.md`; (2) Boons
+  rows 3 (Born to Rule) and 5 (Well-Connected) lack descriptions — well-formed
+  rows with no mechanical text.
+
+---
+
+## Appendix Y: Structural Stress-Test Fixture
+<!-- fixture version 1 -->
+
+_A fixture for G0a structural edge cases: deeply nested headings, large tables, mixed
+inline formatting, and Unicode resilience. Not a playable ruleset — a structural
+instrument for the Appendix H checklist._
+
+### Y.1 Structural stress source
+
+The fixture source (`stress_test.md`) contains:
+
+1. **7-level heading nesting**: `#`, `##`, `###`, `####`, `#####`, `######`, and a
+   seventh level via HTML `<h7>` — the builder SHALL flatten to 6 levels per Appendix A
+   with unambiguous anchor derivation at every level.
+2. **100-row table**: a character-creation table with 100 rows, each containing a name,
+   three stat fields, and a multi-line description column. The builder SHALL parse all
+   100 rows without truncation or positional shift.
+3. **Mixed inline formatting**: a rule paragraph containing `**bold**`, `*italic*`,
+   `***bold-italic***`, `~~strikethrough~~`, and `==highlight==` (non-standard Markdown)
+   in a single sentence. The builder SHALL render standard Markdown and preserve the
+   non-standard syntax as literal text.
+4. **Unicode edge cases**: a monster name containing a zero-width space (`\u200B`), a
+   right-to-left Arabic section title, and an em-dash vs. en-dash vs. hyphen
+   distinction in three adjacent lines. The builder SHALL preserve Unicode characters
+   without normalization and derive anchors from the displayed glyph sequence.
+5. **Adversarial table structure**: a table with varying column counts (2, 3, 4, 5
+   columns) across rows. The builder SHALL detect the irregularity and record it as a
+   structural finding while parsing what it can.
+
+### Y.2 Expected structural checks
+
+The Appendix H checklist applied to this fixture SHALL pass all standard checks and
+additionally verify: heading nesting is flattened without loss; 100-row table is fully
+parsed; zero-width space is preserved in anchor derivation but stripped from display
+labels; mixed formatting renders correctly; and irregular table column counts produce a
+findings entry, not a parse failure.

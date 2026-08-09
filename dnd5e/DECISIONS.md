@@ -118,9 +118,9 @@
 | REQ-248 | Adventure index | `src/state.ts` — adventure_index field in NovelState; `src/index.ts` — load_adventure populates from extracted data if available |
 | REQ-249 | Adventure text extraction | Waived — build-time REQ; no adventure modules to extract |
 | REQ-250 | Adventure scene waypoint | `src/state.ts` — adventure_scene_waypoint field; `src/index.ts` — surfaced in hat_briefing, set on load_adventure |
-| REQ-251 | Generation intent guard | Deferred — spec-driven update; 2026-08-08 queue research |
-| REQ-252 | Narrative fast-forward | Deferred — spec-driven update; 2026-08-08 queue research |
-| REQ-253 | Tool-output verbosity control | Deferred — spec-driven update; 2026-08-08 queue research |
+| REQ-251 | Generation intent guard | Deferred — spec-driven update; 2026-08-08 research |
+| REQ-252 | Narrative fast-forward | Deferred — spec-driven update; 2026-08-08 research |
+| REQ-253 | Tool-output verbosity control | Deferred — spec-driven update; 2026-08-08 research |
 | REQ-001a | Warning and Partial semantics | Deferred — `src/index.ts` ok/err/raw helpers; WARNING/PARTIAL status prefixes not yet implemented |
 | REQ-001b | Error boundary | Deferred — SDK-layer validation via Zod; REQ-002 category strings not yet separated from protocol errors |
 | REQ-002a | Extended error categories | Deferred — RULE_VIOLATION and UNIMPLEMENTED categories not yet implemented |
@@ -273,7 +273,7 @@
 - **Changed code paths:** src/index.ts (10 renames), src/state.ts (1 rename).
 - **Verification:** typecheck 0 errors, grep for deprecated terms 0 matches, Gauntlet re-run (blocking sub-workflows pass).
 
-### Spec-Driven Update (REQ-098) — First Spec-Queue Cycle Sync
+### Spec-Driven Update (REQ-098) — First Sync Cycle
 - **Date:** 2026-08-06
 - **Spec version:** 2026.08.08
 - **Classification:** Major — new REQs (138-140), amended REQs (023, 025, 042, 043, 088, 092, 097)
@@ -379,7 +379,7 @@
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
 - **Spec hash:** 282855cd4a707cd23304ae5c04b7470b400cd411a501b666581370ed56acecf9
 
-### Spec-Driven Update (REQ-098) — Spec Queue Pipeline Cycle Sync
+### Spec-Driven Update (REQ-098) — Pipeline Cycle Sync
 - **Date:** 2026-08-07
 - **Spec version:** 2026.08.08
 - **Classification:** Major — spec restructured into source files; REQ-059/085/086/181 amended, new REQ-059a/179-183 added
@@ -521,7 +521,7 @@
 - **Changed code paths:** src/index.ts (SPEC_HASH, load_adventure, hat_briefing), src/state.ts (NovelState interface, createNovel, loadNovelFromData, novelToJSON, novelFromJSON)
 - **Gauntlet:** S1 (tool change — load_adventure), S20 (scene state surface — hat_briefing)
 
-### Spec-Driven Update Gap Disposition (REQ-098) — Queue Research
+### Spec-Driven Update Gap Disposition (REQ-098)
 - **Date:** 2026-08-08
 - **Spec version:** 2026.08.08 → 2026.08.08
 - **Classification:** major
