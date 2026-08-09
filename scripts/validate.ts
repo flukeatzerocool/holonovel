@@ -508,6 +508,43 @@ function checkAppendixRange(text: string): string[] {
   return issues;
 }
 
+function checkSubsectionCounts(text: string): string[] {
+  const issues: string[] = [];
+
+  const tableStart = text.indexOf("| §       | Title");
+  if (tableStart === -1) return issues;
+  const tableEnd = text.indexOf("\n\n", tableStart);
+  if (tableEnd === -1) return issues;
+  const tableText = text.slice(tableStart, tableEnd);
+
+  const expected = new Map<string, number>();
+  for (const line of tableText.split("\n")) {
+    const m = line.match(/^\|\s*(5\.\d+)\s*\|.*\|\s*(\d+)\s*\|$/);
+    if (m) expected.set(m[1], parseInt(m[2]));
+  }
+  if (expected.size === 0) return issues;
+
+  const actual = new Map<string, number>();
+  let currentSection = "";
+  for (const line of text.split("\n")) {
+    const h = line.match(/^### (5\.\d+) /);
+    if (h) { currentSection = h[1]; continue; }
+    if (line.match(/^(## |---$)/)) { currentSection = ""; continue; }
+    if (line.match(/^### /)) { currentSection = ""; continue; }
+    if (currentSection && line.match(/^\*\*REQ-\d{3}/)) {
+      actual.set(currentSection, (actual.get(currentSection) || 0) + 1);
+    }
+  }
+
+  for (const [sec, exp] of expected) {
+    const act = actual.get(sec) || 0;
+    if (act !== exp) {
+      issues.push(`WARNING: §${sec} count mismatch — table says ${exp}, actual ${act}`);
+    }
+  }
+  return issues;
+}
+
 function checkStaleCounts(text: string): string[] {
   const issues: string[] = [];
   const words = "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve";
@@ -815,6 +852,14 @@ function main(): void {
       console.log(`WARNING: ${issue}`);
     }
     warnings += countIssues.length;
+  }
+
+  const subCountIssues = checkSubsectionCounts(text);
+  if (subCountIssues.length > 0) {
+    for (const issue of subCountIssues) {
+      console.log(issue);
+    }
+    warnings += subCountIssues.length;
   }
 
   if (traceability) {
