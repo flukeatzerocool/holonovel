@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Inform Gauntlet — §6.6 world-model verification harness
-// Spawns inform MCP server, executes I1–I10 sub-workflows, records structured results.
-// Blocking: I1, I2, I3, I4, I5, I6, I10. Non-blocking: I7, I8, I9.
+// Spawns inform MCP server, executes I1–I13 sub-workflows, records structured results.
+// Blocking: I1, I2, I3, I4, I5, I6, I10. Non-blocking: I7, I8, I9, I11, I12, I13.
 
 import { spawn, ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -16,7 +16,7 @@ const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-inform-gauntlet-"));
 
 // ── Types ──────────────────────────────────────────────────────────
 
-type ToolAction = { kind: "tool"; name: string; args: Record<string, unknown> };
+type ToolAction = { kind: "tool"; name: string; args: Record<string, unknown> | (() => Record<string, unknown>) };
 type ResourceAction = { kind: "resource"; uri: string };
 type PromptAction = { kind: "prompt"; name: string; args: Record<string, string> };
 type GauntletAction = ToolAction | ResourceAction | PromptAction;
@@ -73,7 +73,8 @@ async function initialize(proc: ChildProcess): Promise<void> {
 async function doAction(proc: ChildProcess, action: GauntletAction): Promise<string> {
   let resp: any;
   if (action.kind === "tool") {
-    resp = await send(proc, { method: "tools/call", params: { name: action.name, arguments: action.args } });
+    const args = typeof action.args === "function" ? action.args() : action.args;
+    resp = await send(proc, { method: "tools/call", params: { name: action.name, arguments: args } });
   } else if (action.kind === "resource") {
     resp = await send(proc, { method: "resources/read", params: { uri: action.uri } });
   } else {
@@ -81,7 +82,11 @@ async function doAction(proc: ChildProcess, action: GauntletAction): Promise<str
   }
   if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
   const content = resp.result?.content ?? resp.result?.contents ?? resp.result?.messages ?? [];
-  return content.map((c: any) => c.text ?? "").join("\n");
+  return content.map((c: any) => {
+    if (typeof c === "string") return c;
+    if (c.content?.text) return c.content.text;
+    return c.text ?? "";
+  }).join("\n");
 }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
@@ -169,6 +174,7 @@ The Inner Sanctum is a room. "A chamber lit by an eerie green glow."
 // ── Helper: shorthand action creators ──────────────────────────────
 
 const T = (name: string, args: Record<string, unknown> = {}): ToolAction => ({ kind: "tool", name, args });
+const TL = (name: string, argsFn: () => Record<string, unknown>): ToolAction => ({ kind: "tool", name, args: argsFn });
 const R = (uri: string): ResourceAction => ({ kind: "resource", uri });
 const P = (name: string, args: Record<string, string> = {}): PromptAction => ({ kind: "prompt", name, args });
 
@@ -430,7 +436,74 @@ function buildScenarios(): GauntletScenario[] {
     ],
   };
 
-  return [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10];
+  const I11: GauntletScenario = {
+    scenario_id: "I11",
+    objective: "Narrative CRUD cycle — create_npc → set_personality → set_voice_examples → update_npc → remove_npc",
+    blocking: false,
+    steps: (() => {
+      const npcRef = { id: "" };
+      return [
+        { label: "create_novel", action: T("create_novel", { name: "gauntlet-i11" }), assert: assertOK },
+        { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+        { label: "create_npc", action: T("create_npc", { name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
+          const match = r.match(/\((\w+)\)/);
+          if (match) npcRef.id = match[1];
+          assertContains(r, "Galt");
+          assertOK(r);
+        }},
+        { label: "set_personality on npc", action: TL("set_personality", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
+        { label: "set_voice_examples on npc", action: TL("set_voice_examples", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
+        { label: "update_npc", action: TL("update_npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
+        { label: "remove_npc", action: TL("remove_npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
+        { label: "remove_nonexistent → NOT_FOUND", action: T("remove_npc", { npc_id: "nonexistent" }), assert: assertError },
+      ];
+    })(),
+  };
+
+  const I12: GauntletScenario = {
+    scenario_id: "I12",
+    objective: "Lore and countdown lifecycle — set/toggle/update/remove lore; countdown expiry",
+    blocking: false,
+    steps: [
+      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i12" }), assert: assertOK },
+      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_lore_entry", action: T("set_lore_entry", { key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], hat_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
+      { label: "toggle_lore_entry (disable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
+      { label: "toggle_lore_entry (re-enable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
+      { label: "update_lore_entry", action: T("update_lore_entry", { key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
+      { label: "remove_lore_entry", action: T("remove_lore_entry", { key: "artifact" }), assert: assertOK },
+      { label: "remove_nonexistent lore", action: T("remove_lore_entry", { key: "nonexistent" }), assert: assertError },
+      { label: "set_countdown(ticks=2)", action: T("set_countdown", { name: "timer", ticks: 2, type: "narrative" }), assert: assertOK },
+      { label: "advance_countdown → 1 left", action: T("advance_countdown", { name: "timer" }), assert: (r) => assertContains(r, "1 tick") },
+      { label: "advance_countdown → expiry", action: T("advance_countdown", { name: "timer" }), assert: (r) => assertContains(r, "expired") },
+      { label: "advance_expired → NOT_FOUND", action: T("advance_countdown", { name: "timer" }), assert: assertError },
+    ],
+  };
+
+  const I13: GauntletScenario = {
+    scenario_id: "I13",
+    objective: "Scene state and guidance — set_scene_state, scene_type, directive, hat_briefing, briefing_order",
+    blocking: false,
+    steps: [
+      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i13" }), assert: assertOK },
+      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_scene_state full", action: T("set_scene_state", { description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively" }), assert: (r) => assertContains(r, "Scene set") },
+      { label: "set_scene_type", action: T("set_scene_type", { type: "social" }), assert: assertOK },
+      { label: "set_narrative_directive", action: T("set_narrative_directive", { directive: "Emphasize the noise and crowd density." }), assert: assertOK },
+      { label: "hat_briefing prompt — GM", action: P("hat_briefing", { hat: "game_master" }), assert: (r) => {
+        assertContains(r, "marketplace");
+        assertContains(r, "GM State");
+      }},
+      { label: "set_scene_state second (push prior to history)", action: T("set_scene_state", { description: "The alley is dark and quiet.", location: "Back Alley", time_of_day: "night" }), assert: assertOK },
+      { label: "scene_history resource includes prior scene", action: R("scene://history"), assert: (r) => {
+        assertContains(r, "Market Square");
+        assertContains(r, "midday");
+      }},
+      { label: "set_briefing_order", action: T("set_briefing_order", { sections: ["scene", "world", "narrative"] }), assert: assertOK },
+    ],
+  };
+
+  return [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13];
 }
 
 // ── Main ────────────────────────────────────────────────────────────
@@ -545,9 +618,13 @@ async function main() {
     "command", "create_room", "delete_room", "create_thing", "delete_thing",
     "create_exit", "delete_exit", "convert_source",
     "create_character", "load_adventure", "session_recap",
+    "create_npc", "update_npc", "remove_npc", "set_personality", "set_voice_examples",
+    "set_lore_entry", "toggle_lore_entry", "update_lore_entry", "remove_lore_entry",
+    "set_countdown", "advance_countdown",
+    "set_scene_state", "set_scene_type", "set_narrative_directive", "set_briefing_order",
   ].sort();
   const resourceUris = [
-    "room://{id}", "thing://{id}", "world://map", "world://kinds",
+    "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",
   ].sort();
   const promptNames = ["intro", "hat_briefing", "session_zero", "novel_setup"].sort();
   const surfaceHash = sha256(JSON.stringify({ tools: toolNames, resources: resourceUris, prompts: promptNames }));
