@@ -18,7 +18,7 @@
 > Observer mode (REQ-305) lets the human spectate while the AI plays both roles.
 > Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
 > human. Multi-character support with entity presence (REQ-307) and knowledge gating by
-> presence (REQ-308): one Adventures load as hybrid world-model
+> presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
 > enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
 > persist. RNG deterministic and seedable. Requirements state the contract; verification

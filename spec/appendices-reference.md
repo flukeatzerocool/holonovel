@@ -102,7 +102,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-002c| Hat-filtered error values | 2026-08-06 |
 | REQ-003 | Roll transparency         | 2026-08-02   |
 | REQ-004 | Truncation                | 2026-08-02   |
-| REQ-004a| Statblock baseline view   | 2026-08-02   |
+| REQ-004a| Stat block baseline view   | 2026-08-02   |
 | REQ-060 | Verbose output            | 2026-08-07 |
 | REQ-061 | Source quoting            | 2026-08-02   |
 | REQ-062 | Hat foundations       | 2026-08-04   |

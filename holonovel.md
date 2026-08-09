@@ -18,7 +18,7 @@
 > Observer mode (REQ-305) lets the human spectate while the AI plays both roles.
 > Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
 > human. Multi-character support with entity presence (REQ-307) and knowledge gating by
-> presence (REQ-308): one Adventures load as hybrid world-model
+> presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
 > enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
 > persist. RNG deterministic and seedable. Requirements state the contract; verification
@@ -567,7 +567,7 @@ or summary. A monster lookup returns its full stat block — AC, HP, speed,
 ability scores, saves, skills, senses, traits, actions — not a pointer. A class
 lookup returns hit dice, HP formula, proficiencies, features by level, and
 archetype paths.
-*Check:* T47.
+_Check:_ T47.
 
 **REQ-061 — Source quoting.** Lookup results, search results, and rule-derived tool
 responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim
@@ -979,7 +979,7 @@ wand of wonder, etc.) — not lookup tables (ability_modifiers, difficulty_class
 Building for a ruleset with zero generation tables registers `roll_on_table` with
 an empty domain and a "no tables" response.
 
-*Check:* T255.
+_Check:_ T255.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
@@ -1077,7 +1077,7 @@ and Trinkets tables. Each table entry includes dice_expression, ranges with
 result text, and a source_anchor. `spec_health` reports the count of extracted
 generation tables.
 
-*Check:* T256.
+_Check:_ T256.
 
 **REQ-272 — Stock elements catalog.** The builder SHALL record ruleset-derived
 reusable templates in DECISIONS.md (4) as a structured catalog — a `stock_elements`
@@ -1667,7 +1667,7 @@ examples written as natural-language instructions the GM would give; (7) a quick
 guide summarising what is ready and describing how the first scene begins — the GM sets
 the opening scene, the player describes what their character does; (8) post-session
 encouragement to refine characters between stories — personality, voice, dialogue
-examples referencing favourite media, and mechanical advancement when the ruleset
+examples referencing favorite media, and mechanical advancement when the ruleset
 provides it. The prompt SHALL use the ruleset's own terminology for mechanical
 concepts. `session_zero` is listed in `prompts/list` after `intro`. The `intro`
 prompt includes a concrete action to run `session_zero` before play.
@@ -1963,7 +1963,7 @@ with the decision text and connection count, and `undo` becomes callable. The
 audited entry SHALL be tagged `[workflow_stale]` to distinguish it from explicit
 cancellation. The staleness counter SHALL be recorded in `spec_health` under
 `pending_workflow` alongside the decision text and elapsed connections. A
-workflow cancelled by staleness follows the same state-restoration contract as
+workflow canceled by staleness follows the same state-restoration contract as
 explicit cancellation (REQ-042). The threshold is configurable via
 `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`; setting it to zero SHALL disable
 staleness detection.
@@ -2073,7 +2073,7 @@ Player hat returns `[FORBIDDEN]` with the table name visible but no content; the
 same call from the Game Master hat returns the table result. `hat_briefing` under
 the Player hat lists only `hat_scope: "shared"` table names.
 
-*Check:* T257.
+_Check:_ T257.
 
 **REQ-133 — Forbidden-call audit.** Every tool invocation that returns
 `[FORBIDDEN]` is recorded in the audit log with timestamp, active hat, tool
@@ -4020,7 +4020,7 @@ sees the full marker entry. `session_recap` (REQ-072) SHALL accept an
 optional `session_id` parameter — when provided, the recap is scoped to the
 audit log range bounded by the matching `[session_boundary]` entry and the
 next marker (or the log end for the current session). When omitted, the
-recap spans the full log range (current behaviour). `spec_health` (REQ-093)
+recap spans the full log range (current behavior). `spec_health` (REQ-093)
 SHALL report a `sessions` array in Novel metadata: per-session objects with
 `session_id`, `entry_count`, `timespan_start`, `timespan_end`,
 `combat_rounds`, `significant_roll_count`, and `scene_transitions` —
@@ -4253,7 +4253,7 @@ is a generation table.
 produces the same result row on two separate server restarts, with output
 including dice notation, individual die face, matched range, and result text.
 
-*Check:* T254.
+_Check:_ T254.
 
 **REQ-291 — Oracle tool.** THE server SHALL provide an `ask_oracle(question, likelihood,
 seed?)` tool (GM only) for uncertainty resolution. The tool accepts a free-text `question`
@@ -4289,7 +4289,7 @@ provided, danger initiative draws advance the session PRNG position normally.
 *Acceptance criterion:* `init_combat(participants=[], dangers=[{name:"goblin"}], seed="42")`
 produces the same danger initiative value on two separate server restarts; the
 d20 face matches the Appendix B.4 seed-42 column at the appropriate offset.
-*Check:* T192.
+_Check:_ T192.
 
 **REQ-051 — No runtime network access.** The server makes no outbound network requests
 after startup. All ruleset content, prompts, and tool implementations run entirely
@@ -5891,7 +5891,7 @@ the backup index used. If no backup is parseable, the server follows the
 existing recovery path (stderr + `[corrupted_novel]` in `spec_health`).
 `end_novel` moves all backup files to `.trash/` alongside the primary.
 Setting `TTRPG_NOVEL_BACKUP_COUNT=1` retains only the immediate previous
-backup (current behaviour).
+backup (current behavior).
 *Acceptance criterion:* After 10 mutations with `TTRPG_NOVEL_BACKUP_COUNT=3`,
 three rotated backup files exist; corrupting the primary and `.bak.1` triggers
 restore from `.bak.2`; `end_novel` removes all backups.
@@ -9309,7 +9309,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-002c| Hat-filtered error values | 2026-08-06 |
 | REQ-003 | Roll transparency         | 2026-08-02   |
 | REQ-004 | Truncation                | 2026-08-02   |
-| REQ-004a| Statblock baseline view   | 2026-08-02   |
+| REQ-004a| Stat block baseline view   | 2026-08-02   |
 | REQ-060 | Verbose output            | 2026-08-07 |
 | REQ-061 | Source quoting            | 2026-08-02   |
 | REQ-062 | Hat foundations       | 2026-08-04   |
