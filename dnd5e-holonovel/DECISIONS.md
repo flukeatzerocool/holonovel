@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.09
-- **Spec hash:** abc67d1cd8e89697b3b7f2152754cb339b5d42bd91bc317f26ab096e41b19bce
+- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -573,4 +573,4 @@
 - **Verification:** typecheck 0 errors, test suite 38/38 passed
 - **Changed code paths:** src/index.ts (SPEC_HASH → runtime hash computation, spec_version update, spec_hash_current, safety_protocols, gap_audit simplification), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: no tool surface changes → S1 (tool sweep) for spec_health changes; no state model changes
-- **Spec hash:** abc67d1cd8e89697b3b7f2152754cb339b5d42bd91bc317f26ab096e41b19bce
+- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
