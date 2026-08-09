@@ -12,11 +12,6 @@ plans/
 scripts/research-protocol.md
 scripts/research-protocol-slim.md
 scripts/kb-update-protocol.md
-.githooks/
-scripts/version-check.ts
-scripts/version-bump.ts
-scripts/spec-delta.ts
-scripts/push.ts
 
 # AI agent orientation
 AGENTS.md
