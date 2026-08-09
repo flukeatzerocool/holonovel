@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# spec-queue-wrapup.sh — Post-queue rebuild and audit: full spec read-through,
+# push-pipeline.sh — Full rebuild, audit, and push pipeline: spec read-through,
 # Inform server rebuild + scan, dnd5e server rebuild + scan, README/wiki update,
 # commit, push.
 #
-# Triggered by the pipeline orchestrator at queue exhaustion and every
-# TTRPG_REBUILD_INTERVAL runs (default 5). This is the deep-clean — full
-# from-scratch rebuild of both servers, dead-data audit, and documentation
-# refresh.
+# This is the deep-clean — full from-scratch rebuild of both servers,
+# dead-data audit, and documentation refresh.
 #
 # Usage:
-#   ./scripts/spec-queue-wrapup.sh
+#   ./scripts/push-pipeline.sh
 
 set -euo pipefail
 
@@ -320,14 +318,101 @@ if npm run spec-delta -- --server inform --silent 2>/dev/null; then
   echo -e "${GREEN}Inform server in sync with spec.${NC}"
 else
   echo -e "${YELLOW}Inform delta still present — running holonovel-update...${NC}"
-  "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server inform
+  INFORM_SYNC_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/wrapup-inform-sync-${TIMESTAMP}-output.txt"
+  INFORM_SYNC_PROMPT="Run the holonovel-update skill workflow against the Inform server in inform/.
+The specification (holonovel.md) has changed since the last Inform server sync.
+
+Phase 1 — Detect: \`npm run spec-delta -- --server inform\` already ran (delta confirmed).
+Phase 2 — Audit: Read inform/src/ and compare against the world-model REQs
+  (§5.10, REQ-195–202) and ruleset-free mode REQs (§5.11, REQ-218–219).
+  Produce a gap disposition table. Auto-confirm all dispositions.
+Phase 3 — Implement: Apply all implemented gaps. Run \`cd inform && npm run
+  typecheck\` after each change batch.
+Phase 4 — Close: Update inform/DECISIONS.md with gap-disposition entry.
+  Run \`npm run spec-delta -- --server inform\` to confirm sync.
+
+Smoke test: After all changes, call the Inform server's \`spec_health\` tool and verify:
+  - Tool count has not decreased from baseline
+  - Resource count has not decreased from baseline
+  - No confidence scores below 50%
+  - \`last_spec_review\` timestamp is current (within 24 hours)
+  If any check fails, report the failure before declaring sync complete.
+
+Gauntlet: Run the Inform Gauntlet — the 10 sub-workflows (I1-I10) defined in
+§6.6 Inform Gauntlet. All blocking sub-workflows (I1-I6, I10) must pass.
+Maximum 2 iterations per §6.6 convergence handshake.
+
+Report completion. End with 'SYNC COMPLETE.' if all steps pass."
+  set +e
+  opencode run \
+    --agent build \
+    --auto \
+    --title "push-pipeline-inform-sync" \
+    --dir "$PROJECT_DIR" \
+    "$INFORM_SYNC_PROMPT" \
+    > "$INFORM_SYNC_OUT" 2>> "$WRAP_LOG"
+  INFORM_SYNC_RC=$?
+  set -e
+  if [[ $INFORM_SYNC_RC -ne 0 ]]; then
+    echo -e "${RED}Inform sync FAILED. Check $INFORM_SYNC_OUT.${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}Inform sync: DONE${NC}"
 fi
 
 if npm run spec-delta -- --server dnd5e --silent 2>/dev/null; then
   echo -e "${GREEN}Dnd5e server in sync with spec.${NC}"
 else
   echo -e "${YELLOW}Dnd5e delta still present — running holonovel-update...${NC}"
-  "$PROJECT_DIR/scripts/spec-queue-sync.sh" --server dnd5e
+  DND5E_SYNC_OUT="$PROJECT_DIR/.holonovel-state/queue-plans/wrapup-dnd5e-sync-${TIMESTAMP}-output.txt"
+  DND5E_SYNC_PROMPT="Run the holonovel-update skill workflow against the dnd5e server.
+The specification (holonovel.md) has changed since the last server sync.
+
+Phase 1 — Detect: \`npm run spec-delta -- --server dnd5e\` already ran (delta confirmed).
+Phase 2 — Audit: Read dnd5e/src/ and compare against spec REQs.
+  Produce a gap disposition table. Auto-confirm all dispositions — this is
+  a trusted automated pipeline, proceed without asking.
+Phase 3 — Implement: Apply all implemented gaps. Run \`cd dnd5e && npm run
+  typecheck\` after each change batch. Run \`cd dnd5e && npx tsx
+  scripts/test_scripts/run_all.ts\` after all changes.
+Phase 4 — Close: Update dnd5e/DECISIONS.md with gap-disposition entry.
+  Run \`npm run version-sync\` then \`npm run spec-delta -- --server dnd5e\` to confirm sync.
+
+Smoke test: After all changes, call the server's \`spec_health\` tool and verify:
+  - Tool count has not decreased from baseline
+  - Resource count has not decreased from baseline
+  - No confidence scores below 50%
+  - \`last_spec_review\` timestamp is current (within 24 hours)
+  If any check fails, report the failure before declaring sync complete.
+
+Gauntlet: Run only the sub-workflows selected by the surface-to-scenario
+mapping in holonovel.md §6.6. Maximum 2 iterations per §6.6 convergence
+handshake:
+  - Iteration 1: Run selected scenarios. If all pass → done.
+  - If any fail: map each failure to its convergence metric (MUST-coverage,
+    mechanics-fidelity, input-validation, process-compliance), fix the root
+    cause, record the mapping in DECISIONS.md, re-run.
+  - Iteration 2: Re-run selected scenarios. If all pass → done.
+  - If still failing: log residual gaps to DECISIONS.md, report SYNC FAILED.
+    Do not retry beyond 2 iterations.
+
+Report completion: gaps implemented/deferred/waived, verification results,
+Gauntlet pass/fail. End with 'SYNC COMPLETE.' if all steps pass."
+  set +e
+  opencode run \
+    --agent build \
+    --auto \
+    --title "push-pipeline-dnd5e-sync" \
+    --dir "$PROJECT_DIR" \
+    "$DND5E_SYNC_PROMPT" \
+    > "$DND5E_SYNC_OUT" 2>> "$WRAP_LOG"
+  DND5E_SYNC_RC=$?
+  set -e
+  if [[ $DND5E_SYNC_RC -ne 0 ]]; then
+    echo -e "${RED}Dnd5e sync FAILED. Check $DND5E_SYNC_OUT.${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}Dnd5e sync: DONE${NC}"
 fi
 echo ""
 
@@ -339,8 +424,7 @@ echo -e "${GREEN}═════════════════════
 echo ""
 
 README_PROMPT="Load and apply the proofreading skill. Read README.md and
-holonovel.md. The specification has been updated through a full queue cycle.
-Update README.md to reflect the current state of the project.
+holonovel.md. The specification has been updated. Update README.md to reflect the current state of the project.
 
 1. Check the 'Try it now' section (§2 in README) — are the install/setup
    instructions still correct against dnd5e/ and inform/? Update if needed.
@@ -396,8 +480,7 @@ echo ""
 
 WIKI_PROMPT="Load and apply the technical-writing skill. You are updating the
 Holonovel project wiki at .holonovel-state/wiki/. The specification
-(holonovel.md) and README.md have been updated through a full spec queue cycle.
-Read the wiki pages and update them to reflect the current
+(holonovel.md) and README.md have been updated. Read the wiki pages and update them to reflect the current
 project state.
 
 Pages that likely need updates (check each):
@@ -446,7 +529,7 @@ echo -e "${GREEN}Step 9/10: Commit all changes${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
 echo ""
 
-git -C "$PROJECT_DIR" add holonovel.md README.md SPEC-QUEUE.md CHANGELOG.md AGENTS.md \
+git -C "$PROJECT_DIR" add holonovel.md README.md CHANGELOG.md AGENTS.md \
   package.json tsconfig.json .markdownlint.json \
   spec/ scripts/ dnd5e/ inform/ 2>/dev/null || true
 
@@ -454,9 +537,9 @@ if git -C "$PROJECT_DIR" diff --staged --quiet 2>/dev/null; then
   echo -e "${YELLOW}No changes to commit in main repo.${NC}"
 else
   echo -e "${YELLOW}Committing main repo changes...${NC}"
-  git -C "$PROJECT_DIR" commit -m "Spec queue completion $(date +%Y-%m-%d)
+  git -C "$PROJECT_DIR" commit -m "Push pipeline $(date +%Y-%m-%d)
 
-Full queue cycle wrap-up: full spec audit, Inform and dnd5e server rebuild,
+Full push pipeline: spec audit, Inform and dnd5e server rebuild,
 dead-data scans, README and wiki refresh."
   echo -e "${GREEN}Main repo commit: DONE${NC}"
 fi
@@ -471,7 +554,7 @@ if [[ -d "$WIKI_DIR/.git" ]]; then
     echo -e "${YELLOW}Committing wiki changes...${NC}"
     git -C "$WIKI_DIR" commit -m "Wiki refresh $(date +%Y-%m-%d)
 
-Updated after spec queue completion cycle."
+Updated after push pipeline completion."
     echo -e "${GREEN}Wiki commit: DONE${NC}"
   fi
 fi
@@ -499,7 +582,7 @@ echo ""
 # ── done ──────────────────────────────────────────────────────────────────
 
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
-echo -e "${GREEN}Holonovel spec queue pipeline — COMPLETE${NC}"
+echo -e "${GREEN}Holonovel push pipeline — COMPLETE${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
 echo ""
 echo "  Spec audited. Both servers rebuilt and scanned. README and wiki refreshed."

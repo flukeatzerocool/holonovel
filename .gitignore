@@ -9,9 +9,8 @@ dnd5e/.holonovel-oce-state/
 .holonovel-state/
 *.bak
 plans/
-SPEC-QUEUE.md
-scripts/spec-queue-*.sh
 scripts/research-protocol.md
+scripts/research-protocol-slim.md
 scripts/kb-update-protocol.md
 .githooks/
 scripts/version-check.ts
