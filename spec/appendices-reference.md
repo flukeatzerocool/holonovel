@@ -357,6 +357,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-283 | Verb coverage tiers | 2026-08-08 |
 | REQ-284 | Implicit action hints | 2026-08-08 |
 | REQ-285 | Server notes | 2026-08-08 |
+| REQ-286 | Knowledge-state section token | 2026-08-09 |
 | REQ-289 | Vow tracking | 2026-08-08 |
 | REQ-291 | Oracle tool | 2026-08-08 |
 | REQ-292 | Adventure catalog | 2026-08-08 |
@@ -714,6 +715,7 @@ diet.
 | T-new-279 | Automated | Narrative orientation: call `session_recap` after a session with scene changes. Assert `narrative_orientation` section includes recent plot beats, unresolved threads, and party state. Call `end_novel` then `create_novel` — assert `session_recap` returns empty orientation. Assert orientation references lore entries that fired during the session. | REQ-279 |
 | T-new-280 | Automated | Source-anchor citation: call `lookup_spell("fireball")` — assert output includes source anchor (section/file reference). Call `lookup_monster("goblin")` — assert source anchor present. Assert `lookup_equipment` output includes source anchor. Assert ruleset-free mode does not include source anchors in lookup responses. | REQ-280 |
 | T-new-281 | Automated | Narrative-threads section token: create a Novel, set a lore entry with triggers, and call `hat_briefing` under GM hat. Assert Narrative Threads section token appears with threads derived from lore entries. Assert each thread includes trigger, content preview, and priority. Assert empty-Novel briefing omits the Narrative Threads section. | REQ-281 |
+| T-new-287 | Automated | Knowledge-state section token: call `reveal_secret("floor_trap", "rogue_01")`. Assert `hat_briefing` under GM hat includes `knowledge_state` section token listing the revealed secret. Set active entity to an entity not present in the current scene — assert section renders "[Entity not present in this scene]" marker. Assert Player hat sees only own-entity knowledge. Assert empty Novel renders the empty-state marker. | REQ-286 |
 | T-new-282 | Automated | Scene-state ledger: call `set_scene_state("Tavern", "Merry tavern")`. Assert hat_briefing includes scene token with current location and description. Call `set_scene_state("Forest", "Dark forest")` — assert prior scene pushed to ledger. Call `undo` — assert ledger restored to prior scene. Assert `session_recap` includes scene transitions. | REQ-076 |
 | T-new-283 | Automated | NPC voice directive: call `set_personality(npc_id, voice="Gruff and impatient")` on an NPC. Assert `hat_briefing` under GM hat includes NPC voice directive with the personality fields. Assert the voice directive includes positive framing ("SHALL") and negative counsel ("should NOT") per REQ-282. Assert Player hat does not see GM-only voice directives. | REQ-282 |
 | T-new-284 | Automated | Verb coverage tiers: build with a populated world model containing openable doors, readable books, and wearable items. Assert `command("help")` enumerates core tier verbs (7), standard tier verbs (12+ depending on world-model supports), and extended tier verbs per REQ-222. Assert ruleset with no additional verbs reports 0 extended. Assert `command("verbs")` produces same output as `command("help")`. | REQ-283 |
@@ -1158,7 +1160,11 @@ all surface as warnings before commit.
 
 **REQ anatomy.** One paragraph stating the *what*. Ends in `_Check:_` with test
 citations. Contains no parameter types, no algorithm descriptions, no default values,
-no catalog enumerations, no tool-name lists.
+no catalog enumerations, no tool-name lists. REQs covering complex state contracts
+(briefing composition, multi-tier persistence, large-field tool surfaces) may
+exceed one paragraph where the contract resists subdivision. The body SHALL
+remain a single logical contract; sub-REQs (e.g., REQ-XXXa) are used for
+composable, separable concerns that diverge from the parent's scope.
 
 **What belongs elsewhere:**
 
@@ -1360,3 +1366,21 @@ match as a finding.
 ## Appendix S: Builder Glossary
 
 Domain terms are defined in §4 (Terminology). This appendix is a forward reference.
+
+---
+
+## Appendix T: Reserved
+
+This appendix letter is reserved for future use.
+
+---
+
+## Appendix U: Reserved
+
+This appendix letter is reserved for future use.
+
+---
+
+## Appendix V: Reserved
+
+This appendix letter is reserved for future use.

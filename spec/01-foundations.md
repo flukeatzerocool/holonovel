@@ -75,7 +75,7 @@ defined freshness windows.
 The verification workflows are executable — follow them in order. Use the assembled
 `holonovel.md` or load spec files per `build-phase-map.md`.
 
-**Reference material** (Appendices A–Y) is supplementary. Glance at Appendix E
+**Reference material** (Appendices) is supplementary. Glance at Appendix E
 (Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
 Test Catalogue) to understand test coverage, and Appendix S (Builder Glossary) for
 domain terminology. The remaining appendices are consulted on demand during specific
@@ -158,7 +158,7 @@ The spec is designed around seven failure modes. Recognize them early.
 
 | Mode | Symptom                                                                                          | Primary mitigation                                                 |
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| F1   | The server invents rules instead of extracting them.                                              | Golden transcript replay (Gate 2); no tool-result fabrication (REQ-058) |
+| F1   | The server invents rules instead of extracting them.                                              | Golden transcript replay (G2); no tool-result fabrication (REQ-058) |
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |

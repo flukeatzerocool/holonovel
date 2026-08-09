@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-09 — Spec review remediation
+
+- Fixed the appendix range in the reading guide — it claimed A–Y but T, U,
+  and V didn't exist. Reserved those letters with placeholder entries so
+  the sequence is now contiguous. (Appendices T–V)
+- The `knowledge_state` hat_briefing prose block was structurally orphaned
+  between REQ-281 and REQ-159. Promoted to its own requirement
+  (REQ-286 — Knowledge-state section token) and grouped alongside
+  REQ-281 under a new `#### Briefing Section Tokens` sub-heading within §5.5.
+- REQ-193 and REQ-224 both covered workflow staleness detection with
+  nearly identical contracts. Added cross-references so readers find both.
+- Recounted every REQ per §5 subsection and updated the navigation table
+  (Count and Range columns). All subsection counts now match actual REQ
+  body counts. §5.6 title expanded to reflect its broader scope.
+- Standardized gate reference form — `Gate 2` to `G2` — in all `_Check:`
+  citations, matching the convention in AGENTS.md.
+- Removed parameter-type annotations from seven REQ bodies (REQ-072,
+  REQ-075, REQ-096, REQ-169, REQ-237, REQ-239, REQ-240) per Appendix M
+  authoring conventions.
+- Appendix M now acknowledges that REQs covering complex state contracts
+  may exceed one paragraph where the contract resists subdivision.
+
 ## 2026-08-09 — Enrichment tier restructure
 
 - Vendor content (DMCP, BitD SRD, Lonelog, IF Craft Corpus) is now Tier 1

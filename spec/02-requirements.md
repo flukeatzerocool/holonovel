@@ -4,16 +4,16 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
-| 5.1     | Output and Error Contracts          | 001–004, 060–062, 064, 070–071, 101, 113, 118      | 19    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 212, 214–215, 225, 315      | 20    |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160 | 20    |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 224, 235               | 8     |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 304–306 | 20    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 236–237, 239, 241–242, 247–250, 252, 285, 307–308 | 49    |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253                         | 10    |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 32    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 18    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 309                                   | 10    |
+| 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 | 24    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315 | 27    |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 304–306 | 25    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311 | 74    |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309                           | 12    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -44,7 +44,7 @@ error code `-32000` with the prefix in `message`. SDK-level schema errors use `-
 *Acceptance criterion:* Every tool response from a running server uses exactly one
 of the five prefixes; protocol-level errors use JSON-RPC error code -32000 with the
 prefix in `message`.
-_Check:_ Gate 2; Appendix D.
+_Check:_ G2; Appendix D.
 
 **REQ-001a — Warning and Partial semantics.** `[WARNING]` is raised when the
 requested operation succeeds but encounters a condition requiring operator
@@ -156,7 +156,7 @@ band applies to the total.
 faces — e.g., `Dice: 2d20 = [12, 7], used: 12` — not just the higher value. A
 Strength-based attack roll with +2 proficiency reports `Modifiers: Strength +3,
 Proficiency +2` — not `Modifiers: +5`.
-_Check:_ Gate 2, T47.
+_Check:_ G2, T47.
 
 **REQ-004 — Truncation.** Tool output longer than a configurable limit
 is truncated with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
@@ -527,7 +527,7 @@ The builder never fabricates mechanics to fill a gap. Missing triggers do not in
 Search returns the expected section in the top 3 results for exact, prefix, and substring queries.
 *Acceptance criterion:* An unmodelable section returns `[OK]` with the `ruleset://`
 URI from `search_rules` for an exact title query in the top 3 results.
-_Check:_ Gate 2, T4.
+_Check:_ G2, T4.
 
 **REQ-315 — Full-text ruleset indexing.** Every heading and its content from the
 ruleset Markdown SHALL be indexed by `search_rules` at runtime. The index SHALL
@@ -893,7 +893,7 @@ absent — they are not absent from the tool surface.
 condition management, combat, table rolling, and session recap tools; a missing
 category is recorded as a waiver in DECISIONS.md.
 _Check:_ T3, T5, T32,
-T33; Gate 2.
+T33; G2.
 
 **REQ-021 — Tool-surface economy.** A named set of related operations (one per table, one
 per move, one per stat) shares a single parameterized tool. The tool surface is determined
@@ -1083,7 +1083,7 @@ template via `set_lore_entry`, `activated_count` increments by one.
 _Check:_ T195.
 
 **REQ-169 — Audit chain integrity reporting.** `spec_health` SHALL include an
-`audit_chain` field containing: `valid` (boolean — true when the hash chain is unbroken
+`audit_chain` field containing: `valid` (true when the hash chain is unbroken
 from first entry to last, false when any entry's hash does not match the computed chain),
 `entries` (total count of audit entries), and `first_broken_index` (the zero-based index
 of the first entry whose hash verification fails; absent when `valid` is true). Chain
@@ -1501,7 +1501,7 @@ are re-initialized from the Novel's persisted values on resume.
 second `create_character()` during a pending step-by-step workflow returns
 `[STATE_CONFLICT]`; the pending decision survives server restart.
 _Check:_ T32, T138, T157;
-Gate 2; S22.
+G2; S22.
 
 **REQ-190 — Respond drain result.** WHEN `respond(decision, option)` drains a
 pending workflow decision, THE system SHALL return `[OK]` with the decision
@@ -1545,7 +1545,7 @@ without drainage, `spec_health` SHALL include a `pending_workflow_warning`
 object containing the decision text and connection count. The warning signals
 that a workflow has been abandoned across multiple sessions — an operator
 can drain or cancel it. Staleness tracking is informational only; it does
-not auto-cancel or auto-drain.
+not auto-cancel or auto-drain. See also REQ-224.
 *Acceptance criterion:* Start a character creation workflow, restart the
 server (connection 1), connect twice more (connections 2, 3) — on the third
 connection, `spec_health` includes `pending_workflow_warning`.
@@ -1570,7 +1570,7 @@ returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot.
 *Acceptance criterion:* `create_character()` without parameters starts step-by-step
 mode; `create_character(name="X", race="Y", ...)` creates in one call; both modes
 require an active Novel or return `[STATE_CONFLICT]`.
-_Check:_ T32; T47; T103; Gate 2.
+_Check:_ T32; T47; T103; G2.
 
 **REQ-181 — Character creation output surface.** `create_character` SHALL
 return, in its final `[OK]` or `[NEED_INPUT]` completion response, every
@@ -1613,7 +1613,7 @@ defines no starting equipment, the `equipment` field SHALL be absent — the bui
 SHALL NOT fabricate equipment.
 *Acceptance criterion:* A character created under D&D 5e SRD carries class and
 background starting equipment by name.
-_Check:_ T32, Gate 2.
+_Check:_ T32, G2.
 
 *Out of scope:* branching narrative trees, puzzle-solving workflows, and decision
 workflows that span multiple Novels or connections.
@@ -1646,7 +1646,7 @@ cancellation. The staleness counter SHALL be recorded in `spec_health` under
 workflow canceled by staleness follows the same state-restoration contract as
 explicit cancellation (REQ-042). The threshold is configurable via
 `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`; setting it to zero SHALL disable
-staleness detection.
+staleness detection. See also REQ-193.
 *Acceptance criterion:* A pending workflow survives 4 connection restarts and
 remains open; on the 5th restart it auto-cancels with `[workflow_stale]` audit
 entry and restored pre-workflow state. Setting
@@ -1935,6 +1935,8 @@ countdowns, and lore includes all mandatory groups; an empty data source display
 its empty-state marker; decision-critical groups appear before supplementary groups.
 _Check:_ T109, T110, T149.
 
+#### Briefing Section Tokens
+
 **REQ-281 — Narrative-threads section token.** `hat_briefing` SHALL include a
 `narrative_threads` section token in the decision-critical group containing: (a)
 unresolved story journal decisions — `decision` type entries whose referenced entity or
@@ -1958,7 +1960,7 @@ countdown in narrative form, and the NPC disposition. Under the Player hat, only
 own-entity bonds and shared content appear.
 _Check:_ T-new-281.
 
-`hat_briefing` SHALL include a `knowledge_state` section token in the decision-critical
+**REQ-286 — Knowledge-state section token.** `hat_briefing` SHALL include a `knowledge_state` section token in the decision-critical
 group showing what the active entity currently knows: (a) revealed secrets (key and
 reveal timestamp); (b) known NPC relationships where the active entity is a participant;
 (c) `shared`-scope lore entries whose trigger keywords have appeared in scenes the active
@@ -1973,6 +1975,12 @@ renders "[No known information.]" The section SHALL NOT include GM-only secrets,
 unrevealed lore, or relationships where the active entity is not a participant. On a
 fresh Novel, `hat_briefing` renders the empty-state marker — narrative tools fade into
 the background per §5.10.
+*Acceptance criterion:* After `reveal_secret("floor_trap", "rogue_01")`, setting
+the rogue as active entity, `hat_briefing` under the GM hat includes a `knowledge_state`
+section token listing the revealed secret. After setting an entity not present in the
+current scene as active, the section renders "[Entity not present in this scene]" above
+retained knowledge.
+_Check:_ T-new-287.
 
 **REQ-159 — Enrichment briefing integration.** When enrichment is active
 (§11.1), `hat_briefing` SHALL include enrichment-derived content as
@@ -2150,7 +2158,7 @@ a process-compliance finding and does not block the verification but SHALL be
 recorded in DECISIONS.md (6).
 _Check:_ T296.
 
-### 5.6 State and Lifecycle
+### 5.6 State, Lifecycle, Entities, and Adventure Content
 
 **REQ-040 — Audit log.** Every tool call that mutates Novel state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
@@ -2268,7 +2276,7 @@ danger's turn reports `[AUTO]` with a narrative action; after weapon-damage
 mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
-_Check:_ T25, T33, T110, T161, T162; Gate 2.
+_Check:_ T25, T33, T110, T161, T162; G2.
 
 Combat state is Novel-scoped — it persists when the story ends via
 `set_hat("none")` or resumes via `set_hat("player")` or
@@ -2407,23 +2415,23 @@ and `timespan_end` (ISO 8601 timestamps, or null if audit log empty), `entities`
 objects with `name`, `hp`, `max_hp`, `conditions`, and `status` string fields),
 `confrontations_completed` (array of objects with `participants`, `rounds`, and `outcome`
 derived from audit-log combat lifecycles per REQ-175), `confrontation_pending` (null or
-object describing the active combat), `scene` (current description string), `scene_type`
-(enum string), `lore_entries` (array of objects with `key`, `active` boolean),
-`narrative_directive` (string or null), `scene_transitions` (array of `{from, to,
+object describing the active combat), `scene` (current description), `scene_type`
+(lore_entries (array of objects with `key` and `active`),
+`narrative_directive` (free-text or null), `scene_transitions` (array of `{from, to,
 timestamp}` objects, most recent N), `roster_changes` (array of `{entity_id, action`
 — "created" or "removed", `timestamp}`), `condition_changes` (array of `{entity_id,
 condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls` (per
-REQ-174), `total_combat_rounds` (integer), and `story_entries` (array of objects with
+REQ-174), `total_combat_rounds`, and `story_entries` (array of objects with
 `type`, `entry`, `timestamp`, `scene_anchor`, and `entity_ids` — most recent N, default
 10). Missing or inapplicable fields SHALL be
 present with a typed null or empty array, not omitted. The LLM reconstructs a narrative
 recap from these fields; the tool SHALL NOT generate recap prose.
-`session_recap` accepts optional parameters: `session_id` (string — when
+`session_recap` accepts optional parameters: `session_id` (when
 provided, scopes the recap to the audit log range bounded by the matching
 `[session_boundary]` marker and the next marker, or the log end for the current
-session; when omitted, spans the full log range); `max_transitions` (integer, default 3,
+session; when omitted, spans the full log range); `max_transitions` (configurable, default 3,
 minimum 1, maximum 20) — the number of scene state transitions to return; `max_rolls`
-(integer, default 5, minimum 1, maximum 50) — the number of significant rolls to
+(configurable, default 5, minimum 1, maximum 50) — the number of significant rolls to
 return. Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]`
 with the valid range enumerated. When `session_id` does not match any
 `[session_boundary]` marker, return `[ERROR] [NOT_FOUND]` with valid
@@ -2608,7 +2616,7 @@ values SHALL clear the field without removing it from the NPC's known field set.
 persists with the Novel. All NPC tools are Game Master only; the Player hat reads
 NPC state via `hat_briefing` and resource URIs.
 
-Every NPC SHALL carry depth metadata: `appearance_count` (integer, incremented each
+Every NPC SHALL carry depth metadata: `appearance_count` (incremented each
 time the NPC appears in a scene or is referenced in `hat_briefing`), `first_seen`
 (ISO 8601 timestamp of first appearance), and `last_seen` (ISO 8601 timestamp of
 most recent appearance). `hat_briefing` SHALL include a depth signal for each NPC:
@@ -3689,7 +3697,7 @@ _Check:_ T270.
 **REQ-237 — Session segmentation.** The server SHALL insert a
 `[session_boundary]` audit log marker entry when a new `TTRPG_SESSION_ID`
 value is detected on the first mutating tool call after a server start or
-Novel resume. The marker entry carries: `session_id` (string, the
+Novel resume. The marker entry carries: `session_id` (the
 `TTRPG_SESSION_ID` value), `started_at` (ISO 8601 timestamp of first
 mutating call), and `ended_at` (ISO 8601 timestamp of the previous session's
 last mutating entry, or null for the first session). The marker is a
@@ -3765,7 +3773,7 @@ segment. `session_recap` (REQ-072) SHALL derive from live entries plus archive
 summaries when a `session_id` targets an archived session. Summarized sessions
 are retrievable via `audit://novel/archive` as structured objects. Compaction
 is irreversible — confirmation proceeds through a `[NEED_INPUT]` workflow.
-Calling `compact_audit_log` with a `sessions` parameter (integer, minimum 1)
+Calling `compact_audit_log` with a `sessions` parameter (minimum 1)
 sets the number of recent sessions to retain as live; when omitted, the
 `TTRPG_AUDIT_RETENTION_SESSIONS` default is used. Sessions currently active
 (no `ended_at` marker) SHALL NOT be compacted. Player hat attempts return
@@ -3875,7 +3883,7 @@ shall produce identical event sequences for identical tool-call sequences.
 *Acceptance criterion:* `roll_save("dexterity", seed="42")` produces the same
 d20 face on two separate server restarts; a per-call seed does not advance the
 session PRNG position.
-_Check:_ Gate 2, T27, T111.
+_Check:_ G2, T27, T111.
 
 **REQ-273 — Independent verification reproducibility tolerance.** When the
 independent verifier (§10) compares its results to the builder's, the following
@@ -5485,10 +5493,10 @@ hat attempts return `[ERROR] [FORBIDDEN]`. Round-trip: export → import →
 export produces identical output (full scope, same format).
 
 The export SHALL include a `manifest` object containing: `novel_format_version`
-(integer, REQ-092), `server_spec_version` (CalVer from DECISIONS.md),
+(defined in REQ-092), `server_spec_version` (CalVer from DECISIONS.md),
 `ruleset_hash` (SHA-256 of source ruleset), `builder_implementation` (name and
 version of the builder that produced the server), `adventure_module_slugs`
-(array of module slugs active at export time), `adventures_embedded` (boolean,
+(array of module slugs active at export time), `adventures_embedded` (true when adventures are embedded),
 whether module content is embedded inline), `property_groups_present` (array
 of populated tier names), and `waiver_dependent_mechanics` (array of mechanic
 names that depend on REQ-013 waivers recorded in DECISIONS.md). The manifest
@@ -5596,7 +5604,7 @@ references are preserved — cloned entities point to the same roster IDs. The
 cloned Novel's `created_at` timestamp SHALL be the clone time; the clone is not
 activated — the caller's active Novel is unchanged. Returns `[STATE_CONFLICT]`
 if the target slug already exists. The optional `trim_audit_sessions` parameter
-(integer, default `null` = full copy) strips audit entries older than N sessions
+(configurable, default null = full copy) strips audit entries older than N sessions
 from the clone, keeping only the most recent N sessions' entries (session
 boundaries determined by `[session_boundary]` markers per REQ-237). A new
 `clone` audit entry SHALL be recorded in both the source and cloned Novel.
