@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-08 — Holodeck benchmark improvements
+
+- The engine now maintains a Campaign Memory — a per-NPC, per-thread, and
+  per-location fact store derived automatically from state-changing tool
+  calls, surfaced in `hat_briefing` and surviving rebuilds. (REQ-310)
+- World state now advances autonomously between scenes: NPCs pursue
+  goals, consequences ripple through connected entities, and the GM
+  receives a World in Motion briefing with accept/modify/defer controls.
+  (REQ-233a)
+- NPCs maintain independent memories of their interactions with the party,
+  with automatic disposition evolution driven by player actions rather than
+  requiring GM tool calls. (REQ-311)
+- A pre-narration validation gate intercepts AI narration claiming
+  mechanically impossible outcomes before the player sees them, rejecting
+  invalid proposals with corrective suggestions. (REQ-312)
+- `hat_briefing` surfaces a proactive Available Actions section listing
+  mechanically legal actions filtered by scene type and capability
+  prerequisites, complementing the reactive `suggest_actions` tool.
+  (REQ-084a)
+- Added Narrative Freshness convention (§7.3a) establishing the
+  architecture principle that AI prose output is archived but not
+  re-injected as raw context — only structured state deltas enter the LLM's
+  context window.
+
 ## 2026-08-08 — Push pipeline hardening
 
 - The push-pipeline script now verifies the assembled spec matches its source

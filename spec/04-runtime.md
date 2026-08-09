@@ -56,6 +56,37 @@ Error output example:
 Corrective action: <action>
 ```
 
+### 7.3a Narrative Freshness
+
+The Holonovel architecture enforces a structural separation between narrative prose and
+canonical state. This principle — the engine owns the truth; the AI renders the moment —
+prevents the copy-of-a-copy degeneration that affects transcript-only AI roleplaying
+systems:
+
+- **AI narrative output is archived, not re-injected.** The AI narrator's prose is
+  preserved in the audit log (REQ-040) and story journal (REQ-246), but SHALL NOT be
+  re-injected into future context windows as raw text. What enters the LLM's context is
+  the structured state delta — entity conditions, NPC dispositions, faction clock
+  positions, campaign memory facts — not the previous turn's narrative paragraph.
+
+- **Narrative voice profiles are standing directives.** WHEN a narrative voice profile is
+  active (enrichment Tier 1 per REQ-225, or set by the GM via REQ-081), THE profile's
+  description SHALL be injected as a system-level directive in every context window, not
+  merged into the conversational transcript where it can be diluted by chat history.
+
+- **Scene-type anchoring.** WHEN a scene is tagged `combat`, `social`, `exploration`, or
+  `neutral` (REQ-087), THE AI narrator SHALL receive a corresponding tone directive that
+  persists for the scene's duration. This directive is a system-level instruction, not
+  conversational context.
+
+- **Anti-slop precedence.** The anti-slop catalogue (REQ-070, Appendix J) SHALL be
+  weighted above conversational context in the AI's priority stack, ensuring forbidden
+  narrative patterns are suppressed even in long-running sessions.
+
+These conventions are builder-level implementation constraints, not runtime-enforced tool
+behavior. Builders SHALL document how their prompt construction satisfies each clause in
+DECISIONS.md.
+
 ### 7.4 Tool-surface conventions
 
 | Convention | Rule | Source |
@@ -124,6 +155,7 @@ discarded by `end_novel`):
 | Server Notes| read/write/create/delete (REQ-285)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
 | Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
+| Campaign Memory | read (engine-maintained; GM-filtered)                                       | read-only (GM-filtered)                         |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -169,6 +201,10 @@ consistent order.
 | Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
 | Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
 | Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
+| NPC → NPC Memory | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | Mechanical | REQ-311 |
+| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `hat_briefing` | Navigational | REQ-310 |
+| World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | Mechanical | REQ-233a, REQ-310 |
+| NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Navigational | REQ-311, REQ-310 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`hat_briefing`, resource rendering, suggestion tools) and does not influence
