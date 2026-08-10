@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-10 — Push pipeline hardening
+
+- The push pipeline script now refuses to run with a dirty working tree,
+  preventing half-applied state from partial failures. (REQ-004)
+- Spec propagation delegates to the existing TypeScript `spec-propagate.ts`
+  script instead of raw `cp`, ensures target directories exist before copying.
+- Gate order was reordered: checks now run *after* modifications, so files
+  that ship have been validated against the assembled spec.
+- `sha256sum` (Linux-only) replaced with a portable Node.js crypto call;
+  GNU `sed` replaced with `perl -i` for cross-platform compatibility.
+- Staging is now targeted (`git add -u` for tracked modifications only)
+  instead of wildcard `git add` that could pick up untracked artifacts.
+- The deploy step now builds both servers (dnd5e-holonovel and holonovel)
+  instead of only the first found.
+- Added `--dry-run` flag that runs all checks and reports what would happen
+  without committing or pushing.
+- Added `--yes` flag and interactive confirmation prompt as a safety barrier
+  before the push and deploy phase.
+- Added `--help` flag with usage instructions.
+- Replaced swallowed `|| true` patterns with explicit guard clauses for
+  wiki commit and deploy operations.
+
 ## 2026-08-10 — Novel integration and Codex provenance
 
 - The Codex now tracks provenance through Novel artifacts. When you import
