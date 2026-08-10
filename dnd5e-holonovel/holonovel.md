@@ -310,7 +310,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Pattern Buffer         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
+| Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
@@ -358,7 +358,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
-| 5.13 | Holodeck | 369–371 | 3 |
+| 5.13 | Holodeck | 369–371, 374–375 | 5 |
 | 5.14 | Content Sources | 372–373 | 2 |
 
 ### 5.1 Output and Error Contracts
@@ -7902,6 +7902,39 @@ automatically on scene transitions. Deactivating the responsible Wisdom item
 suppresses the mechanical behavior.
 _Check:_ T-new-378.
 
+**REQ-374 — Archetype coverage.** Builder SHALL verify during convergence Phase 1
+that every Novel property group defined in §7.7 carries at least one Holodeck
+archetype from the set defined in §7.7.0 (Temporal, Entity-bearing,
+Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
+Decision, Guidance, Session, Ruleset Wisdom). A property group without an
+archetype produces zero couplings — the coupling completeness metric in Phase 2
+cannot detect this gap. The metric threshold is 100%: all 16 property groups
+classified. Missing archetype assignments SHALL be resolved by re-reading §7.7.0
+definitions and reassigning archetypes per the coupling pattern rules that govern
+each group's behavioral nature.
+
+*Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A
+group missing an archetype causes this metric to fail, directing the builder to
+re-read and re-classify before proceeding to Phase 2.
+_Check:_ T-new-381.
+
+**REQ-375 — Wisdom mechanical coupling rate.** During convergence Phase 1, after
+Enrichment population meets its threshold, the builder SHALL verify that Wisdom
+items extracted from the ruleset include Mechanical couplings — not exclusively
+Navigational ones. The metric measures: Wisdom items classified with Mechanical
+coupling nature per §7.7.1a / total Wisdom items extracted. Threshold: ≥30%
+Mechanical. A build where all Wisdom items are Navigational meets the Enrichment
+population metric but violates REQ-371's intent — the ruleset's guidance should
+render as server behavior. The builder SHALL improve the rate by re-reading
+ruleset source sections where the text carries strong behavioral language
+(procedures, pacing directives, structural patterns), re-classifying items from
+Navigational to Mechanical where the coupling contract supports it.
+
+*Acceptance criterion:* At least 30% of extracted Wisdom items carry Mechanical
+coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational
+causes this metric to fail, directing the builder to re-classify.
+_Check:_ T-new-382.
+
 ---
 
 ### 5.14 Content Sources
@@ -8456,15 +8489,19 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
-| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules | ≥4 populated | Re-read source sections for barren modules per REQ-225 re-read mapping |
+| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total enrichment items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 16 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
 Cross-format consistency; Enrichment population shares source data with Extraction
-completeness; Reconciliation quality and Enrichment term anchoring are independent.
+completeness; Archetype coverage shares source data with Enrichment population
+(Wisdom items carry archetype-informed coupling nature) and Coupling completeness
+(Phase 2 — the coupling table is derived from archetype pairs);
+Reconciliation quality and Enrichment term anchoring are independent.
 The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
@@ -8497,20 +8534,31 @@ category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
 
-Phase 1 exit: all nine metrics meet threshold (conversion-fidelity conditional —
-eight when conversion not selected, nine when conversion selected), or an extraction stall
+**Archetype coverage** measures whether every Novel property group defined in §7.7
+is classified with at least one Holodeck archetype. A group without an archetype
+produces zero couplings — the Phase 2 Coupling completeness metric cannot detect
+this gap because the cross-product excludes unclassified groups. Below 100%
+triggers re-reading of §7.7.0 archetype definitions and reassignment per the
+coupling pattern rules that govern each group's behavioral nature. Archetype
+coverage shares source data with Enrichment population (Wisdom items carry
+archetype-informed coupling nature) and Coupling completeness (Phase 2 — the
+coupling table is derived from archetype pairs). A change to archetype
+assignments SHALL trigger re-verification of both metrics.
+
+Phase 1 exit: all ten metrics meet threshold (conversion-fidelity conditional —
+nine when conversion not selected, ten when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains eight metrics and the exit
-condition is eight metrics meeting threshold.
+conversion was not selected, the table contains nine metrics and the exit
+condition is nine metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
-nine metrics are treated as met. No extraction stall applies — zero-case
+ten metrics are treated as met. No extraction stall applies — zero-case
 dispositions are not a stall.
 
 **Phase 2 — Construction quality.**
@@ -8599,7 +8647,8 @@ requirement.
 sufficiency criteria SHALL produce: (a) findings with REQ citations and specific
 discrepancies — expected extraction vs. auditor's finding, with source anchors — not
 general assessments; (b) coverage of at least 3 distinct extraction categories from
-REQ-210; (c) a minimum of 1 finding, or an explicit statement that systematic comparison
+REQ-210; (c) coverage of at least 2 distinct Holodeck archetype categories from
+§7.7.0; (d) a minimum of 1 finding, or an explicit statement that systematic comparison
 was performed across the cited categories and produced zero findings — this statement
 SHALL enumerate the categories compared.
 
@@ -8611,8 +8660,8 @@ authoritative; the disagreement is recorded as a permanent finding with both mod
 positions and the confidence differential.
 
 *Acceptance criterion:* A cross-model audit report includes findings with REQ citations,
-specific discrepancies, covers ≥3 extraction categories, and produces ≥1 finding or an
-enumerated zero-finding statement.
+specific discrepancies, covers ≥3 extraction categories and ≥2 archetype categories, and
+produces ≥1 finding or an enumerated zero-finding statement.
 _Check:_ T-new-299.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
@@ -8784,7 +8833,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S31) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S33) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Pattern Buffer and subsequent re-runs after enrichment
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
@@ -8952,16 +9001,23 @@ four items is incomplete and blocks handoff.
     `set_active_entity("char_02", pov="character")` switches to character-locked POV
     for char_02. POV mode persists across server restart. POV directive is never
     truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
-27. **Enrichment lifecycle** — requires enrichment to have been run. Assert
-    `enrichment://status` reports active modules with per-module item counts.
-    Deactivate a module via `set_enrichment_module(module_name, false)` — assert items
-    from that module absent from enrichment surfaces. Reactivate — assert items return.
+27. **Enrichment lifecycle with Wisdom mechanical enactment** — requires
+    enrichment to have been run. Assert `enrichment://status` reports active
+    modules with per-module item counts. Deactivate a module via
+    `set_enrichment_module(module_name, false)` — assert items from that module
+    absent from enrichment surfaces. Reactivate — assert items return.
     `revert_enrichment()` — assert community enrichment items removed, ruleset-native
     items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
     items. Assert `badge_briefing` enrichment content follows activation state: active
     modules' content appears, deactivated modules' content absent. Entity
     `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
-    sourcing. (Non-blocking.)
+    sourcing. After enrichment is active: create a Novel, import an entity. Create an
+    NPC — assert `character_sheet` renders voice_examples, goals, and personality
+    patterns without manual `set_voice_examples`/`set_personality` (P6). Create a
+    countdown — assert it advances on `set_scene_state` (P7). Call
+    `suggest_actions("spring a trap on the goblins")` — assert constraint override from
+    Wisdom appears in results (P10). Deactivate the relevant Wisdom item — assert
+    mechanical behavior suppressed. Reactivate — assert restored. (Blocking.)
 28. **Briefing ordering, voice examples, session notation** —
     `set_briefing_order(["scene", "entities", "lore"])` — assert `badge_briefing`
     sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
@@ -8997,6 +9053,26 @@ four items is incomplete and blocks handoff.
     `remove_supplementary` — assert tools deregistered, tool invocation returns
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
+32. **Coupling chain exercise** — populate world model with 3 connected rooms. Set
+    scene in room A with beat "setup". Create countdown with
+    `world_effect {type:"describe"}` and faction with goal — verify faction countdown
+    auto-created (P4). Advance scene — assert countdown ticks and faction clock ticks
+    (P1). Move player via `go` command — assert scene transition hook fires and lore
+    trigger keywords match against new room (P13, P2). Advance countdown to fire —
+    assert `world_effect` mutates room description (P14). Set scene in changed room —
+    assert `badge_briefing` reflects all state changes. Create `consequence` journal
+    entry — assert faction clock advisory in `narrative_threads` (P33). Undo — assert
+    pre-chain state restored. (Blocking.)
+33. **Wisdom mechanical enactment** — build with enrichment active on all 7 modules.
+    Create entity and NPC while Wisdom is active — assert NPC `character_sheet` shows
+    auto-populated voice_examples with `[ruleset]` tag, goals from Wisdom patterns,
+    personality without manual `set_personality`/`set_voice_examples` calls (P6).
+    Create countdown — assert `advance_countdown` auto-applies on `set_scene_state`, 1
+    tick per transition (P7). Call `suggest_actions("negotiate with the guard")` —
+    assert Wisdom constraint overrides appear (P10). Deactivate individual Wisdom
+    items — assert corresponding mechanical behavior stops. Reactivate items — assert
+    behavior resumes. Assert Wisdom-derived entities render with REQ-371-conformant
+    behavior: first-class server mechanics, not advisory guidance. (Blocking.)
 
 **REQ-108 — Pattern Buffer traceability.** The builder must ensure at least one
 Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access),
@@ -9154,6 +9230,9 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Enrichment lifecycle, status, toggles                       | S27 |
 | Briefing ordering, voice examples, session notation         | S28 |
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
+| Supplementary ruleset import, dynamic tool registration      | S30, S31 |
+| Coupling cascade (P1+P13+P14+P2+P33 chain)                    | S32 |
+| Wisdom mechanical enactment (REQ-371, P6+P7+P10)              | S33 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Pattern Buffer run.
@@ -9289,7 +9368,7 @@ changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
 The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
-intake, forcing all 29 sub-workflows regardless of fingerprint match.
+intake, forcing all 33 sub-workflows regardless of fingerprint match.
 
 #### Holonovel Pattern Buffer
 
@@ -9852,6 +9931,16 @@ rules.
 | P21 | Knowledge-carrying → Spatial | Knowledge entries with spatial targets match spatial descriptions | Navigational | Secrets are anchored to places |
 | P22 | Entity-bearing → Spatial | Entity territories match spatial locations | Navigational | Faction turf defines presence |
 | P23 | Guidance → Decision + Knowledge-carrying + Entity-bearing | Advisory content surfaces alongside referenced properties — inert, never mechanical | Navigational | Server notes advise; they don't act |
+| P24 | Entity-bearing ↔ Entity-bearing | Entity-bearing properties interact mechanically when sharing scene presence — combat linkage, relationship creation | Mechanical | Characters interact when they occupy the same room |
+| P25 | Knowledge-carrying → Relational | Knowledge content overlapping entity/NPC/faction names suggests relationship creation | Navigational | Shared secrets imply connection |
+| P26 | Relational → Knowledge-carrying | Relationship state changes (ally ↔ rival ↔ hostile) prompt knowledge entry creation | Navigational | Changed relationships become remembered facts |
+| P27 | Entity-bearing → Knowledge-carrying | Entity interaction events — combat, social, disposition shifts — become persistent knowledge facts in entity memory and campaign memory | Mechanical | What characters experience becomes what they know |
+| P28 | Temporal → Knowledge-carrying | Temporal fire and state transitions produce discoverable knowledge entries surfaced in the briefing alongside triggered lore | Mechanical | The clock's consequences become known facts |
+| P29 | Temporal → Entity-bearing | Temporal signals bypass the Entity-bearing autonomous interval, triggering immediate goal pursuit and disposition updates | Mechanical | Ticking clocks drive character action |
+| P30 | Entity-bearing → Narrative-memory | Entity goal-pursuit suggestions surface as World in Motion narrative-memory content for GM accept/defer/dismiss | Narrative | Character purpose drives the story forward |
+| P31 | Temporal → Narrative-memory | Temporal fire produces narrative-memory records — countdown consequences become story journal entries | Mechanical | What happens becomes what's remembered |
+| P32 | Session → Entity-bearing | Session corrections — voice feedback — update entity voice examples and personality profiles | Mechanical | The operator refines the character |
+| P33 | Narrative-memory → Entity-bearing | Narrative-memory entries referencing entity goals or faction interests produce temporal advisories in narrative threads | Navigational | Recorded events signal faction consequences |
 
 #### 7.7.1 Cross-property coupling
 
@@ -9867,20 +9956,20 @@ the coupling completeness contract (REQ-370).
 | Scene → Lore | P2 | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | GM-only | Navigational | REQ-083 |
 | Scene → Countdown | P1 | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description | GM-only | Mechanical | REQ-125, REQ-073 |
 | Scene → Faction | P1 | Faction clocks advance one tick on each scene transition | GM-only | Mechanical | REQ-233 |
-| Combat ↔ NPC | — | NPCs may participate as combat participants alongside entities and dangers | GM-only | Mechanical | REQ-043, REQ-075, REQ-124 |
+| Combat ↔ NPC | P24 | NPCs may participate as combat participants alongside entities and dangers | GM-only | Mechanical | REQ-043, REQ-075, REQ-124 |
 | Enrichment → Lore | P5 | Wisdom lore templates mechanically activate on trigger match | GM-only | Mechanical | REQ-080, REQ-083 |
 | Enrichment → Scene/Entity/NPC | P6, P8 | Wisdom voice_examples, narrative guidance, and supplementary content render on scene, entity, and NPC surfaces — NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
 | Faction → Countdown | P4 | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal | GM-only | Mechanical | REQ-233, REQ-073 |
-| Secret → Relationship | — | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | GM-only | Navigational | REQ-234, REQ-236 |
-| Relationship → Lore | — | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | GM-only | Navigational | REQ-236 |
+| Secret → Relationship | P25 | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | GM-only | Navigational | REQ-234, REQ-236 |
+| Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | GM-only | Navigational | REQ-236 |
 | Choice → Countdown | P12 | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick | GM-only | Mechanical | REQ-235, REQ-073 |
 | Choice → Faction | P12 | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock | GM-only | Mechanical | REQ-235, REQ-233 |
 | DM Context → State | P17 | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | GM-only | Navigational | REQ-232, REQ-233, REQ-236 |
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Player-visible, badge-scoped | Navigational | REQ-242 |
-| NPC → NPC Memory | — | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | GM-only | Mechanical | REQ-311 |
-| Campaign Memory → Scene | — | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | GM-only | Navigational | REQ-310 |
-| World Reactivity → Campaign Memory | — | World in Motion accepted changes produce campaign memory facts | GM-only | Mechanical | REQ-233a, REQ-310 |
-| NPC Memory → Campaign Memory | — | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | GM-only | Navigational | REQ-311, REQ-310 |
+| NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | GM-only | Mechanical | REQ-311 |
+| Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | GM-only | Navigational | REQ-310 |
+| World Reactivity → Campaign Memory | P27 | World in Motion accepted changes produce campaign memory facts | GM-only | Mechanical | REQ-233a, REQ-310 |
+| NPC Memory → Campaign Memory | P27 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | GM-only | Navigational | REQ-311, REQ-310 |
 | Codex → NPC | — | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | GM-only (editing mode) | Mechanical | REQ-321, REQ-332 |
 | Codex → World | — | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
 | Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
@@ -9890,27 +9979,27 @@ the coupling completeness contract (REQ-370).
 | World → Scene | P13 | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | P16 | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | GM-only | Navigational | REQ-333 |
 | Notes → Lore | P17 | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Player-visible, badge-scoped | Navigational | REQ-242 |
-| Story Beats → Narrative Threads | — | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | GM-only (GM surface), Player-visible (shared-scope beats in Player surface) | Narrative | REQ-335, REQ-281 |
+| Story Beats → Narrative Threads | P2 | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | GM-only (GM surface), Player-visible (shared-scope beats in Player surface) | Narrative | REQ-335, REQ-281 |
 | Beat → Countdown | P1 | `climax` beat accelerates `on_scene_transition` countdowns by `TTRPG_CLIMAX_ACCELERATION` ticks (default 2); `setup`/`denouement` beats use standard rate | GM-only | Mechanical | REQ-335, REQ-353, REQ-125, REQ-073 |
-| Pacing Signal → Narrative Threads | — | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | GM-only | Narrative | REQ-336, REQ-281 |
+| Pacing Signal → Narrative Threads | P28 | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | GM-only | Narrative | REQ-336, REQ-281 |
 | Pacing Signal → Faction Autonomous | P1 | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | GM-only | Mechanical | REQ-336, REQ-338, REQ-351 |
-| Pacing Signal → NPC Goal Pursuit | — | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | GM-only | Mechanical | REQ-336, REQ-339, REQ-351 |
+| Pacing Signal → NPC Goal Pursuit | P29 | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | GM-only | Mechanical | REQ-336, REQ-339, REQ-351 |
 | Scene → World Model | P3 | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
 | suggest_actions → resolve_intent | P10 | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | GM-only (resolve_intent); Player-visible (suggest_actions results) | Navigational | REQ-343, REQ-323 |
 | Faction → Autonomous Countdown | P1 | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | GM-only | Mechanical | REQ-338 |
-| Faction Autonomous → NPC Goal Pursuit | — | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | GM-only | Mechanical | REQ-338, REQ-339, REQ-348 |
-| NPC Goals → World in Motion | — | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | GM-only | Narrative | REQ-339, REQ-233a |
-| Countdown Fire (absent) → Story Journal | — | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
-| Countdown → Knowledge | — | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
-| Voice Feedback → Voice Examples | — | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
+| Faction Autonomous → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | GM-only | Mechanical | REQ-338, REQ-339, REQ-348 |
+| NPC Goals → World in Motion | P30 | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | GM-only | Narrative | REQ-339, REQ-233a |
+| Countdown Fire (absent) → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
+| Countdown → Knowledge | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
+| Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
 | Background → Lore | P2 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350, REQ-083 |
 | Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | GM-only (editing mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
 | Secret → Countdown | P18 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
 | Vow → Lore | P2 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289, REQ-083 |
-| Story Journal → Faction | — | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-357, REQ-246, REQ-233 |
+| Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-357, REQ-246, REQ-233 |
 | Countdown → NPC | P15 | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | GM-only | Mechanical | REQ-358, REQ-073, REQ-075 |
 | Countdown → World State | P14 | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | GM-only | Mechanical | REQ-368 |
-| Vehicle → Scene | — | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
+| Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
 | World → Novel Enrichment | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11.3 |
 | Enrichment → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-359, REQ-236, REQ-073 |
@@ -11603,6 +11692,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-371 | Ruleset Wisdom as rendered reality | 2026-08-10 |
 | REQ-372 | Supplementary ruleset import | 2026-08-10 |
 | REQ-373 | Dynamic tool registration | 2026-08-10 |
+| REQ-374 | Archetype coverage | 2026-08-10 |
+| REQ-375 | Wisdom mechanical coupling rate | 2026-08-10 |
 
 ---
 
@@ -12024,6 +12115,12 @@ diet.
 | T-new-378 | Automated | Ruleset Wisdom as rendered reality: build with a ruleset that produces Ruleset Wisdom items. Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `activate_enrichment_item` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `deactivate_enrichment_item` on a Wisdom item — assert the coupled behavior ceases. Call `revert_enrichment` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T-new-379 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `list_enrichment_items(tier=1)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary_gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T-new-380 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
+| T-new-381 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 16 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T-new-382 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
+| T-new-383 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
+| T-new-384 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with Wisdom active — assert character_sheet shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on set_scene_state (P7). suggest_actions returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
+| T-new-385 | Automated | S27 blocking promotion: enrichment lifecycle sub-workflow now blocked from handoff on failure. Assert mechanical enactment assertions (P6, P7, P10) execute as part of S27. Assert deactivating Wisdom item suppresses mechanical behavior; reactivating restores it. | §6.6 S27 |
+| T-new-386 | Automated | Cross-model audit archetype coverage: run cross-model audit per REQ-299. Assert coverage includes ≥2 distinct archetype categories from §7.7.0. Assert audit report enumerates archetype categories compared. Assert archetype disagreements recorded as findings with both models' assignments and source anchors. | REQ-299 |
 
 ---
 

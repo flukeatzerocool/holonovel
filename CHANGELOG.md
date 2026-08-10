@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-10 — Convergence and Pattern Buffer strengthened from Holodeck taxonomy
+
+- Added archetype coverage as a new Phase 1 convergence metric — every property
+  group must carry ≥1 Holodeck archetype before coupling construction begins.
+  A missing archetype is a silent failure: the Phase 2 Coupling completeness
+  metric cannot detect it. (REQ-374, §6.5)
+- Extended the Enrichment population metric with a Wisdom mechanical coupling
+  rate sub-measurement — Wisdom items must be ≥30% Mechanical, not exclusively
+  Navigational. A build with all-Wisdom-is-inert passes the old metric but
+  violates REQ-371's intent. (REQ-375)
+- The convergence regression gate now includes archetype coverage: a change to
+  archetype assignments triggers re-verification of Enrichment population and
+  Coupling completeness.
+- Cross-model audit (REQ-299) now requires ≥2 distinct archetype categories in
+  its comparison scope.
+- Promoted S27 (Enrichment lifecycle) from non-blocking to blocking and added
+  Wisdom mechanical enactment assertions — NPC voice/goals auto-population (P6),
+  countdown auto-advance (P7), and constraint overrides in suggest_actions (P10).
+- Added S32: Coupling chain exercise — exercises P1+P13+P14+P2+P33 cascade
+  through world model, countdown fire, faction clock, scene transitions, and
+  story journal consequences in one blocking sub-workflow.
+- Added S33: Wisdom mechanical enactment — directly tests REQ-371's acceptance
+  criterion: first-class server behavior, not advisory guidance.
+- Added 10 new coupling pattern rules (P24–P33) filling all remaining
+  non-content-source `—` gaps in §7.7.1a: Entity-bearing interaction,
+  Knowledge-Relational bridges, Temporal consequences, Session corrections,
+  Narrative-memory advisories. Coupling table now traces every active row to a
+  definitive pattern rule.
+- Pattern Buffer sub-workflow count: 31 → 33. All counts, ranges, and
+  surface-to-scenario mappings updated.
+
 ## 2026-08-10 — Holodeck: automated cross-property coupling
 
 - Defined 11 Holodeck archetypes (Temporal, Entity-bearing, Scene-anchored,
