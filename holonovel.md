@@ -1886,7 +1886,8 @@ null when world model is unpopulated). The return MAY also include
 `suggested_mechanics` (list of follow-up mechanical tool suggestions relevant
 to the intent — stealth for sneaking, perception for searching — not executed).
 
-The tool is callable by the AI narrator (any badge) and the Game Master badge.
+The tool is callable by the AI narrator (any badge), the Game Master badge,
+and the Observer badge (read-only per REQ-305).
 Player badge calls SHALL return `[ERROR] [FORBIDDEN]` — the AI narrator calls
 `resolve_intent` on the player's behalf. The tool SHALL be registered in
 `tools/list` and SHALL support `help("<tool_name>")`. `suggest_actions` SHALL
@@ -1901,7 +1902,8 @@ tools) and `command` (direct parser invocation) — it does not replace either.
 *Acceptance criterion:* `resolve_intent("go north")` against a populated world
 model with a north exit returns status `resolved` with room context for the
 destination room. `resolve_intent("go north")` against a wall returns `blocked`
-with the constraint named. Player badge returns `[FORBIDDEN]`.
+with the constraint named. Player badge returns `[FORBIDDEN]`; Observer
+badge returns `[OK]` with resolved room context.
 _Check:_ T-new-323.
 
 *Out of scope:* real-time collaboration tools, streaming resource endpoints,
@@ -2343,6 +2345,16 @@ decision; the human responds via `respond`. All four slider values SHALL be
 visible in `badge_briefing` and `spec_health`. Autonomy composes with any badge
 — a human Player with `level=full` lets the AI auto-play their character; a
 human GM with `level=full` lets the AI run all NPCs and player characters.
+
+Player signal preferences (REQ-069) — pace, difficulty, tone, focus, and
+boundary — SHALL be respected at all autonomy levels. Autonomy controls
+who makes decisions; player signals define constraints on all decisions
+regardless of which agent makes them. A `level=full` AI SHALL still
+observe a `boundary=veil` signal by skipping detailed violence
+descriptions, and SHALL still respect `difficulty=easy` by calibrating
+encounter threat. The `register` signal (REQ-064) SHALL also be
+respected at all autonomy levels — the AI SHALL NOT switch between
+character and meta register without an explicit `player_signal` call.
 *Acceptance criterion:* `set_autonomy({level: "full", confirmation: "auto",
 safety: "safe", creativity: "standard"})` returns `[OK]`. `badge_briefing`
 includes the autonomy state. With `level=mechanical_prompt` and
@@ -7785,6 +7797,13 @@ observer badge SHALL NOT see GM-only surfaces — secrets (REQ-234),
 faction clock states (REQ-233), countdown tick positions (REQ-073), or
 the DM context (REQ-232). The observer SHALL NOT mutate state — the
 read-only contract of REQ-305 applies to all narrative tools.
+Enrichment content (REQ-159) SHALL render in the observer `badge_briefing`
+under the same badge-filtering rules as the Player badge:
+game_master-scoped enrichment items are hidden; shared-scope items are
+visible. The observer SHALL have read-only access to world-model
+inspection tools — `resolve_intent` (REQ-323), parser `look` and
+`examine` commands, and resource reads (`room://<id>`, `thing://<id>`,
+`world://map`) — consistent with the state-query permission of REQ-305.
 
 *Acceptance criterion:* Call `set_badge("observer")` on a populated
 Novel. Assert `badge_briefing` includes scene state, entity personality,

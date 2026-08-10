@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-10 — Badge integration tightening
+
+- Observer badge now renders enrichment content in `badge_briefing` under
+  the same badge-filtering rules as the Player badge, and gains read-only
+  access to world-model inspection tools — `resolve_intent`, parser `look`
+  and `examine`, and resource URIs. (REQ-366)
+- `resolve_intent` is now callable by the Observer badge, consistent with
+  its pure-resolution read-only contract. (REQ-323)
+- Player signal preferences — pace, difficulty, tone, focus, boundary, and
+  register — are now explicitly required to be respected at all autonomy
+  levels including `full`. Autonomy controls who decides; player signals
+  define constraints on all decisions regardless of agent. (REQ-306)
+
 ## 2026-08-10 — World-model integration and enrichment completeness
 
 - Implicit action hints now cover new kinds — parsers suggest reaching
