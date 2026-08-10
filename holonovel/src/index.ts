@@ -41,7 +41,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.08.07",
+  version: "2026.08.09",
 });
 
 // ── Helpers ────────────────────────────────────────────────────────

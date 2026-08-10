@@ -14,7 +14,13 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["inform", "world-model", "interactive-fiction", "mcp", "holonovel"],
+  "keywords": [
+    "inform",
+    "world-model",
+    "interactive-fiction",
+    "mcp",
+    "holonovel"
+  ],
   "author": "Holonovel",
   "license": "MIT",
   "dependencies": {

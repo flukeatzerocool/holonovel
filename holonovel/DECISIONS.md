@@ -6,7 +6,7 @@
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.08.08 |
+| Spec version | 2026.08.09 |
 | Build fingerprint | 0f9c1b6c421443a0633fd4b6784ae3de14baa1407475944db746dfb05df9b5df |
 | Implementation fingerprints | source=1b1d7f45db034344a5f4ef010488efa81eb5ad630c2993d881610869ca26b023, config=7316427a378075beb83ff30d9e4ecaaf1ce7aff094d9faf8e2e83363615089c6, lockfile=698b829bb8e547fcaad0fc463b1ef49fdf6645335db970ad49a158c92ae18797, extraction=sentinel, surfaces=12d776431f36afb445c2ad7932f442d0a8d7c91767448e71374d6992b636d3c2 |
 | Gauntlet (I1-I13) | I1 PASS, I2 PASS, I3 PASS, I4 PASS, I5 PASS, I6 PASS, I7 PASS, I8 PASS, I9 PASS, I10 PASS, I11 PASS, I12 PASS, I13 PASS |

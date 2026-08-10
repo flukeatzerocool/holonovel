@@ -1,25 +1,15 @@
-# D&D 5e Holonovel — Vendored Content
+# Holonovel Vendored Content
 
-Vendor enrichment content bundled with the dnd5e-holonovel server for self-contained
-distribution. These files are copies of the enrichment sources from the holonovel base
-server, included here so the dnd5e server resolves provenance URLs without depending on
-the holonovel package at runtime.
+Reference documentation vendored from upstream sources. Two subdirectories:
 
-## Sources
-
-| Source | License | Document | Enriches |
-|---|---|---|---|
-| Blades in the Dark SRD | CC-BY 3.0 | bitd/progress-clocks.md | Clock design, tension management |
-| IF Craft Corpus | CC-BY 4.0 | if-craft-corpus/README.md | Narrative voices, genre conventions |
-
-## Provenance
-
-Original sources in `holonovel/narrative_world_model/narrative/`:
-
-- Blades in the Dark SRD: <https://bladesinthedark.com/> — CC-BY 3.0
-- IF Craft Corpus: <https://pvliesdonk.github.io/if-craft-corpus/> — CC-BY 4.0
+- **narrative/** — Enrichment vendor content for the Enrich workflow (§11.2): DMCP,
+  Blades in the Dark SRD, Lonelog, and IF Craft Corpus. See `narrative/README.md`
+  for source details, licensing, and update instructions.
+- **world/** — World-model provider document defining the kind hierarchy, property
+  contracts, and parser command catalog (§5.10). Used at build time to surface the
+  world-model interface.
 
 ## Updating
 
-When the holonovel vendor content is updated, re-copy the updated files into this
-directory. Record the update in the project CHANGELOG.
+See `narrative/README.md` for enrichment source updates. The world-model provider
+is a specification document — update it alongside spec changes.

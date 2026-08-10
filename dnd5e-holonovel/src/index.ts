@@ -78,7 +78,7 @@ if (fs.existsSync(rulesetDir)) buildSearchIndex(rulesetDir);
 
 const server = new McpServer({
   name: "dnd5e-holonovel",
-  version: "2026.08.06",
+  version: "2026.08.09",
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
