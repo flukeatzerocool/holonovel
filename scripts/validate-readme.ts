@@ -74,9 +74,8 @@ function checkHeadingOrder(text: string): Issue[] {
 
   const expected: { level: number; title: string }[] = [
     { level: 1, title: "Holonovel" },
-    { level: 2, title: "Try it now — D&D 5e" },
-    { level: 2, title: "MCP server" },
-    { level: 2, title: "The specification" },
+    { level: 2, title: "Try it now" },
+    { level: 2, title: "Holonovel MCP Server" },
     { level: 2, title: "How it compares" },
     { level: 2, title: "Contribute" },
   ];

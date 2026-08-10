@@ -4,9 +4,13 @@ __pycache__/
 *.pyc
 session-*.md
 opencode-raw-*.log
-dnd5e/.holonovel-state/
-dnd5e/.holonovel-oce-state/
+dnd5e-holonovel/.holonovel-state/
+dnd5e-holonovel/.holonovel-oce-state/
 .holonovel-state/
+!.holonovel-state/wiki/
+!.holonovel-state/wiki/Home.md
+!.holonovel-state/wiki/Getting-Started.md
+!.holonovel-state/wiki/Playing-the-Game.md
 *.bak
 plans/
 scripts/research-protocol.md

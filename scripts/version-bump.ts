@@ -22,31 +22,31 @@ function replaceInFile(filePath: string, pattern: RegExp, replacement: string, l
 
 let ok = true;
 
-const dnd5ePkgPath = join(root, "dnd5e", "package.json");
-const dnd5ePkg = JSON.parse(readFileSync(dnd5ePkgPath, "utf-8"));
-dnd5ePkg.version = version;
-writeFileSync(dnd5ePkgPath, JSON.stringify(dnd5ePkg, null, 2) + "\n");
-console.log(`  OK   dnd5e/package.json: → ${version}`);
+const pkgPath = join(root, "dnd5e-holonovel", "package.json");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+pkg.version = version;
+writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+console.log(`  OK   dnd5e-holonovel/package.json: → ${version}`);
 
 ok = replaceInFile(
-  join(root, "dnd5e", "DECISIONS.md"),
+  join(root, "dnd5e-holonovel", "DECISIONS.md"),
   /(\*\*Spec version:\*\*\s*).+/m,
   `$1${version}`,
-  "dnd5e/DECISIONS.md spec version"
+  "dnd5e-holonovel/DECISIONS.md spec version"
 ) && ok;
 
 ok = replaceInFile(
-  join(root, "dnd5e", "AGENTS.md"),
+  join(root, "dnd5e-holonovel", "AGENTS.md"),
   /^(# AGENTS\.md — .+?\(v).+(\))/m,
   `$1${version}$2`,
-  "dnd5e/AGENTS.md header"
+  "dnd5e-holonovel/AGENTS.md header"
 ) && ok;
 
 ok = replaceInFile(
-  join(root, "dnd5e", "README.md"),
+  join(root, "dnd5e-holonovel", "README.md"),
   /(Holonovel\]\([^)]+\)\s+v).+(\.)/m,
   `$1${version}$2`,
-  "dnd5e/README.md"
+  "dnd5e-holonovel/README.md"
 ) && ok;
 
 if (!ok) {

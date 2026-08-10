@@ -1,7 +1,7 @@
 # RULESET MODEL — D&D 5e SRD v5.1
 
 Extraction model with source anchors, confidence labels, and defect log.
-Built by Holonovel from `dnd5e/ruleset/` (1,021 Markdown files).
+Built by Holonovel from `dnd5e-holonovel/ruleset/` (1,021 Markdown files).
 Extraction date: 2026-08-06. Confidence: Heavily structured ruleset — predominantly HIGH.
 
 ## Action Classification Summary

@@ -19,12 +19,22 @@ data — stale entries trigger a fresh web search or spec re-read.
 
 ## web/
 
-*(empty — populate as research sessions complete)*
+- **roleplaying-mediums-comparison.md** — Full comparative analysis of seven roleplaying
+  mediums against a Holodeck benchmark, AI roleplaying failure taxonomy, Holonovel
+  architecture evaluation, and six concrete improvement recommendations.
+  Sourced 2026-08-08, expires 2026-09-07.
 
 ## spec/
 
-*(empty — populate after each cycle's spec summarization pass)*
+- **holodeck-benchmark-recommendations.md** — Condensed version: 10-axis benchmark
+  matrix, Holonovel's architectural strengths, key findings from medium comparison, and
+  six improvement recommendations with existing REQ associations. Re-evaluate when spec
+  REQ count changes.
 
 ## implementation/
 
 *(empty — populate as research sessions write code analysis)*
+
+---
+
+*Index last updated: 2026-08-08*
