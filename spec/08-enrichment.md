@@ -196,7 +196,13 @@ results in DECISIONS.md:
    terms) is cross-referenced against the live tool registry, ruleset index, and
    resource map. Orphan references — items pointing to tools, sections, or
    keywords absent from the current build — are recorded in DECISIONS.md with
-   the "orphan" disposition and their source URLs.
+    the "orphan" disposition and their source URLs.
+10. World-model coverage audit: verify that the enrichment manifest includes at
+    least one item from each world-model component type (`constraint_override`,
+    `scene_world`, and `npc_world` per REQ-354). Barren component types SHALL
+    be recorded as enrichment defects with the "empty" disposition and the
+    component type named. Vendor content items tagged `[vendor]` in these
+    categories satisfy this check.
 
 These are verification steps, not new verification workflows. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
@@ -358,6 +364,7 @@ Each category maps to specific output modules:
 | Scene history + current scene | description, location, time_of_day, atmosphere, scene type (REQ-076, REQ-087) | adventure_advice, supplementary_guidance, briefing_order |
 | Factions + secrets + relationships | faction state (REQ-233), secret knowledge status (REQ-234), relationship objects (REQ-236) | supplementary_guidance, lore_templates |
 | Countdowns | name, remaining ticks, type, scope, direction (REQ-072, REQ-073) | supplementary_guidance, adventure_advice |
+| Rooms + Things | room name, description, exits, contained things; thing name, description, properties, location (REQ-195, REQ-198) | adventure_advice, lore_templates |
 
 **Synthesis rules.** For each source category, the builder applies
 category-specific heuristics:
@@ -403,6 +410,17 @@ category-specific heuristics:
    scope or direction, produce a tension note linking them. When a Novel has no
    countdowns but has active factions, produce a countdown suggestion.
 
+8. **Rooms + Things → adventure_advice.** When a Novel has 3 or more
+   populated rooms with exits forming a connected graph, produce one
+   scene-hook suggestion per room referencing its description, exits, and
+   notable contents — "The Hall of Statues (3 exits: north to Crypt, east
+   to Gallery, west to Armory) — a confrontation here blocks three paths."
+   **Rooms + Things → lore_templates.** When a thing carries descriptive
+   text via `readable`, `description`, or `read_text` with named entities
+   (capitalized proper nouns), produce a lore template linking the named
+   entity to the thing's room. Up to 3 suggestions per synthesis pass from
+   this source across both output modules combined.
+
 **Output module budgets.** Novel enrichment follows the same budget caps as
 community enrichment (§11.1), with per-synthesis-pass limits:
 
@@ -413,7 +431,7 @@ community enrichment (§11.1), with per-synthesis-pass limits:
 | Lore templates | 5 | 30 |
 | Action patterns | 5 | 10 |
 | Supplementary guidance | 10 | 20 |
-| Adventure advice | 5 | 30 |
+| Adventure advice | 8 | 30 |
 | Narrative voices | 1 | 15 |
 
 The per-pass cap limits how many new items a single synthesis pass produces.

@@ -5,7 +5,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 | 24    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324 | 28    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 | 29    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 | 32    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
@@ -13,7 +13,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328, 333 | 41    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327        | 20    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
 
@@ -854,8 +854,23 @@ as REQ-225. Extraction that produces no items from these sources SHALL
 NOT mark the module barren — `supplementary_guidance` remains populated
 by existing REQ-225 sources. Items SHALL carry a `component_type`
 annotation identifying the narrative area they enrich: `scene_type`,
-`relationship`, `countdown`, `secret`, `player_signal`, or
-`story_journal`.
+`relationship`, `countdown`, `secret`, `player_signal`,
+`story_journal`, `constraint_override`, `scene_world`, or
+`npc_world`.
+
+The `constraint_override` component type SHALL map to GM advice chapters
+discussing mechanics that bypass physical world limits — teleportation
+spells, phasing abilities, light-source magic — and SHALL feed the
+constraint override design patterns (REQ-325). The `scene_world` component
+type SHALL map to setting and location descriptions with explicit adjacency,
+sight lines, or spatial relationships — rooms that connect to other rooms,
+environments where line of sight matters (REQ-326). The `npc_world`
+component type SHALL map to NPC interaction guidelines mentioning
+positioning, patrol routes, territory, or situational awareness — NPCs
+placed in specific rooms with behavioral context (REQ-327). Items extracted
+with these component types follow the same confidence model and `[ruleset]`
+tagging contract. Items SHALL include the corresponding world-model REQ
+citation in their `source_anchor`.
 
 *Acceptance criterion:* A ruleset with GM advice chapters produces at
 least one `[ruleset]` enrichment item in `supplementary_guidance`
@@ -6267,10 +6282,23 @@ player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the
 (inventory) first.` `command("unlock chest")` when no key exists in the world model →
 `[RULE_VIOLATION] The chest is locked.` (no hint — no reachable key exists).
 
+The hint contract SHALL extend to the following precondition failures for new kinds,
+following the same reachability rules:
+
+| Precondition | Hint pattern |
+|---|---|
+| `command("read inscription")` when the readable thing is inside a closed container in the room | `Hint: The <thing> is inside the <container> — open it first.` |
+| `command("enter raft")` when the vehicle is in an adjacent room visible through an open exit | `Hint: The <vehicle> is in the <room> to the <direction>.` |
+| `command("climb rope ladder")` when climbable ladder is in an adjacent room visible through an open exit | `Hint: The <climbable> is in the <room> to the <direction>.` |
+| `command("switch on lantern")` targeting a device that is `switched_off` in a dark room | No hint — switching the device is the solution, not a precondition. |
+| `command("read scroll")` when a wearable thing required to permit reading is not worn (e.g., "you need glasses to read") | No hint — stateless; the parser returns `[RULE_VIOLATION]` listing the missing equipment type. |
+
 *Acceptance criterion:* Create a world model with a locked chest and an iron key in the
 room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
 and its location. Remove the key from the world model — `command("open chest")` returns
-`[RULE_VIOLATION]` with no hint.
+`[RULE_VIOLATION]` with no hint. A readable inscription inside a closed glass jar produces
+"Hint: The inscription is inside the glass jar — open it first." A vehicle in an adjacent
+room produces the direction-bearing hint. A switched-off lantern produces no hint.
 _Check:_ T-new-310.
 
 **REQ-316 — Device kind.** THE world-model layer SHALL define a `device`
@@ -6306,7 +6334,17 @@ return the player to the room containing the vehicle. Vehicle interior
 rooms SHALL NOT appear in `world://map` independently — they are child
 objects of the vehicle, not world-graph nodes. The kind declaration "A raft
 is a vehicle. 'Description.' It is in the Lake." SHALL be recognized by
-`convert_source`. _Check:_ T-new-318.
+`convert_source`.
+
+WHEN a player enters a vehicle via `command("enter <vehicle>")`, the server
+SHALL record a `[vehicle-entry]` story journal entry of type `moment` with
+the context `entered <vehicle>` and the vehicle's interior description. WHEN
+the player exits the vehicle, a `[vehicle-exit]` entry SHALL record the room
+returned to. These entries SHALL appear in `session_recap` scene transitions
+and SHALL be surfaced in `badge_briefing` narrative context when present.
+This couples vehicle traversal into the narrative surface without affecting
+scene state — the GM's `set_scene_state` remains authoritative.
+_Check:_ T-new-318.
 
 **REQ-318 — Extended property contracts.** THE world-model layer SHALL
 extend the `thing` type with the following properties, each enabling a
@@ -6657,6 +6695,73 @@ Blacksmith. `update_npc("blacksmith", location="Inn")` — Blacksmith is no
 longer in Forge; listed in Inn. No matching room — Blacksmith carries
 free-text location only.
 _Check:_ T-new-327.
+
+**REQ-367 — Property propagation across containment.** WHEN a container or
+vehicle carries a property that affects perception of its contents, the
+property SHALL propagate from the container boundary. Propagation SHALL
+evaluate containment from outermost to innermost. An opaque or `dark`
+container at any level in the chain SHALL block perception of all
+recursively contained things — propagation SHALL stop at the first opaque
+boundary. Inner containers' `transparent` properties are irrelevant when an
+outer container is opaque.
+
+A `transparent` container containing a `lit` and `switched_on` device SHALL
+report the device's light state to the room — "a glowing lantern (inside the
+glass case)." A `transparent` container containing a `lit` device that is
+`switched_off` SHALL NOT report light — "a dark lantern (inside the glass
+case)." A `dark` container SHALL block perception of its contents regardless
+of `transparent` — "a brass urn (opaque, what's inside is hidden)."
+
+A vehicle interior SHALL inherit the `lit`/`dark` state of the vehicle's
+exterior room unless the vehicle itself is `lit`. `command("look")` output
+SHALL reflect propagated state.
+
+*Acceptance criterion:* A world model with a transparent jar containing a
+switched-on lantern in a dark room — `command("look")` reports "a glowing
+lantern (inside the glass jar)." Switch the lantern off — `command("look")`
+reports "a dark lantern (inside the glass jar)." Place the jar inside an
+opaque iron chest — `command("look")` does not mention the lantern. A
+vehicle in a dark cave with the vehicle itself `lit` — interior shows as
+lit; vehicle not `lit` — interior inherits dark.
+_Check:_ T-new-374.
+
+**REQ-368 — Countdown-world effect coupling.** Countdowns SHALL accept an
+optional `world_effect` field. WHEN a countdown with `world_effect` fires,
+the effect SHALL be applied immediately after the countdown is removed from
+active countdowns:
+
+- `world_effect.type` is one of: `describe` (change room description),
+  `property` (toggle a world-model property), or `exit`
+  (open/close/create/remove an exit).
+- `describe` with `target=<room_id>` and `value="<description>"` SHALL
+  replace the target room's `description` field. The prior description is
+  preserved in the undo snapshot preceding the countdown fire.
+- `property` with `target=<thing_id>`, `property=<name>`, `value=<new_value>`
+  SHALL set the target thing's property. Only properties defined in REQ-318
+  are addressable; attempting an undefined property returns
+  `[RULE_VIOLATION]` in the audit log.
+- `exit` with `target=<room_id>`, `direction=<dir>`,
+  `destination=<room_id>` SHALL create the exit per REQ-198 with implicit
+  reverse exit. `action=remove` deletes the existing exit. `action=open` or
+  `action=close` changes the exit's door state.
+
+All `world_effect` mutations are snapshot-able and surfaced in
+`badge_briefing` `narrative_threads` as `[countdown-effect]`. WHEN a
+countdown with `world_effect` fires and the referenced target has been
+deleted between creation and firing, the countdown SHALL still fire —
+removed from active countdowns and recorded in the audit log with a
+`[WARNING]` entry carrying the effect type, target ID, and `target missing —
+effect not applied` annotation. The countdown is not re-queued. An `undo`
+that restores the deleted target before the countdown fires SHALL restore
+the effect's ability to apply.
+
+*Acceptance criterion:* `set_countdown("flood", 3, type="narrative",
+world_effect={type:"describe", target:"cellar", value:"Knee-deep water
+fills the cellar, rising fast."})`. Advance three narrative ticks — assert
+countdown fires, cellar room description replaced, prior description in
+undo snapshot. Create countdown with `world_effect.target="nonexistent"` and
+fire — assert `[WARNING] target missing — effect not applied` in audit log.
+_Check:_ T-new-375.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
