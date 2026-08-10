@@ -1,19 +1,20 @@
 ## Fixture Coverage Matrix
 
-| Extraction path                      | Tin Lanterns (B) | Captain Proton (N) | Weather (C) | Serpent Crown (W) | Social (X) | Stress (Y) |
-| ------------------------------------ | :-----------: | :----------------: | :---------: | :---------------: | :--------: | :--------: |
-| Single-file extraction               | ✓             |                    | ✓           | ✓                 | ✓          | ✓          |
-| Cross-file dedup                     | ✓ (gear)      | ✓ (foes, gadgets)  |             |                   |            |            |
-| Inline stat blocks in prose          |               | ✓ (De-Coherence Ray)|             |                   |            |            |
-| Broken cross-references              | ✓ (advancement)| ✓ (momentum)      |             |                   |            |            |
-| Mechanical contradictions            | ✓ (Pushing)   | ✓ (nat-1/Peril)    |             |                   |            |            |
-| Prompt injection resistance          |               |                    | ✓           |                   |            |            |
-| GM-only content badge gating            | ✓             | ✓                  | ✓           | ✓                 | ✓          | ✓          |
-| World-model parser commands          |               |                    |             | ✓                 |            |            |
-| Social mechanics (no combat)         |               |                    |             |                   | ✓          |            |
-| 7-level heading nesting              |               |                    |             |                   |            | ✓          |
-| 100-row table extraction             |               |                    |             |                   |            | ✓          |
-| Unicode/zero-width resilience         |               |                    |             |                   |            | ✓          |
+| Extraction path                      | Tin Lanterns (B) | Captain Proton (N) | Weather (C) | Serpent Crown (W) | Social (X) | Stress (Y) | Supp. Ruleset (Z) |
+| ------------------------------------ | :-----------: | :----------------: | :---------: | :---------------: | :--------: | :--------: | :----------------: |
+| Single-file extraction               | ✓             |                    | ✓           | ✓                 | ✓          | ✓          | ✓                  |
+| Cross-file dedup                     | ✓ (gear)      | ✓ (foes, gadgets)  |             |                   |            |            |                    |
+| Inline stat blocks in prose          |               | ✓ (De-Coherence Ray)|             |                   |            |            |                    |
+| Broken cross-references              | ✓ (advancement)| ✓ (momentum)      |             |                   |            |            |                    |
+| Mechanical contradictions            | ✓ (Pushing)   | ✓ (nat-1/Peril)    |             |                   |            |            |                    |
+| Prompt injection resistance          |               |                    | ✓           |                   |            |            |                    |
+| GM-only content badge gating            | ✓             | ✓                  | ✓           | ✓                 | ✓          | ✓          |                    |
+| World-model parser commands          |               |                    |             | ✓                 |            |            |                    |
+| Social mechanics (no combat)         |               |                    |             |                   | ✓          |            |                    |
+| 7-level heading nesting              |               |                    |             |                   |            | ✓          |                    |
+| 100-row table extraction             |               |                    |             |                   |            | ✓          |                    |
+| Unicode/zero-width resilience         |               |                    |             |                   |            | ✓          |                    |
+| Runtime import extraction            |               |                    |             |                   |            |            | ✓                  |
 
 ---
 
@@ -1086,4 +1087,92 @@ additionally verify: heading nesting is flattened without loss; 100-row table is
 parsed; zero-width space is preserved in anchor derivation but stripped from display
 labels; mixed formatting renders correctly; and irregular table column counts produce a
 findings entry, not a parse failure.
+
+---
+
+## Appendix Z: Supplementary Ruleset Fixture
+
+<!-- fixture version 1 -->
+
+A minimal supplementary ruleset for testing `import_supplementary` (REQ-372)
+and dynamic tool registration (REQ-373). Small enough to not stress extraction
+but complete enough to exercise all three contract dimensions: tools, Wisdom, removal.
+
+### Z.0 Fixture content
+
+```markdown
+# Tome of the Frozen Flame
+
+## Spells
+
+### Frostbite
+
+*3rd-level evocation*
+
+**Casting Time:** 1 action
+**Range:** 60 feet
+**Components:** V, S
+**Duration:** Instantaneous
+
+A blast of arctic cold erupts from your pointed finger. Each creature in a
+20-foot-radius sphere centered on a point within range must make a Constitution
+saving throw. A creature takes 8d6 cold damage on a failed save, or half as much
+damage on a successful one. A creature killed by this spell becomes a frozen
+statue until it thaws.
+
+**At Higher Levels.** When you cast this spell using a spell slot of 4th level or
+higher, the damage increases by 1d6 for each slot level above 3rd.
+
+## Monsters
+
+### Ice Wraith
+
+*Medium elemental, neutral evil*
+
+**Armor Class** 15 (natural armor)
+**Hit Points** 58 (9d8 + 18)
+**Speed** 30 ft., fly 60 ft. (hover)
+
+| STR | DEX | CON | INT | WIS | CHA |
+|-----|-----|-----|-----|-----|-----|
+| 7 (-2) | 18 (+4) | 14 (+2) | 10 (+0) | 13 (+1) | 11 (+0) |
+
+**Damage Immunities** cold, poison
+**Condition Immunities** exhaustion, paralyzed, petrified, poisoned, unconscious
+**Senses** darkvision 120 ft., passive Perception 11
+**Languages** understands Primordial but doesn't speak
+**Challenge** 4 (1,100 XP)
+
+***Death Burst.*** When the wraith dies, it explodes in a burst of jagged ice.
+Each creature within 10 feet of it must make a DC 14 Dexterity saving throw,
+taking 14 (4d6) piercing damage on a failed save, or half as much damage on a
+successful one.
+
+## GM Advice
+
+### Pacing the Frozen Waste
+
+The frozen wilderness is a character in its own right. Track the party's
+exposure to cold across three stages: biting wind (disadvantage on Perception),
+frostbite (1d4 cold damage per hour of travel), and deep freeze (exhaustion
+checks every 30 minutes). Escalate from stage to stage after three scenes in
+the same hazardous terrain — the environment drives the clock, not the monsters.
+```
+
+### Z.1 Expected extraction outcomes
+
+1. **Tool registration.** `tools/list` SHALL include `lookup_spell("frostbite")` and
+   `lookup_monster("ice_wraith")` annotated with supplementary slug. Tool invocation
+   SHALL produce output conforming to REQ-001, REQ-002, REQ-003, and REQ-061.
+
+2. **Wisdom coupling.** The GM advice paragraph SHALL extract as
+   `supplementary_guidance` with `component_type: countdown` and `component_type: pacing`.
+   The Wisdom SHALL mechanically couple to Temporal properties (P7): a countdown
+   suggestion for the three-stage cold exposure progression appears in
+   `badge_briefing` `narrative_threads` without manual activation.
+
+3. **Removal.** `remove_supplementary` SHALL deregister both tools and remove
+   associated Wisdom items. Previously-created state (an ice wraith NPC, a
+   frostbite-struck entity) SHALL persist.
+
 
