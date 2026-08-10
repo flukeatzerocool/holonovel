@@ -217,19 +217,38 @@ consistent order.
 | Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Navigational | REQ-333 |
 | Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Navigational | REQ-242 |
 | Story Beats → Narrative Threads | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | Narrative | REQ-335, REQ-281 |
+| Beat → Countdown | `climax` beat accelerates `on_scene_transition` countdowns by `TTRPG_CLIMAX_ACCELERATION` ticks (default 2); `setup`/`denouement` beats use standard rate | Mechanical | REQ-335, REQ-353, REQ-125, REQ-073 |
 | Pacing Signal → Narrative Threads | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | Narrative | REQ-336, REQ-281 |
+| Pacing Signal → Faction Autonomous | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | Mechanical | REQ-336, REQ-338, REQ-351 |
+| Pacing Signal → NPC Goal Pursuit | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | Mechanical | REQ-336, REQ-339, REQ-351 |
 | Scene → World Model | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | Narrative | REQ-342 |
+| suggest_actions → resolve_intent | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | Navigational | REQ-343, REQ-323 |
 | Faction → Autonomous Countdown | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | Mechanical | REQ-338 |
+| Faction Autonomous → NPC Goal Pursuit | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Mechanical | REQ-338, REQ-339, REQ-348 |
 | NPC Goals → World in Motion | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Narrative | REQ-339, REQ-233a |
 | Countdown Fire (absent) → Story Journal | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | Mechanical | REQ-340, REQ-246 |
+| Countdown → Knowledge | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Mechanical | REQ-344, REQ-077 |
+| Background → Lore | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Navigational | REQ-345, REQ-350, REQ-083 |
+| Voice Feedback → Codex | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | Mechanical | REQ-344, REQ-347, REQ-321 |
+| Secret → Countdown | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-355, REQ-234, REQ-073 |
+| Vow → Lore | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Navigational | REQ-356, REQ-289, REQ-083 |
+| Story Journal → Faction | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Navigational | REQ-357, REQ-246, REQ-233 |
+| Countdown → NPC | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | Mechanical | REQ-358, REQ-073, REQ-075 |
+| Relationship → Countdown | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-359, REQ-236, REQ-073 |
+| Lore → Countdown | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Navigational | REQ-360, REQ-083, REQ-073 |
+| NPC → Vow | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-361, REQ-077, REQ-289 |
+| Faction → Vow | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-362, REQ-233, REQ-289 |
+| Secret → World Model | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | Navigational | REQ-363, REQ-234, REQ-195 |
+| Faction → World Model | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | Navigational | REQ-364, REQ-233, REQ-195 |
+| Server Notes → Narrative | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside enrichment items | Navigational | REQ-365, REQ-285 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
 mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
 means it directly affects state mutation or tool behavior. A coupling marked
 "Narrative" means it affects narrative coherence and is verified during the
-Narrative Coherence convergence domain (REQ-346); narrative couplings do not
+G7 narrative coherence attestation (REQ-346); narrative couplings do not
 block mechanical Gauntlet sub-workflows. When a source
 property changes, navigational and narrative couplings update on the next
 resource read; mechanical couplings take effect at the moment of the

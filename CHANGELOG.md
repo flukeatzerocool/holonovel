@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-08-10 — Narrative Architecture integration tightening
+
+- Voice feedback corrections are now capturable to the Codex as
+  `voice_profile` entries, preserving player-corrected dialogue across
+  Novels via `codex_import`. (REQ-347)
+- Faction autonomous advancement and NPC goal pursuit no longer produce
+  duplicate World-in-Motion events — when a faction clock tick represents
+  an overlapping NPC goal, that NPC's suggestion is suppressed for the
+  transition. (REQ-348)
+- Discovered consequences (off-screen countdown fires) now populate the
+  discovering entity's `knowledge_state` — the character genuinely
+  learned what happened while they were absent. (REQ-349)
+- Entity background strings now trigger matching lore entries:
+  `background="Veteran of the Border Wars"` surfaces lore tagged with
+  shared-scope triggers matching "border", "war", etc. (REQ-350)
+- Dramatic pacing signals now trigger autonomous advancement — when play
+  stabilizes, factions advance and NPCs pursue goals (a "while you were
+  deliberating, the world moved" mechanic). (REQ-351)
+- Codex adventure entries can carry `suggested_beats` that pre-populate
+  the narrative arc when a Novel is bootstrapped from an adventure.
+  (REQ-352)
+- Climax beats now accelerate countdown advancement (configurable
+  multiplier, default 2x), so on-scene-transition countdowns race toward
+  resolution when the story peaks. (REQ-353)
+- `suggest_actions` spatial domain now delegates to `resolve_intent`
+  rather than independently querying the world model, unifying spatial
+  resolution into a single pipeline. (no new REQ)
+- Narrative coherence attestation is now a formal verification gate
+  (G7) — a build missing it blocks handoff. (REQ-346 updated)
+- Voice feedback `[player-corrected]` tags now render visually distinct
+  from enrichment `[supplementary]` and Codex `[codex-corrected]` tags,
+  each reflecting a different provenance tier. (no new REQ)
+- Enrichment extraction now covers six previously-uncovered narrative
+  areas — scene types, relationships, countdowns, secrets, player
+  signals, and story journal conventions — feeding into
+  `supplementary_guidance` with `component_type` annotations. (REQ-354)
+- Eleven new cross-property couplings deepen narrative integration:
+  secret revelations suggest countdown advancement, vow subjects
+  surface matching lore, story journal entries referencing faction goals
+  prompt faction-clock advancement, countdown fires shift nearby NPC
+  dispositions, relationship flips produce countdown advisories,
+  temporal-urgency lore entries suggest countdown creation, NPCs and
+  factions with goals suggest vow creation, secrets and factions may
+  now reference world-model rooms and locations, server notes can carry
+  `narrative_tag` to surface in badge briefing, and the observer badge
+  sees a composited narrative surface distinct from GM-only state.
+  (REQ-355 through REQ-366)
+
 ## 2026-08-10 — Holodeck north star
 
 - The spec and README now anchor the project to the Star Trek Holodeck
