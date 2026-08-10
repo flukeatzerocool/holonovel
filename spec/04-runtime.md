@@ -206,6 +206,16 @@ consistent order.
 | Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Navigational | REQ-310 |
 | World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Navigational | REQ-311, REQ-310 |
+| Codex → NPC | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | Mechanical | REQ-321, REQ-332 |
+| Codex → World | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | Mechanical | REQ-321 |
+| Codex → Lore | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | Mechanical | REQ-321 |
+| Codex → Faction | `codex_import` of kind `faction` creates a faction in the Novel | Mechanical | REQ-321 |
+| Codex → Countdown | `codex_import` of kind `countdown` creates a countdown in the Novel | Mechanical | REQ-321 |
+| Codex → Adventure | `codex_import` of kind `adventure` populates world-model, NPCs, factions, lore, and enrichment linkages | Mechanical | REQ-321, REQ-229 |
+| Vows → Countdown | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | Mechanical | REQ-322 |
+| World → Scene | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Mechanical | REQ-125, REQ-198 |
+| Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Navigational | REQ-333 |
+| Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Navigational | REQ-242 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
