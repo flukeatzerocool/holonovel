@@ -18,6 +18,7 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G4       | Ruleset | Derived test catalogue                         |
 | G5       | Ruleset | The Gauntlet — operational verification        |
 | G6       | Ruleset | Enrichment lifecycle                           |
+| G7       | Ruleset | Narrative coherence attestation                 |
 
 In prose, verification workflows are referred to by their canonical `GN` form
 (G0, G2, etc.), established in this table. The legacy "Gate N" form is
@@ -118,6 +119,19 @@ Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
 any manual code modification.
+
+**Verification workflow G7 — Narrative coherence attestation (ruleset-facing).**
+Verify that DECISIONS.md (6) contains a `narrative_coherence` attestation per
+REQ-346. Assert: (a) every narrative-critical REQ (§5.12) has an implementation
+status of `converged` or a recorded waiver under REQ-013; (b) `badge_briefing`
+rendered against a populated Novel includes all decision-critical and
+supplementary narrative sections defined by REQ-109; (c) the embedded or linked
+smoke-session transcript contains ≥5 turns of cooperative play demonstrating
+coherent story flow through the server's narrative surfaces. Assert
+`spec_health` reports a `narrative_coherence` flag with disposition `pass`,
+`partial`, or `fail`. A `fail` disposition blocks handoff (§9). A `partial`
+disposition is recorded as a non-blocking finding with a re-activation
+condition.
 
 **T18 anti-badge sub-workflows:**
 
