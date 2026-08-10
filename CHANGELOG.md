@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-09 — Split narrative and world content, self-contain dnd5e vendor files
+
+- Split `holonovel/narrative_world_model/` into `narrative/` (enrichment
+  vendor sources: DMCP, BitD, Lonelog, IF Craft Corpus) and `world/`
+  (kind hierarchy, property contracts, parser command catalog).
+- Made dnd5e-holonovel self-contained — it now has its own copy of the
+  vendor content it references (bitd/progress-clocks.md and
+  if-craft-corpus/README.md), resolving provenance paths without
+  depending on the holonovel package at runtime.
+- Updated enrichment source URLs in both packages to match the new
+  directory structure.
+
 ## 2026-08-09 — Remove stale inform directory, repair holonovel remote
 
 - Removed the `inform/` directory — the `@holonovel/inform` package was
