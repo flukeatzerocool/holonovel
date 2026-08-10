@@ -256,6 +256,11 @@ rules.
 | P40 | Knowledge-carrying → Scene-anchored | Knowledge-carrying properties active in the current scene surface in Scene-anchored descriptions — lore about a haunted chapel colors the scene | Navigational | What you know colors what you see |
 | P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — combat scenes make NPCs hostile, social scenes make them talkative, exploration scenes make them curious | Navigational | The scene shapes the cast |
 | P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
+| P43 | Session → Temporal | Player pacing signals adjust the pacing window — a signal value requesting faster pacing reduces the window threshold; slower pacing increases it | Mechanical | The operator controls the story's rhythm |
+| P44 | Session → Temporal | GM narrative directives containing pacing keywords adjust the pacing window threshold — directives requesting faster pacing reduce it, slower pacing increase it | Mechanical | The GM sets the story's tempo |
+| P45 | Session → Entity-bearing | GM directives containing autonomy keywords toggle NPC autonomous behavior — "NPCs act independently" enables TTRPG_NPC_AUTONOMY, "characters drive themselves" enables autonomy; directive text evaluated at resolution time | Mechanical | The GM delegates character control |
+| P46 | Session → Entity-bearing + Scene-anchored | GM directives containing reactivity keywords toggle world-in-motion generation — "the world reacts" enables TTRPG_WORLD_REACTIVITY, "living world" enables both reactivity and NPC autonomy | Mechanical | The world comes alive on command |
+| P47 | Session → Guidance | GM directives containing synthesis keywords map to synthesis module activation — "use voice patterns" activates voice_examples, "activate lore templates" activates lore_templates, "add flavor" sets TTRPG_SYNTHESIS_AUTO_TRIGGER to on_scene_change | Mechanical | The GM activates story flavor in plain English |
 
 #### 7.7.1 Cross-property coupling
 
@@ -339,6 +344,11 @@ couplings cite REQ-236.
 | Scene → NPC | P41 | Scene type set to `combat` shifts NPC disposition toward hostile; `social` toward neutral/friendly; `exploration` toward curious — advisory surfaced in `narrative_threads` | — | Navigational | REQ-369, REQ-075 |
 | NPC → Scene | P42 | NPC presence in the current scene surfaces in `characters_present` field — NPCs whose `location` matches the active room auto-register | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369, REQ-075 |
 | NPC → Countdown | P36 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal urgency exceeds `TTRPG_NPC_URGENCY_THRESHOLD` | — | Navigational | REQ-369, REQ-077 |
+| Player Signal(pace) → Pacing Window | P43 | `player_signal("pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
+| Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → World Reactivity | P46 | Directive text containing reactivity keywords ("the world reacts", "living world", "active factions") enables TTRPG_WORLD_REACTIVITY; disabling keywords disable it | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → Synthesis Activation | P47 | Directive text containing synthesis keywords ("use voice patterns", "activate lore templates", "use action patterns", "add flavor") maps to the corresponding synthesis module or auto-trigger activation | GM-only | Mechanical | REQ-081, REQ-260 |
 | Server Notes → Narrative | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | — | Navigational | REQ-365, REQ-285 |
 
 ##### 7.7.1b Coupling curation
@@ -349,7 +359,7 @@ define interaction categories; the table instantiates them as specific
 property-group pairs. The table is curated — not every combinatorially possible
 archetype-pair instantiation is a meaningful coupling.
 
-`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P42,
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P47,
 excluding content-source-excluded rules) has at least one coupling row in
 §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling
 row citing a pattern rule whose source or target archetypes do not match the

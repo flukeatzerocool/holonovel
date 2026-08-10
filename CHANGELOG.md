@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-10 — Holodeck configuration alignment
+
+- Player pacing signals now mechanically adjust the dramatic pacing
+  window — "Computer, slow down" actually slows down the story rhythm
+  instead of being inert advice. (REQ-069)
+- Narrative directives are no longer purely inert — the system resolves
+  directive keywords against four behavioral dimensions (pacing, NPC
+  autonomy, world reactivity, synthesis activation) and applies the
+  matched configuration mechanically. Directives that match no dimension
+  remain inert as before. (REQ-081)
+- Every behavioral configuration dimension (pacing, autonomy, reactivity,
+  narrative tone, synthesis behavior) must register a natural language
+  access path via a coupling row in §7.7.1a — enforced by a new standing
+  rule, an Appendix M checklist item, and `spec_health` coverage
+  reporting. System configuration is exempt. (SR 11, REQ-388)
+- The system persona now answers to "Computer" — the canonical name for
+  the MCP server across all user-facing surfaces, matching the Star Trek
+  Holodeck north star.
+- Added five pattern rules (P43–P47) and five coupling rows for
+  player-signal and narrative-directive → behavioral-config couplings.
+  All P1–P42 boundary references updated to P1–P47.
+
 ## 2026-08-10 — Multi-ruleset isolation hardening
 
 - Closed codex capture ruleset-inheritance gap: `codex_capture` now defaults

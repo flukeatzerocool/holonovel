@@ -303,6 +303,16 @@ guard, the gap is explicit.
     (`suggest_actions`) are exempt — their content contracts are defined by their
     respective REQs. This rule is verified at G4 and G5 — narrative prompts
     containing tool names or technical syntax are a construction defect.
+11. **Holodeck config alignment.** Every behavioral configuration dimension — any
+    `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
+    character behavior, world reactivity, tone, autonomy, synthesis activation,
+    or narration style — SHALL register a natural language access path via a
+    coupling row in §7.7.1a with a Session-archetype source (`player_signal` or
+    `set_narrative_directive`). System configuration (storage caps, file paths,
+    build parameters, seed values) is exempt. The coverage of behavioral configs
+    with natural language access paths SHALL be mechanically verified at
+    assembly time, reported in `spec_health` at runtime, and checked against the
+    Appendix M authoring checklist before every new or modified REQ is committed.
 
 **Terminology.**
 
@@ -333,10 +343,11 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P42) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
+| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P47) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
 | Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
+| Computer      | The system persona. The server answers to "Computer" — the Holodeck's voice. The canonical name for the MCP server in all user-facing surfaces. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
