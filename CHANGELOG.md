@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-08-09 — Narrative model: Codex adventures, vendor enrich, integration couplings
+
+- Adventures can now be generated or loaded into the Codex without an active
+  Novel, letting the GM build a persistent adventure library across campaigns.
+  `generate_adventure` and `load_adventure` both gain a `target` parameter
+  (`novel`/`codex`/`both`), and `codex_capture` can now pull Novel adventure
+  content into the Codex. (REQ-321, REQ-079, REQ-090)
+- Added three new Tier 1 vendor enrichment sources: Ironsworn: Starforged SRD
+  (vows, progress tracks, oracle moves), Sly Flourish Lazy GM Resource Document
+  (session prep, NPC design, scene pacing), and The Alexandrian (node-based
+  design, Three Clue Rule, faction intrigue). (REQ-227, §11.2)
+- Vows and countdowns are now optionally coupled: accepting a countdown
+  suggestion after `set_vow` creates a linked `mission`-type countdown that
+  tracks vow milestones and enables `resolve_vow` on completion. (REQ-322)
+- Lore entries with `gm_only` or `player_discovered` visibility now check
+  entity presence before firing — secret knowledge only surfaces when someone
+  who knows it is in the scene. (REQ-083)
+- Campaign memory facts are now presence-scoped for Player hat visibility,
+  matching the existing knowledge-gating model. (REQ-310)
+- Factions can now hold and discover secrets; `reveal_secret` and
+  `check_knowledge` accept faction identifiers. Faction-implied rivalries
+  auto-recommend relationship changes. (REQ-234)
+- Voice examples in `hat_briefing` are now filtered by active scene type,
+  preventing combat barks from appearing in social scenes. (REQ-282)
+- NPC goal pursuit now offers countdown creation suggestions in the World in
+  Motion section, sized by goal scope. (REQ-233a)
+- Relationship type changes between non-neutral categories now inject event
+  markers into the `narrative_threads` briefing section for the current scene.
+  (REQ-236)
+- Story journal entries now cross-reference into NPC memory — NPCs who were
+  present carry a memory fact referencing the journal entry. (REQ-311)
+
 ## 2026-08-09 — T1 enrichment for world-model features
 
 - Added 30 enrichment entries across both manifests covering all five

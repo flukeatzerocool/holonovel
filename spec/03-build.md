@@ -1244,6 +1244,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-002a | S9 | Extended error category semantics |
 | REQ-002b | S1, S14e | Corrective-action contract |
 | REQ-002c | S6 | Hat-filtered error values |
+| REQ-321 | S15, S16, S17 | Codex |
+| REQ-322 | S23 | Vow-countdown coupling |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
