@@ -135,7 +135,7 @@ State tiers:
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains fifteen property groups, all
+**Novel properties.** Every Novel contains sixteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -156,6 +156,7 @@ discarded by `end_novel`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
+| Mechanics | Mechanical | read (engine-populated during Discovery; GM-filtered) | read-only (GM-filtered) |
 | World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
@@ -178,7 +179,7 @@ is unchanged.
 
 #### 7.7.0 Holodeck archetypes
 
-Novel property groups are classified into 11 archetypes. Each archetype defines
+Novel property groups are classified into 12 archetypes. Each archetype defines
 the property's behavioral nature. Coupling pattern rules between archetypes dictate
 every cross-property interaction — the coupling table (§7.7.1) is derived from
 these rules, not hand-enumerated.
@@ -203,6 +204,7 @@ the couplings already exist through the populated properties' own archetypes.
 | Guidance | Advisory content, never mechanical | Server notes, Anti-slop, Narrative tone |
 | Session | Scoped to the operator's presence | DM Context, Notes, Badge state, Player signals |
 | Ruleset Wisdom | Ruleset-extracted behavioral content — the seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices) produced during Discovery from the ruleset's own text per REQ-225. Persists as build output; not subject to synthesis reversion. Rendered as first-class server behavior, not advisory guidance — where the ruleset describes genre conventions, the server enacts them. | Synthesis (all 7 output modules) |
+| Mechanical | Ruleset-extracted resolution mechanics with Holodeck coupling effects. Defined during Discovery from extraction categories 1–6. Couples with other archetypes per P34–P37 — the ruleset's own text determines which mechanics affect which Holodeck surfaces. Where the ruleset describes a spell that destroys objects, the Holodeck registers the coupling; where the ruleset describes genre pacing, Wisdom drives the clock. Same Holodeck, different ruleset = different coupling map. | Mechanics (populated during Discovery per REQ-377) |
 
 **Coupling pattern rules.** Each rule is a behavioral contract — a "what," not a
 "how." Every row in the coupling table (§7.7.1) traces to one or more of these
@@ -243,13 +245,22 @@ rules.
 | P31 | Temporal → Narrative-memory | Temporal fire produces narrative-memory records — countdown consequences become story journal entries | Mechanical | What happens becomes what's remembered |
 | P32 | Session → Entity-bearing | Session corrections — voice feedback — update entity voice examples and personality profiles | Mechanical | The operator refines the character |
 | P33 | Narrative-memory → Entity-bearing | Narrative-memory entries referencing entity goals or faction interests produce temporal advisories in narrative threads | Navigational | Recorded events signal faction consequences |
+| P34 | Mechanical → Spatial | Mechanical outcomes that describe world-affecting effects (destruction, illumination, obstruction, transformation) mutate Spatial properties — room descriptions, thing properties, exits | Mechanical | Your actions change the room |
+| P35 | Mechanical → Entity-bearing | Mechanical outcomes affecting entities (conditions, damage, disposition shifts) mutate Entity-bearing properties | Mechanical | Your actions change the characters |
+| P36 | Mechanical → Temporal | Mechanical outcomes that create urgency or time pressure (destructive spells, area effects, round-limited mechanics) suggest Temporal property creation | Navigational | Your actions drive the clock |
+| P37 | Mechanical → Knowledge-carrying | Mechanical outcomes that reveal information (divination, detection, lore checks) surface as Knowledge-carrying entries | Navigational | Your actions reveal knowledge |
+| P38 | Scene-anchored → Spatial | Scene state `location` field resolves against Spatial room names; scene description derives from Spatial state when location matches | Mechanical | The scene describes the room |
+| P39 | Temporal → Scene-anchored | Temporal property fire updates Scene-anchored properties sharing scope — a countdown that floods a room updates the scene description | Mechanical | The clock changes the scene |
+| P40 | Knowledge-carrying → Scene-anchored | Knowledge-carrying properties active in the current scene surface in Scene-anchored descriptions — lore about a haunted chapel colors the scene | Navigational | What you know colors what you see |
+| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — combat scenes make NPCs hostile, social scenes make them talkative, exploration scenes make them curious | Navigational | The scene shapes the cast |
+| P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 
 #### 7.7.1 Cross-property coupling
 
 The Novel property groups interact through coupling contracts derived from the
 archetype pattern rules in §7.7.0. This section enumerates every active coupling
-(§7.7.1a) and every pair that does not interact (§7.7.1b). Together they satisfy
-the coupling completeness contract (REQ-370).
+(§7.7.1a). Couplings are derived from pattern rules, not hand-enumerated —
+the derivation contract (REQ-370) replaces the completeness register.
 
 ##### 7.7.1a Active couplings
 
@@ -259,8 +270,13 @@ the coupling completeness contract (REQ-370).
 | Scene → Countdown | P1 | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description | GM-only | Mechanical | REQ-125, REQ-073 |
 | Scene → Faction | P1 | Faction clocks advance one tick on each scene transition | GM-only | Mechanical | REQ-233 |
 | Combat ↔ NPC | P24 | NPCs may participate as combat participants alongside entities and dangers | GM-only | Mechanical | REQ-043, REQ-075, REQ-124 |
+| NPC → World Model | P3 | NPC `location` field resolves against spatial room names — NPCs exist in physical space | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369 |
 | Synthesis → Lore | P5 | Wisdom lore templates mechanically activate on trigger match | GM-only | Mechanical | REQ-080, REQ-083 |
-| Synthesis → Scene/Entity/NPC | P6, P8 | Wisdom voice_examples, narrative guidance, and supplementary content render on scene, entity, and NPC surfaces — NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
+| Synthesis → Scene | P8 | Wisdom scene beats and briefing order modules render the ruleset's own narrative architecture | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical + Navigational | REQ-080 |
+| Synthesis → Entity/NPC | P6 | NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality patterns — no manual activation required | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
+| Mechanics → World Model | P34 | Mechanical outcomes with world-affecting effects populate coupling metadata during Discovery per REQ-377 — example: Fireball (Spatial, destruction) | GM-only | Mechanical | REQ-377 |
+| Mechanics → NPC | P35 | Mechanical outcomes affecting entities populate coupling metadata during Discovery per REQ-377 — example: Hold Person (Entity-bearing, condition) | GM-only | Mechanical | REQ-377 |
+| Mechanics → Lore | P37 | Mechanical outcomes that reveal information surface as Knowledge-carrying entries per Discovery coupling metadata — example: Detect Magic (Knowledge-carrying, revelation) | GM-only | Navigational | REQ-377 |
 | Faction → Countdown | P4 | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal | GM-only | Mechanical | REQ-233, REQ-073 |
 | Secret → Relationship | P25 | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | GM-only | Navigational | REQ-234, REQ-236 |
 | Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | GM-only | Navigational | REQ-236 |
@@ -277,7 +293,7 @@ the coupling completeness contract (REQ-370).
 | Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
 | Codex → Faction | — | `codex_import` of kind `faction` creates a faction in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
 | Codex → Countdown | — | `codex_import` of kind `countdown` creates a countdown in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
-| Vows → Countdown | P4 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | GM-only | Mechanical | REQ-322 |
+| Vows → Countdown | P12 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | GM-only | Mechanical | REQ-322 |
 | World → Scene | P13 | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | P16 | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | GM-only | Navigational | REQ-333 |
 | Notes → Lore | P17 | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Player-visible, badge-scoped | Navigational | REQ-242 |
@@ -286,7 +302,7 @@ the coupling completeness contract (REQ-370).
 | Pacing Signal → Narrative Threads | P28 | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | GM-only | Narrative | REQ-336, REQ-281 |
 | Pacing Signal → Faction Autonomous | P1 | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | GM-only | Mechanical | REQ-336, REQ-338, REQ-351 |
 | Pacing Signal → NPC Goal Pursuit | P29 | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | GM-only | Mechanical | REQ-336, REQ-339, REQ-351 |
-| Scene → World Model | P3 | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
+| Scene → World Model | P38 | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
 | suggest_actions → resolve_intent | P10 | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | GM-only (resolve_intent); Player-visible (suggest_actions results) | Navigational | REQ-343, REQ-323 |
 | Faction → Autonomous Countdown | P1 | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | GM-only | Mechanical | REQ-338 |
 | Faction Autonomous → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | GM-only | Mechanical | REQ-338, REQ-339, REQ-348 |
@@ -296,7 +312,7 @@ the coupling completeness contract (REQ-370).
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
 | Background → Lore | P2 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350, REQ-083 |
 | Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | GM-only (editing mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
-| Secret → Countdown | P18 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
+| Secret → Countdown | P19 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
 | Vow → Lore | P2 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289, REQ-083 |
 | Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-357, REQ-246, REQ-233 |
 | Countdown → NPC | P15 | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | GM-only | Mechanical | REQ-358, REQ-073, REQ-075 |
@@ -304,45 +320,41 @@ the coupling completeness contract (REQ-370).
 | Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
 | World → Synthesis | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11 |
 | Synthesis → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
+| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | GM-only | Mechanical | REQ-371, REQ-073 |
+| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | GM-only | Mechanical | REQ-371, REQ-236 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-359, REQ-236, REQ-073 |
 | Lore → Countdown | P19 | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | GM-only | Navigational | REQ-360, REQ-083, REQ-073 |
 | NPC → Vow | P20 | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-361, REQ-077, REQ-289 |
 | Faction → Vow | P20 | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-362, REQ-233, REQ-289 |
 | Secret → World Model | P21 | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | GM-only | Navigational | REQ-363, REQ-234, REQ-195 |
 | Faction → World Model | P22 | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | GM-only | Navigational | REQ-364, REQ-233, REQ-195 |
+| Countdown → Scene | P39 | Countdown fire with scene scope updates the current scene description — countdown `world_effect` type `"scene"` mutates the scene state | GM-only | Mechanical | REQ-369, REQ-073 |
+| Lore → Scene | P40 | Active lore entries with current-scene triggers surface the lore content in the scene description tagged `[lore-relevant]` | GM-only (GM surface), Player-visible (shared-scope lore) | Navigational | REQ-369, REQ-083 |
+| Scene → NPC | P41 | Scene type set to `combat` shifts NPC disposition toward hostile; `social` toward neutral/friendly; `exploration` toward curious — advisory surfaced in `narrative_threads` | GM-only | Navigational | REQ-369, REQ-075 |
+| NPC → Scene | P42 | NPC presence in the current scene surfaces in `characters_present` field — NPCs whose `location` matches the active room auto-register | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369, REQ-075 |
+| NPC → Countdown | P36 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal urgency exceeds `TTRPG_NPC_URGENCY_THRESHOLD` | GM-only | Navigational | REQ-369, REQ-073, REQ-077 |
 | Server Notes → Narrative | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | GM-only | Navigational | REQ-365, REQ-285 |
 
-##### 7.7.1b Completeness register
+##### 7.7.1b Coupling derivation
 
-Every Novel property-group pair from §7.7 is accounted for below, including the World
-Model group (Spatial). Pairs not listed
-in §7.7.1a carry `[none]` — no interaction. Pairs where the source is a content
-source (Adventure, Codex) are `[none]` — content sources populate property groups
-which couple via their own archetype rules.
+Couplings are derived from pattern rules, not hand-enumerated. Every property
+group carries one or more Holodeck archetypes (§7.7.0). Every pattern rule
+defines an archetype-pair interaction. The coupling table (§7.7.1a) is the
+concrete instantiation: for each pattern rule, apply it to every property-group
+pair whose archetypes match the rule's source and target archetypes.
 
-| Property pair | Disposition |
-| ------------- | ----------- |
-| NPC → Scene | [none] |
-| NPC → Countdown | [none] |
-| NPC → Lore | [none] |
-| NPC → Synthesis | [none] |
-| Scene → NPC | [none] |
-| Scene → Synthesis | [none] |
-| Countdown → Scene | [none] |
-| Countdown → Lore | [none] |
-| Countdown → Synthesis | [none] |
-| Lore → Scene | [none] |
-| Lore → Countdown | [none] |
-| Lore → Synthesis | [none] |
-| Synthesis → Countdown | [none] |
-| Adventure → * (all targets) | [none — content source; populated property groups couple via their own archetype rules] |
-| Adventure Scene Waypoint → * | [none — content source fragment; populated properties couple via their own archetype rules] |
-| Adventure Index → * | [none — content source; populated properties couple via their own archetype rules] |
-| Codex → Adventure | [none — content source; populated properties couple via their own archetype rules] |
-| DM Context → * (all non-State targets) | [none] |
-| Server Notes → * (all non-Narrative targets) | [none] |
-| Story Journal → * (all non-Lore targets) | [none] |
-| All remaining unlisted ordered pairs | [none] |
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P42)
+has at least one coupling row in §7.7.1a. A pattern rule with zero coupling
+rows is a spec defect. A coupling row citing a pattern rule whose source or
+target archetypes do not match the row's property-group archetypes is a spec
+defect.
+
+Content source groups (Adventure, Adventure Scene Waypoint, Adventure Index,
+Codex) are excluded from derivation — their populated property groups couple
+via their own archetype rules (§7.7.0). Session-scoped groups (DM Context,
+Notes, Server Notes) couple per their pattern rules (P17, P23, P32); pairs
+not covered by those rules produce no couplings — no completeness register
+needed.
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence

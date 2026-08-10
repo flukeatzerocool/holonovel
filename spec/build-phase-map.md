@@ -12,7 +12,7 @@ independently specify file lists.**
 |-------------------------------|-------------------------------------------------------------------------------|---------|
 | G0 structural integrity        | 01-foundations.md §1–§3, 03-build.md §6.1–§6.2                                | 2,500   |
 | Convert (if selected)          | 03-build.md §6.2 Convert, appendices-reference.md §G                          | 3,000   |
-| Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2 (provider indexing replaced by `holonovel` install) | 5,000   |
+| Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2, §5.15 | 5,000   |
 | Construction (§6.4)            | 03-build.md §6.4, 02-requirements.md §5.3–§5.7, 04-runtime.md                 | 7,500   |
 | Convergence (§6.5)             | 03-build.md §6.5, 02-requirements.md (all), 05-verification.md, 08-synthesis.md §11.4 (when synthesis metrics in scope) | 9,200   |
 | Ruleset Pattern Buffer (§6.6)         | 03-build.md §6.6, 05-verification.md, 06-artifacts.md                         | 3,000   |
