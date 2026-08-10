@@ -855,7 +855,8 @@ NOT mark the module barren — `supplementary_guidance` remains populated
 by existing REQ-225 sources. Items SHALL carry a `component_type`
 annotation identifying the narrative area they enrich: `scene_type`,
 `relationship`, `countdown`, `secret`, `player_signal`,
-`story_journal`, `constraint_override`, `scene_world`, or
+`story_journal`, `scene_beats`, `pacing`, `autonomy`,
+`constraint_override`, `scene_world`, or
 `npc_world`.
 
 The `constraint_override` component type SHALL map to GM advice chapters
@@ -867,9 +868,18 @@ sight lines, or spatial relationships — rooms that connect to other rooms,
 environments where line of sight matters (REQ-326). The `npc_world`
 component type SHALL map to NPC interaction guidelines mentioning
 positioning, patrol routes, territory, or situational awareness — NPCs
-placed in specific rooms with behavioral context (REQ-327). Items extracted
-with these component types follow the same confidence model and `[ruleset]`
-tagging contract. Items SHALL include the corresponding world-model REQ
+placed in specific rooms with behavioral context (REQ-327). The
+`scene_beats` component type SHALL map to GM advice chapters discussing
+dramatic structure — rising action, climax, denouement, scene
+sequences — and SHALL feed the story beats briefing surface (REQ-335).
+The `pacing` component type SHALL map to session-management advice
+discussing scene duration, action-to-description cadence, and when to
+cut scenes — and SHALL feed the pacing signal surface (REQ-336). The
+`autonomy` component type SHALL map to solo-play and GM-emulation
+advice discussing NPC agency, faction independence, and automated world
+reaction — and SHALL feed faction autonomous advancement (REQ-338) and
+NPC goal pursuit (REQ-339). Items extracted with these component types
+follow the same confidence model and `[ruleset]` tagging contract. Items SHALL include the corresponding world-model REQ
 citation in their `source_anchor`.
 
 *Acceptance criterion:* A ruleset with GM advice chapters produces at
@@ -7463,12 +7473,21 @@ inspection tools — `resolve_intent` (REQ-323), parser `look` and
 `examine` commands, and resource reads (`room://<id>`, `thing://<id>`,
 `world://map`) — consistent with the state-query permission of REQ-305.
 
+The observer `badge_briefing` SHALL include presence markers and
+`knowledge_state` for all entities present in the Novel — the observer
+sees what the AI (playing both roles) knows for every character. Entity
+presence markers (REQ-307) and knowledge scoped by attendance (REQ-308)
+are unfiltered under the observer badge, matching the GM-level visibility
+contract: the human watches the AI auto-play, so no entity's percepts are
+hidden.
+
 *Acceptance criterion:* Call `set_badge("observer")` on a populated
 Novel. Assert `badge_briefing` includes scene state, entity personality,
 and narrative threads with omniscient-role orientation directive. Assert
-`badge_briefing` excludes secrets, faction clocks, countdown positions,
-and DM context. Assert `set_scene_state("test")` returns `[FORBIDDEN]`
-as before.
+`badge_briefing` includes `[not present]` markers and `knowledge_state`
+for all entities (not just the active entity). Assert `badge_briefing`
+excludes secrets, faction clocks, countdown positions, and DM context.
+Assert `set_scene_state("test")` returns `[FORBIDDEN]` as before.
 _Check:_ T-new-373.
 
 **REQ-346 — Narrative coherence attestation.** Before handoff (§9), the
