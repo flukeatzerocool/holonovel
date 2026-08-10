@@ -70,7 +70,7 @@ systems:
   positions, campaign memory facts — not the previous turn's narrative paragraph.
 
 - **Narrative voice profiles are standing directives.** WHEN a narrative voice profile is
-  active (enrichment Tier 1 per REQ-225, or set by the GM via REQ-081), THE profile's
+  active (Ruleset Wisdom per REQ-225, or set by the GM via REQ-081), THE profile's
   description SHALL be injected as a system-level directive in every context window, not
   merged into the conversational transcript where it can be diluted by chat history.
 
@@ -119,7 +119,7 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
-| `TTRPG_ENRICH_STALE_DAYS` | No   | Days before inactive enrichment items are flagged stale |
+| `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 
 ¹ Optional. Sets the initial active Novel on startup.
@@ -132,10 +132,10 @@ State tiers:
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
 | Codex      | Typed content library (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) | Permanent — survives all Novels, rebuilds, and server restarts | Badge-filtered by visibility field (REQ-321) |
-| Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains sixteen property groups, all
+**Novel properties.** Every Novel contains fifteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -145,7 +145,7 @@ discarded by `end_novel`):
 | Scene | Scene-anchored | read/write | read-only |
 | Countdown | Temporal | read/write/create/delete | read-only |
 | Lore | Knowledge-carrying | read/write/create/delete/enable/disable/group/export/import | read-only (badge-filtered per REQ-083) |
-| Enrichment | Ruleset Wisdom | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (badge-filtered); read/write for `[player]` items (REQ-261) |
+| Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; removed by `revert_synthesis` per REQ-103; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
 | Adventure | [content source] | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content badge-filtered; indexed and generated adventures coexist in the active Novel |
 | Adventure Scene Waypoint | [content source] | read/write (REQ-250) | read-only (pass-through in `badge_briefing`) |
 | Faction | Entity-bearing, Temporal | read/write/create/delete (REQ-233) | read-only (GM-filtered) |
@@ -155,7 +155,6 @@ discarded by `end_novel`):
 | Notes | Session | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
-| Novel Enrichment | Ruleset Wisdom | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (badge-filtered per REQ-267; deactivatable via REQ-260) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
@@ -202,7 +201,7 @@ the couplings already exist through the populated properties' own archetypes.
 | Decision | Presents structured player choices | Choices, Vows |
 | Guidance | Advisory content, never mechanical | Server notes, Anti-slop, Narrative tone |
 | Session | Scoped to the operator's presence | DM Context, Notes, Badge state, Player signals |
-| Ruleset Wisdom | Ruleset-extracted behavioral content — the seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices) produced during Discovery from the ruleset's own text per REQ-225. Persists as build output; survives tier reversion. Rendered as first-class server behavior, not advisory guidance — where the ruleset describes genre conventions, the server enacts them. | Enrichment (all 7 output modules) |
+| Ruleset Wisdom | Ruleset-extracted behavioral content — the seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices) produced during Discovery from the ruleset's own text per REQ-225. Persists as build output; not subject to synthesis reversion. Rendered as first-class server behavior, not advisory guidance — where the ruleset describes genre conventions, the server enacts them. | Synthesis (all 7 output modules) |
 
 **Coupling pattern rules.** Each rule is a behavioral contract — a "what," not a
 "how." Every row in the coupling table (§7.7.1) traces to one or more of these
@@ -259,8 +258,8 @@ the coupling completeness contract (REQ-370).
 | Scene → Countdown | P1 | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description | GM-only | Mechanical | REQ-125, REQ-073 |
 | Scene → Faction | P1 | Faction clocks advance one tick on each scene transition | GM-only | Mechanical | REQ-233 |
 | Combat ↔ NPC | P24 | NPCs may participate as combat participants alongside entities and dangers | GM-only | Mechanical | REQ-043, REQ-075, REQ-124 |
-| Enrichment → Lore | P5 | Wisdom lore templates mechanically activate on trigger match | GM-only | Mechanical | REQ-080, REQ-083 |
-| Enrichment → Scene/Entity/NPC | P6, P8 | Wisdom voice_examples, narrative guidance, and supplementary content render on scene, entity, and NPC surfaces — NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
+| Synthesis → Lore | P5 | Wisdom lore templates mechanically activate on trigger match | GM-only | Mechanical | REQ-080, REQ-083 |
+| Synthesis → Scene/Entity/NPC | P6, P8 | Wisdom voice_examples, narrative guidance, and supplementary content render on scene, entity, and NPC surfaces — NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
 | Faction → Countdown | P4 | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal | GM-only | Mechanical | REQ-233, REQ-073 |
 | Secret → Relationship | P25 | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | GM-only | Navigational | REQ-234, REQ-236 |
 | Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | GM-only | Navigational | REQ-236 |
@@ -302,15 +301,15 @@ the coupling completeness contract (REQ-370).
 | Countdown → NPC | P15 | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | GM-only | Mechanical | REQ-358, REQ-073, REQ-075 |
 | Countdown → World State | P14 | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | GM-only | Mechanical | REQ-368 |
 | Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
-| World → Novel Enrichment | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11.3 |
-| Enrichment → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
+| World → Synthesis | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11 |
+| Synthesis → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-359, REQ-236, REQ-073 |
 | Lore → Countdown | P19 | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | GM-only | Navigational | REQ-360, REQ-083, REQ-073 |
 | NPC → Vow | P20 | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-361, REQ-077, REQ-289 |
 | Faction → Vow | P20 | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-362, REQ-233, REQ-289 |
 | Secret → World Model | P21 | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | GM-only | Navigational | REQ-363, REQ-234, REQ-195 |
 | Faction → World Model | P22 | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | GM-only | Navigational | REQ-364, REQ-233, REQ-195 |
-| Server Notes → Narrative | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside enrichment items | GM-only | Navigational | REQ-365, REQ-285 |
+| Server Notes → Narrative | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | GM-only | Navigational | REQ-365, REQ-285 |
 
 ##### 7.7.1b Completeness register
 
@@ -324,16 +323,16 @@ which couple via their own archetype rules.
 | NPC → Scene | [none] |
 | NPC → Countdown | [none] |
 | NPC → Lore | [none] |
-| NPC → Enrichment | [none] |
+| NPC → Synthesis | [none] |
 | Scene → NPC | [none] |
-| Scene → Enrichment | [none] |
+| Scene → Synthesis | [none] |
 | Countdown → Scene | [none] |
 | Countdown → Lore | [none] |
-| Countdown → Enrichment | [none] |
+| Countdown → Synthesis | [none] |
 | Lore → Scene | [none] |
 | Lore → Countdown | [none] |
-| Lore → Enrichment | [none] |
-| Enrichment → Countdown | [none] |
+| Lore → Synthesis | [none] |
+| Synthesis → Countdown | [none] |
 | Adventure → * (all targets) | [none — content source; populated property groups couple via their own archetype rules] |
 | Adventure Scene Waypoint → * | [none — content source fragment; populated properties couple via their own archetype rules] |
 | Adventure Index → * | [none — content source; populated properties couple via their own archetype rules] |

@@ -14,7 +14,7 @@ const CORE_FILES = [
   "05-verification.md",
   "06-artifacts.md",
   "07-independent.md",
-  "08-enrichment.md",
+  "08-synthesis.md",
 ];
 
 const APPENDIX_REF = "appendices-reference.md";

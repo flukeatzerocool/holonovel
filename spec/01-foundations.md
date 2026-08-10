@@ -5,13 +5,13 @@
 > MCP server with dice, combat, character management, rules lookup, narrative directives,
 > dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
 > compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
-> adventure modules, and ruleset-native enrichment — plus four handoff artifacts (plus
+> adventure modules, and Ruleset Wisdom — plus four handoff artifacts (plus
 > LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
 > infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) provides
 > the spatial foundation for scene composition — defining what is physically possible in the
-> story — with configurable surface prominence (REQ-309). Optional community enrichment
-> workflow adds web-sourced
-> play advice. Quality enforced by verification workflows, 14 handoff verification steps,
+> story — with configurable surface prominence (REQ-309). Optional synthesis
+> workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
+> verification workflows, 14 handoff verification steps,
 > and a golden-transcript replay. One server per ruleset. No network at runtime
 > (REQ-051). Badges control tool-access gating (REQ-032): `player`, `game_master`,
 > `observer`, or `none`, switchable via `set_badge` (REQ-066). The AI's narrative role is
@@ -22,7 +22,7 @@
 > human. Multi-character support with entity presence (REQ-307) and knowledge gating by
 > presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
-> enrichment tiers enhance guidance; connections are ephemeral transport; Novel audit logs
+> synthesis enhances guidance; connections are ephemeral transport; Novel audit logs
 > persist. RNG deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
@@ -38,7 +38,7 @@
 - [8. Verification Workflows](#8-verification-workflows)
 - [9. Artifacts and Handoff](#9-artifacts-and-handoff)
 - [10. Independent Verification](#10-independent-verification)
-- [11. Optional Workflows](#11-optional-workflows)
+- [11. Synthesis](#11-synthesis)
 - [Appendices](#appendices)
 
 ---
@@ -299,7 +299,7 @@ guard, the gap is explicit.
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
 | Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible in editing mode (no badge); badge-filtered by visibility field per REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
-|               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
+|               |               entities, NPCs, scene state, countdowns, lore, synthesis, adventure,            |
 |               | audit log, snapshots, and badge state for a single ruleset story. A Novel          |
 |               | can be edited without a badge active (editing mode). The story begins when a       |
 |               | badge is activated and ends when the badge is removed — the Novel persists.          |
@@ -323,7 +323,7 @@ guard, the gap is explicit.
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
 | Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `set_scene_state`. Non-present entities are marked `[not present]` in `badge_briefing` and the party resource. The GM controls presence with `set_party_presence`. |
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
-| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Enrichment Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
