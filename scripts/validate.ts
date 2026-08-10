@@ -730,7 +730,7 @@ function checkCouplingCompleteness(text: string): string[] {
   const VALID_ARCHETYPES = new Set([
     "Temporal", "Entity-bearing", "Scene-anchored", "Knowledge-carrying",
     "Narrative-memory", "Spatial", "Relational", "Decision", "Guidance",
-    "Session", "Ruleset Wisdom"
+    "Session", "Ruleset Wisdom", "Mechanical"
   ]);
   const CONTENT_SOURCE_MARKER = "[content source]";
 
@@ -780,10 +780,11 @@ function checkCouplingCompleteness(text: string): string[] {
   }
 
   const couplingMatch = text.match(
-    /##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Completeness register)/
+    /##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Coupling derivation)/
   );
   const couplingSection = couplingMatch ? couplingMatch[0] : "";
   const couplingPairs = new Set<string>();
+  const couplingRows: { pair: string; patternRule: string }[] = [];
   if (couplingSection) {
     const couplingLines = couplingSection.split("\n");
     let inCouplingTable = false;
@@ -803,6 +804,7 @@ function checkCouplingCompleteness(text: string): string[] {
               .replace(/\s+/g, " ")
               .trim();
             couplingPairs.add(normalized);
+            couplingRows.push({ pair: normalized, patternRule });
             if (patternRule && patternRule !== "—" && !/^P\d+/.test(patternRule)) {
               issues.push(
                 `ERROR: Coupling row "${pair}" has invalid Pattern Rule "${patternRule}" — expected P\d+ or "—"`
@@ -815,111 +817,70 @@ function checkCouplingCompleteness(text: string): string[] {
     }
   }
 
-  const registerMatch = text.match(
-    /##### 7\.7\.1b Completeness register[\s\S]*?(?=\n### 7\.8 )/
+  // Extract pattern rules from §7.7.0
+  const patternMatch = text.match(
+    /\*\*Coupling pattern rules\.\*\*[\s\S]*?(?=#### 7\.7\.1 Cross-property coupling)/
   );
-  const registerSection = registerMatch ? registerMatch[0] : "";
-  const nonePairs = new Set<string>();
-  let hasWildcard = false;
-  if (registerSection) {
-    const registerLines = registerSection.split("\n");
-    let inRegisterTable = false;
-    for (const line of registerLines) {
-      if (line.includes("| Property pair |") && line.includes("Disposition")) {
-        inRegisterTable = true;
+  const patternSection = patternMatch ? patternMatch[0] : "";
+  const patternRules = new Set<string>();
+  if (patternSection) {
+    const patternLines = patternSection.split("\n");
+    let inPatternTable = false;
+    for (const line of patternLines) {
+      if (line.includes("| Rule |") && line.includes("Source archetype")) {
+        inPatternTable = true;
         continue;
       }
-      if (inRegisterTable && line.startsWith("|") && line.includes("|")) {
+      if (inPatternTable && line.startsWith("|") && (line.includes("→") || line.includes("↔"))) {
         const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
         if (cols.length >= 2) {
-          const pair = cols[0];
-          const disposition = cols[1] || "";
-          if (pair && !pair.startsWith("-") && pair !== "Property pair") {
-            if (pair.toLowerCase().includes("all remaining unlisted")) {
-              hasWildcard = true;
-            } else if (disposition.includes("[none")) {
-              if (pair.includes("*")) {
-                const sourceGroup = pair.split("→")[0].trim();
-                for (const pg of propGroups) {
-                  if (pg.name !== sourceGroup) {
-                    nonePairs.add(`${sourceGroup}→${pg.name}`);
-                  }
-                }
-              } else {
-                const normalized = pair
-                  .replace(/\s*[↔→]\s*/g, "→")
-                  .replace(/\s+/g, " ")
-                  .trim();
-                nonePairs.add(normalized);
-              }
-            }
+          const ruleName = cols[0];
+          if (!ruleName.startsWith("—") && ruleName.length > 0) {
+            patternRules.add(ruleName);
           }
         }
       }
-      if (inRegisterTable && !line.startsWith("|") && line.trim().length > 0) break;
+      if (inPatternTable && !line.startsWith("|") && line.trim().length > 0) break;
     }
   }
 
-  const sourceGroups = new Set(
-    propGroups
-      .filter((pg) => pg.archetypes.includes(CONTENT_SOURCE_MARKER))
-      .map((pg) => pg.name)
+  // Build a set of pattern rules used in coupling rows
+  const usedRules = new Set<string>();
+  for (const row of couplingRows) {
+    if (row.patternRule !== "—") {
+      usedRules.add(row.patternRule);
+    }
+  }
+
+  // Store couplingRows for pattern rule check
+  // Check every pattern rule has ≥1 coupling row
+  let orphanedRules = 0;
+  for (const rule of patternRules) {
+    if (!usedRules.has(rule)) {
+      issues.push(`ERROR: Pattern rule ${rule} has zero coupling rows in §7.7.1a`);
+      orphanedRules++;
+    }
+  }
+
+  // Check undefined pattern rules cited
+  for (const rule of usedRules) {
+    if (!patternRules.has(rule)) {
+      issues.push(`WARNING: Coupling rows cite undefined pattern rule ${rule}`);
+    }
+  }
+
+  // Report summary
+  const totalPatternRules = patternRules.size;
+  const populatedRules = totalPatternRules - orphanedRules;
+  console.log(
+    `\nCoupling derivation: ${populatedRules}/${totalPatternRules} pattern rules have ≥1 coupling row`
   );
-  const couplingGroups = propGroups.filter(
-    (pg) => !pg.archetypes.includes(CONTENT_SOURCE_MARKER)
-  );
-
-  const unaccounted: string[] = [];
-  for (const source of couplingGroups) {
-    for (const target of couplingGroups) {
-      if (source.name === target.name) continue;
-      const pair = `${source.name}→${target.name}`;
-      if (!couplingPairs.has(pair) && !nonePairs.has(pair)) {
-        unaccounted.push(pair);
-      }
-    }
+  if (orphanedRules > 0) {
+    console.log(`  ${orphanedRules} orphaned pattern rule(s) with zero coupling rows`);
   }
 
-  const effectiveUnaccounted = hasWildcard ? [] : unaccounted;
-
-  if (effectiveUnaccounted.length > 0) {
-    issues.push(
-      `ERROR: ${effectiveUnaccounted.length} property-group pair(s) unaccounted in §7.7.1:`
-    );
-    for (const p of effectiveUnaccounted) {
-      issues.push(`ERROR:   UNACCOUNTED: ${p}`);
-    }
-  }
-
-  const activePropNames = new Set(couplingGroups.map((pg) => pg.name));
-  for (const pair of couplingPairs) {
-    const arrow = pair.includes("↔") ? "↔" : "→";
-    const [src, tgt] = pair.split(arrow).map((s) => s.trim());
-    if (src && !activePropNames.has(src) && !sourceGroups.has(src)) {
-      issues.push(`WARNING: Coupling source "${src}" not found in §7.7 property groups`);
-    }
-    if (tgt && !activePropNames.has(tgt) && !sourceGroups.has(tgt)) {
-      issues.push(`WARNING: Coupling target "${tgt}" not found in §7.7 property groups`);
-    }
-  }
-
-  const totalPairs =
-    couplingGroups.length * (couplingGroups.length - 1);
-  const accounted = couplingPairs.size + nonePairs.size;
-  const pct = totalPairs > 0 ? Math.round((accounted / totalPairs) * 100) : 100;
-  if (hasWildcard) {
-    console.log(
-      `\nCoupling completeness: ${accounted}/${totalPairs} pairs explicitly accounted for ` +
-        `(${pct}%) — wildcard covers ${totalPairs - accounted} remaining`
-    );
-  } else {
-    console.log(
-      `\nCoupling completeness: ${accounted}/${totalPairs} pairs accounted for (${pct}%)`
-    );
-  }
-
-  if (issues.length === 0) {
-    console.log("PASS: All property-group pairs accounted for in §7.7.1");
+  if (orphanedRules === 0) {
+    console.log("PASS: All pattern rules have ≥1 coupling row");
   }
 
   return issues;

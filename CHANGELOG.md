@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-08-10 — Holodeck coupling architecture integration
+
+- Replaced the coupling completeness register (§7.7.1b) with a derivation
+  contract — couplings are derived from pattern rules, not hand-enumerated.
+  Every pattern rule (P1–P42) must have at least one coupling row; every
+  coupling row must cite a matching archetype rule. REQ-370 rewritten.
+- Added 9 new pattern rules: Mechanical → Spatial/Entity-bearing/
+  Temporal/Knowledge-carrying (P34–P37), Scene-anchored → Spatial (P38),
+  Temporal → Scene-anchored (P39), Knowledge-carrying → Scene-anchored
+  (P40), Scene-anchored → Entity-bearing (P41), Entity-bearing →
+  Scene-anchored (P42). 6 new Holodeck coupling directions closed.
+- Added 12th Holodeck archetype: Mechanical — ruleset-extracted resolution
+  mechanics with coupling effects discovered during Discovery.
+- Added Mechanics property group populated by Discovery per REQ-377.
+  Mechanical tools now carry coupling metadata (target archetype, nature,
+  triggering condition) extracted from the ruleset's own text. Same
+  Holodeck, different ruleset = different coupling map.
+- Added §5.15 Mechanical Coupling (REQ-377, REQ-378), mechanical coupling
+  convergence metrics, and Discovery classification step for mechanical
+  coupling effects.
+- Fixed 3 misattributed rule citations: Scene→World Model (P3→P38),
+  Secret→Countdown (P18→P19), Vows→Countdown (P4→P12).
+- Added 7 missing coupling rows: Synthesis→Countdown (P7), Synthesis→
+  Relationship (P9), Countdown→Scene (P39), Lore→Scene (P40), Scene→NPC
+  (P41), NPC→Scene (P42), NPC→Countdown (P36), NPC→World Model (P3).
+- Property group count: 15→16 (Novel-scoped, added Mechanics), 16→17
+  (total including World Model). Archetype count: 11→12.
+- Pattern rule range corrected: P1–P23 → P1–P42 in REQ-369 and T-new-376.
+- REQ-376 and T-new-387 scope extended to cover §5.15.
+- Renamed stale README terms: Hats → Badges, Enrich → Synthesis. Synthesis
+  section rewritten for flat model.
+- Updated `scripts/validate.ts` coupling validation from completeness
+  register (every pair accounted for) to derivation (every pattern rule
+  has ≥1 row). Added Mechanical to archetype set.
+- Added 8 new verification tests (T-new-388 through T-new-395) covering
+  mechanical coupling extraction, coupling derivation, Scene↔NPC
+  couplings, Temporal→Scene, Knowledge→Scene, and archetype verification.
+
 ## 2026-08-10 — Pattern Buffer coverage expansion and Holodeck coupling hardening
 
 - Holonovel Pattern Buffer now has a formal REQ coverage map (REQ-376)

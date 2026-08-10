@@ -360,6 +360,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.12 | Narrative Architecture | 335–366 | 31 |
 | 5.13 | Holodeck | 369–371, 374–376 | 6 |
 | 5.14 | Content Sources | 372–373 | 2 |
+| 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
 
 ### 5.1 Output and Error Contracts
 
@@ -7690,7 +7691,7 @@ _Check:_ T-new-352.
 Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
 Decision, Guidance, Session, or Ruleset Wisdom — as defined in §7.7.0.
 Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling
-pattern rules (P1–P23, §7.7.0). A coupling that does not trace to a pattern
+pattern rules (P1–P42, §7.7.0). A coupling that does not trace to a pattern
 rule is a spec defect. Archetypes classified as `[content source]` denote
 input sources that populate property groups — they are excluded from the
 coupling cross-product. `npm run validate` SHALL verify that every coupling
@@ -7700,19 +7701,23 @@ row in §7.7.1a cites a valid pattern rule.
 and no coupling row with an invalid or missing pattern rule reference.
 _Check:_ T-new-376.
 
-**REQ-370 — Coupling completeness.** Every ordered property-group pair in
-the Novel properties table (§7.7) — excluding `[content source]` groups —
-SHALL be accounted for in the coupling table (§7.7.1). Each pair SHALL carry
-either a defined coupling in §7.7.1a or an explicit `[none]` declaration in
-§7.7.1b. An ordered pair with neither is a spec defect. `npm run validate`
-SHALL report any unaccounted pair as an error. WHEN a new property group is
-added to §7.7, THE author SHALL assign its archetypes and extend §7.7.1 for
-every pair involving the new group — pattern rules dictate coupling behaviors;
-`[none]` is declared where no pattern rule applies.
+**REQ-370 — Coupling derivation.** Every coupling row in §7.7.1a SHALL
+cite a pattern rule whose source and target archetypes match the row's
+property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0
+(P1–P42) SHALL have at least one coupling row in §7.7.1a. A pattern rule
+with zero coupling rows is a spec defect. A coupling row citing a
+mismatched pattern rule is a spec defect. `npm run validate` SHALL verify
+both conditions.
 
-*Acceptance criterion:* `npm run validate` exits zero on coupling
-completeness; exits non-zero when any ordered pair is unaccounted.
-_Check:_ T-new-377.
+Property groups classified as `[content source]` do not participate in
+coupling derivation — the properties they populate couple via their own
+archetype rules (§7.7.0). The coupling completeness register (§7.7.1b
+previous) IS REMOVED — it is replaced by this derivation contract.
+
+*Acceptance criterion:* `npm run validate` reports no pattern rules with
+zero coupling rows and no coupling rows with mismatched archetype
+assignments.
+_Check:_ T-new-377 (amended).
 
 **REQ-371 — Ruleset Wisdom as rendered reality.** Ruleset Wisdom — the seven
 synthesis output modules extracted during Discovery (REQ-225) — SHALL be
@@ -7738,7 +7743,7 @@ archetype from the set defined in §7.7.0 (Temporal, Entity-bearing,
 Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
 Decision, Guidance, Session, Ruleset Wisdom). A property group without an
 archetype produces zero couplings — the coupling completeness metric in Phase 2
-cannot detect this gap. The metric threshold is 100%: all 16 property groups
+cannot detect this gap. The metric threshold is 100%: all 17 property groups
 classified. Missing archetype assignments SHALL be resolved by re-reading §7.7.0
 definitions and reassigning archetypes per the coupling pattern rules that govern
 each group's behavioral nature.
@@ -7767,7 +7772,8 @@ _Check:_ T-new-382.
 
 **REQ-376 — Holonovel Pattern Buffer traceability.** The builder must ensure at least
 one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10
-(World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the
+(World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck),
+§5.15 (Mechanical Coupling), and the
 world-model error contracts of REQ-367
 (World-model property contracts). The builder records a Holonovel
 sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
@@ -7861,6 +7867,56 @@ response prefix, error taxonomy, and source quoting. After
 `remove_supplementary`, tools are absent from `tools/list` and invocation
 returns `[NOT_FOUND]` (tool not recognized by the MCP layer).
 _Check:_ T-new-380.
+
+---
+
+### 5.15 Mechanical Coupling
+
+**REQ-377 — Mechanical coupling extraction.** During Discovery (§6.3), after
+extracting mechanical tools from categories 1–6, the builder SHALL identify
+which mechanical tools carry Holodeck coupling effects. A tool carries coupling
+effects when the ruleset's own text describes outcomes that affect the game
+world beyond immediate mechanical resolution — destruction of objects,
+illumination or extinguishing of light sources, creation or removal of
+obstacles, transformation of environments, revelation of information, or
+application of persistent conditions to entities.
+
+For each qualifying tool, the builder SHALL record coupling metadata: (a) the
+target archetype — Spatial, Entity-bearing, Temporal, or Knowledge-carrying,
+(b) the coupling nature — Mechanical for deterministic effects the ruleset
+describes as automatic, Navigational for effects requiring GM interpretation,
+and (c) the triggering condition drawn from the ruleset text. This metadata
+populates the Mechanics property group per the Mechanical archetype
+(§7.7.0).
+
+Confidence labels apply per coupling entry: HIGH when the ruleset text
+unambiguously describes a world-affecting outcome, MEDIUM when the effect is
+implied but not explicit, LOW when the builder infers coupling from genre
+convention alone.
+
+*Acceptance criterion:* A build against D&D 5e SRD produces coupling
+metadata for Fireball (Spatial, destruction — HIGH), Darkness (Spatial,
+extinguishing — HIGH), Light (Spatial, illumination — HIGH), and Hold Person
+(Entity-bearing, condition — HIGH). Each entry carries source anchor and
+confidence label. A ruleset-free build produces `[ruleset-free]` annotation.
+_Check:_ T-new-388.
+
+**REQ-378 — Mechanical coupling verification.** The convergence loop SHALL
+verify that: (a) at least one mechanical tool per extraction category
+(Concepts, Entities, Actions, Tables, Resolution, Roles) carries coupling
+metadata — a category with zero coupling entries is a finding;
+(b) the total coupling entries meet the threshold of at least one coupling
+entry per 50 indexed mechanical items, with a floor of 5 and a ceiling of 50;
+(c) at least 10% of mechanical couplings are Mechanical (automatic) rather
+than Navigational (advisory) — a build where every mechanical coupling
+requires GM confirmation is a findings.
+
+*Acceptance criterion:* A build against D&D 5e SRD (200+ indexed mechanical
+items) produces at least 4 mechanical coupling entries that meet the
+thresholds. At least one coupling is Mechanical (automatic), not
+Navigational. A ruleset-free build produces `[ruleset-free]` annotation for
+all mechanical coupling metrics.
+_Check:_ T-new-389.
 
 ---
 
@@ -8168,6 +8224,26 @@ and source anchors with HIGH confidence. The classified items form the
 ruleset-native synthesis manifest, written to the Novel's synthesis state during
 construction (Step 5). Ruleset-free builds produce an empty manifest.
 
+**Mechanical coupling classification.** After the seven extraction categories
+are complete and Enrichment classification is done, the builder SHALL classify
+extracted mechanical tools for Holodeck coupling effects per REQ-377. For each
+extracted tool in categories 1–6, the builder checks the tool's ruleset
+description for world-affecting language: destruction, illumination,
+extinguishing, obstruction, creation, or transformation → Spatial; condition
+application, disposition shifts, or entity modification → Entity-bearing;
+divination, detection, revelation, or information discovery →
+Knowledge-carrying; urgency creation, round-limited effects, or time pressure
+→ Temporal.
+
+Classification follows the same feedback-driven pattern as Enrichment
+classification (§6.3): the builder sort-assigns each qualifying tool's
+coupling effect to the matching archetype, then checks per-category coverage.
+Mechanical coupling items below the REQ-378 thresholds trigger re-reading of
+under-coupled source sections.
+
+Coupling metadata is written to the Mechanics property group and rendered in
+the coupling table (§7.7.1a) per pattern rules P34–P37.
+
 **Enrichment extraction memoization.** Before running REQ-225 classification,
 the builder SHALL check for a pre-built synthesis manifest per REQ-245. When
 a validated manifest is present, REQ-225 extraction and the feedback-driven
@@ -8342,7 +8418,8 @@ before any server code is written.
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 | Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 16 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 17 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
@@ -8350,9 +8427,11 @@ data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
 Cross-format consistency; Enrichment population shares source data with Extraction
 completeness; Archetype coverage shares source data with Enrichment population
-(Wisdom items carry archetype-informed coupling nature) and Coupling completeness
+(Wisdom items carry archetype-informed coupling nature) and Coupling derivation
 (Phase 2 — the coupling table is derived from archetype pairs);
 Reconciliation quality and Enrichment term anchoring are independent.
+Mechanical coupling population shares source data with Extraction completeness
+(mechanical tools populate both metrics).
 The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
@@ -8387,12 +8466,12 @@ request targeted remediation) before Phase 1 exit.
 
 **Archetype coverage** measures whether every Novel property group defined in §7.7
 is classified with at least one Holodeck archetype. A group without an archetype
-produces zero couplings — the Phase 2 Coupling completeness metric cannot detect
+produces zero couplings — the Phase 2 Coupling derivation metric cannot detect
 this gap because the cross-product excludes unclassified groups. Below 100%
 triggers re-reading of §7.7.0 archetype definitions and reassignment per the
 coupling pattern rules that govern each group's behavioral nature. Archetype
 coverage shares source data with Enrichment population (Wisdom items carry
-archetype-informed coupling nature) and Coupling completeness (Phase 2 — the
+archetype-informed coupling nature) and Coupling derivation (Phase 2 — the
 coupling table is derived from archetype pairs). A change to archetype
 assignments SHALL trigger re-verification of both metrics.
 
@@ -8427,7 +8506,7 @@ translated into tools, resources, and state.
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
 | Narrative coherence  | Narrative-critical REQs implemented; smoke-session transcript embedded; badge_briefing narrative sections populated; G7 attestation present in DECISIONS.md (6) | Pass + G7 attestation present | Remediate missing narrative REQs, re-run smoke session |
-| Coupling completeness | Fraction of property-group pairs (from §7.7 × §7.7.1 cross-product, excluding `[content source]` groups) with implemented couplings | 100% | Implement missing couplings; Ruleset Wisdom couplings flagged Navigational instead of Mechanical are findings |
+| Coupling derivation | Pattern rules with ≥1 coupling row; coupling rows with matching archetype assignments; zero orphaned pattern rules | 100% | Add missing coupling rows for orphaned pattern rules; fix mismatched archetype assignments |
 
 **Suggestion coverage constraint.** The curated intent set SHALL include at
 minimum: one intent per extraction action category (classified during Discovery
@@ -9270,7 +9349,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
-| REQ-370 | — (validated by `npm run validate`) | Coupling completeness |
+| REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
 | REQ-371 | S33 | Ruleset Wisdom as rendered reality |
 | REQ-374 | — (convergence Phase 1 metric) | Archetype coverage |
 | REQ-375 | — (convergence Phase 1 metric) | Wisdom mechanical coupling rate |
@@ -9843,7 +9922,7 @@ State tiers:
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains fifteen property groups, all
+**Novel properties.** Every Novel contains sixteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -9864,6 +9943,7 @@ discarded by `end_novel`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
+| Mechanics | Mechanical | read (engine-populated during Discovery; GM-filtered) | read-only (GM-filtered) |
 | World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
@@ -9886,7 +9966,7 @@ is unchanged.
 
 #### 7.7.0 Holodeck archetypes
 
-Novel property groups are classified into 11 archetypes. Each archetype defines
+Novel property groups are classified into 12 archetypes. Each archetype defines
 the property's behavioral nature. Coupling pattern rules between archetypes dictate
 every cross-property interaction — the coupling table (§7.7.1) is derived from
 these rules, not hand-enumerated.
@@ -9911,6 +9991,7 @@ the couplings already exist through the populated properties' own archetypes.
 | Guidance | Advisory content, never mechanical | Server notes, Anti-slop, Narrative tone |
 | Session | Scoped to the operator's presence | DM Context, Notes, Badge state, Player signals |
 | Ruleset Wisdom | Ruleset-extracted behavioral content — the seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices) produced during Discovery from the ruleset's own text per REQ-225. Persists as build output; not subject to synthesis reversion. Rendered as first-class server behavior, not advisory guidance — where the ruleset describes genre conventions, the server enacts them. | Synthesis (all 7 output modules) |
+| Mechanical | Ruleset-extracted resolution mechanics with Holodeck coupling effects. Defined during Discovery from extraction categories 1–6. Couples with other archetypes per P34–P37 — the ruleset's own text determines which mechanics affect which Holodeck surfaces. Where the ruleset describes a spell that destroys objects, the Holodeck registers the coupling; where the ruleset describes genre pacing, Wisdom drives the clock. Same Holodeck, different ruleset = different coupling map. | Mechanics (populated during Discovery per REQ-377) |
 
 **Coupling pattern rules.** Each rule is a behavioral contract — a "what," not a
 "how." Every row in the coupling table (§7.7.1) traces to one or more of these
@@ -9951,13 +10032,22 @@ rules.
 | P31 | Temporal → Narrative-memory | Temporal fire produces narrative-memory records — countdown consequences become story journal entries | Mechanical | What happens becomes what's remembered |
 | P32 | Session → Entity-bearing | Session corrections — voice feedback — update entity voice examples and personality profiles | Mechanical | The operator refines the character |
 | P33 | Narrative-memory → Entity-bearing | Narrative-memory entries referencing entity goals or faction interests produce temporal advisories in narrative threads | Navigational | Recorded events signal faction consequences |
+| P34 | Mechanical → Spatial | Mechanical outcomes that describe world-affecting effects (destruction, illumination, obstruction, transformation) mutate Spatial properties — room descriptions, thing properties, exits | Mechanical | Your actions change the room |
+| P35 | Mechanical → Entity-bearing | Mechanical outcomes affecting entities (conditions, damage, disposition shifts) mutate Entity-bearing properties | Mechanical | Your actions change the characters |
+| P36 | Mechanical → Temporal | Mechanical outcomes that create urgency or time pressure (destructive spells, area effects, round-limited mechanics) suggest Temporal property creation | Navigational | Your actions drive the clock |
+| P37 | Mechanical → Knowledge-carrying | Mechanical outcomes that reveal information (divination, detection, lore checks) surface as Knowledge-carrying entries | Navigational | Your actions reveal knowledge |
+| P38 | Scene-anchored → Spatial | Scene state `location` field resolves against Spatial room names; scene description derives from Spatial state when location matches | Mechanical | The scene describes the room |
+| P39 | Temporal → Scene-anchored | Temporal property fire updates Scene-anchored properties sharing scope — a countdown that floods a room updates the scene description | Mechanical | The clock changes the scene |
+| P40 | Knowledge-carrying → Scene-anchored | Knowledge-carrying properties active in the current scene surface in Scene-anchored descriptions — lore about a haunted chapel colors the scene | Navigational | What you know colors what you see |
+| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — combat scenes make NPCs hostile, social scenes make them talkative, exploration scenes make them curious | Navigational | The scene shapes the cast |
+| P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 
 #### 7.7.1 Cross-property coupling
 
 The Novel property groups interact through coupling contracts derived from the
 archetype pattern rules in §7.7.0. This section enumerates every active coupling
-(§7.7.1a) and every pair that does not interact (§7.7.1b). Together they satisfy
-the coupling completeness contract (REQ-370).
+(§7.7.1a). Couplings are derived from pattern rules, not hand-enumerated —
+the derivation contract (REQ-370) replaces the completeness register.
 
 ##### 7.7.1a Active couplings
 
@@ -9967,8 +10057,13 @@ the coupling completeness contract (REQ-370).
 | Scene → Countdown | P1 | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description | GM-only | Mechanical | REQ-125, REQ-073 |
 | Scene → Faction | P1 | Faction clocks advance one tick on each scene transition | GM-only | Mechanical | REQ-233 |
 | Combat ↔ NPC | P24 | NPCs may participate as combat participants alongside entities and dangers | GM-only | Mechanical | REQ-043, REQ-075, REQ-124 |
+| NPC → World Model | P3 | NPC `location` field resolves against spatial room names — NPCs exist in physical space | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369 |
 | Synthesis → Lore | P5 | Wisdom lore templates mechanically activate on trigger match | GM-only | Mechanical | REQ-080, REQ-083 |
-| Synthesis → Scene/Entity/NPC | P6, P8 | Wisdom voice_examples, narrative guidance, and supplementary content render on scene, entity, and NPC surfaces — NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
+| Synthesis → Scene | P8 | Wisdom scene beats and briefing order modules render the ruleset's own narrative architecture | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical + Navigational | REQ-080 |
+| Synthesis → Entity/NPC | P6 | NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality patterns — no manual activation required | Player-visible (shared-scope), GM-only (GM-scope) | Mechanical | REQ-080 |
+| Mechanics → World Model | P34 | Mechanical outcomes with world-affecting effects populate coupling metadata during Discovery per REQ-377 — example: Fireball (Spatial, destruction) | GM-only | Mechanical | REQ-377 |
+| Mechanics → NPC | P35 | Mechanical outcomes affecting entities populate coupling metadata during Discovery per REQ-377 — example: Hold Person (Entity-bearing, condition) | GM-only | Mechanical | REQ-377 |
+| Mechanics → Lore | P37 | Mechanical outcomes that reveal information surface as Knowledge-carrying entries per Discovery coupling metadata — example: Detect Magic (Knowledge-carrying, revelation) | GM-only | Navigational | REQ-377 |
 | Faction → Countdown | P4 | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal | GM-only | Mechanical | REQ-233, REQ-073 |
 | Secret → Relationship | P25 | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | GM-only | Navigational | REQ-234, REQ-236 |
 | Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | GM-only | Navigational | REQ-236 |
@@ -9985,7 +10080,7 @@ the coupling completeness contract (REQ-370).
 | Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
 | Codex → Faction | — | `codex_import` of kind `faction` creates a faction in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
 | Codex → Countdown | — | `codex_import` of kind `countdown` creates a countdown in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
-| Vows → Countdown | P4 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | GM-only | Mechanical | REQ-322 |
+| Vows → Countdown | P12 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | GM-only | Mechanical | REQ-322 |
 | World → Scene | P13 | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | P16 | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | GM-only | Navigational | REQ-333 |
 | Notes → Lore | P17 | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Player-visible, badge-scoped | Navigational | REQ-242 |
@@ -9994,7 +10089,7 @@ the coupling completeness contract (REQ-370).
 | Pacing Signal → Narrative Threads | P28 | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | GM-only | Narrative | REQ-336, REQ-281 |
 | Pacing Signal → Faction Autonomous | P1 | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | GM-only | Mechanical | REQ-336, REQ-338, REQ-351 |
 | Pacing Signal → NPC Goal Pursuit | P29 | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | GM-only | Mechanical | REQ-336, REQ-339, REQ-351 |
-| Scene → World Model | P3 | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
+| Scene → World Model | P38 | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
 | suggest_actions → resolve_intent | P10 | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | GM-only (resolve_intent); Player-visible (suggest_actions results) | Navigational | REQ-343, REQ-323 |
 | Faction → Autonomous Countdown | P1 | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | GM-only | Mechanical | REQ-338 |
 | Faction Autonomous → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | GM-only | Mechanical | REQ-338, REQ-339, REQ-348 |
@@ -10004,7 +10099,7 @@ the coupling completeness contract (REQ-370).
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
 | Background → Lore | P2 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350, REQ-083 |
 | Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | GM-only (editing mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
-| Secret → Countdown | P18 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
+| Secret → Countdown | P19 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
 | Vow → Lore | P2 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289, REQ-083 |
 | Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-357, REQ-246, REQ-233 |
 | Countdown → NPC | P15 | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | GM-only | Mechanical | REQ-358, REQ-073, REQ-075 |
@@ -10012,45 +10107,41 @@ the coupling completeness contract (REQ-370).
 | Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
 | World → Synthesis | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11 |
 | Synthesis → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
+| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | GM-only | Mechanical | REQ-371, REQ-073 |
+| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | GM-only | Mechanical | REQ-371, REQ-236 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-359, REQ-236, REQ-073 |
 | Lore → Countdown | P19 | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | GM-only | Navigational | REQ-360, REQ-083, REQ-073 |
 | NPC → Vow | P20 | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-361, REQ-077, REQ-289 |
 | Faction → Vow | P20 | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-362, REQ-233, REQ-289 |
 | Secret → World Model | P21 | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | GM-only | Navigational | REQ-363, REQ-234, REQ-195 |
 | Faction → World Model | P22 | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | GM-only | Navigational | REQ-364, REQ-233, REQ-195 |
+| Countdown → Scene | P39 | Countdown fire with scene scope updates the current scene description — countdown `world_effect` type `"scene"` mutates the scene state | GM-only | Mechanical | REQ-369, REQ-073 |
+| Lore → Scene | P40 | Active lore entries with current-scene triggers surface the lore content in the scene description tagged `[lore-relevant]` | GM-only (GM surface), Player-visible (shared-scope lore) | Navigational | REQ-369, REQ-083 |
+| Scene → NPC | P41 | Scene type set to `combat` shifts NPC disposition toward hostile; `social` toward neutral/friendly; `exploration` toward curious — advisory surfaced in `narrative_threads` | GM-only | Navigational | REQ-369, REQ-075 |
+| NPC → Scene | P42 | NPC presence in the current scene surfaces in `characters_present` field — NPCs whose `location` matches the active room auto-register | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369, REQ-075 |
+| NPC → Countdown | P36 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal urgency exceeds `TTRPG_NPC_URGENCY_THRESHOLD` | GM-only | Navigational | REQ-369, REQ-073, REQ-077 |
 | Server Notes → Narrative | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | GM-only | Navigational | REQ-365, REQ-285 |
 
-##### 7.7.1b Completeness register
+##### 7.7.1b Coupling derivation
 
-Every Novel property-group pair from §7.7 is accounted for below, including the World
-Model group (Spatial). Pairs not listed
-in §7.7.1a carry `[none]` — no interaction. Pairs where the source is a content
-source (Adventure, Codex) are `[none]` — content sources populate property groups
-which couple via their own archetype rules.
+Couplings are derived from pattern rules, not hand-enumerated. Every property
+group carries one or more Holodeck archetypes (§7.7.0). Every pattern rule
+defines an archetype-pair interaction. The coupling table (§7.7.1a) is the
+concrete instantiation: for each pattern rule, apply it to every property-group
+pair whose archetypes match the rule's source and target archetypes.
 
-| Property pair | Disposition |
-| ------------- | ----------- |
-| NPC → Scene | [none] |
-| NPC → Countdown | [none] |
-| NPC → Lore | [none] |
-| NPC → Synthesis | [none] |
-| Scene → NPC | [none] |
-| Scene → Synthesis | [none] |
-| Countdown → Scene | [none] |
-| Countdown → Lore | [none] |
-| Countdown → Synthesis | [none] |
-| Lore → Scene | [none] |
-| Lore → Countdown | [none] |
-| Lore → Synthesis | [none] |
-| Synthesis → Countdown | [none] |
-| Adventure → * (all targets) | [none — content source; populated property groups couple via their own archetype rules] |
-| Adventure Scene Waypoint → * | [none — content source fragment; populated properties couple via their own archetype rules] |
-| Adventure Index → * | [none — content source; populated properties couple via their own archetype rules] |
-| Codex → Adventure | [none — content source; populated properties couple via their own archetype rules] |
-| DM Context → * (all non-State targets) | [none] |
-| Server Notes → * (all non-Narrative targets) | [none] |
-| Story Journal → * (all non-Lore targets) | [none] |
-| All remaining unlisted ordered pairs | [none] |
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P42)
+has at least one coupling row in §7.7.1a. A pattern rule with zero coupling
+rows is a spec defect. A coupling row citing a pattern rule whose source or
+target archetypes do not match the row's property-group archetypes is a spec
+defect.
+
+Content source groups (Adventure, Adventure Scene Waypoint, Adventure Index,
+Codex) are excluded from derivation — their populated property groups couple
+via their own archetype rules (§7.7.0). Session-scoped groups (DM Context,
+Notes, Server Notes) couple per their pattern rules (P17, P23, P32); pairs
+not covered by those rules produce no couplings — no completeness register
+needed.
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
@@ -11598,13 +11689,15 @@ date-stamps matching CHANGELOG entries.
 | REQ-367 | Property propagation across containment | 2026-08-10 |
 | REQ-368 | Countdown-world effect coupling | 2026-08-10 |
 | REQ-369 | Holodeck archetype taxonomy | 2026-08-10 |
-| REQ-370 | Coupling completeness | 2026-08-10 |
+| REQ-370 | Coupling derivation | 2026-08-10 |
 | REQ-371 | Ruleset Wisdom as rendered reality | 2026-08-10 |
 | REQ-372 | Supplementary ruleset import | 2026-08-10 |
 | REQ-373 | Dynamic tool registration | 2026-08-10 |
 | REQ-374 | Archetype coverage | 2026-08-10 |
 | REQ-375 | Wisdom mechanical coupling rate | 2026-08-10 |
 | REQ-376 | Holonovel Pattern Buffer traceability | 2026-08-10 |
+| REQ-377 | Mechanical coupling extraction | 2026-08-10 |
+| REQ-378 | Mechanical coupling verification | 2026-08-10 |
 
 ---
 
@@ -12021,18 +12114,26 @@ diet.
 | T-new-373 | Automated | Observer narrative surface: call `set_badge("observer")` on a populated Novel with entities carrying both active and non-present states, and knowledge gating active (entity present in some scenes, absent from others). Assert `badge_briefing` includes scene state, entity personality, and narrative threads with omniscient-role orientation directive. Assert `badge_briefing` includes `[not present]` markers for entities absent from the current scene. Assert `badge_briefing` includes `knowledge_state` for all entities in the Novel (not only the active entity), matching the GM-level visibility contract. Assert `badge_briefing` excludes secrets, faction clocks, countdown positions, and DM context. Assert `set_scene_state(...)` from observer returns `[FORBIDDEN]`. | REQ-366, REQ-305 |
 | T-new-374 | Automated | Property propagation: create world model with rooms. Call `convert_source("An iron chest is a container. It is in the Entrance Chamber. A glass jar is a container. It is transparent. It is in the iron chest. A glowing lantern is in the glass jar. It is lit. It is switched on.")`. Assert `command("look")` — lantern NOT visible (opaque outer chest blocks glass jar regardless). Remove chest from chain, place jar directly in room — assert `command("look")` shows "a glowing lantern (inside the glass jar)". Call `command("switch off lantern")` — assert `command("look")` shows "a dark lantern (inside the glass jar)". Create vehicle in dark cave with `lit: true` — assert `command("enter boat")` and `command("look")` shows lit interior. Create vehicle with `lit: false` — assert interior inherits dark from cave. | REQ-367 |
 | T-new-375 | Automated | Countdown-world effect coupling: create world model with room Cellar. Call `set_countdown("flood", 3, type="narrative", world_effect={type:"describe", target:"cellar", value:"Knee-deep water fills the cellar, rising fast."})`. Advance three narrative ticks — assert countdown fires, cellar.description equals new text, prior description in undo stack. Call `undo` — assert prior description restored. Create countdown with `world_effect.type="property", target="lantern_01", property="lit", value=false` — fire — assert lantern no longer lit. Create countdown with `world_effect.type="exit", target="cellar", action="create", direction="north", destination="cave"` — fire — assert north exit created. Create countdown targeting room that is deleted before fire — assert `[WARNING] target missing — effect not applied` in audit log, countdown removed from active. | REQ-368 |
-| T-new-376 | Automated | Holodeck archetype verification: parse Novel properties table (§7.7), assert every property group has ≥1 archetype tag from the defined set (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, or `[content source]`). Assert every active coupling row in §7.7.1a cites a pattern rule in the Pattern Rule column (P1–P23 or `—` for uncategorized couplings). Assert no coupling row cites an undefined pattern rule. Assert every property group's archetypes are used by ≥1 coupling row (no orphaned archetype assignments). | REQ-369 |
-| T-new-377 | Automated | Coupling completeness: parse Novel properties table (§7.7) for all property groups, extract non-`[content source]` groups, parse coupling tables (§7.7.1a and §7.7.1b) for all documented pairs. Compute the directed cross-product of non-source groups. Assert every ordered pair has either a coupling row in §7.7.1a or an explicit `[none]` declaration in §7.7.1b. Assert `npm run validate` exits non-zero when a pair is unaccounted. | REQ-370 |
+| T-new-376 | Automated | Holodeck archetype verification: parse Novel properties table (§7.7), assert every property group has ≥1 archetype tag from the defined set (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical, or `[content source]`). Assert every active coupling row in §7.7.1a cites a pattern rule in the Pattern Rule column (P1–P42 or `—` for uncategorized couplings). Assert no coupling row cites an undefined pattern rule. Assert every property group's archetypes are used by ≥1 coupling row (no orphaned archetype assignments). | REQ-369 |
+| T-new-377 | Automated | Coupling derivation: parse §7.7.1a coupling rows, assert every coupling row cites a pattern rule whose source and target archetypes match the row's property-group archetypes. Parse §7.7.0 pattern rules (P1–P42), assert every pattern rule has ≥1 coupling row in §7.7.1a. Assert §7.7.1b no longer uses a completeness register — replaced by derivation contract. Assert `npm run validate` exits non-zero when a pattern rule has zero coupling rows. Assert `npm run validate` exits non-zero when a coupling row cites a mismatched archetype rule. | REQ-370 |
 | T-new-378 | Automated | Ruleset Wisdom as rendered reality: build with a ruleset that produces Ruleset Wisdom items. Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `activate_synthesis_item` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `deactivate_synthesis_item` on a Wisdom item — assert the coupled behavior ceases. Call `revert_synthesis` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T-new-379 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `list_synthesis_items(tier=1)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary_gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T-new-380 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
-| T-new-381 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 16 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T-new-381 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 17 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
 | T-new-382 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
 | T-new-383 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
 | T-new-384 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with Wisdom active — assert character_sheet shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on set_scene_state (P7). suggest_actions returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
 | T-new-385 | Automated | S27 blocking promotion: enrichment lifecycle sub-workflow now blocked from handoff on failure. Assert mechanical enactment assertions (P6, P7, P10) execute as part of S27. Assert deactivating Wisdom item suppresses mechanical behavior; reactivating restores it. | §6.6 S27 |
 | T-new-386 | Automated | Cross-model audit archetype coverage: run cross-model audit per REQ-299. Assert coverage includes ≥2 distinct archetype categories from §7.7.0. Assert audit report enumerates archetype categories compared. Assert archetype disagreements recorded as findings with both models' assignments and source anchors. | REQ-299 |
-| T-new-387 | Automated | Holonovel Pattern Buffer traceability: after a full Holonovel Pattern Buffer run, assert DECISIONS.md (6) contains a Holonovel sub-workflow-to-REQ mapping covering every REQ in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and REQ-367. Assert each covered REQ maps to at least one Holonovel PB sub-workflow. Assert gaps detected by `npm run validate` are errors that block assembly. | REQ-376 |
+| T-new-387 | Automated | Holonovel Pattern Buffer traceability: after a full Holonovel Pattern Buffer run, assert DECISIONS.md (6) contains a Holonovel sub-workflow-to-REQ mapping covering every REQ in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), §5.15 (Mechanical Coupling), and REQ-367. Assert each covered REQ maps to at least one Holonovel PB sub-workflow. Assert gaps detected by `npm run validate` are errors that block assembly. | REQ-376 |
+| T-new-388 | Automated | Mechanical coupling extraction: build against D&D 5e SRD. Assert Mechanics property group populated with coupling entries. Assert Fireball entry has target=Spatial, nature=Mechanical, source anchor. Assert Darkness has target=Spatial (extinguishing). Assert Light has target=Spatial (illumination). Assert Hold Person has target=Entity-bearing (condition). Assert every coupling entry carries confidence label (HIGH/MEDIUM/LOW). Assert ruleset-free build produces [ruleset-free]. | REQ-377 |
+| T-new-389 | Automated | Mechanical coupling verification: build with D&D 5e, assert ≥1 mechanical tool per extraction category carries coupling metadata. Assert total coupling entries ≥1 per 50 indexed items (≥4 for 200+ items). Assert ≥10% of couplings are Mechanical (automatic). Build ruleset-free — assert [ruleset-free] annotation. Build against a ruleset with zero world-affecting mechanics — assert [low-mechanical-coupling] finding. | REQ-378 |
+| T-new-390 | Automated | Coupling derivation: assert every pattern rule P1–P42 has ≥1 coupling row in §7.7.1a. Assert no coupling row cites a mismatched archetype rule. Assert completeness register (§7.7.1b previous) no longer exists — replaced by derivation contract. Assert `npm run validate` exits non-zero when a pattern rule has zero coupling rows. Assert `npm run validate` exits non-zero when a coupling row cites a mismatched pattern rule. | REQ-370 |
+| T-new-391 | Automated | Missing pattern rule detection: temporarily remove all coupling rows for P39 (Temporal → Scene-anchored). Assert `npm run validate` exits non-zero reporting P39 has zero coupling rows. Restore rows — assert passes. | REQ-370 |
+| T-new-392 | Automated | Scene ↔ NPC couplings: create NPC with disposition=friendly. Call `set_scene_type("combat")` — assert `narrative_threads` includes NPC disposition advisory (P41). Call `set_scene_type("social")` — assert advisory updated. Create NPC with `location` matching active room — call `set_scene_state("...", characters_present=["<entity>"])` — assert NPC auto-registers in scene per P42. | REQ-369, REQ-075 |
+| T-new-393 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
+| T-new-394 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], hat_scope="shared". Call `set_scene_state("You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with hat_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
+| T-new-395 | Automated | Archetype verification: parse §7.7 property groups, assert all 17 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
 
 ---
 

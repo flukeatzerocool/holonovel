@@ -15,14 +15,14 @@ README DESIGN:
   No tables for feature descriptions. No repetition. One story
     vector per section.
   MCP server pillars: Six infrastructure pillars under §3 — World
-    Model, Narrative Model, Convert and Build, Novels, Hats, Enrich —
-    follow a build-then-play arc: the spatial foundation, the living
-    world, how rulebooks become servers, the persistent campaign file,
-    the role architecture, the evolving game. Each pillar gets two
-    paragraphs: what it is, what you can do.
-  Enrichment: Its own section after Hats — three tiers enriching the
-    campaign with ruleset-native, community, and novel-generated
-    content. Independent removal boundaries.
+    Model, Narrative Model, Convert and Build, Novels, Badges,
+    Synthesis — follow a build-then-play arc: the spatial foundation,
+    the living world, how rulebooks become servers, the persistent
+    campaign file, the role architecture, the evolving game. Each
+    pillar gets two paragraphs: what it is, what you can do.
+  Synthesis: Its own section after Badges — Ruleset Wisdom extracted
+    during Build plus external research run on demand. Flat model,
+    single removal boundary.
   World Model: Mentions the Inform programming language exactly
     once — "powered by the Inform programming language."
   Comparison table: Three columns (Tool name | What you're used to |
@@ -201,7 +201,7 @@ Create, resume, rename, clone. Export and share. Import from other GMs. Undo any
 mutation. Session recaps summarize play. Save pause context — step away and
 return to the exact same state.
 
-### Hats
+### Badges
 
 Holonovel enforces roles at the server level. Player. Game Master. Observer.
 Editing mode. Four roles switched without restart. The AI takes the opposite
@@ -209,51 +209,45 @@ role automatically — when you're the player, the AI is your GM. When you GM, t
 AI plays the characters. Observer mode lets the AI run both sides while you
 watch, stepping in for mechanical decisions at your chosen autonomy level.
 
-Hat gating is not a prompt instruction. It is enforced server-side — GM secrets,
-lore entries, and narrative directives vanish from the Player hat's tool
-surface. The response the player sees never leaks what the GM knows. Every
+Badge gating is not a prompt instruction. It is enforced server-side — GM
+secrets, lore entries, and narrative directives vanish from the Player badge's
+tool surface. The response the player sees never leaks what the GM knows. Every
 boundary violation is audited. Four roles. No restart. Real enforcement.
 
-> "Put on the Game Master hat. I need to fix something."
-> "Switch to my Player hat. Let's play."
+> "Switch to the Game Master badge. I need to fix something."
+> "Switch to my Player badge. Let's play."
 > "Observer mode. Sit back and watch the AI run the whole table."
 > "I want things to move faster."
 > "Boundary: no body horror."
 
-Switch hats mid-scene. The AI adapts instantly. Player signals give you
+Switch badges mid-scene. The AI adapts instantly. Player signals give you
 structured, persistent control: set pace, difficulty, tone, focus, and topic
 boundaries. Every signal persists in the GM's briefing, shaping every response
 until you change it. You don't have to hope the AI reads the room. You tell it.
 
-### Enrich
+### Synthesis
 
-Enrichment deepens your campaign across three independent tiers. Ruleset-native
-enrichment is extracted from your books during Build — voice examples from
+Synthesis deepens your campaign through two source categories. Ruleset Wisdom
+is extracted from your books during Build — voice examples from
 example-of-play dialogue, lore templates from setting descriptions, action
-patterns from resolution sequences, narrative voice profiles from inspirational
-media citations, all anchored to your ruleset's own text. Community enrichment
-adds web-sourced GM advice, actual-play breakdowns, and designer notes — tagged
-with source URLs, confidence scores, and freshness timestamps. Novel-generated
-enrichment synthesizes from your own world state as you play — NPC personality
-profiles become voice examples, unresolved story threads become scene hooks,
-faction tensions become countdown warnings.
+patterns from resolution sequences, narrative voice profiles from
+inspirational media citations, all anchored to your ruleset's own text. It
+persists as first-class server behavior — the Holodeck renders your
+rulebook's own genre conventions mechanically. Ruleset Wisdom survives
+every rebuild and synthesis reversion.
+
+External research runs on demand — web-sourced GM advice, actual-play
+breakdowns, designer notes. Tagged with source URLs, confidence scores, and
+freshness timestamps. Novel state analysis produces supplementary items as
+you play.
 
 > "Find me GM advice and play examples for running horror one-shots."
 
-Every enrichment item is inert by default. The GM activates what matters — a
-goblin voice example, a lore template for the haunted forest, an action pattern
-for chase scenes. Toggle modules on and off at runtime. Player-authored items
-live alongside ruleset and community content. Activation state persists with the
-Novel.
-
-> "Activate the chase-scene action patterns. Deactivate the horror voice
-> examples."
-
-Each tier has an independent removal boundary. Revert community enrichment
-without touching ruleset-native material. Remove novel-synthesized items without
-affecting the other two tiers. Re-running enrichment replaces inactive items
-while preserving everything the GM has activated. The game evolves without losing
-what you've built.
+Every synthesis item is inert by default. The GM activates what matters.
+Toggle items on and off at runtime. Re-running synthesis replaces inactive
+items while preserving everything the GM has activated. `revert_synthesis`
+removes external research — Ruleset Wisdom persists. The game evolves
+without losing what you've built.
 
 ## How it compares
 

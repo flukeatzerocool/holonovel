@@ -302,6 +302,26 @@ and source anchors with HIGH confidence. The classified items form the
 ruleset-native synthesis manifest, written to the Novel's synthesis state during
 construction (Step 5). Ruleset-free builds produce an empty manifest.
 
+**Mechanical coupling classification.** After the seven extraction categories
+are complete and Enrichment classification is done, the builder SHALL classify
+extracted mechanical tools for Holodeck coupling effects per REQ-377. For each
+extracted tool in categories 1–6, the builder checks the tool's ruleset
+description for world-affecting language: destruction, illumination,
+extinguishing, obstruction, creation, or transformation → Spatial; condition
+application, disposition shifts, or entity modification → Entity-bearing;
+divination, detection, revelation, or information discovery →
+Knowledge-carrying; urgency creation, round-limited effects, or time pressure
+→ Temporal.
+
+Classification follows the same feedback-driven pattern as Enrichment
+classification (§6.3): the builder sort-assigns each qualifying tool's
+coupling effect to the matching archetype, then checks per-category coverage.
+Mechanical coupling items below the REQ-378 thresholds trigger re-reading of
+under-coupled source sections.
+
+Coupling metadata is written to the Mechanics property group and rendered in
+the coupling table (§7.7.1a) per pattern rules P34–P37.
+
 **Enrichment extraction memoization.** Before running REQ-225 classification,
 the builder SHALL check for a pre-built synthesis manifest per REQ-245. When
 a validated manifest is present, REQ-225 extraction and the feedback-driven
@@ -476,7 +496,8 @@ before any server code is written.
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 | Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 16 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 17 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
@@ -484,9 +505,11 @@ data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
 Cross-format consistency; Enrichment population shares source data with Extraction
 completeness; Archetype coverage shares source data with Enrichment population
-(Wisdom items carry archetype-informed coupling nature) and Coupling completeness
+(Wisdom items carry archetype-informed coupling nature) and Coupling derivation
 (Phase 2 — the coupling table is derived from archetype pairs);
 Reconciliation quality and Enrichment term anchoring are independent.
+Mechanical coupling population shares source data with Extraction completeness
+(mechanical tools populate both metrics).
 The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
@@ -521,12 +544,12 @@ request targeted remediation) before Phase 1 exit.
 
 **Archetype coverage** measures whether every Novel property group defined in §7.7
 is classified with at least one Holodeck archetype. A group without an archetype
-produces zero couplings — the Phase 2 Coupling completeness metric cannot detect
+produces zero couplings — the Phase 2 Coupling derivation metric cannot detect
 this gap because the cross-product excludes unclassified groups. Below 100%
 triggers re-reading of §7.7.0 archetype definitions and reassignment per the
 coupling pattern rules that govern each group's behavioral nature. Archetype
 coverage shares source data with Enrichment population (Wisdom items carry
-archetype-informed coupling nature) and Coupling completeness (Phase 2 — the
+archetype-informed coupling nature) and Coupling derivation (Phase 2 — the
 coupling table is derived from archetype pairs). A change to archetype
 assignments SHALL trigger re-verification of both metrics.
 
@@ -561,7 +584,7 @@ translated into tools, resources, and state.
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
 | Narrative coherence  | Narrative-critical REQs implemented; smoke-session transcript embedded; badge_briefing narrative sections populated; G7 attestation present in DECISIONS.md (6) | Pass + G7 attestation present | Remediate missing narrative REQs, re-run smoke session |
-| Coupling completeness | Fraction of property-group pairs (from §7.7 × §7.7.1 cross-product, excluding `[content source]` groups) with implemented couplings | 100% | Implement missing couplings; Ruleset Wisdom couplings flagged Navigational instead of Mechanical are findings |
+| Coupling derivation | Pattern rules with ≥1 coupling row; coupling rows with matching archetype assignments; zero orphaned pattern rules | 100% | Add missing coupling rows for orphaned pattern rules; fix mismatched archetype assignments |
 
 **Suggestion coverage constraint.** The curated intent set SHALL include at
 minimum: one intent per extraction action category (classified during Discovery
@@ -1404,7 +1427,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
-| REQ-370 | — (validated by `npm run validate`) | Coupling completeness |
+| REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
 | REQ-371 | S33 | Ruleset Wisdom as rendered reality |
 | REQ-374 | — (convergence Phase 1 metric) | Archetype coverage |
 | REQ-375 | — (convergence Phase 1 metric) | Wisdom mechanical coupling rate |

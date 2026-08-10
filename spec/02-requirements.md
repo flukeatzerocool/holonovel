@@ -18,6 +18,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.12 | Narrative Architecture | 335–366 | 31 |
 | 5.13 | Holodeck | 369–371, 374–376 | 6 |
 | 5.14 | Content Sources | 372–373 | 2 |
+| 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
 
 ### 5.1 Output and Error Contracts
 
@@ -7348,7 +7349,7 @@ _Check:_ T-new-352.
 Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
 Decision, Guidance, Session, or Ruleset Wisdom — as defined in §7.7.0.
 Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling
-pattern rules (P1–P23, §7.7.0). A coupling that does not trace to a pattern
+pattern rules (P1–P42, §7.7.0). A coupling that does not trace to a pattern
 rule is a spec defect. Archetypes classified as `[content source]` denote
 input sources that populate property groups — they are excluded from the
 coupling cross-product. `npm run validate` SHALL verify that every coupling
@@ -7358,19 +7359,23 @@ row in §7.7.1a cites a valid pattern rule.
 and no coupling row with an invalid or missing pattern rule reference.
 _Check:_ T-new-376.
 
-**REQ-370 — Coupling completeness.** Every ordered property-group pair in
-the Novel properties table (§7.7) — excluding `[content source]` groups —
-SHALL be accounted for in the coupling table (§7.7.1). Each pair SHALL carry
-either a defined coupling in §7.7.1a or an explicit `[none]` declaration in
-§7.7.1b. An ordered pair with neither is a spec defect. `npm run validate`
-SHALL report any unaccounted pair as an error. WHEN a new property group is
-added to §7.7, THE author SHALL assign its archetypes and extend §7.7.1 for
-every pair involving the new group — pattern rules dictate coupling behaviors;
-`[none]` is declared where no pattern rule applies.
+**REQ-370 — Coupling derivation.** Every coupling row in §7.7.1a SHALL
+cite a pattern rule whose source and target archetypes match the row's
+property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0
+(P1–P42) SHALL have at least one coupling row in §7.7.1a. A pattern rule
+with zero coupling rows is a spec defect. A coupling row citing a
+mismatched pattern rule is a spec defect. `npm run validate` SHALL verify
+both conditions.
 
-*Acceptance criterion:* `npm run validate` exits zero on coupling
-completeness; exits non-zero when any ordered pair is unaccounted.
-_Check:_ T-new-377.
+Property groups classified as `[content source]` do not participate in
+coupling derivation — the properties they populate couple via their own
+archetype rules (§7.7.0). The coupling completeness register (§7.7.1b
+previous) IS REMOVED — it is replaced by this derivation contract.
+
+*Acceptance criterion:* `npm run validate` reports no pattern rules with
+zero coupling rows and no coupling rows with mismatched archetype
+assignments.
+_Check:_ T-new-377 (amended).
 
 **REQ-371 — Ruleset Wisdom as rendered reality.** Ruleset Wisdom — the seven
 synthesis output modules extracted during Discovery (REQ-225) — SHALL be
@@ -7396,7 +7401,7 @@ archetype from the set defined in §7.7.0 (Temporal, Entity-bearing,
 Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
 Decision, Guidance, Session, Ruleset Wisdom). A property group without an
 archetype produces zero couplings — the coupling completeness metric in Phase 2
-cannot detect this gap. The metric threshold is 100%: all 16 property groups
+cannot detect this gap. The metric threshold is 100%: all 17 property groups
 classified. Missing archetype assignments SHALL be resolved by re-reading §7.7.0
 definitions and reassigning archetypes per the coupling pattern rules that govern
 each group's behavioral nature.
@@ -7425,7 +7430,8 @@ _Check:_ T-new-382.
 
 **REQ-376 — Holonovel Pattern Buffer traceability.** The builder must ensure at least
 one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10
-(World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the
+(World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck),
+§5.15 (Mechanical Coupling), and the
 world-model error contracts of REQ-367
 (World-model property contracts). The builder records a Holonovel
 sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
@@ -7519,4 +7525,54 @@ response prefix, error taxonomy, and source quoting. After
 `remove_supplementary`, tools are absent from `tools/list` and invocation
 returns `[NOT_FOUND]` (tool not recognized by the MCP layer).
 _Check:_ T-new-380.
+
+---
+
+### 5.15 Mechanical Coupling
+
+**REQ-377 — Mechanical coupling extraction.** During Discovery (§6.3), after
+extracting mechanical tools from categories 1–6, the builder SHALL identify
+which mechanical tools carry Holodeck coupling effects. A tool carries coupling
+effects when the ruleset's own text describes outcomes that affect the game
+world beyond immediate mechanical resolution — destruction of objects,
+illumination or extinguishing of light sources, creation or removal of
+obstacles, transformation of environments, revelation of information, or
+application of persistent conditions to entities.
+
+For each qualifying tool, the builder SHALL record coupling metadata: (a) the
+target archetype — Spatial, Entity-bearing, Temporal, or Knowledge-carrying,
+(b) the coupling nature — Mechanical for deterministic effects the ruleset
+describes as automatic, Navigational for effects requiring GM interpretation,
+and (c) the triggering condition drawn from the ruleset text. This metadata
+populates the Mechanics property group per the Mechanical archetype
+(§7.7.0).
+
+Confidence labels apply per coupling entry: HIGH when the ruleset text
+unambiguously describes a world-affecting outcome, MEDIUM when the effect is
+implied but not explicit, LOW when the builder infers coupling from genre
+convention alone.
+
+*Acceptance criterion:* A build against D&D 5e SRD produces coupling
+metadata for Fireball (Spatial, destruction — HIGH), Darkness (Spatial,
+extinguishing — HIGH), Light (Spatial, illumination — HIGH), and Hold Person
+(Entity-bearing, condition — HIGH). Each entry carries source anchor and
+confidence label. A ruleset-free build produces `[ruleset-free]` annotation.
+_Check:_ T-new-388.
+
+**REQ-378 — Mechanical coupling verification.** The convergence loop SHALL
+verify that: (a) at least one mechanical tool per extraction category
+(Concepts, Entities, Actions, Tables, Resolution, Roles) carries coupling
+metadata — a category with zero coupling entries is a finding;
+(b) the total coupling entries meet the threshold of at least one coupling
+entry per 50 indexed mechanical items, with a floor of 5 and a ceiling of 50;
+(c) at least 10% of mechanical couplings are Mechanical (automatic) rather
+than Navigational (advisory) — a build where every mechanical coupling
+requires GM confirmation is a findings.
+
+*Acceptance criterion:* A build against D&D 5e SRD (200+ indexed mechanical
+items) produces at least 4 mechanical coupling entries that meet the
+thresholds. At least one coupling is Mechanical (automatic), not
+Navigational. A ruleset-free build produces `[ruleset-free]` annotation for
+all mechanical coupling metrics.
+_Check:_ T-new-389.
 
