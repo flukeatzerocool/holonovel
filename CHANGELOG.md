@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-09 — World-model expansion: devices, vehicles, extended properties, parser commands, narrative verbs
+
+- Added two new kinds to the world model: `device` (switchable on/off objects like
+  torches and levers) and `vehicle` (enterable mobile containers that move between
+  rooms with passengers aboard). (REQ-316, REQ-317)
+- Extended things with 11 new properties: `switchable`, `switched_on`, `wearable`,
+  `worn_by`, `readable`, `read_text`, `edible`, `drinkable`, `enterable`,
+  `climbable`, and `transparent`. Each enables mechanical contracts enforce by the
+  parser. (REQ-318)
+- Added 22 new parser commands in the standard tier: `wear`/`remove`, `read`,
+  `eat`/`drink`, `climb`, `enter`/`exit`, `switch on`/`off`, `sit`/`stand`,
+  `push`/`pull`, `light`/`extinguish`, `listen`, `smell`, `touch`, `insert`, and
+  meta commands `again`/`g` and pronoun resolution (`it`/`them`). (REQ-319)
+- Added 5 narrative-intent parser verbs — `ask`, `tell`, `give`, `show`, `throw` —
+  that route player intent to the GM's narrative surface rather than resolving
+  mechanically. (REQ-320)
+- `convert_source` now recognizes all new property assertions and vehicle/device
+  kind declarations. Climbable things adjacent to a directional exit are
+  automatically associated as that exit's door.
+- The Holonovel Gauntlet expanded from 13 to 18 sub-workflows covering device
+  lifecycle, vehicle lifecycle, extended property contracts, extended parser
+  commands, and narrative-intent verbs. (I14–I18)
+- Both servers compile clean; all spec gates pass with 0 errors.
+
 ## 2026-08-09 — Incremental build-order fingerprinting + source hashing
 
 - Build-order now fingerprints all watched directories (spec/, both servers'

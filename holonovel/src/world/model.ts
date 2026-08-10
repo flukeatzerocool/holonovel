@@ -1,11 +1,14 @@
 // World Model — kinds, properties, rooms, things, exits, containment, convert_source
 // REQ-195, REQ-196, REQ-198, REQ-199, REQ-200, REQ-201, REQ-202, REQ-222
+// REQ-316, REQ-317, REQ-318, REQ-319, REQ-320
 
 export const WORLD_MODEL_KINDS = {
   thing: { parent: null, description: "A physical object in the world." },
   container: { parent: "thing", description: "A thing that can hold other things. Portable by default. When closed, contents are blocked." },
   supporter: { parent: "thing", description: "A thing that other things can rest on. Fixed by default." },
   door: { parent: "thing", description: "A thing that connects two rooms and may be opened or closed. Blocks passage when closed. Lockable." },
+  device: { parent: "thing", description: "A thing that can be switched on or off. Portable by default." },
+  vehicle: { parent: "thing", description: "An enterable thing with a virtual interior room. Moves between rooms. Fixed by default." },
   person: { parent: "thing", description: "An animate being. Visible and examinable in rooms." },
   backdrop: { parent: "thing", description: "A thing present in multiple rooms; scenery-level." },
   region: { parent: null, description: "A named area spanning multiple rooms." },
@@ -35,17 +38,33 @@ export interface WorldThing {
   description: string;
   kind: WorldKind;
   location: string | null; // room name, container name, or supporter name
-  locationType: "room" | "container" | "supporter" | null;
-  // Properties
+  locationType: "room" | "container" | "supporter" | "vehicle" | null;
+  // Core properties
   portable: boolean;
   openable: boolean;
   open: boolean;
   lockable: boolean;
   locked: boolean;
   lit: boolean;
-  capacity?: number; // supporter capacity
+  capacity?: number; // supporter or vehicle capacity
   // Door connections
   doorConnects?: { roomA: string; roomB: string };
+  // REQ-316 — Device properties
+  switchable: boolean;
+  switched_on: boolean;
+  // REQ-317 — Vehicle properties
+  enterable: boolean;
+  vehicleInterior?: string; // description of vehicle interior room
+  vehiclePassengers: string[];
+  // REQ-318 — Extended properties
+  wearable: boolean;
+  worn_by: string | null;
+  readable: boolean;
+  read_text: string | null;
+  edible: boolean;
+  drinkable: boolean;
+  climbable: boolean;
+  transparent: boolean;
   // Annotations
   annotations: { encounter?: string; trap?: string; npc?: string; lore?: string };
 }
@@ -255,6 +274,18 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         lockable: false,
         locked: false,
         lit: false,
+        switchable: false,
+        switched_on: false,
+        enterable: false,
+        vehiclePassengers: [],
+        wearable: false,
+        worn_by: null,
+        readable: false,
+        read_text: null,
+        edible: false,
+        drinkable: false,
+        climbable: false,
+        transparent: false,
         annotations: {},
       };
       world.things.set(thingName.toLowerCase(), thing);
@@ -281,6 +312,18 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         lockable: false,
         locked: false,
         lit: false,
+        switchable: false,
+        switched_on: false,
+        enterable: false,
+        vehiclePassengers: [],
+        wearable: false,
+        worn_by: null,
+        readable: false,
+        read_text: null,
+        edible: false,
+        drinkable: false,
+        climbable: false,
+        transparent: false,
         annotations: {},
       };
       world.things.set(thingName.toLowerCase(), thing);
@@ -290,7 +333,7 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
     }
 
     // Thing kind declaration: "<Name> is a <kind>." or "<Name> is a <kind>. "Description.""
-    const kindMatch = text.match(/^(.+?) is a (thing|container|supporter|door|person|backdrop)\.\s*(?:"(.*)")?\s*$/i);
+    const kindMatch = text.match(/^(.+?) is a (thing|container|supporter|door|device|vehicle|person|backdrop)\.\s*(?:"(.*)")?\s*$/i);
     if (kindMatch) {
       const name = kindMatch[1].trim();
       const kind = kindMatch[2].toLowerCase() as WorldKind;
@@ -302,6 +345,8 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         if (kind === "container") { existing.openable = true; existing.portable = true; }
         if (kind === "supporter") { existing.portable = false; }
         if (kind === "door") { existing.openable = true; existing.portable = false; }
+        if (kind === "device") { existing.switchable = true; }
+        if (kind === "vehicle") { existing.portable = false; existing.enterable = true; existing.vehiclePassengers = existing.vehiclePassengers || []; }
       } else {
         const thing: WorldThing = {
           name,
@@ -309,12 +354,24 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           kind,
           location: currentRoom || null,
           locationType: currentRoom ? "room" : null,
-          portable: kind === "supporter" || kind === "door" ? false : true,
+          portable: kind === "supporter" || kind === "door" || kind === "vehicle" ? false : true,
           openable: kind === "container" || kind === "door",
           open: false,
           lockable: kind === "container" || kind === "door",
-          locked: kind === "door" ? true : false,
+          locked: kind === "door",
           lit: false,
+          switchable: kind === "device",
+          switched_on: false,
+          enterable: kind === "vehicle",
+          vehiclePassengers: [],
+          wearable: false,
+          worn_by: null,
+          readable: false,
+          read_text: null,
+          edible: false,
+          drinkable: false,
+          climbable: false,
+          transparent: false,
           annotations: {},
         };
         if (kind === "door") {

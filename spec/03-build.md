@@ -1394,13 +1394,53 @@ are selected for changed surfaces.
     sections appear in the specified order. Assert `set_scene_state` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
+14. **Device lifecycle** — create a device via `create_thing("lantern", {kind:
+    "device", lit: true})`. Assert `command("switch on lantern")` returns
+    `[OK]`. Assert `command("switch off lantern")` returns `[OK]`. Assert
+    `command("switch on rock")` on a non-device returns `[RULE_VIOLATION]`.
+    Assert `convert_source` recognizes "It is switchable." and "It is switched
+    on." (Blocking.)
+
+15. **Vehicle lifecycle** — create a world model with a vehicle via
+    `convert_source`. Assert `command("enter raft")` returns `[OK]` and
+    viewpoint moves to vehicle interior. Assert `command("exit")` returns to
+    parked room. Assert navigation aboard vehicle moves both vehicle and
+    passengers. Assert vehicle persists at location when unoccupied. Assert
+    `command("enter rock")` on non-enterable returns `[RULE_VIOLATION]`.
+    (Blocking.)
+
+16. **Extended property contracts** — create things with `wearable`, `edible`,
+    `readable`, `transparent`, `climbable`, `enterable` properties via
+    `convert_source`. Assert each property assertion is recognized. Assert
+    `command("wear ring")` succeeds. Assert `command("eat mushroom")` succeeds.
+    Assert `command("read altar")` returns `read_text`. Assert missing-property
+    commands return `[RULE_VIOLATION]`. Assert `read_text` extraction from "The
+    inscription on the altar reads 'Beware.'" (Blocking.)
+
+17. **Extended parser commands** — exercise all new standard-tier commands:
+    `wear`, `remove`, `read`, `eat`, `drink`, `climb`, `enter`, `exit`,
+    `switch on/off`, `sit`, `stand`, `push`, `pull`, `light`, `extinguish`,
+    `listen`, `smell`, `touch`, `insert`, `again`/`g`, pronoun references
+    (`it`, `them`). Assert `command("help")` lists verbs grouped by tier.
+    Assert `command("again")` repeats last command. Assert `command("it")`
+    resolves last referenced thing. Assert property-violation cases return
+    `[RULE_VIOLATION]`. (Blocking.)
+
+18. **Narrative-intent verbs** — create an NPC in a room. Assert `command("ask
+    guard about crypt")` returns `[OK]` with intent. Assert `command("give
+    sword to guard")` transfers item and returns `[OK]`. Assert `command("show
+    shield to guard")` does NOT transfer. Assert `command("throw rock at
+    statue")` moves object to room. Assert `command("give altar to guard")` on
+    fixed item returns `[RULE_VIOLATION]`. Assert `command("ask nobody about
+    crypt")` with no matching NPC returns `[WARNING]`. (Blocking.)
+
 **Holonovel Gauntlet surface-to-scenario mapping.**
 
 | Changed surface                                    | Holonovel Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| holonovel package changed (new version)     | All (1–13)                |
-| Room navigation, parser commands                   | 1, 2, 8                   |
-| Object interaction, properties                     | 3, 6                      |
+| holonovel package changed (new version)     | All (1–18)                |
+| Room navigation, parser commands                   | 1, 2, 8, 17                |
+| Object interaction, properties                     | 3, 6, 14, 15, 16           |
 | CRUD, state mutations                              | 4                         |
 | convert_source, hybrid parsing                     | 5, 10                     |
 | Hat filtering, resource URIs                       | 7                         |
@@ -1408,6 +1448,10 @@ are selected for changed surfaces.
 | NPCs, character narrative fields                   | 11                        |
 | Lore, countdowns                                   | 12                        |
 | Scene state, tone, guidance                        | 13                        |
+| Devices, vehicles                                  | 14, 15                    |
+| Extended properties                                | 16                        |
+| Parser command vocabulary                          | 17                        |
+| Narrative verbs                                    | 18                        |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
@@ -1462,7 +1506,7 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Holonovel Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+The Holonovel Gauntlet sub-workflows (I1–I18, §6.6) are not included in TTRPG
 spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
