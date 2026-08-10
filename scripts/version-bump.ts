@@ -20,13 +20,20 @@ function replaceInFile(filePath: string, pattern: RegExp, replacement: string, l
   return true;
 }
 
+function bumpPkgVersion(serverDir: string, label: string): boolean {
+  const pkgPath = join(root, serverDir, "package.json");
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+  pkg.version = version;
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+  console.log(`  OK   ${label}: → ${version}`);
+  return true;
+}
+
 let ok = true;
 
-const pkgPath = join(root, "dnd5e-holonovel", "package.json");
-const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-pkg.version = version;
-writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-console.log(`  OK   dnd5e-holonovel/package.json: → ${version}`);
+// ── dnd5e-holonovel ──
+
+ok = bumpPkgVersion("dnd5e-holonovel", "dnd5e-holonovel/package.json") && ok;
 
 ok = replaceInFile(
   join(root, "dnd5e-holonovel", "DECISIONS.md"),
@@ -47,6 +54,38 @@ ok = replaceInFile(
   /(Holonovel\]\([^)]+\)\s+v).+(\.)/m,
   `$1${version}$2`,
   "dnd5e-holonovel/README.md"
+) && ok;
+
+ok = replaceInFile(
+  join(root, "dnd5e-holonovel", "src", "index.ts"),
+  /^(  version: ").+(",$)/m,
+  `$1${version}$2`,
+  "dnd5e-holonovel/src/index.ts McpServer version"
+) && ok;
+
+// ── holonovel ──
+
+ok = bumpPkgVersion("holonovel", "holonovel/package.json") && ok;
+
+ok = replaceInFile(
+  join(root, "holonovel", "AGENTS.md"),
+  /^(# AGENTS\.md — .+?\(v).+(\))/m,
+  `$1${version}$2`,
+  "holonovel/AGENTS.md header"
+) && ok;
+
+ok = replaceInFile(
+  join(root, "holonovel", "DECISIONS.md"),
+  /^(\| Spec version \| ).+?( \|)/m,
+  `$1${version}$2`,
+  "holonovel/DECISIONS.md spec version"
+) && ok;
+
+ok = replaceInFile(
+  join(root, "holonovel", "src", "index.ts"),
+  /^(  version: ").+(",$)/m,
+  `$1${version}$2`,
+  "holonovel/src/index.ts McpServer version"
 ) && ok;
 
 if (!ok) {

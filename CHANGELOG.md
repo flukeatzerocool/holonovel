@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-09 — Unified build-order pipeline
+
+- Added `npm run build-order` — a single command that sequences the full
+  spec-to-servers pipeline: assemble → check → spec propagation → source
+  propagation → typecheck both servers → version bump → version check.
+- New `spec-propagate` script copies the canonical `holonovel.md` into both
+  `holonovel/` and `dnd5e-holonovel/` server directories.
+- New `source-propagate` script copies verbatim source files (world-model.ts,
+  parser.ts) and vendor content from holonovel into dnd5e-holonovel, fixing
+  import paths automatically. Customized files (state.ts, macros.ts,
+  enrichment.ts) are flagged as diverged for manual attention.
+- `version-bump` and `version-check` now cover the holonovel server in
+  addition to dnd5e-holonovel, including the hardcoded version in each
+  server's `src/index.ts` McpServer constructor.
+- Fixed stale version references: holonovel AGENTS.md (2026.08.07→09),
+  DECISIONS.md (2026.08.08→09), src/index.ts (2026.08.07→09),
+  dnd5e-holonovel src/index.ts (2026.08.06→09).
+
 ## 2026-08-09 — Split narrative and world content, self-contain dnd5e vendor files
 
 - Split `holonovel/narrative_world_model/` into `narrative/` (enrichment

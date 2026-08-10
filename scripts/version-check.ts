@@ -27,49 +27,93 @@ function check(label: string, value: string | null, expected: string): boolean {
   return false;
 }
 
+function checkFileContains(filePath: string, patterns: string[], label: string): boolean {
+  const content = readFileSync(filePath, "utf-8");
+  const missing = patterns.filter(p => !content.includes(p));
+  if (missing.length === 0) {
+    console.log(`  OK  ${label}`);
+    return true;
+  }
+  console.error(`  FAIL  ${label}: missing expected patterns`);
+  return false;
+}
+
 let ok = true;
 
-const pkg = readJson(join(root, "dnd5e-holonovel", "package.json"));
-ok = check("dnd5e-holonovel/package.json", pkg.version as string, rootVersion) && ok;
+// ── dnd5e-holonovel ──
 
-const decisionsVersion = grepVersion(
+const dnd5ePkg = readJson(join(root, "dnd5e-holonovel", "package.json"));
+ok = check("dnd5e-holonovel/package.json", dnd5ePkg.version as string, rootVersion) && ok;
+
+const dnd5eDecisionsVersion = grepVersion(
   join(root, "dnd5e-holonovel", "DECISIONS.md"),
   /\*\*Spec version:\*\*\s*(.+)/m
 );
-ok = check("dnd5e-holonovel/DECISIONS.md", decisionsVersion, rootVersion) && ok;
+ok = check("dnd5e-holonovel/DECISIONS.md", dnd5eDecisionsVersion, rootVersion) && ok;
 
-const agentsVersion = grepVersion(
+const dnd5eAgentsVersion = grepVersion(
   join(root, "dnd5e-holonovel", "AGENTS.md"),
   /^# AGENTS\.md.*\(v(.+)\)/m
 );
-ok = check("dnd5e-holonovel/AGENTS.md", agentsVersion, rootVersion) && ok;
+ok = check("dnd5e-holonovel/AGENTS.md", dnd5eAgentsVersion, rootVersion) && ok;
 
-const readmeVersion = grepVersion(
+const dnd5eReadmeVersion = grepVersion(
   join(root, "dnd5e-holonovel", "README.md"),
   /Holonovel\]\([^)]+\)\s+v(.+)\./
 );
-ok = check("dnd5e-holonovel/README.md", readmeVersion, rootVersion) && ok;
+ok = check("dnd5e-holonovel/README.md", dnd5eReadmeVersion, rootVersion) && ok;
 
-const decisionsSpecHash = grepVersion(
+const dnd5eIndexVersion = grepVersion(
+  join(root, "dnd5e-holonovel", "src", "index.ts"),
+  /^\s+version: "(.+)"[,;]?$/m
+);
+ok = check("dnd5e-holonovel/src/index.ts", dnd5eIndexVersion, rootVersion) && ok;
+
+const dnd5eDecisionsSpecHash = grepVersion(
   join(root, "dnd5e-holonovel", "DECISIONS.md"),
   /\*\*Spec hash:\*\*\s*([a-f0-9]{64})/m
 );
-if (decisionsSpecHash) {
+if (dnd5eDecisionsSpecHash) {
   console.log(`  OK  dnd5e-holonovel/DECISIONS.md: spec hash present`);
 } else {
   console.error(`  FAIL  dnd5e-holonovel/DECISIONS.md: missing spec hash field`);
   ok = false;
 }
 
-const stateContent = readFileSync(join(root, "dnd5e-holonovel", "src", "state.ts"), "utf-8");
-if (stateContent.includes(`SPEC_VERSION: string = JSON.parse`) &&
-    stateContent.includes(`readFileSync`) &&
-    stateContent.includes(`package.json`)) {
-  console.log(`  OK  dnd5e-holonovel/src/state.ts: reads version dynamically from package.json`);
-} else {
-  console.error(`  FAIL  dnd5e-holonovel/src/state.ts: must read version dynamically from package.json`);
-  ok = false;
-}
+ok = checkFileContains(
+  join(root, "dnd5e-holonovel", "src", "state.ts"),
+  ["SPEC_VERSION", "JSON.parse", "readFileSync", "package.json"],
+  "dnd5e-holonovel/src/state.ts: reads version dynamically"
+) && ok;
+
+// ── holonovel ──
+
+const holoPkg = readJson(join(root, "holonovel", "package.json"));
+ok = check("holonovel/package.json", holoPkg.version as string, rootVersion) && ok;
+
+const holoAgentsVersion = grepVersion(
+  join(root, "holonovel", "AGENTS.md"),
+  /^# AGENTS\.md.*\(v(.+)\)/m
+);
+ok = check("holonovel/AGENTS.md", holoAgentsVersion, rootVersion) && ok;
+
+const holoDecisionsVersion = grepVersion(
+  join(root, "holonovel", "DECISIONS.md"),
+  /^\| Spec version \| (.+) \|/m
+);
+ok = check("holonovel/DECISIONS.md", holoDecisionsVersion, rootVersion) && ok;
+
+const holoIndexVersion = grepVersion(
+  join(root, "holonovel", "src", "index.ts"),
+  /^\s+version: "(.+)"[,;]?$/m
+);
+ok = check("holonovel/src/index.ts", holoIndexVersion, rootVersion) && ok;
+
+ok = checkFileContains(
+  join(root, "holonovel", "src", "core", "state.ts"),
+  ["SPEC_VERSION", "JSON.parse", "readFileSync", "package.json"],
+  "holonovel/src/core/state.ts: reads version dynamically"
+) && ok;
 
 if (!ok) {
   console.error("\nVersion sync FAILED. Update all version references to match root package.json.");
