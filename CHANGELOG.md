@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-09 — Remove stale inform directory, repair holonovel remote
+
+- Removed the `inform/` directory — the `@holonovel/inform` package was
+  superseded by `holonovel/` when dnd5e-holonovel was made standalone
+  (composing shared infrastructure at build time rather than importing at
+  runtime).
+- Added missing source files to `holonovel/` — `src/index.ts`,
+  `src/world/`, `tsconfig.json`, vendor content, and scripts were present
+  locally but never reached the remote, leaving the published server
+  un-runnable.
+- Renamed stale `dnd5e` path references in version-bump, version-check,
+  spec-delta, and RULESET_MODEL.md to `dnd5e-holonovel`.
+- Synced assembled spec to both server directories.
+
 ## 2026-08-09 — Standalone dnd5e-holonovel + auto-deploy pipeline
 
 - dnd5e-holonovel no longer imports holonovel at runtime — it composes the
