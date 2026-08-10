@@ -8,6 +8,32 @@
   your campaign is the Holonovel program (the Novel) loaded into it.
 - The README hero was rewritten to lead with this north star: "Build the
   Holodeck. Load your campaign."
+- Added a Narrative Architecture subsystem (12 new REQs in §5.12) that
+  composes the server's narrative engine: scene beats (setup, escalation,
+  climax, resolution — with pacing signals and arc visibility), autonomous
+  faction clock advancement and NPC goal pursuit, discovered consequences
+  that fire off-screen and surface as "Meanwhile, ..." discoveries, a
+  player-facing spatial surface derived from the world model, and scene
+  descriptions composed from world-model state rather than duplicate prose.
+  (REQ-335 through REQ-342)
+- `suggest_actions` now resolves player intent across three domains —
+  mechanical, spatial, and social — returning suggestions from all matching
+  domains in a single response. Social intents resolve against NPC
+  dispositions, relationships, and the scene's social type. (REQ-343)
+- Players can now provide voice feedback — correcting the AI's portrayal
+  and teaching it how their character should speak. (REQ-344)
+- Characters now carry background-derived knowledge — a scholar knows
+  things their training implies without needing to witness every fact in a
+  scene. (REQ-345)
+- Builds must now attest to narrative coherence before handoff — a smoke
+  session transcript, badge_briefing population check, and narrative REQ
+  implementation status verified by a new convergence metric. (REQ-346)
+- The coupling table now supports a Narrative coupling class for
+  dramaturgy and cast behavior — narrative couplings don't block
+  mechanical Gauntlet sub-workflows, making it easier to add story
+  features without tracing the full coupling table. (§7.7.1)
+- The world-model default prominence shifted from `secondary` to `visible`
+  — the room is now the stage, not background scaffolding. (REQ-309)
 
 ## 2026-08-10 — Push pipeline hardening
 

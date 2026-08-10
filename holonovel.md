@@ -357,6 +357,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327        | 20    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
+| 5.12    | Narrative Architecture               | 335–346                                             | 12    |
 
 ### 5.1 Output and Error Contracts
 
@@ -6850,20 +6851,20 @@ output. The AI narrator resolves player spatial intent through `resolve_intent`
 every prominence level, `suggest_actions` under the Player badge SHALL map
 spatial intents to `resolve_intent`, never to `command`.
 
-At `secondary` (default): World-model tools SHALL be placed in a secondary help
-category. Parser `command` SHALL appear as "World Inspection" in the GM-only tool
-surface — it SHALL NOT appear in Player help. `badge_briefing` SHALL fold
-world-model state into the scene state section;
-narrative-tool sections SHALL render only when their data is non-empty.
-`suggest_actions` SHALL NOT return parser commands for exploration or navigation
-intents; Player-badge spatial intents SHALL map to `resolve_intent`.
-At `visible`: World-model and narrative tools SHALL appear in primary help
+At `visible` (default): World-model and narrative tools SHALL appear in primary help
 categories. Parser `command` SHALL appear in "World Inspection" (GM only).
 `badge_briefing` SHALL include a dedicated
 world-model state section with an empty-state marker when the world-model tier is
 unpopulated. `suggest_actions` SHALL return `resolve_intent` for spatial intents
 under both badges; under the Game Master badge, `suggest_actions` SHALL also
 return parser `command` for spatial intents for direct world-model inspection.
+At `secondary`: World-model tools SHALL be placed in a secondary help
+category. Parser `command` SHALL appear as "World Inspection" in the GM-only tool
+surface — it SHALL NOT appear in Player help. `badge_briefing` SHALL fold
+world-model state into the scene state section;
+narrative-tool sections SHALL render only when their data is non-empty.
+`suggest_actions` SHALL NOT return parser commands for exploration or navigation
+intents; Player-badge spatial intents SHALL map to `resolve_intent`.
 
 At `prominent`: Parser `command` SHALL be a top-level GM help entry under "World
 Inspection"; world CRUD tools
@@ -6877,12 +6878,12 @@ and narrative layers are the primary surface by definition (REQ-218). The builde
 SHALL NOT record a `TTRPG_WORLD_PROMINENCE` value in DECISIONS.md when B1 is
 `none`, and the intake question (B12) SHALL NOT be asked.
 
-*Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=secondary` produces
-the current default help categorization (World in secondary category, parser GM-only).
+*Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=visible` produces
+the default help categorization (world-model and narrative tools in primary help).
 `TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level GM help
 entry and includes world-model state in the decision-critical briefing group.
-`TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with world-model
-and narrative tools in primary help. At all levels, Player-badge `suggest_actions`
+`TTRPG_WORLD_PROMINENCE=secondary` produces a minimized surface with world-model
+tools in secondary categories. At all levels, Player-badge `suggest_actions`
 returns `resolve_intent` for spatial intents — never `command`.
 
 The prominence setting applies uniformly across badges— Game Master and Player receive
@@ -7009,6 +7010,264 @@ _Check:_ T260.
 
 ---
 
+### 5.12 Narrative Architecture
+
+The REQs in this section extend existing infrastructure — scene state (REQ-076,
+REQ-087), factions (REQ-233), NPCs (REQ-075, REQ-077), countdowns (REQ-073),
+badge briefing (REQ-109), intents (REQ-084, REQ-323), relationships (REQ-236),
+voice examples (REQ-077), knowledge (REQ-308, REQ-286), and the world-model
+layer (§5.10) — with dramaturgical primitives, autonomous cast behavior, and
+a unified intent pipeline. Together they compose the server's narrative engine:
+the machinery that transforms state management into story emergence.
+
+**REQ-335 — Scene beat taxonomy.** The server SHALL support scene beat
+annotation alongside scene type (REQ-087). Valid beat values are: `setup`,
+`escalation`, `turning_point`, `climax`, `resolution`, and `denouement`.
+Beats SHALL be set via `set_scene_state` as an optional `beat` parameter and
+via `set_scene_type` as a `beat` parameter. The current beat SHALL surface in
+`badge_briefing` as a sub-element of the scene state section, immediately
+after the scene type tag, in the form `Beat: <beat>`. A scene without an
+explicit beat SHALL carry the default `mid_scene`. `session_recap` SHALL
+include beat transitions alongside scene transitions in the
+`scene_transitions` array as `beat_before` and `beat_after` pairs. A scene
+transition that retains the same beat SHALL NOT record a beat transition. The
+beat taxonomy is descriptive — the GM may set any beat at any time; the
+server does not enforce beat progression sequences.
+
+*Acceptance criterion:* `set_scene_state("The hall darkens", beat="escalation")`
+surfaces `Beat: escalation` after the scene type tag in `badge_briefing`.
+`session_recap` includes `beat_transitions` showing `{from: "mid_scene",
+to: "escalation", timestamp: <ISO>}`. Setting the same beat on consecutive
+`set_scene_state` calls produces no beat transition entry.
+_Check:_ T-new-341.
+
+**REQ-336 — Dramatic pacing signal.** The server SHALL track the count of
+tool calls (mutating and non-mutating) since the last scene transition or beat
+change. When the count exceeds a configurable ceiling
+(`TTRPG_PACING_WINDOW`, default 20), `badge_briefing` SHALL include a pacing
+signal in the `narrative_threads` section (REQ-281): `[pacing] Scene
+stabilized — N actions since last transition.` The signal is advisory — it
+does not block or auto-advance narration. The ceiling SHALL be configurable
+via `TTRPG_PACING_WINDOW`; setting it to zero disables pacing signals. The
+pacing counter resets on every `set_scene_state` call (scene transition) and
+on every beat change.
+
+*Acceptance criterion:* After 21 tool calls with no scene transition,
+`badge_briefing` includes `[pacing] Scene stabilized — 21 actions since last
+transition.` After `set_scene_state("new scene")`, the counter resets and the
+signal disappears. Setting `TTRPG_PACING_WINDOW=0` suppresses all pacing
+signals.
+_Check:_ T-new-342.
+
+**REQ-337 — Narrative arc visibility.** The `narrative_threads` section of
+`badge_briefing` (REQ-281) SHALL include a `story_beats` line showing the
+sequence of completed beats within the current Novel in chronological order,
+gated by badge scope: `shared` beats visible to both badges; `game_master`
+beats visible to GM only. The sequence SHALL list beat names with the scene
+description preview (first sentence) that produced them, e.g., `setup (\"The
+hall is quiet...\") -> escalation (\"The torches flicker...\")`. An empty
+sequence SHALL render `[No beats completed.]`. The sequence SHALL NOT exceed
+the most recent 10 completed beats.
+
+*Acceptance criterion:* After three `set_scene_state` calls with beats
+`setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat
+sequence. After 12 beat transitions, only the most recent 10 appear. An empty
+sequence renders the empty-state marker.
+_Check:_ T-new-343.
+
+**REQ-338 — Faction autonomous advancement.** Faction clocks (REQ-233)
+SHALL advance one tick on each scene transition per the existing coupling
+contract. In addition, faction clocks SHALL advance one autonomous tick per
+`TTRPG_FACTION_AUTONOMY_INTERVAL` scene transitions (configurable, default 3)
+to represent faction pursuit of goals off-screen. The autonomous tick SHALL be
+recorded in the faction's clock with an `[autonomous]` annotation. Faction
+clocks with `TTRPG_FACTION_AUTONOMY_INTERVAL` set to zero SHALL NOT receive
+autonomous ticks — only scene-transition and GM-triggered advancement applies.
+Autonomous advancement SHALL NOT fire linked countdowns without GM awareness:
+when an autonomous tick would fire a linked countdown, the countdown SHALL
+surface a `[pending_fire]` annotation in `badge_briefing`
+`narrative_threads` section (REQ-281) requiring GM confirmation via a
+workflow decision.
+
+*Acceptance criterion:* A faction with `TTRPG_FACTION_AUTONOMY_INTERVAL=3`
+advances its clock by one autonomous tick on the 3rd, 6th, and 9th scene
+transition. The tick is annotated `[autonomous]` in the clock state. An
+autonomous tick that would fire a linked countdown produces a `[pending_fire]`
+decision in `badge_briefing`. Setting the interval to zero suppresses all
+autonomous advancement.
+_Check:_ T-new-344.
+
+**REQ-339 — NPC goal pursuit.** When an NPC has a populated `goals` field
+(REQ-077) and the NPC's current disposition differs from its creation default,
+`badge_briefing` SHALL surface a `## World in Motion` suggestion once per
+scene transition: the NPC's name, its current goal, a brief description of what
+the NPC might do to pursue that goal off-screen, and three response options:
+`accept` (apply the described state change), `defer` (re-surface at next
+transition), `dismiss` (do not re-surface). The suggestion SHALL be derived
+from the NPC's goals text and disposition, surfaced as a decision workflow.
+Deferred suggestions SHALL re-appear at every subsequent scene transition
+until accepted or dismissed. Dismissed suggestions SHALL NOT re-appear for
+the same NPC in the same Novel. The feature is disabled by default
+(`TTRPG_NPC_AUTONOMY=off`); the GM enables it per Novel.
+
+*Acceptance criterion:* Create an NPC with `goals="Steal the crown"` and
+`disposition="suspicious"` (differs from default `neutral`). Set
+`TTRPG_NPC_AUTONOMY=on`. Call `set_scene_state("Throne room")` — assert
+`badge_briefing` `## World in Motion` includes a goal-pursuit suggestion.
+Accept it — assert the described state change applies, suggestion does not
+re-appear. Defer — assert it re-appears at next transition. Dismiss — assert
+it does not re-appear. `TTRPG_NPC_AUTONOMY=off` — assert no suggestions.
+_Check:_ T-new-345.
+
+**REQ-340 — Discovered consequences.** When a countdown fires while the
+active entity's characters are not present in the scene where the countdown
+was linked — entity IDs absent from `characters_present` on all scenes since
+the countdown was created — the consequence SHALL be surfaced as a
+`[discovered]` story journal entry of type `consequence` (REQ-246). The entry
+SHALL carry: the countdown name, the consequence description, the timestamp of
+discovery (the scene transition when the player's entity next becomes present
+in a scene linked to the countdown's location), and a `discovered` boolean set
+to `true`. The entry SHALL appear in `session_recap`
+`narrative_orientation` as a "Meanwhile, ..." prose fragment. Countdowns that
+fire while the player's entity IS present SHALL produce standard `consequence`
+entries with `discovered` unset.
+
+*Acceptance criterion:* Create a countdown linked to Guard Room. Set entity
+absent (not in `characters_present`). Advance countdown to fire. Set entity
+present in Gatehouse scene (different location). Advance scene — no discovery.
+Set entity present in Guard Room scene — assert `[discovered]` story journal
+entry created with "Meanwhile, ..." orientation text. Countdown fires with
+entity present — assert standard `consequence` entry without `discovered`.
+_Check:_ T-new-346.
+
+**REQ-341 — Player-facing spatial surface.** When the world-model tier is
+populated (REQ-195), the Player badge SHALL have access to a resolved spatial
+surface through `badge_briefing`: the scene state section SHALL include the
+current room name, visible exits (direction labels only — not destination
+names), and visible things in the room. The spatial surface SHALL NOT include
+room IDs, exit destination IDs, or world-model internal names. The AI narrator
+resolves the player's spatial intent through `resolve_intent` (REQ-323) without
+exposing parser mechanics; the spatial surface in `badge_briefing` gives the
+player direct awareness of surroundings without requiring the AI narrator to
+explicitly describe every detail. When the world-model tier is unpopulated, no
+spatial surface appears — the empty-state marker renders `[No world model —
+surroundings are as described by the GM.]`.
+
+*Acceptance criterion:* A populated world model with rooms, exits, and things
+produces a spatial surface in Player `badge_briefing` containing the room name,
+exit directions, and visible things — without IDs or internal names. An
+unpopulated world model produces the empty-state marker.
+_Check:_ T-new-347.
+
+**REQ-342 — Scene description from world-model state.** When `set_scene_state`
+is called with a `location` parameter that resolves to a world-model room
+(REQ-195), the scene SHALL derive a base description from the room's
+world-model state: the room description string, a list of contained things,
+a list of visible NPCs registered in the room (REQ-327), and visible exits
+with their direction labels. The GM's `description` parameter SHALL override
+the derived description. When `description` is empty and `location` resolves,
+the derived world-model description SHALL serve as the scene description. When
+`location` does not resolve to any room, the `description` parameter SHALL be
+the sole scene description as before. This contract ensures the GM describes a
+room once — the world model is the source of spatial truth.
+
+*Acceptance criterion:* `set_scene_state("", location="Throne Room")` with
+the Throne Room containing a throne thing and two NPCs produces a scene
+description derived from the room description and its contents. The same call
+with an explicit `description` parameter uses the explicit description. A
+`location` that does not match any room uses the `description` alone.
+_Check:_ T-new-348.
+
+**REQ-343 — Unified intent resolution.** The `suggest_actions` tool
+(REQ-084) SHALL resolve player intent across three domains — mechanical
+(resolution tools), spatial (resolve_intent, REQ-323), and social (NPC
+interaction, disposition context, persuasion) — and return suggested actions
+from all matching domains in the response, grouped by domain. The response
+SHALL include, for each domain with at least one match: a domain header, the
+matching tools or actions with parameters, and a confidence indicator for
+each match. When the intent spans multiple domains, `suggest_actions` SHALL
+return suggestions from all matching domains ordered by relevance. The tool
+SHALL accept an optional `entity_id` parameter; when provided, entity-specific
+context (personality fields per REQ-077, voice examples, equipment, known
+abilities) SHALL be included in the match weighting.
+
+Social intents SHALL resolve against: the target NPC's disposition (REQ-075),
+the caller entity's relationship to the target (REQ-236), any active scene
+type of `social` (REQ-087), and the ruleset's social-skill catalogue. The
+resolution SHALL return: the most relevant skill check tool with the target
+NPC's name as context, any available constraint overrides that could affect
+the outcome (REQ-325), and a narrative framing hint derived from the NPC's
+personality fields.
+
+*Acceptance criterion:* `suggest_actions("convince the guard to let us
+pass", entity_id="bard_01")` returns mechanical suggestions (skill check
+with persuasion), spatial context (current room exits), and social context
+(guard's disposition, relationship). A purely mechanical intent ("attack the
+goblin") returns only mechanical suggestions.
+_Check:_ T-new-349.
+
+**REQ-344 — Voice example feedback.** The Player badge SHALL be able to
+provide feedback on the AI narrator's portrayal of their entity's voice
+through `player_signal` (REQ-078). A `signal="voice_feedback"` with a
+`value` containing a corrected dialogue snippet SHALL cause the server to:
+(a) append the corrected snippet to the entity's `voice_examples` array
+(REQ-077) tagged `[player-corrected]` with the original snippet context;
+(b) record a `[voice_feedback]` entry in the audit log (REQ-040) with the
+original and corrected text; (c) surface the correction in `badge_briefing`
+under the entity's personality group as a `[voice-corrected]` annotation on
+the relevant voice example. A correction replaces the AI-generated snippet's
+`dialogue` text while preserving `context` and `tag` fields. The Player may
+issue up to 3 corrections per session (configurable via
+`TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION`); exceeding the limit SHALL return
+`[WARNING] Voice correction limit reached for this session.`. The limit resets
+on `TTRPG_SESSION_ID` change per REQ-237.
+
+*Acceptance criterion:* `player_signal("voice_feedback", "She wouldn't say
+that — she'd say 'The door is trapped. Stand back.'")` appends a
+`[player-corrected]` snippet. `badge_briefing` shows the correction.
+`character_sheet` shows the updated voice example. Fourth correction in same
+session returns `[WARNING]`. Session ID change resets the limit.
+_Check:_ T-new-350.
+
+**REQ-345 — Background-derived knowledge.** Character knowledge SHALL extend
+beyond presence-scoped percepts (REQ-308). When an entity's personality fields
+include a populated `background` string (REQ-077), the `knowledge_state`
+briefing section (REQ-286) SHALL include a `background_knowledge` subsection
+listing the entity's background text and a boundary directive for the AI
+narrator: "The character may know things their background implies — regional
+geography from 'soldier', academic knowledge from 'sage', underworld contacts
+from 'criminal' — without needing to have witnessed them in a scene. The AI
+narrator SHALL surface plausible background knowledge when the scene context
+makes it relevant, and SHALL NOT gate such knowledge on presence." The
+subsection SHALL be present when `background` is populated; absent when empty.
+Background knowledge is advisory — it instructs the AI narrator to permit
+reasonable inference but does not populate the `knowledge_state` with explicit
+facts.
+
+*Acceptance criterion:* Create entity with `background="Veteran of the
+Border Wars"`. `badge_briefing` `knowledge_state` includes
+`background_knowledge` subsection with the background text and boundary
+directive. Entity with empty `background` — subsection absent.
+_Check:_ T-new-351.
+
+**REQ-346 — Narrative coherence attestation.** Before handoff (§9), the
+builder SHALL include in DECISIONS.md (6) a `narrative_coherence` attestation
+recording that: (a) every narrative-critical REQ is implemented — the
+convergence loop Phase 2 narrative coherence metric passed; (b) the
+`badge_briefing` prompt, when rendered against a populated Novel, includes
+all decision-critical and supplementary narrative sections as defined by
+REQ-109; (c) a smoke-session transcript (5+ turns of cooperative play)
+demonstrates that the server's narrative surfaces support coherent story flow.
+The smoke-session transcript SHALL be embedded or linked in DECISIONS.md (6).
+A build missing this attestation is a handoff defect.
+
+*Acceptance criterion:* DECISIONS.md (6) contains a `narrative_coherence`
+section sub-headed `@section evidence` with the three attestation points and
+an embedded or linked smoke-session transcript.
+_Check:_ T-new-352.
+
+---
+
 ## 6. The Build Process
 
 ### 6.1 Workflow overview
@@ -7097,7 +7356,7 @@ defaults without further prompting.
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
-| B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
+| B12 | World and narrative surface prominence? | secondary / visible / prominent | visible           |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -7553,6 +7812,7 @@ translated into tools, resources, and state.
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
+| Narrative coherence  | Narrative-critical REQs implemented; smoke-session transcript embedded; badge_briefing narrative sections populated | Pass + attestation present | Remediate missing narrative REQs, re-run smoke session |
 
 **Suggestion coverage constraint.** The curated intent set SHALL include at
 minimum: one intent per extraction action category (classified during Discovery
@@ -7572,7 +7832,7 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all eight metrics meet threshold (input-validation conditional —
+Phase 2 exit: all nine metrics meet threshold (input-validation conditional —
 eight when REQ-141 is in scope, seven otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript
@@ -8841,13 +9101,24 @@ consistent order.
 | World → Scene | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Navigational | REQ-333 |
 | Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Navigational | REQ-242 |
+| Story Beats → Narrative Threads | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | Narrative | REQ-335, REQ-281 |
+| Pacing Signal → Narrative Threads | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | Narrative | REQ-336, REQ-281 |
+| Scene → World Model | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | Narrative | REQ-342 |
+| Faction → Autonomous Countdown | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | Mechanical | REQ-338 |
+| NPC Goals → World in Motion | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Narrative | REQ-339, REQ-233a |
+| Countdown Fire (absent) → Story Journal | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | Mechanical | REQ-340, REQ-246 |
+| Voice Feedback → Voice Examples | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Mechanical | REQ-344, REQ-077 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
 mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
-means it directly affects state mutation or tool behavior. When a source
-property changes, navigational couplings update on the next resource read;
-mechanical couplings take effect at the moment of the triggering mutation.
+means it directly affects state mutation or tool behavior. A coupling marked
+"Narrative" means it affects narrative coherence and is verified during the
+Narrative Coherence convergence domain (REQ-346); narrative couplings do not
+block mechanical Gauntlet sub-workflows. When a source
+property changes, navigational and narrative couplings update on the next
+resource read; mechanical couplings take effect at the moment of the
+triggering mutation.
 
 ### 7.8 Guidance and badge knowledge
 
@@ -10417,6 +10688,18 @@ date-stamps matching CHANGELOG entries.
 | REQ-332 | Codex provenance | 2026-08-10 |
 | REQ-333 | Story journal to lore promotion | 2026-08-10 |
 | REQ-334 | Novel archiving | 2026-08-10 |
+| REQ-335 | Scene beat taxonomy | 2026-08-10 |
+| REQ-336 | Dramatic pacing signal | 2026-08-10 |
+| REQ-337 | Narrative arc visibility | 2026-08-10 |
+| REQ-338 | Faction autonomous advancement | 2026-08-10 |
+| REQ-339 | NPC goal pursuit | 2026-08-10 |
+| REQ-340 | Discovered consequences | 2026-08-10 |
+| REQ-341 | Player-facing spatial surface | 2026-08-10 |
+| REQ-342 | Scene description from world-model state | 2026-08-10 |
+| REQ-343 | Unified intent resolution | 2026-08-10 |
+| REQ-344 | Voice example feedback | 2026-08-10 |
+| REQ-345 | Background-derived knowledge | 2026-08-10 |
+| REQ-346 | Narrative coherence attestation | 2026-08-10 |
 
 ---
 
@@ -10798,6 +11081,18 @@ diet.
 | T-new-338 | Automated | Batch codex import: call `codex_import(["blacksmith", "innkeeper"])` — assert both NPCs created, single audit entry recorded, one undo snapshot restores both. Call `codex_import(["existing-npc", "nonexistent"])` — assert `[NOT_FOUND]` for `nonexistent` at index 1; assert `existing-npc` was NOT created (atomic rollback). | REQ-321 |
 | T-new-339 | Automated | Bidirectional codex sync: call `codex_import("blacksmith")` into Novel — assert NPC with `codex_source` created. Set personality and voice_examples on the NPC via `set_personality` and `set_voice_examples`. Call `codex_capture("npc", "blacksmith", update_source=true)` — assert Codex entry "blacksmith" updated in-place (personality, voice_examples reflected), NOT a new entry. Call `codex_info("blacksmith")` — assert updated data payload. Call `codex_capture("npc", "guard-captain", update_source=true)` where guard-captain has no codex_source — assert `[STATE_CONFLICT]`. | REQ-321, REQ-332 |
 | T-new-340 | Automated | Codex provenance: call `codex_import("blacksmith")` into active Novel — assert NPC carries `codex_source: {id: "blacksmith", imported_at: <ISO>, codex_modified_at: <ISO>}`. Call `novel_info()` — assert `codex_sources` includes `{id: "blacksmith", kind: "npc"}`. Update blacksmith Codex entry via `codex_set` (change description). Call `spec_health` — assert `[codex_stale]` flag for blacksmith. Call `codex_import("blacksmith")` again — assert existing NPC updated (description changed, HP and conditions preserved), NOT duplicated. Call `clone_novel(...)` — assert cloned NPC retains `codex_source`. | REQ-332, REQ-258, REQ-097 |
+| T-new-341 | Automated | Scene beat taxonomy: call `set_scene_state("The hall darkens", beat="escalation")`. Invoke `badge_briefing` — assert scene state section includes `Beat: escalation` after scene type tag. Call `session_recap` — assert `beat_transitions` array includes `{from: "mid_scene", to: "escalation"}`. Call `set_scene_state("Still dark", beat="escalation")` — assert no new transition entry (same beat). Call `set_scene_state("Dawn breaks", beat="resolution")` — assert second transition entry. Assert `badge_briefing` shows `Beat: resolution`. | REQ-335 |
+| T-new-342 | Automated | Dramatic pacing signal: set `TTRPG_PACING_WINDOW=3`. Call `set_scene_state("Start", beat="setup")`. Perform 4 tool calls (any non-mutating tools). Invoke `badge_briefing` — assert `[pacing] Scene stabilized — 4 actions since last transition.` Call `set_scene_state("New scene")` — assert counter reset, pacing signal absent. Set `TTRPG_PACING_WINDOW=0` — assert no pacing signal after 20+ calls. | REQ-336 |
+| T-new-343 | Automated | Narrative arc visibility: call `set_scene_state("The hall is quiet", beat="setup")`, then `set_scene_state("Torches flicker", beat="escalation")`, then `set_scene_state("The door bursts open", beat="climax")`. Invoke `badge_briefing` under GM — assert `story_beats` line contains three-beat sequence with scene previews. Invoke under Player — assert only `shared`-scope beats visible. Perform 12 beat transitions — assert only most recent 10 appear. Empty Novel — assert `[No beats completed.]`. | REQ-337 |
+| T-new-344 | Automated | Faction autonomous advancement: create faction with `TTRPG_FACTION_AUTONOMY_INTERVAL=3`. Call `set_scene_state("Scene A")` — assert no autonomous tick (interval not yet met). Call scene transitions for Scenes B and C — assert clock advances by 1 autonomous tick on 3rd transition with `[autonomous]` annotation. Advance through Scenes D, E, F — assert 2nd autonomous tick on 6th transition. Create linked countdown and fill via autonomous tick — assert `[pending_fire]` in `badge_briefing`. Set interval to zero — assert no autonomous ticks. | REQ-338 |
+| T-new-345 | Automated | NPC goal pursuit: create NPC with `goals="Steal the crown"`, `disposition="suspicious"`. Set `TTRPG_NPC_AUTONOMY=on`. Call `set_scene_state("Throne room")` — assert `badge_briefing` World in Motion includes goal-pursuit suggestion. Accept suggestion — assert state change applies, suggestion absent on next transition. Defer — assert re-appears at next transition. Dismiss — assert does not re-appear. Set `TTRPG_NPC_AUTONOMY=off` — assert no suggestions. | REQ-339 |
+| T-new-346 | Automated | Discovered consequences: create countdown linked to Guard Room. Set entity absent (not in `characters_present`). Advance countdown to fire. Set entity present in Gatehouse (different location). Advance scene — assert no discovery. Set entity present in Guard Room — assert `[discovered]` story journal entry created with `discovered: true` and "Meanwhile, ..." orientation text. Countdown fires with entity present — assert standard `consequence` entry with `discovered` unset. | REQ-340 |
+| T-new-347 | Automated | Player-facing spatial surface: populate world model with rooms, exits, things. Invoke Player `badge_briefing` — assert scene state section includes room name, exit directions (no destination names), visible things (no internal IDs). Unpopulated world model — assert `[No world model — surroundings are as described by the GM.]`. Game Master `badge_briefing` — assert full world-model surface (IDs included). | REQ-341 |
+| T-new-348 | Automated | Scene from world model: call `set_scene_state("", location="Throne Room")` with Throne Room containing throne thing, chandelier, and 2 NPCs. Assert scene description derived from room description + contents. Call `set_scene_state("The royal chamber", location="Throne Room")` — assert explicit description used, not derived. Call `set_scene_state("The void", location="Nowhere")` — assert description parameter used alone (no match). Call `undo` — assert scene state restored. | REQ-342 |
+| T-new-349 | Automated | Unified intent: call `suggest_actions("convince the guard to let us pass", entity_id="bard_01")` — assert results grouped by domain (mechanical, spatial, social). Assert social domain includes guard's disposition and relationship. Call `suggest_actions("attack the goblin")` — assert only mechanical suggestions. Call `suggest_actions("sneak past")` — assert mechanical + spatial. Call under Player badge — assert all three domains return. | REQ-343 |
+| T-new-350 | Automated | Voice feedback: call `player_signal("voice_feedback", "She wouldn't say that — she'd say 'The door is trapped. Stand back.'")`. Assert `character_sheet` shows `[player-corrected]` voice example. Assert `badge_briefing` shows correction. Assert audit log entry recorded. Call 4th correction in same session — assert `[WARNING] Voice correction limit reached for this session.`. Change `TTRPG_SESSION_ID` — assert limit reset. | REQ-344 |
+| T-new-351 | Automated | Background knowledge: create entity with `background="Veteran of the Border Wars"`. Invoke `badge_briefing` — assert `knowledge_state` includes `background_knowledge` subsection with background text and boundary directive. Create entity with empty `background` — assert subsection absent. Update entity to add `background="Scholar of the Arcane"` — assert subsection appears on next briefing render. | REQ-345 |
+| T-new-352 | Automated | Narrative coherence attestation: after build completion, assert DECISIONS.md (6) contains `narrative_coherence` section sub-headed `@section evidence`. Assert attestation includes: (a) narrative-critical REQ implementation status, (b) badge_briefing narrative section population, (c) smoke-session transcript embedded or linked with ≥5 turns. Assert `spec_health` includes `narrative_coherence` flag with disposition. | REQ-346 |
 
 ---
 
