@@ -20,7 +20,7 @@ workflow evidence is embedded in DECISIONS.md, never stored as separate files.
   `<!-- @section evidence-g5 -->`, `<!-- @section evidence-g6 -->`,
   `<!-- @section audit -->` audit findings and verification record,
   `<!-- @section task-list -->` structured task list.
-- **README.md** — setup, usage, hat model, state model, RNG continuity, and
+- **README.md** — setup, usage, badge model, state model, RNG continuity, and
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
   lives in the code, verification commands, and a `## Troubleshooting` section covering common
@@ -46,7 +46,7 @@ have a recorded result in DECISIONS.md.
 | H6    | T29, T36 | Parse DECISIONS.md (3) and (5)                         | Every waived test cites a (5) waiver; every mechanics-deviation waiver names the source file and table it replaces.    |
 | H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model. |
 | H8    | T43      | Start a workflow, verify no auto-completion            | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.           |
-| H9    | T44      | Player-hat request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_hat`; no hidden content exposed.           |
+| H9    | T44      | Player-badge request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_badge`; no hidden content exposed.           |
 | H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. |

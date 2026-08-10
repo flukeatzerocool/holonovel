@@ -8,7 +8,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315 | 27    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
-| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
+| 5.5     | Badges and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322 | 76    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
@@ -78,12 +78,12 @@ _Check:_ T297.
 `[NOT_FOUND]`, `[INVALID_INPUT]`, `[STATE_CONFLICT]`, `[RULE_VIOLATION]`,
 `[UNIMPLEMENTED]`, `[AMBIGUOUS]`, or `[MISSING_PARAM]`.
 `[NOT_FOUND]` and `[INVALID_INPUT]` must enumerate session-visible valid
-values in the corrective action, derived from the ruleset index and filtered by hat.
+values in the corrective action, derived from the ruleset index and filtered by badge.
 When a single close match exists (fuzzy match), include a
 "Did you mean?" hint above the enumeration (e.g. `Did you mean 'longsword'?`). When
 multiple close matches exist, list them all ("Did you mean one of…"). An
 empty-string search returns no results — not an error — with valid-value enumeration.
-`[FORBIDDEN]` directs callers to use `set_hat` to switch hats. `[STATE_CONFLICT]` is raised
+`[FORBIDDEN]` directs callers to use `set_badge` to switch badges. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
 ended Novel, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
 matches multiple entries — an alias that resolves to more than one canonical
@@ -114,7 +114,7 @@ _Check:_ T176.
 
 **REQ-002b — Corrective-action contract.** The `Corrective action:` line is a
 single imperative sentence describing what the caller must do to resolve the
-error — switching hats for `[FORBIDDEN]`, providing a valid value from the
+error — switching badges.for `[FORBIDDEN]`, providing a valid value from the
 enumeration for `[NOT_FOUND]`, or waiting for a state change for
 `[STATE_CONFLICT]`. It is not a prompt, not a suggestion, and not a
 multi-sentence explanation. For `[UNIMPLEMENTED]`, the corrective action names
@@ -126,15 +126,15 @@ tool layer.
 no corrective action.
 _Check:_ T178.
 
-**REQ-002c — Hat-filtered error values.** Valid-value enumerations in
+**REQ-002c — Badge-filtered error values.** Valid-value enumerations in
 `[NOT_FOUND]` and `[INVALID_INPUT]` errors exclude values the caller's current
-hat cannot access — a Player hat sees only player-accessible spell names in a
-`[NOT_FOUND]` on `lookup_spell`; a Game Master hat sees the full catalogue.
+hat cannot access — a Player badge sees only player-accessible spell names in a
+`[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue.
 "Did you mean?" hints follow the same hat filter. A value that exists in the
-ruleset but is invisible to the caller's hat is treated as absent for
+ruleset but is invisible to the caller's badge is treated as absent for
 enumeration purposes — it is neither enumerated nor hinted. This prevents
 side-channel disclosure of GM-only content through error message verbosity.
-*Acceptance criterion:* A Player-hat `[NOT_FOUND]` on `lookup_spell` with a
+*Acceptance criterion:* A Player-badge `[NOT_FOUND]` on `lookup_spell` with a
 GM-only spell name lists only player-visible spell names and provides no
 "Did you mean?" hint for the GM-only name.
 _Check:_ T179.
@@ -160,13 +160,13 @@ _Check:_ G2, T47.
 
 **REQ-004 — Truncation.** Tool output longer than a configurable limit
 is truncated with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
-payloads are session-local, hat-filtered, and evict the oldest when exceeding the session
+payloads are session-local, badge-filtered, and evict the oldest when exceeding the session
 limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks are
 presented in the ruleset's baseline format, with all fields regardless of truncation
 (see REQ-004a). Prompt output truncation (REQ-118, REQ-135) is a separate mechanism — REQ-004
 governs tool-level output only.
 *Acceptance criterion:* A tool output exceeding 32,000 bytes is truncated with an
-`output://` pointer; retrieving the pointer returns the full content, hat-filtered.
+`output://` pointer; retrieving the pointer returns the full content, badge-filtered.
 _Check:_ T13.
 
 **REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
@@ -184,7 +184,7 @@ _Check:_ T13.
 The template URI pattern SHALL be `output://{tool_name}/{counter}` where `{tool_name}`
 matches the producing tool's registered name and `{counter}` is a
 per-session monotonically increasing integer. `resources/read` on a resolved URI SHALL return the
-full untruncated tool output as Markdown, hat-filtered per REQ-032. The resource
+full untruncated tool output as Markdown, badge-filtered per REQ-032. The resource
 SHALL declare MIME type `text/markdown` and a title of the form
 "<tool_name> output #<counter>". Output payloads SHALL be session-local — they do
 not survive server restart. When the session's output storage exceeds a
@@ -192,7 +192,7 @@ configurable limit, the oldest payload SHALL be evicted and
 its URI SHALL return `[ERROR] [NOT_FOUND]` with a message indicating eviction.
 *Acceptance criterion:* After a tool produces output exceeding 32,000 bytes,
 `resources/templates/list` includes `output://{tool_name}/{counter}`; reading
-the resolved URI returns the full untruncated content, hat-filtered; pushing
+the resolved URI returns the full untruncated content, badge-filtered; pushing
 storage beyond the limit evicts the oldest payload and its URI returns
 `[ERROR] [NOT_FOUND]`.
 _Check:_ T221.
@@ -267,37 +267,37 @@ carries its own `source_anchor`. A ruleset-free build returns `source_anchor: nu
 all lookups (waived per REQ-013).
 _Check:_ T-new-280.
 
-**REQ-062 — Hat foundations.** `hat_briefing` includes ruleset-agnostic best-practice
-foundations for each hat. The Enrich workflow (§11.1) supplies the expanded foundations
-catalogue at `guidance://<hat>/foundations` as supplementary guidance.
-*Acceptance criterion:* `hat_briefing` for the Player hat includes ruleset-agnostic
+**REQ-062 — Badge foundations.** `badge_briefing` includes ruleset-agnostic best-practice
+foundations for each badge. The Enrich workflow (§11.1) supplies the expanded foundations
+catalogue at `guidance://<badge>/foundations` as supplementary guidance.
+*Acceptance criterion:* `badge_briefing` for the Player badge includes ruleset-agnostic
 foundations guidance; the Game Master briefing includes both player and GM foundations.
 _Check:_ T26.
 
-**REQ-070 — Anti-slop guidance.** Hat foundations include anti-slop guidance — concrete
+**REQ-070 — Anti-slop guidance.** Badge foundations include anti-slop guidance — concrete
 examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]`
-and served at `guidance://<hat>/anti-slop`. The spec carries a synopsis in Appendix J; the
+and served at `guidance://<badge>/anti-slop`. The spec carries a synopsis in Appendix J; the
 full anti-slop catalogue is sourced from the Enrich workflow (§11.1) as supplementary guidance,
 with genre-specific examples from the `adventure_advice` module. Anti-slop guidance is
-hat-filtered and appears in `hat_briefing` after foundations and before scene state.
-*Acceptance criterion:* (a) Without enrichment, `hat_briefing` includes at least one
-`[anti-slop]`-tagged item per hat sourced from the Appendix J synopsis, each carrying a
-forbidden narrative pattern and a corrected alternative; (b) the content is hat-filtered
+badge-filtered and appears in `badge_briefing` after foundations and before scene state.
+*Acceptance criterion:* (a) Without enrichment, `badge_briefing` includes at least one
+`[anti-slop]`-tagged item per badge sourced from the Appendix J synopsis, each carrying a
+forbidden narrative pattern and a corrected alternative; (b) the content is badge-filtered
 (rows 1–10 are GM-scoped, rows 5–7 and 12 are Player-scoped, rows 8–11 are GM-scoped);
 (c) anti-slop guidance appears after foundations and before scene state;
-(d) `guidance://<hat>/anti-slop` renders the same patterns as a retrievable resource.
+(d) `guidance://<badge>/anti-slop` renders the same patterns as a retrievable resource.
 _Check:_ T223.
 
 **REQ-184 — Anti-slop resource rendering.** The server serves anti-slop guidance at
-`guidance://<hat>/anti-slop` as a Markdown resource. The resource SHALL include every
-Appendix J synopsis pattern whose scope matches the requested hat. Each pattern SHALL
+`guidance://<badge>/anti-slop` as a Markdown resource. The resource SHALL include every
+Appendix J synopsis pattern whose scope matches the requested badge. Each pattern SHALL
 appear as a `[anti-slop]`-tagged item with its Forbidden and Correct text. When enrichment
 is active (REQ-159), the resource SHALL include both the Appendix J synopsis and
 enrichment-supplied anti-slop items; enrichment items SHALL be tagged `[supplementary]`
 with source URL and confidence. Without enrichment, the resource SHALL contain only the
 Appendix J synopsis.
-*Acceptance criterion:* `guidance://<hat>/anti-slop` returns Markdown containing every
-Appendix J pattern for the requested hat, each tagged `[anti-slop]` and hat-filtered;
+*Acceptance criterion:* `guidance://<badge>/anti-slop` returns Markdown containing every
+Appendix J pattern for the requested hat, each tagged `[anti-slop]` and badge-filtered;
 enrichment-sourced items carry `[supplementary]` with source URL.
 _Check:_ T223.
 
@@ -318,34 +318,34 @@ uses `foo` regardless of its text. Two headings with identical derived text in
 the same file produce anchors suffixed `-1` and `-2`.
 _Check:_ T16, T236.
 
-**REQ-071 — Narrative tone samples.** `hat_briefing` includes up to three
-`[narrative-tone]`-tagged guidance items per hat — example-of-play prose extracted from the
-ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<hat>/tone`. Each
+**REQ-071 — Narrative tone samples.** `badge_briefing` includes up to three
+`[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the
+ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each
 carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a
 guidance subcategory. When the ruleset provides none, the Enrich workflow (§11.1) may
 source community examples. Entity-level voice_examples (REQ-077) are distinct — those
 are dialogue snippets attached to specific characters.
-*Acceptance criterion:* `hat_briefing` includes at least one `[narrative-tone]`-tagged
-item per hat — a prose excerpt from the ruleset demonstrating its narrative
+*Acceptance criterion:* `badge_briefing` includes at least one `[narrative-tone]`-tagged
+item per badge — a prose excerpt from the ruleset demonstrating its narrative
 voice, with source anchor and confidence.
 _Check:_ T26.
 
-**REQ-064 — Hat behavioral boundaries.** The server respects hat boundaries in
+**REQ-064 — Badge behavioral boundaries.** The server respects badge boundaries in
 all tool output. The AI's behavioral boundaries are role-dependent. When the AI's
 narrative role is Game Master, it describes situations and surfaces information; it
 never takes action or makes decisions on behalf of the player. When the AI's
 narrative role is Player, it describes character intent; it never prescribes world
 facts or narrative outcomes without Game Master confirmation. These boundaries are
-delivered in the `hat_briefing` orientation content, determined by the AI's role
-per REQ-304. When the AI has no narrative role (null-hat), tool output follows the
-active hat's boundary conventions.
+delivered in the `badge_briefing` orientation content, determined by the AI's role
+per REQ-304. When the AI has no narrative role (null-badge), tool output follows the
+active badge's boundary conventions.
 
 When a player's natural-language input carries both in-character and meta-intent
 simultaneously — e.g., "I examine the altar" (character action) + "what does my
 character see?" (meta-query) — the `suggest_actions` tool SHALL return both
 tool categories: the in-character resolution (roll_skill_check, examine) and the
 meta-inquiry (search_rules for altar lore). The AI (when in the Game Master role),
-informed by `hat_briefing`, SHALL resolve the in-character component through
+informed by `badge_briefing`, SHALL resolve the in-character component through
 narration and redirect the meta-intent component through tool calls — it SHALL NOT
 silently treat a meta-query as an in-character action resolved without the player's
 knowledge.
@@ -356,13 +356,13 @@ the GM out-of-character). Setting `register=meta` SHALL suppress in-character
 narration in tool output — responses from `suggest_actions`, rule lookups, and
 similar tools present bare mechanical information without narrative framing. The
 register state persists for the session (discarded on connection close) and is
-visible in `hat_briefing` as a Player-Register line. Setting `register=character`
+visible in `badge_briefing` as a Player-Register line. Setting `register=character`
 restores narrative-framed output. The default register is `character`.
 
-When a hat is active, `hat_briefing` SHALL include a hat boundary directive — a
+When a badge is active, `badge_briefing` SHALL include a badge boundary directive — a
 single sentence: "You are in the story. Confine tool use and responses to the
-current Novel. To step away from the table, call `set_hat(\"none\")`." The
-directive is identical for both hats. It SHALL appear after the hat foundations
+current Novel. To step away from the table, call `set_badge(\"none\")`." The
+directive is identical for both badges. It SHALL appear after the badge foundations
 (REQ-062) and before the anti-slop guidance (REQ-070). It is never truncated
 (REQ-135, tier 1).
 
@@ -370,9 +370,9 @@ directive is identical for both hats. It SHALL appear after the hat foundations
 `register=character` receives `suggest_actions` output with the acrobatics check
 tool AND a rules-lookup pointer; under `register=meta` the same input produces
 only mechanical information with no "you attempt to jump" narrative framing. The
-register state appears in `hat_briefing` and does not persist across server restarts.
-The boundary directive appears in `hat_briefing` for both Player and GM hats.
-_Check:_ T51, T-new-hat-boundary.
+register state appears in `badge_briefing` and does not persist across server restarts.
+The boundary directive appears in `badge_briefing` for both Player and GM badges.
+_Check:_ T51, T-new-badge-boundary.
 
 *Out of scope:* transport-layer error handling, client-side error formatting,
 error localization or internationalization, and error recovery strategies beyond the
@@ -416,7 +416,7 @@ mechanical-indicator heuristics as the viability pre-check (§6.2): bold-labeled
 fields, imperative verbs, and definition-list markup. Sections
 flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is
 computed per-section and aggregated per REQ-147, with the player-filtered view as the gating metric. The player filter excludes:
-guidance items with GM-only hat scope (REQ-016), mechanics extracted from
+guidance items with GM-only badge scope (REQ-016), mechanics extracted from
 GM-only ruleset sections (REQ-032), and enrichment content tagged `[gm_only]`
 (REQ-080). The builder computes player-filtered confidence by applying these
 exclusions before aggregation per REQ-147.
@@ -459,7 +459,7 @@ prerequisite environment and setup instructions that an operator can follow
 from a cold checkout; (b) a copy-paste `mcpServers` configuration entry
 with key names matching the build-time client target's documented schema
 (§6.2 B3); (c) the RNG continuity contract — whether deterministic replay
-is guaranteed by seed or session-dependent; (d) the hat model with
+is guaranteed by seed or session-dependent; (d) the badge model with
 tool-access implications; and (e) the state model describing what survives
 restart and what is connection-scoped.
 *Acceptance criterion:* An operator copies the `mcpServers` block from
@@ -566,13 +566,13 @@ definition — including nested table references — and return the result row w
 dice breakdown per REQ-003. A deterministic seed parameter SHALL produce
 identical results across calls and sessions (per REQ-050). Tables tagged as
 GM-only during extraction SHALL return `[FORBIDDEN]` when called under the
-Player hat. When the ruleset contains zero generation tables, `roll_on_table`
+Player badge. When the ruleset contains zero generation tables, `roll_on_table`
 SHALL return a clear "no tables indexed" message — the tool is not
 unregistered, per the content-absent tool contract (REQ-020, infrastructure
 tools clause). The tool is classified as generation (REQ-015).
 *Acceptance criterion:* `roll_on_table("gear")` with seed `42` returns the table
 row for the gear table exactly; the same call without a seed returns a different
-row; `roll_on_table("gm-only-table")` under Player hat returns `[FORBIDDEN]`;
+row; `roll_on_table("gm-only-table")` under Player badge returns `[FORBIDDEN]`;
 a ruleset with zero tables returns "No generation tables indexed."
 _Check:_ T46, T210.
 
@@ -651,18 +651,18 @@ _Check:_ T255.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
 responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
-guidance items, each with attribution, confidence, and hat scope. Guidance is quoted
+guidance items, each with attribution, confidence, and badge scope. Guidance is quoted
 inert data — it never influences tool behavior, search results, or model extraction.
 *Acceptance criterion:* Guidance items extracted from role-addressed prose carry
-source anchor, confidence, attribution method, and hat scope; `guidance://player`
+source anchor, confidence, attribution method, and badge scope; `guidance://player`
 excludes GM-tagged items.
 _Check:_ T26.
 
-**REQ-017 — Hat stories.** A MUST-covering set of intent prompts maps each hat's
+**REQ-017 — Badge stories.** A MUST-covering set of intent prompts maps each badge's
 expected play activities to concrete tool/resource paths. Every hat's stories are
 achievable from its visible registry.
-*Acceptance criterion:* Every tool visible to the Player hat is covered by at
-least one intent prompt in the Player hat stories set; every tool visible to GM
+*Acceptance criterion:* Every tool visible to the Player badge is covered by at
+least one intent prompt in the Player badge stories set; every tool visible to GM
 is covered by at least one GM story.
 _Check:_ T28.
 
@@ -711,8 +711,8 @@ moves, conditions, statuses), Entities (character types, monsters, NPCs with fie
 lifecycle), Tables (lookup tables and generation tables with dice notation), Actions
 (resolution mechanics, commands, generation — classified per REQ-015), Resolution (the core
 mechanic: dice notation, stat associations, result bands), Roles (Player and Game Master
-terms from the ruleset), and Guidance (hat-addressed prose, verbatim with attribution and
-hat scope). A cross-category reference that cannot be resolved against the inventory of
+terms from the ruleset), and Guidance (badge-addressed prose, verbatim with attribution and
+badge scope). A cross-category reference that cannot be resolved against the inventory of
 earlier extractions within the same chunk SHALL be recorded as a MEDIUM-confidence finding
 in the defect log with a deferred-reference annotation.
 *Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined
@@ -725,7 +725,7 @@ _Check:_ T173.
 content from the ruleset and register it as `roll_on_table` entries. For each
 generation table, the builder SHALL produce: a canonical `key` (snake_case slug
 derived from the source heading), a `dice_expression`, a `ranges` array
-(min/max/result tuples), a `hat_scope` (derived from source location — tables in
+(min/max/result tuples), a `badge_scope` (derived from source location — tables in
 GM-only chapters are `game_master`, otherwise `shared`), and a `source_anchor`
 (heading and file path). Table content extraction follows the same confidence
 labeling and traceability rules as other extraction categories (REQ-011,
@@ -854,7 +854,7 @@ always be present in `tools/list`:
   resume state (`save_pause_context`, `get_resume_context`), and archive
   (`compact_audit_log`), and server notes (`set_server_note`,
   `remove_server_note`, `list_server_notes`).
-- **Hats & Workflow** — `set_hat`, `respond`, `undo`, `redo`, `help`.
+- **Badges & Workflow** — `set_badge`, `respond`, `undo`, `redo`, `help`.
   The identity and permission layer — never waived.
 - **Narrative** — story-content tools, grouped by function: Scene & Tone
   (`set_scene_state`, `set_scene_type`, `set_narrative_directive`,
@@ -904,10 +904,10 @@ only by category enum; the per-tool justification list in DECISIONS.md matches t
 live `tools/list` registry.
 _Check:_ T3, T35.
 
-**REQ-022 — Resources.** The server provides `ruleset://` (with hat filtering),
+**REQ-022 — Resources.** The server provides `ruleset://` (with badge filtering),
 `entities://`, `entity://<id>`, `audit://novel`, `roster://<type>`, `roster://<id>`,
-`guidance://<hat>`, `guidance://<hat>/anti-slop`, `guidance://<hat>/tone`,
-`guidance://<hat>/foundations`, `guidance://shared/hat-switch`, `scene://current`, `scene://history`,
+`guidance://<badge>`, `guidance://<badge>/anti-slop`, `guidance://<badge>/tone`,
+`guidance://<badge>/foundations`, `guidance://shared/badge-switch`, `scene://current`, `scene://history`,
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
 `enrichment://voice_examples`, `enrichment://briefing_order`,
@@ -928,18 +928,18 @@ returning the Novel's entity-relationship graph as a structured adjacency list. 
 SHALL include: (a) `entities` — all Novel entities with their current relationships;
 (b) `npcs` — all NPCs with relationships, dispositions, and location; (c) `lore_connections`;
 (d) `secrets` — secret lore entries mapped to the entities that have had them revealed;
-(e) `factions` — faction memberships. The resource is hat-filtered: Player hat sees only
+(e) `factions` — faction memberships. The resource is badge-filtered: Player badge sees only
 relationships involving their active entities, `shared`-scope lore, and revealed secrets.
 When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has
 no briefing presence per §5.10.
 
 *Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with
-1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM hat
+1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM badge
 includes entities, NPCs with relationships, lore_connections, secrets, and factions.
 _Check:_ T-new-296.
 
 **REQ-023 — Prompts.** The server provides prompts covering multi-step workflows,
-hat briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel
+badge briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel
 setup (REQ-089). Tool-use intent mapping is handled by the `suggest_actions` tool
 (REQ-084) rather than a prompt — a dedicated prompt for this function is
 redundant. The remaining intent-mapping prompt (`run_workflow`) derives its tool
@@ -1000,8 +1000,8 @@ primary save-file browsing surface), and prompt health — each registered promp
 (tool or resource names appearing in prompt text that do not match any registered
 tool or resource). Counts are derived from live registrations at call time — the
 running tool catalog, resource map, prompt list, search index, and extracted data
-arrays — not from hardcoded numeric literals. The player hat sees only
-player-filtered metrics. Output is filtered by hat. The convergence summary section
+arrays — not from hardcoded numeric literals. The Player badge sees only
+player-filtered metrics. Output is filtered by badge. The convergence summary section
 is absent when the build is not yet complete. `spec_health` SHALL include a
 `gap_audit` section containing: a delta summary comparing the server's recorded
 spec version against the current spec version recorded at build time — a
@@ -1013,7 +1013,7 @@ advanced and a gap audit is needed); a tool-catalog comparison (tool count from 
 expected per REQ-020 categories, with per-category presence), a resource-map
 comparison (URI count from live registry vs REQ-022 catalog), a prompt-list
 comparison (prompt count and names from live registry vs REQ-023 contract, with
-per-prompt title and argument-description presence), and a hat-gating summary
+per-prompt title and argument-description presence), and a badge-gating summary
 (tool count per gate classification per REQ-136). The `gap_audit` section
 SHALL be absent when the build is not yet complete.
 
@@ -1036,7 +1036,7 @@ be flagged as a `[regression]` in the `unresolved` list.
 `total` (total sub-workflow count per §6.6), and `last_run` (ISO 8601
 timestamp of the most recent Gauntlet execution, absent if never run).
 When `last_run` is absent, `passed` and `total` are absent. The field is
-hat-filtered: Player hat sees this field; no GM-only content is exposed.
+badge-filtered: Player badge sees this field; no GM-only content is exposed.
 
 `spec_health` SHALL include a `search_index_coverage` field containing:
 `total_headings` (the count of `##` and `###` headings in the ruleset source at
@@ -1071,8 +1071,8 @@ SHALL include all seven module names — `voice_examples`,
 An absent `module_counts` field or an empty object does not satisfy
 this contract.
 The enrichment health section is visible
-to all hats — Player and GM alike see whether enrichment is active and
-how many items are stale, but per-module content is hat-filtered per
+to all badges — Player and GM alike see whether enrichment is active and
+how many items are stale, but per-module content is badge-filtered per
 REQ-080.
 *Acceptance criterion:* After enrichment, `spec_health` reports
 `enrichment_active: true`, per-module counts matching the manifest, and
@@ -1128,7 +1128,7 @@ a `safety_protocols` object enumerating each safety property protected by the bu
 and its status:
 
 - `state_loss` — Novel state is recoverable after restart
-- `hat_boundary` — GM-only content never leaks to Player hat
+- `badge_boundary` — GM-only content never leaks to Player badge
 - `data_corruption` — corrupted state files are detected and isolated
 - `unrecoverable_crash` — the server handles adversarial input without crash
 
@@ -1142,11 +1142,11 @@ _Check:_ T289.
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
 full text of the specification that built the server as Markdown, embedded in the
-server directory at build time. The resource is GM-filtered: the Game Master hat
-sees the full text; Player hat attempts return `[FORBIDDEN]` (per REQ-002). The
+server directory at build time. The resource is GM-filtered: the Game Master badge
+sees the full text; Player badge attempts return `[FORBIDDEN]` (per REQ-002). The
 embedded copy is a snapshot — it may differ from the current upstream revision.
 *Acceptance criterion:* `resources/read` on `spec://build` returns the full
-embedded Markdown; Player hat returns `[FORBIDDEN]`; the snapshot content hash
+embedded Markdown; Player badge returns `[FORBIDDEN]`; the snapshot content hash
 matches DECISIONS.md.
 _Check:_ T104.
 
@@ -1157,7 +1157,7 @@ pointer for operators who want the latest version. The URL is informational — 
 embedded spec copy (REQ-105) is authoritative for the server's build-time contract.
 *Acceptance criterion:* `spec_health` output includes `spec_repo_url` matching
 the intake value; the `intro` prompt includes the URL; the URL is informational
-and identical for both hats.
+and identical for both badges.
 _Check:_ T105.
 
 **REQ-107 — Version coordination.** The server carries its build-time specification
@@ -1269,26 +1269,26 @@ required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_he
 `help` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to
 the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters,
 dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and
-(3) a pointer to `hat_briefing` for hat-specific guidance. With a query, it
+(3) a pointer to `badge_briefing` for hat-specific guidance. With a query, it
 searches tool descriptions, prompt summaries, and guidance text for the most relevant
 matches and returns their names, descriptions, and example invocations from the tool-use
-playbook. Output is hat-filtered. The Game Master may customize the task-map category
+playbook. Output is badge-filtered. The Game Master may customize the task-map category
 assignments via a Novel-scoped mapping. A tool reassigned to a user-defined category
 is removed from its builder-assigned category. The mapping persists with the Novel.
-Player hat results always reflect builder-assigned categories. The builder-assigned
+Player badge results always reflect builder-assigned categories. The builder-assigned
 categories SHALL follow the default set by `TTRPG_WORLD_PROMINENCE` (REQ-309). An
 empty mapping restores builder defaults.
 *Acceptance criterion:* `help()` returns an intro pointer, task-map with one-line
-descriptions, and a `hat_briefing` pointer; `help("combat")` returns the most
+descriptions, and a `badge_briefing` pointer; `help("combat")` returns the most
 relevant combat tools with example invocations.
 _Check:_ T62, T118.
 
 **REQ-063 — Connection introduction.** The server provides an `intro` prompt, listed first
-in `prompts/list`. It takes no arguments, is visible to all hats, and serves as a
+in `prompts/list`. It takes no arguments, is visible to all badges, and serves as a
 conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next
 actions a player can take. The tone is engaging and energetic; the anti-slop catalogue
 (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding
-prompts. The `help` tool and `hat_briefing` each point to it. For intent-to-tool
+prompts. The `help` tool and `badge_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
 
@@ -1307,7 +1307,7 @@ with four concrete next actions.
 _Check:_ T49, T50, T259.
 
 **REQ-078 — Session zero prompt.** The server provides a `session_zero` prompt. It takes no
-arguments, is visible to all hats (unfiltered), and serves as a structured guide
+arguments, is visible to all badges (unfiltered), and serves as a structured guide
 surfaced at the start of a new story. The builder SHALL generate the prompt text at
 build time, drawing on the ruleset model for ruleset terminology,
 character-creation rules, example-of-play excerpts, and native personality
@@ -1432,7 +1432,7 @@ _Check:_ T39, T39a.
 
 **REQ-183 — Live-index-derived error enumerations.** `[NOT_FOUND]` and `[INVALID_INPUT]`
 error enumerations for bounded-domain parameters SHALL derive from the ruleset index at
-call time, not from hardcoded literals. The enumeration is filtered by hat (per REQ-002c).
+call time, not from hardcoded literals. The enumeration is filtered by badge (per REQ-002c).
 This requirement enforces the §6.5 builder rule: hardcoded arrays are permitted only
 for ability abbreviations and persona roles. Tool implementations that enumerate valid values
 from a static list rather than the live index SHALL be flagged in DECISIONS.md (5) as a
@@ -1477,7 +1477,7 @@ Novel-tier fields with the snapshot values, clear `pending_workflow` to
 null, and reset `pending_staleness_counter` to zero. The restored state
 SHALL be audited with a `[workflow_cancelled]` audit entry recording the
 decision text and the pre-workflow snapshot timestamp. After restoration,
-all blocked tools (undo, redo, set_hat) are callable. Cancel restoration
+all blocked tools (undo, redo, set_badge) are callable. Cancel restoration
 works after a server restart — the persisted snapshot covers the full
 pre-workflow Novel state.
 
@@ -1486,7 +1486,7 @@ successfully drains the decision. Only one workflow may be pending per Novel at 
 — a tool that raises `[NEED_INPUT]` while a workflow is already pending returns
 `[ERROR] [STATE_CONFLICT]` identifying the pending decision. The server must be able to
 determine whether a workflow is pending, such that tools blocked during pending
-workflows (undo, redo, set_hat) can query the pending state without ambiguity. Pending
+workflows (undo, redo, set_badge) can query the pending state without ambiguity. Pending
 workflow state survives server restarts — after restart the `[NEED_INPUT]` remains open
 and the server returns the same decision prompt on the next query. The Novel's pre-
 workflow snapshot is persisted alongside the pending decision so that `respond(cancel)`
@@ -1507,7 +1507,7 @@ G2; S22.
 pending workflow decision, THE system SHALL return `[OK]` with the decision
 text, the selected option, and the resulting state change (if any) in a
 single response. A drained workflow SHALL clear the `pending_workflow` field
-on the Novel, restoring all blocked tools (undo, redo, set_hat) to callable
+on the Novel, restoring all blocked tools (undo, redo, set_badge) to callable
 state. The drain is atomic — a partial drain where the workflow is cleared
 but the state change is not applied is a defect.
 *Acceptance criterion:* After `respond("stat-array", "grit-forward")` drains
@@ -1621,7 +1621,7 @@ workflows that span multiple Novels or connections.
 **REQ-140 — End-Novel confirmation dispatch.** WHEN the `respond` handler
 receives a decision matching the open `end_novel` confirmation prompt,
 THE system SHALL execute the Novel disposal sequence defined in REQ-088:
-deactivate the active hat, clear undo and redo stacks, move the Novel's
+deactivate the active badge, clear undo and redo stacks, move the Novel's
 save file and backup to `.trash/`, remove the Novel from the active set,
 and record the disposal in the audit log. The `respond` tool's routing
 logic SHALL be auditable — a mismatch between the open decision and the
@@ -1675,107 +1675,107 @@ options; `respond("The goon blocks your path.", "fight")` records a `[choice]`
 audit entry; a countdown with `scope: "fight"` advances.
 _Check:_ T273.
 
-### 5.5 Hats and Access
+### 5.5 Badges and Access
 
-**REQ-030 — Single-user connection.** Each MCP connection serves one active hat at a
-time — the hat most recently set via `set_hat` or `TTRPG_HAT`. No concurrency,
-no multiplayer state sharing within a connection. The active hat and active entity
-are Novel-scoped: two connections to the same Novel share the same hat and entity
+**REQ-030 — Single-user connection.** Each MCP connection serves one active badge at a
+time — the hat most recently set via `set_badge` or `TTRPG_BADGE`. No concurrency,
+no multiplayer state sharing within a connection. The active badge and active entity
+are Novel-scoped: two connections to the same Novel share the same badge and entity
 state (REQ-031, REQ-074). Each connection may independently switch between Novels
-via `switch_novel` (REQ-095), and each Novel stores its own hat independently.
+via `switch_novel` (REQ-095), and each Novel stores its own badge independently.
 *Acceptance criterion:* Starting a second MCP connection to the same Novel succeeds
-and inherits the Novel's current hat and active entity; switching hats on one
+and inherits the Novel's current badge and active entity; switching badges.on one
 connection is visible on the other.
 _Check:_ Appendix D.
 
-**REQ-031 — Hat activation.** By default, no hat is active — the server operates
+**REQ-031 — Badge activation.** By default, no badge is active — the server operates
 with full access, equivalent to Game Master privileges. All tools, resources, and prompts
-are accessible without restriction. Hat gating (REQ-032) takes effect only when a
-hat is explicitly activated via `set_hat` (REQ-066). Wearing a hat means you are
-in the story. The hat may be deactivated with `set_hat("none")` — the Novel
-persists in editing mode with full access. When no hat is active,
-all hat-filtered surfaces (`hat_briefing`, `prompts/list`, `resources/list`,
-`tools/list`, guidance) return full unfiltered content. The hat activation state
+are accessible without restriction. Badge gating (REQ-032) takes effect only when a
+hat is explicitly activated via `set_badge` (REQ-066). Wearing a hat means you are
+in the story. The hat may be deactivated with `set_badge("none")` — the Novel
+persists in editing mode with full access. When no badge is active,
+all badge-filtered surfaces (`badge_briefing`, `prompts/list`, `resources/list`,
+`tools/list`, guidance) return full unfiltered content. The badge activation state
 persists with the Novel (REQ-055). `end_novel` deletes the Novel regardless of
-hat state.
-*Acceptance criterion:* On startup with no hat active, `tools/list` returns all
-tools unfiltered; after `set_hat("player")`, GM-only tools are excluded from
-`tools/list` and return `[FORBIDDEN]` on invocation; after `set_hat("none")`,
+badge state.
+*Acceptance criterion:* On startup with no badge active, `tools/list` returns all
+tools unfiltered; after `set_badge("player")`, GM-only tools are excluded from
+`tools/list` and return `[FORBIDDEN]` on invocation; after `set_badge("none")`,
 full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
-**REQ-066 — set_hat tool.** The server provides a `set_hat` tool accepting
-`player`, `game_master`, `observer`, or `none`. Returns `[OK] Active hat: <hat>` on
-success — `"none"` returns `[OK] Active hat: none — Novel editing mode`,
-`"observer"` returns `[OK] Active hat: observer — read-only spectator mode`. Returns
+**REQ-066 — set_badge tool.** The server provides a `set_badge` tool accepting
+`player`, `game_master`, `observer`, or `none`. Returns `[OK] Active badge: <badge>` on
+success — `"none"` returns `[OK] Active badge: none — Novel editing mode`,
+`"observer"` returns `[OK] Active badge: observer — read-only spectator mode`. Returns
 `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
-hat-gated — it is always callable regardless of current hat. The hat switch
-takes effect immediately on the next tool call. `set_hat("none")` deactivates
-the hat and returns to editing mode with full access; the Novel persists
+badge-gated — it is always callable regardless of current badge. The badge switch
+takes effect immediately on the next tool call. `set_badge("none")` deactivates
+the badge and returns to editing mode with full access; the Novel persists
 untouched.
-*Acceptance criterion:* `set_hat("player")` returns `[OK] Active hat: player`
-and the next tool call is gated; `set_hat("observer")` returns
-`[OK] Active hat: observer — read-only spectator mode`; `set_hat("none")` returns
-`[OK] Active hat: none — Novel editing mode` and full access is restored;
-`set_hat(...)` during a pending workflow returns `[STATE_CONFLICT]`.
+*Acceptance criterion:* `set_badge("player")` returns `[OK] Active badge: player`
+and the next tool call is gated; `set_badge("observer")` returns
+`[OK] Active badge: observer — read-only spectator mode`; `set_badge("none")` returns
+`[OK] Active badge: none — Novel editing mode` and full access is restored;
+`set_badge(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
-**REQ-032 — Server-side gating.** When a hat is active, the server enforces hat
+**REQ-032 — Server-side gating.** When a badge is active, the server enforces hat
 access on every endpoint. Player tools, resources, and prompts are a strict subset of
 GM-visible ones. Observer tools are a read-only subset: state-query tools
 (`character_sheet`, `session_recap`, `help`, `scene://current`, `entities://`,
 etc.) are permitted; mutating tools (commands, generation, hybrid per REQ-015)
 return `[FORBIDDEN]` with the corrective action "Observer mode is read-only.
-Switch hats with `set_hat` to interact." `tools/list` and related metadata surfaces
+Switch badges.with `set_badge` to interact." `tools/list` and related metadata surfaces
 are filtered. Guidance items are filtered. `spec_health` metrics are filtered.
-`[FORBIDDEN]` responses direct callers to use `set_hat` to switch hats. When no
-hat is active, no gating applies — all endpoints return full content and all tools
+`[FORBIDDEN]` responses direct callers to use `set_badge` to switch badges. When no
+badge is active, no gating applies — all endpoints return full content and all tools
 are callable.
-*Acceptance criterion:* Under the Player hat, `create_npc(...)` returns
-`[FORBIDDEN]`; switching to Game Master hat makes the same call succeed;
-switching back and calling again returns `[FORBIDDEN]`. Under the Observer hat,
-`set_scene_state(...)` returns `[FORBIDDEN]` directing to `set_hat`; `help()`
+*Acceptance criterion:* Under the Player badge, `create_npc(...)` returns
+`[FORBIDDEN]`; switching to Game Master badge makes the same call succeed;
+switching back and calling again returns `[FORBIDDEN]`. Under the Observer badge,
+`set_scene_state(...)` returns `[FORBIDDEN]` directing to `set_badge`; `help()`
 succeeds.
 _Check:_ T9, T13, T15, T18,
 T26, T44, T148, T151.
 
-**REQ-216 — Generation table hat filtering.** `roll_on_table` SHALL be callable
-from both hats, but tables with `hat_scope: "game_master"` SHALL return
-`[FORBIDDEN]` when called from the Player hat — the error SHALL enumerate the
-full table name but SHALL NOT reveal table content. The `hat_scope` value SHALL
+**REQ-216 — Generation table badge filtering.** `roll_on_table` SHALL be callable
+from both badges, but tables with `badge_scope: "game_master"` SHALL return
+`[FORBIDDEN]` when called from the Player badge — the error SHALL enumerate the
+full table name but SHALL NOT reveal table content. The `badge_scope` value SHALL
 be visible in `spec_health` per-table metadata but the table content SHALL NOT.
-The `hat_briefing` SHALL enumerate available table names with their hat_scope,
-filtered per the active hat's access level. The error message SHALL direct the
-caller to `hat_briefing` for a non-revealing list of accessible tables.
+The `badge_briefing` SHALL enumerate available table names with their badge_scope,
+filtered per the active badge's access level. The error message SHALL direct the
+caller to `badge_briefing` for a non-revealing list of accessible tables.
 
 *Acceptance criterion:* `roll_on_table("madness_short_term")` called from the
-Player hat returns `[FORBIDDEN]` with the table name visible but no content; the
-same call from the Game Master hat returns the table result. `hat_briefing` under
-the Player hat lists only `hat_scope: "shared"` table names.
+Player badge returns `[FORBIDDEN]` with the table name visible but no content; the
+same call from the Game Master badge returns the table result. `badge_briefing` under
+the Player badge lists only `badge_scope: "shared"` table names.
 
 _Check:_ T257.
 
 **REQ-133 — Forbidden-call audit.** Every tool invocation that returns
-`[FORBIDDEN]` is recorded in the audit log with timestamp, active hat, tool
+`[FORBIDDEN]` is recorded in the audit log with timestamp, active badge, tool
 name, and arguments — matching the fields recorded for mutating calls
 (REQ-040). Forbidden-call entries carry a `violation_type: "boundary"` field on the audit entry
 that is absent from mutating-call entries. When surfaced through `compress_audit` or
 `audit://novel`, the entry's output prefix is prepended with `[BOUNDARY_VIOLATION]`
 to distinguish it from mutating entries at a glance.
-*Acceptance criterion:* Invoking a GM-only tool under the Player hat produces
-an audit entry with hat `player`, tool name, arguments, and a
+*Acceptance criterion:* Invoking a GM-only tool under the Player badge produces
+an audit entry with badge `player`, tool name, arguments, and a
 boundary-violation marker; the entry is visible at `audit://novel` and is
 distinguishable from mutating entries.
 _Check:_ T147.
 
-**REQ-134 — Minimum Player tool surface.** When the Player hat is active,
+**REQ-134 — Minimum Player tool surface.** When the Player badge is active,
 the server guarantees that tools in these functional groups are callable:
 dice-resolution (rolls and checks), ruleset lookups, character sheet
 rendering, action suggestions, player signals, help, undo/redo of the Player
-hat's own mutations, and hat switching. The builder records the gate
+hat's own mutations, and badge switching. The builder records the gate
 classification for every tool in DECISIONS.md in a format that can be
-diffed against each hat's filtered `tools/list` output.
-*Acceptance criterion:* Under the Player hat, each Player-guaranteed group
+diffed against each badge's filtered `tools/list` output.
+*Acceptance criterion:* Under the Player badge, each Player-guaranteed group
 defined in the body has at least one tool callable by the Player; a tool
 known to be GM-exclusive returns `[FORBIDDEN]`.
 _Check:_ T148.
@@ -1783,7 +1783,7 @@ _Check:_ T148.
 **REQ-220 — Narrative point of view.** When `set_active_entity(entity_id)` is called,
 the active entity carries narrative POV (point of view) semantics: the player is
 inhabiting this character — speaking as them, perceiving through their senses. The
-server SHALL include a POV directive in `hat_briefing`, positioned in the
+server SHALL include a POV directive in `badge_briefing`, positioned in the
 decision-critical group after scene state and before the entity listing. The
 directive contains: (a) the active entity's name; (b) an instruction to the AI:
 describe the scene through this character's eyes and senses — other
@@ -1795,7 +1795,7 @@ per REQ-176 — the directive is replaced with an empty-state marker: "POV: none
 narration is omniscient." The directive is NEVER truncated by the briefing size budget
 (REQ-135, tier 1). POV follows the active entity across `set_active_entity` calls —
 there is no separate tool.
-*Acceptance criterion:* After `set_active_entity("character_01")`, `hat_briefing`
+*Acceptance criterion:* After `set_active_entity("character_01")`, `badge_briefing`
 includes a POV directive naming character_01 with the narrative instruction and
 personality fields. Switching to character_02 updates the directive; removing all
 entities shows the omniscient empty-state marker.
@@ -1816,47 +1816,47 @@ parameter, the existing POV mode is preserved. The initial default is `character
 — the first `set_active_entity` call in a Novel locks POV to that entity unless
 `pov=omniscient` is explicit.
 *Acceptance criterion:* After `set_active_entity("char_01", pov="omniscient")`,
-`hat_briefing` shows "POV: none — narration is omniscient" with char_01 still
+`badge_briefing` shows "POV: none — narration is omniscient" with char_01 still
 the active entity; `set_active_entity("char_02")` preserves omniscient mode;
 `set_active_entity("char_02", pov="character")` switches to character-locked
 POV for char_02.
 _Check:_ T265.
 
 **REQ-304 — Counterpart AI role.** The AI's narrative role is the counterpart of the
-active hat by default: when the human wears `player`, the AI briefs as Game Master;
-when the human wears `game_master`, the AI briefs as Player; when no hat is active,
-the AI has no narrative role (null-hat briefing per REQ-136). The server accepts a
+active badge by default: when the human wears `player`, the AI briefs as Game Master;
+when the human wears `game_master`, the AI briefs as Player; when no badge is active,
+the AI has no narrative role (null-badge briefing per REQ-136). The server accepts a
 `TTRPG_AI_ROLE` environment variable with values `counterpart` (default),
 `game_master`, or `player`. When set to a fixed value, the AI's narrative role is
-locked — `game_master` forces GM-oriented briefing regardless of the human's hat,
+locked — `game_master` forces GM-oriented briefing regardless of the human's badge,
 `player` forces player-oriented briefing. The AI role determines the orientation
-sections in `hat_briefing` (foundations, anti-slop, tone samples, behavioral boundary
-directive per REQ-109) while the active hat determines the state surface and tool
+sections in `badge_briefing` (foundations, anti-slop, tone samples, behavioral boundary
+directive per REQ-109) while the active badge determines the state surface and tool
 filtering. `TTRPG_AI_ROLE` is read at startup and applies to all connections and
-Novels. The active hat controls tool-access gating; the AI role controls narrative
+Novels. The active badge controls tool-access gating; the AI role controls narrative
 orientation. The default `counterpart` preserves current behavior when the human
-wears the Player hat (AI briefs as GM) and enables human-GM + AI-Player
-configuration when the human wears the Game Master hat.
+wears the Player badge (AI briefs as GM) and enables human-GM + AI-Player
+configuration when the human wears the Game Master badge.
 *Acceptance criterion:* With `TTRPG_AI_ROLE=counterpart` and human wearing the
-Player hat, `hat_briefing` orientation content is GM-oriented. Same hat but
-`TTRPG_AI_ROLE=player` forces player-oriented orientation. Human wearing the GM hat
-with `counterpart` shows player-oriented orientation. Null-hat with any
-`TTRPG_AI_ROLE` shows null-hat briefing per REQ-136.
+Player badge, `badge_briefing` orientation content is GM-oriented. Same hat but
+`TTRPG_AI_ROLE=player` forces player-oriented orientation. Human wearing the GM badge
+with `counterpart` shows player-oriented orientation. Null-badge with any
+`TTRPG_AI_ROLE` shows null-badge briefing per REQ-136.
 _Check:_ T-new-304.
 
-**REQ-305 — Observer mode.** `set_hat("observer")` activates spectator mode — the
+**REQ-305 — Observer mode.** `set_badge("observer")` activates spectator mode — the
 human observes while the AI plays both Player and Game Master roles. Tool gating
 (REQ-032) restricts the human to read-only access: state-query tools succeed;
-all mutating tools return `[FORBIDDEN]` directing the caller to switch hats.
-`hat_briefing` orientation content instructs the AI: "You are both Game Master
+all mutating tools return `[FORBIDDEN]` directing the caller to switch badges.
+`badge_briefing` orientation content instructs the AI: "You are both Game Master
 and Player. The human is observing. Narrate scenes, make decisions for all player
 characters, advance combat, play the Novel." The state surface is unfiltered
-(GM-level visibility). The human may step out by calling `set_hat` with any other
+(GM-level visibility). The human may step out by calling `set_badge` with any other
 value. Observer mode is Novel-scoped — it persists with the Novel and is visible
 in `spec_health`.
-*Acceptance criterion:* `set_hat("observer")` returns `[OK] Active hat: observer
+*Acceptance criterion:* `set_badge("observer")` returns `[OK] Active badge: observer
 — read-only spectator mode`. `create_npc("Test")` returns `[FORBIDDEN]` with
-corrective action citing `set_hat`. `help()` succeeds. `hat_briefing` includes
+corrective action citing `set_badge`. `help()` succeeds. `badge_briefing` includes
 the dual-role orientation instruction.
 _Check:_ T-new-305.
 
@@ -1866,7 +1866,7 @@ independent sliders, each with a default middle value:
 
 | Slider | Values | Default | Controls |
 |--------|--------|---------|----------|
-| `level` | `full` / `mechanical_prompt` / `manual` | `mechanical_prompt` | Who decides what. `full` — AI auto-plays everything. `mechanical_prompt` — AI auto-plays narrative decisions (dialogue, exploration direction, social approach), world-model navigation, and character flavor, but SHALL pause for TTRPG ruleset mechanical decisions: dice rolls, combat actions, spell selection, condition management, character advancement, and ruleset-derived generation tables. `manual` — human decides everything (current default, formalized). |
+| `level` | `full` / `mechanical_prompt` / `manual` | `mechanical_prompt` | Who decides wbadge. `full` — AI auto-plays everything. `mechanical_prompt` — AI auto-plays narrative decisions (dialogue, exploration direction, social approach), world-model navigation, and character flavor, but SHALL pause for TTRPG ruleset mechanical decisions: dice rolls, combat actions, spell selection, condition management, character advancement, and ruleset-derived generation tables. `manual` — human decides everything (current default, formalized). |
 | `confirmation` | `auto` / `confirm` / `prompt` | `prompt` | How decisions are presented. `auto` — AI executes without asking. `confirm` — AI proposes its chosen action as the default option in `present_choices`, human confirms or vetoes. `prompt` — AI presents options via `present_choices` without a default, human chooses. |
 | `safety` | `safe` / `moderate` / `hardcore` | `moderate` | Consequence severity. `safe` — no permanent character death; lethal damage reduces HP to 1 and applies incapacitation. `moderate` — death possible but telegraphed; dramatic but survivable challenges. `hardcore` — full consequences; death permanent; no warnings. |
 | `creativity` | `predictable` / `standard` / `chaotic` | `standard` | How much the AI surprises the player. `predictable` — optimal, rational decisions. `standard` — occasional complications and character flaws. `chaotic` — dramatic twists, suboptimal emotional choices, unwinnable encounters. |
@@ -1879,36 +1879,36 @@ state tools (`set_scene_state`, `create_npc`) are never paused. At
 `mechanical_prompt` level, when a mechanical decision point is reached, the AI
 SHALL call `present_choices` (REQ-235) with `[NEED_INPUT]` to present the
 decision; the human responds via `respond`. All four slider values SHALL be
-visible in `hat_briefing` and `spec_health`. Autonomy composes with any hat
+visible in `badge_briefing` and `spec_health`. Autonomy composes with any badge
 — a human Player with `level=full` lets the AI auto-play their character; a
 human GM with `level=full` lets the AI run all NPCs and player characters.
 *Acceptance criterion:* `set_autonomy({level: "full", confirmation: "auto",
-safety: "safe", creativity: "standard"})` returns `[OK]`. `hat_briefing`
+safety: "safe", creativity: "standard"})` returns `[OK]`. `badge_briefing`
 includes the autonomy state. With `level=mechanical_prompt` and
 `confirmation=prompt`, the AI auto-narrates exploration but pauses via
 `present_choices` for combat actions; the human responds via `respond`.
 _Check:_ T-new-306.
 
-**REQ-109 — Hat briefing composition.** `hat_briefing` surfaces
+**REQ-109 — Badge briefing composition.** `badge_briefing` surfaces
 these groups, split into two sourcing layers:
 
 **Orientation layer** (sourced from the AI's narrative role per REQ-304):
-hat foundations (REQ-062), anti-slop guidance (REQ-070), narrative tone samples
-(REQ-071), and hat behavioral boundary directive (REQ-064). When the AI's role is
+badge foundations (REQ-062), anti-slop guidance (REQ-070), narrative tone samples
+(REQ-071), and badge behavioral boundary directive (REQ-064). When the AI's role is
 Game Master, these groups contain GM-oriented content; when the AI's role is Player,
 player-oriented content. Under observer mode (REQ-305), the orientation layer SHALL
 include a dual-role instruction: "You are both Game Master and Player. The human is
 observing. Narrate scenes, make decisions for all player characters, advance combat.
 Play the Novel."
 
-**State surface layer** (sourced from the active hat per REQ-032):
+**State surface layer** (sourced from the active badge per REQ-032):
 current scene state (REQ-076), narrative POV directive (REQ-220), active entities
 with summary stats and presence markers (REQ-074, REQ-307), active NPCs (REQ-075),
-active countdowns — hat-filtered by `hat_scope` (REQ-073), active lore entries
+active countdowns — badge-filtered by `badge_scope` (REQ-073), active lore entries
 (REQ-083), active adventure content (REQ-079), registered tools relevant to the
 current scene type (REQ-087), active combat state — round, turn order, and current
 participant (if in-combat; REQ-043), active entity personality fields and voice
-examples — hat-filtered per REQ-077 (REQ-077), the narrative directive (GM only,
+examples — badge-filtered per REQ-077 (REQ-077), the narrative directive (GM only,
 REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089,
 including a "Session zero not yet completed" reminder when `session_zero_completed`
 is false), a pointer to the intro prompt (REQ-063), story journal entries — entries
@@ -1921,23 +1921,23 @@ world in motion entries (GM only, REQ-233a), and proactive available actions
 Groups whose data source is empty SHALL include an explicit empty-state marker
 describing which category is empty. Markers preserve the expected briefing structure
 and prevent the caller from inferring non-existent content. The enumeration order
-above is the builder's required default section ordering for `hat_briefing`.
+above is the builder's required default section ordering for `badge_briefing`.
 Decision-critical groups (scene state, the POV directive, entities, combat state,
 triggered lore, active NPCs, active countdowns, narrative threads, campaign memory
 (REQ-310), world in motion (REQ-233a), and available actions (REQ-084a)) precede
-the section boundary; supplementary guidance and navigation groups (hat foundations,
+the section boundary; supplementary guidance and navigation groups (badge foundations,
 anti-slop guidance, narrative tone samples, active adventure content, registered
 tools, entity personality fields, the narrative directive, player signals, Novel
 setup metadata, autonomy state, and the intro pointer) follow. The Game Master may
 override this order via `set_briefing_order` (REQ-082).
-*Acceptance criterion:* `hat_briefing` for a Novel with entities, combat,
+*Acceptance criterion:* `badge_briefing` for a Novel with entities, combat,
 countdowns, and lore includes all mandatory groups; an empty data source displays
 its empty-state marker; decision-critical groups appear before supplementary groups.
 _Check:_ T109, T110, T149.
 
 #### Briefing Section Tokens
 
-**REQ-281 — Narrative-threads section token.** `hat_briefing` SHALL include a
+**REQ-281 — Narrative-threads section token.** `badge_briefing` SHALL include a
 `narrative_threads` section token in the decision-critical group containing: (a)
 unresolved story journal decisions — `decision` type entries whose referenced entity or
 scene has no corresponding `consequence` entry (REQ-246), surfaced as "Unresolved: <entry
@@ -1945,7 +1945,7 @@ summary>"; (b) active promises derived from story journal `bond` entries with no
 `consequence`; (c) active countdowns with their narrative meaning — name + remaining ticks
 in prose form; (d) active NPC dispositions where the disposition differs from the NPC's
 creation default, surfaced as "<NPC name> (<disposition>, set in session <N>)"; (e)
-active vow progress when populated (REQ-289). The section is hat-filtered: GM sees all;
+active vow progress when populated (REQ-289). The section is badge-filtered: GM sees all;
 Player sees only own-entity bonds and `shared`-scope content.
 
 The `narrative_threads` token SHALL appear in the decision-critical group, after entities
@@ -1954,13 +1954,13 @@ signal for narrative consistency. When all source data is empty, the token SHALL
 its empty-state marker: "[No unresolved threads.]"
 
 *Acceptance criterion:* After recording a story journal `decision` with no `consequence`,
-setting a countdown, and creating an NPC with a non-default disposition, `hat_briefing`
-under the GM hat includes a `narrative_threads` section with the unresolved decision, the
-countdown in narrative form, and the NPC disposition. Under the Player hat, only
+setting a countdown, and creating an NPC with a non-default disposition, `badge_briefing`
+under the GM badge includes a `narrative_threads` section with the unresolved decision, the
+countdown in narrative form, and the NPC disposition. Under the Player badge, only
 own-entity bonds and shared content appear.
 _Check:_ T-new-281.
 
-**REQ-286 — Knowledge-state section token.** `hat_briefing` SHALL include a `knowledge_state` section token in the decision-critical
+**REQ-286 — Knowledge-state section token.** `badge_briefing` SHALL include a `knowledge_state` section token in the decision-critical
 group showing what the active entity currently knows: (a) revealed secrets (key and
 reveal timestamp); (b) known NPC relationships where the active entity is a participant;
 (c) `shared`-scope lore entries whose trigger keywords have appeared in scenes the active
@@ -1973,62 +1973,62 @@ entity's retained knowledge. When no active entity is set, the section renders "
 active entity — knowledge state unavailable.]" When the active entity knows nothing, it
 renders "[No known information.]" The section SHALL NOT include GM-only secrets,
 unrevealed lore, or relationships where the active entity is not a participant. On a
-fresh Novel, `hat_briefing` renders the empty-state marker — narrative tools fade into
+fresh Novel, `badge_briefing` renders the empty-state marker — narrative tools fade into
 the background per §5.10.
 *Acceptance criterion:* After `reveal_secret("floor_trap", "rogue_01")`, setting
-the rogue as active entity, `hat_briefing` under the GM hat includes a `knowledge_state`
+the rogue as active entity, `badge_briefing` under the GM badge includes a `knowledge_state`
 section token listing the revealed secret. After setting an entity not present in the
 current scene as active, the section renders "[Entity not present in this scene]" above
 retained knowledge.
 _Check:_ T-new-287.
 
 **REQ-159 — Enrichment briefing integration.** When enrichment is active
-(§11.1), `hat_briefing` SHALL include enrichment-derived content as
+(§11.1), `badge_briefing` SHALL include enrichment-derived content as
 follows: (a) supplementary guidance items SHALL appear in the guidance
-section, tagged `[supplementary]` with source URL and confidence, hat-filtered
-by hat_scope (REQ-080); (b) entity voice examples sourced from enrichment
+section, tagged `[supplementary]` with source URL and confidence, badge-filtered
+by badge_scope (REQ-080); (b) entity voice examples sourced from enrichment
 SHALL appear alongside roster-sourced voice examples under the entity
 personality group, tagged `[supplementary]` (REQ-077); (c) adventure
 advice SHALL appear when the active Novel contains a generated adventure
 (REQ-132), tagged `[supplementary]`. Enrichment-sourced content follows
-the same hat filtering rules as the enrichment resource surfaces —
-game_master-scoped items are hidden from the Player hat. When enrichment
+the same badge filtering rules as the enrichment resource surfaces —
+game_master-scoped items are hidden from the Player badge. When enrichment
 is not active, the briefing renders without enrichment content — no
 empty-section markers for enrichment groups.
-*Acceptance criterion:* After enrichment, `hat_briefing` under the GM
-hat includes supplementary guidance items tagged `[supplementary]`
+*Acceptance criterion:* After enrichment, `badge_briefing` under the GM
+badge includes supplementary guidance items tagged `[supplementary]`
 alongside source URLs. Enrich-sourced voice examples appear under entity
-personality with `[supplementary]` tag. Under the Player hat,
+personality with `[supplementary]` tag. Under the Player badge,
 game_master-scoped enrichment items are absent. After
-`revert_enrichment`, enrichment content is absent from all hat views.
+`revert_enrichment`, enrichment content is absent from all badge views.
 _Check:_ T194.
 
-*Out of scope:* authentication or authorization mechanisms, multi-connection hat
-synchronization, and hat inheritance across Novels. The spec assumes a
-single trusted operator — `set_hat` is always callable without
-authentication. The hat model supports configurable AI narrative role (REQ-304),
+*Out of scope:* authentication or authorization mechanisms, multi-connection badge
+synchronization, and badge inheritance across Novels. The spec assumes a
+single trusted operator — `set_badge` is always callable without
+authentication. The badge model supports configurable AI narrative role (REQ-304),
 observer mode (REQ-305), and adjustable autonomy (REQ-306) while maintaining
-two-hat tool-access gating. The hat model is a convenience and
+two-badge tool-access gating. The badge model is a convenience and
 narrative-integrity feature, not a security boundary (see Appendix P for threat
 model).
 
-**REQ-135 — Hat briefing size budget.** The total size of `hat_briefing`
+**REQ-135 — Badge briefing size budget.** The total size of `badge_briefing`
 output is bounded by a configurable limit. When the briefing would exceed
 this limit, content is truncated from lowest-priority sections first.
 Sections are truncated in full — no section is partially rendered. Each
 truncated section includes a marker and a resource URI pointer for full
-retrieval. Hat foundations (REQ-062) and the intro pointer (REQ-063) are
+retrieval. Badge foundations (REQ-062) and the intro pointer (REQ-063) are
 never truncated. The builder records the truncation priority order and the
 default limit in DECISIONS.md. The truncation priority order SHALL respect three
-tiers: (1) never-truncated: hat foundations (REQ-062), hat boundary directive
+tiers: (1) never-truncated: badge foundations (REQ-062), badge boundary directive
 (REQ-064), intro pointer (REQ-063), POV directive (REQ-220);
 (2) last-truncated: decision-critical groups per REQ-109;
 (3) first-truncated: supplementary guidance and navigation groups per REQ-109.
 Within each tier, the builder determines the relative truncation order and
 records it in DECISIONS.md.
-*Acceptance criterion:* With a small briefing budget, invoke `hat_briefing` —
+*Acceptance criterion:* With a small briefing budget, invoke `badge_briefing` —
 assert some low-priority sections are truncated with resource URI pointers;
-assert hat foundations and the intro pointer are always present regardless
+assert badge foundations and the intro pointer are always present regardless
 of budget.
 _Check:_ T149.
 
@@ -2045,23 +2045,23 @@ byte offset regardless of whether the builder internally measures in tokens or
 bytes; the heuristic is recorded in DECISIONS.md.
 _Check:_ T222.
 
-**REQ-136 — Null-hat briefing.** When no hat is active (REQ-031),
-`hat_briefing` returns setup-oriented content: a list of available Novels
+**REQ-136 — Null-badge briefing.** When no badge is active (REQ-031),
+`badge_briefing` returns setup-oriented content: a list of available Novels
 (REQ-093), the current active Novel name if one exists, and a pointer to
 the `intro` prompt (REQ-063). No gated content is accessible — the briefing
-presents the same full-access view as all other null-hat surfaces but
+presents the same full-access view as all other null-badge surfaces but
 structured for initial orientation rather than ongoing play.
-*Acceptance criterion:* On startup with no Novel active, `hat_briefing`
+*Acceptance criterion:* On startup with no Novel active, `badge_briefing`
 returns a setup-oriented message with the intro pointer and Novel-creation
-guidance; with a Novel active but no hat set (editing mode), the briefing
+guidance; with a Novel active but no badge set (editing mode), the briefing
 includes the active Novel name, setup progress when incomplete, and
 guidance to continue Novel setup or start the story when ready.
 _Check:_ T150.
 
 **REQ-137 — Gate classification auditability.** Every tool registered on
 the server is assigned to one of three gate classifications: callable
-only under the Player hat, callable only under the Game Master hat, or
-callable under any hat (un-gated). The gate classification for every
+only under the Player badge, callable only under the Game Master badge, or
+callable under any badge (un-gated). The gate classification for every
 tool is enumerable at build verification time from the tool registration
 source without invoking the running server. The builder records the
 classification for every tool in DECISIONS.md. Tool-category
@@ -2069,20 +2069,20 @@ reassignment (REQ-067) does not alter gate classification.
 *Acceptance criterion:* The Player-filtered `tools/list` output contains
 exactly the tools classified as Player or un-gated in DECISIONS.md; the
 GM-filtered output contains exactly the tools classified as GM or un-gated;
-`set_hat` is always present in both lists. No tool is classified as both
+`set_badge` is always present in both lists. No tool is classified as both
 Player-only and GM-only.
 _Check:_ T151.
 
 The classification table in DECISIONS.md SHALL enumerate every registered tool
 with the format:
 
-| Tool name          | Gate       | Hat visibility         |
+| Tool name          | Gate       | Badge visibility         |
 |--------------------|------------|------------------------|
-| `set_hat`          | un-gated   | Player, Game Master    |
+| `set_badge`          | un-gated   | Player, Game Master    |
 | `init_combat`      | GM-only    | Game Master            |
 | `character_sheet`  | Player     | Player                 |
 
-The `tools/list` output filtered by each hat SHALL match the Gate column of
+The `tools/list` output filtered by each badge SHALL match the Gate column of
 this table. A tool added after the initial build SHALL append a new row within
 the same DECISIONS.md section before the server restarts. Helper tools that
 exist solely to support other tools (e.g., `respond`) inherit the gate of
@@ -2164,7 +2164,7 @@ _Check:_ T296.
 
 **REQ-040 — Audit log.** Every tool call that mutates Novel state (character creation,
 condition changes, HP changes, combat state, table rolls with results) is recorded in an
-append-only audit log (`audit://novel`), including timestamp, hat, tool name,
+append-only audit log (`audit://novel`), including timestamp, badge, tool name,
 arguments, and output prefix. State queries are not logged. Each audit entry chains the hash of the preceding entry,
 producing a tamper-evident sequence. On load, the server verifies the chain end-to-end and
 reports a mismatch in `spec_health` and stderr. The log survives connection
@@ -2175,45 +2175,45 @@ hash-chain purposes and is included in `audit://novel` output.
 
 The audit log SHALL be stored as an `audit_log` array in the Novel JSON,
 appended on each mutating tool call alongside the Novel state write per REQ-092.
-Each entry is a JSON object with `timestamp`, `hat`, `tool`, `args`, and `prefix`
+Each entry is a JSON object with `timestamp`, `badge`, `tool`, `args`, and `prefix`
 fields. Each audit entry chains the hash of the preceding entry, producing a
 tamper-evident sequence verified end-to-end on load. A hash chain broken at any
 point SHALL produce a `[corrupted_audit]` warning in `spec_health` — the server
 loads entries up to the break point. `end_novel` removes the Novel JSON and its
 backup — the audit log is part of the Novel and removed with it. `export_novel`
 (REQ-096) serializes the `audit_log` array directly from the Novel JSON.
-Hat switches via `set_hat` (all values: `player`, `game_master`, `none`)
+Badge switches via `set_badge` (all values: `player`, `game_master`, `none`)
 SHALL produce audit entries recording the old hat, new hat, and timestamp.
-Hat-switch entries carry `[hat_switch]` as the tool-name field. They are
+Badge-switch entries carry `[badge_switch]` as the tool-name field. They are
 recorded in the append-only audit log and included in `audit://novel`
 output, but they are not mutating state operations for undo/redo purposes —
-`undo` SHALL NOT reverse a hat switch.
+`undo` SHALL NOT reverse a badge switch.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
-hat, tool name, arguments, and output prefix; `audit://novel` returns entries in
+badge, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
 _Check:_ T8, T147.
 
 **REQ-168 — Audit resource.** The server provides an `audit://novel` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the Novel's
 full audit log as Markdown — one entry per line, ordered append-first, each line
-containing the timestamp, hat, tool name, and output prefix. The resource is
-hat-filtered: the Player hat sees entries where the recorded hat is `player` or where
+containing the timestamp, badge, tool name, and output prefix. The resource is
+badge-filtered: the Player badge sees entries where the recorded badge is `player` or where
 the entity affected is owned by the current player; the Game Master sees all entries.
 Forbidden-call entries (REQ-133) carry a `[BOUNDARY_VIOLATION]` prefix in the output column
 to distinguish them from mutating entries. State queries are not recorded and do not
 appear. When no Novel is active, `resources/read` returns `[ERROR] [STATE_CONFLICT]`.
 *Acceptance criterion:* `resources/read` on `audit://novel` returns all audit entries
-in append order with chained hashes visible (REQ-040); Player hat sees only own-entity
-and own-hat entries; forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix;
+in append order with chained hashes visible (REQ-040); Player badge sees only own-entity
+and own-badge entries; forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix;
 state query tool calls are absent from the resource.
 _Check:_ T203.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
 `undo` restores the most recent mutation from a LIFO snapshot stack. Stacks are
-keyed by the hat under which `undo` is invoked, but every snapshot captures
-the full Novel state — `undo` in the Player hat reverses the most recent
-mutation regardless of which hat initiated it. The stack depth
-supports at least 10 undo levels per hat. Builders that cannot meet this floor must record
+keyed by the badge under which `undo` is invoked, but every snapshot captures
+the full Novel state — `undo` in the Player badge reverses the most recent
+mutation regardless of which badge initiated it. The stack depth
+supports at least 10 undo levels per badge. Builders that cannot meet this floor must record
 the constraint and its justification in DECISIONS.md (5). An empty stack returns
 `[ERROR] [STATE_CONFLICT]`. `undo` is a pure-state tool — it itself is not snapshot-able,
 and the step it reverses is removed from the snapshot stack. A pending `[NEED_INPUT]`
@@ -2221,7 +2221,7 @@ blocks undo. Cancelling a workflow restores the pre-workflow snapshot and discar
 workflow's internal undo candidates.
 When the undo stack exceeds the configured or default depth ceiling and the oldest
 snapshot is discarded, the server SHALL record a `[snapshot_truncated]` audit entry
-identifying the hat and the discarded entry's snapshot timestamp. When no depth ceiling
+identifying the badge and the discarded entry's snapshot timestamp. When no depth ceiling
 is configured, the truncation threshold is the 10-entry floor defined above.
 *Acceptance criterion:* Ten consecutive mutations produce ten snapshot entries;
 `undo` restores each in LIFO order; the eleventh undo returns `[STATE_CONFLICT]`
@@ -2229,7 +2229,7 @@ when the builder minimum is 10.
 _Check:_ T10.
 
 **REQ-116 — Redo.** A `redo` tool re-applies the most recently undone mutation. After
-`undo` pops a snapshot from the undo stack, the popped snapshot is pushed onto a per-hat
+`undo` pops a snapshot from the undo stack, the popped snapshot is pushed onto a per-badge
 redo stack. `redo` pops from the redo stack, restores the snapshot to the active Novel, and
 pushes the pre-redo state back onto the undo stack. An empty redo stack returns
 `[ERROR] [STATE_CONFLICT]`. Any new mutating tool call clears the redo stack. `redo` is a
@@ -2265,10 +2265,10 @@ The counter is cumulative across all combats in the Novel's lifetime. `end_comba
 not additionally adjust the counter — it records the outcome and tears down the combat
 state. The counter is included in novel metadata (REQ-093) and reported in
 `session_recap` (REQ-072) and `spec_health` (REQ-025). Snapshot/load
-operations work within one connection. Active combat state is visible in `hat_briefing`
+operations work within one connection. Active combat state is visible in `badge_briefing`
 as a dedicated group containing the round number, the turn order list with the current
 turn clearly marked, and the current participant name. The Game Master sees the full
-turn order and all participant names; the Player hat sees entity turn positions only
+turn order and all participant names; the Player badge sees entity turn positions only
 (NPC and danger positions are redacted). When no combat is active, the group is omitted
 entirely from the briefing — no empty-state marker.
 *Acceptance criterion:* `init_combat(participants=["hero"], dangers=[{"name":
@@ -2281,8 +2281,8 @@ participant took no action.
 _Check:_ T25, T33, T110, T161, T162; G2.
 
 Combat state is Novel-scoped — it persists when the story ends via
-`set_hat("none")` or resumes via `set_hat("player")` or
-`set_hat("game_master")`. `end_novel` discards the combat state along with all
+`set_badge("none")` or resumes via `set_badge("player")` or
+`set_badge("game_master")`. `end_novel` discards the combat state along with all
 other Novel state. When a story resumes mid-combat, the combat continues from
 its current round and turn position — the turn order, participant states, and
 round counter are unchanged. When a story resumes and no combat was active,
@@ -2325,7 +2325,7 @@ the audit log.
 `add_combat_participant("wizard")` inserts wizard after hero in turn order;
 `remove_combat_participant("goblin")` removes goblin from turn order and advances pointer
 if goblin was current; removing the last participant from a 1-participant combat ends it
-with "All participants removed"; undo reverts the participant change; Player hat returns
+with "All participants removed"; undo reverts the participant change; Player badge returns
 `[FORBIDDEN]`.
 _Check:_ T248.
 
@@ -2375,7 +2375,7 @@ with valid conditions enumerated (REQ-059). Applying the same condition to an en
 that already has it SHALL return `[WARNING]` with the text "Condition already active."
 No duplicate is added, no other state changes. `remove_condition` on an entity that
 does not have the condition SHALL return `[WARNING]` with the text "Condition not
-present." Both tools are hat-gated per REQ-032: the Player may apply or remove
+present." Both tools are badge-gated per REQ-032: the Player may apply or remove
 conditions on their own active entity only; the Game Master may apply or remove
 conditions on any entity or NPC. Player attempts on other entities SHALL return
 `[FORBIDDEN]` with the target entity ID. The optional `rounds` parameter on
@@ -2383,11 +2383,11 @@ conditions on any entity or NPC. Player attempts on other entities SHALL return
 it creates a condition without automatic expiry. Both tools SHALL record mutation
 entries in the audit log (REQ-040) and appear in `session_recap` condition changes
 (REQ-072). Applied conditions SHALL appear on `character_sheet` output and in
-`hat_briefing` entity summaries.
+`badge_briefing` entity summaries.
 
-Under the Player hat, condition entries in `character_sheet` and `hat_briefing`
+Under the Player badge, condition entries in `character_sheet` and `badge_briefing`
 SHALL be rendered without expiry round counts — the Player sees only the condition
-name. The Game Master hat SHALL include expiry round counts when the `rounds`
+name. The Game Master badge SHALL include expiry round counts when the `rounds`
 parameter was set.
 
 *Acceptance criterion:* `apply_condition(entity, "prone")` adds the condition and
@@ -2396,7 +2396,7 @@ returns `[OK]`; a second call returns `[WARNING]` with "Condition already active
 without the condition returns `[WARNING]` with "Condition not present."; applying
 "not_a_condition" returns `[INVALID_INPUT]` with valid conditions listed; Player
 `apply_condition` on another player's entity returns `[FORBIDDEN]`; applied condition
-appears on `character_sheet` and `hat_briefing` entity summary.
+appears on `character_sheet` and `badge_briefing` entity summary.
 _Check:_ T258.
 
 **REQ-072 — Session recap.** The server provides a `session_recap` tool — a pure-state tool
@@ -2409,7 +2409,7 @@ scene state, active lore entries and their trigger status, the current narrative
 current scene type, the last N scene state transitions (configurable), roster
 changes (entities created or removed in this Novel during the audit-log timespan), condition
 changes, and the last N significant rolls (configurable). `session_recap` output
-is hat-filtered: the Player hat sees only own-entity data; the Game Master hat
+is badge-filtered: the Player badge sees only own-entity data; the Game Master badge
 sees all. `session_recap` output does not produce narrative prose — it returns structured
 data the LLM uses to narrate the recap. The output SHALL be a machine-parseable structure.
 At minimum it SHALL contain the following named fields with typed values: `timespan_start`
@@ -2458,7 +2458,7 @@ The field SHALL be present when any of its source data is non-empty. When all so
 is empty (new Novel with no play), the field SHALL contain the empty-state marker
 "[No narrative history yet — your story begins here.]" `session_recap` SHALL include
 `narrative_orientation` as its first field, before the structured data blocks. The
-paragraph is hat-filtered: Player hat sees orientation derived from `shared`-scope lore,
+paragraph is badge-filtered: Player badge sees orientation derived from `shared`-scope lore,
 own-entity story entries, and player-visible NPC dispositions per REQ-032.
 
 *Acceptance criterion:* After a session with a story journal decision, a narrative
@@ -2471,7 +2471,7 @@ _Check:_ T-new-279.
 `session_recap` purposes when it (a) was produced by a dice-resolution tool
 (roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage, or
 ruleset-equivalent), (b) has an entity as participant or attacker, and (c)
-produced a tool output visible to at least one hat. Pure-generation table rolls
+produced a tool output visible to at least one badge. Pure-generation table rolls
 (REQ-086), GM-only state queries, and rolls without an entity participant are
 excluded. The server SHALL track the last N significant rolls per Novel,
 discarding the oldest when N+1 is reached. `session_recap` SHALL list
@@ -2498,18 +2498,18 @@ at the end of each combat round. A `narrative` countdown decrements only when th
 Master calls `advance_countdown(name)` (for in-world events: time until sunrise, enemy
 army arrival, ritual completion, torch burnout, poison timers). Either type may carry an
 `on_scene_transition` flag (decrements on scene transition per REQ-125). Every countdown
-has a `hat_scope` — `game_master` or `shared` — and a `direction` — `decrement` (fires at
+has a `badge_scope` — `game_master` or `shared` — and a `direction` — `decrement` (fires at
 `ticks <= 0`) or `increment` (fires at `ticks >= total`). Both carry an unambiguous
 default preserving backward compatibility. `advance_countdown(name)` adjusts one tick in
 the countdown's direction. `remove_countdown(name)` deletes a countdown before it fires.
 When a countdown fires, it is recorded in the audit log with a timestamp and removed from
 active countdowns — its name slot freed for reuse. Expired countdowns remain in the audit
 log. `countdown://active` lists all active countdowns with remaining ticks, type,
-hat_scope, and direction, hat-filtered: only shared countdowns are visible to the Player
-hat. Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`.
-Countdown tools are Game Master only; the Player hat reads active countdowns via
-`hat_briefing` and resource URIs.
-*Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both hats'
+badge_scope, and direction, badge-filtered: only shared countdowns are visible to the Player
+badge. Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`.
+Countdown tools are Game Master only; the Player badge reads active countdowns via
+`badge_briefing` and resource URIs.
+*Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both badges.
 briefings; a GM-only countdown "patrol" appears only in the GM briefing;
 `advance_countdown("patrol")` at tick 1 fires and removes it.
 _Check:_ T54, T139.
@@ -2520,7 +2520,7 @@ description, parties, difficulty, scope)` creates a vow: `name` (unique identifi
 `description` (the vow's substance — a sentence), `parties` (array of entity/NPC/faction
 IDs bound by the vow), `difficulty` (one of `troublesome`, `dangerous`, `formidable`,
 `extreme`, `epic` — determines the rank track), `scope` (one of `gm`, `shared`,
-`faction`, or `party` — hat visibility per REQ-032). A vow's rank track has 10
+`faction`, or `party` — badge visibility per REQ-032). A vow's rank track has 10
 milestones per difficulty rank (troublesome = 10, dangerous = 20, formidable = 30,
 extreme = 40, epic = 50). `mark_milestone(vow_name)` advances the milestone counter by
 one. When milestones reach the rank track total, the vow is complete and `resolve_vow`
@@ -2531,11 +2531,11 @@ journal entry per REQ-246. `forsake_vow(vow_name, reason)` abandons a vow — th
 moves to `forsaken` state and is excluded from active displays; the reason is recorded
 alongside the vow.
 
-Active vows appear in `hat_briefing` (`narrative_threads` section per REQ-281) and
+Active vows appear in `badge_briefing` (`narrative_threads` section per REQ-281) and
 `session_recap` (`narrative_orientation` per REQ-279). Resolved and forsaken vows
 appear in `session_recap` with their state and outcome/reason. Vow state persists
 with the Novel and is included in `save_pause_context` captures (REQ-232). Vow tools
-are Game Master only; the Player hat reads vow state via `hat_briefing` and
+are Game Master only; the Player badge reads vow state via `badge_briefing` and
 `session_recap` when the vow's scope is `shared` or `party`.
 
 *Acceptance criterion:* `set_vow("Find the Crown", "Recover the lost Crown of Alara",
@@ -2548,7 +2548,7 @@ _Check:_ T-new-286.
 
 **REQ-322 — Vow-countdown coupling.** WHEN `set_vow` creates a vow (REQ-289), THE engine
 SHALL offer a countdown creation suggestion in the `narrative_threads` section of
-`hat_briefing`: the suggestion carries the vow name, a proposed countdown name
+`badge_briefing`: the suggestion carries the vow name, a proposed countdown name
 (`vow:<vow_name>`), and the vow's milestone total as the tick count. The GM may accept
 via `respond` to auto-create a `mission`-type countdown linked to the vow. WHEN
 `mark_milestone` advances a vow, if a linked countdown exists with name `vow:<vow_name>`,
@@ -2561,7 +2561,7 @@ survive Novel persistence and SHALL be included in `save_pause_context` captures
 (REQ-232).
 
 *Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a
-countdown suggestion in `hat_briefing`. Accepting creates a 20-tick `mission`-type
+countdown suggestion in `badge_briefing`. Accepting creates a 20-tick `mission`-type
 countdown named `vow:Find Crown`. `mark_milestone("Find Crown")` advances both the
 milestone counter and the countdown. Filling the countdown makes the vow eligible for
 `resolve_vow`. `resolve_vow("Find Crown", ...)` removes the countdown.
@@ -2570,11 +2570,11 @@ _Check:_ T-new-325.
 #### Entities, NPCs, and Adventure Content
 
 **REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
-same hat. The roster may hold multiple entities for the player. `entities://` lists
-all Novel entities visible to the active hat. One entity is the active entity — the
+same badge. The roster may hold multiple entities for the player. `entities://` lists
+all Novel entities visible to the active badge. One entity is the active entity — the
 default target for tools that accept an `entity_id` when no `entity_id` is supplied. The
 first imported entity is the active entity by default. `set_active_entity(entity_id)`
-switches the active entity and is always callable regardless of hat. The `party`
+switches the active entity and is always callable regardless of badge. The `party`
 resource (`party://current`) lists all player-owned entities with summary stats: name,
 active status, HP, conditions, and `present` flag (derived from the most recent
 `set_scene_state` `characters_present` parameter per REQ-307). REQ-030 scoping is
@@ -2597,7 +2597,7 @@ entity SHALL clear the active entity field; the next imported or explicitly acti
 entity becomes active. Removing the last entity SHALL leave `active_entity_id` null and
 clear `characters_present`. `party://current` SHALL exclude removed entities. The roster
 baseline is unaffected — `import_character` using the same roster ID after removal creates
-a fresh copy. Entity removal is a mutating operation for undo/redo purposes. Player hat
+a fresh copy. Entity removal is a mutating operation for undo/redo purposes. Player badge
 attempts return `[FORBIDDEN]`.
 *Acceptance criterion:* `remove_entity("character_02")` removes the entity from
 `entities://`; `party://current` no longer lists it; the roster baseline is unchanged;
@@ -2605,10 +2605,10 @@ re-importing the same roster ID creates a fresh entity copy.
 _Check:_ T216.
 
 **REQ-177 — Roster entity removal.** The server SHALL provide a
-`remove_roster_character(roster_id)` tool (callable with no hat active or Game Master hat)
+`remove_roster_character(roster_id)` tool (callable with no badge active or Game Master badge)
 that removes a character from the roster. Removing a roster character does not affect any
 Novel that has already imported it — existing Novel entity copies survive independently.
-Player hat attempts return `[FORBIDDEN]`. When the roster ID does not exist, SHALL return
+Player badge attempts return `[FORBIDDEN]`. When the roster ID does not exist, SHALL return
 `[NOT_FOUND]` with valid roster IDs enumerated.
 *Acceptance criterion:* `remove_roster_character("character_01")` removes the entry from
 `roster://`; a Novel that previously imported it retains its copy; re-creating a character
@@ -2616,7 +2616,7 @@ with the same name creates a new roster entry with a different ID.
 _Check:_ T217.
 
 **REQ-178 — Roster listing.** The server SHALL provide a `list_roster_characters` tool,
-callable under any hat with no restrictions. The tool returns a structured listing: for each
+callable under any badge with no restrictions. The tool returns a structured listing: for each
 roster entry, the roster ID, name, race, class, and level. When no characters exist in the
 roster, the tool SHALL return an empty-state marker. The `novel_setup` prompt (REQ-089) SHALL source
 its roster character list from this tool's output rather than constructing the list
@@ -2638,26 +2638,26 @@ NPC fields; providing a field not previously set on the NPC SHALL extend the NPC
 field surface — the field is added with the supplied value. Null or empty-string
 values SHALL clear the field without removing it from the NPC's known field set.
 `remove_npc(id)` deletes an NPC. `npcs://` lists all active NPCs. NPC state
-persists with the Novel. All NPC tools are Game Master only; the Player hat reads
-NPC state via `hat_briefing` and resource URIs.
+persists with the Novel. All NPC tools are Game Master only; the Player badge reads
+NPC state via `badge_briefing` and resource URIs.
 
 Every NPC SHALL carry depth metadata: `appearance_count` (incremented each
-time the NPC appears in a scene or is referenced in `hat_briefing`), `first_seen`
+time the NPC appears in a scene or is referenced in `badge_briefing`), `first_seen`
 (ISO 8601 timestamp of first appearance), and `last_seen` (ISO 8601 timestamp of
-most recent appearance). `hat_briefing` SHALL include a depth signal for each NPC:
+most recent appearance). `badge_briefing` SHALL include a depth signal for each NPC:
 NPCs with `appearance_count < 3` display with name and description only; NPCs with
 `appearance_count >= 3` display with a `[recurring]` marker and the count ("3
 appearances across 2 sessions"); NPCs with `appearance_count >= 10` display with a
 `[campaign]` marker. `session_recap` SHALL include an NPC relationship heatmap:
 for each NPC with `appearance_count > 1`, the number of sessions they appeared in
 and the number of distinct scenes. An NPC not seen in 5 or more sessions SHALL carry
-a `[distant]` marker in `hat_briefing`. The depth metadata is automatically maintained
+a `[distant]` marker in `badge_briefing`. The depth metadata is automatically maintained
 by the server — the GM does not set it directly.
 
 *Acceptance criterion:* `create_npc("Innkeeper")` produces an NPC with `npc://<id>`
 URI; `update_npc(id, {disposition: "friendly"})` changes the field; `remove_npc(id)`
 deletes it. An NPC appearing in 3 scenes across 2 sessions displays `[recurring]` in
-`hat_briefing` with the appearance count. An NPC not seen in 5 sessions carries
+`badge_briefing` with the appearance count. An NPC not seen in 5 sessions carries
 `[distant]`. `session_recap` includes an NPC relationship heatmap with session and
 scene counts.
 _Check:_ T56.
@@ -2691,8 +2691,8 @@ same mechanism it uses for entity character sheets. An NPC identifier produces a
 stat block containing all populated stat fields, current conditions, and narrative
 fields (description, disposition, location, and any personality fields per REQ-122)
 in the ruleset's baseline stat-block format. An identifier that resolves to neither
-an entity nor an NPC returns `[ERROR] [NOT_FOUND]`. The Game Master hat sees all
-fields; the Player hat sees only fields visible in `hat_briefing`.
+an entity nor an NPC returns `[ERROR] [NOT_FOUND]`. The Game Master badge sees all
+fields; the Player badge sees only fields visible in `badge_briefing`.
 *Acceptance criterion:* `character_sheet(entity_id="npc_01")` renders the NPC
 stat block in ruleset format; an unknown ID returns `[NOT_FOUND]`.
 _Check:_ T127.
@@ -2700,11 +2700,11 @@ _Check:_ T127.
 **REQ-121 — NPC resource URIs.** The server registers `npc://<id>` for each
 active NPC in the current Novel, returning the NPC's full stat block and narrative
 fields, and `npcs://` returning a list of all active NPCs with summary fields
-(name, disposition, location). Resources are hat-filtered: Game Master sees all
+(name, disposition, location). Resources are badge-filtered: Game Master sees all
 fields; Player sees summary fields only. Resources are re-registered on Novel
 switch and removed on `end_novel`.
 *Acceptance criterion:* `npc://<id>` returns the NPC's full stat block and narrative
-fields; `npcs://` lists all active NPCs with summary fields; both are hat-filtered.
+fields; `npcs://` lists all active NPCs with summary fields; both are badge-filtered.
 _Check:_ T128.
 
 **REQ-122 — NPC narrative fields.** Named NPCs (REQ-075) may carry narrative
@@ -2714,7 +2714,7 @@ These fields are set via `set_personality` and `set_voice_examples` accepting an
 NPC identifier alongside entity identifiers. NPC narrative fields are Novel-scoped
 — NPCs have no roster; fields persist only with the Novel. These fields are inert
 narrative context and do not influence mechanical resolution. Setting narrative
-fields on an NPC is Game Master only. Fields are surfaced in `hat_briefing` and at
+fields on an NPC is Game Master only. Fields are surfaced in `badge_briefing` and at
 `npc://<id>/personality`.
 *Acceptance criterion:* `set_personality("npc_01", {voice: "gruff, clipped
 sentences"})` sets NPC narrative fields; `npc://npc_01/personality` returns them;
@@ -2768,18 +2768,18 @@ the audit log; previous entries are retained in audit history. `scene://current`
 the most recent scene state. `scene://history` returns up to a configurable maximum of
 the most recent entries. When the cap is exceeded, the most recent entries
 are returned with a count of suppressed entries and a `[truncated]` marker. The full
-scene history is available in the audit log (REQ-040). All entries are hat-filtered.
+scene history is available in the audit log (REQ-040). All entries are badge-filtered.
 Scene state is narrative context. It does not influence mechanical resolution or search
-results. Guidance surfaces (hat_briefing tool ordering, suggest_actions filtering per
+results. Guidance surfaces (badge_briefing tool ordering, suggest_actions filtering per
 REQ-087, and lore trigger matching per REQ-083) may be informed by scene description
 and type — these are navigation and narrative reactivity, distinct from mechanical
 resolution. The server maintains a Novel-scoped `scene_tick` counter, initialized to
 zero when the Novel is created and reset to zero on each scene transition. The tick
 increments by one each time `advance_combat` resolves a full combat round (wraps from
-last participant to first). It appears in `hat_briefing` for the Game Master hat only,
+last participant to first). It appears in `badge_briefing` for the Game Master badge only,
 in the Scene section. The tick is a pacing aid — it does not trigger mechanics. The
-`set_scene_state` tool is Game Master only; the Player hat reads scene state via
-`hat_briefing` and `scene://current`. Scene state persists with the Novel.
+`set_scene_state` tool is Game Master only; the Player badge reads scene state via
+`badge_briefing` and `scene://current`. Scene state persists with the Novel.
 *Acceptance criterion:* Three `set_scene_state(...)` calls produce three
 timestamped entries in `scene://history`; scene state is narrative context and
 does not change search results for mechanical terms.
@@ -2790,7 +2790,7 @@ and the new scene description contradicts an established property of that locati
 server SHALL emit a `[WARNING]` naming the contradiction and the conflicting lore entry.
 The warning SHALL NOT block the scene change — the GM may override — but SHALL surface
 the inconsistency for the GM's awareness. The check SHALL compare against: (a) lore
-entries with `hat_scope: "game_master"` or `"shared"` whose trigger keywords match the
+entries with `badge_scope: "game_master"` or `"shared"` whose trigger keywords match the
 location name; (b) NPC dispositions set explicitly (not creation defaults) for NPCs whose
 `location` field matches the scene location. The check is keyword-based and does not
 perform semantic analysis — a lore entry stating "the Inn is crowded" with a trigger
@@ -2810,10 +2810,10 @@ weather, sensory qualities — e.g., "tense, foggy, silent"), `scene_type` (one 
 type tags from the canonical catalog: `combat`, `social`, `exploration`, `neutral`, per
 REQ-087), and `narrative_directive` (a standalone directive string or an array of
 labeled directives per REQ-081). These fields are surfaced in
-`hat_briefing` alongside the description, in `scene://current`, and in `scene://history`
+`badge_briefing` alongside the description, in `scene://current`, and in `scene://history`
 entries. They are narrative context — inert data that does not influence mechanical
-resolution. All fields persist with the Novel. The Player hat reads them via
-`hat_briefing` and `scene://current`; write access is Game Master only.
+resolution. All fields persist with the Novel. The Player badge reads them via
+`badge_briefing` and `scene://current`; write access is Game Master only.
 *Acceptance criterion:* `set_scene_state("dark cavern", location="Underdark",
 time_of_day="night", atmosphere="tense, dripping water")` surfaces all four
 fields in `scene://current`.
@@ -2834,7 +2834,7 @@ and `skip_countdowns` (optional boolean — when true, countdowns are NOT advanc
 preserving their state for later use). The fast-forward is snapshot-able and the
 pre-fast-forward state is restored on undo. Caller SHALL omit `skip_transition_hook`
 when `fast_forward` is present — the transition hook fires after the bridging
-summary is generated. Player hat returns `[FORBIDDEN]`.
+summary is generated. Player badge returns `[FORBIDDEN]`.
 *Acceptance criterion:* `set_scene_state("The castle gates", fast_forward={interval:
 "three days of travel", changes:[{npc_id:"guard_1", location:"castle gate"}])`
 produces an audit entry with the bridging summary, advances narrative countdowns by 3
@@ -2847,7 +2847,7 @@ _Check:_ T-new-252.
 listed the entity in its `characters_present` parameter (REQ-076). When
 `characters_present` is omitted, all imported entities are considered present
 (backward compatible). `party://current` SHALL include a `present` boolean per
-entity. Entities listed in `hat_briefing` SHALL carry a `[not present]` marker
+entity. Entities listed in `badge_briefing` SHALL carry a `[not present]` marker
 and their `last_location` when their `present` flag is false. `set_active_entity`
 to a non-present entity SHALL NOT produce an error — the active entity switches
 and the `knowledge_state` section renders the "Entity not present" marker per
@@ -2860,7 +2860,7 @@ entity IDs restores full-party presence. Presence state persists with the Novel.
 characters_present=["rogue_01"])`, `party://current` shows the rogue as present
 and other entities as not present. `set_party_presence(["wizard_01"], "Camp")`
 updates presence without changing scene description. Entity listing in
-`hat_briefing` marks non-present entities with `[not present]`.
+`badge_briefing` marks non-present entities with `[not present]`.
 _Check:_ T-new-307.
 
 **REQ-308 — Knowledge gating by presence.** An entity's knowledge state SHALL be
@@ -2910,7 +2910,7 @@ The NPC memory records:
   recent interactions: disposition trends (hostile → neutral → friendly), stress markers
   (number of combats survived, allies lost), and goal proximity (goal-relevant events per
   REQ-311). The emotional state SHALL be surfaced as a one-sentence summary in
-  `hat_briefing` alongside the NPC's personality fields.
+  `badge_briefing` alongside the NPC's personality fields.
 
 - **State evolution.** WHEN a player entity interacts with an NPC — via combat (REQ-043),
   social skill checks, or mechanical outcomes that affect the NPC — THE engine SHALL
@@ -2920,7 +2920,7 @@ The NPC memory records:
   changes via `update_npc`.
 
 WHEN an NPC is present in the current scene, THE engine SHALL surface the NPC's memory in
-`hat_briefing` as an `## NPC Memory` section within the entity personality group
+`badge_briefing` as an `## NPC Memory` section within the entity personality group
 (REQ-109). The section SHALL include: a one-sentence emotional state summary, a summary
 of the NPC's last 3 interactions with present player entities, and any goals the NPC is
 pursuing. NPC memory SHALL be gated by presence (REQ-307) — only NPCs in the current
@@ -2932,7 +2932,7 @@ category when the event involves significant state changes (goal advancement, di
 flip, relationship change).
 
 *Acceptance criterion:* After a session where an NPC (blacksmith) is threatened by a
-player entity, `update_npc` is not called, but `hat_briefing` under GM hat includes the
+player entity, `update_npc` is not called, but `badge_briefing` under GM badge includes the
 NPC's memory section showing `disposition: hostile` and the threat event. After a second
 session where the same player entity helps the blacksmith, the NPC's memory section shows
 `disposition: friendly` and the disposition flip is a campaign memory fact. An NPC who
@@ -2954,7 +2954,7 @@ fields:
   spoken — e.g., combat, social, exploration). These examples demonstrate
   how the entity speaks in specific situations, set via the optional `voice_examples`
   parameter on `set_personality(entity_id, ...)` and stored at the roster level.
-  Voice examples follow the same hat-gating contract as other personality fields:
+  Voice examples follow the same badge-gating contract as other personality fields:
   Player-only for own entities (per REQ-165), GM for all. On NPCs (REQ-122), setting
   voice_examples is Game Master only.
   Voice examples sourced from enrichment carry a `[supplementary]` tag and source URL.
@@ -2970,9 +2970,9 @@ fields are set on a Novel entity via `set_personality`, they override the roster
 baseline for that Novel only. On Novel entity import, roster personality fields are
 copied alongside mechanical stats.
 
-Fields are surfaced in `hat_briefing` alongside entity stats and at
+Fields are surfaced in `badge_briefing` alongside entity stats and at
 `entity://<id>/personality`; voice_examples are surfaced under the entity personality
-group in `hat_briefing` per REQ-109. When an entity speaks in-character, voice_examples
+group in `badge_briefing` per REQ-109. When an entity speaks in-character, voice_examples
 are rendered ahead of trait descriptions in the prompt context (REQ-126).
 
 **Authorship guidance.** Effective personality fields describe concrete behaviors rather
@@ -2993,22 +2993,22 @@ must precede trait descriptions in the prompt ordering, reflecting the show-don'
 principle: dialogue patterns give the model concrete behavior to imitate, while trait
 descriptions provide abstract reasoning cues. Voice examples are inert data — they never
 influence mechanical resolution or dice outcomes. The rendering contract applies to all
-prompts and resources that surface entity personality: `hat_briefing`,
+prompts and resources that surface entity personality: `badge_briefing`,
 `entity://<id>/personality`, `npc://<id>/personality`, and the `character_sheet` tool.
 Voice examples sourced from enrichment are tagged `[supplementary]` alongside their
 source URL and are rendered after player-authored examples when both exist.
-*Acceptance criterion:* When `hat_briefing` renders an entity with voice_examples
+*Acceptance criterion:* When `badge_briefing` renders an entity with voice_examples
 set, the dialogue snippets appear before the trait descriptions.
 _Check:_ T140.
 
-**REQ-282 — NPC voice directive.** WHEN `hat_briefing` renders the entity personality
+**REQ-282 — NPC voice directive.** WHEN `badge_briefing` renders the entity personality
 group (REQ-109), every NPC whose `location` field matches the current scene location AND
 whose `voice_examples` array is non-empty SHALL include a compact voice directive
 block. The directive SHALL contain: (a) the NPC name and role; (b) the `voice` field
 value (REQ-077); (c) up to 2 voice_example snippets (the first two examples from the
 array); (d) a synthesized "Avoid:" line derived from the voice field — counsel on what
-the NPC should NOT sound like. The directive block SHALL be hat-filtered per REQ-032:
-GM sees all NPC voice directives; Player hat sees directives for NPCs created with
+the NPC should NOT sound like. The directive block SHALL be badge-filtered per REQ-032:
+GM sees all NPC voice directives; Player badge sees directives for NPCs created with
 `shared` scope.
 
 The voice directive is rendered inline in the entity personality group, after personality
@@ -3020,14 +3020,14 @@ group but use the entity's own voice_examples, not NPC-role synthesis.
 Format: `Voice directive (<NPC name>, <role>): <voice>. Example: "<snippet 1>"
 Example: "<snippet 2>" Avoid: <voice mismatch counsel>.`
 
-WHEN `hat_briefing` renders voice_examples for entities or NPCs, only examples whose
+WHEN `badge_briefing` renders voice_examples for entities or NPCs, only examples whose
 `tag` field matches at least one active `scene_type` (REQ-087) SHALL be surfaced.
 Examples with no `tag` or `tag: "neutral"` SHALL always surface. Entity-level
 voice_examples in the entity personality group follow the same filtering rule.
 
 *Acceptance criterion:* Create an NPC with `voice: "gruff, uses 'oi'"`, `voice_examples`
 containing two dialogue snippets, and `location` matching the current scene. Assert
-`hat_briefing` under the GM hat includes a voice directive block for the NPC.
+`badge_briefing` under the GM badge includes a voice directive block for the NPC.
 Set scene to a different location — assert the NPC voice directive is absent.
 _Check:_ T-new-283.
 
@@ -3050,24 +3050,24 @@ includes "Traits," "Ideals," etc.
 _Check:_ T141.
 
 **REQ-165 — Entity ownership for personality gating.** For the purpose of
-`set_personality` hat gating (REQ-077), an entity is "owned" by the Player hat
-when that entity was created by the current connection under the Player hat.
+`set_personality` badge gating (REQ-077), an entity is "owned" by the Player badge
+when that entity was created by the current connection under the Player badge.
 When no Novel is active, or when the server restarts, ownership of all existing
 entities resets to unowned — a Player may set personality fields on any entity
-until a hat is activated. Once the Game Master hat sets personality fields on
-an entity, the Player hat retains write access to that entity's personality
+until a badge is activated. Once the Game Master badge sets personality fields on
+an entity, the Player badge retains write access to that entity's personality
 fields (ownership is not exclusive). This definition exists solely to resolve
 the "Player-only for own entities" contract in REQ-077 — it does not affect
 tool access, resource filtering, or any other subsystem.
 *Acceptance criterion:* A Player creates an entity (`create_character` under
-Player hat) and successfully calls `set_personality` on it. The same Player
+Player badge) and successfully calls `set_personality` on it. The same Player
 attempts `set_personality` on an entity created by the GM — the call SHALL
 succeed (ownership is non-exclusive per the body). A Player who has never
 created any entity can still call `set_personality` on entities imported by
 the GM (no ownership check blocks the Player).
 _Check:_ T200.
 
-**REQ-166 — Personality briefing rendering.** When `hat_briefing` renders the
+**REQ-166 — Personality briefing rendering.** When `badge_briefing` renders the
 entity personality group (REQ-109), each entity with populated personality
 fields or voice_examples SHALL be rendered as a block containing: the entity
 name, each populated personality field on its own line (`description`, `voice`,
@@ -3080,7 +3080,7 @@ data, the group SHALL render the empty-state marker per REQ-109. NPCs with
 narrative fields per REQ-122 SHALL be rendered in the same block,
 distinguished by an NPC marker. Enrichment-sourced voice_examples carry
 `[supplementary]` tag per REQ-159.
-*Acceptance criterion:* `hat_briefing` with an entity carrying `voice: "gruff"`
+*Acceptance criterion:* `badge_briefing` with an entity carrying `voice: "gruff"`
 and `goals: "find the relic"` renders both fields under the entity's name;
 `description` and `background` are absent when unset. An entity with no
 personality data is absent from the personality group. NPC personality
@@ -3095,8 +3095,8 @@ populated personality fields (`description`, `voice`, `background`, `goals`)
 plus `voice_examples` as an ordered array per REQ-126 (dialogue snippets before
 trait descriptions). Unpopulated fields SHALL be absent from the response.
 Enrichment-sourced voice_examples SHALL carry `source: "enrichment"` and a
-`source_url` field. Hat filtering: Player hat sees personality fields for all
-entities, and NPC personality fields for NPCs visible in `hat_briefing` per
+`source_url` field. Badge filtering: Player badge sees personality fields for all
+entities, and NPC personality fields for NPCs visible in `badge_briefing` per
 REQ-032.
 *Acceptance criterion:* `entity://<id>/personality` returns populated fields
 only; unset fields are absent; `npc://<id>/personality` follows same contract.
@@ -3126,7 +3126,7 @@ sending `player_signal("tone", "lighter")` replaces the value; sending
 `player_signal("tone", "")` removes it.
 _Check:_ T8, T26, T142, T211.
 
-**REQ-128 — Signal briefing surface.** `hat_briefing` (GM only, REQ-109) includes a
+**REQ-128 — Signal briefing surface.** `badge_briefing` (GM only, REQ-109) includes a
 dedicated player-signals section. For each recorded signal, the section lists the signal
 type, value, and age — computed as the difference between the Novel's current
 connection counter and the counter stored with the signal (REQ-173),
@@ -3134,13 +3134,13 @@ expressed as "set N connections ago." When no signals are recorded, the section
 carries an empty-state marker signaling that no preferences have been set. Player
 signals are on the decision-critical side of the briefing section boundary (REQ-109).
 The section is never truncated (REQ-118).
-*Acceptance criterion:* `hat_briefing` in GM hat includes a player-signals
+*Acceptance criterion:* `badge_briefing` in GM badge includes a player-signals
 section listing each signal type, value, and age delta; an empty-signal Novel
 shows the empty-state marker.
 _Check:_ T142.
 
 **REQ-255 — Boundary signal propagation.** Active boundary signals set via
-`player_signal("boundary", value)` (REQ-069) SHALL be surfaced in `hat_briefing` as a
+`player_signal("boundary", value)` (REQ-069) SHALL be surfaced in `badge_briefing` as a
 dedicated advisory section titled "Boundaries," visible only to the Game Master and
 positioned before the scene state group (REQ-109). The section SHALL list each active
 boundary value with an explicit directive: "Do not narrate, imply, or introduce content
@@ -3156,10 +3156,10 @@ contain boundary strings without evoking the prohibited topic. The `generate_adv
 and `generate_encounter` tools are covered separately by REQ-251, whose participant-consent
 criterion includes boundary-relevant content.
 *Acceptance criterion:* `player_signal("boundary", "spiders")` sets a boundary;
-`hat_briefing` under GM hat includes a Boundaries section listing "spiders" with the avoid
+`badge_briefing` under GM badge includes a Boundaries section listing "spiders" with the avoid
 directive; `set_scene_state("a cavern full of spiders")` returns `[WARNING]` identifying
-the "spiders" boundary collision. Removing the boundary removes the section. Player hat
-does not see the Boundaries section in hat_briefing.
+the "spiders" boundary collision. Removing the boundary removes the section. Player badge
+does not see the Boundaries section in badge_briefing.
 _Check:_ T-new-255.
 
 **REQ-173 — Connection counter.** Each Novel tracks a `connection_counter`
@@ -3170,14 +3170,14 @@ serviced. The counter persists with the Novel and is included in
 `novel://current` metadata. A `player_signal` call records the current
 connection counter alongside the signal value, replacing the prior
 counter when the signal type is overwritten. The age displayed in
-`hat_briefing` per REQ-128 is `current_connection_counter - stored_counter`,
+`badge_briefing` per REQ-128 is `current_connection_counter - stored_counter`,
 expressed as "set N connections ago" (or "set this connection" when zero).
 When no connection counter is stored (pre-existing Novel from a build
 that predates this REQ), the age SHALL display "unknown" instead of an
 incorrect integer. The builder SHALL record the counter storage format
 in DECISIONS.md.
 *Acceptance criterion:* Set a signal, restart server, invoke
-`hat_briefing` as GM — assert the signal shows "set 1 connection ago."
+`badge_briefing` as GM — assert the signal shows "set 1 connection ago."
 Set another signal, restart, invoke briefing — assert the first shows
 "set 2 connections ago" and the second shows "set 1 connection ago."
 Remove and re-set a signal in the same connection — assert it shows
@@ -3223,7 +3223,7 @@ Novel's world-model tier with the extracted rooms, things, exits, and
 properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
 `@lore`) to world-model objects by name. Adventure modules without a `## World`
  section SHALL load as flat indexed content — their prose is searchable via
-`search_rules` and surfaced in `hat_briefing`, but no world-model objects
+`search_rules` and surfaced in `badge_briefing`, but no world-model objects
 are created.
 
 When the adventure module has undergone structural extraction (REQ-247),
@@ -3233,7 +3233,7 @@ created silently (GM-modifiable via `update_npc`), extracted location
 descriptions SHALL become lore entries keyed by heading name, extracted
 faction references SHALL become faction entities with starting clocks, and
 the extracted premise SHALL become the adventure hook surfaced in
-`hat_briefing`. The load response SHALL include a summary of pre-populated
+`badge_briefing`. The load response SHALL include a summary of pre-populated
 items with counts. Items whose name duplicates existing Novel state are
 skipped with a note. NPCs carrying only a name and no parseable stats are
 created as skeletal entities — they participate in combat with `[AUTO]`
@@ -3252,14 +3252,14 @@ heading; MEDIUM when it appears in body text. The `[generated]` tag (REQ-132)
 SHALL NOT affect sort order — generated and indexed results sort by match
 strength identically; the tag is a source-of-origin marker only.
 
-`hat_briefing` includes the active adventure's hook, current location,
+`badge_briefing` includes the active adventure's hook, current location,
 and — when a world model is populated — the current room's name and visible
 contents.
 
-Adventure content is hat-filtered: sections marked with the ruleset's
-adjudicator term (e.g., `*Keeper only*`) are hidden from the Player hat.
+Adventure content is badge-filtered: sections marked with the ruleset's
+adjudicator term (e.g., `*Keeper only*`) are hidden from the Player badge.
 Unmarked sections are visible to all. Multiple adventures may be indexed;
-only the active adventure's content is surfaced in `hat_briefing`. Adventure
+only the active adventure's content is surfaced in `badge_briefing`. Adventure
 NPCs defined via `@npc` annotations are Novel-scoped entities created at
 load time; the GM may modify them via `update_npc`. `load_adventure` is Game
 Master only. `load_adventure` with a slug not matching any indexed adventure
@@ -3290,7 +3290,7 @@ reconstitution at import time.
 *Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")`
 activates the adventure, populates the world-model tier with rooms/things/
 exits from the `## World` section, links `@npc` annotations, and surfaces
-the adventure hook and current room in `hat_briefing`; a module without a
+the adventure hook and current room in `badge_briefing`; a module without a
 `## World` section loads as flat indexed content. `load_adventure("tomb-of-the-serpent-king",
 target="codex")` with no Novel active stores the adventure scaffold in Codex;
 `codex_list("adventure")` returns the entry with `source: loaded:tomb-of-the-serpent-king`;
@@ -3305,8 +3305,8 @@ Each entry SHALL include: `slug`, `title`, `preview` (2–3 sentence GM-facing p
 accepts a genre tag string and returns only matching adventures.
 
 When `TTRPG_ADVENTURE` contains no adventure modules, `list_adventures` SHALL return an
-empty-state message: "[No adventure modules found.]" The catalog is hat-filtered: Player
-hat sees adventures with a `player_visible` flag or `shared` adventure hooks; GM hat sees
+empty-state message: "[No adventure modules found.]" The catalog is badge-filtered: Player
+badge sees adventures with a `player_visible` flag or `shared` adventure hooks; GM badge sees
 all. `spec_health` SHALL report `adventure_catalog_count`. `list_adventures` has no
 briefing presence per §5.10.
 
@@ -3339,7 +3339,7 @@ from structural extraction content (REQ-247): voice examples matched to
 extracted NPC names via the ruleset index, lore templates matched to
 extracted location keywords, action patterns matched to extracted encounter
 descriptions. Ruleset-native enrichment items SHALL be automatically
-activated for the GM — items are active in `hat_briefing`, enrichment
+activated for the GM — items are active in `badge_briefing`, enrichment
 resources, and suggestion surfaces immediately after `load_adventure`
 completes. Community enrichment items SHALL remain inert per REQ-080, with
 a prompt in the load response offering activation: "Community enrichment
@@ -3360,11 +3360,11 @@ _Check:_ T-new-229.
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
 indexed adventure slugs and their build-time content hashes. A resource at
 `adventures://` SHALL list all indexed adventure slugs with their titles and
-hat-filtered hooks. Both surfaces respect hat gating: GM-only content is hidden
-from the Player hat.
+badge-filtered hooks. Both surfaces respect badge gating: GM-only content is hidden
+from the Player badge.
 *Acceptance criterion:* `spec_health` includes an `indexed_adventures` field
 listing slugs and content hashes; `resources/read` on `adventures://` returns the
-complete list; Player hat sees only Player-visible adventure hooks.
+complete list; Player badge sees only Player-visible adventure hooks.
 _Check:_ T207.
 
 **REQ-171 — Adventure content validation.** During discovery (§6.3), the
@@ -3426,15 +3426,15 @@ contents: the premise (one paragraph introducing the adventure), key NPCs
 (name and one-line role), major locations (name and one-line description),
 factions in conflict, and the scene count from the structural index.
 Content is drawn from the structural extraction (REQ-247) and populated
-when `load_adventure` is called. The resource SHALL be hat-filtered: the
-Player hat sees only the premise and shared content; the Game Master hat
+when `load_adventure` is called. The resource SHALL be badge-filtered: the
+Player badge sees only the premise and shared content; the Game Master badge
 sees the full overview including GM-only sections. When the adventure has
 no structural index (empty extraction), the resource SHALL return
 `[WARNING]` with "No structured overview available" and the raw adventure
 slug.
 *Acceptance criterion:* `adventure://<slug>/overview` returns premise,
 NPC list with roles, location list, faction descriptions, and scene count,
-hat-filtered per section markers.
+badge-filtered per section markers.
 _Check:_ T285.
 
 **REQ-249 — Adventure navigation resource.** The server SHALL provide a
@@ -3442,35 +3442,35 @@ resource at `adventure://<slug>/navigation` rendering the adventure's
 structural index (REQ-247) as navigable Markdown: all scenes in order
 with heading anchors, the current scene waypoint (REQ-250) marked with
 `[→]`, adjacent scenes indicated as previous and next. The resource is
-on-demand — it SHALL NOT be included in `hat_briefing`. The resource SHALL
-be hat-filtered: GM-only sections are hidden from the Player hat; the Player
+on-demand — it SHALL NOT be included in `badge_briefing`. The resource SHALL
+be badge-filtered: GM-only sections are hidden from the Player badge; the Player
 sees only the scene list without GM annotations. When no adventure is loaded,
 the resource SHALL return `[ERROR] [STATE_CONFLICT]` directing the caller to
 load an adventure first. When the adventure has no structural index, the
 resource SHALL return `[WARNING]` with "No navigation index available."
 *Acceptance criterion:* `adventure://<slug>/navigation` returns scene list
-with current waypoint marked; adjacent scenes indicated; hat-filtered per
+with current waypoint marked; adjacent scenes indicated; badge-filtered per
 section markers; unavailable when no adventure is loaded.
 _Check:_ T286.
 
 **REQ-250 — Adventure scene waypoint.** The `set_scene_state` tool gains
 an optional `adventure_scene` field accepting a heading anchor from the
-adventure's structural index (REQ-247). When set: `hat_briefing` SHALL
+adventure's structural index (REQ-247). When set: `badge_briefing` SHALL
 surface the adventure scene's description as a distinct labeled block
 alongside the current scene state — "Adventure Scene (<slug> § <heading>):
-<prose>"; `hat_briefing` SHALL list adjacent scenes (previous and next in
+<prose>"; `badge_briefing` SHALL list adjacent scenes (previous and next in
 the structural index) as nearby; the GM's free-text `description` parameter
 remains independent — the two SHALL NOT overwrite each other. The waypoint
 persists with the Novel. Setting `adventure_scene` to a heading not in the
 index returns `[NOT_FOUND]` with nearby scene names enumerated. Setting it
 to an empty string or null clears the waypoint. Changing the waypoint fires
 a scene transition hook (REQ-125). The field is Game Master only; the Player
-hat reads it passively via `hat_briefing`. When `adventure_scene` is set and
+hat reads it passively via `badge_briefing`. When `adventure_scene` is set and
 the adventure contains GM-only sections, the scene description SHALL be
-rendered regardless of hat — but the full scene prose (at the adventure
-resource) is hat-filtered per adventure section markers.
+rendered regardless of badge — but the full scene prose (at the adventure
+resource) is badge-filtered per adventure section markers.
 *Acceptance criterion:* Set `adventure_scene` to a heading anchor — assert
-description in `hat_briefing` labeled with adventure slug and scene heading;
+description in `badge_briefing` labeled with adventure slug and scene heading;
 adjacent scenes listed; transition hook fires; `[NOT_FOUND]` for unknown
 anchors; Player pass-through in briefing.
 _Check:_ T284.
@@ -3482,14 +3482,14 @@ not indexed at build time — they exist only within the Novel that generated
 them, are discarded by `end_novel`, and are not persisted to the
 `TTRPG_ADVENTURE` directory. Generated adventure content SHALL be surfaced at
 `adventure://generated/<anchor>`, use the same heading, anchor, and
-hat-filtering conventions as indexed adventures (Appendix K), and appear in
-`hat_briefing` and `search_rules` results when the generating Novel is active.
+badge-filtering conventions as indexed adventures (Appendix K), and appear in
+`badge_briefing` and `search_rules` results when the generating Novel is active.
 Calling `generate_adventure` when a generated adventure already exists in the
 Novel SHALL replace the prior generated content. `load_adventure` replaces the
 active indexed adventure but SHALL NOT affect the generated adventure; a
 generated adventure SHALL NOT replace the indexed adventure. A Novel may have
 both an indexed adventure and a generated adventure active simultaneously —
-`hat_briefing` SHALL surface the indexed adventure's content first, then the
+`badge_briefing` SHALL surface the indexed adventure's content first, then the
 generated adventure's content, and `search_rules` SHALL distinguish generated
 results with a `[generated]` tag.
 
@@ -3653,7 +3653,7 @@ current disposition strings), `player_goals` (what the player seems focused on),
 only the fields the GM wants to update. `save_pause_context(fields...)` — Game Master
 only — merges provided fields into the existing `dm_context`. `get_resume_context()`
 returns a complete briefing for session resumption: `dm_context` content plus a
-Novel state summary plus the `hat_briefing` prompt. When `resume_novel` is called,
+Novel state summary plus the `badge_briefing` prompt. When `resume_novel` is called,
 the `intro` prompt SHALL include the `dm_context` summary. `end_novel` clears
 `dm_context`. `save_pause_context` SHALL automatically capture current faction clock
 states (REQ-233), active countdown positions (REQ-073), NPC dispositions, entity
@@ -3675,7 +3675,7 @@ goals?, resources?)` creates a faction. `update_faction(faction_id, fields...)`
 mutates existing fields. `remove_faction(faction_id)` removes a faction and its
 clock. Factions persist with the Novel. Resources: `faction://<id>` and
 `factions://` — GM-filtered. Faction clocks update faction progress and are
-surfaced in `hat_briefing`. When a faction clock fills, the faction's status updates
+surfaced in `badge_briefing`. When a faction clock fills, the faction's status updates
 to the next goal and a new clock begins — surfaced as a `[WARNING]` in `spec_health`.
 Factions appear in `dm_context.active_threads` (REQ-232). Faction clocks SHALL
 advance by one tick at scene transitions (REQ-125).
@@ -3713,7 +3713,7 @@ autonomously advance the world state beyond faction clocks:
   change as an opportunity. Propagation extends one hop from the affected entity.
 
 - **GM approval surface.** The GM SHALL see a `## World in Motion` section in
-  `hat_briefing` — a decision-critical group ordered after Narrative Threads
+  `badge_briefing` — a decision-critical group ordered after Narrative Threads
   (REQ-281) — listing pending world changes produced by this cycle. Each entry
   carries: the source (NPC goal / faction / consequence), a one-sentence summary of
   the proposed change, and an accept/modify/defer label. Accept applies the change
@@ -3742,7 +3742,7 @@ value?, description?)` sets a directed relationship. Relationship types: `ally`,
 returns all relationships for an entity (both outgoing and incoming). Relationships
 SHALL appear on `character_sheet` output in a "Relationships" section. When an
 entity's relationship type changes between `ally` and `rival` (in either direction),
-the GM SHALL be prompted via `hat_briefing` to consider a lore entry.
+the GM SHALL be prompted via `badge_briefing` to consider a lore entry.
 
 WHEN `set_relationship` changes a relationship type between non-neutral categories
 (`ally` ↔ `rival`, `ally` ↔ `suspicious`, `rival` ↔ `suspicious`, or any change to or
@@ -3766,7 +3766,7 @@ Novel resume. The marker entry carries: `session_id` (the
 mutating call), and `ended_at` (ISO 8601 timestamp of the previous session's
 last mutating entry, or null for the first session). The marker is a
 mutating entry for audit-chain purposes (REQ-040) but its output prefix is
-the marker identifier. Markers SHALL be hat-filtered: the Player hat sees
+the marker identifier. Markers SHALL be badge-filtered: the Player badge sees
 only session boundary timespans without the `session_id`; the Game Master
 sees the full marker entry. `session_recap` (REQ-072) SHALL accept an
 optional `session_id` parameter — when provided, the recap is scoped to the
@@ -3797,7 +3797,7 @@ selecting the clock's interaction model:
 - `faction` — Background clock for factions (REQ-233). Advances one tick on each scene
   transition (REQ-125). Surfaced in the faction's resource display.
 - `mission` — Window of opportunity. Auto-decrements one tick at each `resume_novel`.
-  Reaching zero changes mission parameters — surfaced in `hat_briefing`.
+  Reaching zero changes mission parameters — surfaced in `badge_briefing`.
 
 `link_countdown(parent_name, child_name)` creates a linked relationship between two
 existing clocks. The existing `type` parameter (`round`/`narrative`) controls tick
@@ -3840,7 +3840,7 @@ is irreversible — confirmation proceeds through a `[NEED_INPUT]` workflow.
 Calling `compact_audit_log` with a `sessions` parameter (minimum 1)
 sets the number of recent sessions to retain as live; when omitted, the
 `TTRPG_AUDIT_RETENTION_SESSIONS` default is used. Sessions currently active
-(no `ended_at` marker) SHALL NOT be compacted. Player hat attempts return
+(no `ended_at` marker) SHALL NOT be compacted. Player badge attempts return
 `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two
 sessions, `compact_audit_log()` archives session 1 — audit log shows only
@@ -3878,28 +3878,28 @@ true)` includes the checkpoints key.
 _Check:_ T279.
 
 **REQ-242 — Notes.** The Novel SHALL carry a notes tier — key-value freeform text
-entries each carrying a `hat_scope` of `game_master`, `player`, or `shared`. WHEN no
+entries each carrying a `badge_scope` of `game_master`, `player`, or `shared`. WHEN no
 scope is provided, THE system SHALL default to `game_master`. `set_note(key, content,
-hat_scope?)` creates or updates a note. `remove_note(key)` removes a note — the
-caller's hat must own the scope, or be Game Master. `list_notes()` returns note keys,
-content previews (first 100 characters), and hat_scope — hat-filtered. Notes are inert
+badge_scope?)` creates or updates a note. `remove_note(key)` removes a note — the
+caller's badge must own the scope, or be Game Master. `list_notes()` returns note keys,
+content previews (first 100 characters), and badge_scope — badge-filtered. Notes are inert
 narrative context — they do not trigger lore matching, countdown hooks, or any
 mechanical effect. Notes persist with the Novel, survive `revert_enrichment`, and are
-removed by `end_novel`. Notes SHALL be surfaced in `hat_briefing` under the `notes`
+removed by `end_novel`. Notes SHALL be surfaced in `badge_briefing` under the `notes`
 section token — Game Master sees all scopes; Player sees `player` and `shared` scopes
-only. Notes SHALL be retrievable at `notes://<key>` as a hat-filtered resource. Notes
+only. Notes SHALL be retrievable at `notes://<key>` as a badge-filtered resource. Notes
 SHALL be included in `export_novel` output under the `notes` key (mapping keys to
-`{content, hat_scope}` objects), in `clone_novel` (REQ-240) output, and in checkpoint
+`{content, badge_scope}` objects), in `clone_novel` (REQ-240) output, and in checkpoint
 snapshots (REQ-241). This tier is the unstructured complement to REQ-232's structured
 `dm_context` — dm_context captures session-transition state with named fields; notes
 capture raw ideas, secrets-in-progress, and session jottings that do not fit
-dm_context's schema. IF the Player hat calls `set_note` with scope `game_master`,
+dm_context's schema. IF the Player badge calls `set_note` with scope `game_master`,
 `remove_note` on a `game_master`-scoped note, or attempts to access `game_master`-scoped
 content, THEN THE system SHALL return `[FORBIDDEN]`.
 *Acceptance criterion:* `set_note("betrayal", "The captain is the real villain")` stores
-the note with default `game_master` scope; `list_notes()` under Game Master hat returns
+the note with default `game_master` scope; `list_notes()` under Game Master badge returns
 the note with scope `game_master`; `notes://betrayal` returns full content; the Player
-hat sees no `game_master`-scoped notes in `hat_briefing`; `set_note("clue", "The key is
+badge sees no `game_master`-scoped notes in `badge_briefing`; `set_note("clue", "The key is
 in the clock", "player")` is visible to both Player and GM; after `end_novel`, all
 notes are cleared.
 _Check:_ T280.
@@ -3920,66 +3920,88 @@ hat calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
 *Acceptance criterion:* `set_server_note("campaign-bible", "The old gods were
 banished to the outer dark")` stores the note; server restart preserves it;
 `end_novel` preserves it; `server-notes://campaign-bible` returns full content;
-`list_server_notes()` returns the note; Player hat returns `[FORBIDDEN]`;
+`list_server_notes()` returns the note; Player badge returns `[FORBIDDEN]`;
 `spec_health` reports the server note count.
 _Check:_ T-new-285.
 
 **REQ-321 — Codex.** THE server SHALL carry a server-level codex — a typed content
-library for reusable GM-authored content (NPCs, scenes, encounters, lore entries,
-factions, countdowns, rooms, things) that persists outside Novels and survives server
-restarts. THE codex SHALL support content kinds: `npc`, `scene`, `encounter`,
-`lore_entry`, `faction`, `countdown`, `room`, `thing`, `adventure`. `codex_set(kind,
-name, data, description?, tags?)` SHALL create or update a codex entry with upsert
-semantics — the `data` parameter carries a kind-specific payload whose shape mirrors the
-corresponding Novel tool parameters. `codex_import(id)` SHALL materialize a codex
-entry into the active Novel by delegating to the existing tool for the entry's kind
-(e.g., NPC entry → `create_npc`, scene entry → `set_scene_state`, encounter entry →
-`init_combat`). For kind `adventure`, `codex_import` SHALL materialize the
-adventure scaffold into the active Novel: populate world-model tier from the stored
-`## World` section data (rooms, things, exits per REQ-079), create NPCs from
-extracted NPC data, set factions from extracted faction data, create lore entries
-from extracted location descriptions, and activate enrichment linkages per REQ-229.
-The adventure data payload for kind `adventure` SHALL carry: `title`, `slug`,
-`source` (one of `generated`, `loaded:<adventure_slug>`, `captured:<novel_slug>`),
-`premise`, `overview`, `hook`, `locations` (array of `{heading, flavor_text}`),
-`npc_suggestions` (array of `{name, description}`), `encounter_seeds` (array of
-free-text entries), `genre_tags` (array of strings), and `sections` (the full parsed
-adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`,
-`## Scenes`, `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind, source_id)`
-SHALL pull an existing Novel
-artifact into the codex — the captured entry carries a `source_novel` field tracing
-its origin. `codex_capture("adventure")` SHALL pull the active Novel's adventure
-content (loaded or generated) into the Codex as kind `adventure` with `source:
-captured:<novel_slug>`, carrying the full adventure data payload defined above.
-When the active Novel has no adventure content (no adventure loaded or generated),
+library for reusable content (NPCs, characters, scenes, encounters, lore entries,
+factions, countdowns, rooms, things, equipment templates, spell templates,
+relationship templates, voice profiles, adventures) that persists outside Novels and
+survives server restarts. The codex operates at the server level — it has no inherent
+badge context. The codex SHALL support content kinds: `npc`, `character`, `scene`,
+`encounter`, `lore_entry`, `faction`, `countdown`, `room`, `thing`,
+`equipment_template`, `spell_template`, `relationship_template`, `voice_profile`,
+`adventure`. Every codex entry SHALL carry a `visibility` field — `library` (default,
+for world-building content) or `shared` (visible to both badges). `codex_set(kind,
+name, data, description?, tags?, visibility?)` SHALL create or update a codex entry
+with upsert semantics — the `data` parameter carries a kind-specific payload whose
+shape mirrors the corresponding Novel or roster tool parameters. `codex_import(id)`
+SHALL materialize a codex entry into the active Novel by delegating to the existing
+tool for the entry's kind: `npc` → `create_npc`, `character` → `import_character`,
+`scene` → `set_scene_state`, `encounter` → `init_combat`, `lore_entry` →
+`set_lore_entry`, `faction` → `create_faction`, `countdown` → `set_countdown`,
+`room` → `create_room`, `thing` → `create_thing`, `equipment_template` →
+materialize equipment into the entity's inventory, `spell_template` → materialize
+a custom spell into the entity's known spells, `relationship_template` → apply the
+relationship set via `set_relationship` for each pair, `voice_profile` → apply via
+`set_voice_examples` and `set_personality`. For kind `adventure`, `codex_import`
+SHALL materialize the adventure scaffold into the active Novel: populate world-model
+tier from the stored `## World` section data (rooms, things, exits per REQ-079),
+create NPCs from extracted NPC data, set factions from extracted faction data, create
+lore entries from extracted location descriptions, and activate enrichment linkages
+per REQ-229. The adventure data payload for kind `adventure` SHALL carry: `title`,
+`slug`, `source` (one of `generated`, `loaded:<adventure_slug>`,
+`captured:<novel_slug>`), `premise`, `overview`, `hook`, `locations` (array of
+`{heading, flavor_text}`), `npc_suggestions` (array of `{name, description}`),
+`encounter_seeds` (array of free-text entries), `genre_tags` (array of strings), and
+`sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`,
+`## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind,
+source_id)` SHALL pull an existing Novel artifact into the codex — the captured
+entry carries a `source_novel` field tracing its origin. `codex_capture("adventure")`
+SHALL pull the active Novel's adventure content (loaded or generated) into the Codex
+as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure
+data payload defined above. When the active Novel has no adventure content,
 `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action
 `"No adventure content in the active Novel. Load an adventure via load_adventure or
 generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a
-filterable list of codex
-entries with id, kind, name, description, and tags. `codex_info(id)` SHALL return
-the full record including the kind-specific data payload. `codex_delete(id)` SHALL
-remove an entry with no confirmation gate — `undo` SHALL restore a deleted entry
-within the same connection. Codex entries persist to
-`.holonovel-state/codex.json` with atomic writes and backup rotation. The codex
-SHALL survive `end_novel`, `revert_enrichment`, and server rebuilds. Codex entries
-SHALL be surfaced in `spec_health` under a `codex` key (count partitioned by kind).
-The codex SHALL be retrievable at `codex://<id>` as a resource. Codex entries SHALL
-NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots. Codex entries
-SHALL carry no mechanical effect within a Novel until explicitly imported via
-`codex_import`. WHEN the Player hat calls any codex tool, THE system SHALL return
-`[FORBIDDEN]`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]`
-when no Novel is active.
+filterable list of codex entries with id, kind, name, description, tags, and
+visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player
+badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
+In editing mode (no badge active), `codex_list` returns all entries unfiltered.
+`codex_info(id)` SHALL return the full record including the kind-specific data
+payload, badge-filtered by visibility. `codex_delete(id)` SHALL remove an entry with
+no confirmation gate — `undo` SHALL restore a deleted entry within the same
+connection. Mutating codex operations (`codex_set`, `codex_capture`, `codex_delete`)
+SHALL require no badge active (editing mode) or Game Master badge; Player badge
+SHALL return `[FORBIDDEN]`. `codex_import` SHALL be badge-scoped: Player badge MAY
+import `shared`-visibility entries of kind `character`; the Game Master badge may
+import any entry regardless of visibility. Player badge import of any other kind
+SHALL return `[FORBIDDEN]`. Codex entries persist to `.holonovel-state/codex.json`
+with atomic writes and backup rotation. The codex SHALL survive `end_novel`,
+`revert_enrichment`, and server rebuilds. Codex entries SHALL be surfaced in
+`spec_health` under a `codex` key (count partitioned by kind). The codex SHALL be
+retrievable at `codex://<id>` as a resource, badge-filtered by visibility. Codex
+entries SHALL NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots.
+Codex entries SHALL carry no mechanical effect within a Novel until explicitly
+imported via `codex_import`. `codex_import` and `codex_capture` SHALL return
+`[STATE_CONFLICT]` when no Novel is active.
 *Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff,
 scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
-"village"])` stores the entry; server restart preserves it; `end_novel` preserves
-it; `codex://blacksmith` returns full content; `codex_list("npc")` returns the
-entry; Player hat returns `[FORBIDDEN]`; `codex_import("blacksmith")` into an
-active Novel creates the NPC; `codex_import("my-adventure")` with kind `adventure`
-into an active Novel populates world-model, NPCs, factions, lore, and activates
-enrichment linkages; `codex_capture("adventure")` from an active Novel with
-adventure content stores it in Codex with `source: captured:<slug>`; without
-adventure content returns `[STATE_CONFLICT]`; `spec_health` reports codex counts
-by kind.
+"village"])` stores the entry with default visibility `library`; `codex_set("npc",
+"Blacksmith", ..., visibility="shared")` stores with `shared` visibility; server
+restart preserves entries; `end_novel` preserves them; `codex://blacksmith` returns
+full content; `codex_list("npc")` under Player badge returns only `shared` entries;
+`codex_list("npc")` under Game Master badge returns all entries; `codex_list("npc")`
+with no badge active returns all entries; Player badge `codex_set(...)` returns
+`[FORBIDDEN]`; Game Master badge `codex_import("blacksmith")` into an active Novel
+creates the NPC; Player badge `codex_import("fighter-01")` of a `shared`-visibility
+`character` entry imports the character; Player badge `codex_import("blacksmith")`
+returns `[FORBIDDEN]`; `codex_import("my-adventure")` with kind `adventure` into an
+active Novel populates world-model, NPCs, factions, lore, and activates enrichment
+linkages; `codex_capture("adventure")` from an active Novel with adventure content
+stores it in Codex with `source: captured:<slug>`; without adventure content returns
+`[STATE_CONFLICT]`; `spec_health` reports codex counts by kind.
 _Check:_ T-new-322.
 
 ### 5.7 Determinism, Safety, and Performance
@@ -3987,7 +4009,7 @@ _Check:_ T-new-322.
 **REQ-050 — Determinism.** All random draws come from a single deterministic PRNG, seedable
 via `TTRPG_SEED`. Any tool that performs a random draw — dice-roll tools, `init_combat`
 (danger initiative), `create_character` (stat generation), and any
-ruleset-derived tool that includes dice resolution — accepts an optional
+ruleset-derived tool tbadge includes dice resolution — accepts an optional
 per-call seed. Same seed + same call
 sequence = same results across sessions and games. Seed conflict (a tool-call seed when a
 session seed is active) is a `[WARNING]` and the per-call seed wins for that draw.
@@ -4053,7 +4075,7 @@ text. When a roll falls outside all defined ranges, the tool SHALL return
 NOT silently return a bare number.
 
 A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a
-list of `ranges` (each with `min`, `max`, `result`), and an optional `hat_scope`
+list of `ranges` (each with `min`, `max`, `result`), and an optional `badge_scope`
 (`game_master` or `shared`, default `shared`). A generation table SHALL NOT
 interleave dice-range rows with static lookup rows — tables are classified as
 either generation or lookup at extraction; a table containing any dice-range row
@@ -4076,7 +4098,7 @@ Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an
 of the answer. The `question` parameter is recorded in the audit log; the draw is
 deterministic and seedable. The oracle is positioned as a GM-input aid — it resolves
 uncertainty when the GM doesn't know what should happen, but SHALL NOT replace the AI
-GM's narrative judgment. Player hat returns `[FORBIDDEN]`. The oracle has no briefing
+GM's narrative judgment. Player badge returns `[FORBIDDEN]`. The oracle has no briefing
 presence — it is callable on demand only and fades into the background per §5.10.
 
 `help("ask_oracle")` SHALL return usage examples, parameter contracts, and common
@@ -4086,7 +4108,7 @@ workflows. `suggest_actions("I don't know what's behind the door")` SHALL map to
 *Acceptance criterion:* `ask_oracle("Is there a guard behind the door?", "even",
 seed="42")` returns `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Same
 seed + same call sequence produces the same result across restarts. Likelihood "certain"
-returns `[YES]` or `[EXCEPTIONAL_YES]` on most draws. Player hat returns `[FORBIDDEN]`.
+returns `[YES]` or `[EXCEPTIONAL_YES]` on most draws. Player badge returns `[FORBIDDEN]`.
 _Check:_ T-new-291.
 
 **REQ-157 — Combat determinism.** Combat initiative for dangers is drawn from the
@@ -4131,7 +4153,7 @@ the input string without generating output first — compliance is checked befor
 resources are consumed. The operator MAY override the guard by prefixing the premise
 with `!force` — the override SHALL be recorded in the audit log with a
 `[generation_guard_overridden]` entry. A GM-only advisory SHALL appear in
-`hat_briefing` when a generation guard fired in the current session, listing the premise
+`badge_briefing` when a generation guard fired in the current session, listing the premise
 and the concern. When the ruleset defines a difficulty system (challenge rating, threat
 levels), `generate_encounter` SHALL cap generated danger power against the party's
 existing entity levels — exceeding the cap produces `[WARNING]` with the cap value.
@@ -4200,17 +4222,17 @@ entities, HP, conditions, slots, turn order persist. The roster is permanent and
 at baseline. `import_character` brings a fresh copy of a roster entry into a Novel. Session
 audit logs survive. `end_novel` discards the Novel; the roster survives. Resuming an ended
 Novel fails with `[ERROR] [STATE_CONFLICT]`. RNG seed and position survive with the Novel.
-When a Novel is resumed or switched to, the Novel's persisted hat state takes
-precedence over `TTRPG_HAT`. `TTRPG_HAT` sets the initial active hat only
-when the starting Novel has no persisted hat state — either because the Novel is
-newly created, or because no hat was activated during a prior session. WHEN
-`resume_novel` restores a Novel that has a hat active (a story in progress) THE
-server SHALL include a notice identifying the active hat — e.g., "This Novel has
-a story in progress (Player hat active). You're back in the story." — so the
+When a Novel is resumed or switched to, the Novel's persisted badge state takes
+precedence over `TTRPG_BADGE`. `TTRPG_BADGE` sets the initial active badge only
+when the starting Novel has no persisted badge state — either because the Novel is
+newly created, or because no badge was activated during a prior session. WHEN
+`resume_novel` restores a Novel that has a badge active (a story in progress) THE
+server SHALL include a notice identifying the active badge — e.g., "This Novel has
+a story in progress (Player badge active). You're back in the story." — so the
 operator knows they have resumed an active story rather than entered editing
 mode.
 *Acceptance criterion:* Server restart with `TTRPG_NOVEL=my-novel` restores
-entities, HP, conditions, hat, and RNG state; `resume_novel("ended-novel")`
+entities, HP, conditions, badge, and RNG state; `resume_novel("ended-novel")`
 returns `[STATE_CONFLICT]`.
 _Check:_ T9, T31, T108.
 
@@ -4283,11 +4305,11 @@ choice). The tool SHALL include a style guide in its help text: focus on narrati
 elements the mechanical audit log does not capture — motivations, emotional stakes,
 world changes, off-screen events. Entries are Novel-scoped, survive restarts, and are
 discarded by `end_novel`. Story journal entries are not mutating state operations for
-undo/redo purposes — `undo` SHALL NOT reverse a story journal entry. Player hat returns
+undo/redo purposes — `undo` SHALL NOT reverse a story journal entry. Player badge returns
 `[FORBIDDEN]`.
 
 Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
-field — paginated via `offset`/`limit` params, default 10; (b) in `hat_briefing` under
+field — paginated via `offset`/`limit` params, default 10; (b) in `badge_briefing` under
 a `story` section token, configurable via `TTRPG_STORY_JOURNAL_DISPLAY` —
 entries whose `entity_ids` overlap the current active entities or whose `scene_anchor`
 matches the current scene; (c) in `export_novel` output under `story_journal`; (d) in
@@ -4300,7 +4322,7 @@ per-type entry counts — and warn at 80% of the maximum.
 an entry; `list_stories(type="moment")` returns entries filtered by type;
 `update_story(0, "Corrected entry.")` edits the first entry; editing a `decision` type
 returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not remove
-entries; Player hat returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
+entries; Player badge returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
 
 **REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
@@ -4325,7 +4347,7 @@ categories:
   presence at a location, THE engine SHALL record a fact associating the location with the
   event, timestamp, and involved entities.
 
-WHEN `hat_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory
+WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory
 facts under a `## Campaign Memory` section. This section is a decision-critical group
 (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by
 relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships
@@ -4336,17 +4358,29 @@ tools — they are a surfacing layer over existing state. `spec_health` SHALL re
 `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total.
 `export_novel` SHALL include `campaign_memory` in its payload.
 
-Campaign memory facts rendered in `hat_briefing` under the Player hat SHALL be
-presence-scoped: a fact is visible to the Player hat only when the active entity was
+Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be
+presence-scoped: a fact is visible to the Player badge only when the active entity was
 present in the scene where the fact was recorded as determined by `characters_present`
-(REQ-307). The Game Master hat sees all facts (current behavior). Facts from scenes the
+(REQ-307). The Game Master badge sees all facts (current behavior). Facts from scenes the
 entity attended are retained regardless of current presence — presence scoping gates
 visibility, not storage.
+
+Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for
+GM-authored or engine-derived facts that should remain GM-visible only), `shared`
+(visible to both badges.when presence-scoped), or `discovered` (visible to both badges.
+tagged as player-discovered). Under the Player badge, campaign memory visibility
+compounds two filters: a fact is visible only when (a) the active entity was present
+for the scene where the fact was recorded (presence scoping), AND (b) the fact's
+`badge_scope` is `shared` or `discovered`. The Game Master badge sees all facts regardless
+of `badge_scope`. Facts created by the engine default to `gm`; the GM may override
+scope via `set_lore_entry` (REQ-083) for facts that also correspond to lore entries.
+`discovered`-scope facts carry a `[discovered]` tag in `badge_briefing` distinct from
+the standard rendering.
 
 *Acceptance criterion:* After a session with two NPCs (each appearing in a scene and
 combat), three scene changes, one faction clock advancement, and one story journal
 decision, `spec_health` reports `campaign_memory.npcs ≥ 2`, `campaign_memory.threads ≥ 1`,
-`campaign_memory.locations ≥ 1`. `hat_briefing` includes `## Campaign Memory` with facts
+`campaign_memory.locations ≥ 1`. `badge_briefing` includes `## Campaign Memory` with facts
 prioritized by scene relevance. Facts survive Novel persistence and are present in
 `export_novel("json")`.
 _Check:_ T-new-311.
@@ -4365,15 +4399,15 @@ the GM has activated. Items tagged `[ruleset]` with source anchors.
 Tier 2 items are stored in full within the Novel JSON. Items tagged
 `[supplementary]` with source URLs.
 
-3. **Player-authored (player)** — created at runtime by the Player hat via
+3. **Player-authored (player)** — created at runtime by the Player badge via
 `player_enrich` (REQ-261). Items are stored in full within the Novel JSON under a
 `player_enrichment` key, organized by output module. Items are tagged `[player]`
 and are active immediately upon creation in the player-facing subset of modules:
 `voice_examples`, `action_patterns`, `supplementary_guidance`, `narrative_voices`,
-and `lore_templates`. Default hat scope is `shared` (visible to both hats); the
+and `lore_templates`. Default badge scope is `shared` (visible to both badges.; the
 player may scope items `player` (private). Player items are subject to a per-module
 cap of 15 items. The GM may not modify or remove `[player]` items but may override
-their `hat_scope` to `game_master` to incorporate them into the GM's active
+their `badge_scope` to `game_master` to incorporate them into the GM's active
 enrichment set.
 
 On Novel startup, Tier 1 activation keys resolve against the build's current tier 1
@@ -4393,7 +4427,7 @@ voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templa
 (REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090,
 §11.1), narrative voice profiles (REQ-226), and supplementary guidance. Enrichment
 MUST NOT modify mechanical fields (stats, saves, HP, conditions, combat state),
-build-derived tool registrations, hat gating rules, or any ruleset-derived values.
+build-derived tool registrations, badge gating rules, or any ruleset-derived values.
 Enrichment recommendations for prompt ordering, lore templates, and adventure advice
 are inert — they never auto-apply; the GM must explicitly activate them via the
 corresponding tools. Community enrichment items that have never been activated and
@@ -4402,7 +4436,7 @@ whose `collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as
 Ruleset-native items do not carry staleness flags — they are canonical. Stale items
 are retained on disk and reactivate if the GM explicitly activates them. Re-running
 community Enrich refreshes timestamps for all community items. Every community enrich
-finding carries source_url, quoted_excerpt, hat_scope, confidence (derived from
+finding carries source_url, quoted_excerpt, badge_scope, confidence (derived from
 source authority, not mechanical completeness), output_module, and collected_at (ISO
 8601 timestamp of collection) — all non-empty. Ruleset-native items carry source
 anchor, confidence, output_module, and `[ruleset]` tag. Reverting enrichment
@@ -4412,7 +4446,7 @@ player items persist.
 *Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
 and source URL; ruleset-native items carry `[ruleset]` tag and source anchor;
 player-authored items carry `[player]` tag and appear in both Player and GM
-`hat_briefing` by default; a
+`badge_briefing` by default; a
 stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
 `[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
 community items but preserves ruleset-native and player items; a Novel's Tier 1 activation key that
@@ -4427,26 +4461,26 @@ the `narrative_directive` parameter on `set_scene_state`. Each directive has a `
 within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the
 prior entry. An empty array clears all directives. For backward compatibility,
 `set_narrative_directive` also accepts a single `directive` string — treated as
-`[{"label": "primary", "instruction": <string>}]`. Directives appear in `hat_briefing`
-for the Game Master hat only and at `novel://current`, grouped under "Narrative
+`[{"label": "primary", "instruction": <string>}]`. Directives appear in `badge_briefing`
+for the Game Master badge only and at `novel://current`, grouped under "Narrative
 Directives" with their labels. Directives are inert guidance — they do not affect tool
-behavior, dice results, or rules enforcement. They persist with the Novel. Player hat
+behavior, dice results, or rules enforcement. They persist with the Novel. Player badge
 attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* The `narrative_directive` parameter on
 `set_scene_state` with `[{label: "mood", instruction:
 "dark and brooding"}, {label: "pacing", instruction: "slow burn"}]` produces two
-entries in `hat_briefing` under the GM hat; a duplicate "mood" label replaces the prior;
+entries in `badge_briefing` under the GM badge; a duplicate "mood" label replaces the prior;
 an empty array clears all directives.
 _Check:_ T64, T134.
 
 **REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
-`hat_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
+`badge_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
 array of section tokens. Unknown tokens return `[ERROR] [INVALID_INPUT]` with valid
 tokens enumerated. An empty array resets to the builder-determined default.
 Section tokens control both ordering and inclusion — a token present in the
 array causes its corresponding group to render (or render as an empty section
 if the group has no content); a token absent from the array causes its group to
-be omitted entirely from `hat_briefing`. The builder default ordering includes
+be omitted entirely from `badge_briefing`. The builder default ordering includes
 all groups and SHALL follow the placement contract of `TTRPG_WORLD_PROMINENCE`
 (REQ-309) — world-model state is decision-critical at `prominent`, a dedicated
 section at `visible`, or folded into scene state at `secondary`. The builder
@@ -4458,15 +4492,15 @@ token corresponds to. Tokens
 whose corresponding sections are absent from the current ruleset produce empty
 sections (no error). Enrich may record an ordering recommendation visible in
 `spec_health`, but never auto-applies. The ordering persists with the Novel. Player
-hat attempts return `[ERROR] [FORBIDDEN]`.
+badge attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `set_briefing_order(["scene", "entities", "lore"])`
-reorders `hat_briefing`; `set_briefing_order([])` resets to builder defaults; an
+reorders `badge_briefing`; `set_briefing_order([])` resets to builder defaults; an
 unknown token returns `[ERROR] [INVALID_INPUT]` with valid tokens enumerated.
 _Check:_ T66.
 
 **REQ-185 — Section token vocabulary.** The builder SHALL assign a stable,
 validated section token to each REQ-109 group that has a runtime representation
-in `hat_briefing`. Token names SHALL be lowercase snake_case identifiers
+in `badge_briefing`. Token names SHALL be lowercase snake_case identifiers
 corresponding to the REQ-109 group (e.g., `entities` for the active entities
 group, `combat_state` for the active combat state group). The complete
 token-to-group mapping SHALL be documented in DECISIONS.md per REQ-082. The
@@ -4507,17 +4541,18 @@ group, and remove keyword-triggered lore entries via `set_lore_entry(key, conten
 If the key already exists, provided fields merge into the existing entry; if the key
 does not exist, a new entry is created. `content` is required for new entries and optional
 for updates. Entries activate when trigger keywords appear in scene
-description text (§7.7 Scene → Lore coupling), are hat-filtered, support priority ordering and sticky persistence, and are
-subject to a configurable token budget. The server SHALL return matching enrich templates from `lore://templates`
-via `suggest_lore`. The returned template set SHALL include all hat_scope
-values when called from the Game Master hat, and SHALL exclude only
-templates whose hat_scope is `game_master` when called from the Player
-hat. The template's hat_scope is advisory — the Game Master may activate
-a template with any hat_scope value via `set_lore_entry`, regardless of
+description text (§7.7 Scene → Lore coupling), are badge-filtered, support priority
+ordering and sticky persistence, and are subject to a configurable token budget.
+The server SHALL return matching enrich templates from `lore://templates`
+via `suggest_lore`. The returned template set SHALL include all badge_scope
+values when called from the Game Master badge, and SHALL exclude only
+templates whose badge_scope is `game_master` when called from the Player
+badge. The template's badge_scope is advisory — the Game Master may activate
+a template with any badge_scope value via `set_lore_entry`, regardless of
 the template's source scope. Suggested templates carry the same
 provenance fields (key, content preview, triggers, confidence,
-source_url, hat_scope) as lore templates in the enrichment manifest.
-(REQ-155) Lore entries and groups persist with the Novel. Player hat mutating
+source_url, badge_scope) as lore templates in the enrichment manifest.
+(REQ-155) Lore entries and groups persist with the Novel. Player badge mutating
 and grouping attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `set_lore_entry("tavern_rumor", "The innkeeper knows
 more...", triggers=["innkeeper","tavern"])` activates when scene text matches;
@@ -4528,18 +4563,18 @@ T83.
 
 Extend `set_lore_entry` and `update_lore_entry`: each lore entry SHALL carry a
 `visibility` field — one of `gm_only` (applied to new entries), `shared` (visible to
-Player hat immediately), or `player_discovered` (set automatically when `reveal_secret`
-is called for this entry's key). `gm_only` entries are excluded from Player-hat surfaces
-including `hat_briefing`, `lore://active`, and `graph://novel`. `shared` entries are
-visible to both hats.
+Player badge immediately), or `player_discovered` (set automatically when `reveal_secret`
+is called for this entry's key). `gm_only` entries are excluded from Player-badge surfaces
+including `badge_briefing`, `lore://active`, and `graph://novel`. `shared` entries are
+visible to both badges.
 
 When `set_lore_entry` creates a new entry without a `visibility` field, it defaults to
-`gm_only`. `update_lore_entry` MAY change the visibility field. The `hat_scope` field
-controls briefing presentation priority; `visibility` controls hat-filtered read access.
+`gm_only`. `update_lore_entry` MAY change the visibility field. The `badge_scope` field
+controls briefing presentation priority; `visibility` controls badge-filtered read access.
 
 *Acceptance criterion:* `set_lore_entry("secret", "content", visibility="shared")`
-creates a lore entry visible to Player hat. `set_lore_entry("gm_secret", "content")`
-creates a `gm_only` entry invisible to Player hat.
+creates a lore entry visible to Player badge. `set_lore_entry("gm_secret", "content")`
+creates a `gm_only` entry invisible to Player badge.
 _Check:_ T-new-298.
 
 WHEN a lore entry's `visibility` is `gm_only` or `player_discovered`, trigger matching
@@ -4554,14 +4589,14 @@ presence check.
 when the scene text changes such that the entry's trigger keywords are no longer
 present. The counter resets to the entry's `sticky` value whenever trigger keywords
 re-match. Decay occurs on state mutation (specifically `set_scene_state`), not on
-read operations — calling `hat_briefing` multiple times without an intervening
+read operations — calling `badge_briefing` multiple times without an intervening
 scene change must not alter sticky counters. Entries whose sticky counter reaches
 zero are deactivated in the next briefing assembly and removed from active lore
 until re-triggered.
 *Acceptance criterion:* An entry with `sticky: 3` triggered by scene A. Change
 scene to B (no trigger keywords) — assert counter decrements by 1 per scene change.
-Call `hat_briefing` twice on scene B — assert counter unchanged. After 3 scene
-changes without re-triggering, assert entry no longer appears in `hat_briefing`
+Call `badge_briefing` twice on scene B — assert counter unchanged. After 3 scene
+changes without re-triggering, assert entry no longer appears in `badge_briefing`
 lore section. Revert scene back to A — assert counter resets to 3.
 _Check:_ T299.
 
@@ -4593,7 +4628,7 @@ which no registered tool or documented ruleset procedure plausibly corresponds �
 tool returns an empty list. Without an intent, it returns contextually relevant actions
 based on current scene type (REQ-087), scene_state, entity conditions, and active
 countdowns. The tool is pure-resolution (idempotent, no state mutation). Results are
-hat-filtered: GM-only tools are excluded from Player results. The tool does not
+badge-filtered: GM-only tools are excluded from Player results. The tool does not
 fabricate actions — every suggestion maps to a registered tool or documented ruleset
 procedure. Enrich-derived action patterns (§11.1) may supplement the matching index.
 They are **inert** — visible at `enrichment://action_patterns` for review but excluded
@@ -4609,7 +4644,7 @@ excluded from results until activated via `toggle_action_patterns`.
 _Check:_ T68, T96, T120.
 
 **REQ-084a — Proactive action surfacing.** IN addition to reactive intent-to-tool
-mapping, THE server SHALL surface a `## Available Actions` section in `hat_briefing`
+mapping, THE server SHALL surface a `## Available Actions` section in `badge_briefing`
 (REQ-109) — a decision-critical group after combat state and before lore. This section
 lists mechanically legal actions the active entity can take given the current scene
 state, entity capabilities, and ruleset. Actions SHALL be filtered:
@@ -4630,10 +4665,18 @@ state, entity capabilities, and ruleset. Actions SHALL be filtered:
   fabricated actions. `suggest_actions` (REQ-084) remains the canonical intent-to-tool
   mapping; the proactive surface is a discovery aide, not a replacement.
 
-`hat_briefing` SHALL include an `available_actions` section token following the
+- **Badge filtering.** After scene-type, capability, and count filters are applied, the
+  remaining actions SHALL be filtered by the active badge: under the Player badge, only
+  actions classified as Player or un-gated per the gate classification table (REQ-137)
+  SHALL appear. Under the Game Master badge, all actions appear. Under the Observer badge
+  (REQ-305), only read-only state-query actions appear. Filtering is applied last —
+  a Player-legal action that passes all three prior filters is still suppressed if its
+  tool is GM-only per REQ-137.
+
+`badge_briefing` SHALL include an `available_actions` section token following the
 existing token contract (REQ-082, REQ-185).
 
-*Acceptance criterion:* During combat, `hat_briefing` `## Available Actions` lists
+*Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists
 weapon attack, spell, and condition-clearance actions, filtered to the active entity's
 capabilities. A wizard with no 3rd-level slots does not see "Cast Fireball." An entity
 in a social scene sees persuasion and deception actions instead of combat actions.
@@ -4648,7 +4691,7 @@ disabled. When enabled, enrich-derived action patterns (§11.1) supplement
 the `suggest_actions` (REQ-084) matching index. When disabled, patterns
 remain visible at `enrichment://action_patterns` for review but are
 excluded from `suggest_actions` results. The toggle is pure-resolution
-(idempotent, no state beyond the boolean). Player hat returns
+(idempotent, no state beyond the boolean). Player badge returns
 `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `toggle_action_patterns()` flips the Novel-scoped boolean;
 when enabled, `suggest_actions` includes enrichment patterns; when disabled,
@@ -4678,7 +4721,7 @@ items) from the Novel per REQ-227. Tier 1 enrichment (`[ruleset]`-tagged and
 Tier 1 enrichment items.
 tool — Game Master only. Removes all enrichment state (seven output modules from
 §11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
-build-derived tool registrations, hat gating rules, or any Tier 1 enrichment
+build-derived tool registrations, badge gating rules, or any Tier 1 enrichment
 content (tagged `[ruleset]` or `[vendor]`). Does not modify DECISIONS.md — the enrichment manifest and verification
 results remain for audit.
 GM-configured Novel state that references enrichment content —
@@ -4689,7 +4732,7 @@ configuration choices persist even when the enrichment data they
 reference is absent. After re-enrichment, these choices apply to
 the new enrichment data without reconfiguration.
 Build-rebuild enrichment behavior is defined in §11.1
-(Rebuild scenarios). Player hat returns `[ERROR] [FORBIDDEN]`. Pure-state
+(Rebuild scenarios). Player badge returns `[ERROR] [FORBIDDEN]`. Pure-state
 tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
 enrichment state.
 *Acceptance criterion:* After `revert_enrichment()`, all
@@ -4718,13 +4761,13 @@ and removal tools are Game Master only. Activation and deactivation state persis
 with the Novel. Existing `toggle_enrichment_module` and `revert_enrichment` tools
 remain unchanged as convenience shortcuts.
 
-The Player hat may call `activate_enrichment_item` and `deactivate_enrichment_item`
+The Player badge may call `activate_enrichment_item` and `deactivate_enrichment_item`
 on items they authored (tagged `[player]`) — items stored under the
 `player_enrichment` key in Novel JSON. Player-created items are active immediately
 upon creation; `deactivate_enrichment_item` suppresses a player item from the player's
-`hat_briefing` and enrichment surfaces without deleting it. The Player may NOT call
+`badge_briefing` and enrichment surfaces without deleting it. The Player may NOT call
 `remove_enrichment_item` — they use `player_remove_enrichment` (REQ-261) for their
-own items. Player hat attempts to activate, deactivate, or remove any item NOT tagged
+own items. Player badge attempts to activate, deactivate, or remove any item NOT tagged
 `[player]` SHALL return `[ERROR] [FORBIDDEN]`.
 
 *Acceptance criterion:*
@@ -4747,11 +4790,11 @@ player-facing subset of enrichment modules: `voice_examples`, `action_patterns`,
 player-authored content enriches the shared story experience. Three tools provide
 player enrichment:
 
-`player_enrich(module, key, content, triggers?, hat_scope?)` creates a `[player]`-tagged
+`player_enrich(module, key, content, triggers?, badge_scope?)` creates a `[player]`-tagged
 enrichment item in the specified module. `key` is a unique snake_case slug within
 the module. `content` is a Markdown string. `triggers` is an optional keyword array
-for lore_templates (ignored for other modules). `hat_scope` defaults to `shared`
-— the item is visible to both Player and GM hats. The player may set `hat_scope` to
+for lore_templates (ignored for other modules). `badge_scope` defaults to `shared`
+— the item is visible to both Player and GM badges. The player may set `badge_scope` to
 `player` to keep the item private. `player_remove_enrichment(module, key)` removes a
 `[player]`-tagged item. Returns `[RULE_VIOLATION]` if the item is not player-authored.
 `player_list_enrichment(module?)` lists all `[player]`-tagged items, optionally filtered
@@ -4763,24 +4806,24 @@ contract (REQ-092). Player items are active immediately upon creation — the pl
 does not need to activate them separately. The player may `deactivate_enrichment_item`
 on their own items to suppress them from their briefing without deletion. Player items
 are subject to the same per-module budget caps as community enrichment (§11.1), with a
-per-module player cap of 15 items each. The GM hat sees player enrichment items in
-`list_enrichment_items` and in `hat_briefing` filtered by the item's `hat_scope`.
+per-module player cap of 15 items each. The GM badge sees player enrichment items in
+`list_enrichment_items` and in `badge_briefing` filtered by the item's `badge_scope`.
 The GM may not modify or remove player enrichment items — attempts return
-`[FORBIDDEN]` — but may override an item's `hat_scope` from `shared` to `game_master`
+`[FORBIDDEN]` — but may override an item's `badge_scope` from `shared` to `game_master`
 to incorporate it into the GM's active enrichment set. `revert_enrichment` (REQ-103)
 and `revert_novel_enrichment` (REQ-265) SHALL NOT remove `[player]` items.
-Player hat only.
+Player badge only.
 
 *Acceptance criterion:*
 `player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest
 deception check")` creates an item that appears in the player's `suggest_actions`
-output and in the GM's `hat_briefing` (shared scope);
+output and in the GM's `badge_briefing` (shared scope);
 `player_enrich("voice_examples", "growl", "Get away from my hoard!", [],
-"player")` creates a private item visible only to the Player hat;
+"player")` creates a private item visible only to the Player badge;
 `player_remove_enrichment("action_patterns", "feint-suggestion")` removes it;
 `player_remove_enrichment` on a Tier 1 `[ruleset]` item returns `[RULE_VIOLATION]`;
 `player_list_enrichment()` returns all player-authored items with module, key,
-preview, and scope; GM hat returns `[FORBIDDEN]` on player enrichment tools;
+preview, and scope; GM badge returns `[FORBIDDEN]` on player enrichment tools;
 player items survive server restart.
 
 _Check:_ T-new-261.
@@ -4832,13 +4875,13 @@ re-synthesis. Calling the tool when no Novel state has changed since the last
 synthesis returns `[OK] Novel enrichment up to date — <ISO 8601 timestamp>`.
 The `force` parameter bypasses the staleness check and re-synthesizes all
 modules. Items produced by synthesis are inert (inactive by default) — the GM
-must activate them via REQ-260. Player hat returns `[FORBIDDEN]`.
+must activate them via REQ-260. Player badge returns `[FORBIDDEN]`.
 
 *Acceptance criterion:* Calling `synthesize_novel_enrichment()` with NPCs
 possessing personality fields produces `[novel]` voice examples with
 `source: novel://<slug>/npc/<npc_id>`. Calling again with no state changes
 returns the up-to-date message with timestamp. Calling with `force=true`
-re-synthesizes regardless. Player hat returns `[FORBIDDEN]`.
+re-synthesizes regardless. Player badge returns `[FORBIDDEN]`.
 
 _Check:_ T-new-263.
 
@@ -4907,26 +4950,26 @@ derived from cross-referencing three story journal entries carries `[novel]
 
 _Check:_ T-new-266.
 
-**REQ-267 — Novel enrichment in hat_briefing.** `[novel]` items appear in
-`hat_briefing` under their respective enrichment sections, tagged `[novel]`
-with confidence, alongside Tier 1, Tier 2, and `[player]` items. Hat filtering follows
-the same rules as Tier 2 items (REQ-159): items assigned `hat_scope:
-game_master` are hidden from the Player hat. `[novel]` item hat scope
+**REQ-267 — Novel enrichment in badge_briefing.** `[novel]` items appear in
+`badge_briefing` under their respective enrichment sections, tagged `[novel]`
+with confidence, alongside Tier 1, Tier 2, and `[player]` items. Badge filtering follows
+the same rules as Tier 2 items (REQ-159): items assigned `badge_scope:
+game_master` are hidden from the Player badge. `[novel]` item badge scope
 defaults to `game_master` — they are GM prep aids by nature. The GM may
 override the scope to `shared` or `player`. The Player may deactivate individual
 `[novel]` items via `deactivate_enrichment_item` when the GM has overridden their
 scope to `shared` or `player` (REQ-260). When no `[novel]`
-items are active, `hat_briefing` SHALL NOT include an empty `[novel]` section —
+items are active, `badge_briefing` SHALL NOT include an empty `[novel]` section —
 unlike Tier 1 and Tier 2 enrichment sections which require explicit
 empty-state markers per REQ-109. The absence of `[novel]` content is not a
 deficiency to signal.
 
-*Acceptance criterion:* `[novel]` items appear in `hat_briefing` under their
+*Acceptance criterion:* `[novel]` items appear in `badge_briefing` under their
 respective enrichment sections tagged with `[novel]` and confidence, alongside
 `[ruleset]`, `[supplementary]`, and `[player]` items. Player
-hat sees only items whose scope is `shared` or `player`. Deactivated items via
-REQ-260 are hidden from the Player hat. After `revert_novel_enrichment`,
-`[novel]` items are absent from `hat_briefing` with no empty-section marker.
+badge sees only items whose scope is `shared` or `player`. Deactivated items via
+REQ-260 are hidden from the Player badge. After `revert_novel_enrichment`,
+`[novel]` items are absent from `badge_briefing` with no empty-section marker.
 
 _Check:_ T-new-267.
 
@@ -5000,7 +5043,7 @@ removed by `revert_enrichment`. Tier 1 items carry `[ruleset]` or `[vendor]` tag
 with source anchors. Tier 2 (community) optionally collected via web research per
 §11.1, defaults to off at intake, tagged `[supplementary]`, removed by
 `revert_enrichment`. Both tiers coexist in all enrichment resource URIs and
-`hat_briefing` enrichment sections. The GM activates items from either tier via the
+`badge_briefing` enrichment sections. The GM activates items from either tier via the
 same tool calls. Community items SHALL NOT replace or override ruleset-native or
 vendor items with matching keys — conflicts are recorded with `conflicts_with`
 reference to the Tier 1 item. Tier 1 enrichment is part of the build output;
@@ -5040,12 +5083,12 @@ supplementary_guidance, adventure_advice, narrative_voices). The resource SHALL
 render as Markdown with a header line "Enrichment Status" and one `##`-level
 section per module. Ruleset-native items are counted separately from community
 items within each module. The status SHALL be dynamically computed from Novel state
-at read time. The resource respects hat filtering per REQ-032. `spec_health`
+at read time. The resource respects badge filtering per REQ-032. `spec_health`
 SHALL surface a summary: `enrichment_status` with per-module activated/total
 counts.
 *Acceptance criterion:* After activating 2 lore templates and 1 voice example,
 `enrichment://status` shows lore_templates: activated=2, total=N; voice_examples:
-activated=1, total=N. Other modules show activated=0. Player hat sees only
+activated=1, total=N. Other modules show activated=0. Player badge sees only
 shared-scope items.
 _Check:_ T-new-230.
 
@@ -5054,17 +5097,17 @@ individual enrichment output modules at runtime via `toggle_enrichment_module(mo
 enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`,
 `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`,
 `narrative_voices`. Disabling a module SHALL suppress all items in that module
-from `hat_briefing`, `suggest_actions`, `suggest_lore`, and enrichment resource
+from `badge_briefing`, `suggest_actions`, `suggest_lore`, and enrichment resource
 URIs for the current Novel. Disabling does not delete items — the items persist in
 Novel state and re-appear when the module is re-enabled. Ruleset-native modules
 default to enabled; community modules default to enabled when community enrichment
-has been run. The toggle state persists with the Novel. Player hat attempts return
+has been run. The toggle state persists with the Novel. Player badge attempts return
 `[ERROR] [FORBIDDEN]`. An unknown module name returns `[INVALID_INPUT]` with valid
 module names enumerated.
 *Acceptance criterion:* `toggle_enrichment_module("voice_examples", false)` removes
-voice examples from `hat_briefing` and `enrichment://voice_examples` for the active
+voice examples from `badge_briefing` and `enrichment://voice_examples` for the active
 Novel; re-enabling restores them; an unknown module returns `[INVALID_INPUT]`;
-Player hat returns `[FORBIDDEN]`.
+Player badge returns `[FORBIDDEN]`.
 _Check:_ T-new-231.
 
 **REQ-243 — Enrichment population during spec-driven updates.** During a
@@ -5094,7 +5137,7 @@ content hash (REQ-044, sentinel `"none"` for ruleset-free), the specification
 content hash (REQ-187), the holonovel package version (B10), an aggregate hash
 of the `holonovel/narrative_world_model/` vendor directory, and a narrative surface hash — a
 SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names
-for all narrative-category tools (excluding Novel lifecycle and Hat & Workflow
+for all narrative-category tools (excluding Novel lifecycle and Badge & Workflow
 tools). When the cache key matches a prior successful
 convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics
 whose inputs are fully captured by the key — all nine metrics when the key
@@ -5164,7 +5207,7 @@ in all tool output, resource text, and prompt text before delivery. Supported ma
 `{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
 `{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`,
 `{{countdown.<name>.total}}`, `{{countdown.<name>.scope}}`,
-`{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{hat.active}}`, `{{party.size}}`.
+`{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{badge.active}}`, `{{party.size}}`.
 Macros referencing nonexistent state expand to the literal token unchanged. Macro
 expansion occurs after output composition and before client delivery. Macros do not
 expand in audit log entries.
@@ -5176,17 +5219,17 @@ _Check:_ T69.
 **REQ-086 — Audit compression.** The server provides a `compress_audit(max_entries)`
 tool that returns a Markdown-formatted prompt with a header line — "Compressed audit log
 (summarize into a single paragraph):" — followed by one line per entry in the format
-`[timestamp] [hat] tool_name — output_prefix` for mutating entries or
-`[timestamp] [hat] tool_name — [BOUNDARY_VIOLATION]` for forbidden-call entries
-(REQ-133). The tool does not modify the audit log (REQ-040). Output is hat-filtered:
-Player sees entries where the recorded hat is
+`[timestamp] [badge] tool_name — output_prefix` for mutating entries or
+`[timestamp] [badge] tool_name — [BOUNDARY_VIOLATION]` for forbidden-call entries
+(REQ-133). The tool does not modify the audit log (REQ-040). Output is badge-filtered:
+Player sees entries where the recorded badge is
 `player` or where the entity affected by the entry is owned by the current
 player (per the entity-ownership filter defined in REQ-168, applied to
 compress_audit output); Game Master sees all. `max_entries` is a positive
 integer; values ≤ 0 return `[ERROR] [INVALID_INPUT]`. The tool is pure-generation
 (idempotent, no server-side state mutation).
 *Acceptance criterion:* `compress_audit(50)` returns a formatted prompt of the
-50 most recent entries; Player hat sees only own-entity entries; `compress_audit(0)`
+50 most recent entries; Player badge sees only own-entity entries; `compress_audit(0)`
 returns `[INVALID_INPUT]`.
 _Check:_ T70.
 
@@ -5197,20 +5240,20 @@ and activity-pillar descriptions (e.g., `crafting`, `investigation`, `survival`,
 `hacking`). Extracted types merge with the default catalog; the builder SHALL record
 the full resolved catalog in DECISIONS.md. Combat is not a scene type — it is a
 resolution mode with dedicated state (REQ-043); combat presence is signalled by the
-combat state group in `hat_briefing`, not by a scene type tag.
+combat state group in `badge_briefing`, not by a scene type tag.
 
 Multiple scene types may be active simultaneously (e.g., `["social", "exploration"]`
 for negotiation during a journey). The `scene_type` parameter on `set_scene_state`
 accepts either a single type string or an array of type strings. The type tags are
-guidance — they affect `hat_briefing` composition (tools matching any active type are
+guidance — they affect `badge_briefing` composition (tools matching any active type are
 ordered before unmatched tools) and `suggest_actions` filtering (actions matching any
 active type are prioritized), but do not alter tool behavior, dice results, or rules
-enforcement. The types persist with the Novel. Player hat attempts return
+enforcement. The types persist with the Novel. Player badge attempts return
 `[ERROR] [FORBIDDEN]`. Confrontation tools (REQ-043) operate identically regardless of
 scene type; the tag guides the GM and LLM toward moves matching the scene type.
 *Acceptance criterion:* The `scene_type` parameter on `set_scene_state` with
 `["social", "exploration"]` orders social and exploration tools before unmatched tools
-in `hat_briefing`; a single string `"exploration"` works for backward compatibility.
+in `badge_briefing`; a single string `"exploration"` works for backward compatibility.
 _Check:_ T71, T135.
 
 **REQ-125 — Scene transition hook.** When `set_scene_state` is called and the new
@@ -5221,8 +5264,8 @@ This is automatic — no additional tool call is required. Countdowns of either 
 by one tick on transition. Calling `set_scene_state` with a `skip_transition_hook` parameter
 suppresses the audit entry and countdown decrement for cases where the GM is updating
 the same scene without transitioning it (e.g., adding descriptive detail). The Player
-hat sees scene transitions in `scene://history`; GM-only mechanics (audit entry,
-countdown decrement) are invisible to the Player hat.
+badge sees scene transitions in `scene://history`; GM-only mechanics (audit entry,
+countdown decrement) are invisible to the Player badge.
 *Acceptance criterion:* `set_scene_state("cave", skip_transition_hook=true)`
 does not record a `[scene_transition]` audit entry; a countdown with
 `on_scene_transition=true` decrements on scene change.
@@ -5233,8 +5276,8 @@ real-time web enrichment, and narrative quality assessment beyond the anti-slop
 guidance catalog.
 
 **REQ-234 — Secrets and knowledge.** The Game Master may manage hidden information
-with per-entity visibility. `set_secret(key, content, triggers?, hat_scope?)`
-creates a secret lore entry visible only to the Game Master hat. `reveal_secret(key,
+with per-entity visibility. `set_secret(key, content, triggers?, badge_scope?)`
+creates a secret lore entry visible only to the Game Master badge. `reveal_secret(key,
 entity_id)` makes a secret known to a specific entity — the entity's `character_sheet`
 SHALL include the secret text in a "Known Information" section. `check_knowledge
 (entity_id, key?)` returns what secrets an entity knows; without `key`, returns all
@@ -5246,12 +5289,12 @@ and their known-by status.
 overlap between the secret text and registered entity/NPC/faction names), a
 `suspicious` relationship (REQ-236) SHALL be recommended between the
 knowledge-holder and the implicated entity. The recommendation SHALL be surfaced
-in `hat_briefing` for the Game Master hat only.
+in `badge_briefing` for the Game Master badge only.
 
 `reveal_secret(key, target_id)` SHALL accept faction identifiers as `target_id` alongside
 entity identifiers. `check_knowledge(faction_id, key?)` SHALL accept faction identifiers
 alongside entity identifiers and SHALL return secrets known to the faction. Faction-known
-secrets SHALL surface at `faction://<id>` for the GM hat. WHEN a faction is revealed a
+secrets SHALL surface at `faction://<id>` for the GM badge. WHEN a faction is revealed a
 secret that names another faction in its content, a `rival` relationship (REQ-236) SHALL
 be recommended between the knowledge-holding faction and the named faction.
 
@@ -5270,7 +5313,7 @@ and activates it for the calling connection. `description` is an optional free-t
 `list_novels`, `novel_info`, and `export_novel` manifest. `resume_novel(slug)` activates an existing Novel
 from disk. `switch_novel(slug)` (REQ-095) switches the active Novel for a connection.
 `end_novel()` emits a `[NEED_INPUT]` workflow decision — "End Novel `<slug>`?" — with
-options `yes` and `cancel`. On `yes`: deactivates hat, clears undo stacks, removes
+options `yes` and `cancel`. On `yes`: deactivates badge, clears undo stacks, removes
 the Novel's save file and its backup from disk (no orphaned state), and the roster
 survives. On `cancel`: restores pre-invocation state unchanged. `resume_novel(slug)`
 returns `[STATE_CONFLICT]` if no file exists at
@@ -5312,18 +5355,18 @@ next server startup. If `TTRPG_NOVEL_RETENTION_DAYS` is unset or set to zero, fi
 retains files indefinitely.
 _Check:_ T122.
 
-**REQ-095 — Novel switching.** `switch_novel(slug)` (always callable regardless of hat)
+**REQ-095 — Novel switching.** `switch_novel(slug)` (always callable regardless of badge)
 deactivates the connection's current Novel and activates the target Novel identified by
 slug. The target must exist on disk and must not have been ended (file must be present at
 `.holonovel-state/novels/<slug>.json`). Returns `[STATE_CONFLICT]` if the slug does not
-exist or the target Novel's file is absent. When switching, the active hat for the
-target Novel is restored from the Novel's persisted hat state (REQ-055). If no Novel
+exist or the target Novel's file is absent. When switching, the active badge for the
+target Novel is restored from the Novel's persisted badge state (REQ-055). If no Novel
 is currently active, `switch_novel` activates the target directly (equivalent to
 `resume_novel(slug)` without requiring a fresh server start). Novel-scoped tools operate on
 the connection's active Novel. Each connection maintains its own active Novel reference;
 two connections may have different Novels active simultaneously.
 *Acceptance criterion:* `switch_novel("other-novel")` deactivates the current Novel
-and activates the target; the target's persisted hat is restored; switching to a
+and activates the target; the target's persisted badge is restored; switching to a
 nonexistent slug returns `[STATE_CONFLICT]`.
 _Check:_ T98.
 
@@ -5333,7 +5376,7 @@ state. Returns `[STATE_CONFLICT]` if the target slug already exists on disk
 or if the active Novel is active in another connection. The Novel's
 `.bak.N` files are renamed to match. The rename is atomic — the server
 SHALL NOT leave the Novel in a state where the slug differs from the
-filename. The Novel must be active when called. Hat state, enrichment
+filename. The Novel must be active when called. Badge state, enrichment
 activation keys, and all property groups are preserved under the new slug.
 The new slug is reflected in `list_novels`, `novel_info`, and `spec_health`.
 *Acceptance criterion:* `rename_novel("new-name")` renames
@@ -5345,7 +5388,7 @@ _Check:_ T-new-256.
 **REQ-259 — Update Novel description.** `update_novel_description(description)` (Game
 Master only) sets or replaces the active Novel's description. An empty string clears
 the description. The updated description is surfaced immediately in `novel://current`,
-`list_novels`, `novel_info`, and `hat_briefing` under the `novel` section token.
+`list_novels`, `novel_info`, and `badge_briefing` under the `novel` section token.
 The description is stored in the Novel JSON per REQ-092. Calling with no Novel
 active returns `[STATE_CONFLICT]`. *Acceptance criterion:*
 `update_novel_description("A new premise.")` updates the description;
@@ -5357,7 +5400,7 @@ Novels on disk with these fields per Novel: slug, name, description,
 last-modified timestamp, session count, cumulative play time, on-disk file
 size in bytes, story journal entry count, enrichment item counts (Tier 1
 activated key count per module, Tier 2 item count per module), and active flag.
-Hat-filtered: the Player hat sees only Novels with `shared` scope
+Badge-filtered: the Player badge sees only Novels with `shared` scope
 adventure hooks and excludes GM-only metadata. When no Novels exist, the
 response SHALL include an explicit empty-state message. This is the dedicated
 save-file browsing surface — `spec_health` (REQ-093) continues to report
@@ -5365,7 +5408,7 @@ Novels as part of its build-health dashboard, but `list_novels` is the
 primary interface for the save-file library.
 *Acceptance criterion:* After creating two Novels, `list_novels()` returns
 two entries; after `end_novel`, the ended Novel is absent; empty disk
-returns an empty-state message; Player hat sees filtered metadata.
+returns an empty-state message; Player badge sees filtered metadata.
 _Check:_ T-new-257.
 
 **REQ-258 — Novel info.** `novel_info(slug?)` (always callable, defaults
@@ -5375,14 +5418,14 @@ count, cumulative play time, on-disk file size, story journal entry counts
 by type, checkpoint count, notes count, adventure source (slug, "generated",
 or "none"), setup-completion flags, format version, compression flag,
 enrichment status (Tier 1 activated key count per module, Tier 2 item count per
-module, stale item count), and the active hat. Hat-filtered. When the
+module, stale item count), and the active badge. Badge-filtered. When the
 specified slug doesn't exist on disk, returns `[NOT_FOUND]` with available
 slugs enumerated. When no slug is given and no Novel is active, returns
 `[NOT_FOUND]` directing the caller to `list_novels` or `create_novel`.
 *Acceptance criterion:* `novel_info()` returns extended metadata for the
 active Novel; `novel_info("other-novel")` returns metadata for a different
 Novel without activating it; nonexistent slug returns `[NOT_FOUND]` with
-available slugs; Player hat sees filtered metadata.
+available slugs; Player badge sees filtered metadata.
 _Check:_ T-new-258.
 
 **REQ-089 — Novel setup.** The server provides a `novel_setup` prompt (prompt #7 in
@@ -5405,8 +5448,8 @@ like to import one, create a new one, or move on?") rather than a static listing
 session zero completes, the prompt SHALL present a next-steps summary describing what is
 ready and how to begin the first scene. The Novel SHALL track completed steps
 (characters_present, adventure_set, session_zero_completed) in its metadata, surfaced in
-`hat_briefing` under the `novel` section token. After `create_novel`, the server
-response or `hat_briefing` SHALL surface `novel_setup` as the recommended next step.
+`badge_briefing` under the `novel` section token. After `create_novel`, the server
+response or `badge_briefing` SHALL surface `novel_setup` as the recommended next step.
 `novel_setup` SHALL integrate ruleset-extracted guidance (REQ-016), Enrich
 `adventure_advice` content, and spec foundations for story-construction context.
 *Acceptance criterion:* `novel_setup` presents three sequential steps with visual
@@ -5416,7 +5459,7 @@ metadata.
 _Check:_ T74.
 
 **REQ-294 — Genre declaration.** The Novel SHALL carry a `genre` field, settable via
-`novel://current` metadata and `hat_briefing` under the `novel` section token. The field
+`novel://current` metadata and `badge_briefing` under the `novel` section token. The field
 accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`,
 `sci_fi_horror`, `cosmic_horror`, `historical`, `western`, `modern`, `cyberpunk`.
 Ruleset-derived genre tags merge with the canonical catalog. Default is unset. When a
@@ -5424,7 +5467,7 @@ genre is set, `spec_health` SHALL report `active_genre`. When unset, the genre l
 absent from briefing per §5.10.
 
 *Acceptance criterion:* After setting `genre: "noir"`, `spec_health` reports
-`active_genre: "noir"` and `hat_briefing` includes a `genre` line. Setting an unknown tag
+`active_genre: "noir"` and `badge_briefing` includes a `genre` line. Setting an unknown tag
 returns `[WARNING]` but the tag is stored.
 _Check:_ T-new-294.
 
@@ -5444,12 +5487,12 @@ The optional `target` parameter accepts `novel` (default when a Novel is active)
 scaffold as a Codex entry of kind `adventure` under the derived slug with `source:
 generated`. `target: "novel"` SHALL store as the active Novel's generated adventure
 content — the scaffold is indexed at `adventure://generated/<anchor>`, appears in
-`search_rules` and `hat_briefing` under the `adventure` token. `target: "both"` SHALL
+`search_rules` and `badge_briefing` under the `adventure` token. `target: "both"` SHALL
 produce both. When no Novel is active and `target` is omitted, `target` defaults to
 `codex`. `generate_adventure` SHALL be callable regardless of Novel state — no Novel is
 required. Regenerating with `target: "codex"` replaces the prior Codex entry at the same
 slug; regenerating with `target: "novel"` replaces the prior generated Novel adventure.
-The Game Master expands via existing tools; the LLM (GM hat) writes narrative prose.
+The Game Master expands via existing tools; the LLM (GM badge) writes narrative prose.
 
 *Acceptance criterion:* `generate_adventure("The goblin king demands tribute")` produces a
 title, overview, hook, 2–6 locations, NPC names, and encounter seeds; the scaffold appears
@@ -5466,7 +5509,7 @@ an NPC or monster stat block, and a complication entry. With ruleset tables, rol
 for the mechanical backbone and wraps in generated narrative. Without tables, produces from
 context and Enrich template patterns. Output: three structured artifacts as a batch — one
 `set_scene_state`, one `create_npc`, one `set_lore_entry` for the complication. Snapshotted
-as a single undo target. No `[NEED_INPUT]`. Player hat → `[FORBIDDEN]`.
+as a single undo target. No `[NEED_INPUT]`. Player badge → `[FORBIDDEN]`.
 *Acceptance criterion:* `generate_encounter("dark forest at midnight")` produces
 a scene description, an NPC stat block, and a lore entry as a single atomic batch;
 undo rolls back all three.
@@ -5569,7 +5612,7 @@ played across this Novel's lifetime, and a `sessions` array — per-session obje
 `session_id`, `entry_count`, `timespan_start`, `timespan_end`, `combat_rounds`,
 `significant_roll_count`, and `scene_transitions` — derived from `[session_boundary]`
 marker intervals (REQ-237). This metadata appears in
-`hat_briefing` under the `novel` section token (added to REQ-082's documented token
+`badge_briefing` under the `novel` section token (added to REQ-082's documented token
 set). `novel://current` and `novel://<slug>` resources return full metadata, including
 the narrative directive (REQ-081).
 *Acceptance criterion:* `spec_health` lists available Novels with slug, name,
@@ -5581,13 +5624,13 @@ T99.
 **REQ-094 — Lorebook interchange.** The Game Master may export Novel lore to and import
 lorebooks from interoperable formats. Export excludes mechanical state; import modifies
 only the lore tier with merge, replace, and dry-run modes. Round-trip preserves lore
-metadata. Formats are defined in Appendix L. Player hat attempts return `[ERROR]
-[FORBIDDEN]`. For a complete story package that includes lore alongside entities,
+metadata. Formats are defined in Appendix L. Player badge attempts return `[ERROR]
+[FORBIDDEN]`. For a complete story package tbadge includes lore alongside entities,
 NPCs, scene state, countdowns, and audit history, use `export_novel` (REQ-096) —
 which embeds the lore tier within the Novel interchange format. `export_lorebook`
 is the lore-only interchange pathway.
 *Acceptance criterion:* `export_lorebook()` → `import_lorebook(exported_data,
-"replace")` → `export_lorebook()` produces identical output; Player hat returns
+"replace")` → `export_lorebook()` produces identical output; Player badge returns
 `[FORBIDDEN]`.
 _Check:_ T80.
 
@@ -5643,7 +5686,7 @@ import and returns `[ERROR] [STATE_CONFLICT]` for `replace`/`merge` modes
 (returning the failure list in the error body), or produces a failure report
 with `isError: false` for `dry-run`. `merge` adds entities and NPCs from the
 import to the active Novel, skipping duplicates by entity or NPC ID. Player
-hat attempts return `[ERROR] [FORBIDDEN]`. Round-trip: export → import →
+badge attempts return `[ERROR] [FORBIDDEN]`. Round-trip: export → import →
 export produces identical output (full scope, same format).
 
 The export SHALL include a `manifest` object containing: `novel_format_version`
@@ -5696,7 +5739,7 @@ overhead (encoding, checksum field, whitespace formatting). A file reported at s
 bytes in `spec_health` whose on-disk size differs by more than 1% is a
 `[size_mismatch]` warning — indicating a durability or serialization defect. The
 growth trajectory SHALL use the on-disk size, not the in-memory representation size.
-Health metrics are hat-filtered: Player sees entity-level health only; GM sees all.
+Health metrics are badge-filtered: Player sees entity-level health only; GM sees all.
 *Acceptance criterion:* When NPC count approaches `TTRPG_MAX_NPCS`, `spec_health`
 reports a warning and `healthy` is false; a Novel at 3.9 MB with growth trajectory
 projects a `[size_growth]` warning.
@@ -5715,13 +5758,13 @@ current build output determines which enrichment items are active before any
 enrichment surfaces are computed. Combat state, pending workflows, remaining
 enrichment state, and audit log entries SHALL be restored after all property
 groups. An out-of-order initialization that produces observable
-differences in `hat_briefing` content, resource URI output, or tool behavior
+differences in `badge_briefing` content, resource URI output, or tool behavior
 between two invocations of the same Novel against the same builder is a
 convergence finding. The builder records the initialization order in
 DECISIONS.md (4).
 *Acceptance criterion:* Create a Novel with an adventure, an NPC referencing
 an adventure template, a lore entry mentioning the NPC, and a countdown with
-`on_scene_transition`. Restart. Assert `hat_briefing` surfaces adventure
+`on_scene_transition`. Restart. Assert `badge_briefing` surfaces adventure
 content, then the NPC (with template stats), then the triggered lore entry,
 then the countdown — in dependency order. The order IS stable across 3
 restarts.
@@ -5747,8 +5790,8 @@ restore from `.bak.2`; `end_novel` removes all backups.
 _Check:_ T276.
 
 **REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
-new_name, trim_audit_sessions?)` tool (callable with no hat active or Game Master
-hat). The tool creates an independent copy of the source Novel as a new Novel at
+new_name, trim_audit_sessions?)` tool (callable with no badge active or Game Master
+badge). The tool creates an independent copy of the source Novel as a new Novel at
 `.holonovel-state/novels/<new_slug>.json`. All property groups (NPC, Scene,
 Countdown, Lore, Enrichment, Adventure, Faction, Secret, Relationship, DM Context,
 Notes, Story Journal) plus the world-model tier, combat state, pending workflows,
@@ -5762,7 +5805,7 @@ if the target slug already exists. The optional `trim_audit_sessions` parameter
 from the clone, keeping only the most recent N sessions' entries (session
 boundaries determined by `[session_boundary]` markers per REQ-237). A new
 `clone` audit entry SHALL be recorded in both the source and cloned Novel.
-Player hat attempts return `[ERROR] [FORBIDDEN]`.
+Player badge attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `clone_novel("my-novel", "my-novel-fork")` creates an
 independent copy; mutating the clone does not affect the source; `spec_health`
 lists both Novels; `clone_novel("my-novel", "my-novel-fork")` a second time
@@ -5799,7 +5842,7 @@ _Check:_ T237.
 **World surface prominence.** REQ-309 defines a `TTRPG_WORLD_PROMINENCE`
 configuration with three levels controlling the default surface emphasis of
 world-model and narrative infrastructure tools across help categories,
-`hat_briefing` composition, and `suggest_actions` intent mapping. At the
+`badge_briefing` composition, and `suggest_actions` intent mapping. At the
 default `secondary` level: In TTRPG builds, the parser `command` SHALL be
 the only world-model tool visible in the primary help surface — and only when
 a world model is populated. All other World tools (`create_room`, `delete_room`,
@@ -5828,7 +5871,7 @@ valid options; `help("<tool_name>")` returns usage examples, parameter contracts
 common workflows; `suggest_actions("<intent>")` maps player intent to narrative tools;
 `[NOT_FOUND]` with nearest-match suggestions; `[STATE_CONFLICT]` with corrective action.
 
-The acid test: when a new GM opens `hat_briefing` on a fresh Novel with no narrative
+The acid test: when a new GM opens `badge_briefing` on a fresh Novel with no narrative
 tools populated, the briefing SHALL look the same as it did before the tools were added.
 When that same GM types `help("set_vow")`, the server SHALL respond with the same level
 of helpfulness as `help("set_countdown")`.
@@ -6024,7 +6067,7 @@ resolving mechanically. These commands SHALL be registered under a new
 `narrative` parser category and SHALL be standard tier. They SHALL produce
 `[OK]` with a description of the expressed intent and SHALL NOT simulate
 conversation or adjudicate outcomes. The intent SHALL be surfaced in
-`hat_briefing` under a `## Player Intent` section.
+`badge_briefing` under a `## Player Intent` section.
 
 | Command | Args | Behavior |
 |---|---|---|
@@ -6065,7 +6108,7 @@ full roll transparency), `normal` (balanced output), and `rich` (full descriptio
 complete roll transparency, lore trigger notifications). Setting `detail=terse`
 SHALL override both the room description mode and combat verbosity — all tool
 output follows the selected detail level. The detail signal is session-scoped
-(discarded on connection close) and visible in `hat_briefing` as a Player-Detail
+(discarded on connection close) and visible in `badge_briefing` as a Player-Detail
 line. _Check:_ T240.
 
 **REQ-198 — World-model CRUD.** THE system SHALL provide tools to create
@@ -6103,7 +6146,7 @@ a rule-violation. _Check:_ T243.
 `convert_source` tool accepting hybrid source text — declarative
 world-model assertions interleaved with TTRPG annotations — and parsing
 it into a linked world model + TTRPG state. The tool SHALL operate only
-under the Game Master hat. The tool SHALL populate only an empty Novel
+under the Game Master badge. The tool SHALL populate only an empty Novel
 (world-model tier has zero rooms) — calling `convert_source` on a Novel
 with existing world-model objects SHALL return a state-conflict. The
 conversion pipeline SHALL consist of four phases:
@@ -6142,8 +6185,9 @@ URIs for the world-model tier: `room://<id>` (room name, description,
 visible things, exits), `thing://<id>` (thing name, description, location,
 properties), `world://map` (all rooms with exit connections — a navigable
 graph), `world://kinds` (kind hierarchy, property contracts, and parser
-command catalog from the indexed provider documentation). All world-model resources SHALL be hat-filtered: the Player hat
-sees only descriptions and visible state; the Game Master hat sees
+command catalog from the indexed provider documentation). All world-model resources
+SHALL be badge-filtered: the Player badge sees only descriptions and visible state;
+sees only descriptions and visible state; the Game Master badge sees
 metadata including property values and containment chains. `world://map`
 SHALL return a list of room names with directional exits formatted as a
 navigable adjacency list. _Check:_ T245.
@@ -6169,7 +6213,7 @@ _Check:_ T264.
 **REQ-309 — World and narrative surface prominence.** THE server SHALL accept a
 `TTRPG_WORLD_PROMINENCE` configuration with three levels controlling the default
 surface emphasis of world-model and narrative infrastructure tools across the help
-task map, `hat_briefing` composition, and `suggest_actions` intent mapping. The
+task map, `badge_briefing` composition, and `suggest_actions` intent mapping. The
 setting SHALL be a build-time configuration recorded in DECISIONS.md (1) and SHALL
 be server-scoped — it applies as the default to every Novel, overridable per-Novel
 by `set_help_category` (REQ-067) and `set_briefing_order` (REQ-082). TTRPG
@@ -6177,20 +6221,20 @@ resolution authority is unchanged by this setting — it affects presentation, n
 mechanics.
 
 At `secondary` (default): World-model tools SHALL be placed in a secondary help
-category. `hat_briefing` SHALL fold world-model state into the scene state section;
+category. `badge_briefing` SHALL fold world-model state into the scene state section;
 narrative-tool sections SHALL render only when their data is non-empty.
 `suggest_actions` SHALL NOT return parser commands for exploration or navigation
 intents.
 
 At `visible`: World-model and narrative tools SHALL appear in primary help
-categories alongside TTRPG tools. `hat_briefing` SHALL include a dedicated
+categories alongside TTRPG tools. `badge_briefing` SHALL include a dedicated
 world-model state section with an empty-state marker when the world-model tier is
 unpopulated. `suggest_actions` SHALL return parser commands alongside TTRPG
 mechanics for spatial intents whose registered tools are absent — parser command
 suggestions SHALL NOT replace existing TTRPG tool suggestions.
 
 At `prominent`: Parser `command` SHALL be a top-level help entry; world CRUD tools
-SHALL appear in a primary setup category. `hat_briefing` SHALL include world-model
+SHALL appear in a primary setup category. `badge_briefing` SHALL include world-model
 state in the decision-critical group. `suggest_actions` SHALL prefer parser commands
 over TTRPG mechanics for exploration and navigation intents — parser command
 suggestions SHALL appear before TTRPG tool suggestions when both match the intent.
@@ -6206,6 +6250,11 @@ the current default help categorization (World in secondary category).
 entry and includes world-model state in the decision-critical briefing group.
 `TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with all three
 layers in primary help.
+
+The prominence setting applies uniformly across badges.— Player and Game Master badges
+receive the same surface emphasis. Per-badge prominence overrides are a recognized future
+extension (a GM building world content may prefer `prominent` while the Player navigating
+it prefers `secondary`) but are out of scope for this revision.
 _Check:_ T-new-309.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
@@ -6218,7 +6267,7 @@ different rulesets.
 `none` THE builder SHALL operate in ruleset-free mode. THE builder SHALL NOT perform
 chunked reading, extraction, or mechanical modeling of ruleset content. THE server
 SHALL register every REQ-020 infrastructure tool category (World, Novels,
-Narrative, Hats & Workflow),
+Narrative, Badges & Workflow),
 every REQ-022 resource URI, and every REQ-023 prompt. Ruleset-dependent tools — canonical lookups, dice-resolution
 tools, and any tool whose registry depends on extracted mechanics — SHALL be waived
 under REQ-013 or registered with empty domains that return content-absent responses.

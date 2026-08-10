@@ -257,16 +257,16 @@ verifies it starts, and no further extraction occurs.
 4. **Tables** — lookup tables and generation tables, with dice notation and content.
 5. **Resolution** — the core mechanic: dice notation, stat associations, result bands.
 6. **Roles** — Player and Game Master terms from the ruleset.
-7. **Guidance** — hat-addressed prose, verbatim, with attribution and hat scope.
+7. **Guidance** — badge-addressed prose, verbatim, with attribution and badge scope.
    **Narrative tone samples** are a guidance subcategory: example-of-play passages that demonstrate
-   the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `hat_briefing`
+   the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `badge_briefing`
     (REQ-071).
 
 **Category extraction order.** Within each chunk, the builder SHALL extract categories
 in dependency order — Concepts first (they define terms other categories reference),
 then Entities (they may reference Concept terms), then Tables, then Actions (classified
 per REQ-015 against the chunk's Concept inventory), then Resolution (the core mechanic
-as derived from Actions and Tables), then Roles (hat-addressed as extracted from
+as derived from Actions and Tables), then Roles (badge-addressed as extracted from
 guidance signals), then Guidance (prose and tone samples, extracted last as inert data).
 A cross-category reference in a later extraction that cannot be resolved against the
 inventory of earlier extractions within the same chunk SHALL be recorded as a
@@ -372,17 +372,17 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize with hat gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with badge gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
-| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (hat test)                                       |
-| 6     | Prompts: `run_workflow`, `hat_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
+| 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
+| 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
 
-For Step 1, the holonovel scaffold provides the MCP skeleton with hat gating
+For Step 1, the holonovel scaffold provides the MCP skeleton with badge gating
 helpers, state management, macros, and world-model layer (rooms,
 things, exits, parser commands, kind hierarchy). The TTRPG builder installs the package,
 verifies `serverInfo.name` reports correctly, and proceeds to Steps 2–6 — layering
@@ -413,12 +413,12 @@ live state. The builder constructs prompts from these sources, in this order:
    groupings are drawn from the live tool registry and the ruleset extraction
    model's action classifications (REQ-015).
 
-4. **Hat-scoped guidance.** Foundations (REQ-062), anti-slop guidance
+4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
    (REQ-070), and supplementary enrichment (REQ-080) are included per the
-   active hat's filter.
+   active badge's filter.
 
 5. **Required contract elements.** Every prompt that carries a specification
-    contract (intro pointer in `hat_briefing` per REQ-063, plain-English
+    contract (intro pointer in `badge_briefing` per REQ-063, plain-English
     guidance sections and examples in `session_zero` per REQ-078, conversational
     wizard steps in `novel_setup` per REQ-089) includes
     those elements before any truncation. Standing Rule 10 applies — prompt
@@ -755,7 +755,7 @@ ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
 builder runs the Gauntlet. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
 independent of Gauntlet timing. The Gauntlet exercises the built server with
-AI-simulated hats in realistic play scenarios. It is a required quality
+AI-simulated badges.in realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
 **Convergence handshake.** After each Gauntlet execution, the builder maps
@@ -818,16 +818,16 @@ Marking a workflow complete without a passing Gauntlet is a process defect. The
 Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts up to two MCP client connections to the same server process
-sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-hat interaction
-(S6, S14h, S17, S23, S26) use one connection for the Game Master hat and one for the Player hat.
-All other sub-workflows use a single connection switching hats as needed.
+sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-badge interaction
+(S6, S14h, S17, S23, S26) use one connection for the Game Master badge and one for the Player badge.
+All other sub-workflows use a single connection switching badges.as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
-calls between the two connections when simulating cross-hat turn-taking. Every scenario
-states its objective, the tool calls to make, which hat calls each, and the pass
+calls between the two connections when simulating cross-badge turn-taking. Every scenario
+states its objective, the tool calls to make, which badge calls each, and the pass
 criterion.
 
 **Verification principle.** Gauntlet sub-workflows verify state through tool-observable
-surfaces — `character_sheet`, `session_recap`, `spec_health`, `hat_briefing`,
+surfaces — `character_sheet`, `session_recap`, `spec_health`, `badge_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
 on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
 is an implementation detail. A Gauntlet sub-workflow that reads raw state files to
@@ -849,7 +849,7 @@ four items is incomplete and blocks handoff.
 
 1. **Tool surface sweep** — call one read-only tool from each REQ-015 category not
    exercised by another blocking sub-workflow, plus all Novel-lifecycle and
-   hat-management tools. Each call uses valid input; additionally,
+   badge-management tools. Each call uses valid input; additionally,
    call each with an invalid input (empty string, missing
    required param) and assert `[INVALID_INPUT]` or `[MISSING_PARAM]` response without
    crash. (Blocking.)
@@ -865,7 +865,7 @@ four items is incomplete and blocks handoff.
    (Blocking.)
 5. **Combat state survival** — HP, conditions, round counter, turn order restored identically
    after restart (verified through tool-observable surfaces). (Blocking.)
-6. **Cross-hat boundary enforcement** — GM-only tools blocked from Player; no GM-only content leaks. (Blocking.)
+6. **Cross-badge boundary enforcement** — GM-only tools blocked from Player; no GM-only content leaks. (Blocking.)
 7. **Table generation sweep** — every generation table produces valid ruleset results; GM-only tables blocked from Player.
 8. **Search and canonical lookup** — exact/prefix/substring search returns correct sections;
    canonical lookups resolve by name and aliases; source quoting present; NOT_FOUND with
@@ -883,14 +883,14 @@ four items is incomplete and blocks handoff.
     caps at max; (d) 5 rapid calls complete without timeout/corruption; (e) ambiguous
     alias → `[AMBIGUOUS]` with entries enumerated; (f) unknown decision → `[NOT_FOUND]`
     with valid IDs; (g) same seed → identical results, different seeds differ
-    (Blocking — verified in S4); (h) `spec_health` under Player hat returns only
+    (Blocking — verified in S4); (h) `spec_health` under Player badge returns only
     player-filtered metrics (Blocking — verified in S17);
     (i) adversarial input: `set_scene_state` with SQL-injection string stores and
     echoes verbatim; no behavior change, no crash per REQ-054.
 15. **Stress and recovery** — (a) two connections sharing one data directory: reads reflect
     latest writes, no stale reads/write conflicts/deadlocks; (b) corrupted state file →
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
-    Novels/roster continue working; (c) 10 rapid `set_hat` alternations → no lost state
+    Novels/roster continue working; (c) 10 rapid `set_badge` alternations → no lost state
     or crash after final switch; (d) 50-round combat with 2 entities + 2 dangers using
     deterministic seeds → round counter reaches 50, conditions persist, `session_recap`
     summarizes all rounds, memory hasn't doubled. (Blocking.)
@@ -899,13 +899,13 @@ four items is incomplete and blocks handoff.
     to disk and restores; `end_novel` confirmation workflow removes file + backup; ended
     Novel blocks resume and switch. (Blocking.)
 18. **Adventure generation and encounter lifecycle** — `generate_adventure` produces Novel-scoped,
-    hat-filtered, searchable content; regeneration replaces prior; `generate_encounter`
+    badge-filtered, searchable content; regeneration replaces prior; `generate_encounter`
     produces batch state (scene + NPC + lore) as single undo target; setup metadata
-    tracks completion. Generated and indexed adventures coexist in `hat_briefing`.
-19. **Hat briefing correctness** — populated Novel: Player sees entity stats without
+    tracks completion. Generated and indexed adventures coexist in `badge_briefing`.
+19. **Badge briefing correctness** — populated Novel: Player sees entity stats without
     confidence breakdowns/GM-only lore; GM sees all content; briefing adapts to scene type
-    changes. Verify hat foundations (REQ-062) and anti-slop guidance (REQ-070)
-    sections present and hat-filtered. (Blocking.)
+    changes. Verify badge foundations (REQ-062) and anti-slop guidance (REQ-070)
+    sections present and badge-filtered. (Blocking.)
 20. **Lorebook interchange** — export → modify → import dry-run (no side effects) → import
     merge (entry restored) → re-export matches original; import replace overwrites. (Blocking.)
 21. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
@@ -915,7 +915,7 @@ four items is incomplete and blocks handoff.
     Novel file ≤5 MB. (Blocking.)
 22. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
-    undo/redo/set_hat blocked during pending workflow; valid option drains workflow; pending
+    undo/redo/set_badge blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
 23. **Narrative features sweep** — exercise all six DMCP narrative tools end to end:
     `save_pause_context` / `get_resume_context` round-trip with auto-captured faction
@@ -928,7 +928,7 @@ four items is incomplete and blocks handoff.
     audit tag, countdown and faction clock coupling on resolved id; `set_relationship`
     / `get_relationships` cycle, character_sheet shows "Relationships" section,
     relationship change between `ally` and `rival` prompts lore entry in
-    `hat_briefing`; `set_note` / `list_notes` / `notes://<key>` round-trip, Player hat
+    `badge_briefing`; `set_note` / `list_notes` / `notes://<key>` round-trip, Player badge
     excluded from notes content. Verify clock taxonomy: `racing` clock pair resolves
     correctly (first to full wins), `linked` clock chain triggers child on parent
     completion, `tug_of_war` retreated to zero does not trigger, `mission` clock
@@ -943,7 +943,7 @@ four items is incomplete and blocks handoff.
     confirmation; on confirm, session 1 entries removed from live log,
     `audit://novel/archive` returns session 1 summary; `session_recap(session_id="s1")`
     returns the summary from archive; `session_recap()` returns only session 2 entries.
-    Player hat `compact_audit_log` returns `[FORBIDDEN]`. (Non-blocking.)
+    Player badge `compact_audit_log` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
@@ -952,15 +952,15 @@ four items is incomplete and blocks handoff.
     confirm → assert all 5 mutations reversed; `delete_checkpoint` removes entry;
     `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
     and Novel switch; `export_novel(json, include_checkpoints=true)` includes
-    checkpoints key; Player hat returns `[FORBIDDEN]`. `clone_novel("src", "dst")`
+    checkpoints key; Player badge returns `[FORBIDDEN]`. `clone_novel("src", "dst")`
     creates independent Novel; mutating clone does not affect source; duplicate slug
     returns `[STATE_CONFLICT]`; `trim_audit_sessions=2` retains only 2 most recent
-    sessions; Player hat returns `[FORBIDDEN]`. (Blocking.)
+    sessions; Player badge returns `[FORBIDDEN]`. (Blocking.)
 26. **Narrative POV** — import two entities; `set_active_entity("char_01")` — assert
-    `hat_briefing` includes POV directive naming char_01 with narrative instruction
+    `badge_briefing` includes POV directive naming char_01 with narrative instruction
     and personality fields; `set_active_entity("char_02")` — assert directive updates
     to char_02. `set_active_entity("char_01", pov="omniscient")` — assert
-    `hat_briefing` shows "POV: none — narration is omniscient" with char_01 still
+    `badge_briefing` shows "POV: none — narration is omniscient" with char_01 still
     active; `set_active_entity("char_02")` preserves omniscient mode;
     `set_active_entity("char_02", pov="character")` switches to character-locked POV
     for char_02. POV mode persists across server restart. POV directive is never
@@ -971,12 +971,12 @@ four items is incomplete and blocks handoff.
     from that module absent from enrichment surfaces. Reactivate — assert items return.
     `revert_enrichment()` — assert community enrichment items removed, ruleset-native
     items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
-    items. Assert `hat_briefing` enrichment content follows activation state: active
+    items. Assert `badge_briefing` enrichment content follows activation state: active
     modules' content appears, deactivated modules' content absent. Entity
     `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
     sourcing. (Non-blocking.)
 28. **Briefing ordering, voice examples, session notation** —
-    `set_briefing_order(["scene", "entities", "lore"])` — assert `hat_briefing`
+    `set_briefing_order(["scene", "entities", "lore"])` — assert `badge_briefing`
     sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
     enumerated; `set_briefing_order([])` resets to builder defaults.
     `set_voice_examples(entity_id, [{context:"greeting", dialogue:"Hello",
@@ -994,7 +994,7 @@ four items is incomplete and blocks handoff.
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
 
 **REQ-108 — Gauntlet traceability.** The builder must ensure at least one
-Gauntlet sub-workflow exercises each requirement in §5.5 (Hats and Access),
+Gauntlet sub-workflow exercises each requirement in §5.5 (Badges and Access),
 §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and
 the error contracts of REQ-002 (Error taxonomy). The builder records a
 sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
@@ -1092,7 +1092,7 @@ the build process are re-counted at handoff.
 **REQ-142 — Blocking classification principle.** A Gauntlet sub-workflow is
 classified as blocking when it exercises a correctness property whose
 failure would make the server unsafe to use in any play session — state
-loss, hat-boundary violation, data corruption, unrecoverable crash, or
+loss, badge-boundary violation, data corruption, unrecoverable crash, or
 undetectable incorrect results in core play mechanics. A sub-workflow is
 non-blocking when it tests a property whose failure degrades experience but
 does not make the server unsafe — graceful-degradation edge cases, cosmetic
@@ -1133,13 +1133,13 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Conditions, condition management (REQ-206, REQ-217)         | S9 |
 | Search, canonical lookups (REQ-057, REQ-060, REQ-061)      | S8 |
 | Table generation                                            | S7 |
-| Hat gating, hat briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S19 |
+| Badge gating, badge briefing, entity scope (REQ-032, §5.5)     | S6, S14h, S19 |
 | Undo, redo, snapshots (REQ-041, REQ-116)                   | S4, S22 |
 | State model, Novel persistence (REQ-065, REQ-092)          | S5, S12, S13, S14 |
 | Novel lifecycle (create/resume/end/switch)                  | S15 |
 | Lore, enrichment, adventure generation                     | S18, S20 |
 | New tool added or tool signature changed                    | S1 + category-mapped scenarios |
-| New prompt, resource, or hat-scoped content                 | S6, S19 + content-specific |
+| New prompt, resource, or badge-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
 | Campaign endurance, stress (REQ-052)                        | S13, S21 |
 | Pause/resume, factions, player choices, relationships, secrets, notes, clock types | S23 |
@@ -1154,7 +1154,7 @@ This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
 
 **REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
-(Hats and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
+(Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
 Performance), and REQ-002 (Error taxonomy) to at least one Gauntlet sub-workflow
 that exercises its contract. This table is normative — it ships with the
 specification and is mechanically verified by `scripts/validate.ts`. When a spec
@@ -1166,20 +1166,20 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ | Sub-workflows | Feature |
 |-----|---------------|---------|
 | REQ-030 | S6, S17 | Single-user connection |
-| REQ-031 | S6, S22 | Hat activation |
-| REQ-032 | S6, S14h, S19 | Server-side hat gating |
-| REQ-066 | S6, S15 | set_hat tool |
-| REQ-109 | S19 | Hat briefing composition |
+| REQ-031 | S6, S22 | Badge activation |
+| REQ-032 | S6, S14h, S19 | Server-side badge gating |
+| REQ-066 | S6, S15 | set_badge tool |
+| REQ-109 | S19 | Badge briefing composition |
 | REQ-133 | S6 | Forbidden-call audit |
 | REQ-134 | S6 | Minimum Player tool surface |
-| REQ-135 | S19, S26 | Hat briefing size budget |
-| REQ-136 | S19 | Null-hat briefing |
+| REQ-135 | S19, S26 | Badge briefing size budget |
+| REQ-136 | S19 | Null-badge briefing |
 | REQ-137 | S6 | Gate classification auditability |
 | REQ-148 | S6, S19 | Entity ownership filter |
-| REQ-149 | S6, S19 | Hat-filtered resources |
+| REQ-149 | S6, S19 | Badge-filtered resources |
 | REQ-150 | S6 | Server-settable entity visibility |
 | REQ-159 | S19, S27 | Enrichment briefing integration |
-| REQ-216 | S7 | Generation table hat filtering |
+| REQ-216 | S7 | Generation table badge filtering |
 | REQ-220 | S26 | Narrative point of view |
 | REQ-223 | S26 | POV mode control |
 | REQ-304 | S19 | Counterpart AI role |
@@ -1243,7 +1243,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-002 | S1, S14e, S14f, S22 | Error taxonomy |
 | REQ-002a | S9 | Extended error category semantics |
 | REQ-002b | S1, S14e | Corrective-action contract |
-| REQ-002c | S6 | Hat-filtered error values |
+| REQ-002c | S6 | Badge-filtered error values |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 
@@ -1352,7 +1352,7 @@ are selected for changed surfaces.
    `world://map`, `world://kinds`. Assert room and thing content matches state.
    Assert map shows correct adjacency. Assert kinds resource lists the kind
    hierarchy, property contracts, and parser command catalog from the indexed
-   provider documentation. Swap to Player hat — assert GM-only metadata
+   provider documentation. Swap to Player badge — assert GM-only metadata
    excluded from all four resources.
 
 8. **Large-map navigation** — populate 50+ room world model. Navigate from one
@@ -1369,13 +1369,13 @@ are selected for changed surfaces.
     assertions (Appendix K fixture format) via `load_adventure`. Assert
     world-model tier populated, room descriptions match, things placed in
     declared rooms, exits connected. Assert `search_rules` finds adventure
-    prose. Assert `hat_briefing` surfaces adventure content hat-filtered.
+    prose. Assert `badge_briefing` surfaces adventure content badge-filtered.
     (Blocking.)
 
 11. **Narrative CRUD cycle** — create an NPC via `create_npc`, set personality
     fields via `set_personality`, attach voice examples via `set_voice_examples`,
     update the NPC's disposition via `update_npc`, then remove it via
-    `remove_npc`. Assert `hat_briefing` surfaces NPC name and disposition after
+    `remove_npc`. Assert `badge_briefing` surfaces NPC name and disposition after
     each mutation. Assert `session_recap` covers the create-update-remove
     sequence. Assert `remove_npc` on a nonexistent NPC returns `[NOT_FOUND]`.
     (Non-blocking.)
@@ -1391,8 +1391,8 @@ are selected for changed surfaces.
 13. **Scene state and guidance** — set scene state via
     `set_scene_state(description, location, time_of_day, atmosphere)`, set scene
     type to `["social", "exploration"]`, set a narrative directive. Assert
-    `hat_briefing` surfaces all scene fields, scene type, and directive. Set a
-    custom briefing order via `set_briefing_order([...])` — assert `hat_briefing`
+    `badge_briefing` surfaces all scene fields, scene type, and directive. Set a
+    custom briefing order via `set_briefing_order([...])` — assert `badge_briefing`
     sections appear in the specified order. Assert `set_scene_state` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
@@ -1445,7 +1445,7 @@ are selected for changed surfaces.
 | Object interaction, properties                     | 3, 6, 14, 15, 16           |
 | CRUD, state mutations                              | 4                         |
 | convert_source, hybrid parsing                     | 5, 10                     |
-| Hat filtering, resource URIs                       | 7                         |
+| Badge filtering, resource URIs                       | 7                         |
 | Empty state, error handling                        | 9                         |
 | NPCs, character narrative fields                   | 11                        |
 | Lore, countdowns                                   | 12                        |
@@ -1495,7 +1495,7 @@ spec summaries and implementation analysis — use fresh entries to reduce re-re
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match changes in this specification, the operator must audit gaps across the tool
-catalog, resource map, prompt list, state model, hat gating, and behavioral
+catalog, resource map, prompt list, state model, badge gating, and behavioral
 contracts; produce a documented plan with gap dispositions (implemented / deferred /
 waived) each citing the relevant REQ; implement changes with passing verification
 workflows; restart the MCP server process and confirm `spec_health` reports the updated
@@ -1518,7 +1518,7 @@ is built and published.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, hat-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
+| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -1551,7 +1551,7 @@ has advanced, the builder proceeds to compare live registrations as follows:
 the builder compares the server's live registrations — tool catalog
 (tools/list), resource map (resources/list), prompt list (prompts/list),
 and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
-conventions (§7.4), state model (§7.7), and REQ-032 hat gating. Behavioral
+conventions (§7.4), state model (§7.7), and REQ-032 badge gating. Behavioral
 contracts are verified by Gauntlet re-run. The audit produces one row per identified
 gap with: the affected surface, the citing REQ, the disposition, and the reason.
 

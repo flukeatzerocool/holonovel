@@ -49,7 +49,7 @@ output. Enrich produces an enrichment manifest with seven output modules:
    Stored at `enrichment://voice_examples`. The GM activates them via `set_voice_examples`
    (REQ-077).
 
-2. **Prompt ordering.** A single recommended ordering of `hat_briefing` section
+2. **Prompt ordering.** A single recommended ordering of `badge_briefing` section
    tokens. Every token in the recommendation SHALL appear in the builder-documented
    section token vocabulary (REQ-185). The recommendation MAY omit tokens — omitted
    tokens follow their builder-default position after the listed tokens. Tokens not
@@ -60,7 +60,7 @@ output. Enrich produces an enrichment manifest with seven output modules:
 
 3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries
    total. Each records: `key` (slug), `content` (Markdown), `triggers` (keyword array),
-   `hat_scope`, `source_url`, and `confidence`. Stored at `lore://templates`. **Inert**
+   `badge_scope`, `source_url`, and `confidence`. Stored at `lore://templates`. **Inert**
    — the GM must explicitly activate them via `set_lore_entry` (REQ-083).
 
 4. **Action patterns.** Up to 10 patterns mapping common player intents to ruleset-legal
@@ -71,8 +71,8 @@ output. Enrich produces an enrichment manifest with seven output modules:
     results. Unactivated patterns are visible at `enrichment://action_patterns` for
     review.
 
-5. **Supplementary guidance.** Up to 20 items. Appended to `hat_briefing` with
-   `[supplementary]` tag, source URL, and confidence. Includes the expanded hat
+5. **Supplementary guidance.** Up to 20 items. Appended to `badge_briefing` with
+   `[supplementary]` tag, source URL, and confidence. Includes the expanded badge
    foundations catalogue (REQ-062) and the full anti-slop catalogue (REQ-070), both served
    at their respective guidance URIs.
 
@@ -81,7 +81,7 @@ output. Enrich produces an enrichment manifest with seven output modules:
    and NPC tables), and genre/scenario starters (premise seeds categorised by genre: horror,
    mystery, heist, sandbox). Each item records: `category` (adventure_templates,
    table_expansions, or scenario_starters), `content` (Markdown), `source_url`,
-   `confidence`, and `hat_scope`. Stored at `enrichment://adventure_advice`. **Inert**
+   `confidence`, and `badge_scope`. Stored at `enrichment://adventure_advice`. **Inert**
    — the `generate_adventure` and `generate_encounter` tools (REQ-090, REQ-091) may draw
     from this module to seed scaffolds, but the content never auto-applies.
 
@@ -98,17 +98,17 @@ output. Enrich produces an enrichment manifest with seven output modules:
 recommendations, lore templates, action suggestion patterns, adventure advice, narrative
 voice profiles, and supplementary guidance.
 Enrich MUST NOT modify: mechanical fields (stats, saves, HP, conditions, combat state),
-build-derived tool registrations, hat gating rules, or any `[ruleset]`-tagged content
+build-derived tool registrations, badge gating rules, or any `[ruleset]`-tagged content
 (REQ-080).
 
-**Hat scope assignment.** During research, the builder assigns `hat_scope` by
+**Badge scope assignment.** During research, the builder assigns `badge_scope` by
 these rules, applied in order: (1) if the source material is explicitly addressed to
 Dungeon Masters/Game Masters (imperative "tell your players," "set the scene," "describe
 the monster"), scope is `game_master`; (2) if addressed to players ("your character,"
 "at the table," "talk to your DM"), scope is `player`; (3) if the advice applies to all
 participants or is ambiguous, scope is `shared`. Scope assignment is recorded as a
 verification check — every item's scope must match one of these three rules.
-The GM may override an item's assigned hat scope post-collection.
+The GM may override an item's assigned badge scope post-collection.
 Overridden items retain the original lexical scope as `auto_scope` for
 audit. The builder records scope overrides in the enrichment manifest.
 
@@ -147,7 +147,7 @@ community metadiscussion without diluting the enrichment manifest. Collection
 stops when sources are exhausted, whichever comes first.
 
 **LOW-confidence presentation.** LOW-confidence items carry a visible `[LOW]` tag in
-`hat_briefing` and in enrichment resource output, distinct from the standard
+`badge_briefing` and in enrichment resource output, distinct from the standard
 `[supplementary]` tag. Items are grouped after HIGH and MEDIUM items within their output
 module. The LLM sees both tags; the `[LOW]` tag signals reduced weight in narration
 decisions.
@@ -156,7 +156,7 @@ decisions.
 on the same mechanical or narrative topic, both are recorded. The later collection (by
 `collected_at`) carries a `conflicts_with` reference to the earlier item's key. Both
 appear in the enrichment manifest; the LLM sees the conflict annotation and may flag it
-to the GM in `hat_briefing`. The GM resolves by disabling or removing one entry.
+to the GM in `badge_briefing`. The GM resolves by disabling or removing one entry.
 
 **Idempotence.** Enrich records the enrichment fingerprint — composed of the
 ruleset content hash (REQ-044) and the enrichment intake answers (E1–E4). The
@@ -172,18 +172,18 @@ build state:
 **Verification.** After enrichment completes, the builder runs these checks and records
 results in DECISIONS.md:
 
-1. Source completeness: every finding has source_url, quoted_excerpt, hat_scope,
+1. Source completeness: every finding has source_url, quoted_excerpt, badge_scope,
    confidence, collected_at, and output_module — all non-empty.
 2. Tag audit: all enrich content carries `[supplementary]` tag (and `[LOW]` tag where
    applicable); no `[ruleset]` content
    is modified (diff entity personality fields, briefing sections, lore entries
    before/after).
-3. Boundary enforcement: no mechanics, stats, tools, or hat gating changed (diff
+3. Boundary enforcement: no mechanics, stats, tools, or badge gating changed (diff
    `tools/list`, `resources/list`, and entity stat fields).
 4. Idempotence: re-run enrich against same enrichment fingerprint → no-op, identical
    manifest.
-5. Hat filtering: GM-scoped enrich content hidden from Player hat. LOW-confidence
-   items carry `[LOW]` tag in all hat views.
+5. Badge filtering: GM-scoped enrich content hidden from Player badge. LOW-confidence
+   items carry `[LOW]` tag in all badge views.
 6. Budget compliance: no output module exceeds its cap.
 7. Research depth: every output module (modules 1–7) contains ≥1 actionable item. Source
     domains for each module total ≥2 distinct domains, or the "empty"/"incomplete"
@@ -227,10 +227,10 @@ Enrichment manifest and verification results remain in DECISIONS.md for audit.
 `enrichment://action_patterns`, `enrichment://adventure_advice`, `enrichment://narrative_voices`,
 `lore://templates`)
 and every hat guidance resource that draws from enrichment data
-(`guidance://<hat>/voice`, `guidance://<hat>/tone`) SHALL render from the Novel's
+(`guidance://<badge>/voice`, `guidance://<badge>/tone`) SHALL render from the Novel's
 live enrichment state — not from hardcoded text. When the enrichment array is
 non-empty, the resource output SHALL contain the enrichment items filtered by
-output_module and hat scope. Ruleset-native items (`[ruleset]`-tagged) are always
+output_module and badge scope. Ruleset-native items (`[ruleset]`-tagged) are always
 present; community items (`[supplementary]`-tagged) are present when community
 enrichment has been run and not reverted.
 
@@ -252,7 +252,7 @@ Vendor content draws from curated, licensed documentation vendored in the
 processed at build time as part of Tier 1 enrichment alongside ruleset-native extraction
 per REQ-225.
 
-**Sources.** Seven source bundles, all open-source licensed:
+**Sources.** Ten source bundles, all open-source licensed:
 
 | Source | License | What it enriches |
 |---|---|---|
@@ -263,6 +263,9 @@ per REQ-225.
 | Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
 | Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
 | The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
+| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM Agenda (3 items), GM Principles (12), GM Moves (12) as normative rules; player-facing moves triggered from fiction; front/danger system |
+| Fate SRD (Evil Badge Productions) | CC-BY 3.0 | Player role definition and collaboration ethos ("make everyone at the table look awesome"); GM scene pacing, drama vs. realism, aspect-driven narrative structure; scenario building |
+| Ironsworn SRD (Shawn Tomkin) | CC-BY 4.0 | Player principles, solo play chapter, guided/co-op play modes, oracle moves; dark fantasy solo conventions distinct from Starforged |
 
 **When vendor enrichment runs.** Vendor processing SHALL run at build time for
 all non-ruleset-free builds. For TTRPG builds, vendor content provides
@@ -278,6 +281,19 @@ enriches `supplementary_guidance` (session-prep heuristics), `adventure_advice`
 (encounter templates), and `briefing_order` (recommended section ordering for
 session flow). The Alexandrian enriches `adventure_advice` (node-based scenario
 design, clue placement) and `lore_templates` (three-clue seeding).
+
+The Dungeon World SRD enriches `supplementary_guidance` (GM Agenda, Principles, and
+Moves as normative GM-facing rules — structurally distinct from the advisory tone of
+existing sources), `action_patterns` (player-facing moves triggered from fictional
+positioning), and `voice_examples` (GM move prompts as dialogue patterns). The
+Fate SRD enriches `supplementary_guidance` (player role definition, collaboration
+principles, GM scene management), `narrative_voices` (aspect-driven narrative
+structure, collaborative worldbuilding conventions), and `adventure_advice` (scene
+and scenario templates). The Ironsworn SRD (original) enriches
+`supplementary_guidance` (player principles, solo play structure, guided/co-op modes),
+`action_patterns` (oracle moves as structured action suggestions in a dark fantasy
+paradigm distinct from the sci-fi Starforged tone already in the vendor set), and
+`narrative_voices` (dark fantasy solo play conventions).
 
 Vendor content SHALL be indexed alongside ruleset-native extraction. Vendor
 items carry `[vendor]` tag with source anchor pointing to the vendor file within
@@ -337,7 +353,7 @@ Each category maps to specific output modules:
 | Source category | Analyzed state | Output modules |
 |---|---|---|
 | NPCs | name, description, disposition, goals, personality fields (REQ-075, REQ-077), voice examples (REQ-077) | voice_examples, supplementary_guidance, action_patterns |
-| Lore entries | key, content, triggers, hat_scope, group assignments (REQ-083) | lore_templates, supplementary_guidance |
+| Lore entries | key, content, triggers, badge_scope, group assignments (REQ-083) | lore_templates, supplementary_guidance |
 | Story journal | type, entry text, timestamp, scene_anchor, entity_ids (REQ-246) | narrative_voices, supplementary_guidance, adventure_advice |
 | Scene history + current scene | description, location, time_of_day, atmosphere, scene type (REQ-076, REQ-087) | adventure_advice, supplementary_guidance, briefing_order |
 | Factions + secrets + relationships | faction state (REQ-233), secret knowledge status (REQ-234), relationship objects (REQ-236) | supplementary_guidance, lore_templates |
@@ -412,7 +428,7 @@ from inference carry `LOW`. Confidence is re-evaluated on each synthesis pass.
 Items do not carry the `[stale]` flag — they are regenerated on demand, not
 collected at a fixed time.
 
-**Hat scope.** `[novel]` item hat scope defaults to `game_master` — they are
+**Badge scope.** `[novel]` item badge scope defaults to `game_master` — they are
 GM prep aids by nature. The GM may override scope per REQ-267. Items with
 overridden scope retain the original `auto_scope: game_master` for audit.
 
@@ -420,7 +436,7 @@ overridden scope retain the original `auto_scope: game_master` for audit.
 `novel_enrichment` key, organized by output module. The storage format mirrors
 Tier 2 community enrichment: an object with module keys, each containing an
 array of items. Each item records: key, module, content (structure differs by
-module per §11.1), hat_scope, confidence, collected_at (ISO 8601 synthesis
+module per §11.1), badge_scope, confidence, collected_at (ISO 8601 synthesis
 timestamp), source (novel:// URI), and activated (boolean — defaults to false
 for auto-synthesized items, true for GM-initiated explicit synthesis).
 
@@ -450,14 +466,14 @@ runs these checks and records results in DECISIONS.md:
 2. Tag audit: all novel enrichment content carries `[novel]` tag; no `[ruleset]`
    or `[supplementary]` content is modified.
 3. Boundary enforcement: `[novel]` items SHALL NOT modify mechanical fields,
-   build-derived tool registrations, or hat gating rules.
+   build-derived tool registrations, or badge gating rules.
 4. Confidence distribution: `MEDIUM` items outnumber `LOW` items, or a
    justification is recorded in DECISIONS.md explaining which source categories
    lacked explicit fields.
 5. Budget compliance: no module exceeds its total Novel cap. Overflow counts
    are recorded in the synthesis result.
-6. Hat filtering: `[novel]` items default to `game_master` hat scope. Player
-   hat sees only items with overridden `shared` or `player` scope.
+6. Badge filtering: `[novel]` items default to `game_master` badge scope. Player
+   badge sees only items with overridden `shared` or `player` scope.
 7. Reversion boundary: `revert_novel_enrichment` removes all `[novel]` items;
    `revert_enrichment` does not. Both calls succeed independently.
 8. Module coverage: every synthesis-capable module is populated when the

@@ -41,8 +41,8 @@ verify structural correctness of the ruleset source (G0a).
 
 **Verification workflow G2 — Golden transcript replay (fixture workflow).**
 Build a server from a fixture and replay its transcript. This workflow uniquely
-verifies deterministic reproduction of known interaction sequences — hat gating
-is exercised separately by G3 (tool registry), G5 S6 (cross-hat operations), and
+verifies deterministic reproduction of known interaction sequences — badge gating
+is exercised separately by G3 (tool registry), G5 S6 (cross-badge operations), and
 G5 S17 (resource filtering). The fixture is
 selected by build mode: the Appendix B fixture (Tin
 Lanterns) for Light-tier rulesets (<100 indexed items); the Appendix N fixture
@@ -58,7 +58,7 @@ by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
 (REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
 session_recap correctness (REQ-072), and undo round-trip (REQ-041). Wording is
 not asserted. Assertion boundary: status prefixes, `isError` flags, required
-fields in `spec_health` output, die values, hat gating decisions, and
+fields in `spec_health` output, die values, badge gating decisions, and
 structural completeness (every transcript interaction produces an assertable
 result — `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`) SHALL
 be asserted exactly. Natural-language prose in `set_scene_state`,
@@ -80,7 +80,7 @@ they are findings recorded in DECISIONS.md (6) for operator disposition.
 _Check:_ T185.
 
 **Verification workflow G3 — Injection (fixture workflow).** Run discovery
-over the Appendix C fixture. Verify the capability surface, hat gating, and
+over the Appendix C fixture. Verify the capability surface, badge gating, and
 metadata filtering are unchanged. Tool registry and resource listings diff
 clean (identical except for the new section's anchor and its GM-only guidance
 items). This workflow uniquely verifies that adversarial source content
@@ -110,7 +110,7 @@ deterministic tool contracts are verified by G2 (golden transcript) and G4
 enrichment workflow (§11) completes, verify: all enrichment items carry a source
 tag (`[ruleset]`, `[supplementary]`, `[novel]`, or `[player]`); `[ruleset]`-tagged
 items survive server rebuild with unchanged ruleset hash; deactivated items are
-absent from `hat_briefing` and `suggest_actions` output; `enrichment://status`
+absent from `badge_briefing` and `suggest_actions` output; `enrichment://status`
 reports correct per-module active/inactive counts; `revert_enrichment` removes all
 `[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
 items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
@@ -119,13 +119,13 @@ conditions. The Gauntlet re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
 any manual code modification.
 
-**T18 anti-hat sub-workflows:**
+**T18 anti-badge sub-workflows:**
 
-| Hat                       | Behavior                                                                       | Expected result                                                                                                                         | Example invocation                                                                                                             |
+| Badge                       | Behavior                                                                       | Expected result                                                                                                                         | Example invocation                                                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Power Gamer                   | Stacks non-stacking bonuses                                                    | `[ERROR] [RULE_VIOLATION]`, or `[PARTIAL]` with explanation                                                                             | As Player, calls `apply_condition` with a condition already active on the target entity.                                          |
 | New Player                    | Calls a tool with missing or vague parameters                                  | `[ERROR] [INVALID_INPUT]` with a helpful correction                                                                                     | Calls `roll_skill_check` with `skill:""` (empty string).                                                                          |
-| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           | As Player hat, calls `init_combat`.                                                                                          |
+| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           | As Player badge, calls `init_combat`.                                                                                          |
 | Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        | Calls `search_rules` on a topic the ruleset defines in two conflicting sections.                                                  |
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
