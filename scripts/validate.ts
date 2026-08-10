@@ -780,7 +780,7 @@ function checkCouplingCompleteness(text: string): string[] {
   }
 
   const couplingMatch = text.match(
-    /##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Coupling derivation)/
+    /##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Coupling curation)/
   );
   const couplingSection = couplingMatch ? couplingMatch[0] : "";
   const couplingPairs = new Set<string>();

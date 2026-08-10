@@ -89,7 +89,9 @@ multiple close matches exist, list them all ("Did you mean one of…"). An
 empty-string search returns no results — not an error — with valid-value enumeration.
 `[FORBIDDEN]` directs callers to use `set_badge` to switch badges. `[STATE_CONFLICT]` is raised
 when an action cannot proceed in the current state (undo with empty snapshot stack, resume of
-ended Novel, undo while a workflow is pending). `[AMBIGUOUS]` is raised when the input
+ended Novel, undo while a workflow is pending, or Holodeck coupling conflict — two couplings
+producing contradictory state mutations). When a coupling conflict occurs, the response SHALL
+enumerate the conflicting coupling rows (§7.7.1a). `[AMBIGUOUS]` is raised when the input
 matches multiple entries — an alias that resolves to more than one canonical
 name. The response enumerates the matching entries with their distinguishing
 fields. `[MISSING_PARAM]` is raised when a required parameter is absent or empty
@@ -399,6 +401,12 @@ a semantically invalid parameter returns a result with `isError: true` and
 _Check:_ T180.
 
 ### 5.2 Extraction and Confidence
+
+During Discovery (§6.3), mechanical coupling metadata — which mechanics produce
+world-affecting, entity-bearing, revealing, or temporally-urgent outcomes — is
+populated alongside standard extraction per REQ-377. Coupling extraction annotates
+existing extraction categories; it is not a separate category. Confidence labels
+apply to coupling metadata the same as any extracted item.
 
 **REQ-010 — Traceability.** Every modeled mechanic cites the ruleset anchor(s) from which it
 was extracted. The citation chain — Markdown source → modeled item → tool/resource →
@@ -2612,7 +2620,9 @@ countdown fires its completion AND the vow becomes eligible for `resolve_vow`. W
 `vow:<vow_name>` is removed. The coupling is optional — the GM may decline the suggestion
 and manage vows via milestones alone (current behavior). Vow-countdown links SHALL
 survive Novel persistence and SHALL be included in `save_pause_context` captures
-(REQ-232).
+(REQ-232). For shared-scope vows, the countdown suggestion and linked countdown state
+SHALL be visible in Player and Observer `badge_briefing` `narrative_threads`;
+GM-scope vow countdowns remain GM-only.
 
 *Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a
 countdown suggestion in `badge_briefing`. Accepting creates a 20-tick `mission`-type
@@ -6061,7 +6071,9 @@ classification), exits (directional connections between rooms with associated
 door and openable/lockable state), and properties (either/or attributes on
 world-model objects: open/closed, locked/unlocked, fixed/portable, lit/dark).
 The tier SHALL be snapshot-able, audit-logged, and persistent with the Novel
-per REQ-088, REQ-092. A Novel whose world-model tier has not been populated
+per REQ-088, REQ-092. World-model properties couple with other Holodeck
+surfaces per the coupling architecture (§7.7.1a — coupling rows citing P3,
+P13, P34, P38–P42). A Novel whose world-model tier has not been populated
 (no rooms declared) SHALL report an empty world model — the TTRPG layer is
 not dependent on world-model population. _Check:_ T238.
 
@@ -6636,7 +6648,11 @@ under REQ-013 or registered with empty domains that return content-absent respon
 The world-model layer (§5.10) SHALL be populated from the provider documentation
 indexed at the B10 intake path. `search_rules` SHALL return an empty result set with a
 clear message indicating no ruleset is indexed. `roll_on_table` SHALL return the
-content-absent message per REQ-214. Verification workflow G0 step 2 and G2 SHALL use
+content-absent message per REQ-214. Navigational couplings (§7.7.1) SHALL be active —
+World→Scene, Scene→Lore, Scene→Countdown, and other Advisory/Navigational nature
+rows function in ruleset-free mode. Mechanical couplings (Mechanics→World,
+Mechanics→NPC, and Ruleset Wisdom couplings) SHALL be inert — no ruleset means no
+mechanical resolution to drive coupling effects. Verification workflow G0 step 2 and G2 SHALL use
 the Appendix W fixture in place of Appendix B or N. Handoff verification steps H1 and
 H10 SHALL be skipped for ruleset-free builds — there is no source edition/title to
 compare and no extraction confidence to measure.

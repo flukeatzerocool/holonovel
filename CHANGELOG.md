@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-10 — Integration tightening and token efficiency pass
+
+- Coupling table (§7.7.1a): added standing rules for default badge scope
+  (GM-only) and consolidated REQ citations (REQ-073, REQ-083, REQ-236
+  lifted from individual rows to section header). Blanked "GM-only" column
+  on ~35 default-scope rows for visual signal-to-noise.
+- Coupling derivation (§7.7.1b) renamed to Coupling curation; replaced
+  false "derived from pattern rules" claim with honest "instantiates
+  pattern rules — curated, not every combinatorial instantiation is
+  meaningful." Observer badge coupling scope added (read-only: sees
+  all navigational, no mechanical couplings).
+- Error taxonomy (REQ-002): Holodeck coupling conflicts now explicitly
+  surface as `[STATE_CONFLICT]` with conflicting coupling rows enumerated.
+- Extraction pipeline (§5.2): coupling metadata population during
+  Discovery documented as annotation on existing extraction categories.
+- World-model REQ-195 cross-references coupling architecture (§7.7.1a).
+- Ruleset-free mode (REQ-218): navigational couplings active, mechanical
+  couplings inert in ruleset-free builds.
+- Vow-countdown coupling (REQ-322): shared-scope vow countdowns visible
+  to Player and Observer badge_briefing.
+- State tier enumeration updated: codex (server-level) added alongside
+  synthesis as explicit persistence tiers.
+- Pattern Buffer blocking sub-workflow lists deduplicated — §8 G5
+  references §6.6 exit criteria instead of repeating enumeration.
+- Independent verification (§10): coupling sub-workflows weighted 1.5×
+  in adversarial selection pool.
+- Terminology: added Holodeck Coupling entry; build-phase-map.md
+  subsection count corrected (9→15 for §5).
+- validate.ts: coupling boundary regex updated to match renamed section
+  heading (Coupling derivation → Coupling curation).
+
 ## 2026-08-10 — Holodeck coupling architecture integration
 
 - Replaced the coupling completeness register (§7.7.1b) with a derivation

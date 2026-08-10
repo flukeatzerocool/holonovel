@@ -50,7 +50,9 @@ Phase 1 — blind re-execution, in order:
     replay the builder's recorded calls. Sub-workflows with prior failures in the
     builder's evidence (from DECISIONS.md §6) are weighted 3×; sub-workflows
     involving state mutation (S2–S5, S9, S13, S15, S17, S22, S25) are weighted
-    2×; all other blocking sub-workflows are weighted 1×. Use a different random
+    2×; sub-workflows exercising Holodeck coupling contracts (identified by
+    coupling citations in their REQ mapping per §7.7.1a) are weighted 1.5×;
+    all other blocking sub-workflows are weighted 1×. Use a different random
     seed for each re-execution. Assert every assertion in each sub-workflow's pass
     criterion holds. The selected set SHALL span ≥3 distinct REQ categories (§5.5–§5.7).
     Record any discrepancy as `DISPUTED` with both your result and the builder's
