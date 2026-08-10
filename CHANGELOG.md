@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-10 — Holodeck north star
+
+- The spec and README now anchor the project to the Star Trek Holodeck
+  metaphor. A *holonovel* is a holodeck program — an interactive narrative
+  where the user steps inside as a character. The server is the Holodeck;
+  your campaign is the Holonovel program (the Novel) loaded into it.
+- The README hero was rewritten to lead with this north star: "Build the
+  Holodeck. Load your campaign."
+
 ## 2026-08-10 — Push pipeline hardening
 
 - The push pipeline script now refuses to run with a dirty working tree,
