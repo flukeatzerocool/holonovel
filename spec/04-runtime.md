@@ -339,7 +339,7 @@ mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
 means it directly affects state mutation or tool behavior. A coupling marked
 "Narrative" means it affects narrative coherence and is verified during the
 G7 narrative coherence attestation (REQ-346); narrative couplings do not
-block mechanical Gauntlet sub-workflows. When a source
+block mechanical Pattern Buffer sub-workflows. When a source
 property changes, navigational and narrative couplings update on the next
 resource read; mechanical couplings take effect at the moment of the
 triggering mutation.

@@ -45,7 +45,7 @@ Phase 1 — blind re-execution, in order:
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
 5. Run the automated handoff verification workflow (H1–H14) and record the results.
 6. Confirm the four-artifact diet: no stray files.
-7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
+7. (Adversarial) Select five blocking Pattern Buffer sub-workflows (§6.6) at random
     from a weighted pool and re-execute them with your own tool calls — do not
     replay the builder's recorded calls. Sub-workflows with prior failures in the
     builder's evidence (from DECISIONS.md §6) are weighted 3×; sub-workflows
@@ -110,14 +110,14 @@ Report in the format below.
 - Handoff verification workflow: H1–H14 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
-- Adversarial Gauntlet re-execution: sub-workflows selected → verdicts
+- Adversarial Pattern Buffer re-execution: sub-workflows selected → verdicts
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED
 ```
 
 A `DISPUTED` item is resolved by the operator re-running that single contested step. The
 operator's re-run result is binding — it replaces the disputed item's pass/fail status
 in the evidence record regardless of which party's result it matches. If the operator's
-re-run cannot be completed under the same conditions (e.g., a non-deterministic Gauntlet
+re-run cannot be completed under the same conditions (e.g., a non-deterministic Pattern Buffer
 sub-workflow with no pinned seed), the verifier's result controls and the item is
 reported as VERIFIED WITH FINDINGS with the operator's attempted re-run noted. The
 report is review evidence, not a build artifact.

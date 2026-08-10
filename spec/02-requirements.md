@@ -1127,10 +1127,10 @@ A rebuilt server re-computes cross-reference health from the current extraction.
 previously resolved cross-reference that becomes unresolved after a ruleset change SHALL
 be flagged as a `[regression]` in the `unresolved` list.
 
-`spec_health` must report a `gauntlet_scenarios` field containing
+`spec_health` must report a `pattern_buffer_scenarios` field containing
 `passed` (count of sub-workflows that passed on the most recent run),
 `total` (total sub-workflow count per §6.6), and `last_run` (ISO 8601
-timestamp of the most recent Gauntlet execution, absent if never run).
+timestamp of the most recent Pattern Buffer execution, absent if never run).
 When `last_run` is absent, `passed` and `total` are absent. The field is
 badge-filtered: Player badge sees this field; no GM-only content is exposed.
 
@@ -1229,10 +1229,10 @@ and its status:
 - `unrecoverable_crash` — the server handles adversarial input without crash
 
 Each property carries a `status` of `online`, `degraded` (one or more non-blocking
-Gauntlet failures in relevant sub-workflows), or `offline` (blocking failure
-unresolved). Properties with no exercising Gauntlet sub-workflow SHALL report
+Pattern Buffer failures in relevant sub-workflows), or `offline` (blocking failure
+unresolved). Properties with no exercising Pattern Buffer sub-workflow SHALL report
 `unverified`. Per-safety-property status is recorded in DECISIONS.md (6) alongside the
-Gauntlet fingerprint.
+Pattern Buffer fingerprint.
 _Check:_ T289.
 
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
@@ -1318,16 +1318,16 @@ _Check:_ T196.
 at intake via B9. `production` mode (default) SHALL run the full quality suite: assumption
 audit (REQ-101), per-step audits with auditor pre-flight (§6.5), post-write verification on
 every file written during construction (§6.5.3), cross-model auditing when available
-(§6.5.2), and the full Gauntlet (§6.6). `quick-build` mode SHALL narrow the overhead: it
+(§6.5.2), and the full Pattern Buffer (§6.6). `quick-build` mode SHALL narrow the overhead: it
 skips the assumption audit, skips auditor pre-flight, scopes post-write verification to
 critical files only (DECISIONS.md, MCP client configuration, on-disk Novel state), and
-accepts same-model audits. The Gauntlet SHALL gate both modes — any build that creates or
-modifies tools MUST pass the Gauntlet before marking complete. A quick-build-mode build
+accepts same-model audits. The Pattern Buffer SHALL gate both modes — any build that creates or
+modifies tools MUST pass the Pattern Buffer before marking complete. A quick-build-mode build
 SHALL record a `quick-build` annotation in DECISIONS.md (6) listing which rituals were
 skipped. A quick-build-mode build is runnable but not handoff-ready.
 *Acceptance criterion:* A production build records assumption audit (T89), auditor
 pre-flight, and cross-model audit results. A quick-build build records a `quick-build`
-annotation listing skipped rituals and passes the Gauntlet. A quick-build build without
+annotation listing skipped rituals and passes the Pattern Buffer. A quick-build build without
 the annotation fails the process-compliance metric.
 _Check:_ T197.
 
@@ -2273,7 +2273,7 @@ of execution), pass/fail status, and a findings section enumerating each sub-che
 its individual result. Per-workflow extension fields: G0 records enumerate Appendix H
 and Appendix D checklist items with individual pass/fail; G2 records include the
 per-contract coverage enumeration defined in §8; G3 records include registry/resource
-diff summary; G4 records include per-test pass/fail counts; G5 (Gauntlet) records
+diff summary; G4 records include per-test pass/fail counts; G5 (Pattern Buffer) records
 include per-sub-workflow verdict and blocking/non-blocking classification. A verifier
 following §10 SHALL produce evidence records with the same minimum field set for
 Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
@@ -3749,7 +3749,7 @@ Drift warnings are diagnostic surfaces, not safety interlocks — they do not bl
 or degrade service. The active build's specification version, ruleset hash, and build
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
-Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
+Pattern Buffer execution timestamp) may be updated at runtime and preserved across restarts, but
 the constructor-derived version, hash, holonovel package version, and timestamp are immutable for
 the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
@@ -3800,14 +3800,14 @@ the rebuild to only the changed components and their dependents, reusing prior
 output for unchanged components. The scoping rules are:
 
 - **Source code changed** (configuration and dependencies unchanged) → typecheck
-  the server, then run only the Gauntlet sub-workflows whose surface-to-scenario
+  the server, then run only the Pattern Buffer sub-workflows whose surface-to-scenario
   mapping (§6.6) covers the surfaces implemented by the changed source files.
 - **Configuration or dependencies changed** (source unchanged) → reinstall
-  dependencies and typecheck; no Gauntlet re-run required.
+  dependencies and typecheck; no Pattern Buffer re-run required.
 - **Generated extraction data changed** (ruleset content hash REQ-044 unchanged) →
   re-index generation data only, reusing prior extraction output for unchanged
   ruleset sections per REQ-302.
-- **Registered surfaces changed** → run Gauntlet sub-workflows per the
+- **Registered surfaces changed** → run Pattern Buffer sub-workflows per the
   surface-to-scenario mapping (§6.6) for the changed tools, resources, or prompts.
 - **Specification content hash changed** (REQ-187) → gap audit per REQ-098, then
   implement only changed surfaces; unchanged components reuse prior verification.
@@ -3818,7 +3818,7 @@ The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which
 components changed, which remained unchanged, the scoping decision, and which
 prior outputs were reused.
 *Acceptance criterion:* A build where only the source code changed reuses the stored
-generated-data hash, skips extraction, and runs only surface-dependent Gauntlet
+generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer
 sub-workflows. A cold checkout with no stored fingerprints runs the full Build
 workflow without scoping. When four of five components changed, the full Build
 workflow runs regardless of individual scoping rules.
@@ -5353,7 +5353,7 @@ to the new name), `GM-review` (the referenced surface was removed — the GM sho
 review and replace the enrichment item), or `stale-reference` (the surface is
 absent with no obvious replacement). GM-activated items (REQ-130) with orphan
 references carry a `[stale-reference]` tag in `spec_health` until the GM resolves
-them. This check SHALL run before Gauntlet re-execution (§6.7) and SHALL NOT
+them. This check SHALL run before Pattern Buffer re-execution (§6.7) and SHALL NOT
 trigger web research — it is a cross-reference scan only. Results are recorded in
 DECISIONS.md with the gap audit row reference.
 *Acceptance criterion:* After a Minor update that renames a tool, ruleset-native
@@ -5402,7 +5402,7 @@ _Check:_ T-new-231.
 
 **REQ-243 — Enrichment population during spec-driven updates.** During a
 spec-driven update per REQ-098, after the gap audit implements new or changed
-surfaces and before Gauntlet re-execution, the builder SHALL run a scoped
+surfaces and before Pattern Buffer re-execution, the builder SHALL run a scoped
 ruleset-native enrichment re-classification. The builder: (a) identifies new or
 changed surfaces from the gap audit's implemented-disposition rows — surfaces are
 tools, resources, prompts, or state fields; (b) maps each surface to the source
@@ -5460,13 +5460,13 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Holonovel Gauntlet sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
+Holonovel Pattern Buffer sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the holonovel package builder MAY skip Phase 2
-convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
+convergence and the Holonovel Pattern Buffer, recording `cached — holonovel vX.Y.Z
 convergence manifest` in DECISIONS.md (5) and (6). When the specification
 version has advanced, the builder SHALL run convergence and the Holonovel
-Gauntlet fresh and update the manifest with the new results and spec version.
+Pattern Buffer fresh and update the manifest with the new results and spec version.
 TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
 reference this manifest — it applies only to holonovel package builds.
 
@@ -5486,7 +5486,7 @@ the builder SHALL fall back to live REQ-225 extraction with the annotation
 DECISIONS.md (4). When no manifest is present, the builder proceeds with live
 extraction as normal.
 *Acceptance criterion:* A holonovel package build whose CONVERGENCE.md spec
-version matches the current spec reports Phase 2 metrics and Holonovel Gauntlet
+version matches the current spec reports Phase 2 metrics and Holonovel Pattern Buffer
 results as cached. A TTRPG build against a ruleset with a valid pre-built
 enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
 without a manifest runs live REQ-225 extraction as before.

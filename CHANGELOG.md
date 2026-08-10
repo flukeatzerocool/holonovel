@@ -26,8 +26,15 @@
   `remove_supplementary`. Dynamic tool registration supports this. When a
   builder's stack cannot support runtime tool registration, a waiver limits
   import to Wisdom only. (REQ-372, REQ-373)
-- Supplementary import and dynamic tool registration are covered by Gauntlet
+- Supplementary import and dynamic tool registration are covered by Pattern Buffer
   sub-workflows S30 and S31, tested with the new Appendix Z fixture.
+- Renamed "Gauntlet" to "Pattern Buffer" across the specification — terminology,
+  REQ bodies, verification workflows, CHANGELOG history, and validation scripts.
+  Field names (`gauntlet_scenarios` → `pattern_buffer_scenarios`), flags
+  (`--full-gauntlet` → `--full-pattern-buffer`), function names (validate.ts),
+  and file references updated. The Pattern Buffer is the transporter's
+  verification buffer — holds a build in verification state before
+  materializing it as handoff-ready.
 - `npm run validate` now includes a coupling completeness check that verifies
   every property-group pair is accounted for in §7.7.1.
 
@@ -170,7 +177,7 @@
   implementation status verified by a new convergence metric. (REQ-346)
 - The coupling table now supports a Narrative coupling class for
   dramaturgy and cast behavior — narrative couplings don't block
-  mechanical Gauntlet sub-workflows, making it easier to add story
+  mechanical Pattern Buffer sub-workflows, making it easier to add story
   features without tracing the full coupling table. (§7.7.1)
 - The world-model default prominence shifted from `secondary` to `visible`
   — the room is now the stage, not background scaffolding. (REQ-309)
@@ -374,7 +381,7 @@
 - `convert_source` now recognizes all new property assertions and vehicle/device
   kind declarations. Climbable things adjacent to a directional exit are
   automatically associated as that exit's door.
-- The Holonovel Gauntlet expanded from 13 to 18 sub-workflows covering device
+- The Holonovel Pattern Buffer expanded from 13 to 18 sub-workflows covering device
   lifecycle, vehicle lifecycle, extended property contracts, extended parser
   commands, and narrative-intent verbs. (I14–I18)
 - Both servers compile clean; all spec gates pass with 0 errors.
@@ -504,7 +511,7 @@
   manifest has seven modules since REQ-226 added `narrative_voices`.
 - README restructured: Convert/Build and Enrich now have their own pillar
   sections alongside World Model, Narrative Model, Novels, and Hats.
-  Gauntlet and enrichment detail moved out of Novels. Four pillars became
+  Pattern Buffer and enrichment detail moved out of Novels. Four pillars became
   six.
 
 ## 2026-08-08 — Holodeck benchmark improvements
@@ -537,8 +544,8 @@
   files and lints spec/ directly, catching format drift before the audit runs.
 - Spec read-through runs in Build mode with auto-fix for low-severity findings;
   severity-based gating blocks only on critical violations.
-- The Inform Gauntlet count is corrected from 10 to 13 sub-workflows, a smoke
-  test runs before the full Gauntlet, typecheck runs as part of the rebuild, and
+- The Inform Pattern Buffer count is corrected from 10 to 13 sub-workflows, a smoke
+  test runs before the full Pattern Buffer, typecheck runs as part of the rebuild, and
   stale build artifacts are cleaned before each rebuild.
 - Server rebuild steps delegate all spec-delta sync to a unified Step 6,
   eliminating redundant sync calls during rebuild.
@@ -547,7 +554,7 @@
   what actually ran.
 - The spec-driven update workflow (formerly the holonovel-update skill) is inlined
   into Step 6 as a four-phase Detect/Audit/Implement/Close workflow with
-  surface-to-scenario Gauntlet selection and a two-iteration convergence cap for
+  surface-to-scenario Pattern Buffer selection and a two-iteration convergence cap for
   both servers.
 - README validation runs as a post-session shell gate; wiki updates include
   proofreading, merge conflict detection, and coverage of all wiki pages.
@@ -573,9 +580,9 @@
   checks. The Update workflow also checks inform version before beginning a gap
   audit, so operators get a signal when only the scaffold changed. (REQ-065, REQ-098)
 
-## 2026-08-08 — Inform Gauntlet narrative surface hashing
+## 2026-08-08 — Inform Pattern Buffer narrative surface hashing
 
-- The Inform Gauntlet now tracks narrative tools alongside world-model tools: three new
+- The Inform Pattern Buffer now tracks narrative tools alongside world-model tools: three new
   non-blocking sub-workflows (I11–I13) exercise NPC CRUD, lore and countdown lifecycle,
   and scene state/guidance. Narrative surfaces get the same per-sub-workflow surface-hash
   skipping as world-model surfaces — when unchanged between builds, their verification is
@@ -623,7 +630,7 @@
 - Added a safety protocols concept reported by `spec_health`: `state_loss`,
   `hat_boundary`, `data_corruption`, and `unrecoverable_crash` each report
   `online`, `degraded`, `offline`, or `unverified`. (REQ-269)
-- Mapped six T18 anti-hat persona archetypes to Gauntlet sub-workflows so every
+- Mapped six T18 anti-hat persona archetypes to Pattern Buffer sub-workflows so every
   adversarial persona is exercised by operational verification.
 - Added deduplication statements to each verification workflow — every workflow
   now states what it uniquely verifies that no other workflow covers.
@@ -646,7 +653,7 @@
 - The independent verifier model must be from a different provider or architecture
   family than the builder — same-provider version increments are insufficient.
   (REQ-276)
-- Risk-driven adversarial selection replaces pure-random Gauntlet sub-workflow
+- Risk-driven adversarial selection replaces pure-random Pattern Buffer sub-workflow
   selection during independent verification — prior failures and state-mutating
   sub-workflows receive higher weight.
 - Replaced hardcoded per-workflow salient-value lists in §10 with a structured
@@ -834,34 +841,34 @@
 - `TTRPG_HAT` now accepts `none` so Novels can start in editing mode
   by default. (REQ-055, 04-runtime.md)
 
-## 2026-08-08 — Gauntlet expansion, efficiency improvements, and auto-detection
+## 2026-08-08 — Pattern Buffer expansion, efficiency improvements, and auto-detection
 
-- Added seven new TTRPG Gauntlet sub-workflows (S23–S29) covering all
+- Added seven new TTRPG Pattern Buffer sub-workflows (S23–S29) covering all
   DMCP-sourced narrative features — pause/resume context, factions, player
   choices, relationships, secrets, notes, clock taxonomy — plus Narrative
   POV, enrichment lifecycle, briefing ordering, voice examples, session
-  notation, and Novel export/import. The Gauntlet now has 29 sub-workflows,
+  notation, and Novel export/import. The Pattern Buffer now has 29 sub-workflows,
   with S23 (narrative sweep), S25 (backups/checkpoints/clones), S26 (POV),
   and S29 (export/import) classified as blocking.
 
-- Five efficiency improvements reduce Gauntlet token costs: (1) structured
+- Five efficiency improvements reduce Pattern Buffer token costs: (1) structured
   encoding now mandates a runnable test harness so re-runs cost zero AI
   tokens; (2) the S1 tool surface sweep skips categories exercised by other
   blocking sub-workflows; (3) per-sub-workflow surface hashes skip unchanged
-  scenarios individually rather than all-or-nothing; (4) a gauntlet manifest
+  scenarios individually rather than all-or-nothing; (4) a pattern buffer manifest
   caches results by spec version and ruleset hash, reusing them across
   builds; (5) convergence-loop-driven scoping skips mechanics-fidelity
   sub-workflows when the ruleset hash is unchanged. All five applied to the
-  TTRPG Gauntlet; (1) and (3) applied to the Inform Gauntlet as well.
+  TTRPG Pattern Buffer; (1) and (3) applied to the Inform Pattern Buffer as well.
 
-- A normative REQ Gauntlet coverage map maps every requirement in §5.5,
+- A normative REQ Pattern Buffer coverage map maps every requirement in §5.5,
   §5.6, §5.7, and REQ-002 to its covering sub-workflow(s). `scripts/validate.ts`
   mechanically enforces it — when a spec revision adds a new REQ to these
   sections, validate reports an error until the map is updated. This closes
-  the loop between spec changes and Gauntlet coverage.
+  the loop between spec changes and Pattern Buffer coverage.
 
 - Fixed a pre-existing desync where the verification file referenced a
-  23-sub-workflow Gauntlet and a ghost S23 sub-workflow that didn't exist in
+  23-sub-workflow Pattern Buffer and a ghost S23 sub-workflow that didn't exist in
   the build specification. The section map REQ counts now include the
   DMCP-sourced REQs (232–242) that were previously absent.
 
@@ -869,7 +876,7 @@
   and the play model now distinguishes editing mode (no hat) from story mode
   (hat active), with `set_hat("none")` returning to editing mode.
 
-## 2026-08-08 — Convergence cache key, enrichment memoization, Gauntlet fingerprint caching
+## 2026-08-08 — Convergence cache key, enrichment memoization, Pattern Buffer fingerprint caching
 
 - Builders can now skip the convergence loop when the inputs haven't changed:
   a convergence cache key (ruleset hash + spec hash + inform version + enrichment
@@ -884,14 +891,14 @@
   (REQ-245, §6.3)
 
 - The inform package now ships a CONVERGENCE.md manifest with pre-computed
-  Phase 2 results and Inform Gauntlet outcomes per version, enabling inform
-  builds to skip convergence and the Inform Gauntlet when the spec version
+  Phase 2 results and Inform Pattern Buffer outcomes per version, enabling inform
+  builds to skip convergence and the Inform Pattern Buffer when the spec version
   hasn't advanced. (REQ-245, §6.6)
 
-- The TTRPG Gauntlet now supports fingerprint-driven scoping: when neither the
+- The TTRPG Pattern Buffer now supports fingerprint-driven scoping: when neither the
   ruleset hash nor spec hash change, all 22 sub-workflows are skipped. Spec-only
   changes run only sub-workflows exercising changed surfaces via the
-  surface-to-scenario mapping. Operator override via `--full-gauntlet` flag.
+  surface-to-scenario mapping. Operator override via `--full-pattern-buffer` flag.
   (§6.6)
 
 - Vendor enrichment content (`inform/docs_md/` directory) now ships with a pre-verified
@@ -953,7 +960,7 @@
 - Spec-driven updates now include an enrichment consistency check after the gap
   audit. Orphan enrichment references to changed/removed surfaces are classified
   as auto-repairable, GM-review, or stale-reference and recorded before the
-  Gauntlet re-run. (REQ-228)
+  Pattern Buffer re-run. (REQ-228)
 
 - Adventures loaded into a Novel now surface enrichment matches — voice examples
   for adventure NPCs, lore templates for adventure locations, and action
@@ -969,14 +976,14 @@
   hash differs are replaced; unchanged modules and activated items are
   preserved. (§11.1)
 
-- The Gauntlet was restructured from 23 to 22 sub-workflows: merged undo-during-
+- The Pattern Buffer was restructured from 23 to 22 sub-workflows: merged undo-during-
   combat into simulated combat (S4), workflow cancellation into workflow
   validation (S22), and adventure generation + encounter lifecycle (S18–S19)
   into one. Invalid-param testing moved to tool surface sweep (S1). Roll
   transparency, audit hash chain integrity, and adversarial input safety now
-  have dedicated Gauntlet assertions. (§6.6)
+  have dedicated Pattern Buffer assertions. (§6.6)
 
-- The Gauntlet Method now uses a second MCP connection only for sub-workflows
+- The Pattern Buffer Method now uses a second MCP connection only for sub-workflows
   exercising cross-hat interaction — single-hat scenarios use one connection.
 
 - Convergence loop efficiency improvements: audit subagents now batch every two
@@ -1063,7 +1070,7 @@
   name, config path, spec URL, build mode, inform version). Operators face 4
   questions instead of 10. (§6.2)
 - Converged servers can no longer ship with an unlimited count of unresolved
-  non-blocking Gauntlet failures — 3 or more requires explicit operator
+  non-blocking Pattern Buffer failures — 3 or more requires explicit operator
   acknowledgment at handoff. (§6.6)
 - The ruleset-free mode's scattered "WHEN B1 is `none`" zero-case clauses
   have been consolidated into a single Standing Rule 9, reducing 15+ scattered
@@ -1096,7 +1103,7 @@
   which version of @holonovel/inform to use instead of a provider-docs
   path; §6.3 replaces world-model provider indexing with Inform scaffold
   installation; §6.4 construction starts from the inform skeleton; and
-  the Inform Gauntlet (§6.6) runs when inform is published, not during
+  the Inform Pattern Buffer (§6.6) runs when inform is published, not during
   TTRPG builds. (spec/01-foundations.md, spec/03-build.md,
   spec/build-phase-map.md)
 
@@ -1303,7 +1310,7 @@
   Transport" for clarity and reduced overlap with other subsections.
 - Fixed stale cross-section references that pointed to moved or renamed
   sections, updated related heading counts to reflect the reorganized
-  §5, handoff verification, and Gauntlet structures, and updated the
+  §5, handoff verification, and Pattern Buffer structures, and updated the
   reading guide to describe the multi-file architecture.
 - Updated `.githooks/pre-commit` to run `npm run assemble` before checks,
   the `AGENTS.md` layer map to document file numbering conventions, and the
@@ -1347,14 +1354,14 @@
 - The total combat rounds counter now increments on round wrap instead of
   `end_combat`, keeping it live mid-combat and safe under undo. (REQ-043)
 
-## 2026-08-06 — Gauntlet scoping for spec-driven updates
+## 2026-08-06 — Pattern Buffer scoping for spec-driven updates
 
-- REQ-098 no longer requires blanket Gauntlet re-run during spec-driven updates
+- REQ-098 no longer requires blanket Pattern Buffer re-run during spec-driven updates
   — the builder now selects only sub-workflows exercising the surfaces changed
   by the gap audit. (REQ-098, §6.6)
 - Added a surface-to-scenario mapping table in §6.6 that connects each changed
   surface (character creation, combat, conditions, search, etc.) to the specific
-  Gauntlet scenarios that exercise it, plus overrides for out-of-mapping cases
+  Pattern Buffer scenarios that exercise it, plus overrides for out-of-mapping cases
   like new tools or prompts.
 
 ## 2026-08-06 — Hat gating hardening: audit logging, surface contracts, and scope clarification
@@ -1499,7 +1506,7 @@
 - Removed Appendix O (Behavioral Contracts) — all 93 lines of prose
   duplicated contracts already defined in §5 and §7. Replaced with a
   compact pointer to those sections. Roll-format examples live in §7.3.
-- Compressed all 23 Gauntlet sub-workflow descriptions from multi-line
+- Compressed all 23 Pattern Buffer sub-workflow descriptions from multi-line
   prose paragraphs to single-line assertions, reducing the section by
   over 100 lines. The structured encoding paragraph was compacted; the
   convergence integration, improvement measurement, regression assertion,
@@ -1545,7 +1552,7 @@
   manifest, and one-way cross-section citations with no reciprocal reference.
   Runs as part of the standard check pipeline.
 - A new Builder Glossary (Appendix S) defines domain terms — Builder,
-  Convergence loop, Danger, Discovery, Gauntlet, Hat, Macro, MUST-covering
+  Convergence loop, Danger, Discovery, Pattern Buffer, Hat, Macro, MUST-covering
   set, Novel, Waiver, and more — with citing REQs, so builders encountering
   a term mid-spec have a single lookup point.
 - AGENTS.md now reflects the current REQ count (107, up from the stale 75)
@@ -1664,7 +1671,7 @@
 - `respond(cancel)` now correctly restores the pre-workflow snapshot even after
   a server restart — the pending decision and its pre-workflow state survive
   restarts. (REQ-042)
-- Added a Gauntlet sub-workflow S23 (workflow validation) covering rejected
+- Added a Pattern Buffer sub-workflow S23 (workflow validation) covering rejected
   decisions, rejected options, cancellation state restoration, concurrent
   workflow rejection, restart survival, and blocked-tool assertions. (S23)
 - Added T138 (workflow lifecycle) to the test catalogue.
@@ -1702,7 +1709,7 @@
 
 - Rebuilt the dnd5e MCP server from the D&D 5e SRD v5.1 ruleset (1,021
   Markdown files), producing 51 tools, 29 resources, 7 prompts, and 5
-  artifacts. All blocking Gauntlet sub-workflows pass.
+  artifacts. All blocking Pattern Buffer sub-workflows pass.
 - Fixed persona→hat terminology drift: 11 renames across the server source
   code so that tool descriptions, parameter names, and export fields all use
   the current spec term "hat" (not the deprecated "persona"). (REQ-031,
@@ -1710,9 +1717,9 @@
 - Added a Surface Terminology domain to the convergence loop and a
   post-write terminology grep check to the builder workflow, so builders
   automatically catch deprecated terms during construction. Added Appendix R
-  (Deprecated Terminology) and handoff check H13 (Gauntlet freshness) to
+  (Deprecated Terminology) and handoff check H13 (Pattern Buffer freshness) to
   close the feedback loop. (REQ-074)
-- Updated DECISIONS.md with Gauntlet run evidence, terminology audit record,
+- Updated DECISIONS.md with Pattern Buffer run evidence, terminology audit record,
   and gap disposition.
 
 ## 2026-08-06 — README fact-check and polish
@@ -1911,9 +1918,9 @@
 
 - §6.5: Split converge:two sequential phases — extraction quality (confidence, extraction/conversion fidelity) before construction quality (MUST coverage, mechanics fidelity, process compliance). Added sub-section anchors for no-delta detection, cross-model audit, and adjusted thresholds.
 - §8: Collapsedverification workflows 7→5 — G0 absorbs MCP conformance (intake integrity), G2 absorbs complex fixture (scalable G2 scoped by REQ-100 tier). All cross-references updated.
-- §6.6: Added convergeGauntlet handshake — failures mapped to convergence metrics,re-enter Phase 2 for affected metrics only. Replaced implicit "feed back" with structured coupling.
-- New REQ-108: Gauntlet traceability — sub-workflow-to-REQ mapping recorded in DECISIONS.md,gapexercised REQs logged as findings,spec-driven updates re-examine mapped scenarios. _Check:_ T107 (new).
-- §10: Deduplicated independent verification adversarial rounds — replaced 5hardcoded breakage attempts with random selection of blocking Gauntlet sub-workflows spanning ≥3 REQ categories, preserving cross-model value without shadow-Gauntlet drift.
+- §6.6: Added convergePatternBuffer handshake — failures mapped to convergence metrics,re-enter Phase 2 for affected metrics only. Replaced implicit "feed back" with structured coupling.
+- New REQ-108: Pattern Buffer traceability — sub-workflow-to-REQ mapping recorded in DECISIONS.md,gapexercised REQs logged as findings,spec-driven updates re-examine mapped scenarios. _Check:_ T107 (new).
+- §10: Deduplicated independent verification adversarial rounds — replaced 5hardcoded breakage attempts with random selection of blocking Pattern Buffer sub-workflows spanning ≥3 REQ categories, preserving cross-model value without shadow-Pattern Buffer drift.
 - Version: Root bumped to 2026.08.06; dnd5e reference propagated.
 
 ## 2026-08-05 — README restructure: feature-driven, benefit-first
@@ -2019,7 +2026,7 @@
   `[STATE_CONFLICT]`.
 - REQ-042: Tightened decision-key identity contract — the `decision` value accepted by
   `respond` is the exact question text from the preceding `[NEED_INPUT]`.
-- Gauntlet S2: Strengthened pass criteria with quick-mode verification, Novel-scoping
+- Pattern Buffer S2: Strengthened pass criteria with quick-mode verification, Novel-scoping
   enforcement, and creation undo checks.
 - T32: Added output completeness checks (starting inventory, Novel-scoping enforcement,
   zeroed-field detection) and REQ-104 citation.
@@ -2094,7 +2101,7 @@
   (Novel interchange), T101 (Novel health), T102 (enrichment staleness).
 - Appendix P (STRIDE): Updated Tampering row — checksum field mitigates
   previously flagged gap.
-- Gauntlet S17: Rewritten for multi-novel switch/end/confirm cycle.
+- Pattern Buffer S17: Rewritten for multi-novel switch/end/confirm cycle.
 - README: Updated "Playing a Novel" section with switch_novel, end_novel
   confirmation, export_novel, and health checks.
 
@@ -2105,7 +2112,7 @@
 - §6.2: Added U1–U2 intake questions for Update job. Q0 options list now
   includes `update`.
 - §6.7: Delta classes (Patch/Minor/Major) with scoped workflows —
-  wording-only changes skip the Gauntlet.
+  wording-only changes skip the Pattern Buffer.
 - §6.7: Gap audit method — comparison surfaces (tools/list, resources/list,
   prompts/list, spec_health, REQ-032, state model) without prescribing steps.
 - §6.7: Changed code paths redefined — all blocking scenarios always re-run;
@@ -2121,7 +2128,7 @@
 - README: "Point the Build job" → "Run the Update job" for spec-driven update
   flow.
 
-## 2026-08-05 — Gauntlet improvements (10 recommendations from deep research)
+## 2026-08-05 — Pattern Buffer improvements (10 recommendations from deep research)
 
 - §6.6: Concretized S15 (stress and recovery) into four sub-scenarios — S15a
   (concurrent sessions), S15b (corrupted state file), S15c (rapid persona
@@ -2132,7 +2139,7 @@
   Blocking.
 - §6.6: Added S21 (lorebook interchange) — round-trips `export_lorebook` and
   `import_lorebook` through dry-run, merge, and replace modes. Blocking.
-- §6.6: Renumbered old S20 (campaign endurance) to S22. Gauntlet scenario
+- §6.6: Renumbered old S20 (campaign endurance) to S22. Pattern Buffer scenario
   count increased from 20 to 22 across spec, README, DECISIONS.md, Gate 5,
   and `spec_health`.
 - §6.6: Elevated S2 (character creation) to blocking — a server that cannot
@@ -2144,14 +2151,14 @@
   simplest valid input, pass criterion covers crashes, hangs, and unexpected
   error codes.
 - §6.6: Added S22 timeout budget (10 minutes wall-clock; 3 consecutive
-  exceedances trigger scope re-evaluation) and global Gauntlet budget
+  exceedances trigger scope re-evaluation) and global Pattern Buffer budget
   (60 minutes wall-clock with per-scenario timings).
 - §6.6, §8: Updated exit criteria and Gate 5 blocking list to include new
   blocking scenarios (S2, S20, S21, S22) with parenthetical labels.
-- dnd5e: Fixed `lastGauntlet` not set at construction (was `new Date()` in
-  constructor — now absent until Gauntlet execution). Added
-  `gauntletScenariosPassed` field to `BuildFingerprint`. `spec_health` reports
-  "completed N/22" or "pending 22 scenarios" depending on `lastGauntlet`
+- dnd5e: Fixed `lastPatternBuffer` not set at construction (was `new Date()` in
+  constructor — now absent until Pattern Buffer execution). Added
+  `patternBufferScenariosPassed` field to `BuildFingerprint`. `spec_health` reports
+  "completed N/22" or "pending 22 scenarios" depending on `lastPatternBuffer`
   presence.
 
 ## 2026-08-05 — Enrich job spec improvements (12 recommendations)
@@ -2214,18 +2221,18 @@
   file manifest; missing or empty files are convergence findings.
 - §6.5: Cross-model audit now records `single-model-audit` annotation in DECISIONS.md
   when only one model is available — informational, not blocking.
-- §6.6: Defined improvement measurement for Gauntlet cycles — fewer total assertion
+- §6.6: Defined improvement measurement for Pattern Buffer cycles — fewer total assertion
   failures or at least one previously-blocking scenario downgraded to non-blocking.
   Replaced "2 cycles without improvement" with "2 stalled cycles" throughout.
-- §6.6: Split Gauntlet S14 (edge cases) into S14a–S14h — empty strings, boundary HP
+- §6.6: Split Pattern Buffer S14 (edge cases) into S14a–S14h — empty strings, boundary HP
   (zero/max), rapid calls, ambiguous aliases, unknown decisions, seed replay, and
   spec_health persona filtering — each with its own pass criterion.
-- §6.6: Reduced Gauntlet S20 (campaign endurance) from 50 combat rounds/5
+- §6.6: Reduced Pattern Buffer S20 (campaign endurance) from 50 combat rounds/5
   confrontations to 30 rounds/3 confrontations with proportional NPC churn and audit
   log threshold (≥100) — same structural coverage, lower execution cost.
-- §6.6: Added structured encoding paragraph — builder encodes Gauntlet scenarios as
+- §6.6: Added structured encoding paragraph — builder encodes Pattern Buffer scenarios as
   `{scenario_id, objective, blocking, steps}` records for mechanical consumption;
-  dnd5e Gauntlet fixture is reference implementation.
+  dnd5e Pattern Buffer fixture is reference implementation.
 
 ## 2026-08-05 — Convert job spec refinements (6 recommendations)
 
@@ -2322,7 +2329,7 @@
   `graph-deps`, `spec-health-trends`, `validate:traceability`. Updated `check`
   pipeline to include `scan-ambiguity`.
 - README: Contribute section expanded with analysis suite table, STRIDE reference,
-  and Gauntlet scenario count corrected (19 → 20).
+  and Pattern Buffer scenario count corrected (19 → 20).
 - AGENTS.md: layer map updated — 3 new appendices (now A–P, was A–O), 5 new scripts,
   spec headings revised to reflect fault trees and red-team discipline.
 
@@ -2343,7 +2350,7 @@
 - §5: REQ-092 amended to require atomic writes and backup retention.
 - §6.5: Convergence confidence thresholds tiered by ruleset complexity
   (Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70%).
-- §6.6: Gauntlet scenario S20 added (50-round campaign endurance with state
+- §6.6: Pattern Buffer scenario S20 added (50-round campaign endurance with state
   accumulation and memory checks). Scenario count: 19 → 20. S20 added to
   blocking scenarios list.
 - §7.1: Slug safety rules — Windows reserved names and 240-char path limits.
@@ -2399,7 +2406,7 @@
 - §6.5: Complexity-adjusted confidence thresholds — builder may lower confidence
   bar (floor 70%) for rulesets exceeding 200 indexed items, documented in
   DECISIONS.md (5).
-- §6.6: Gauntlet assertion compression — periodic audit of accumulated regression
+- §6.6: Pattern Buffer assertion compression — periodic audit of accumulated regression
   assertions removes subsumed or gate-duplicative entries.
 - REQ-025: spec_health gains convergence_summary section (per-activity cycles,
   findings, residual gaps). T15 description updated. Absent when build incomplete.
@@ -2415,12 +2422,12 @@
   source material). The ASCII renderer and `format` parameter on
   `character_sheet` are now Build baselines (§6.4).
 - Specification: 4 jobs → 3 jobs. Deleted §11.2, S1–S3 intake questions, and
-  cross-job deduplication for Sheet. Updated §6.6 and §8 Gauntlet references.
+  cross-job deduplication for Sheet. Updated §6.6 and §8 Pattern Buffer references.
 - README: "Extend with Enrich and Sheet" → "Extend with Enrich"; removed
   Sheet-specific prose.
 - AGENTS.md: §11 layer map updated.
 
-## 2026-08-05 — dnd5e REQ-098 update + Gauntlet (Build, Enrich, Sheet)
+## 2026-08-05 — dnd5e REQ-098 update + Pattern Buffer (Build, Enrich, Sheet)
 
 - dnd5e v1.3.0: 14 gap dispositions resolved across Build, Enrich, and Sheet
   jobs. Core fixes — `[WARNING]`/`[PARTIAL]`/`[RULE_VIOLATION]`/`[UNIMPLEMENTED]`
@@ -2428,19 +2435,19 @@
   11 new tools, enriched `spec_health` with fingerprint fields and novel listing.
 - Enrich job (`src/enrichment.ts`): 5 voice examples, 10 lore templates,
   10 action patterns, 20 guidance items, 11 adventure advice items.
-- Gauntlet: all 19 scenarios pass (was 16). S17 (novel lifecycle), S18 (novel
+- Pattern Buffer: all 19 scenarios pass (was 16). S17 (novel lifecycle), S18 (novel
   isolation), and S19 (setup/encounters) implemented. S1 sweep covers 54 tools.
   All 7 blocking scenarios pass.
-- §6.6: Added verification principle — Gauntlet scenarios verify state through
+- §6.6: Added verification principle — Pattern Buffer scenarios verify state through
   tool-observable surfaces, not raw state file reads. Gate 4 tests the on-disk
   format; Gate 5 tests observable behavior. S5 and S17 clarified; T72 tagged as
   Gate 4 format test with cross-reference to the verification principle.
 
-## 2026-08-05 — v1.4 "Gauntlet"
+## 2026-08-05 — v1.4 "Pattern Buffer"
 
-- OCE (Operational Confidence Exercise) renamed to "The Gauntlet" across the
+- OCE (Operational Confidence Exercise) renamed to "The Pattern Buffer" across the
   specification. Promoted to Gate 5 — both a Build completion requirement and an
-  independently runnable verification gate. The Gauntlet must re-run after any
+  independently runnable verification gate. The Pattern Buffer must re-run after any
   server code change: Enrich, Sheet, spec-driven updates, or manual edits.
 - Specification-driven development philosophy surfaced in the spec and README.
   The Mission (§1) now states that the specification is the permanent artifact
@@ -2448,17 +2455,17 @@
   as the reader's long-term investment — the server is rebuilt whenever the spec
   changes, and everything the reader creates survives every rebuild.
 
-## 2026-08-05 — OCE renamed to Gauntlet, promoted to Gate 5
+## 2026-08-05 — OCE renamed to Pattern Buffer, promoted to Gate 5
 
-- §6.6: "Operational Confidence Exercise (OCE)" renamed to "The Gauntlet"
+- §6.6: "Operational Confidence Exercise (OCE)" renamed to "The Pattern Buffer"
   throughout the spec, README, and CHANGELOG.
-- §6.6: added independent invocation trigger — the Gauntlet re-runs after any
+- §6.6: added independent invocation trigger — the Pattern Buffer re-runs after any
   server code change (Enrich, Sheet, spec-driven updates, manual edits).
-- §8: Gate 5 — The Gauntlet added to verification gates. The Gauntlet is both a
+- §8: Gate 5 — The Pattern Buffer added to verification gates. The Pattern Buffer is both a
   Build completion requirement and an independently runnable gate.
 - README: rebuild-from-spec feature clarified in "Build your own game server"
-  section; six verification gates now including the Gauntlet.
-- `spec_health` field `last_oce` renamed to `last_gauntlet` (breaking change for
+  section; six verification gates now including the Pattern Buffer.
+- `spec_health` field `last_oce` renamed to `last_pattern_buffer` (breaking change for
   existing servers — dnd5e implementation pending).
 
 ## 2026-08-05 — Spec compression and philosophy hardening

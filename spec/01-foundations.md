@@ -171,7 +171,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
-| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
+| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
@@ -310,7 +310,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
+| Pattern Buffer         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
@@ -329,7 +329,7 @@ guard, the gap is explicit.
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
 implementation uses it. Builders may select an alternative language, runtime, or
-transport if the resulting server passes every verification workflow and the full Gauntlet
+transport if the resulting server passes every verification workflow and the full Pattern Buffer
 — the alternative choice must be recorded with justification in DECISIONS.md (2).
 _Check:_ T92.
 

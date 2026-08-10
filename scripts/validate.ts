@@ -632,18 +632,18 @@ function checkStaleGateReferences(text: string): string[] {
   return issues;
 }
 
-function checkGauntletCoverageMap(text: string, reqIndex: Map<string, string>): string[] {
+function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, string>): string[] {
   const issues: string[] = [];
 
-  const coverageStart = text.indexOf("**REQ Gauntlet coverage map.**");
+  const coverageStart = text.indexOf("**REQ Pattern Buffer coverage map.**");
   if (coverageStart === -1) {
-    issues.push("REQ Gauntlet coverage map not found in §6.6");
+    issues.push("REQ Pattern Buffer coverage map not found in §6.6");
     return issues;
   }
 
   const coverageEnd = text.indexOf("| REQ-002", coverageStart);
   if (coverageEnd === -1) {
-    issues.push("REQ Gauntlet coverage map table not found");
+    issues.push("REQ Pattern Buffer coverage map table not found");
     return issues;
   }
 
@@ -654,7 +654,7 @@ function checkGauntletCoverageMap(text: string, reqIndex: Map<string, string>): 
   }
 
   if (mapReqs.size === 0) {
-    issues.push("REQ Gauntlet coverage map contains no REQ entries");
+    issues.push("REQ Pattern Buffer coverage map contains no REQ entries");
     return issues;
   }
 
@@ -708,13 +708,13 @@ function checkGauntletCoverageMap(text: string, reqIndex: Map<string, string>): 
 
   for (const r of [...sectionReqs].sort()) {
     if (!mapReqs.has(r)) {
-      issues.push(`ERROR: ${r} in §5.5/5.6/5.7 but missing from Gauntlet coverage map`);
+      issues.push(`ERROR: ${r} in §5.5/5.6/5.7 but missing from Pattern Buffer coverage map`);
     }
   }
 
   for (const r of [...mapReqs].sort()) {
     if (!reqIndex.has(r)) {
-      issues.push(`WARNING: ${r} in Gauntlet coverage map but not in Appendix E`);
+      issues.push(`WARNING: ${r} in Pattern Buffer coverage map but not in Appendix E`);
     }
   }
 
@@ -1077,10 +1077,10 @@ function main(): void {
     }
   }
 
-  const gauntletCoverageIssues = checkGauntletCoverageMap(text, reqIndex);
-  if (gauntletCoverageIssues.length > 0) {
-    console.log("\n=== GAUNTLET REQ COVERAGE MAP ===\n");
-    for (const issue of gauntletCoverageIssues) {
+  const patternBufferCoverageIssues = checkPatternBufferCoverageMap(text, reqIndex);
+  if (patternBufferCoverageIssues.length > 0) {
+    console.log("\n=== PATTERN BUFFER REQ COVERAGE MAP ===\n");
+    for (const issue of patternBufferCoverageIssues) {
       if (issue.startsWith("ERROR")) {
         console.log(issue);
         errors++;
@@ -1090,7 +1090,7 @@ function main(): void {
       }
     }
   } else {
-    console.log("PASS: Gauntlet REQ coverage map complete");
+    console.log("PASS: Pattern Buffer REQ coverage map complete");
   }
 
   const couplingIssues = checkCouplingCompleteness(text);

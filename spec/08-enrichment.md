@@ -2,8 +2,9 @@
 
 _This workflow does not gate the Definition of Done. It extends the Build workflow._
 
-After Enrich completes, re-run the Gauntlet blocking sub-workflows (§6.6 exit criteria) and verify no regression. A
-previously-passing blocking sub-workflow that now fails is a defect that must be resolved
+After Enrich completes, re-run the Pattern Buffer blocking sub-workflows (§6.6 exit
+criteria) and verify no regression. A previously-passing blocking sub-workflow that now
+fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Community enrichment

@@ -10,7 +10,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the ruleset. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
-| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet sub-workflows. | §6.7, §6.2      |
+| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Pattern Buffer sub-workflows. | §6.7, §6.2      |
 
 ### 6.2 Intake
 
@@ -116,10 +116,10 @@ configuration is recorded.
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
 verification on every file, cross-model auditing when available, and the full
-Gauntlet (§6.6). The Gauntlet gates both modes. `quick-build` mode narrows the
+Pattern Buffer (§6.6). The Pattern Buffer gates both modes. `quick-build` mode narrows the
 overhead rituals: skips the assumption audit and auditor pre-flight, scopes
 post-write verification to critical files (DECISIONS.md, MCP client config,
-on-disk Novel state), and accepts same-model audits. The Gauntlet still gates
+on-disk Novel state), and accepts same-model audits. The Pattern Buffer still gates
 — any build that creates or modifies tools must pass it. Quick-build mode is for
 inner-loop iteration; the server is runnable but not handoff-ready. A
 quick-mode build records a `quick-build` annotation in DECISIONS.md (6).
@@ -750,53 +750,53 @@ accuracy). For ruleset-free builds consuming a specific holonovel package versio
 the holonovel convergence manifest (REQ-245) takes precedence over the convergence
 cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
-### 6.6 The Gauntlet
+### 6.6 The Pattern Buffer
 
-*Prepare:* Load files from `build-phase-map.md` Gauntlet row: 03-build.md §6.6,
+*Prepare:* Load files from `build-phase-map.md` Pattern Buffer row: 03-build.md §6.6,
 05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
 ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
-builder runs the Gauntlet. Fixture workflows (G2 and G3 — see §8) are
+builder runs the Pattern Buffer. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
-independent of Gauntlet timing. The Gauntlet exercises the built server with
+independent of Pattern Buffer timing. The Pattern Buffer exercises the built server with
 AI-simulated badges.in realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
-**Convergence handshake.** After each Gauntlet execution, the builder maps
+**Convergence handshake.** After each Pattern Buffer execution, the builder maps
 every failure to the convergence-loop metric it affects per REQ-208. The builder then
 re-enters Phase 2 of the convergence loop (§6.5) for only those metrics,
-corrects the root cause, and re-runs the Gauntlet — up to 2 Gauntlet
-iterations total. Each Gauntlet-triggered re-entry receives a fresh 3-attempt
+corrects the root cause, and re-runs the Pattern Buffer — up to 2 Pattern Buffer
+iterations total. Each Pattern Buffer-triggered re-entry receives a fresh 3-attempt
 budget for the affected metric, independent of any previous Phase 2 iterations
 for that metric. The re-entry budget is recorded in DECISIONS.md (6) alongside
 the failure mapping. The re-entry's no-delta detection (§6.5.1) applies
 independently within the re-entry budget. If a metric that converged in Phase 2
-is re-entered via Gauntlet and fails to re-converge within its re-entry budget,
+is re-entered via Pattern Buffer and fails to re-converge within its re-entry budget,
 the builder records the residual gap in DECISIONS.md (5) and proceeds — the
-original convergence is not invalidated, but the Gauntlet-surfaced defect
+original convergence is not invalidated, but the Pattern Buffer-surfaced defect
 persists as a known limitation. The mapping is recorded in DECISIONS.md (6) alongside each
-failure artifact. A Gauntlet failure that maps to no convergence metric under
+failure artifact. A Pattern Buffer failure that maps to no convergence metric under
 REQ-208 is logged as a process-compliance finding. The builder traces the root cause: if the
 failure originates from an extraction defect (a misread rule, a miscategorized
 action, a missing conceptual term), the builder records the specific Phase 1
 metric affected and re-enters Phase 1 for only that metric's domain — following
 the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
-Gauntlet failures that re-enter Phase 1 count against the Phase 1 iteration
+Pattern Buffer failures that re-enter Phase 1 count against the Phase 1 iteration
 budget (3 attempts per metric-targeted step) independently of Phase 2 budgets.
 If the root cause is a construction defect that maps to no existing Phase 2
 metric, the builder re-enters Phase 2 with all metrics in scope and records the
 novel defect class in DECISIONS.md (6) with a proposed metric mapping for
 future builds.
 
-**Independent invocation.** The Gauntlet must also be re-run whenever server source
+**Independent invocation.** The Pattern Buffer must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
-fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
+fails is a defect. Pattern Buffer results are recorded in DECISIONS.md (6).
 
 **Convergence-loop-driven scoping.** When the convergence loop (§6.5) exits with all
 metrics within their tiered thresholds and the ruleset content hash (REQ-044)
-matches the prior build, the subsequent Gauntlet run SHALL skip
+matches the prior build, the subsequent Pattern Buffer run SHALL skip
 mechanics-fidelity sub-workflows — those whose failures would be
 extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
@@ -804,23 +804,23 @@ S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
 sub-workflows — all others (S1, S5, S6, S10–S31) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
-to both the initial build-time Gauntlet and subsequent re-runs after enrichment
-or spec-driven updates. The operator MAY override with `--full-gauntlet` to force
+to both the initial build-time Pattern Buffer and subsequent re-runs after enrichment
+or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
 all sub-workflows.
 
-**Workflow completion.** The Build workflow is not complete until the Gauntlet
-exits with all Gauntlet sub-workflows passing or the builder records 2
+**Workflow completion.** The Build workflow is not complete until the Pattern Buffer
+exits with all Pattern Buffer sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
-ruleset-facing verification workflows (G0 step 2 and G4) pass. The Gauntlet
+ruleset-facing verification workflows (G0 step 2 and G4) pass. The Pattern Buffer
 gates both `production` and `quick-build` builds — any build that creates or modifies
-tools must pass the Gauntlet before marking complete. In `production` mode
+tools must pass the Pattern Buffer before marking complete. In `production` mode
 the build additionally requires the assumption audit (REQ-101), the audit steps
 with auditor pre-flight (§6.5), full post-write verification on every file
 (§6.5), and cross-model auditing when available (§6.5.2). These are optional in
 `quick-build` mode; a quick-build-mode build records a `quick-build` annotation in
 DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
-Marking a workflow complete without a passing Gauntlet is a process defect. The
-Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
+Marking a workflow complete without a passing Pattern Buffer is a process defect. The
+Pattern Buffer findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts up to two MCP client connections to the same server process
 sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-badge interaction
@@ -831,17 +831,17 @@ calls between the two connections when simulating cross-badge turn-taking. Every
 states its objective, the tool calls to make, which badge calls each, and the pass
 criterion.
 
-**Verification principle.** Gauntlet sub-workflows verify state through tool-observable
+**Verification principle.** Pattern Buffer sub-workflows verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `badge_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
 on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
-is an implementation detail. A Gauntlet sub-workflow that reads raw state files to
+is an implementation detail. A Pattern Buffer sub-workflow that reads raw state files to
 verify behavior observable through tools will become stale when the state model
 changes during a spec-driven update (REQ-098). Direct file reads remain valid in
 S17 (file removal) and S15 (corruption) where the pass criterion is a
 file-system-level assertion.
 
-**Gauntlet sub-workflows.** The builder must execute all sub-workflows. A sub-workflow passes when every
+**Pattern Buffer sub-workflows.** The builder must execute all sub-workflows. A sub-workflow passes when every
 assertion in its pass criterion holds. A failure is recorded as a finding in
 DECISIONS.md (6).
 
@@ -1016,8 +1016,8 @@ four items is incomplete and blocks handoff.
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
 
-**REQ-108 — Gauntlet traceability.** The builder must ensure at least one
-Gauntlet sub-workflow exercises each requirement in §5.5 (Badges and Access),
+**REQ-108 — Pattern Buffer traceability.** The builder must ensure at least one
+Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access),
 §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and
 the error contracts of REQ-002 (Error taxonomy). The builder records a
 sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
@@ -1026,12 +1026,12 @@ changes during a spec-driven update (REQ-098), the builder re-examines every
 sub-workflow mapped to it. Gaps — a REQ in the covered sections with no mapped
 sub-workflow — are logged as process-compliance findings and must be resolved
 before handoff. New REQs added to the covered sections during a spec revision
-require the builder to propose at least one new Gauntlet sub-workflow
+require the builder to propose at least one new Pattern Buffer sub-workflow
 exercising their contract; the proposal is a finding, not a blocker. _Check:_
 T107.
 
 **REQ-141 — Input-validation convergence metric.** The convergence handshake
-in §6.6 must map Gauntlet failures to four convergence metrics, adding
+in §6.6 must map Pattern Buffer failures to four convergence metrics, adding
 "input-validation gap" to the existing three (MUST-coverage gap,
 mechanics-fidelity defect, process-compliance omission). A sub-workflow
 failure attributable to incorrect input handling — malformed parameters
@@ -1046,7 +1046,7 @@ An input-validation failure is recorded in DECISIONS.md (6) with the
 failing input value, the error category returned (or absent), and the
 expected error category per REQ-002.
 
-This metric covers Gauntlet sub-workflow S14 (Edge cases) and any other
+This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
 
@@ -1061,7 +1061,7 @@ is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
 
-**Global budget.** The full Gauntlet run of all sub-workflows must complete
+**Global budget.** The full Pattern Buffer run of all sub-workflows must complete
 within 60 minutes of wall-clock time. A run exceeding the budget is
 recorded with actual duration and per-sub-workflow timings in
 DECISIONS.md (6). The operator may increase the budget for rulesets
@@ -1072,39 +1072,39 @@ as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The pr
 descriptions above are canonical; the structured encoding is a lossless transcription.
 
 The structured encoding SHALL be accompanied by a single runnable test harness
-(`scripts/run_gauntlet.ts`) that reads the encoded sub-workflow records and executes
+(`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes
 each against the live MCP server. The harness SHALL: (a) start the server process,
 (b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion
 against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
 Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
 non-blocking failures per the Exit criteria. The harness enables operator re-execution
-of the full Gauntlet without AI builder reasoning — re-runs after enrichment, after
+of the full Pattern Buffer without AI builder reasoning — re-runs after enrichment, after
 spec-driven updates, or after code changes consume zero AI tokens. The harness output
-SHALL include the Gauntlet execution timestamp and per-sub-workflow verdicts with
+SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
 failure details when applicable. The harness is recorded as a handoff artifact
 (§9 H13a).
 
 **Convergence integration.** The convergence handshake (see Timing block above)
-governs the Gauntlet ↔ Phase 2 feedback loop.
+governs the Pattern Buffer ↔ Phase 2 feedback loop.
 
 **Improvement** is measured per iteration: fewer total assertion failures, or at
 least one blocking sub-workflow downgraded to non-blocking. Two stalled iterations is
 a stop; residual failures are logged in DECISIONS.md (5).
 
-**Regression assertions.** A bug discovered via Gauntlet failure and fixed via convergence
+**Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence
 gets at least one new regression assertion recorded in DECISIONS.md (6).
 
-**Assertion compression.** After spec-driven updates or five Gauntlet iterations, audit
+**Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit
 accumulated regression assertions for redundancy. Subsumed assertions are removed
 and logged in DECISIONS.md (6) with the subsuming citation.
 
-**Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
+**Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
-A build with more than 3 unresolved non-blocking Gauntlet failures SHALL not be
+A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be
 declared handoff-ready without explicit operator acknowledgment. The count of
 unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
 a per-failure severity assessment. The operator may override this ceiling by
@@ -1112,7 +1112,7 @@ recording an acceptance entry in DECISIONS.md (5). This rule applies at handoff
 verification time (§9 H13) — non-blocking failures accumulated and logged during
 the build process are re-counted at handoff.
 
-**REQ-142 — Blocking classification principle.** A Gauntlet sub-workflow is
+**REQ-142 — Blocking classification principle.** A Pattern Buffer sub-workflow is
 classified as blocking when it exercises a correctness property whose
 failure would make the server unsafe to use in any play session — state
 loss, badge-boundary violation, data corruption, unrecoverable crash, or
@@ -1129,27 +1129,27 @@ When a sub-workflow's classification changes, the builder records the
 trigger — a spec revision, a discovered defect class, or an operator
 override. _Check:_ T164.
 
-**REQ-208 — Gauntlet convergence metric mapping.** The builder SHALL
-classify each Gauntlet failure by applying these rules: a failure from a
+**REQ-208 — Pattern Buffer convergence metric mapping.** The builder SHALL
+classify each Pattern Buffer failure by applying these rules: a failure from a
 missing tool or resource maps to MUST-coverage; a failure from incorrect
 tool output or behavior maps to mechanics-fidelity; a failure from missing
 or stale pre-build answers or verification records maps to
 process-compliance; a failure from incorrect input handling maps to
 input-validation (REQ-141). When a failure matches multiple rules, the most
 specific rule applies. The classification rule applied SHALL be recorded
-alongside each mapping in DECISIONS.md (6). A Gauntlet failure that maps to
+alongside each mapping in DECISIONS.md (6). A Pattern Buffer failure that maps to
 no convergence metric under these rules is logged as a process-compliance
 finding — the builder records the novel defect class in DECISIONS.md (6)
 with a proposed metric mapping for future builds. _Check:_ T250.
 
 **Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
-selects Gauntlet sub-workflows based on which surfaces changed — not the blanket
+selects Pattern Buffer sub-workflows based on which surfaces changed — not the blanket
 set. The gap audit identifies the changed tools, resources, and prompts; the
 builder maps each to scenarios via the table below. A sub-workflow is selected when
 any surface it exercises appears in the gap audit's implemented-disposition rows.
 S1 is always selected when new tools are added or existing tool signatures changed.
 
-| Changed surface                                             | Gauntlet scenarios selected |
+| Changed surface                                             | Pattern Buffer scenarios selected |
 |-------------------------------------------------------------|-----------------------------|
 | Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S12, S22 |
 | Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
@@ -1174,15 +1174,15 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
+spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Pattern Buffer run.
 
-**REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
+**REQ Pattern Buffer coverage map.** The following table maps every requirement in §5.5
 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
-Performance), and REQ-002 (Error taxonomy) to at least one Gauntlet sub-workflow
+Performance), and REQ-002 (Error taxonomy) to at least one Pattern Buffer sub-workflow
 that exercises its contract. This table is normative — it ships with the
 specification and is mechanically verified by `scripts/validate.ts`. When a spec
 revision adds a new REQ to these sections, the maintainer SHALL add at least one
-row mapping it to a Gauntlet sub-workflow (existing or new). When no existing
+row mapping it to a Pattern Buffer sub-workflow (existing or new). When no existing
 sub-workflow exercises the new REQ's contract, the maintainer SHALL add a new
 sub-workflow. Gaps detected by validation are errors — they block assembly.
 
@@ -1276,60 +1276,60 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-333 | S16 | Story journal to lore promotion |
 | REQ-334 | S15 | Novel archiving |
 
-**Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
+**Fingerprint-driven Pattern Buffer scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
-prior successful Gauntlet execution — recorded in DECISIONS.md (6) with its
-Gauntlet fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
-SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
+prior successful Pattern Buffer execution — recorded in DECISIONS.md (6) with its
+Pattern Buffer fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
+SHALL skip the Pattern Buffer sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
-The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
+The builder records `cached — Pattern Buffer fingerprint match` in DECISIONS.md (6).
 
 **Per-sub-workflow surface fingerprints.** Each sub-workflow's structured encoding
 SHALL carry a `surface_hash` — a SHA-256 of the sorted, concatenated tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
 specification version has advanced but the ruleset hash is unchanged, the builder
 SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
-Sub-workflows whose `surface_hash` matches the prior Gauntlet execution SHALL be
+Sub-workflows whose `surface_hash` matches the prior Pattern Buffer execution SHALL be
 skipped individually — recorded as `cached — surface hash match for S<N>` in
 DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
-The full 29-sub-workflow Gauntlet is not required when the
+The full 29-sub-workflow Pattern Buffer is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
-**Gauntlet results manifest.** The builder SHALL record a `gauntlet_manifest`
+**Pattern Buffer results manifest.** The builder SHALL record a `pattern_buffer_manifest`
 alongside the build fingerprint (REQ-065): per-sub-workflow pass/fail status,
 surface hash, and execution timestamp, keyed to spec version + ruleset hash.
 When the spec version and ruleset hash both match a prior manifest entry, all
-sub-workflow results are reused — recorded as `cached — gauntlet manifest match`
+sub-workflow results are reused — recorded as `cached — pattern buffer manifest match`
 in DECISIONS.md (6) — instead of re-executing any sub-workflow. When the spec
 version has advanced, sub-workflows with unchanged surface hashes carry forward
 their prior results per the per-sub-workflow fingerprint rule; sub-workflows with
 changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
-The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
+The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
 intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
-#### Holonovel Gauntlet
+#### Holonovel Pattern Buffer
 
 The Holonovel server — the `holonovel` npm package (ruleset-free per §6.2) — is
-verified through a separate Gauntlet of world-model-specific sub-workflows. The Holonovel
-Gauntlet runs when the holonovel package is built and before it is published, as part of
+verified through a separate Pattern Buffer of world-model-specific sub-workflows. The Holonovel
+Pattern Buffer runs when the holonovel package is built and before it is published, as part of
 the holonovel package's own verification. It is not part of TTRPG builds — TTRPG servers
 consume the published holonovel package as a build-time dependency and skip the Holonovel
-Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
+Pattern Buffer sub-workflows. The same Method, Verification principle, Failure artifacts,
 Budget, and Structured encoding contracts apply (§6.6), including the executable
 test harness mandate — the holonovel package build SHALL produce a runnable harness
-(`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
+(`scripts/run_pattern_buffer.ts`) per the §6.6 Structured encoding clause. Blocking
 sub-workflows SHALL pass; non-blocking failures are recorded as accepted
 limitations.
 
 **Version-bound results.** When the holonovel package version (B10) matches a
-prior Holonovel Gauntlet execution recorded in DECISIONS.md (6), and the
+prior Holonovel Pattern Buffer execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
-results — recording `cached — holonovel vX.Y.Z Gauntlet results` in DECISIONS.md
+results — recording `cached — holonovel vX.Y.Z Pattern Buffer results` in DECISIONS.md
 (6) — instead of re-executing the 13 sub-workflows. A specification version
-advance SHALL trigger a fresh Holonovel Gauntlet execution. The holonovel convergence
-manifest (REQ-245) carries pre-computed Gauntlet results for the version it
+advance SHALL trigger a fresh Holonovel Pattern Buffer execution. The holonovel convergence
+manifest (REQ-245) carries pre-computed Pattern Buffer results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
 
@@ -1337,13 +1337,13 @@ records.
 encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
 specification version has advanced but the holonovel package version is unchanged,
-sub-workflows whose `surface_hash` matches the prior Holonovel Gauntlet execution
+sub-workflows whose `surface_hash` matches the prior Holonovel Pattern Buffer execution
 SHALL be skipped individually — recorded as `cached — surface hash match for
 I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
 re-execute. The surface-to-scenario mapping below governs which sub-workflows
 are selected for changed surfaces.
 
-**Holonovel Gauntlet sub-workflows.**
+**Holonovel Pattern Buffer sub-workflows.**
 
 1. **Parser command sweep** — call every registered parser command (look, go
    north/east/south/west, examine, take, drop, open, close, inventory, wait)
@@ -1465,9 +1465,9 @@ are selected for changed surfaces.
     fixed item returns `[RULE_VIOLATION]`. Assert `command("ask nobody about
     crypt")` with no matching NPC returns `[WARNING]`. (Blocking.)
 
-**Holonovel Gauntlet surface-to-scenario mapping.**
+**Holonovel Pattern Buffer surface-to-scenario mapping.**
 
-| Changed surface                                    | Holonovel Gauntlet scenarios |
+| Changed surface                                    | Holonovel Pattern Buffer scenarios |
 |----------------------------------------------------|---------------------------|
 | holonovel package changed (new version)     | All (1–18)                |
 | Room navigation, parser commands                   | 1, 2, 8, 17                |
@@ -1484,7 +1484,7 @@ are selected for changed surfaces.
 | Parser command vocabulary                          | 17                        |
 | Narrative verbs                                    | 18                        |
 
-**REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
+**REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
@@ -1505,14 +1505,14 @@ iterations, total token cost, REQ coverage, and final disposition.
 entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
 _Check:_ T-new-301.
 
-**REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Gauntlet
+**REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Pattern Buffer
 sub-workflows SHALL scope their verification to changed sections. Sub-workflows that
 verify unchanged sections only SHALL be skipped with a `[section unchanged — re-validating
 from previous build]` annotation. Cross-section sub-workflows SHALL run in full. Skipped
 sub-workflows carry the `[validated-by-prior-build]` disposition.
 
 *Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
-skips Gauntlet sub-workflows that verify unchanged sections and records the skip.
+skips Pattern Buffer sub-workflows that verify unchanged sections and records the skip.
 _Check:_ T-new-303.
 
 ### 6.7 Spec-driven updates
@@ -1528,16 +1528,16 @@ catalog, resource map, prompt list, state model, badge gating, and behavioral
 contracts; produce a documented plan with gap dispositions (implemented / deferred /
 waived) each citing the relevant REQ; implement changes with passing verification
 workflows; restart the MCP server process and confirm `spec_health` reports the updated
-specification version; re-run only those Gauntlet sub-workflows that exercise the tools, resources,
+specification version; re-run only those Pattern Buffer sub-workflows that exercise the tools, resources,
 or prompts identified as changed by the gap audit. The builder selects scenarios
 from the surface-to-scenario mapping in §6.6: a sub-workflow is selected when any
 tool, resource, or prompt it exercises appears in the gap audit's
 implemented-disposition rows. Sub-workflows not exercised by the changed surfaces
 are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
-implement any unimplemented Gauntlet sub-workflows from §6.6; and
+implement any unimplemented Pattern Buffer sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Holonovel Gauntlet sub-workflows (I1–I18, §6.6) are not included in TTRPG
+The Holonovel Pattern Buffer sub-workflows (I1–I18, §6.6) are not included in TTRPG
 spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
@@ -1545,9 +1545,9 @@ is built and published.
 
 | Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
+| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
+| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
+| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Pattern Buffer |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -1581,7 +1581,7 @@ the builder compares the server's live registrations — tool catalog
 (tools/list), resource map (resources/list), prompt list (prompts/list),
 and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
 conventions (§7.4), state model (§7.7), and REQ-032 badge gating. Behavioral
-contracts are verified by Gauntlet re-run. The audit produces one row per identified
+contracts are verified by Pattern Buffer re-run. The audit produces one row per identified
 gap with: the affected surface, the citing REQ, the disposition, and the reason.
 
 **State migration.** When the state model changes, the builder verifies that
@@ -1590,7 +1590,7 @@ state fields present in stored state but absent in the updated model are preserv
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-**Enrichment consistency check.** After the gap audit and before Gauntlet
+**Enrichment consistency check.** After the gap audit and before Pattern Buffer
 re-execution, the builder SHALL scan all enrichment items (ruleset-native and
 community tiers) for references to surfaces identified as changed or removed in the
 gap audit per REQ-228. The builder cross-references: action pattern tool names
@@ -1614,15 +1614,15 @@ gap audit identifies no new surfaces (patch-level change), this step SHALL be
 skipped with a "no new surfaces — skipped" annotation. No web research occurs.
 
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
-budget is exceeded before the Gauntlet passes, the builder reports residual gaps
+budget is exceeded before the Pattern Buffer passes, the builder reports residual gaps
 and the operator chooses: accept the partial update, extend the budget, or revert.
 No budget set → no limit.
 
 _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing its
 relevant REQ and disposition reason. `spec_health` reports the updated specification
-version. Gauntlet sub-workflows selected per the surface-to-scenario mapping in §6.6
+version. Pattern Buffer sub-workflows selected per the surface-to-scenario mapping in §6.6
 pass with zero failures. `spec_health` reports
-`last_spec_review` and `last_gauntlet` fields populated with ISO dates.
+`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates.
 
 **Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
 from the repo URL recorded at build time before beginning the gap audit. The
