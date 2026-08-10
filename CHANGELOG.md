@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-10 — Push pipeline hardening
+
+- Push pipeline now runs spec checks before propagating assembled output
+  to server directories, so failed checks leave a clean working tree instead
+  of half-applied copies and hash writes.
+- Added version sync check to the pipeline — version drift between root
+  package.json and both servers' manifests is now caught before commit.
+- Fixed a hash-overwrite bug where the pipeline replaced every `**Spec
+  hash:**` line in dnd5e-holonovel/DECISIONS.md instead of just the
+  header-level entry, corrupting 11 build record hashes.
+- Extracted server names into a single `SERVERS` variable used throughout
+  the script, replacing four duplicated hardcoded lists.
+- Commit message is now dynamic — reflects whether the spec changed or
+  only server/script files were modified.
+- Renamed ambiguous `FORCE` flag to `SKIP_CONFIRM` for clarity.
+
 ## 2026-08-10 — Integration tightening and token efficiency pass
 
 - Coupling table (§7.7.1a): added standing rules for default badge scope
