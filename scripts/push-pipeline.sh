@@ -22,12 +22,12 @@ set -euo pipefail
 # ── Flag parsing ──
 
 DRY_RUN=false
-FORCE=false
+SKIP_CONFIRM=false
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
-    --yes|-y) FORCE=true ;;
+    --yes|-y) SKIP_CONFIRM=true ;;
     --help|-h)
       echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes]"
       echo ""
@@ -51,6 +51,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+SERVERS=("dnd5e-holonovel" "holonovel")
 
 # ── Preflight: clean working tree ──
 
@@ -71,38 +72,47 @@ fi
 echo -e "${GREEN}=== 1. Assemble spec ===${NC}"
 npm run assemble
 
-# ── 2. Copy spec to server directories ──
+# ── 2. Run spec checks ──
 
-echo -e "${GREEN}=== 2. Copy spec to server directories ===${NC}"
+echo -e "${GREEN}=== 2. Run spec checks ===${NC}"
+npm run check
+
+# ── 3. Copy spec to server directories ──
+
+echo -e "${GREEN}=== 3. Copy spec to server directories ===${NC}"
 npx tsx scripts/spec-propagate.ts
 
-# ── 3. Update stored spec hashes in DECISIONS.md ──
+# ── 4. Update stored spec hashes in DECISIONS.md ──
 
-echo -e "${GREEN}=== 3. Update stored spec hashes in DECISIONS.md ===${NC}"
+echo -e "${GREEN}=== 4. Update stored spec hashes in DECISIONS.md ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
-for dir in dnd5e-holonovel holonovel; do
-  if grep -q '\*\*Spec hash:\*\*' "$dir/DECISIONS.md" 2>/dev/null; then
-    perl -i -pe "s/\\*\\*Spec hash:\\*\\*\\s*[a-f0-9]+/**Spec hash:** $SPEC_HASH/" "$dir/DECISIONS.md"
-    echo "  Updated spec hash in $dir/DECISIONS.md → $SPEC_HASH"
+for server in "${SERVERS[@]}"; do
+  if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
+    perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
+    echo "  Updated spec hash in $server/DECISIONS.md → $SPEC_HASH"
+  else
+    echo -e "${YELLOW}  WARNING: $server/DECISIONS.md missing '**Spec hash:**' line${NC}"
   fi
 done
-
-# ── 4. Run spec checks ──
-
-echo -e "${GREEN}=== 4. Run spec checks ===${NC}"
-npm run check
 
 # ── 5. Typecheck both servers ──
 
 echo -e "${GREEN}=== 5. Typecheck both servers ===${NC}"
-(cd holonovel && npm run typecheck) || { echo -e "${RED}holonovel typecheck FAILED${NC}"; exit 1; }
-(cd dnd5e-holonovel && npm run typecheck) || { echo -e "${RED}dnd5e-holonovel typecheck FAILED${NC}"; exit 1; }
+for server in "${SERVERS[@]}"; do
+  (cd "$server" && npm run typecheck) || { echo -e "${RED}$server typecheck FAILED${NC}"; exit 1; }
+done
 
-# ── 6. Confirm spec-delta sync for both servers ──
+# ── 6. Version sync check ──
 
-echo -e "${GREEN}=== 6. Confirm spec-delta sync ===${NC}"
-npx tsx scripts/spec-delta.ts -- --server dnd5e-holonovel
-npx tsx scripts/spec-delta.ts -- --server holonovel
+echo -e "${GREEN}=== 6. Version sync check ===${NC}"
+npx tsx scripts/version-check.ts
+
+# ── 7. Confirm spec-delta sync for both servers ──
+
+echo -e "${GREEN}=== 7. Confirm spec-delta sync ===${NC}"
+for server in "${SERVERS[@]}"; do
+  npx tsx scripts/spec-delta.ts -- --server "$server"
+done
 
 # ── Dry-run exit ──
 
@@ -113,7 +123,7 @@ fi
 
 # ── Confirmation prompt ──
 
-if ! $FORCE; then
+if ! $SKIP_CONFIRM; then
   echo ""
   read "confirm?Commit, push, and deploy? (y/N) "
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -122,9 +132,9 @@ if ! $FORCE; then
   fi
 fi
 
-# ── 7. Stage and commit ──
+# ── 8. Stage and commit ──
 
-echo -e "${GREEN}=== 7. Stage and commit ===${NC}"
+echo -e "${GREEN}=== 8. Stage and commit ===${NC}"
 git add holonovel.md spec/
 for f in CHANGELOG.md README.md; do
   [[ -f "$f" ]] && git add "$f"
@@ -138,20 +148,27 @@ if git diff --staged --quiet 2>/dev/null; then
 fi
 
 COMMIT_DATE=$(date +%Y-%m-%d)
-git commit -m "Push pipeline $COMMIT_DATE
+if git diff --staged --name-only | grep -q '^holonovel.md$'; then
+  git commit -m "Push pipeline $COMMIT_DATE
 
   Spec assembled, checked, copied to both servers.
   Both servers typechecked, spec-delta confirms sync.
   Stored spec hashes updated in DECISIONS.md."
+else
+  git commit -m "Push pipeline $COMMIT_DATE
 
-# ── 8. Push main ──
+  Servers typechecked, spec-delta confirms sync.
+  No spec changes."
+fi
 
-echo -e "${GREEN}=== 8. Push main ===${NC}"
+# ── 9. Push main ──
+
+echo -e "${GREEN}=== 9. Push main ===${NC}"
 git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
 
-# ── 9. Push wiki ──
+# ── 10. Push wiki ──
 
-echo -e "${GREEN}=== 9. Push wiki ===${NC}"
+echo -e "${GREEN}=== 10. Push wiki ===${NC}"
 WIKI_DIR=".holonovel-state/wiki"
 if [[ -d "$WIKI_DIR/.git" ]]; then
   git -C "$WIKI_DIR" add -A
@@ -165,9 +182,9 @@ else
   echo -e "${YELLOW}  Wiki directory not found, skipping.${NC}"
 fi
 
-# ── 10. Deploy to MCP target ──
+# ── 11. Deploy to MCP target ──
 
-echo -e "${GREEN}=== 10. Deploy to MCP target ===${NC}"
+echo -e "${GREEN}=== 11. Deploy to MCP target ===${NC}"
 DEPLOY_DIR="$HOME/Holonovel-deployed"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
   DEPLOY_PREV=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
@@ -175,7 +192,7 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
   DEPLOY_NEW=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
   if [[ "$DEPLOY_PREV" != "$DEPLOY_NEW" ]]; then
     echo "  Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
-    for server in dnd5e-holonovel holonovel; do
+    for server in "${SERVERS[@]}"; do
       if [[ -d "$DEPLOY_DIR/$server" ]]; then
         (cd "$DEPLOY_DIR/$server" && npm install --quiet && npm run build --if-present)
         echo "    $server: deps and build updated"

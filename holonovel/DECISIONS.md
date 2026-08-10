@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** dec2269ec573b6da2cd6dae8746903132397c12e5a2636b5a3371a23baf5937c
+**Spec hash:** 07a1e9ca8b80367ff04dc120e1464d72d61a233fcf708834ba1f884865290356
 
 ### Holonovel Rebuild — 2026-08-09
 
