@@ -342,7 +342,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321 | 75    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322 | 76    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
@@ -2879,6 +2879,27 @@ kingdom is restored")` moves the vow to resolved. `forsake_vow("other_vow", "Too
 dangerous")` marks it forsaken.
 _Check:_ T-new-286.
 
+**REQ-322 — Vow-countdown coupling.** WHEN `set_vow` creates a vow (REQ-289), THE engine
+SHALL offer a countdown creation suggestion in the `narrative_threads` section of
+`hat_briefing`: the suggestion carries the vow name, a proposed countdown name
+(`vow:<vow_name>`), and the vow's milestone total as the tick count. The GM may accept
+via `respond` to auto-create a `mission`-type countdown linked to the vow. WHEN
+`mark_milestone` advances a vow, if a linked countdown exists with name `vow:<vow_name>`,
+THE engine SHALL advance that countdown by one tick. WHEN a linked countdown fills, the
+countdown fires its completion AND the vow becomes eligible for `resolve_vow`. WHEN
+`resolve_vow` or `forsake_vow` closes a vow, any linked countdown with name
+`vow:<vow_name>` is removed. The coupling is optional — the GM may decline the suggestion
+and manage vows via milestones alone (current behavior). Vow-countdown links SHALL
+survive Novel persistence and SHALL be included in `save_pause_context` captures
+(REQ-232).
+
+*Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a
+countdown suggestion in `hat_briefing`. Accepting creates a 20-tick `mission`-type
+countdown named `vow:Find Crown`. `mark_milestone("Find Crown")` advances both the
+milestone counter and the countdown. Filling the countdown makes the vow eligible for
+`resolve_vow`. `resolve_vow("Find Crown", ...)` removes the countdown.
+_Check:_ T-new-325.
+
 #### Entities, NPCs, and Adventure Content
 
 **REQ-074 — Multi-entity support.** A Novel may contain multiple entities under the
@@ -3206,7 +3227,11 @@ The NPC memory records:
   REQ-307), THE engine SHALL record a memory for what the NPC observed: entity actions,
   dialogue context, and mechanical outcomes (damage dealt, conditions applied, countdowns
   fired). This is scoped to what the NPC could perceive — an NPC in the tavern does not
-  learn what happened in the dungeon.
+  learn what happened in the dungeon. WHEN `record_story` fires in a scene where NPCs are
+  present via `characters_present` (REQ-307), each present NPC SHALL additionally gain a
+  memory fact referencing the journal entry: entry type, summary, and timestamp. This
+  supplements independently witnessed events — NPCs carry both direct observations and
+  journal-noted events they were present for.
 
 - **Party knowledge.** FOR each player entity the NPC has interacted with, THE engine
   SHALL record what the NPC knows: the entity's name, apparent capabilities (class,
@@ -3327,6 +3352,11 @@ group but use the entity's own voice_examples, not NPC-role synthesis.
 
 Format: `Voice directive (<NPC name>, <role>): <voice>. Example: "<snippet 1>"
 Example: "<snippet 2>" Avoid: <voice mismatch counsel>.`
+
+WHEN `hat_briefing` renders voice_examples for entities or NPCs, only examples whose
+`tag` field matches at least one active `scene_type` (REQ-087) SHALL be surfaced.
+Examples with no `tag` or `tag: "neutral"` SHALL always surface. Entity-level
+voice_examples in the entity personality group follow the same filtering rule.
 
 *Acceptance criterion:* Create an NPC with `voice: "gruff, uses 'oi'"`, `voice_examples`
 containing two dialogue snippets, and `location` matching the current scene. Assert
@@ -3520,7 +3550,7 @@ _Check:_ T143, T218.
 during the Build workflow alongside the ruleset. Every adventure module SHALL
 be parsed for world-model declarative assertions (rooms, things, exits,
 properties) within a designated `## World` section. Assertions found in the
-section SHALL be extracted and indexed. `load_adventure(adventure)` SHALL —
+section SHALL be extracted and indexed. `load_adventure(adventure, target?)` SHALL —
 when the adventure module contains a `## World` section — populate the
 Novel's world-model tier with the extracted rooms, things, exits, and
 properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
@@ -3570,6 +3600,17 @@ SHALL return `[NOT_FOUND]` and enumerate available adventure slugs. The
 `TTRPG_ADVENTURE` env var (optional, comma-separated paths) pre-loads
 adventures at startup.
 
+The optional `target` parameter accepts `novel` (default when a Novel is active) or
+`codex` (default when no Novel is active). `target: "codex"` SHALL process the adventure
+module's structural extraction (REQ-247) and store the resulting scaffold as a Codex entry
+of kind `adventure` with `source: loaded:<slug>` — world-model assertions, extracted NPCs,
+factions, lore entries, and the premise are stored in the adventure data payload per
+REQ-321 without populating Novel state. `target: "novel"` SHALL load into the active Novel
+with all existing pre-population behavior (world-model tier population, NPC creation,
+faction creation, lore entry creation). When no Novel is active and `target` is omitted,
+`target` defaults to `codex`. `load_adventure` SHALL be callable regardless of Novel
+state — no Novel is required for `target: "codex"`.
+
 State isolation: world-model objects, NPCs, and lore created by adventure
 loading are Novel entities — discarded by `end_novel`. Switching adventures
 replaces the active adventure's world model (if present) and prose content
@@ -3583,8 +3624,11 @@ reconstitution at import time.
 activates the adventure, populates the world-model tier with rooms/things/
 exits from the `## World` section, links `@npc` annotations, and surfaces
 the adventure hook and current room in `hat_briefing`; a module without a
-`## World` section loads as flat indexed content.
-_Check:_ T59, T60, T61.
+`## World` section loads as flat indexed content. `load_adventure("tomb-of-the-serpent-king",
+target="codex")` with no Novel active stores the adventure scaffold in Codex;
+`codex_list("adventure")` returns the entry with `source: loaded:tomb-of-the-serpent-king`;
+server restart preserves it.
+_Check:_ T59, T60, T61, T-new-324.
 
 **REQ-292 — Adventure catalog.** THE server SHALL provide a `list_adventures(filter?)` tool
 (always callable) returning metadata for every adventure module present in `TTRPG_ADVENTURE`.
@@ -3985,7 +4029,13 @@ autonomously advance the world state beyond faction clocks:
   differs from a goal-relevant entity's current scene, THE engine SHALL check whether
   the NPC made progress toward their goal between scenes. A success SHALL produce a
   campaign memory fact (REQ-310) describing the advancement: the NPC acted on their
-  goal. A failure SHALL produce a fact noting the NPC's stalled pursuit.
+  goal. A failure SHALL produce a fact noting the NPC's stalled pursuit. WHEN an NPC
+  has `goals` and no existing countdown whose name starts with `npc_goal:<npc_name>`,
+  THE `## World in Motion` section SHALL include a countdown creation suggestion:
+  "NPC `<npc_name>` is pursuing `<goal>`. Create a tracking countdown?" The GM may
+  accept, modify, or defer per the World in Motion acceptance model. An accepted
+  countdown SHALL be created as `danger`-type, sized by goal scope: 3 ticks (minor),
+  6 ticks (significant), 10 ticks (campaign).
 
 - **Consequence propagation.** WHEN a player action triggers a state change in a
   connected entity — a relationship type change (REQ-236), a secret revelation
@@ -4025,8 +4075,16 @@ value?, description?)` sets a directed relationship. Relationship types: `ally`,
 returns all relationships for an entity (both outgoing and incoming). Relationships
 SHALL appear on `character_sheet` output in a "Relationships" section. When an
 entity's relationship type changes between `ally` and `rival` (in either direction),
-the GM SHALL be prompted via `hat_briefing` to consider a lore entry. Relationships
-persist with the Novel and SHALL be saved as part of `save_pause_context` (REQ-232).
+the GM SHALL be prompted via `hat_briefing` to consider a lore entry.
+
+WHEN `set_relationship` changes a relationship type between non-neutral categories
+(`ally` ↔ `rival`, `ally` ↔ `suspicious`, `rival` ↔ `suspicious`, or any change to or
+from `neutral`), THE server SHALL inject an event marker into the `narrative_threads`
+section token: "Relationship changed: `<entity_a>` and `<entity_b>` are now `<type>`."
+The marker persists for the duration of the current scene and is removed on the next
+scene transition.
+
+Relationships persist with the Novel and SHALL be saved as part of `save_pause_context` (REQ-232).
 Faction identifiers are accepted as valid for either direction.
 *Acceptance criterion:* `set_relationship("pc_1", "npc_guard", "suspicious",
 value=3)` records a suspicious relationship; `get_relationships("pc_1")` includes
@@ -4203,15 +4261,34 @@ _Check:_ T-new-285.
 library for reusable GM-authored content (NPCs, scenes, encounters, lore entries,
 factions, countdowns, rooms, things) that persists outside Novels and survives server
 restarts. THE codex SHALL support content kinds: `npc`, `scene`, `encounter`,
-`lore_entry`, `faction`, `countdown`, `room`, `thing`. `codex_set(kind, name, data,
-description?, tags?)` SHALL create or update a codex entry with upsert semantics —
-the `data` parameter carries a kind-specific payload whose shape mirrors the
+`lore_entry`, `faction`, `countdown`, `room`, `thing`, `adventure`. `codex_set(kind,
+name, data, description?, tags?)` SHALL create or update a codex entry with upsert
+semantics — the `data` parameter carries a kind-specific payload whose shape mirrors the
 corresponding Novel tool parameters. `codex_import(id)` SHALL materialize a codex
 entry into the active Novel by delegating to the existing tool for the entry's kind
 (e.g., NPC entry → `create_npc`, scene entry → `set_scene_state`, encounter entry →
-`init_combat`). `codex_capture(kind, source_id)` SHALL pull an existing Novel
+`init_combat`). For kind `adventure`, `codex_import` SHALL materialize the
+adventure scaffold into the active Novel: populate world-model tier from the stored
+`## World` section data (rooms, things, exits per REQ-079), create NPCs from
+extracted NPC data, set factions from extracted faction data, create lore entries
+from extracted location descriptions, and activate enrichment linkages per REQ-229.
+The adventure data payload for kind `adventure` SHALL carry: `title`, `slug`,
+`source` (one of `generated`, `loaded:<adventure_slug>`, `captured:<novel_slug>`),
+`premise`, `overview`, `hook`, `locations` (array of `{heading, flavor_text}`),
+`npc_suggestions` (array of `{name, description}`), `encounter_seeds` (array of
+free-text entries), `genre_tags` (array of strings), and `sections` (the full parsed
+adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`,
+`## Scenes`, `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind, source_id)`
+SHALL pull an existing Novel
 artifact into the codex — the captured entry carries a `source_novel` field tracing
-its origin. `codex_list(kind?, tag?)` SHALL return a filterable list of codex
+its origin. `codex_capture("adventure")` SHALL pull the active Novel's adventure
+content (loaded or generated) into the Codex as kind `adventure` with `source:
+captured:<novel_slug>`, carrying the full adventure data payload defined above.
+When the active Novel has no adventure content (no adventure loaded or generated),
+`codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action
+`"No adventure content in the active Novel. Load an adventure via load_adventure or
+generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a
+filterable list of codex
 entries with id, kind, name, description, and tags. `codex_info(id)` SHALL return
 the full record including the kind-specific data payload. `codex_delete(id)` SHALL
 remove an entry with no confirmation gate — `undo` SHALL restore a deleted entry
@@ -4230,7 +4307,12 @@ scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
 "village"])` stores the entry; server restart preserves it; `end_novel` preserves
 it; `codex://blacksmith` returns full content; `codex_list("npc")` returns the
 entry; Player hat returns `[FORBIDDEN]`; `codex_import("blacksmith")` into an
-active Novel creates the NPC; `spec_health` reports codex counts by kind.
+active Novel creates the NPC; `codex_import("my-adventure")` with kind `adventure`
+into an active Novel populates world-model, NPCs, factions, lore, and activates
+enrichment linkages; `codex_capture("adventure")` from an active Novel with
+adventure content stores it in Codex with `source: captured:<slug>`; without
+adventure content returns `[STATE_CONFLICT]`; `spec_health` reports codex counts
+by kind.
 _Check:_ T-new-322.
 
 ### 5.7 Determinism, Safety, and Performance
@@ -4587,6 +4669,13 @@ tools — they are a surfacing layer over existing state. `spec_health` SHALL re
 `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total.
 `export_novel` SHALL include `campaign_memory` in its payload.
 
+Campaign memory facts rendered in `hat_briefing` under the Player hat SHALL be
+presence-scoped: a fact is visible to the Player hat only when the active entity was
+present in the scene where the fact was recorded as determined by `characters_present`
+(REQ-307). The Game Master hat sees all facts (current behavior). Facts from scenes the
+entity attended are retained regardless of current presence — presence scoping gates
+visibility, not storage.
+
 *Acceptance criterion:* After a session with two NPCs (each appearing in a scene and
 combat), three scene changes, one faction clock advancement, and one story journal
 decision, `spec_health` reports `campaign_memory.npcs ≥ 2`, `campaign_memory.threads ≥ 1`,
@@ -4785,6 +4874,14 @@ controls briefing presentation priority; `visibility` controls hat-filtered read
 creates a lore entry visible to Player hat. `set_lore_entry("gm_secret", "content")`
 creates a `gm_only` entry invisible to Player hat.
 _Check:_ T-new-298.
+
+WHEN a lore entry's `visibility` is `gm_only` or `player_discovered`, trigger matching
+SHALL additionally check `characters_present` (REQ-307): the entry fires only when at
+least one entity who knows about it — via `reveal_secret` or the original revelation that
+set `player_discovered` — is present in the current scene. `visibility: shared` entries
+fire on keyword match regardless of presence (current behavior). Entries with no
+`visibility` field (backward compatibility) SHALL follow the `gm_only` rule, applying the
+presence check.
 
 **REQ-155 — Sticky counter decay.** A lore entry's sticky counter decays by one
 when the scene text changes such that the entry's trigger keywords are no longer
@@ -5483,6 +5580,14 @@ overlap between the secret text and registered entity/NPC/faction names), a
 `suspicious` relationship (REQ-236) SHALL be recommended between the
 knowledge-holder and the implicated entity. The recommendation SHALL be surfaced
 in `hat_briefing` for the Game Master hat only.
+
+`reveal_secret(key, target_id)` SHALL accept faction identifiers as `target_id` alongside
+entity identifiers. `check_knowledge(faction_id, key?)` SHALL accept faction identifiers
+alongside entity identifiers and SHALL return secrets known to the faction. Faction-known
+secrets SHALL surface at `faction://<id>` for the GM hat. WHEN a faction is revealed a
+secret that names another faction in its content, a `rival` relationship (REQ-236) SHALL
+be recommended between the knowledge-holding faction and the named faction.
+
 *Acceptance criterion:* `set_secret("murder_confession", "The butler killed Lord
 Ashworth")` creates a GM-only lore entry; `reveal_secret("murder_confession",
 "pc_detective")` adds "Known Information" to the detective's character sheet;
@@ -5656,26 +5761,35 @@ absent from briefing per §5.10.
 returns `[WARNING]` but the tag is stored.
 _Check:_ T-new-294.
 
-**REQ-090 — Adventure generation.** `generate_adventure(premise)` (Game Master only).
-Accepts a free-text premise and produces an adventure scaffold: a title (slug-ified from
-premise), an Overview (GM-only, template-populated), an Adventure Hook (player-visible), 2–6
-location headings with table-rolled flavor (setting, horror, puzzle tables from the
-ruleset), NPC name suggestions, and encounter table seeding. Uses indexed ruleset tables
-and, when available, Enrich `adventure_advice` content — selecting templates by
-category match (adventure_templates for scaffold structure), genre-convention items by
-keyword match against the premise string, and scenario_starters by genre tag — each
-selection carrying its source_url and confidence in the output. No runtime
-network — all content from indexed data. The scaffold is stored as
-adventure content scoped to the Novel (read-only index-level data, guidance-category, same
-hat gating as loaded modules per REQ-079). Appears in `search_rules`,
-`hat_briefing` under the `adventure` token, and at
-`adventure://generated/<anchor>`. Regenerating replaces the prior generated
-adventure. The Game Master expands via existing tools; the LLM (GM hat) writes
-narrative prose.
-*Acceptance criterion:* `generate_adventure("The goblin king demands tribute")`
-produces a title, overview, hook, 2–6 locations, NPC names, and encounter seeds;
-the scaffold appears at `adventure://generated/<anchor>`.
-_Check:_ T75.
+**REQ-090 — Adventure generation.** `generate_adventure(premise, target?)` (Game Master
+only). Accepts a free-text premise and produces an adventure scaffold: a title (slug-ified
+from premise), an Overview (GM-only, template-populated), an Adventure Hook
+(player-visible), 2–6 location headings with table-rolled flavor (setting, horror, puzzle
+tables from the ruleset), NPC name suggestions, and encounter table seeding. Uses indexed
+ruleset tables and, when available, Enrich `adventure_advice` content — selecting
+templates by category match (adventure_templates for scaffold structure), genre-convention
+items by keyword match against the premise string, and scenario_starters by genre tag —
+each selection carrying its source_url and confidence in the output. No runtime network —
+all content from indexed data.
+
+The optional `target` parameter accepts `novel` (default when a Novel is active), `codex`
+(default when no Novel is active), or `both`. `target: "codex"` SHALL store the generated
+scaffold as a Codex entry of kind `adventure` under the derived slug with `source:
+generated`. `target: "novel"` SHALL store as the active Novel's generated adventure
+content — the scaffold is indexed at `adventure://generated/<anchor>`, appears in
+`search_rules` and `hat_briefing` under the `adventure` token. `target: "both"` SHALL
+produce both. When no Novel is active and `target` is omitted, `target` defaults to
+`codex`. `generate_adventure` SHALL be callable regardless of Novel state — no Novel is
+required. Regenerating with `target: "codex"` replaces the prior Codex entry at the same
+slug; regenerating with `target: "novel"` replaces the prior generated Novel adventure.
+The Game Master expands via existing tools; the LLM (GM hat) writes narrative prose.
+
+*Acceptance criterion:* `generate_adventure("The goblin king demands tribute")` produces a
+title, overview, hook, 2–6 locations, NPC names, and encounter seeds; the scaffold appears
+at `adventure://generated/<anchor>`. `generate_adventure("The dragon hoard",
+target="codex")` with no Novel active stores the scaffold in Codex; `codex_list("adventure")`
+returns the entry; server restart preserves it.
+_Check:_ T75, T-new-323.
 
 **REQ-091 — Enhanced encounter generation.** `generate_encounter(context)` (Game Master
 only, optional context string). Combines ruleset encounter tables with Enrich
@@ -7712,6 +7826,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-002a | S9 | Extended error category semantics |
 | REQ-002b | S1, S14e | Corrective-action contract |
 | REQ-002c | S6 | Hat-filtered error values |
+| REQ-321 | S15, S16, S17 | Codex |
+| REQ-322 | S23 | Vow-countdown coupling |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
@@ -8886,7 +9002,7 @@ Vendor content draws from curated, licensed documentation vendored in the
 processed at build time as part of Tier 1 enrichment alongside ruleset-native extraction
 per REQ-225.
 
-**Sources.** Four source bundles, all open-source licensed:
+**Sources.** Seven source bundles, all open-source licensed:
 
 | Source | License | What it enriches |
 |---|---|---|
@@ -8894,6 +9010,9 @@ per REQ-225.
 | Blades in the Dark SRD (John Harper) | CC-BY 3.0 | Clock design philosophy, tension management, linked/danger/racing clock patterns |
 | Lonelog (lonelog.org) | CC BY-SA 4.0 | Session notation structure, scene/action/outcome separation |
 | IF Craft Corpus (pvliesdonk) | CC-BY 4.0 | Narrative structure, character voice, worldbuilding, scene structure, genre conventions |
+| Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
+| Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
+| The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
 
 **When vendor enrichment runs.** Vendor processing SHALL run at build time for
 all non-ruleset-free builds. For TTRPG builds, vendor content provides
@@ -8901,6 +9020,14 @@ infrastructure craft advice that complements ruleset-native enrichment. For
 ruleset-free builds, vendor enrichment is the primary Tier 1 enrichment source —
 ruleset-native extraction produces an empty manifest; vendor content fills all
 seven output modules with infrastructure-level craft advice.
+
+The Ironsworn SRD enriches `narrative_voices` (vow-swearing conventions,
+progress-track storytelling), `action_patterns` (oracle moves as structured
+action suggestions), and `adventure_advice` (quest framing templates). The Lazy GM
+enriches `supplementary_guidance` (session-prep heuristics), `adventure_advice`
+(encounter templates), and `briefing_order` (recommended section ordering for
+session flow). The Alexandrian enriches `adventure_advice` (node-based scenario
+design, clue placement) and `lore_templates` (three-clue seeding).
 
 Vendor content SHALL be indexed alongside ruleset-native extraction. Vendor
 items carry `[vendor]` tag with source anchor pointing to the vendor file within
@@ -9816,6 +9943,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-319 | Extended parser command vocabulary | 2026-08-09 |
 | REQ-320 | Narrative-intent parser verbs | 2026-08-09 |
 | REQ-321 | Codex | 2026-08-09 |
+| REQ-322 | Vow-countdown coupling | 2026-08-09 |
 
 ---
 
@@ -10178,7 +10306,10 @@ diet.
 | T-new-319 | Automated | Extended property contracts: create things with properties `convert_source("A silver ring is in the Entrance Chamber. It is wearable. A red mushroom is in the Entrance Chamber. It is edible. An iron lever is in the Entrance Chamber. It is climbable. A glass jar is a container. It is transparent. The inscription on the altar reads 'Beware the serpent.' The altar is in the Entrance Chamber. It is readable.")`. Assert ring is `wearable: true`. Assert mushroom is `edible: true`. Assert lever is `climbable: true`. Assert jar is `transparent: true`. Assert altar is `readable: true` with `read_text: 'Beware the serpent.'`. Assert `command("wear ring")` returns `[OK]`. Assert `command("eat mushroom")` returns `[OK]`. Assert `command("read altar")` returns the inscription text. Assert each property assertion is recognized by `convert_source`. Assert missing-property commands return `[RULE_VIOLATION]`. | REQ-318 |
 | T-new-320 | Automated | Extended parser commands: populate a world model with objects supporting all new standard-tier commands. Assert `command("wear hat")` succeeds for wearable thing in inventory. Assert `command("remove hat")` succeeds when worn. Assert `command("read scroll")` returns `read_text`. Assert `command("eat mushroom")` succeeds for edible in inventory. Assert `command("drink potion")` succeeds for drinkable in inventory. Assert `command("climb rope ladder")` resolves associated exit. Assert `command("enter tent")` succeeds for enterable. Assert `command("sit bench")` succeeds for supporter. Assert `command("stand")` succeeds. Assert `command("light torch")` succeeds for `lit` thing. Assert `command("extinguish torch")` succeeds. Assert `command("listen")` returns `[OK]`. Assert `command("smell")` returns `[OK]`. Assert `command("touch altar")` returns `[OK]`. Assert `command("again")` repeats last command. Assert `command("g")` is equivalent. Assert `command("help")` lists verbs grouped by tier. Assert `command("verbs")` reports per-tier counts. Assert all property-violation cases return `[RULE_VIOLATION]`. | REQ-319 |
 | T-new-321 | Automated | Narrative-intent verbs: populate a world model with an NPC. Assert `command("ask guard about crypt")` returns `[OK] You ask guard about crypt.` Assert `command("tell guard about amulet")` returns `[OK]`. Assert `command("give sword to guard")` transfers item from inventory and returns `[OK]`. Assert `command("show shield to guard")` does NOT transfer and returns `[OK]`. Assert `command("throw rock at statue")` moves rock from inventory to room and returns `[OK]`. Assert `command("give fixed_altar to guard")` returns `[RULE_VIOLATION]`. Assert `command("throw nonexistent at guard")` returns `[NOT_FOUND]`. Assert `command("ask nobody about crypt")` where nobody matches returns `[WARNING]`. | REQ-320 |
-| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored. Call `codex_list("npc")` — assert returns entry with id, kind, name, description, tags. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entry survives. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` into an active Novel — assert NPC created with stored fields. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Switch to Player hat — assert all codex tools return `[FORBIDDEN]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
+| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored. Call `codex_list("npc")` — assert returns entry with id, kind, name, description, tags. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entry survives. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` into an active Novel — assert NPC created with stored fields. Call `codex_import("my-adventure")` with kind `adventure` into an active Novel — assert world-model, NPCs, factions, lore, and enrichment linkages populated. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Call `codex_capture("adventure")` from a Novel with adventure content — assert Codex entry created with `source: captured:<slug>`. Call `codex_capture("adventure")` from a Novel with no adventure content — assert `[STATE_CONFLICT]`. Switch to Player hat — assert all codex tools return `[FORBIDDEN]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
+| T-new-323 | Automated | Adventure generation codex: call `generate_adventure("The goblin king demands tribute")` with active Novel — assert scaffold at `adventure://generated/<anchor>`. Call `generate_adventure("The dragon hoard", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: generated`. Call `codex_info("<slug>")` — assert full adventure data payload including title, premise, overview, hook, locations, npc_suggestions, encounter_seeds, genre_tags, sections. Restart server — assert Codex entry survives. Call `generate_adventure("The dragon hoard", target="codex")` again — assert entry replaced (same slug). | REQ-090 |
+| T-new-324 | Automated | Adventure loading codex: call `load_adventure("tomb-of-the-serpent-king")` with active Novel — assert world-model populated and NPCs created. Call `load_adventure("tomb-of-the-serpent-king", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: loaded:tomb-of-the-serpent-king`. Call `codex_info("<slug>")` — assert full sections payload. Restart server — assert Codex entry survives. | REQ-079 |
+| T-new-325 | Automated | Vow-countdown coupling: call `set_vow("Find Crown", "Recover the lost Crown of Alara", parties=["pc_1"], difficulty="dangerous", scope="shared")` — assert `hat_briefing` narrative_threads includes countdown suggestion. Accept suggestion via decision workflow — assert 20-tick `mission`-type countdown created with name `vow:Find Crown`. Call `mark_milestone("Find Crown")` — assert both milestone counter and countdown advance by one tick. Advance countdown to fill — assert vow becomes eligible for `resolve_vow`. Call `resolve_vow("Find Crown", "Found it", "Kingdom restored")` — assert countdown removed. Call `set_vow("Other Vow", "A minor task", parties=["pc_1"], difficulty="troublesome", scope="gm")` — decline countdown suggestion — assert vow functions with milestones-only (current behavior). | REQ-322 |
 
 ---
 

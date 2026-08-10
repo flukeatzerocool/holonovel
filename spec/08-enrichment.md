@@ -252,7 +252,7 @@ Vendor content draws from curated, licensed documentation vendored in the
 processed at build time as part of Tier 1 enrichment alongside ruleset-native extraction
 per REQ-225.
 
-**Sources.** Four source bundles, all open-source licensed:
+**Sources.** Seven source bundles, all open-source licensed:
 
 | Source | License | What it enriches |
 |---|---|---|
@@ -260,6 +260,9 @@ per REQ-225.
 | Blades in the Dark SRD (John Harper) | CC-BY 3.0 | Clock design philosophy, tension management, linked/danger/racing clock patterns |
 | Lonelog (lonelog.org) | CC BY-SA 4.0 | Session notation structure, scene/action/outcome separation |
 | IF Craft Corpus (pvliesdonk) | CC-BY 4.0 | Narrative structure, character voice, worldbuilding, scene structure, genre conventions |
+| Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
+| Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
+| The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
 
 **When vendor enrichment runs.** Vendor processing SHALL run at build time for
 all non-ruleset-free builds. For TTRPG builds, vendor content provides
@@ -267,6 +270,14 @@ infrastructure craft advice that complements ruleset-native enrichment. For
 ruleset-free builds, vendor enrichment is the primary Tier 1 enrichment source —
 ruleset-native extraction produces an empty manifest; vendor content fills all
 seven output modules with infrastructure-level craft advice.
+
+The Ironsworn SRD enriches `narrative_voices` (vow-swearing conventions,
+progress-track storytelling), `action_patterns` (oracle moves as structured
+action suggestions), and `adventure_advice` (quest framing templates). The Lazy GM
+enriches `supplementary_guidance` (session-prep heuristics), `adventure_advice`
+(encounter templates), and `briefing_order` (recommended section ordering for
+session flow). The Alexandrian enriches `adventure_advice` (node-based scenario
+design, clue placement) and `lore_templates` (three-clue seeding).
 
 Vendor content SHALL be indexed alongside ruleset-native extraction. Vendor
 items carry `[vendor]` tag with source anchor pointing to the vendor file within
