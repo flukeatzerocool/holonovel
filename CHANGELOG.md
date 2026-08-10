@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-10 — Coupling completeness and Holodeck model alignment
+
+- Every coupling row in §7.7.1a now carries a Holodeck model column — a
+  north-star description explaining what each cross-property interaction
+  means in Holodeck terms ("The clock runs while the scene plays," "Your
+  actions change the room," "What you know colors what you see").
+- Eight new coupling rows filled combinatorial gaps in the interaction
+  matrix — most notably: relationship flips now drive NPC disposition
+  (new P48: Relational → Entity-bearing), entity-NPC co-presence produces
+  interaction advisories (P24 expansion), faction goals surface alongside
+  NPC goals in World in Motion (P30), faction clock fires record story
+  journal entries (P31), story journal entries prompt NPC goal pursuit
+  (P33), beat transitions shape NPC disposition (P41), and scene type
+  highlights relevant faction activity (P41).
+- Server notes with temporal urgency keywords now suggest countdown
+  creation in narrative_threads — the GM's notebook can drive the clock
+  (new P49: Guidance → Temporal).
+- Pattern rule range bumped from P1–P47 to P1–P49. All 49 pattern rules
+  have at least one coupling row — verified at assembly.
+
 ## 2026-08-10 — Holodeck configuration alignment
 
 - Player pacing signals now mechanically adjust the dramatic pacing
