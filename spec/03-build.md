@@ -86,7 +86,7 @@ defaults without further prompting.
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
-| B12 | World and narrative surface prominence? | secondary / visible / prominent | secondary           |
+| B12 | World and narrative surface prominence? | secondary / visible / prominent | visible           |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
@@ -542,6 +542,7 @@ translated into tools, resources, and state.
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
+| Narrative coherence  | Narrative-critical REQs implemented; smoke-session transcript embedded; badge_briefing narrative sections populated | Pass + attestation present | Remediate missing narrative REQs, re-run smoke session |
 
 **Suggestion coverage constraint.** The curated intent set SHALL include at
 minimum: one intent per extraction action category (classified during Discovery
@@ -561,7 +562,7 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all eight metrics meet threshold (input-validation conditional —
+Phase 2 exit: all nine metrics meet threshold (input-validation conditional —
 eight when REQ-141 is in scope, seven otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript

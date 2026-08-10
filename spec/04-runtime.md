@@ -216,13 +216,24 @@ consistent order.
 | World → Scene | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Navigational | REQ-333 |
 | Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Navigational | REQ-242 |
+| Story Beats → Narrative Threads | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | Narrative | REQ-335, REQ-281 |
+| Pacing Signal → Narrative Threads | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | Narrative | REQ-336, REQ-281 |
+| Scene → World Model | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | Narrative | REQ-342 |
+| Faction → Autonomous Countdown | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | Mechanical | REQ-338 |
+| NPC Goals → World in Motion | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Narrative | REQ-339, REQ-233a |
+| Countdown Fire (absent) → Story Journal | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | Mechanical | REQ-340, REQ-246 |
+| Voice Feedback → Voice Examples | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Mechanical | REQ-344, REQ-077 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
 mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
-means it directly affects state mutation or tool behavior. When a source
-property changes, navigational couplings update on the next resource read;
-mechanical couplings take effect at the moment of the triggering mutation.
+means it directly affects state mutation or tool behavior. A coupling marked
+"Narrative" means it affects narrative coherence and is verified during the
+Narrative Coherence convergence domain (REQ-346); narrative couplings do not
+block mechanical Gauntlet sub-workflows. When a source
+property changes, navigational and narrative couplings update on the next
+resource read; mechanical couplings take effect at the moment of the
+triggering mutation.
 
 ### 7.8 Guidance and badge knowledge
 
