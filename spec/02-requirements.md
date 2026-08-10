@@ -13,7 +13,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309                           | 12    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320                 | 17    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -4996,7 +4996,7 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Holonovel Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
+Holonovel Gauntlet sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the holonovel package builder MAY skip Phase 2
 convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
@@ -5770,6 +5770,128 @@ room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the 
 and its location. Remove the key from the world model — `command("open chest")` returns
 `[RULE_VIOLATION]` with no hint.
 _Check:_ T-new-310.
+
+**REQ-316 — Device kind.** THE world-model layer SHALL define a `device`
+kind extending `thing`. A device SHALL carry `switchable` (can be turned on
+or off) and `switched_on` (current state) properties. A device that is both
+`lit` and `switched_on` SHALL provide light; a device that is `switched_off`
+SHALL be dark regardless of the `lit` property. A device is portable by
+default. `command("switch on <device>")` SHALL set `switched_on` to true;
+`command("switch off <device>")` SHALL set it to false. Switching a
+non-switchable thing SHALL return `[RULE_VIOLATION]`. The `switch on` and
+`switch off` commands SHALL be registered in the parser command catalog
+under `object_interaction` category, standard tier. The property assertions
+"It is switchable." and "It is switched on." SHALL be recognized by
+`convert_source`. _Check:_ T-new-317.
+
+**REQ-317 — Vehicle kind.** THE world-model layer SHALL define a `vehicle`
+kind extending `thing`. A vehicle SHALL carry `enterable: true` by default
+and `capacity` (maximum passengers, integer). A vehicle is `fixed` by
+default — it cannot be taken. When a player enters a vehicle via
+`command("enter <vehicle>")`, the player's current room SHALL become a
+virtual interior room derived from the vehicle's description. The vehicle
+interior SHALL have an `out` exit that returns the player to the room where
+the vehicle is parked. While the player is aboard, `command("look")` SHALL
+show the interior description and list visible exits — the room the vehicle
+is parked in SHALL be visible as an `out` exit. Navigation commands (`go
+north`, `go south`, etc.) while aboard SHALL move the vehicle and all its
+contents (passengers and items) through the world-model exit graph —
+movement SHALL resolve against the room the vehicle occupies, not the
+vehicle interior. A vehicle SHALL persist at its last location when
+unoccupied. A vehicle reaching capacity SHALL reject additional passengers
+with `[RULE_VIOLATION]`. `command("exit")` and `command("get out")` SHALL
+return the player to the room containing the vehicle. Vehicle interior
+rooms SHALL NOT appear in `world://map` independently — they are child
+objects of the vehicle, not world-graph nodes. The kind declaration "A raft
+is a vehicle. 'Description.' It is in the Lake." SHALL be recognized by
+`convert_source`. _Check:_ T-new-318.
+
+**REQ-318 — Extended property contracts.** THE world-model layer SHALL
+extend the `thing` type with the following properties, each enabling a
+parser command and carrying a default value:
+
+| Property | Type | Default | Enables | Effect |
+|---|---|---|---|---|
+| `switchable` | boolean | false | `switch on`/`switch off` | Target must be switchable |
+| `switched_on` | boolean | false | (state only) | Current switch state |
+| `wearable` | boolean | false | `wear`/`remove` | Can be worn; sets `worn_by` on wear |
+| `worn_by` | string \| null | null | (state only) | Who is wearing this |
+| `readable` | boolean | false | `read` | Has readable text |
+| `read_text` | string \| null | null | `read` | Text revealed on read |
+| `edible` | boolean | false | `eat` | Can be eaten; removed from inventory on eat |
+| `drinkable` | boolean | false | `drink` | Can be drunk |
+| `enterable` | boolean | false | `enter` | Can be entered (container or vehicle) |
+| `climbable` | boolean | false | `climb` | Can be climbed |
+| `transparent` | boolean | false | (state only) | Contents visible when closed (container) |
+
+`convert_source` SHALL recognize property assertions for each boolean
+property: "It is wearable.", "It is readable.", "It is edible.", "It is
+transparent.", "It is switched on.", "It is enterable.", "It is climbable."
+The `read_text` property SHALL be settable via assertion: "The inscription
+on the altar reads 'Beware the serpent.'" — `convert_source` SHALL extract
+the quoted text and assign it to `read_text` of the named thing.
+_Check:_ T-new-319.
+
+**REQ-319 — Extended parser command vocabulary.** THE parser SHALL
+recognize the following additional commands, each registered as
+`standard` tier (REQ-283). Each command SHALL resolve against the
+world-model property contracts defined in REQ-316 through REQ-318.
+When a target lacks the required property, the command SHALL return
+`[ERROR] [RULE_VIOLATION]` naming the missing property.
+
+| Command | Category | Args | Contract |
+|---|---|---|---|
+| `wear` | object_interaction | thing | Target must be `wearable` and in caller's inventory. Sets `worn_by` to active entity. Returns `[RULE_VIOLATION]` if already worn. |
+| `remove` | object_interaction | thing | Target must be worn by caller. Clears `worn_by`. |
+| `read` | inspection | thing | Target must be `readable`. Returns `read_text` or the thing's description if `read_text` is null. |
+| `eat` | object_interaction | thing | Target must be `edible` and in caller's inventory. Removes from inventory. |
+| `drink` | object_interaction | thing | Target must be `drinkable` and in caller's inventory. |
+| `climb` | navigation | thing | Target must be `climbable`. Resolves an associated exit (a climbable thing declared adjacent to a directional exit acts as that exit's door). Returns `[RULE_VIOLATION]` if no associated exit exists. |
+| `enter` | navigation | thing | Target must be `enterable` (container with enterable property, or vehicle). Moves viewpoint to interior. |
+| `exit` / `get out` | navigation | — | Returns to parent room from container/vehicle interior. Returns `[STATE_CONFLICT]` if not inside an enterable object. |
+| `switch on` / `switch off` | object_interaction | thing | Target must be `switchable`. |
+| `sit` | navigation | thing | Target must be a supporter. Records sitting state. |
+| `stand` | navigation | — | Ceases sitting. |
+| `push` | object_interaction | thing | Pushes a movable thing. |
+| `pull` | object_interaction | thing | Pulls a movable thing. |
+| `insert` | object_interaction | thing, target | Places a thing into a container. Synonym for `put in`. |
+| `light` | object_interaction | thing | Lights a light source. Target must be `lit`. |
+| `extinguish` | object_interaction | thing | Extinguishes a light source. |
+| `listen` | inspection | — | Returns list of sound-producing objects in current room. The parser reports objects; the LLM composes sensory prose. |
+| `smell` | inspection | — | Returns list of smell-producing objects in current room. |
+| `touch` | inspection | thing | Returns tactile properties of a thing. |
+| `again` / `g` | meta | — | Repeats the last command verbatim. Session-local command buffer — discarded on connection close. Returns `[WARNING]` "Nothing to repeat." if no prior command exists. |
+| `it` / `them` / `all` | meta | thing reference | Pronoun disambiguation. `it` resolves to the last referenced thing. `them` resolves to the last referenced group. `all` applies the current command to all matching targets. `command("help")` SHALL list all verbs grouped by tier. `command("verbs")` SHALL report per-tier counts. `spec_health.parser_verb_coverage` SHALL reflect the extended vocabulary. |
+
+`convert_source` directional exit adjacency SHALL associate a climbable
+thing with the exit in the same direction: when "A rope ladder is in the
+Entrance Chamber. It is climbable." is followed by "Up of the Entrance
+Chamber is the Rookery.", the rope ladder SHALL be registered as the door
+for the `up` exit — `command("climb rope ladder")` SHALL resolve to `go
+up` through that exit. _Check:_ T-new-320.
+
+**REQ-320 — Narrative-intent parser verbs.** THE parser SHALL recognize
+commands that route narrative intent to the Game Master rather than
+resolving mechanically. These commands SHALL be registered under a new
+`narrative` parser category and SHALL be standard tier. They SHALL produce
+`[OK]` with a description of the expressed intent and SHALL NOT simulate
+conversation or adjudicate outcomes. The intent SHALL be surfaced in
+`hat_briefing` under a `## Player Intent` section.
+
+| Command | Args | Behavior |
+|---|---|---|
+| `ask <npc> about <topic>` | npc, topic | Resolves NPC by name in current room. Returns `[OK] You ask <npc> about <topic>.` If no matching NPC is present in the current room, returns `[WARNING]` noting the NPC is not present but still records the intent. |
+| `tell <npc> about <topic>` | npc, topic | Same pattern as `ask`. |
+| `give <thing> to <npc>` | thing, npc | Transfers thing from caller's inventory to the NPC. Returns `[OK] You give the <thing> to <npc>.` Returns `[ERROR] [RULE_VIOLATION]` if the thing is fixed or not in inventory. |
+| `show <thing> to <npc>` | thing, npc | Does NOT transfer. Returns `[OK] You show the <thing> to <npc>.` Works with held and fixed things. |
+| `throw <thing> at <target>` | thing, target | Moves thing from caller's inventory to the target's room. Returns `[OK] You throw the <thing> toward <target>.` The thing appears in the room — not equipped to or held by the target. Returns `[ERROR] [RULE_VIOLATION]` if the thing is fixed or not in inventory. |
+
+NPC resolution SHALL match by name substring against NPCs whose location
+matches the current room. When no NPC matches in the current room, the
+command SHALL still record the intent with a `[WARNING]` marker — the
+player may be calling through a door or across a chasm. `command("help")`
+SHALL list narrative verbs under their own category with a note that
+outcomes are determined by the Game Master. _Check:_ T-new-321.
 
 **REQ-197 — Room description generation.** WHEN the player enters a room
 or issues a look command THE system SHALL return the room's name, its
