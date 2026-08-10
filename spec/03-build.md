@@ -474,15 +474,19 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
-| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules | ≥4 populated | Re-read source sections for barren modules per REQ-225 re-read mapping |
+| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total enrichment items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 16 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
 Cross-format consistency; Enrichment population shares source data with Extraction
-completeness; Reconciliation quality and Enrichment term anchoring are independent.
+completeness; Archetype coverage shares source data with Enrichment population
+(Wisdom items carry archetype-informed coupling nature) and Coupling completeness
+(Phase 2 — the coupling table is derived from archetype pairs);
+Reconciliation quality and Enrichment term anchoring are independent.
 The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
 re-measured metric drops below its threshold, the
 regression SHALL be recorded as a finding against the current step. The builder
@@ -515,20 +519,31 @@ category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
 
-Phase 1 exit: all nine metrics meet threshold (conversion-fidelity conditional —
-eight when conversion not selected, nine when conversion selected), or an extraction stall
+**Archetype coverage** measures whether every Novel property group defined in §7.7
+is classified with at least one Holodeck archetype. A group without an archetype
+produces zero couplings — the Phase 2 Coupling completeness metric cannot detect
+this gap because the cross-product excludes unclassified groups. Below 100%
+triggers re-reading of §7.7.0 archetype definitions and reassignment per the
+coupling pattern rules that govern each group's behavioral nature. Archetype
+coverage shares source data with Enrichment population (Wisdom items carry
+archetype-informed coupling nature) and Coupling completeness (Phase 2 — the
+coupling table is derived from archetype pairs). A change to archetype
+assignments SHALL trigger re-verification of both metrics.
+
+Phase 1 exit: all ten metrics meet threshold (conversion-fidelity conditional —
+nine when conversion not selected, ten when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains eight metrics and the exit
-condition is eight metrics meeting threshold.
+conversion was not selected, the table contains nine metrics and the exit
+condition is nine metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
-nine metrics are treated as met. No extraction stall applies — zero-case
+ten metrics are treated as met. No extraction stall applies — zero-case
 dispositions are not a stall.
 
 **Phase 2 — Construction quality.**
@@ -617,7 +632,8 @@ requirement.
 sufficiency criteria SHALL produce: (a) findings with REQ citations and specific
 discrepancies — expected extraction vs. auditor's finding, with source anchors — not
 general assessments; (b) coverage of at least 3 distinct extraction categories from
-REQ-210; (c) a minimum of 1 finding, or an explicit statement that systematic comparison
+REQ-210; (c) coverage of at least 2 distinct Holodeck archetype categories from
+§7.7.0; (d) a minimum of 1 finding, or an explicit statement that systematic comparison
 was performed across the cited categories and produced zero findings — this statement
 SHALL enumerate the categories compared.
 
@@ -629,8 +645,8 @@ authoritative; the disagreement is recorded as a permanent finding with both mod
 positions and the confidence differential.
 
 *Acceptance criterion:* A cross-model audit report includes findings with REQ citations,
-specific discrepancies, covers ≥3 extraction categories, and produces ≥1 finding or an
-enumerated zero-finding statement.
+specific discrepancies, covers ≥3 extraction categories and ≥2 archetype categories, and
+produces ≥1 finding or an enumerated zero-finding statement.
 _Check:_ T-new-299.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
@@ -802,7 +818,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S31) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S33) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Pattern Buffer and subsequent re-runs after enrichment
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
@@ -970,16 +986,23 @@ four items is incomplete and blocks handoff.
     `set_active_entity("char_02", pov="character")` switches to character-locked POV
     for char_02. POV mode persists across server restart. POV directive is never
     truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
-27. **Enrichment lifecycle** — requires enrichment to have been run. Assert
-    `enrichment://status` reports active modules with per-module item counts.
-    Deactivate a module via `set_enrichment_module(module_name, false)` — assert items
-    from that module absent from enrichment surfaces. Reactivate — assert items return.
+27. **Enrichment lifecycle with Wisdom mechanical enactment** — requires
+    enrichment to have been run. Assert `enrichment://status` reports active
+    modules with per-module item counts. Deactivate a module via
+    `set_enrichment_module(module_name, false)` — assert items from that module
+    absent from enrichment surfaces. Reactivate — assert items return.
     `revert_enrichment()` — assert community enrichment items removed, ruleset-native
     items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
     items. Assert `badge_briefing` enrichment content follows activation state: active
     modules' content appears, deactivated modules' content absent. Entity
     `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
-    sourcing. (Non-blocking.)
+    sourcing. After enrichment is active: create a Novel, import an entity. Create an
+    NPC — assert `character_sheet` renders voice_examples, goals, and personality
+    patterns without manual `set_voice_examples`/`set_personality` (P6). Create a
+    countdown — assert it advances on `set_scene_state` (P7). Call
+    `suggest_actions("spring a trap on the goblins")` — assert constraint override from
+    Wisdom appears in results (P10). Deactivate the relevant Wisdom item — assert
+    mechanical behavior suppressed. Reactivate — assert restored. (Blocking.)
 28. **Briefing ordering, voice examples, session notation** —
     `set_briefing_order(["scene", "entities", "lore"])` — assert `badge_briefing`
     sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
@@ -1015,6 +1038,26 @@ four items is incomplete and blocks handoff.
     `remove_supplementary` — assert tools deregistered, tool invocation returns
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
+32. **Coupling chain exercise** — populate world model with 3 connected rooms. Set
+    scene in room A with beat "setup". Create countdown with
+    `world_effect {type:"describe"}` and faction with goal — verify faction countdown
+    auto-created (P4). Advance scene — assert countdown ticks and faction clock ticks
+    (P1). Move player via `go` command — assert scene transition hook fires and lore
+    trigger keywords match against new room (P13, P2). Advance countdown to fire —
+    assert `world_effect` mutates room description (P14). Set scene in changed room —
+    assert `badge_briefing` reflects all state changes. Create `consequence` journal
+    entry — assert faction clock advisory in `narrative_threads` (P33). Undo — assert
+    pre-chain state restored. (Blocking.)
+33. **Wisdom mechanical enactment** — build with enrichment active on all 7 modules.
+    Create entity and NPC while Wisdom is active — assert NPC `character_sheet` shows
+    auto-populated voice_examples with `[ruleset]` tag, goals from Wisdom patterns,
+    personality without manual `set_personality`/`set_voice_examples` calls (P6).
+    Create countdown — assert `advance_countdown` auto-applies on `set_scene_state`, 1
+    tick per transition (P7). Call `suggest_actions("negotiate with the guard")` —
+    assert Wisdom constraint overrides appear (P10). Deactivate individual Wisdom
+    items — assert corresponding mechanical behavior stops. Reactivate items — assert
+    behavior resumes. Assert Wisdom-derived entities render with REQ-371-conformant
+    behavior: first-class server mechanics, not advisory guidance. (Blocking.)
 
 **REQ-108 — Pattern Buffer traceability.** The builder must ensure at least one
 Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access),
@@ -1172,6 +1215,9 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Enrichment lifecycle, status, toggles                       | S27 |
 | Briefing ordering, voice examples, session notation         | S28 |
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
+| Supplementary ruleset import, dynamic tool registration      | S30, S31 |
+| Coupling cascade (P1+P13+P14+P2+P33 chain)                    | S32 |
+| Wisdom mechanical enactment (REQ-371, P6+P7+P10)              | S33 |
 
 This surface-driven selection applies to all incremental updates — full
 spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Pattern Buffer run.
@@ -1307,7 +1353,7 @@ changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
 The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
-intake, forcing all 29 sub-workflows regardless of fingerprint match.
+intake, forcing all 33 sub-workflows regardless of fingerprint match.
 
 #### Holonovel Pattern Buffer
 

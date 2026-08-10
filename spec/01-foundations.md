@@ -310,7 +310,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Pattern Buffer         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
+| Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |

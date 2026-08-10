@@ -16,7 +16,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
-| 5.13 | Holodeck | 369–371 | 3 |
+| 5.13 | Holodeck | 369–371, 374–375 | 5 |
 | 5.14 | Content Sources | 372–373 | 2 |
 
 ### 5.1 Output and Error Contracts
@@ -7559,6 +7559,39 @@ activation. A countdown created from Wisdom pacing patterns advances
 automatically on scene transitions. Deactivating the responsible Wisdom item
 suppresses the mechanical behavior.
 _Check:_ T-new-378.
+
+**REQ-374 — Archetype coverage.** Builder SHALL verify during convergence Phase 1
+that every Novel property group defined in §7.7 carries at least one Holodeck
+archetype from the set defined in §7.7.0 (Temporal, Entity-bearing,
+Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
+Decision, Guidance, Session, Ruleset Wisdom). A property group without an
+archetype produces zero couplings — the coupling completeness metric in Phase 2
+cannot detect this gap. The metric threshold is 100%: all 16 property groups
+classified. Missing archetype assignments SHALL be resolved by re-reading §7.7.0
+definitions and reassigning archetypes per the coupling pattern rules that govern
+each group's behavioral nature.
+
+*Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A
+group missing an archetype causes this metric to fail, directing the builder to
+re-read and re-classify before proceeding to Phase 2.
+_Check:_ T-new-381.
+
+**REQ-375 — Wisdom mechanical coupling rate.** During convergence Phase 1, after
+Enrichment population meets its threshold, the builder SHALL verify that Wisdom
+items extracted from the ruleset include Mechanical couplings — not exclusively
+Navigational ones. The metric measures: Wisdom items classified with Mechanical
+coupling nature per §7.7.1a / total Wisdom items extracted. Threshold: ≥30%
+Mechanical. A build where all Wisdom items are Navigational meets the Enrichment
+population metric but violates REQ-371's intent — the ruleset's guidance should
+render as server behavior. The builder SHALL improve the rate by re-reading
+ruleset source sections where the text carries strong behavioral language
+(procedures, pacing directives, structural patterns), re-classifying items from
+Navigational to Mechanical where the coupling contract supports it.
+
+*Acceptance criterion:* At least 30% of extracted Wisdom items carry Mechanical
+coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational
+causes this metric to fail, directing the builder to re-classify.
+_Check:_ T-new-382.
 
 ---
 
