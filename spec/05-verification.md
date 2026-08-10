@@ -16,7 +16,7 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G2       | Fixture | Golden transcript replay (fixture scoped by complexity) |
 | G3       | Fixture | Injection resistance                           |
 | G4       | Ruleset | Derived test catalogue                         |
-| G5       | Ruleset | The Gauntlet — operational verification        |
+| G5       | Ruleset | The Pattern Buffer — operational verification        |
 | G6       | Ruleset | Enrichment lifecycle                           |
 | G7       | Ruleset | Narrative coherence attestation                 |
 
@@ -96,13 +96,13 @@ reason in DECISIONS.md. Automated tests must ship a runnable script
 tests must document the verification procedure and expected output shape in
 DECISIONS.md. This workflow uniquely verifies the server against the formal
 test catalogue — individual tool contracts are exercised by G2 (fixture
-transcript) and operational behavior by G5 (Gauntlet scenarios).
+transcript) and operational behavior by G5 (Pattern Buffer scenarios).
 
-**Verification workflow G5 — The Gauntlet (operational verification).** For a
-ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
+**Verification workflow G5 — The Pattern Buffer (operational verification).** For a
+ruleset server, run the 29-sub-workflow Pattern Buffer defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Holonovel server, run the 18-sub-workflow Holonovel Gauntlet (I1–I18) defined
-in §6.6 Holonovel Gauntlet. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
+For the Holonovel server, run the 18-sub-workflow Holonovel Pattern Buffer (I1–I18) defined
+in §6.6 Holonovel Pattern Buffer. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).
@@ -116,7 +116,7 @@ reports correct per-module active/inactive counts; `revert_enrichment` removes a
 `[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
 items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
-conditions. The Gauntlet re-runs after every server code change: during Build
+conditions. The Pattern Buffer re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
 any manual code modification.
 
@@ -144,9 +144,9 @@ condition.
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
 
-Each persona archetype exercises at least one Gauntlet sub-workflow:
+Each persona archetype exercises at least one Pattern Buffer sub-workflow:
 
-| Persona              | Gauntlet scenario(s) | Contract exercised                               |
+| Persona              | Pattern Buffer scenario(s) | Contract exercised                               |
 | -------------------- | -------------------- | ------------------------------------------------- |
 | Power Gamer          | S4, S21              | Combat determinism, max-round endurance           |
 | New Player           | S1, S22              | Invalid-param handling, unknown-decision errors   |

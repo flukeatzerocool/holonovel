@@ -171,7 +171,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
-| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Gauntlet-5); audit log (REQ-040); Novel persistence (REQ-092)    |
+| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 
@@ -310,7 +310,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Gauntlet         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
+| Pattern Buffer         | Operational verification suite (§6.6) — 29 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
@@ -329,7 +329,7 @@ guard, the gap is explicit.
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
 implementation uses it. Builders may select an alternative language, runtime, or
-transport if the resulting server passes every verification workflow and the full Gauntlet
+transport if the resulting server passes every verification workflow and the full Pattern Buffer
 — the alternative choice must be recorded with justification in DECISIONS.md (2).
 _Check:_ T92.
 
@@ -1469,10 +1469,10 @@ A rebuilt server re-computes cross-reference health from the current extraction.
 previously resolved cross-reference that becomes unresolved after a ruleset change SHALL
 be flagged as a `[regression]` in the `unresolved` list.
 
-`spec_health` must report a `gauntlet_scenarios` field containing
+`spec_health` must report a `pattern_buffer_scenarios` field containing
 `passed` (count of sub-workflows that passed on the most recent run),
 `total` (total sub-workflow count per §6.6), and `last_run` (ISO 8601
-timestamp of the most recent Gauntlet execution, absent if never run).
+timestamp of the most recent Pattern Buffer execution, absent if never run).
 When `last_run` is absent, `passed` and `total` are absent. The field is
 badge-filtered: Player badge sees this field; no GM-only content is exposed.
 
@@ -1571,10 +1571,10 @@ and its status:
 - `unrecoverable_crash` — the server handles adversarial input without crash
 
 Each property carries a `status` of `online`, `degraded` (one or more non-blocking
-Gauntlet failures in relevant sub-workflows), or `offline` (blocking failure
-unresolved). Properties with no exercising Gauntlet sub-workflow SHALL report
+Pattern Buffer failures in relevant sub-workflows), or `offline` (blocking failure
+unresolved). Properties with no exercising Pattern Buffer sub-workflow SHALL report
 `unverified`. Per-safety-property status is recorded in DECISIONS.md (6) alongside the
-Gauntlet fingerprint.
+Pattern Buffer fingerprint.
 _Check:_ T289.
 
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
@@ -1660,16 +1660,16 @@ _Check:_ T196.
 at intake via B9. `production` mode (default) SHALL run the full quality suite: assumption
 audit (REQ-101), per-step audits with auditor pre-flight (§6.5), post-write verification on
 every file written during construction (§6.5.3), cross-model auditing when available
-(§6.5.2), and the full Gauntlet (§6.6). `quick-build` mode SHALL narrow the overhead: it
+(§6.5.2), and the full Pattern Buffer (§6.6). `quick-build` mode SHALL narrow the overhead: it
 skips the assumption audit, skips auditor pre-flight, scopes post-write verification to
 critical files only (DECISIONS.md, MCP client configuration, on-disk Novel state), and
-accepts same-model audits. The Gauntlet SHALL gate both modes — any build that creates or
-modifies tools MUST pass the Gauntlet before marking complete. A quick-build-mode build
+accepts same-model audits. The Pattern Buffer SHALL gate both modes — any build that creates or
+modifies tools MUST pass the Pattern Buffer before marking complete. A quick-build-mode build
 SHALL record a `quick-build` annotation in DECISIONS.md (6) listing which rituals were
 skipped. A quick-build-mode build is runnable but not handoff-ready.
 *Acceptance criterion:* A production build records assumption audit (T89), auditor
 pre-flight, and cross-model audit results. A quick-build build records a `quick-build`
-annotation listing skipped rituals and passes the Gauntlet. A quick-build build without
+annotation listing skipped rituals and passes the Pattern Buffer. A quick-build build without
 the annotation fails the process-compliance metric.
 _Check:_ T197.
 
@@ -2615,7 +2615,7 @@ of execution), pass/fail status, and a findings section enumerating each sub-che
 its individual result. Per-workflow extension fields: G0 records enumerate Appendix H
 and Appendix D checklist items with individual pass/fail; G2 records include the
 per-contract coverage enumeration defined in §8; G3 records include registry/resource
-diff summary; G4 records include per-test pass/fail counts; G5 (Gauntlet) records
+diff summary; G4 records include per-test pass/fail counts; G5 (Pattern Buffer) records
 include per-sub-workflow verdict and blocking/non-blocking classification. A verifier
 following §10 SHALL produce evidence records with the same minimum field set for
 Phase 1 step 2, enabling field-by-field comparison in Phase 2 step 8.
@@ -4091,7 +4091,7 @@ Drift warnings are diagnostic surfaces, not safety interlocks — they do not bl
 or degrade service. The active build's specification version, ruleset hash, and build
 timestamp always take precedence over stored values; stored values are retained for drift
 comparison only. Per-session fields (the last specification review timestamp and last
-Gauntlet execution timestamp) may be updated at runtime and preserved across restarts, but
+Pattern Buffer execution timestamp) may be updated at runtime and preserved across restarts, but
 the constructor-derived version, hash, holonovel package version, and timestamp are immutable for
 the build's lifetime. The server must load existing state gracefully: fields present in state but
 absent from the current entity model are preserved as inert data and cause no errors;
@@ -4142,14 +4142,14 @@ the rebuild to only the changed components and their dependents, reusing prior
 output for unchanged components. The scoping rules are:
 
 - **Source code changed** (configuration and dependencies unchanged) → typecheck
-  the server, then run only the Gauntlet sub-workflows whose surface-to-scenario
+  the server, then run only the Pattern Buffer sub-workflows whose surface-to-scenario
   mapping (§6.6) covers the surfaces implemented by the changed source files.
 - **Configuration or dependencies changed** (source unchanged) → reinstall
-  dependencies and typecheck; no Gauntlet re-run required.
+  dependencies and typecheck; no Pattern Buffer re-run required.
 - **Generated extraction data changed** (ruleset content hash REQ-044 unchanged) →
   re-index generation data only, reusing prior extraction output for unchanged
   ruleset sections per REQ-302.
-- **Registered surfaces changed** → run Gauntlet sub-workflows per the
+- **Registered surfaces changed** → run Pattern Buffer sub-workflows per the
   surface-to-scenario mapping (§6.6) for the changed tools, resources, or prompts.
 - **Specification content hash changed** (REQ-187) → gap audit per REQ-098, then
   implement only changed surfaces; unchanged components reuse prior verification.
@@ -4160,7 +4160,7 @@ The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which
 components changed, which remained unchanged, the scoping decision, and which
 prior outputs were reused.
 *Acceptance criterion:* A build where only the source code changed reuses the stored
-generated-data hash, skips extraction, and runs only surface-dependent Gauntlet
+generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer
 sub-workflows. A cold checkout with no stored fingerprints runs the full Build
 workflow without scoping. When four of five components changed, the full Build
 workflow runs regardless of individual scoping rules.
@@ -5695,7 +5695,7 @@ to the new name), `GM-review` (the referenced surface was removed — the GM sho
 review and replace the enrichment item), or `stale-reference` (the surface is
 absent with no obvious replacement). GM-activated items (REQ-130) with orphan
 references carry a `[stale-reference]` tag in `spec_health` until the GM resolves
-them. This check SHALL run before Gauntlet re-execution (§6.7) and SHALL NOT
+them. This check SHALL run before Pattern Buffer re-execution (§6.7) and SHALL NOT
 trigger web research — it is a cross-reference scan only. Results are recorded in
 DECISIONS.md with the gap audit row reference.
 *Acceptance criterion:* After a Minor update that renames a tool, ruleset-native
@@ -5744,7 +5744,7 @@ _Check:_ T-new-231.
 
 **REQ-243 — Enrichment population during spec-driven updates.** During a
 spec-driven update per REQ-098, after the gap audit implements new or changed
-surfaces and before Gauntlet re-execution, the builder SHALL run a scoped
+surfaces and before Pattern Buffer re-execution, the builder SHALL run a scoped
 ruleset-native enrichment re-classification. The builder: (a) identifies new or
 changed surfaces from the gap audit's implemented-disposition rows — surfaces are
 tools, resources, prompts, or state fields; (b) maps each surface to the source
@@ -5802,13 +5802,13 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Holonovel Gauntlet sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
+Holonovel Pattern Buffer sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the holonovel package builder MAY skip Phase 2
-convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
+convergence and the Holonovel Pattern Buffer, recording `cached — holonovel vX.Y.Z
 convergence manifest` in DECISIONS.md (5) and (6). When the specification
 version has advanced, the builder SHALL run convergence and the Holonovel
-Gauntlet fresh and update the manifest with the new results and spec version.
+Pattern Buffer fresh and update the manifest with the new results and spec version.
 TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
 reference this manifest — it applies only to holonovel package builds.
 
@@ -5828,7 +5828,7 @@ the builder SHALL fall back to live REQ-225 extraction with the annotation
 DECISIONS.md (4). When no manifest is present, the builder proceeds with live
 extraction as normal.
 *Acceptance criterion:* A holonovel package build whose CONVERGENCE.md spec
-version matches the current spec reports Phase 2 metrics and Holonovel Gauntlet
+version matches the current spec reports Phase 2 metrics and Holonovel Pattern Buffer
 results as cached. A TTRPG build against a ruleset with a valid pre-built
 enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
 without a manifest runs live REQ-225 extraction as before.
@@ -7992,7 +7992,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the ruleset. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
 | Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
-| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Gauntlet sub-workflows. | §6.7, §6.2      |
+| Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Pattern Buffer sub-workflows. | §6.7, §6.2      |
 
 ### 6.2 Intake
 
@@ -8098,10 +8098,10 @@ configuration is recorded.
 **Build mode profiles.** `production` (default) runs the full quality suite:
 assumption audit (REQ-101), per-step audits with auditor pre-flight, post-write
 verification on every file, cross-model auditing when available, and the full
-Gauntlet (§6.6). The Gauntlet gates both modes. `quick-build` mode narrows the
+Pattern Buffer (§6.6). The Pattern Buffer gates both modes. `quick-build` mode narrows the
 overhead rituals: skips the assumption audit and auditor pre-flight, scopes
 post-write verification to critical files (DECISIONS.md, MCP client config,
-on-disk Novel state), and accepts same-model audits. The Gauntlet still gates
+on-disk Novel state), and accepts same-model audits. The Pattern Buffer still gates
 — any build that creates or modifies tools must pass it. Quick-build mode is for
 inner-loop iteration; the server is runnable but not handoff-ready. A
 quick-mode build records a `quick-build` annotation in DECISIONS.md (6).
@@ -8732,53 +8732,53 @@ accuracy). For ruleset-free builds consuming a specific holonovel package versio
 the holonovel convergence manifest (REQ-245) takes precedence over the convergence
 cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
-### 6.6 The Gauntlet
+### 6.6 The Pattern Buffer
 
-*Prepare:* Load files from `build-phase-map.md` Gauntlet row: 03-build.md §6.6,
+*Prepare:* Load files from `build-phase-map.md` Pattern Buffer row: 03-build.md §6.6,
 05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
 ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
-builder runs the Gauntlet. Fixture workflows (G2 and G3 — see §8) are
+builder runs the Pattern Buffer. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
-independent of Gauntlet timing. The Gauntlet exercises the built server with
+independent of Pattern Buffer timing. The Pattern Buffer exercises the built server with
 AI-simulated badges.in realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
-**Convergence handshake.** After each Gauntlet execution, the builder maps
+**Convergence handshake.** After each Pattern Buffer execution, the builder maps
 every failure to the convergence-loop metric it affects per REQ-208. The builder then
 re-enters Phase 2 of the convergence loop (§6.5) for only those metrics,
-corrects the root cause, and re-runs the Gauntlet — up to 2 Gauntlet
-iterations total. Each Gauntlet-triggered re-entry receives a fresh 3-attempt
+corrects the root cause, and re-runs the Pattern Buffer — up to 2 Pattern Buffer
+iterations total. Each Pattern Buffer-triggered re-entry receives a fresh 3-attempt
 budget for the affected metric, independent of any previous Phase 2 iterations
 for that metric. The re-entry budget is recorded in DECISIONS.md (6) alongside
 the failure mapping. The re-entry's no-delta detection (§6.5.1) applies
 independently within the re-entry budget. If a metric that converged in Phase 2
-is re-entered via Gauntlet and fails to re-converge within its re-entry budget,
+is re-entered via Pattern Buffer and fails to re-converge within its re-entry budget,
 the builder records the residual gap in DECISIONS.md (5) and proceeds — the
-original convergence is not invalidated, but the Gauntlet-surfaced defect
+original convergence is not invalidated, but the Pattern Buffer-surfaced defect
 persists as a known limitation. The mapping is recorded in DECISIONS.md (6) alongside each
-failure artifact. A Gauntlet failure that maps to no convergence metric under
+failure artifact. A Pattern Buffer failure that maps to no convergence metric under
 REQ-208 is logged as a process-compliance finding. The builder traces the root cause: if the
 failure originates from an extraction defect (a misread rule, a miscategorized
 action, a missing conceptual term), the builder records the specific Phase 1
 metric affected and re-enters Phase 1 for only that metric's domain — following
 the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
-Gauntlet failures that re-enter Phase 1 count against the Phase 1 iteration
+Pattern Buffer failures that re-enter Phase 1 count against the Phase 1 iteration
 budget (3 attempts per metric-targeted step) independently of Phase 2 budgets.
 If the root cause is a construction defect that maps to no existing Phase 2
 metric, the builder re-enters Phase 2 with all metrics in scope and records the
 novel defect class in DECISIONS.md (6) with a proposed metric mapping for
 future builds.
 
-**Independent invocation.** The Gauntlet must also be re-run whenever server source
+**Independent invocation.** The Pattern Buffer must also be re-run whenever server source
 code changes — after Enrich, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
-fails is a defect. Gauntlet results are recorded in DECISIONS.md (6).
+fails is a defect. Pattern Buffer results are recorded in DECISIONS.md (6).
 
 **Convergence-loop-driven scoping.** When the convergence loop (§6.5) exits with all
 metrics within their tiered thresholds and the ruleset content hash (REQ-044)
-matches the prior build, the subsequent Gauntlet run SHALL skip
+matches the prior build, the subsequent Pattern Buffer run SHALL skip
 mechanics-fidelity sub-workflows — those whose failures would be
 extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
@@ -8786,23 +8786,23 @@ S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
 sub-workflows — all others (S1, S5, S6, S10–S31) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
-to both the initial build-time Gauntlet and subsequent re-runs after enrichment
-or spec-driven updates. The operator MAY override with `--full-gauntlet` to force
+to both the initial build-time Pattern Buffer and subsequent re-runs after enrichment
+or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
 all sub-workflows.
 
-**Workflow completion.** The Build workflow is not complete until the Gauntlet
-exits with all Gauntlet sub-workflows passing or the builder records 2
+**Workflow completion.** The Build workflow is not complete until the Pattern Buffer
+exits with all Pattern Buffer sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
-ruleset-facing verification workflows (G0 step 2 and G4) pass. The Gauntlet
+ruleset-facing verification workflows (G0 step 2 and G4) pass. The Pattern Buffer
 gates both `production` and `quick-build` builds — any build that creates or modifies
-tools must pass the Gauntlet before marking complete. In `production` mode
+tools must pass the Pattern Buffer before marking complete. In `production` mode
 the build additionally requires the assumption audit (REQ-101), the audit steps
 with auditor pre-flight (§6.5), full post-write verification on every file
 (§6.5), and cross-model auditing when available (§6.5.2). These are optional in
 `quick-build` mode; a quick-build-mode build records a `quick-build` annotation in
 DECISIONS.md (6) listing which rituals were skipped and is not handoff-ready.
-Marking a workflow complete without a passing Gauntlet is a process defect. The
-Gauntlet findings and pass/fail disposition are recorded in DECISIONS.md (6).
+Marking a workflow complete without a passing Pattern Buffer is a process defect. The
+Pattern Buffer findings and pass/fail disposition are recorded in DECISIONS.md (6).
 
 **Method.** The builder starts up to two MCP client connections to the same server process
 sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-badge interaction
@@ -8813,17 +8813,17 @@ calls between the two connections when simulating cross-badge turn-taking. Every
 states its objective, the tool calls to make, which badge calls each, and the pass
 criterion.
 
-**Verification principle.** Gauntlet sub-workflows verify state through tool-observable
+**Verification principle.** Pattern Buffer sub-workflows verify state through tool-observable
 surfaces — `character_sheet`, `session_recap`, `spec_health`, `badge_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
 on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
-is an implementation detail. A Gauntlet sub-workflow that reads raw state files to
+is an implementation detail. A Pattern Buffer sub-workflow that reads raw state files to
 verify behavior observable through tools will become stale when the state model
 changes during a spec-driven update (REQ-098). Direct file reads remain valid in
 S17 (file removal) and S15 (corruption) where the pass criterion is a
 file-system-level assertion.
 
-**Gauntlet sub-workflows.** The builder must execute all sub-workflows. A sub-workflow passes when every
+**Pattern Buffer sub-workflows.** The builder must execute all sub-workflows. A sub-workflow passes when every
 assertion in its pass criterion holds. A failure is recorded as a finding in
 DECISIONS.md (6).
 
@@ -8998,8 +8998,8 @@ four items is incomplete and blocks handoff.
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
 
-**REQ-108 — Gauntlet traceability.** The builder must ensure at least one
-Gauntlet sub-workflow exercises each requirement in §5.5 (Badges and Access),
+**REQ-108 — Pattern Buffer traceability.** The builder must ensure at least one
+Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access),
 §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and
 the error contracts of REQ-002 (Error taxonomy). The builder records a
 sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
@@ -9008,12 +9008,12 @@ changes during a spec-driven update (REQ-098), the builder re-examines every
 sub-workflow mapped to it. Gaps — a REQ in the covered sections with no mapped
 sub-workflow — are logged as process-compliance findings and must be resolved
 before handoff. New REQs added to the covered sections during a spec revision
-require the builder to propose at least one new Gauntlet sub-workflow
+require the builder to propose at least one new Pattern Buffer sub-workflow
 exercising their contract; the proposal is a finding, not a blocker. _Check:_
 T107.
 
 **REQ-141 — Input-validation convergence metric.** The convergence handshake
-in §6.6 must map Gauntlet failures to four convergence metrics, adding
+in §6.6 must map Pattern Buffer failures to four convergence metrics, adding
 "input-validation gap" to the existing three (MUST-coverage gap,
 mechanics-fidelity defect, process-compliance omission). A sub-workflow
 failure attributable to incorrect input handling — malformed parameters
@@ -9028,7 +9028,7 @@ An input-validation failure is recorded in DECISIONS.md (6) with the
 failing input value, the error category returned (or absent), and the
 expected error category per REQ-002.
 
-This metric covers Gauntlet sub-workflow S14 (Edge cases) and any other
+This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
 
@@ -9043,7 +9043,7 @@ is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
 
-**Global budget.** The full Gauntlet run of all sub-workflows must complete
+**Global budget.** The full Pattern Buffer run of all sub-workflows must complete
 within 60 minutes of wall-clock time. A run exceeding the budget is
 recorded with actual duration and per-sub-workflow timings in
 DECISIONS.md (6). The operator may increase the budget for rulesets
@@ -9054,39 +9054,39 @@ as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The pr
 descriptions above are canonical; the structured encoding is a lossless transcription.
 
 The structured encoding SHALL be accompanied by a single runnable test harness
-(`scripts/run_gauntlet.ts`) that reads the encoded sub-workflow records and executes
+(`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes
 each against the live MCP server. The harness SHALL: (a) start the server process,
 (b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion
 against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
 Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
 non-blocking failures per the Exit criteria. The harness enables operator re-execution
-of the full Gauntlet without AI builder reasoning — re-runs after enrichment, after
+of the full Pattern Buffer without AI builder reasoning — re-runs after enrichment, after
 spec-driven updates, or after code changes consume zero AI tokens. The harness output
-SHALL include the Gauntlet execution timestamp and per-sub-workflow verdicts with
+SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
 failure details when applicable. The harness is recorded as a handoff artifact
 (§9 H13a).
 
 **Convergence integration.** The convergence handshake (see Timing block above)
-governs the Gauntlet ↔ Phase 2 feedback loop.
+governs the Pattern Buffer ↔ Phase 2 feedback loop.
 
 **Improvement** is measured per iteration: fewer total assertion failures, or at
 least one blocking sub-workflow downgraded to non-blocking. Two stalled iterations is
 a stop; residual failures are logged in DECISIONS.md (5).
 
-**Regression assertions.** A bug discovered via Gauntlet failure and fixed via convergence
+**Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence
 gets at least one new regression assertion recorded in DECISIONS.md (6).
 
-**Assertion compression.** After spec-driven updates or five Gauntlet iterations, audit
+**Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit
 accumulated regression assertions for redundancy. Subsumed assertions are removed
 and logged in DECISIONS.md (6) with the subsuming citation.
 
-**Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
+**Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 
-A build with more than 3 unresolved non-blocking Gauntlet failures SHALL not be
+A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be
 declared handoff-ready without explicit operator acknowledgment. The count of
 unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
 a per-failure severity assessment. The operator may override this ceiling by
@@ -9094,7 +9094,7 @@ recording an acceptance entry in DECISIONS.md (5). This rule applies at handoff
 verification time (§9 H13) — non-blocking failures accumulated and logged during
 the build process are re-counted at handoff.
 
-**REQ-142 — Blocking classification principle.** A Gauntlet sub-workflow is
+**REQ-142 — Blocking classification principle.** A Pattern Buffer sub-workflow is
 classified as blocking when it exercises a correctness property whose
 failure would make the server unsafe to use in any play session — state
 loss, badge-boundary violation, data corruption, unrecoverable crash, or
@@ -9111,27 +9111,27 @@ When a sub-workflow's classification changes, the builder records the
 trigger — a spec revision, a discovered defect class, or an operator
 override. _Check:_ T164.
 
-**REQ-208 — Gauntlet convergence metric mapping.** The builder SHALL
-classify each Gauntlet failure by applying these rules: a failure from a
+**REQ-208 — Pattern Buffer convergence metric mapping.** The builder SHALL
+classify each Pattern Buffer failure by applying these rules: a failure from a
 missing tool or resource maps to MUST-coverage; a failure from incorrect
 tool output or behavior maps to mechanics-fidelity; a failure from missing
 or stale pre-build answers or verification records maps to
 process-compliance; a failure from incorrect input handling maps to
 input-validation (REQ-141). When a failure matches multiple rules, the most
 specific rule applies. The classification rule applied SHALL be recorded
-alongside each mapping in DECISIONS.md (6). A Gauntlet failure that maps to
+alongside each mapping in DECISIONS.md (6). A Pattern Buffer failure that maps to
 no convergence metric under these rules is logged as a process-compliance
 finding — the builder records the novel defect class in DECISIONS.md (6)
 with a proposed metric mapping for future builds. _Check:_ T250.
 
 **Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
-selects Gauntlet sub-workflows based on which surfaces changed — not the blanket
+selects Pattern Buffer sub-workflows based on which surfaces changed — not the blanket
 set. The gap audit identifies the changed tools, resources, and prompts; the
 builder maps each to scenarios via the table below. A sub-workflow is selected when
 any surface it exercises appears in the gap audit's implemented-disposition rows.
 S1 is always selected when new tools are added or existing tool signatures changed.
 
-| Changed surface                                             | Gauntlet scenarios selected |
+| Changed surface                                             | Pattern Buffer scenarios selected |
 |-------------------------------------------------------------|-----------------------------|
 | Character creation, roster, workflows (REQ-042, REQ-056, REQ-104) | S2, S12, S22 |
 | Combat lifecycle, initiative, dangers (REQ-043)             | S3, S4, S5 |
@@ -9156,15 +9156,15 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Gauntlet run.
+spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Pattern Buffer run.
 
-**REQ Gauntlet coverage map.** The following table maps every requirement in §5.5
+**REQ Pattern Buffer coverage map.** The following table maps every requirement in §5.5
 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
-Performance), and REQ-002 (Error taxonomy) to at least one Gauntlet sub-workflow
+Performance), and REQ-002 (Error taxonomy) to at least one Pattern Buffer sub-workflow
 that exercises its contract. This table is normative — it ships with the
 specification and is mechanically verified by `scripts/validate.ts`. When a spec
 revision adds a new REQ to these sections, the maintainer SHALL add at least one
-row mapping it to a Gauntlet sub-workflow (existing or new). When no existing
+row mapping it to a Pattern Buffer sub-workflow (existing or new). When no existing
 sub-workflow exercises the new REQ's contract, the maintainer SHALL add a new
 sub-workflow. Gaps detected by validation are errors — they block assembly.
 
@@ -9258,60 +9258,60 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-333 | S16 | Story journal to lore promotion |
 | REQ-334 | S15 | Novel archiving |
 
-**Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
+**Fingerprint-driven Pattern Buffer scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
-prior successful Gauntlet execution — recorded in DECISIONS.md (6) with its
-Gauntlet fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
-SHALL skip the Gauntlet sub-workflows. The gap audit reports zero changed
+prior successful Pattern Buffer execution — recorded in DECISIONS.md (6) with its
+Pattern Buffer fingerprint (ruleset hash + spec hash + holonovel package version) — the builder
+SHALL skip the Pattern Buffer sub-workflows. The gap audit reports zero changed
 surfaces; no sub-workflows are selected per the surface-to-scenario mapping.
-The builder records `cached — Gauntlet fingerprint match` in DECISIONS.md (6).
+The builder records `cached — Pattern Buffer fingerprint match` in DECISIONS.md (6).
 
 **Per-sub-workflow surface fingerprints.** Each sub-workflow's structured encoding
 SHALL carry a `surface_hash` — a SHA-256 of the sorted, concatenated tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
 specification version has advanced but the ruleset hash is unchanged, the builder
 SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
-Sub-workflows whose `surface_hash` matches the prior Gauntlet execution SHALL be
+Sub-workflows whose `surface_hash` matches the prior Pattern Buffer execution SHALL be
 skipped individually — recorded as `cached — surface hash match for S<N>` in
 DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
-The full 29-sub-workflow Gauntlet is not required when the
+The full 29-sub-workflow Pattern Buffer is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
-**Gauntlet results manifest.** The builder SHALL record a `gauntlet_manifest`
+**Pattern Buffer results manifest.** The builder SHALL record a `pattern_buffer_manifest`
 alongside the build fingerprint (REQ-065): per-sub-workflow pass/fail status,
 surface hash, and execution timestamp, keyed to spec version + ruleset hash.
 When the spec version and ruleset hash both match a prior manifest entry, all
-sub-workflow results are reused — recorded as `cached — gauntlet manifest match`
+sub-workflow results are reused — recorded as `cached — pattern buffer manifest match`
 in DECISIONS.md (6) — instead of re-executing any sub-workflow. When the spec
 version has advanced, sub-workflows with unchanged surface hashes carry forward
 their prior results per the per-sub-workflow fingerprint rule; sub-workflows with
 changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
-The operator MAY override fingerprint scoping with a `--full-gauntlet` flag at
+The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
 intake, forcing all 29 sub-workflows regardless of fingerprint match.
 
-#### Holonovel Gauntlet
+#### Holonovel Pattern Buffer
 
 The Holonovel server — the `holonovel` npm package (ruleset-free per §6.2) — is
-verified through a separate Gauntlet of world-model-specific sub-workflows. The Holonovel
-Gauntlet runs when the holonovel package is built and before it is published, as part of
+verified through a separate Pattern Buffer of world-model-specific sub-workflows. The Holonovel
+Pattern Buffer runs when the holonovel package is built and before it is published, as part of
 the holonovel package's own verification. It is not part of TTRPG builds — TTRPG servers
 consume the published holonovel package as a build-time dependency and skip the Holonovel
-Gauntlet sub-workflows. The same Method, Verification principle, Failure artifacts,
+Pattern Buffer sub-workflows. The same Method, Verification principle, Failure artifacts,
 Budget, and Structured encoding contracts apply (§6.6), including the executable
 test harness mandate — the holonovel package build SHALL produce a runnable harness
-(`scripts/run_gauntlet.ts`) per the §6.6 Structured encoding clause. Blocking
+(`scripts/run_pattern_buffer.ts`) per the §6.6 Structured encoding clause. Blocking
 sub-workflows SHALL pass; non-blocking failures are recorded as accepted
 limitations.
 
 **Version-bound results.** When the holonovel package version (B10) matches a
-prior Holonovel Gauntlet execution recorded in DECISIONS.md (6), and the
+prior Holonovel Pattern Buffer execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
-results — recording `cached — holonovel vX.Y.Z Gauntlet results` in DECISIONS.md
+results — recording `cached — holonovel vX.Y.Z Pattern Buffer results` in DECISIONS.md
 (6) — instead of re-executing the 13 sub-workflows. A specification version
-advance SHALL trigger a fresh Holonovel Gauntlet execution. The holonovel convergence
-manifest (REQ-245) carries pre-computed Gauntlet results for the version it
+advance SHALL trigger a fresh Holonovel Pattern Buffer execution. The holonovel convergence
+manifest (REQ-245) carries pre-computed Pattern Buffer results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
 records.
 
@@ -9319,13 +9319,13 @@ records.
 encoding SHALL carry a `surface_hash` — a SHA-256 of the sorted tool names,
 resource URIs, and prompt names the sub-workflow exercises. When the
 specification version has advanced but the holonovel package version is unchanged,
-sub-workflows whose `surface_hash` matches the prior Holonovel Gauntlet execution
+sub-workflows whose `surface_hash` matches the prior Holonovel Pattern Buffer execution
 SHALL be skipped individually — recorded as `cached — surface hash match for
 I<N>` in DECISIONS.md (6). Sub-workflows with changed surface hashes SHALL
 re-execute. The surface-to-scenario mapping below governs which sub-workflows
 are selected for changed surfaces.
 
-**Holonovel Gauntlet sub-workflows.**
+**Holonovel Pattern Buffer sub-workflows.**
 
 1. **Parser command sweep** — call every registered parser command (look, go
    north/east/south/west, examine, take, drop, open, close, inventory, wait)
@@ -9447,9 +9447,9 @@ are selected for changed surfaces.
     fixed item returns `[RULE_VIOLATION]`. Assert `command("ask nobody about
     crypt")` with no matching NPC returns `[WARNING]`. (Blocking.)
 
-**Holonovel Gauntlet surface-to-scenario mapping.**
+**Holonovel Pattern Buffer surface-to-scenario mapping.**
 
-| Changed surface                                    | Holonovel Gauntlet scenarios |
+| Changed surface                                    | Holonovel Pattern Buffer scenarios |
 |----------------------------------------------------|---------------------------|
 | holonovel package changed (new version)     | All (1–18)                |
 | Room navigation, parser commands                   | 1, 2, 8, 17                |
@@ -9466,7 +9466,7 @@ are selected for changed surfaces.
 | Parser command vocabulary                          | 17                        |
 | Narrative verbs                                    | 18                        |
 
-**REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
+**REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
@@ -9487,14 +9487,14 @@ iterations, total token cost, REQ coverage, and final disposition.
 entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
 _Check:_ T-new-301.
 
-**REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Gauntlet
+**REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Pattern Buffer
 sub-workflows SHALL scope their verification to changed sections. Sub-workflows that
 verify unchanged sections only SHALL be skipped with a `[section unchanged — re-validating
 from previous build]` annotation. Cross-section sub-workflows SHALL run in full. Skipped
 sub-workflows carry the `[validated-by-prior-build]` disposition.
 
 *Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
-skips Gauntlet sub-workflows that verify unchanged sections and records the skip.
+skips Pattern Buffer sub-workflows that verify unchanged sections and records the skip.
 _Check:_ T-new-303.
 
 ### 6.7 Spec-driven updates
@@ -9510,16 +9510,16 @@ catalog, resource map, prompt list, state model, badge gating, and behavioral
 contracts; produce a documented plan with gap dispositions (implemented / deferred /
 waived) each citing the relevant REQ; implement changes with passing verification
 workflows; restart the MCP server process and confirm `spec_health` reports the updated
-specification version; re-run only those Gauntlet sub-workflows that exercise the tools, resources,
+specification version; re-run only those Pattern Buffer sub-workflows that exercise the tools, resources,
 or prompts identified as changed by the gap audit. The builder selects scenarios
 from the surface-to-scenario mapping in §6.6: a sub-workflow is selected when any
 tool, resource, or prompt it exercises appears in the gap audit's
 implemented-disposition rows. Sub-workflows not exercised by the changed surfaces
 are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
-implement any unimplemented Gauntlet sub-workflows from §6.6; and
+implement any unimplemented Pattern Buffer sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Holonovel Gauntlet sub-workflows (I1–I18, §6.6) are not included in TTRPG
+The Holonovel Pattern Buffer sub-workflows (I1–I18, §6.6) are not included in TTRPG
 spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
@@ -9527,9 +9527,9 @@ is built and published.
 
 | Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Gauntlet |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Gauntlet sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Gauntlet |
+| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
+| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
+| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Pattern Buffer |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -9563,7 +9563,7 @@ the builder compares the server's live registrations — tool catalog
 (tools/list), resource map (resources/list), prompt list (prompts/list),
 and `spec_health` counts — against the spec's output contracts (§7.3), tool-surface
 conventions (§7.4), state model (§7.7), and REQ-032 badge gating. Behavioral
-contracts are verified by Gauntlet re-run. The audit produces one row per identified
+contracts are verified by Pattern Buffer re-run. The audit produces one row per identified
 gap with: the affected surface, the citing REQ, the disposition, and the reason.
 
 **State migration.** When the state model changes, the builder verifies that
@@ -9572,7 +9572,7 @@ state fields present in stored state but absent in the updated model are preserv
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-**Enrichment consistency check.** After the gap audit and before Gauntlet
+**Enrichment consistency check.** After the gap audit and before Pattern Buffer
 re-execution, the builder SHALL scan all enrichment items (ruleset-native and
 community tiers) for references to surfaces identified as changed or removed in the
 gap audit per REQ-228. The builder cross-references: action pattern tool names
@@ -9596,15 +9596,15 @@ gap audit identifies no new surfaces (patch-level change), this step SHALL be
 skipped with a "no new surfaces — skipped" annotation. No web research occurs.
 
 **Budget.** The operator may set a wall-clock budget in minutes at intake. If the
-budget is exceeded before the Gauntlet passes, the builder reports residual gaps
+budget is exceeded before the Pattern Buffer passes, the builder reports residual gaps
 and the operator chooses: accept the partial update, extend the budget, or revert.
 No budget set → no limit.
 
 _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing its
 relevant REQ and disposition reason. `spec_health` reports the updated specification
-version. Gauntlet sub-workflows selected per the surface-to-scenario mapping in §6.6
+version. Pattern Buffer sub-workflows selected per the surface-to-scenario mapping in §6.6
 pass with zero failures. `spec_health` reports
-`last_spec_review` and `last_gauntlet` fields populated with ISO dates.
+`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates.
 
 **Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
 from the repo URL recorded at build time before beginning the gap audit. The
@@ -9958,7 +9958,7 @@ mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
 means it directly affects state mutation or tool behavior. A coupling marked
 "Narrative" means it affects narrative coherence and is verified during the
 G7 narrative coherence attestation (REQ-346); narrative couplings do not
-block mechanical Gauntlet sub-workflows. When a source
+block mechanical Pattern Buffer sub-workflows. When a source
 property changes, navigational and narrative couplings update on the next
 resource read; mechanical couplings take effect at the moment of the
 triggering mutation.
@@ -9994,7 +9994,7 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G2       | Fixture | Golden transcript replay (fixture scoped by complexity) |
 | G3       | Fixture | Injection resistance                           |
 | G4       | Ruleset | Derived test catalogue                         |
-| G5       | Ruleset | The Gauntlet — operational verification        |
+| G5       | Ruleset | The Pattern Buffer — operational verification        |
 | G6       | Ruleset | Enrichment lifecycle                           |
 | G7       | Ruleset | Narrative coherence attestation                 |
 
@@ -10074,13 +10074,13 @@ reason in DECISIONS.md. Automated tests must ship a runnable script
 tests must document the verification procedure and expected output shape in
 DECISIONS.md. This workflow uniquely verifies the server against the formal
 test catalogue — individual tool contracts are exercised by G2 (fixture
-transcript) and operational behavior by G5 (Gauntlet scenarios).
+transcript) and operational behavior by G5 (Pattern Buffer scenarios).
 
-**Verification workflow G5 — The Gauntlet (operational verification).** For a
-ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
+**Verification workflow G5 — The Pattern Buffer (operational verification).** For a
+ruleset server, run the 29-sub-workflow Pattern Buffer defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Holonovel server, run the 18-sub-workflow Holonovel Gauntlet (I1–I18) defined
-in §6.6 Holonovel Gauntlet. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
+For the Holonovel server, run the 18-sub-workflow Holonovel Pattern Buffer (I1–I18) defined
+in §6.6 Holonovel Pattern Buffer. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).
@@ -10094,7 +10094,7 @@ reports correct per-module active/inactive counts; `revert_enrichment` removes a
 `[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
 items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
-conditions. The Gauntlet re-runs after every server code change: during Build
+conditions. The Pattern Buffer re-runs after every server code change: during Build
 completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
 any manual code modification.
 
@@ -10122,9 +10122,9 @@ condition.
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
 
-Each persona archetype exercises at least one Gauntlet sub-workflow:
+Each persona archetype exercises at least one Pattern Buffer sub-workflow:
 
-| Persona              | Gauntlet scenario(s) | Contract exercised                               |
+| Persona              | Pattern Buffer scenario(s) | Contract exercised                               |
 | -------------------- | -------------------- | ------------------------------------------------- |
 | Power Gamer          | S4, S21              | Combat determinism, max-round endurance           |
 | New Player           | S1, S22              | Invalid-param handling, unknown-decision errors   |
@@ -10186,7 +10186,7 @@ have a recorded result in DECISIONS.md.
 | H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. |
-| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Gauntlet was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
+| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Pattern Buffer was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
 | H14   | T190   | Four-artifact diet                                                    | Handoff directory contains exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md; no other regular files. Automated test scripts in `scripts/` and `.holonovel-state/` directory are exempt. |
 
 A verification step may be waived if the ruleset lacks the feature it tests; the waiver is recorded in
@@ -10242,7 +10242,7 @@ Phase 1 — blind re-execution, in order:
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
 5. Run the automated handoff verification workflow (H1–H14) and record the results.
 6. Confirm the four-artifact diet: no stray files.
-7. (Adversarial) Select five blocking Gauntlet sub-workflows (§6.6) at random
+7. (Adversarial) Select five blocking Pattern Buffer sub-workflows (§6.6) at random
     from a weighted pool and re-execute them with your own tool calls — do not
     replay the builder's recorded calls. Sub-workflows with prior failures in the
     builder's evidence (from DECISIONS.md §6) are weighted 3×; sub-workflows
@@ -10307,14 +10307,14 @@ Report in the format below.
 - Handoff verification workflow: H1–H14 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
-- Adversarial Gauntlet re-execution: sub-workflows selected → verdicts
+- Adversarial Pattern Buffer re-execution: sub-workflows selected → verdicts
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED
 ```
 
 A `DISPUTED` item is resolved by the operator re-running that single contested step. The
 operator's re-run result is binding — it replaces the disputed item's pass/fail status
 in the evidence record regardless of which party's result it matches. If the operator's
-re-run cannot be completed under the same conditions (e.g., a non-deterministic Gauntlet
+re-run cannot be completed under the same conditions (e.g., a non-deterministic Pattern Buffer
 sub-workflow with no pinned seed), the verifier's result controls and the item is
 reported as VERIFIED WITH FINDINGS with the operator's attempted re-run noted. The
 report is review evidence, not a build artifact.
@@ -10325,8 +10325,9 @@ report is review evidence, not a build artifact.
 
 _This workflow does not gate the Definition of Done. It extends the Build workflow._
 
-After Enrich completes, re-run the Gauntlet blocking sub-workflows (§6.6 exit criteria) and verify no regression. A
-previously-passing blocking sub-workflow that now fails is a defect that must be resolved
+After Enrich completes, re-run the Pattern Buffer blocking sub-workflows (§6.6 exit
+criteria) and verify no regression. A previously-passing blocking sub-workflow that now
+fails is a defect that must be resolved
 before handoff. Record re-verification results in DECISIONS.md.
 
 ### 11.1 Community enrichment
@@ -11347,7 +11348,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-105 | Spec resource             | 2026-08-06   |
 | REQ-106 | Spec repository URL       | 2026-08-06   |
 | REQ-107 | Version coordination      | 2026-08-07   |
-| REQ-108 | Gauntlet traceability     | 2026-08-06   |
+| REQ-108 | Pattern Buffer traceability     | 2026-08-06   |
 | REQ-098 | Spec-driven update workflow | 2026-08-07   |
 | REQ-109 | Badge briefing composition  | 2026-08-06   |
 | REQ-099 | Confidence-floor acknowledgment | 2026-08-05   |
@@ -11478,7 +11479,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-206 | Combat-round condition expiry | 2026-08-07 |
 | REQ-221 | Combat-navigation interaction   | 2026-08-07 |
 | REQ-207 | Core-mechanic identification     | 2026-08-07 |
-| REQ-208 | Gauntlet convergence metric mapping | 2026-08-07 |
+| REQ-208 | Pattern Buffer convergence metric mapping | 2026-08-07 |
 | REQ-209 | Cross-format consistency     | 2026-08-07 |
 | REQ-210 | Extraction categories        | 2026-08-07 |
 | REQ-211 | Evidence record field contract | 2026-08-07 |
@@ -11683,7 +11684,7 @@ diet.
 | T69   | Automated | Macro system: set scene_state, create entity with known stats, set countdown. Call a tool whose output contains `{{scene.current}}`, `{{entity.name}}`, `{{countdown.foo.remaining}}`. Assert output contains expanded values, not macro tokens. Reference nonexistent `{{nope.field}}` — assert literal text unchanged. Read audit log entry containing macro tokens — assert tokens NOT expanded.                                                                                                                                                                                                                                                                                              | REQ-085                                     |
 | T70   | Automated | Audit compression: run several mutations (advance combat, apply condition). Call `compress_audit(3)` — assert output contains Markdown header "Compressed audit log (summarize into a single paragraph):" followed by per-entry lines in format `[timestamp] [badge] tool_name — output_prefix`. Assert forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix. Switch to Player badge — assert entries affecting a player-owned entity are visible even when the recorded badge is `game_master`. Verify audit log is unchanged (REQ-040). Call with 0 — assert `[ERROR] [INVALID_INPUT]`.                                                                                                                                                                                                                                                                                                                                                                                          | REQ-086, REQ-032, REQ-040                   |
 | T71   | Automated | Scene type tagging: set scene type to "social" — assert GM `badge_briefing` prioritizes social tools in registry section. Call `suggest_actions("talk")` — assert social actions appear. Call `init_combat` — assert combat tools prioritized in `badge_briefing` regardless of scene type. Set to unknown type — assert `[ERROR] [NOT_FOUND]` with valid values enumerated. Player attempt returns `[FORBIDDEN]`. Restart — verify type persists.                                                                                                                                                                                                                                                                                                     | REQ-087, REQ-032                            |
-| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Gauntlet sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
+| T72   | Automated | Novel lifecycle: create Novel, assert state file on disk at `.holonovel-state/novels/<slug>.json`. Restart server with same `TTRPG_NOVEL`, assert state restored (entities, NPCs, scene). `end_novel`, assert file removed from disk. Resume ended Novel → `[STATE_CONFLICT]`. Create Novel with duplicate slug → `[STATE_CONFLICT]`. Server start without `TTRPG_NOVEL` — Novel-scoped tools return `[STATE_CONFLICT]`. This test reads the on-disk state format — it verifies REQ-092's format contract (verification workflow G4). Pattern Buffer sub-workflows (G5) verify the same state-survival behaviors through tool-observable surfaces. See §6.6 Verification principle.                                                                                                                                                                                                                                                                                   | REQ-088, REQ-092                            |
 | T73   | Automated | Novel isolation: create Novel A with entities. Create Novel B — assert Novel A's entities not visible via `entities://`. Resume Novel A — assert entities restored. Generated adventure content scoped to the Novel that generated it.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-088, REQ-074, REQ-090                   |
 | T74   | Manual   | Novel setup: invoke `novel_setup` prompt on a fresh Novel. Assert output presents three sequential steps (characters, story source, session zero) with visual completion markers `[✓]`, `[→]`, and `[ ]`. Assert step descriptions use conversational plain English — a prompt for action, not a static list. Create a character — assert characters step marked `[✓]`. Load an adventure — assert story source step marked `[✓]`. Run session zero — assert session zero step marked `[✓]` and next-steps summary appears after completion. Verify metadata in `badge_briefing` under `novel` token. | REQ-089                                     |
 | T75   | Automated | Adventure generation: call `generate_adventure("A haunted space station")`. Assert output contains title, Overview (GM-only), Adventure Hook, 2–6 locations, NPC entries. Assert generated content retrievable at `adventure://<slug>/<anchor>`. Assert GM-only sections hidden from Player. Assert appears in `search_rules` results. Regenerate — assert old content replaced.                                                                                                                                                                                                                                                                                                                       | REQ-090, REQ-032                            |
@@ -11696,14 +11697,14 @@ diet.
 | T82   | Automated | Lore suggestion: run enrich (or seed mock templates), call `suggest_lore` with and without scene text — assert up to 5 matching templates returned with key, content preview, triggers, confidence, and source_url. Call `suggest_lore()` with no enrich run — assert empty list with enrich guidance note. Verify no template fabrication. Switch to Player — assert GM-scoped templates excluded. Switch to GM — assert `suggest_lore` returns templates of all `badge_scope` values (game_master, shared, and any player-scoped templates).                                                                                                                                                                                                                                                                                                                                        | REQ-083, REQ-032, REQ-080                   |
 | T83   | Automated | Lore entry budget: configure a token budget for triggered lore entries in badge_briefing via the builder's configuration mechanism. Create enough triggered lore entries to exceed the budget. Assert badge_briefing lore section respects the configured budget — only entries that fit the budget appear. Assert spec_health reports budget consumption and entries omitted. Assert the budget is adjustable at runtime. Assert all triggered entries appear when the budget is removed or set above the entry count.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
 | T299  | Automated | Sticky counter decay: create lore entry with `sticky: 3` and trigger "vault". Set scene_state containing "vault" — assert entry triggered in `badge_briefing`. Set scene_state without "vault" — assert entry's sticky counter decrements by 1 (call `badge_briefing` twice on same scene — assert counter unchanged). After 3 scene changes to non-triggering scenes, assert entry no longer appears in `badge_briefing` lore section. Revert scene back to "vault" — assert sticky counter resets to 3 and entry reappears.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-155                                    |
-| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_gauntlet` fields populated with ISO dates. Assert the Gauntlet rerun passes all blocking sub-workflows for any gap-audit-implemented changes. Assert any previously-unimplemented Gauntlet sub-workflows from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_pattern_buffer` fields populated with ISO dates. Assert the Pattern Buffer rerun passes all blocking sub-workflows for any gap-audit-implemented changes. Assert any previously-unimplemented Pattern Buffer sub-workflows from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
 | T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert individual per-category latencies recorded in DECISIONS.md (4). Assert measurements recorded in DECISIONS.md (4) and `spec_health`. | REQ-100 |
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `end_novel` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
 | T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (0) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
 | T90   | Manual   | Complex fixture verification workflow: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, session_recap, undo correctness, and badge enforcement. Required for rulesets at REQ-100 tiers Standard, Heavy, Huge (≥100 indexed items).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
 | T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
-| T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Gauntlet passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
+| T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Pattern Buffer passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
 | T94   | Automated | Enrichment reversion: run enrich, verify 6 modules populated. Call `revert_enrichment` — assert all enrichment resource URIs (`enrichment://voice_examples`, `enrichment://briefing_order`, `enrichment://action_patterns`, `enrichment://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, enrichment state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md enrichment evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run enrich — assert repopulation succeeds. Player badge attempt returns `[FORBIDDEN]`. Assert enrichment briefing_order tokens are a subset of `spec_health.section_tokens`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080, REQ-185                            |
 | T95   | Automated | LOW-confidence tagging: run enrich with LOW items present. Inspect `badge_briefing` and enrichment resources — assert every LOW-confidence item carries `[LOW]` tag distinct from `[supplementary]`. Assert LOW items appear after HIGH/MEDIUM items within their module section. Assert HIGH/MEDIUM items do not carry `[LOW]` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-080                                     |
@@ -11718,7 +11719,7 @@ diet.
 | T104  | Automated | Spec resource: call `resources/read` on `spec://build` — assert full spec text returned as Markdown. Assert `spec://build` appears in `resources/list`. Switch to Player badge — assert `[FORBIDDEN]`. Compare embedded copy against the builder's copy — assert content hash matches DECISIONS.md (1).                                                                                                                                                                                                                                                                                                                                                                                           | REQ-105, REQ-032                            |
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player badges. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
 | T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player badge sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
-| T107  | Automated | Gauntlet traceability: after a full Gauntlet run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
+| T107  | Automated | Pattern Buffer traceability: after a full Pattern Buffer run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
 | T108  | Automated | Badge precedence: activate GM badge in Novel A, set `TTRPG_BADGE=player`, resume Novel A — assert GM badge active (Novel persisted state wins). Create Novel B without activating hat, resume B with `TTRPG_BADGE=player` — assert player badge active (env var applied to Novel with no persisted badge). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted badge independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
 | T109  | Automated | Badge briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, adventure content, and active combat state (init_combat). Invoke `badge_briefing` as GM — assert all 16 groups from REQ-109 present including combat state (round, turn order, current participant). Assert decision-critical groups (scene state, entities, combat state, triggered lore, active NPCs, active countdowns) precede the section boundary and supplementary groups follow. Invoke as Player — assert GM-only groups excluded and all player-visible groups present. End combat — assert combat group omitted. Remove entities — assert entity group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
 | T110  | Automated | Combat state lifecycle: create a Novel with 2 entities (equal initiative), 1 NPC, 1 danger. Call `init_combat` — assert turn order follows entity > NPC > danger then alphabetical by name. Assert `badge_briefing` (GM) includes combat state group (round, turn order, current participant). Advance combat through one full round — assert briefing reflects updated round and current participant. End combat — assert briefing omits combat group, `spec_health` reports total combat rounds incremented by rounds played. Switch to Player badge — assert combat state group visible (entity turn positions only). | REQ-043, REQ-093, REQ-109, REQ-032         |
@@ -11743,11 +11744,11 @@ diet.
 | T129  | Automated | NPC narrative fields: create NPC. Call `set_personality(npc_id, description, voice, background, goals)` — assert fields set and surfaced in `badge_briefing` and at `npc://<id>/personality`. Call `set_voice_examples(npc_id, [...])` — assert examples set. Verify NPC narrative fields are Novel-scoped — `end_novel` removes them, no roster backing. Assert Player badge attempt on `set_personality` for NPC returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                            | REQ-122, REQ-075, REQ-032                   |
 | T191  | Automated | NPC description field: call `create_npc("Guard", description="Tall")` then `set_personality(npc_id, {description: "Suspicious"})` — assert the NPC's description reads "Suspicious" at `npc://<id>`, `character_sheet`, and `npc://<id>/personality`. Call `create_npc("Merchant")` (no description) then `set_personality(npc_id, {description: "Cheerful"})` — assert description is "Cheerful" at all three surfaces.                                                                                                                                                                                                                                                                                                                 | REQ-156                                     |
 | T192  | Automated | Combat determinism: start a fresh server with `TTRPG_SEED=7`. Call `init_combat` with one danger and `seed="42"` — assert danger initiative d20 face matches Appendix B.4 seed-42 column at position 1 (value 6). Call `roll_save("dexterity")` without a seed — assert the d20 face matches the session sequence (seed-7 B.4 column). Call `init_combat` with two dangers and `seed="42"` — assert d20 faces match positions 1 and 2 of the B.4 seed-42 column. Call `init_combat` with one danger and no seed — assert the d20 face matches the next position in the seed-7 session sequence (after the roll_save draw). | REQ-157                                     |
-| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0 step 2–G4, smoke session, waiver audit, T29, H1–H14, artifact diet, adversarial Gauntlet) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
+| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0 step 2–G4, smoke session, waiver audit, T29, H1–H14, artifact diet, adversarial Pattern Buffer) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
 | T194  | Automated | Enrichment briefing integration: after enriching a Novel, invoke `badge_briefing` as GM — assert supplementary guidance items appear tagged `[supplementary]` with source URLs. Assert enrich-sourced voice examples appear under entity personality with `[supplementary]` tag. Switch to Player badge — assert game_master-scoped enrichment items are absent. Call `revert_enrichment` — assert all enrichment content absent from all badge briefing views.                                                                                                                       | REQ-159, REQ-080                            |
 | T195  | Automated | Enrichment health reporting: after enriching a Novel, invoke `spec_health` — assert `enrichment_active: true`, per-module counts matching the manifest, non-empty fingerprint. Call `revert_enrichment` — assert `enrichment_active: false` and `module_counts` contains all six module names (`voice_examples`, `briefing_order`, `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`) each with value zero. Populate stale items past `TTRPG_ENRICH_STALE_DAYS` — assert `stale_count` increments and `[stale]` flag. Activate a lore template via `set_lore_entry` — assert `activated_count` increments.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-160, REQ-025                            |
 | T196  | Automated | Intake workflow contract: attempt a build without recording intake answers in DECISIONS.md (1) — assert the process-compliance convergence metric fails. Run a non-interactive build with network detected — assert Q0 defaults to `build + enrich` and the probe result is recorded in DECISIONS.md (1). Run a non-interactive build offline — assert Q0 defaults to `build` only. Re-run a build selecting an additional workflow — assert only new workflow questions are re-asked.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-161                                     |
-| T197  | Automated | Build-mode profiles: run a production build — assert assumption audit (T89), auditor pre-flight, and cross-model audit results are recorded in DECISIONS.md. Run a quick-build build — assert a `quick-build` annotation in DECISIONS.md (6) listing skipped rituals. Assert the Gauntlet passes for both modes. Run a quick-build build without the annotation — assert the process-compliance metric fails.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-162                                     |
+| T197  | Automated | Build-mode profiles: run a production build — assert assumption audit (T89), auditor pre-flight, and cross-model audit results are recorded in DECISIONS.md. Run a quick-build build — assert a `quick-build` annotation in DECISIONS.md (6) listing skipped rituals. Assert the Pattern Buffer passes for both modes. Run a quick-build build without the annotation — assert the process-compliance metric fails.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-162                                     |
 | T198  | Automated | Client config verification: write a client config entry with `workdir` key targeting a client whose documented schema expects `cwd` — assert the builder produces an F6 defect and blocks the build. After correction — assert the initialize handshake succeeds with matching `serverInfo.name`. Write a valid config entry — assert no F6 defect, handshake passes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-163, H11                                |
 | T199  | Automated | Viability pre-check: provide a ruleset with 15 mechanical sections out of 60 total sections (25%) — assert the builder warns with density percentage and the operator-decision prompt. Record the operator's "proceed" decision — assert the count and decision appear in DECISIONS.md (4). Provide a ruleset with 25/60 (42%) — assert the build proceeds without warning and the count is recorded in DECISIONS.md (4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-164                                     |
 | T200  | Automated | Entity ownership for personality gating: create an entity as Player via `create_character` — assert `set_personality` succeeds on that entity. Create an entity as GM — assert the Player can still call `set_personality` on it (ownership non-exclusive). A Player who has never created any entity can call `set_personality` on an entity imported by the GM.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-165, REQ-077                            |
@@ -11805,13 +11806,13 @@ diet.
 | T160  | Automated | Novel file-size accuracy: invoke `spec_health` — assert on-disk file size metric matches OS-reported size within 1%. Mismatch > 1% — assert `[size_mismatch]` warning in `spec_health`. Assert growth trajectory uses on-disk size. | REQ-097 |
 | T161  | Automated | advance_combat audit-log-derived output: init combat with entity, perform weapon-damage against target, advance_combat — assert output includes participant name, weapon used, damage roll transparency, target HP change. advance_combat with no prior mutations — assert reports participant took no action. | REQ-043 |
 | T162  | Automated | Auto turn advancement for statless: init combat with entity, NPC (no stats), and danger. Advance through NPC turn — assert `[AUTO]` marker, narrative action from NPC description, no mechanical changes, immediate turn advance. Advance through danger turn — assert `[AUTO]` marker, narrative action from danger name. | REQ-043 |
-| T163  | Automated | Input-validation convergence: trigger an S14a failure (empty string accepted without [INVALID_INPUT]), assert the builder maps it to the input-validation metric, assert Phase 2 re-enters for input-validation only (other three metrics unchanged), assert DECISIONS.md (6) records the failing input value and error category mismatch. After Gauntlet re-entry for input-validation, assert DECISIONS.md (6) records a fresh 3-attempt budget independent of the original Phase 2 budget. Assert the re-entry's iteration count does not accumulate with original Phase 2 iterations. | REQ-141, REQ-208 |
-| T164  | Automated | Blocking classification: after a full Gauntlet run, assert DECISIONS.md (6) contains a blocking classification record for every sub-workflow with the safety property it protects and the citing REQ(s). Assert every sub-workflow marked blocking in the exit criteria is classified blocking in the record. Assert every sub-workflow not in the exit criteria is classified non-blocking. | REQ-142 |
+| T163  | Automated | Input-validation convergence: trigger an S14a failure (empty string accepted without [INVALID_INPUT]), assert the builder maps it to the input-validation metric, assert Phase 2 re-enters for input-validation only (other three metrics unchanged), assert DECISIONS.md (6) records the failing input value and error category mismatch. After Pattern Buffer re-entry for input-validation, assert DECISIONS.md (6) records a fresh 3-attempt budget independent of the original Phase 2 budget. Assert the re-entry's iteration count does not accumulate with original Phase 2 iterations. | REQ-141, REQ-208 |
+| T164  | Automated | Blocking classification: after a full Pattern Buffer run, assert DECISIONS.md (6) contains a blocking classification record for every sub-workflow with the safety property it protects and the citing REQ(s). Assert every sub-workflow marked blocking in the exit criteria is classified blocking in the record. Assert every sub-workflow not in the exit criteria is classified non-blocking. | REQ-142 |
 | T165  | Automated | Extraction completeness: after build with ≥20 mechanical sections, assert `spec_health.convergence_summary.extractionCompleteness` ≥ 95% and ≤ 100%. Assert the completeness count matches the viability pre-check mechanical-section count less guidance-only sections. | REQ-025 |
 | T166  | Automated | Per-category confidence: after build, assert `spec_health.convergence_summary.category_confidence` contains an entry for each of the 7 extraction categories, each with counts and percentages for HIGH, MEDIUM, and LOW. Assert the sum of category counts matches the total indexed count. | REQ-025 |
 | T167  | Automated | Prompt health convergence: after build, assert `spec_health.convergence_summary.prompt_health.stale_reference_count` = 0 for each registered prompt. Assert the prompt health section of convergence_summary lists every prompt from REQ-023. | REQ-138 |
 | T168  | Automated | Resource URI convergence: after build, assert `spec_health.convergence_summary.resource_uri_completeness` = 100%. Assert every REQ-022 URI template has a `present` entry in the convergence_summary. | REQ-139 |
-| T169  | Manual   | Gauntlet→Phase 1 re-entry: induce an extraction defect (miscategorized action) that survives Phase 1 and Phase 2 convergence but produces a Gauntlet failure. Assert the builder traces the root cause to Phase 1, records the affected Phase 1 metric, and re-enters Phase 1 for that metric. Assert the re-entry counts against the Phase 1 iteration budget. Assert DECISIONS.md (6) records the root-cause trace. | §6.6 |
+| T169  | Manual   | Pattern Buffer→Phase 1 re-entry: induce an extraction defect (miscategorized action) that survives Phase 1 and Phase 2 convergence but produces a Pattern Buffer failure. Assert the builder traces the root cause to Phase 1, records the affected Phase 1 metric, and re-enters Phase 1 for that metric. Assert the re-entry counts against the Phase 1 iteration budget. Assert DECISIONS.md (6) records the root-cause trace. | §6.6 |
 | T170  | Automated | Convergence velocity: after a build that required ≥2 iterations on any quantitative metric, assert `spec_health.convergence_summary` includes a `velocity` field for that metric with ≥2 delta entries. Assert the first delta is the initial measurement, subsequent deltas are differences from the previous measurement. After a build requiring ≥2 iterations with zero velocity on iteration 3 while below threshold, assert a `[velocity-stall]` finding in DECISIONS.md (5) and assert the metric's step count does not increment beyond the stall. Assert the velocity field is absent when a metric converges on the first attempt. | REQ-025 |
 | T171  | Automated | Guidance pass budget: after a build with a ruleset containing 120 guidance-only sections, assert sections are processed in 3 batches of 50 interleaved with chunk reads. Assert DECISIONS.md (4) records total guidance sections = 120, batches = 3, and the defect log carries a `[guidance-heavy]` finding. Repeat with 30 guidance sections — assert processed in a single pass with no `[guidance-heavy]` finding. | REQ-025 |
 | T172  | Automated | Cross-chunk reference resolution: after a build with 15 cross-chunk references, assert DECISIONS.md (4) records resolved/unresolved counts. Assert every resolveable reference maps to a source anchor in RULESET_MODEL.md. Assert an unresolvable broken reference appears in the defect log with severity and source location. Assert resolution completes within one additional pass. | REQ-210 |
@@ -11831,7 +11832,7 @@ diet.
 | T186  | Automated | AGENTS.md troubleshooting: parse AGENTS.md. Assert `## Troubleshooting` heading present. Assert each of the four failure classes (config mismatch, corrupted state file, hat confusion, missing environment variables) appears. Assert each failure class has at least one diagnostic step. | REQ-153 |
 | T187  | Automated | README.md handoff content: parse README.md. Assert `mcpServers` JSON block present with `command`/`args`/`env` fields. Assert setup section lists prerequisites. Assert state model description mentions persistence boundary. Assert RNG section mentions seed/determinism. | REQ-154 |
 | T188  | Automated | H12 evidence format: parse DECISIONS.md (6). Assert H12 evidence entry present with non-empty command, exit_code, g2_result, and env_pins fields. | §9 |
-| T189  | Automated | H13 Gauntlet freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Gauntlet timestamp newer than most recent source file mtime. | §9 |
+| T189  | Automated | H13 Pattern Buffer freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Pattern Buffer timestamp newer than most recent source file mtime. | §9 |
 | T190  | Automated | Four-artifact diet: list handoff directory. Assert exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md present alongside `src/`, `scripts/`, `package.json`, `tsconfig.json`, and config files. Assert no `.log`, `.tmp`, `.json` state files, or build artifacts in the handoff root. | §9 |
 | T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, badge-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
 | T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
@@ -11854,7 +11855,7 @@ diet.
 | T248  | Automated | Mid-combat participant changes: during active combat with participants ["hero", "goblin"], call `add_combat_participant("wizard")` — assert wizard inserted after hero in turn order. Call `remove_combat_participant("goblin")` — assert goblin removed and pointer advances if goblin was current. Remove last participant from a 1-participant combat — assert auto-`end_combat` with outcome "All participants removed." Assert undo reverts the participant change. Assert Player badge returns `[FORBIDDEN]`. | REQ-205 |
 | T249  | Automated | Combat-round condition expiry: apply a condition with `rounds: 1` to a participant, call `advance_combat` once — assert condition removed after turn and audit log contains `[condition_expired]`. Apply condition with `rounds: 0` — assert no decrement. Apply condition with no `rounds` field — assert no auto-expiry. Apply condition with `rounds: 2` — assert decrements to 1 after first `advance_combat` and expires after second. | REQ-206 |
 | T263  | Automated | Combat-navigation interaction: create a Novel with a populated world model, init combat. Assert `command("go north")` returns `[STATE_CONFLICT]` with combat-active message. Assert `command("look")` and `command("examine sword")` return `[OK]`. End combat — assert navigation resumes. Assert parser commands that don't move the player (take from current room, drop) continue to function during combat. | REQ-221 |
-| T250  | Automated | Gauntlet convergence metric mapping: induce a missing-tool Gauntlet failure — assert it maps to MUST-coverage with the classification rule cited in DECISIONS.md (6). Induce a mechanics-fidelity failure — assert it maps to mechanics-fidelity. Induce a novel defect class — assert it is logged as process-compliance with a proposed metric mapping. Assert every mapped failure records the classification rule applied. | REQ-208 |
+| T250  | Automated | Pattern Buffer convergence metric mapping: induce a missing-tool Pattern Buffer failure — assert it maps to MUST-coverage with the classification rule cited in DECISIONS.md (6). Induce a mechanics-fidelity failure — assert it maps to mechanics-fidelity. Induce a novel defect class — assert it is logged as process-compliance with a proposed metric mapping. Assert every mapped failure records the classification rule applied. | REQ-208 |
 | T251  | Automated | Core-mechanic identification: build against the Captain Proton fixture (known core mechanic: d20 + stat vs target number). Assert the builder correctly identifies the core resolution mechanic. Assert DECISIONS.md (5) records the criterion used (a, b, or c from REQ-207) alongside the identified mechanic. Assert the core mechanic's confidence meets the ≥85% threshold. | REQ-207 |
 | T252  | Automated | Cross-format consistency: after extraction, sample 10 items at random from RULESET_MODEL.md and ruleset_model.json — spanning at least three extraction categories. Assert all 10 items agree on name, source anchor, confidence label, and action classification across both formats. Introduce a deliberate mismatch — assert it is flagged as a discovery defect and recorded in the defect log with both values. Assert the build does not proceed to construction until the mismatch is resolved. | REQ-209 |
 | T253  | Automated | Evidence record field contract: parse DECISIONS.md (6). Assert every evidence record contains workflow identifier, timestamp, environment pins (runtime version, OS, spec hash), pass/fail status, and a findings section with per-sub-check enumeration. Assert G0 records enumerate Appendix H and Appendix D items individually. Assert G2 records include per-contract coverage enumeration. Assert G4 records include per-test pass/fail counts. Assert G5 records include per-sub-workflow verdicts with blocking/non-blocking classification. | REQ-211 |
@@ -11951,7 +11952,7 @@ diet.
 | T-new-300 | Automated | Structured failure diagnostics: induce a Gate 2 failure on init_combat turn-order mismatch. Assert DECISIONS.md (5) contains a diagnostic record with gate name, failing test ID, REQ citation, expected turn order, actual turn order, and a diff. Assert resolution field transitions from pending to converged on fix. | REQ-300 |
 | T-new-301 | Automated | Convergence loop audit trail: run convergence with ≥2 iterations. Assert DECISIONS.md (5) contains traceable records per iteration: iteration number, REQ/test addressed, change summary, re-test result, and token cost. Assert convergence_summary includes total iterations, final disposition per REQ, and aggregate token cost. | REQ-301 |
 | T-new-302 | Automated | Per-section content hashing: build with a ruleset containing 10 sections. After initial build, change one section's content. Assert the delta detection identifies the single changed section. Assert only the changed section re-runs extraction. Assert `spec_health.section_hashes` includes per-section hashes. Assert unchanged sections produce "[section unchanged — re-validating from previous build]" annotations. | REQ-302 |
-| T-new-303 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Gauntlet sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Gauntlet summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
+| T-new-303 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Pattern Buffer sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Pattern Buffer summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
 | T-new-310 | Automated | Implicit action hints: create a world model with a locked chest and an iron key in the room. Call `command("open chest")` — assert `[RULE_VIOLATION]` with hint naming the iron key and its location. Call `command("unlock chest")` — assert `[OK]`. Call `command("open chest")` — assert `[OK]`. Remove the iron key, call `command("open chest")` on a new locked chest — assert `[RULE_VIOLATION]` with no hint (no reachable key). Assert hint format matches: `Hint: You need the <object name> (<location>) first.` A readable inscription inside a closed transparent jar — assert `Hint: The inscription is inside the glass jar — open it first.` A vehicle in an adjacent room with an open exit — assert direction-bearing hint for `command("enter raft")`. A switched-off lantern — assert no hint. A container in an adjacent room — assert no hint (not covered by implication contract). | REQ-284 |
 | T-new-311 | Automated | Campaign Memory: after a session with 2 NPCs, 3 scene changes, 1 faction clock advancement, and 1 story journal decision, assert `spec_health` campaign_memory counts ≥ thresholds. Assert `badge_briefing` includes `## Campaign Memory` section with facts prioritized by scene relevance. Create an NPC with personality fields — assert per-NPC fact appears after NPC participates in combat (REQ-043). Advance a faction clock — assert per-thread fact appears. Change scene 3 times — assert per-location facts appear. Assert `export_novel("json")` includes `campaign_memory`. Assert facts survive Novel persistence. | REQ-310 |
 | T-new-312 | Automated | NPC memory model: create NPC "Blacksmith" with `goals="Repay debt"`. Import player entity "Fighter". Set scene to forge with both present. Call `apply_condition("blacksmith", "frightened")` — assert NPC memory records the event with `disposition: hostile`. Assert `badge_briefing` `## NPC Memory` shows emotional state and the interaction. Set scene with only Fighter present — assert Blacksmith memory absent (not present in scene). Switch back — assert memory persists. Create second NPC "Innkeeper" with no prior contact — assert "no prior contact" marker. Assert `spec_health.npc_memory_count ≥ 1`. | REQ-311, REQ-307, REQ-308 |
@@ -12539,12 +12540,12 @@ composable, separable concerns that diverge from the parent's scope.
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
-- Worked examples and step-by-step procedures → golden transcript (§B.3) and the Gauntlet (§6.6)
+- Worked examples and step-by-step procedures → golden transcript (§B.3) and the Pattern Buffer (§6.6)
 - JSON schemas and file format specifications → builder's implementation; verification workflows verify
   correctness
 
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
-G2, G4, G5, the convergence loop, or a Gauntlet sub-workflow, do not specify the mechanism
+G2, G4, G5, the convergence loop, or a Pattern Buffer sub-workflow, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
 
 **EARS notation.** REQ authors are encouraged — but not required — to structure
@@ -12570,7 +12571,7 @@ pattern in DECISIONS.md (5) as a candidate for REQ revision. Common prefix class
 (see §6.5.4 Finding taxonomy) include:
 consistently low extraction confidence in a section type not covered by existing
 heuristics, repeated MUST-coverage gaps from an unmodeled mechanic present in multiple
-rulesets, or repeated Gauntlet failures from an undertested contract. The flag cites
+rulesets, or repeated Pattern Buffer failures from an undertested contract. The flag cites
 the finding class, the affected rulesets, and the REQ(s) most likely affected. This is
 a spec-maintainer signal, not a build requirement.
 
