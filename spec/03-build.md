@@ -9,7 +9,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 | ------- | ----------------------------------------------------------- | ------------------------ |
 | Convert | Convert PDF/HTML/web source to Markdown; validate structure. Accept core rulebooks, supplemental books, character sheets, and adventure modules — anything related to the ruleset. | §6.2, Appendix G, H      |
 | Build   | Intake Markdown, discover ruleset, construct & verify server. Accept core rulebooks, supplemental books, character sheets, and adventure modules — the builder discovers adventure content within provided materials. | All sections + appendices |
-| Enrich  | Community play advice and structured enrichment (optional)   | §11.1            |
+| Synthesize | Community play advice and structured synthesis (optional)   | §11.1            |
 | Update  | Reconcile an existing server with a revised specification. Perform gap audit, implement changes, re-verify all blocking Pattern Buffer sub-workflows. | §6.7, §6.2      |
 
 ### 6.2 Intake
@@ -290,7 +290,7 @@ _Check:_ T173.
   code.
 
 **Enrichment classification.** After the seven extraction categories are complete,
-the builder SHALL classify extracted guidance into enrichment output module slots per
+the builder SHALL classify extracted guidance into synthesis output module slots per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
 briefing_order, setting/location descriptions → lore_templates, example-of-play
 resolution sequences → action_patterns, GM/player advice prose →
@@ -299,15 +299,15 @@ adventure_advice. Classification is feedback-driven per REQ-225: after the initi
 sort, the builder checks each module for content and re-reads source sections for
 any barren module per the REQ-225 re-read mapping. Items carry the `[ruleset]` tag
 and source anchors with HIGH confidence. The classified items form the
-ruleset-native enrichment manifest, written to the Novel's enrichment state during
+ruleset-native synthesis manifest, written to the Novel's synthesis state during
 construction (Step 5). Ruleset-free builds produce an empty manifest.
 
 **Enrichment extraction memoization.** Before running REQ-225 classification,
-the builder SHALL check for a pre-built enrichment manifest per REQ-245. When
+the builder SHALL check for a pre-built synthesis manifest per REQ-245. When
 a validated manifest is present, REQ-225 extraction and the feedback-driven
 re-classification loop SHALL be skipped. When no pre-built manifest is present,
 the builder SHALL compare the ruleset content hash (REQ-044) against the
-enrichment manifest stored in a prior build's DECISIONS.md (4). A hash match
+synthesis manifest stored in a prior build's DECISIONS.md (4). A hash match
 indicates the ruleset source is unchanged — the builder MAY skip REQ-225
 extraction and re-classification, recording `cached — ruleset hash match` in
 DECISIONS.md (4). A hash mismatch or absent prior manifest SHALL trigger live
@@ -350,7 +350,7 @@ produce a tie.
 _Check:_ T174.
 
 **Adventure structure extraction.** After the seven extraction categories and
-enrichment classification, the builder SHALL run adventure structure extraction
+synthesis classification, the builder SHALL run adventure structure extraction
 (REQ-247) against every adventure module file present in the build input. The
 builder records the adventure index — structural TOC, extracted NPC references,
 location entries, and faction references — in DECISIONS.md (4). The step is
@@ -417,7 +417,7 @@ live state. The builder constructs prompts from these sources, in this order:
    model's action classifications (REQ-015).
 
 4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
-   (REQ-070), and supplementary enrichment (REQ-080) are included per the
+   (REQ-070), and supplementary synthesis (REQ-080) are included per the
    active badge's filter.
 
 5. **Required contract elements.** Every prompt that carries a specification
@@ -475,7 +475,7 @@ before any server code is written.
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
 | Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
-| Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total enrichment items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
+| Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 16 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
@@ -740,7 +740,7 @@ convergence event — it does not count as an iteration and does not consume the
 3-attempt budget.
 
 **Partial match.** When a single component of the cache key differs — the spec
-version advanced but the ruleset hash, holonovel package version, and enrichment hash are
+version advanced but the ruleset hash, holonovel package version, and synthesis hash are
 unchanged — the builder SHALL run Phase 1 metrics fresh (spec changes may alter
 extraction rules) but MAY cache Phase 2 extraction-dependent metrics when the
 extraction model is verified unchanged by a gap audit (§6.7). When the ruleset
@@ -820,7 +820,7 @@ S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
 sub-workflows — all others (S1, S5, S6, S10–S33) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
-to both the initial build-time Pattern Buffer and subsequent re-runs after enrichment
+to both the initial build-time Pattern Buffer and subsequent re-runs after synthesis
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
 all sub-workflows.
 
@@ -986,17 +986,17 @@ four items is incomplete and blocks handoff.
     `set_active_entity("char_02", pov="character")` switches to character-locked POV
     for char_02. POV mode persists across server restart. POV directive is never
     truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
-27. **Enrichment lifecycle with Wisdom mechanical enactment** — requires
-    enrichment to have been run. Assert `enrichment://status` reports active
+27. **Synthesis lifecycle with Wisdom mechanical enactment** — requires
+    synthesis to have been run. Assert `synthesis://status` reports active
     modules with per-module item counts. Deactivate a module via
-    `set_enrichment_module(module_name, false)` — assert items from that module
-    absent from enrichment surfaces. Reactivate — assert items return.
-    `revert_enrichment()` — assert community enrichment items removed, ruleset-native
-    items (`[ruleset]` tag) preserved, `enrichment://status` reports zero community
-    items. Assert `badge_briefing` enrichment content follows activation state: active
+    `set_synthesis_module(module_name, false)` — assert items from that module
+    absent from synthesis surfaces. Reactivate — assert items return.
+    `revert_synthesis()` — assert community synthesis items removed, ruleset-native
+    items (`[ruleset]` tag) preserved, `synthesis://status` reports zero community
+    items. Assert `badge_briefing` synthesis content follows activation state: active
     modules' content appears, deactivated modules' content absent. Entity
-    `voice_examples` carrying `[supplementary]` tag with source URL confirm enrichment
-    sourcing. After enrichment is active: create a Novel, import an entity. Create an
+    `voice_examples` carrying `[supplementary]` tag with source URL confirm synthesis
+    sourcing. After synthesis is active: create a Novel, import an entity. Create an
     NPC — assert `character_sheet` renders voice_examples, goals, and personality
     patterns without manual `set_voice_examples`/`set_personality` (P6). Create a
     countdown — assert it advances on `set_scene_state` (P7). Call
@@ -1025,7 +1025,7 @@ four items is incomplete and blocks handoff.
     `lookup_monster("ice_wraith")` annotated with supplementary slug. Invoke
     `lookup_spell("frostbite")` — assert `[OK]` with response prefix, error taxonomy,
     and source quoting per REQ-001, REQ-002, REQ-061. Assert Wisdom items appear in
-    `list_enrichment_items(tier=1)` with source anchor. Assert `badge_briefing`
+    `list_synthesis_items()` with source anchor. Assert `badge_briefing`
     `narrative_threads` includes countdown-pacing advisory without manual activation
     (P7 coupling). Call `remove_supplementary` — assert tools absent from
     `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
@@ -1048,7 +1048,7 @@ four items is incomplete and blocks handoff.
     assert `badge_briefing` reflects all state changes. Create `consequence` journal
     entry — assert faction clock advisory in `narrative_threads` (P33). Undo — assert
     pre-chain state restored. (Blocking.)
-33. **Wisdom mechanical enactment** — build with enrichment active on all 7 modules.
+33. **Wisdom mechanical enactment** — build with synthesis active on all 7 modules.
     Create entity and NPC while Wisdom is active — assert NPC `character_sheet` shows
     auto-populated voice_examples with `[ruleset]` tag, goals from Wisdom patterns,
     personality without manual `set_personality`/`set_voice_examples` calls (P6).
@@ -1121,7 +1121,7 @@ each against the live MCP server. The harness SHALL: (a) start the server proces
 against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
 Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
 non-blocking failures per the Exit criteria. The harness enables operator re-execution
-of the full Pattern Buffer without AI builder reasoning — re-runs after enrichment, after
+of the full Pattern Buffer without AI builder reasoning — re-runs after synthesis, after
 spec-driven updates, or after code changes consume zero AI tokens. The harness output
 SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
 failure details when applicable. The harness is recorded as a handoff artifact
@@ -1203,7 +1203,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Undo, redo, snapshots (REQ-041, REQ-116)                   | S4, S22 |
 | State model, Novel persistence (REQ-065, REQ-092)          | S5, S12, S13, S14 |
 | Novel lifecycle (create/resume/end/switch)                  | S15 |
-| Lore, enrichment, adventure generation                     | S18, S20 |
+| Lore, synthesis, adventure generation                     | S18, S20 |
 | New tool added or tool signature changed                    | S1 + category-mapped scenarios |
 | New prompt, resource, or badge-scoped content                 | S6, S19 + content-specific |
 | Error taxonomy, input validation (REQ-001, REQ-002)        | S14 |
@@ -1220,7 +1220,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Wisdom mechanical enactment (REQ-371, P6+P7+P10)              | S33 |
 
 This surface-driven selection applies to all incremental updates — full
-spec-driven updates (§6.7) and enrichment re-runs (§11) — not only the blanket Pattern Buffer run.
+spec-driven updates (§6.7) and synthesis re-runs (§11) — not only the blanket Pattern Buffer run.
 
 **REQ Pattern Buffer coverage map.** The following table maps every requirement in §5.5
 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
@@ -1290,7 +1290,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-206 | S4, S9 | Condition management |
 | REQ-217 | S9 | Condition lifecycle |
 | REQ-221 | S23 | Combat-navigation interaction |
-| REQ-229 | S18 | Adventure enrichment linkage |
+| REQ-229 | S18 | Adventure synthesis linkage |
 | REQ-232 | S23 | Pause/resume context |
 | REQ-233 | S23 | Factions |
 | REQ-236 | S23 | Entity relationships |
@@ -1637,7 +1637,7 @@ as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
 **Enrichment consistency check.** After the gap audit and before Pattern Buffer
-re-execution, the builder SHALL scan all enrichment items (ruleset-native and
+re-execution, the builder SHALL scan all synthesis items (ruleset-native and
 community tiers) for references to surfaces identified as changed or removed in the
 gap audit per REQ-228. The builder cross-references: action pattern tool names
 against the gap audit's tool rows, briefing order section tokens against the gap
@@ -1649,12 +1649,12 @@ Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
 with the gap audit row reference. This is a cross-reference scan — no web
 research occurs.
 
-**Enrichment population.** After the enrichment consistency check, the builder
-SHALL run a scoped ruleset-native enrichment re-classification per REQ-243:
+**Synthesis population.** After the synthesis consistency check, the builder
+SHALL run a scoped ruleset-native synthesis re-classification per REQ-243:
 identify new or changed surfaces from the gap audit's implemented-disposition
 rows, map each surface to its source ruleset sections via RULESET_MODEL.md
 citations, run REQ-225 classification on only those sections, merge new
-`[ruleset]`-tagged items into the existing enrichment manifest (append, never
+`[ruleset]`-tagged items into the existing synthesis manifest (append, never
 replace), and record the added item count per module in DECISIONS.md. When the
 gap audit identifies no new surfaces (patch-level change), this step SHALL be
 skipped with a "no new surfaces — skipped" annotation. No web research occurs.
