@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-10 — Badge rename, Codex expansion, vendor enrichment, badge integration
+
+- Renamed "Hat" to "Badge" throughout the specification — ~200 references
+  across 10 spec files. Tool `set_hat` → `set_badge`, prompt `hat_briefing` →
+  `badge_briefing`, env var `TTRPG_HAT` → `TTRPG_BADGE`, URI `guidance://<hat>/`
+  → `guidance://<badge>/`. Section §5.5 "Hats and Access" → "Badges and Access."
+  Guidance "hat foundations/hat boundary/hat behavioral" → "badge foundations/
+  badge boundary/badge behavioral." Safety protocol `hat_boundary` →
+  `badge_boundary`; audit marker `[hat_switch]` → `[badge_switch]`; macro
+  `{{hat.active}}` → `{{badge.active}}`. Glossary, standing rules, state tier
+  tables, property access tables, golden transcripts, and test catalogue
+  all renamed. Historical CHANGELOG entries retain "hat" terminology.
+- Removed blanket GM-only access from Codex (REQ-321). Codex entries now carry a
+  `visibility` field — `library` (default, world-building content) or `shared`
+  (visible to both badges). `codex_list` and `codex_info` are badge-filtered:
+  Player badge sees `shared` entries; Game Master badge sees all. Mutating
+  Codex operations require editing mode or Game Master badge. `codex_import`
+  is badge-scoped — Player badge may import `shared`-visibility characters.
+- Added six new Codex kinds: `character` (Player-importable from `shared`
+  entries), `equipment_template`, `spell_template`, `relationship_template`,
+  `voice_profile` (GM-authored world-building content).
+- Campaign Memory facts (REQ-310) now carry a `badge_scope` field — `gm`
+  (default), `shared`, or `discovered` — compounding the existing presence
+  scoping. Player badge sees only presence-scoped facts with `shared` or
+  `discovered` scope.
+- Available Actions (REQ-084a) now badge-filtered: Player badge sees only
+  Player-classified and un-gated actions per REQ-137 gate classification.
+- Noted per-badge prominence overrides as a valid future extension in
+  REQ-309.
+- Added three Tier 1 vendor enrichment sources: Dungeon World SRD
+  (CC-BY 3.0 — normative GM rules), Fate SRD (CC-BY 3.0 — player role
+  and collaboration), Ironsworn SRD (CC-BY 4.0 — solo play and dark fantasy
+  conventions). Vendor source count: 7 → 10. (REQ-227, §11.2)
+
 ## 2026-08-09 — Narrative model: Codex adventures, vendor enrich, integration couplings
 
 - Adventures can now be generated or loaded into the Codex without an active

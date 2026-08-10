@@ -8,7 +8,7 @@ identifiers for ruleset content in the following surfaces:
 | Surface | Format | Source |
 |---|---|---|
 | Source quoting | `<file>#<anchor>` | REQ-060, REQ-061 |
-| Guidance resource URIs | `guidance://<hat>/<anchor>` | REQ-022 |
+| Guidance resource URIs | `guidance://<badge>/<anchor>` | REQ-022 |
 | Adventure resource URIs | `adventure://<slug>/<anchor>` | REQ-079 |
 
 ### 7.1a Slugs (filename-safe identifiers)
@@ -101,7 +101,7 @@ Character creation and advancement use sequential decision queues (REQ-042, REQ-
 REQ-104). Each decision presents a `[NEED_INPUT]` with a question, kebab-cased option
 list (≤25 entries from the ruleset index, "cancel" always last). The `decision` value
 passed to `respond` is the exact question text. `respond` drains one decision; `cancel`
-restores the pre-workflow snapshot. Pending workflows block undo, redo, and hat
+restores the pre-workflow snapshot. Pending workflows block undo, redo, and badge
 switching. See §6.4 for the full creation contract.
 
 ### 7.6 Configuration surface
@@ -109,8 +109,8 @@ switching. See §6.4 for the full creation contract.
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
-| `TTRPG_HAT`      | No       | Default active hat on startup (`player`, `game_master`, `observer`, `none`). When `none`, the Novel starts in editing mode with no hat active. |
-| `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active hat), `game_master`, or `player`. Determines orientation content in `hat_briefing` per REQ-304. Read at startup, applies to all connections. |
+| `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). When `none`, the Novel starts in editing mode with no badge active. |
+| `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -131,9 +131,9 @@ State tiers:
 | Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
-| Codex      | Typed content library (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) | Permanent — survives all Novels, rebuilds, and server restarts | Game Master only (REQ-321)                                    |
+| Codex      | Typed content library (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) | Permanent — survives all Novels, rebuilds, and server restarts | Badge-filtered by visibility field (REQ-321) |
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
-| Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
+| Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
 **Novel properties.** Every Novel contains fourteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
@@ -144,18 +144,18 @@ discarded by `end_novel`):
 | NPC         | read/write/create/delete (named NPCs per REQ-075)                  | read-only                                      |
 | Scene       | read/write                                                         | read-only                                      |
 | Countdown   | read/write/create/delete                                            | read-only                                      |
-| Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (hat-filtered per REQ-083)        |
-| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (hat-filtered); read/write for `[player]` items (REQ-261) |
-| Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content hat-filtered; indexed and generated adventures coexist in the active Novel  |
-| Adventure Scene Waypoint | read/write (REQ-250)                                      | read-only (pass-through in `hat_briefing`)      |
+| Lore        | read/write/create/delete/enable/disable/group/export/import         | read-only (badge-filtered per REQ-083)        |
+| Enrichment  | read/write (re-enrich preserves GM-activated items per REQ-130; reverted by `revert_enrichment`) | read-only (badge-filtered); read/write for `[player]` items (REQ-261) |
+| Adventure   | read (indexed at build time; one generated adventure per Novel via `generate_adventure` per REQ-132) | content badge-filtered; indexed and generated adventures coexist in the active Novel  |
+| Adventure Scene Waypoint | read/write (REQ-250)                                      | read-only (pass-through in `badge_briefing`)      |
 | Faction     | read/write/create/delete (REQ-233)                                   | read-only (GM-filtered)                         |
 | Secret      | read/write/create/delete (REQ-234)                                   | Game Master only; revealed per-entity            |
 | Relationship| read/write/create/delete (REQ-236)                                   | read-only (appears on character_sheet)           |
 | DM Context  | read/write (REQ-232)                                                 | Game Master only                                 |
-| Notes       | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (hat-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
+| Notes       | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
 | Server Notes| read/write/create/delete (REQ-285)                                   | Game Master only                                 |
 | Story Journal | read/write/create (REQ-246)                                          | read-only (GM-filtered)                           |
-| Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (hat-filtered per REQ-267; deactivatable via REQ-260) |
+| Novel Enrichment | read/write/revert (synthesized per REQ-263; removed by `revert_novel_enrichment` per REQ-265; auto-triggered per REQ-264) | read-only (badge-filtered per REQ-267; deactivatable via REQ-260) |
 | Campaign Memory | read (engine-maintained; GM-filtered)                                       | read-only (GM-filtered)                         |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
@@ -168,7 +168,7 @@ the fingerprint determines compatibility (REQ-065).
 Session is a Holonovel concept, independent of the MCP transport layer. Session
 state exists only while the process holds an active Novel in memory; it is never
 written to disk, never persists across process restarts, and is reset to defaults
-when the active Novel changes via `switch_novel` or `end_novel`. The hat
+when the active Novel changes via `switch_novel` or `end_novel`. The badge
 activation state — previously per-session — remains persistent with the Novel
 because it represents a player-facing state selection that must survive restarts
 (REQ-055). This is a naming clarification: the tier previously called "Connection"
@@ -198,30 +198,30 @@ consistent order.
 | Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
 | Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
 | DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
-| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — hat-filtered per REQ-242 scope | Navigational   | REQ-242 |
-| Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `hat_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Navigational   | REQ-242 |
+| Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `badge_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
 | Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
 | Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
 | NPC → NPC Memory | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | Mechanical | REQ-311 |
-| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `hat_briefing` | Navigational | REQ-310 |
+| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Navigational | REQ-310 |
 | World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Navigational | REQ-311, REQ-310 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
-(`hat_briefing`, resource rendering, suggestion tools) and does not influence
+(`badge_briefing`, resource rendering, suggestion tools) and does not influence
 mechanical resolution (dice, HP, conditions). A coupling marked "Mechanical"
 means it directly affects state mutation or tool behavior. When a source
 property changes, navigational couplings update on the next resource read;
 mechanical couplings take effect at the moment of the triggering mutation.
 
-### 7.8 Guidance and hat knowledge
+### 7.8 Guidance and badge knowledge
 
 | Aspect | Rule | Source |
 |--------|------|--------|
 | Attribution | Marker-attributed (heading tag), inferred (heading text), or shared (no signal) | REQ-016 |
-| Records | Verbatim source text, anchor, hat scope, confidence, attribution method | REQ-016 |
-| Surface | `guidance://player`, `guidance://game_master`, `guidance://shared`; individual at `guidance://<hat>/<anchor>` | REQ-022 |
-| Briefing | `hat_briefing` composes guidance, state, lore, registry — hat-filtered, GM-overridable ordering (REQ-082) | REQ-109 |
+| Records | Verbatim source text, anchor, badge scope, confidence, attribution method | REQ-016 |
+| Surface | `guidance://player`, `guidance://game_master`, `guidance://shared`; individual at `guidance://<badge>/<anchor>` | REQ-022 |
+| Briefing | `badge_briefing` composes guidance, state, lore, registry — badge-filtered, GM-overridable ordering (REQ-082) | REQ-109 |
 
 Guidance is quoted inert data — it never influences tool behavior or model extraction.
 
