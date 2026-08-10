@@ -1141,6 +1141,28 @@ unresolved). Properties with no exercising Pattern Buffer sub-workflow SHALL rep
 Pattern Buffer fingerprint.
 _Check:_ T289.
 
+**REQ-388 — Holodeck config discovery.** `spec_health` SHALL include a
+`holodeck_config` field reporting behavioral configuration coverage. The field
+SHALL contain: `behavioral_coupled` (count of behavioral `TTRPG_*` variables whose
+configuration has a coupling row in §7.7.1a with a Session-archetype source),
+`behavioral_total` (total count of behavioral `TTRPG_*` variables classified as
+affecting pacing, autonomy, reactivity, synthesis, narration, or tone),
+`natural_language_paths` (an object mapping each behavioral variable name to
+its natural language access path — the `player_signal` signal type or
+`set_narrative_directive` keywords that control it), and `uncoupled` (an array
+of behavioral variable names lacking a natural language access path). System
+variables (storage caps, file paths, build parameters, seed values) SHALL be
+excluded from the behavioral count. The classification of each `TTRPG_*` variable
+as behavioral or system SHALL be recorded in DECISIONS.md at build time. When
+no Novel is active, `holodeck_config` SHALL report server-level defaults
+without Novel overrides.
+*Acceptance criterion:* After a build with `TTRPG_PACING_WINDOW=6` and
+`TTRPG_NPC_AUTONOMY=off`, `spec_health.holodeck_config` reports
+`behavioral_coupled: <N>`, `behavioral_total: <M>`, `natural_language_paths`
+listing each coupled variable's natural language path, and `uncoupled` listing
+any behavioral variables without a coupling row.
+_Check:_ T-new-406.
+
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
 retrievable via `resources/read` and listed in `resources/list`. It returns the
 full text of the specification that built the server as Markdown, embedded in the
@@ -3198,8 +3220,10 @@ Player-only. Records a structured preference signal: `pace` (slower/faster), `di
 signal is recorded in the audit log. Each signal entry carries a `last_updated` timestamp.
 When a signal type is sent more than once, the most recent value
 replaces the prior one and the timestamp refreshes. Sending an empty `value` removes the signal for that type.
-Player signals persist for the life of the Novel. Purely inert data — the server
-does not enforce preferences; the LLM reads them and adjusts narration.
+Player signals persist for the life of the Novel. The `pace` signal SHALL mechanically
+adjust the dramatic pacing window (§7.7.1a). All other signal types SHALL surface in
+`badge_briefing` as directive context for the AI narrator — the builder SHALL surface
+them in the orientation layer per REQ-109 but SHALL NOT enforce them mechanically.
 Adversarial free-text in `value` is stored verbatim as inert data
 (REQ-054). The stored signal entry is a compound structure: a `value` field (the
 free-text string, empty for removed signals) and a `connection_counter`
@@ -3213,7 +3237,7 @@ empty-value removal).
 *Acceptance criterion:* `player_signal("tone", "darker")` records in audit log;
 sending `player_signal("tone", "lighter")` replaces the value; sending
 `player_signal("tone", "")` removes it.
-_Check:_ T8, T26, T142, T211.
+_Check:_ T8, T26, T142, T211, T-new-406.
 
 **REQ-128 — Signal briefing surface.** `badge_briefing` (GM only, REQ-109) includes a
 dedicated player-signals section. For each recorded signal, the section lists the signal
@@ -4636,15 +4660,24 @@ prior entry. An empty array clears all directives. For backward compatibility,
 `set_narrative_directive` also accepts a single `directive` string — treated as
 `[{"label": "primary", "instruction": <string>}]`. Directives appear in `badge_briefing`
 for the Game Master badge only and at `novel://current`, grouped under "Narrative
-Directives" with their labels. Directives are inert guidance — they do not affect tool
-behavior, dice results, or rules enforcement. They persist with the Novel. Player badge
+Directives" with their labels. The directive text SHALL be resolved against the Holodeck
+behavioral dimension catalog at resolution time. Directives whose instruction text
+matches a catalog keyword — pacing keywords ("faster," "slower," "brisk," "leisurely"),
+autonomy keywords ("NPCs act independently," "characters drive themselves"), reactivity
+keywords ("the world reacts," "living world," "active factions"), or synthesis keywords
+("use voice patterns," "activate lore templates," "use action patterns," "add flavor") —
+SHALL mechanically couple to the corresponding behavioral configuration per the coupling
+rows in §7.7.1a (P44–P47). Directives that match no catalog dimension SHALL be
+stored as inert guidance. Catalog keyword matching SHALL be case-insensitive substring
+matching. The catalog is closed — only the four named dimensions (pacing, autonomy,
+reactivity, synthesis) produce mechanical effects. They persist with the Novel. Player badge
 attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* The `narrative_directive` parameter on
 `set_scene_state` with `[{label: "mood", instruction:
 "dark and brooding"}, {label: "pacing", instruction: "slow burn"}]` produces two
 entries in `badge_briefing` under the GM badge; a duplicate "mood" label replaces the prior;
 an empty array clears all directives.
-_Check:_ T64, T134.
+_Check:_ T64, T134, T-new-406.
 
 **REQ-082 — Prompt section ordering.** The Game Master may reorder the sections of
 `badge_briefing` via `set_briefing_order(sections)`. The tool accepts an ordered
@@ -7373,7 +7406,7 @@ _Check:_ T-new-352.
 Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
 Decision, Guidance, Session, or Ruleset Wisdom — as defined in §7.7.0.
 Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling
-pattern rules (P1–P42, §7.7.0). A coupling that does not trace to a pattern
+pattern rules (P1–P47, §7.7.0). A coupling that does not trace to a pattern
 rule is a spec defect. Archetypes classified as `[content source]` denote
 input sources that populate property groups — they are excluded from the
 coupling cross-product. `npm run validate` SHALL verify that every coupling
@@ -7386,7 +7419,7 @@ _Check:_ T-new-376.
 **REQ-370 — Coupling derivation.** Every coupling row in §7.7.1a SHALL
 cite a pattern rule whose source and target archetypes match the row's
 property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0
-(P1–P42) SHALL have at least one coupling row in §7.7.1a. A pattern rule
+(P1–P47) SHALL have at least one coupling row in §7.7.1a. A pattern rule
 with zero coupling rows is a spec defect. A coupling row citing a
 mismatched pattern rule is a spec defect. `npm run validate` SHALL verify
 both conditions.
