@@ -288,6 +288,7 @@ guard, the gap is explicit.
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
+| Codex          | Server-level typed content library for reusable GM-authored content (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) that persists outside Novels. `codex://<id>`. Game Master only. REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
@@ -341,7 +342,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311 | 74    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321 | 75    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
@@ -4197,6 +4198,40 @@ banished to the outer dark")` stores the note; server restart preserves it;
 `list_server_notes()` returns the note; Player hat returns `[FORBIDDEN]`;
 `spec_health` reports the server note count.
 _Check:_ T-new-285.
+
+**REQ-321 — Codex.** THE server SHALL carry a server-level codex — a typed content
+library for reusable GM-authored content (NPCs, scenes, encounters, lore entries,
+factions, countdowns, rooms, things) that persists outside Novels and survives server
+restarts. THE codex SHALL support content kinds: `npc`, `scene`, `encounter`,
+`lore_entry`, `faction`, `countdown`, `room`, `thing`. `codex_set(kind, name, data,
+description?, tags?)` SHALL create or update a codex entry with upsert semantics —
+the `data` parameter carries a kind-specific payload whose shape mirrors the
+corresponding Novel tool parameters. `codex_import(id)` SHALL materialize a codex
+entry into the active Novel by delegating to the existing tool for the entry's kind
+(e.g., NPC entry → `create_npc`, scene entry → `set_scene_state`, encounter entry →
+`init_combat`). `codex_capture(kind, source_id)` SHALL pull an existing Novel
+artifact into the codex — the captured entry carries a `source_novel` field tracing
+its origin. `codex_list(kind?, tag?)` SHALL return a filterable list of codex
+entries with id, kind, name, description, and tags. `codex_info(id)` SHALL return
+the full record including the kind-specific data payload. `codex_delete(id)` SHALL
+remove an entry with no confirmation gate — `undo` SHALL restore a deleted entry
+within the same connection. Codex entries persist to
+`.holonovel-state/codex.json` with atomic writes and backup rotation. The codex
+SHALL survive `end_novel`, `revert_enrichment`, and server rebuilds. Codex entries
+SHALL be surfaced in `spec_health` under a `codex` key (count partitioned by kind).
+The codex SHALL be retrievable at `codex://<id>` as a resource. Codex entries SHALL
+NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots. Codex entries
+SHALL carry no mechanical effect within a Novel until explicitly imported via
+`codex_import`. WHEN the Player hat calls any codex tool, THE system SHALL return
+`[FORBIDDEN]`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]`
+when no Novel is active.
+*Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff,
+scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
+"village"])` stores the entry; server restart preserves it; `end_novel` preserves
+it; `codex://blacksmith` returns full content; `codex_list("npc")` returns the
+entry; Player hat returns `[FORBIDDEN]`; `codex_import("blacksmith")` into an
+active Novel creates the NPC; `spec_health` reports codex counts by kind.
+_Check:_ T-new-322.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -8170,6 +8205,7 @@ State tiers:
 | Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
+| Codex      | Typed content library (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) | Permanent — survives all Novels, rebuilds, and server restarts | Game Master only (REQ-321)                                    |
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
@@ -9779,6 +9815,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-318 | Extended property contracts | 2026-08-09 |
 | REQ-319 | Extended parser command vocabulary | 2026-08-09 |
 | REQ-320 | Narrative-intent parser verbs | 2026-08-09 |
+| REQ-321 | Codex | 2026-08-09 |
 
 ---
 
@@ -10141,6 +10178,7 @@ diet.
 | T-new-319 | Automated | Extended property contracts: create things with properties `convert_source("A silver ring is in the Entrance Chamber. It is wearable. A red mushroom is in the Entrance Chamber. It is edible. An iron lever is in the Entrance Chamber. It is climbable. A glass jar is a container. It is transparent. The inscription on the altar reads 'Beware the serpent.' The altar is in the Entrance Chamber. It is readable.")`. Assert ring is `wearable: true`. Assert mushroom is `edible: true`. Assert lever is `climbable: true`. Assert jar is `transparent: true`. Assert altar is `readable: true` with `read_text: 'Beware the serpent.'`. Assert `command("wear ring")` returns `[OK]`. Assert `command("eat mushroom")` returns `[OK]`. Assert `command("read altar")` returns the inscription text. Assert each property assertion is recognized by `convert_source`. Assert missing-property commands return `[RULE_VIOLATION]`. | REQ-318 |
 | T-new-320 | Automated | Extended parser commands: populate a world model with objects supporting all new standard-tier commands. Assert `command("wear hat")` succeeds for wearable thing in inventory. Assert `command("remove hat")` succeeds when worn. Assert `command("read scroll")` returns `read_text`. Assert `command("eat mushroom")` succeeds for edible in inventory. Assert `command("drink potion")` succeeds for drinkable in inventory. Assert `command("climb rope ladder")` resolves associated exit. Assert `command("enter tent")` succeeds for enterable. Assert `command("sit bench")` succeeds for supporter. Assert `command("stand")` succeeds. Assert `command("light torch")` succeeds for `lit` thing. Assert `command("extinguish torch")` succeeds. Assert `command("listen")` returns `[OK]`. Assert `command("smell")` returns `[OK]`. Assert `command("touch altar")` returns `[OK]`. Assert `command("again")` repeats last command. Assert `command("g")` is equivalent. Assert `command("help")` lists verbs grouped by tier. Assert `command("verbs")` reports per-tier counts. Assert all property-violation cases return `[RULE_VIOLATION]`. | REQ-319 |
 | T-new-321 | Automated | Narrative-intent verbs: populate a world model with an NPC. Assert `command("ask guard about crypt")` returns `[OK] You ask guard about crypt.` Assert `command("tell guard about amulet")` returns `[OK]`. Assert `command("give sword to guard")` transfers item from inventory and returns `[OK]`. Assert `command("show shield to guard")` does NOT transfer and returns `[OK]`. Assert `command("throw rock at statue")` moves rock from inventory to room and returns `[OK]`. Assert `command("give fixed_altar to guard")` returns `[RULE_VIOLATION]`. Assert `command("throw nonexistent at guard")` returns `[NOT_FOUND]`. Assert `command("ask nobody about crypt")` where nobody matches returns `[WARNING]`. | REQ-320 |
+| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored. Call `codex_list("npc")` — assert returns entry with id, kind, name, description, tags. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entry survives. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` into an active Novel — assert NPC created with stored fields. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Switch to Player hat — assert all codex tools return `[FORBIDDEN]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
 
 ---
 

@@ -288,6 +288,7 @@ guard, the gap is explicit.
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
+| Codex          | Server-level typed content library for reusable GM-authored content (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) that persists outside Novels. `codex://<id>`. Game Master only. REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
@@ -304,7 +305,7 @@ guard, the gap is explicit.
 | Hat briefing         | `hat_briefing` prompt — composes guidance, state, lore, and registry content hat-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
-| World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy, `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
+| World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Defaults to secondary surface — configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `hat_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—hat-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
 | Hats              | The identity and permission layer. `set_hat` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Hat gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active hat by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `hat_briefing` (REQ-109) composes orientation from the AI role and state surface from the active hat. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
@@ -341,11 +342,11 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311 | 74    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321 | 75    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309                           | 12    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320                 | 17    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -4198,6 +4199,40 @@ banished to the outer dark")` stores the note; server restart preserves it;
 `spec_health` reports the server note count.
 _Check:_ T-new-285.
 
+**REQ-321 — Codex.** THE server SHALL carry a server-level codex — a typed content
+library for reusable GM-authored content (NPCs, scenes, encounters, lore entries,
+factions, countdowns, rooms, things) that persists outside Novels and survives server
+restarts. THE codex SHALL support content kinds: `npc`, `scene`, `encounter`,
+`lore_entry`, `faction`, `countdown`, `room`, `thing`. `codex_set(kind, name, data,
+description?, tags?)` SHALL create or update a codex entry with upsert semantics —
+the `data` parameter carries a kind-specific payload whose shape mirrors the
+corresponding Novel tool parameters. `codex_import(id)` SHALL materialize a codex
+entry into the active Novel by delegating to the existing tool for the entry's kind
+(e.g., NPC entry → `create_npc`, scene entry → `set_scene_state`, encounter entry →
+`init_combat`). `codex_capture(kind, source_id)` SHALL pull an existing Novel
+artifact into the codex — the captured entry carries a `source_novel` field tracing
+its origin. `codex_list(kind?, tag?)` SHALL return a filterable list of codex
+entries with id, kind, name, description, and tags. `codex_info(id)` SHALL return
+the full record including the kind-specific data payload. `codex_delete(id)` SHALL
+remove an entry with no confirmation gate — `undo` SHALL restore a deleted entry
+within the same connection. Codex entries persist to
+`.holonovel-state/codex.json` with atomic writes and backup rotation. The codex
+SHALL survive `end_novel`, `revert_enrichment`, and server rebuilds. Codex entries
+SHALL be surfaced in `spec_health` under a `codex` key (count partitioned by kind).
+The codex SHALL be retrievable at `codex://<id>` as a resource. Codex entries SHALL
+NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots. Codex entries
+SHALL carry no mechanical effect within a Novel until explicitly imported via
+`codex_import`. WHEN the Player hat calls any codex tool, THE system SHALL return
+`[FORBIDDEN]`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]`
+when no Novel is active.
+*Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff,
+scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
+"village"])` stores the entry; server restart preserves it; `end_novel` preserves
+it; `codex://blacksmith` returns full content; `codex_list("npc")` returns the
+entry; Player hat returns `[FORBIDDEN]`; `codex_import("blacksmith")` into an
+active Novel creates the NPC; `spec_health` reports codex counts by kind.
+_Check:_ T-new-322.
+
 ### 5.7 Determinism, Safety, and Performance
 
 **REQ-050 — Determinism.** All random draws come from a single deterministic PRNG, seedable
@@ -5328,7 +5363,7 @@ _Check:_ T-new-244.
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
-Holonovel Gauntlet sub-workflow outcomes (I1–I13, per-sub-workflow pass/fail with
+Holonovel Gauntlet sub-workflow outcomes (I1–I18, per-sub-workflow pass/fail with
 ISO 8601 timestamps). When the specification version recorded in the manifest
 matches the current specification version, the holonovel package builder MAY skip Phase 2
 convergence and the Holonovel Gauntlet, recording `cached — holonovel vX.Y.Z
@@ -6102,6 +6137,128 @@ room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the 
 and its location. Remove the key from the world model — `command("open chest")` returns
 `[RULE_VIOLATION]` with no hint.
 _Check:_ T-new-310.
+
+**REQ-316 — Device kind.** THE world-model layer SHALL define a `device`
+kind extending `thing`. A device SHALL carry `switchable` (can be turned on
+or off) and `switched_on` (current state) properties. A device that is both
+`lit` and `switched_on` SHALL provide light; a device that is `switched_off`
+SHALL be dark regardless of the `lit` property. A device is portable by
+default. `command("switch on <device>")` SHALL set `switched_on` to true;
+`command("switch off <device>")` SHALL set it to false. Switching a
+non-switchable thing SHALL return `[RULE_VIOLATION]`. The `switch on` and
+`switch off` commands SHALL be registered in the parser command catalog
+under `object_interaction` category, standard tier. The property assertions
+"It is switchable." and "It is switched on." SHALL be recognized by
+`convert_source`. _Check:_ T-new-317.
+
+**REQ-317 — Vehicle kind.** THE world-model layer SHALL define a `vehicle`
+kind extending `thing`. A vehicle SHALL carry `enterable: true` by default
+and `capacity` (maximum passengers, integer). A vehicle is `fixed` by
+default — it cannot be taken. When a player enters a vehicle via
+`command("enter <vehicle>")`, the player's current room SHALL become a
+virtual interior room derived from the vehicle's description. The vehicle
+interior SHALL have an `out` exit that returns the player to the room where
+the vehicle is parked. While the player is aboard, `command("look")` SHALL
+show the interior description and list visible exits — the room the vehicle
+is parked in SHALL be visible as an `out` exit. Navigation commands (`go
+north`, `go south`, etc.) while aboard SHALL move the vehicle and all its
+contents (passengers and items) through the world-model exit graph —
+movement SHALL resolve against the room the vehicle occupies, not the
+vehicle interior. A vehicle SHALL persist at its last location when
+unoccupied. A vehicle reaching capacity SHALL reject additional passengers
+with `[RULE_VIOLATION]`. `command("exit")` and `command("get out")` SHALL
+return the player to the room containing the vehicle. Vehicle interior
+rooms SHALL NOT appear in `world://map` independently — they are child
+objects of the vehicle, not world-graph nodes. The kind declaration "A raft
+is a vehicle. 'Description.' It is in the Lake." SHALL be recognized by
+`convert_source`. _Check:_ T-new-318.
+
+**REQ-318 — Extended property contracts.** THE world-model layer SHALL
+extend the `thing` type with the following properties, each enabling a
+parser command and carrying a default value:
+
+| Property | Type | Default | Enables | Effect |
+|---|---|---|---|---|
+| `switchable` | boolean | false | `switch on`/`switch off` | Target must be switchable |
+| `switched_on` | boolean | false | (state only) | Current switch state |
+| `wearable` | boolean | false | `wear`/`remove` | Can be worn; sets `worn_by` on wear |
+| `worn_by` | string \| null | null | (state only) | Who is wearing this |
+| `readable` | boolean | false | `read` | Has readable text |
+| `read_text` | string \| null | null | `read` | Text revealed on read |
+| `edible` | boolean | false | `eat` | Can be eaten; removed from inventory on eat |
+| `drinkable` | boolean | false | `drink` | Can be drunk |
+| `enterable` | boolean | false | `enter` | Can be entered (container or vehicle) |
+| `climbable` | boolean | false | `climb` | Can be climbed |
+| `transparent` | boolean | false | (state only) | Contents visible when closed (container) |
+
+`convert_source` SHALL recognize property assertions for each boolean
+property: "It is wearable.", "It is readable.", "It is edible.", "It is
+transparent.", "It is switched on.", "It is enterable.", "It is climbable."
+The `read_text` property SHALL be settable via assertion: "The inscription
+on the altar reads 'Beware the serpent.'" — `convert_source` SHALL extract
+the quoted text and assign it to `read_text` of the named thing.
+_Check:_ T-new-319.
+
+**REQ-319 — Extended parser command vocabulary.** THE parser SHALL
+recognize the following additional commands, each registered as
+`standard` tier (REQ-283). Each command SHALL resolve against the
+world-model property contracts defined in REQ-316 through REQ-318.
+When a target lacks the required property, the command SHALL return
+`[ERROR] [RULE_VIOLATION]` naming the missing property.
+
+| Command | Category | Args | Contract |
+|---|---|---|---|
+| `wear` | object_interaction | thing | Target must be `wearable` and in caller's inventory. Sets `worn_by` to active entity. Returns `[RULE_VIOLATION]` if already worn. |
+| `remove` | object_interaction | thing | Target must be worn by caller. Clears `worn_by`. |
+| `read` | inspection | thing | Target must be `readable`. Returns `read_text` or the thing's description if `read_text` is null. |
+| `eat` | object_interaction | thing | Target must be `edible` and in caller's inventory. Removes from inventory. |
+| `drink` | object_interaction | thing | Target must be `drinkable` and in caller's inventory. |
+| `climb` | navigation | thing | Target must be `climbable`. Resolves an associated exit (a climbable thing declared adjacent to a directional exit acts as that exit's door). Returns `[RULE_VIOLATION]` if no associated exit exists. |
+| `enter` | navigation | thing | Target must be `enterable` (container with enterable property, or vehicle). Moves viewpoint to interior. |
+| `exit` / `get out` | navigation | — | Returns to parent room from container/vehicle interior. Returns `[STATE_CONFLICT]` if not inside an enterable object. |
+| `switch on` / `switch off` | object_interaction | thing | Target must be `switchable`. |
+| `sit` | navigation | thing | Target must be a supporter. Records sitting state. |
+| `stand` | navigation | — | Ceases sitting. |
+| `push` | object_interaction | thing | Pushes a movable thing. |
+| `pull` | object_interaction | thing | Pulls a movable thing. |
+| `insert` | object_interaction | thing, target | Places a thing into a container. Synonym for `put in`. |
+| `light` | object_interaction | thing | Lights a light source. Target must be `lit`. |
+| `extinguish` | object_interaction | thing | Extinguishes a light source. |
+| `listen` | inspection | — | Returns list of sound-producing objects in current room. The parser reports objects; the LLM composes sensory prose. |
+| `smell` | inspection | — | Returns list of smell-producing objects in current room. |
+| `touch` | inspection | thing | Returns tactile properties of a thing. |
+| `again` / `g` | meta | — | Repeats the last command verbatim. Session-local command buffer — discarded on connection close. Returns `[WARNING]` "Nothing to repeat." if no prior command exists. |
+| `it` / `them` / `all` | meta | thing reference | Pronoun disambiguation. `it` resolves to the last referenced thing. `them` resolves to the last referenced group. `all` applies the current command to all matching targets. `command("help")` SHALL list all verbs grouped by tier. `command("verbs")` SHALL report per-tier counts. `spec_health.parser_verb_coverage` SHALL reflect the extended vocabulary. |
+
+`convert_source` directional exit adjacency SHALL associate a climbable
+thing with the exit in the same direction: when "A rope ladder is in the
+Entrance Chamber. It is climbable." is followed by "Up of the Entrance
+Chamber is the Rookery.", the rope ladder SHALL be registered as the door
+for the `up` exit — `command("climb rope ladder")` SHALL resolve to `go
+up` through that exit. _Check:_ T-new-320.
+
+**REQ-320 — Narrative-intent parser verbs.** THE parser SHALL recognize
+commands that route narrative intent to the Game Master rather than
+resolving mechanically. These commands SHALL be registered under a new
+`narrative` parser category and SHALL be standard tier. They SHALL produce
+`[OK]` with a description of the expressed intent and SHALL NOT simulate
+conversation or adjudicate outcomes. The intent SHALL be surfaced in
+`hat_briefing` under a `## Player Intent` section.
+
+| Command | Args | Behavior |
+|---|---|---|
+| `ask <npc> about <topic>` | npc, topic | Resolves NPC by name in current room. Returns `[OK] You ask <npc> about <topic>.` If no matching NPC is present in the current room, returns `[WARNING]` noting the NPC is not present but still records the intent. |
+| `tell <npc> about <topic>` | npc, topic | Same pattern as `ask`. |
+| `give <thing> to <npc>` | thing, npc | Transfers thing from caller's inventory to the NPC. Returns `[OK] You give the <thing> to <npc>.` Returns `[ERROR] [RULE_VIOLATION]` if the thing is fixed or not in inventory. |
+| `show <thing> to <npc>` | thing, npc | Does NOT transfer. Returns `[OK] You show the <thing> to <npc>.` Works with held and fixed things. |
+| `throw <thing> at <target>` | thing, target | Moves thing from caller's inventory to the target's room. Returns `[OK] You throw the <thing> toward <target>.` The thing appears in the room — not equipped to or held by the target. Returns `[ERROR] [RULE_VIOLATION]` if the thing is fixed or not in inventory. |
+
+NPC resolution SHALL match by name substring against NPCs whose location
+matches the current room. When no NPC matches in the current room, the
+command SHALL still record the intent with a `[WARNING]` marker — the
+player may be calling through a door or across a chasm. `command("help")`
+SHALL list narrative verbs under their own category with a note that
+outcomes are determined by the Game Master. _Check:_ T-new-321.
 
 **REQ-197 — Room description generation.** WHEN the player enters a room
 or issues a look command THE system SHALL return the room's name, its
@@ -7705,13 +7862,53 @@ are selected for changed surfaces.
     sections appear in the specified order. Assert `set_scene_state` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
+14. **Device lifecycle** — create a device via `create_thing("lantern", {kind:
+    "device", lit: true})`. Assert `command("switch on lantern")` returns
+    `[OK]`. Assert `command("switch off lantern")` returns `[OK]`. Assert
+    `command("switch on rock")` on a non-device returns `[RULE_VIOLATION]`.
+    Assert `convert_source` recognizes "It is switchable." and "It is switched
+    on." (Blocking.)
+
+15. **Vehicle lifecycle** — create a world model with a vehicle via
+    `convert_source`. Assert `command("enter raft")` returns `[OK]` and
+    viewpoint moves to vehicle interior. Assert `command("exit")` returns to
+    parked room. Assert navigation aboard vehicle moves both vehicle and
+    passengers. Assert vehicle persists at location when unoccupied. Assert
+    `command("enter rock")` on non-enterable returns `[RULE_VIOLATION]`.
+    (Blocking.)
+
+16. **Extended property contracts** — create things with `wearable`, `edible`,
+    `readable`, `transparent`, `climbable`, `enterable` properties via
+    `convert_source`. Assert each property assertion is recognized. Assert
+    `command("wear ring")` succeeds. Assert `command("eat mushroom")` succeeds.
+    Assert `command("read altar")` returns `read_text`. Assert missing-property
+    commands return `[RULE_VIOLATION]`. Assert `read_text` extraction from "The
+    inscription on the altar reads 'Beware.'" (Blocking.)
+
+17. **Extended parser commands** — exercise all new standard-tier commands:
+    `wear`, `remove`, `read`, `eat`, `drink`, `climb`, `enter`, `exit`,
+    `switch on/off`, `sit`, `stand`, `push`, `pull`, `light`, `extinguish`,
+    `listen`, `smell`, `touch`, `insert`, `again`/`g`, pronoun references
+    (`it`, `them`). Assert `command("help")` lists verbs grouped by tier.
+    Assert `command("again")` repeats last command. Assert `command("it")`
+    resolves last referenced thing. Assert property-violation cases return
+    `[RULE_VIOLATION]`. (Blocking.)
+
+18. **Narrative-intent verbs** — create an NPC in a room. Assert `command("ask
+    guard about crypt")` returns `[OK]` with intent. Assert `command("give
+    sword to guard")` transfers item and returns `[OK]`. Assert `command("show
+    shield to guard")` does NOT transfer. Assert `command("throw rock at
+    statue")` moves object to room. Assert `command("give altar to guard")` on
+    fixed item returns `[RULE_VIOLATION]`. Assert `command("ask nobody about
+    crypt")` with no matching NPC returns `[WARNING]`. (Blocking.)
+
 **Holonovel Gauntlet surface-to-scenario mapping.**
 
 | Changed surface                                    | Holonovel Gauntlet scenarios |
 |----------------------------------------------------|---------------------------|
-| holonovel package changed (new version)     | All (1–13)                |
-| Room navigation, parser commands                   | 1, 2, 8                   |
-| Object interaction, properties                     | 3, 6                      |
+| holonovel package changed (new version)     | All (1–18)                |
+| Room navigation, parser commands                   | 1, 2, 8, 17                |
+| Object interaction, properties                     | 3, 6, 14, 15, 16           |
 | CRUD, state mutations                              | 4                         |
 | convert_source, hybrid parsing                     | 5, 10                     |
 | Hat filtering, resource URIs                       | 7                         |
@@ -7719,6 +7916,10 @@ are selected for changed surfaces.
 | NPCs, character narrative fields                   | 11                        |
 | Lore, countdowns                                   | 12                        |
 | Scene state, tone, guidance                        | 13                        |
+| Devices, vehicles                                  | 14, 15                    |
+| Extended properties                                | 16                        |
+| Parser command vocabulary                          | 17                        |
+| Narrative verbs                                    | 18                        |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Gauntlet sub-workflow fails, THE
 builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate name,
@@ -7773,7 +7974,7 @@ are skipped. S1 (tool surface sweep) is always selected when new tools are added
 or existing tool signatures changed. Zero failures on all selected sub-workflows;
 implement any unimplemented Gauntlet sub-workflows from §6.6; and
 record all gap dispositions in a dated DECISIONS.md entry.
-The Holonovel Gauntlet sub-workflows (I1–I10, §6.6) are not included in TTRPG
+The Holonovel Gauntlet sub-workflows (I1–I18, §6.6) are not included in TTRPG
 spec-driven updates — they are run separately when the `holonovel` package
 is built and published.
 
@@ -8004,6 +8205,7 @@ State tiers:
 | Tier       | What it holds                                                                       | Lifecycle                                              | Visibility                                                  |
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
+| Codex      | Typed content library (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) | Permanent — survives all Novels, rebuilds, and server restarts | Game Master only (REQ-321)                                    |
 | Novel      | Active story state and editing-mode state, pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, enrichment, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active hat, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
@@ -8201,8 +8403,8 @@ transcript) and operational behavior by G5 (Gauntlet scenarios).
 **Verification workflow G5 — The Gauntlet (operational verification).** For a
 ruleset server, run the 29-sub-workflow Gauntlet defined in §6.6. All blocking
 sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Holonovel server, run the 13-sub-workflow Holonovel Gauntlet (I1–I13) defined
-in §6.6 Holonovel Gauntlet. All blocking sub-workflows (I1–I6, I10) must pass.
+For the Holonovel server, run the 18-sub-workflow Holonovel Gauntlet (I1–I18) defined
+in §6.6 Holonovel Gauntlet. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).
@@ -9608,6 +9810,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-313 | Server implementation fingerprinting | 2026-08-09 |
 | REQ-314 | Fingerprint-driven partial rebuild | 2026-08-09 |
 | REQ-315 | Full-text ruleset indexing | 2026-08-09 |
+| REQ-316 | Device kind | 2026-08-09 |
+| REQ-317 | Vehicle kind | 2026-08-09 |
+| REQ-318 | Extended property contracts | 2026-08-09 |
+| REQ-319 | Extended parser command vocabulary | 2026-08-09 |
+| REQ-320 | Narrative-intent parser verbs | 2026-08-09 |
+| REQ-321 | Codex | 2026-08-09 |
 
 ---
 
@@ -9965,6 +10173,12 @@ diet.
 | T-new-314 | Automated | World reactivity: set `TTRPG_WORLD_REACTIVITY=on`. Create NPC with `goals="Steal the crown"`. Call `set_scene_state("Throne room")` — assert `## World in Motion` section includes NPC goal pursuit entry. Create relationship (entity A `ally` entity B), then flip entity A to `rival` — assert campaign memory fact propagated to entity B. Accept a world change — assert it appears in campaign memory. Defer a change — assert it re-appears at next scene transition. Assert 4th deferral produces `[WARNING]` in `spec_health`. Set `TTRPG_WORLD_REACTIVITY=off` — assert `## World in Motion` absent. | REQ-233, REQ-233a, REQ-310 |
 | T-new-315 | Automated | Proactive action surfacing: create wizard entity with known 3rd-level spell slots. Set scene type to combat. Assert `hat_briefing` `## Available Actions` includes weapon attack and spell actions. Assert "Cast Fireball" appears only when 3rd-level slot available — spend the slot, assert "Cast Fireball" absent. Set scene type to social. Assert persuasion and deception actions appear instead of combat actions. Assert `suggest_actions("fight")` continues to return reactive results independently. Assert at most 8 actions listed. | REQ-084, REQ-084a, REQ-109 |
 | T-new-316 | Automated | Search-index coverage: build a server against a ruleset with a known table of contents. Call `spec_health` — assert `search_index_coverage.coverage_pct` = 100 and `unmapped_sections` is empty. Call `search_rules("ability scores")` — assert at least one result from the character creation chapter. Call `search_rules` with a heading text from the ruleset's own TOC — assert result. Manually remove one heading's entry from the search index, call `search_rules` for that heading — assert zero results and `spec_health.search_index_coverage` drops below 100 with the unmapped heading listed. | REQ-315 |
+| T-new-317 | Automated | Device lifecycle: create a device `create_thing("lantern", {kind: "device", lit: true})`. Assert `command("switch on lantern")` returns `[OK]`. Assert lantern has `switched_on: true`. Assert `command("switch on lantern")` again returns `[WARNING]` (already on). Assert `command("switch off lantern")` returns `[OK]`. Assert `command("switch off lantern")` again returns `[WARNING]`. Assert `command("switch on nonexistent")` returns `[NOT_FOUND]`. Create a non-device thing — assert `command("switch on rock")` returns `[RULE_VIOLATION]`. Assert `convert_source` recognizes "It is switchable." and "It is switched on." property assertions. | REQ-316 |
+| T-new-318 | Automated | Vehicle lifecycle: create a world model with a vehicle `convert_source("A raft is a vehicle. 'A rickety wooden raft.' It is in the Underground Lake.")`. Assert vehicle is `enterable: true`, `portable: false`. Assert `command("enter raft")` returns `[OK]`. Assert player viewpoint is inside vehicle. Assert `command("look")` shows vehicle interior. Assert `command("exit")` returns to the Underground Lake. Assert `command("get out")` is equivalent. Assert `command("enter raft")` + `command("go north")` moves both player and vehicle. Assert vehicle persists at its last location when unoccupied. Assert `command("enter nonexistent")` returns `[NOT_FOUND]`. Assert `command("enter rock")` on non-enterable returns `[RULE_VIOLATION]`. | REQ-317 |
+| T-new-319 | Automated | Extended property contracts: create things with properties `convert_source("A silver ring is in the Entrance Chamber. It is wearable. A red mushroom is in the Entrance Chamber. It is edible. An iron lever is in the Entrance Chamber. It is climbable. A glass jar is a container. It is transparent. The inscription on the altar reads 'Beware the serpent.' The altar is in the Entrance Chamber. It is readable.")`. Assert ring is `wearable: true`. Assert mushroom is `edible: true`. Assert lever is `climbable: true`. Assert jar is `transparent: true`. Assert altar is `readable: true` with `read_text: 'Beware the serpent.'`. Assert `command("wear ring")` returns `[OK]`. Assert `command("eat mushroom")` returns `[OK]`. Assert `command("read altar")` returns the inscription text. Assert each property assertion is recognized by `convert_source`. Assert missing-property commands return `[RULE_VIOLATION]`. | REQ-318 |
+| T-new-320 | Automated | Extended parser commands: populate a world model with objects supporting all new standard-tier commands. Assert `command("wear hat")` succeeds for wearable thing in inventory. Assert `command("remove hat")` succeeds when worn. Assert `command("read scroll")` returns `read_text`. Assert `command("eat mushroom")` succeeds for edible in inventory. Assert `command("drink potion")` succeeds for drinkable in inventory. Assert `command("climb rope ladder")` resolves associated exit. Assert `command("enter tent")` succeeds for enterable. Assert `command("sit bench")` succeeds for supporter. Assert `command("stand")` succeeds. Assert `command("light torch")` succeeds for `lit` thing. Assert `command("extinguish torch")` succeeds. Assert `command("listen")` returns `[OK]`. Assert `command("smell")` returns `[OK]`. Assert `command("touch altar")` returns `[OK]`. Assert `command("again")` repeats last command. Assert `command("g")` is equivalent. Assert `command("help")` lists verbs grouped by tier. Assert `command("verbs")` reports per-tier counts. Assert all property-violation cases return `[RULE_VIOLATION]`. | REQ-319 |
+| T-new-321 | Automated | Narrative-intent verbs: populate a world model with an NPC. Assert `command("ask guard about crypt")` returns `[OK] You ask guard about crypt.` Assert `command("tell guard about amulet")` returns `[OK]`. Assert `command("give sword to guard")` transfers item from inventory and returns `[OK]`. Assert `command("show shield to guard")` does NOT transfer and returns `[OK]`. Assert `command("throw rock at statue")` moves rock from inventory to room and returns `[OK]`. Assert `command("give fixed_altar to guard")` returns `[RULE_VIOLATION]`. Assert `command("throw nonexistent at guard")` returns `[NOT_FOUND]`. Assert `command("ask nobody about crypt")` where nobody matches returns `[WARNING]`. | REQ-320 |
+| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored. Call `codex_list("npc")` — assert returns entry with id, kind, name, description, tags. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entry survives. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` into an active Novel — assert NPC created with stored fields. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Switch to Player hat — assert all codex tools return `[FORBIDDEN]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
 
 ---
 

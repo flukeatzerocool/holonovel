@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-09 — Codex: server-level content library
+
+- Added a server-level Codex — a typed content library for reusable GM-authored
+  NPCs, scenes, encounters, lore entries, factions, countdowns, rooms, and things
+  that persists outside Novels, survives restarts and rebuilds, and can be dropped
+  into any Novel on demand. Six tools: `codex_set` (create/update), `codex_import`
+  (materialize into Novel), `codex_capture` (pull from Novel), `codex_list`,
+  `codex_info`, and `codex_delete` (with undo). Stored at `.holonovel-state/codex.json`.
+  Game Master only. (REQ-321)
+- The Codex is surfaced in `spec_health` with counts partitioned by kind and served
+  as a resource at `codex://<id>`.
+
 ## 2026-08-09 — World-model expansion: devices, vehicles, extended properties, parser commands, narrative verbs
 
 - Added two new kinds to the world model: `device` (switchable on/off objects like
