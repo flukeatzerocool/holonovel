@@ -846,7 +846,7 @@ open <door>, close <door>, inventory, or wait.
 
 → init_combat { "participants": [], "dangers": [{"name": "stone-guardian"}] }
 [ERROR] [FORBIDDEN] init_combat is restricted to the game_master badge.
-Corrective action: switch badges.via `set_badge("game_master")`.
+Corrective action: switch badges. Via `set_badge("game_master")`.
 
 # GM badge — manage state, set lore and countdown
 → set_badge { "badge": "game_master" }

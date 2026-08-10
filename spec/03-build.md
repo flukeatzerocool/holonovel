@@ -17,7 +17,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 Ask the operator pre-build questions up front, as a single batch. The builder asks the
 workflow-selection question first, then all questions relevant to the selected workflows. Each workflow's
 questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
-runs use defaults from the tables below (defaults: `build` when offline, `build + enrich` when network detected).
+runs use defaults from the tables below (defaults: `build` when offline, `build + synthesize` when network detected).
 
 The builder MUST NOT begin any workflow until the operator has answered Q0 and all
 questions for the selected workflows. Answers are recorded in DECISIONS.md (1). A
@@ -31,7 +31,7 @@ selected workflows, all answers, and the first workflow to execute.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What workflow(s) should Holonovel run? | convert / build / enrich / update (select one or more) | build + enrich (when network detected), build (when offline) |
+| Q0  | What workflow(s) should Holonovel run? | convert / build / synthesize / update (select one or more) | build + synthesize (when network detected), build (when offline) |
 
 **Q1 — Pause between workflows.** Asked when two or more workflows are selected.
 
@@ -50,7 +50,7 @@ Auto-detection for Q0 default. When the default option specifies "when network
 detected," the builder probes connectivity to at least one known-public host before
 presenting questions. If the probe fails, the builder falls back to `build` only and
 records the failure in DECISIONS.md. If the probe succeeds, the default includes
-`enrich`; the operator may still deselect it.
+`synthesize`; the operator may still deselect it.
 
 **Convert workflow.** Asked when `convert` is selected. The workflow produces Markdown
 passing all Appendix H blocking checks and meeting content-type fidelity thresholds.
@@ -135,7 +135,7 @@ H11 verification step: launch the server via the client's documented invocation,
 initialize handshake succeeds, and confirm `serverInfo.name` matches the
 `mcpServers` key. A `server unavailable` error stops the line.
 
-**Enrich workflow.** Asked when `enrich` is selected.
+**Synthesis workflow.** Asked when `synthesize` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -776,7 +776,7 @@ ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
 builder runs the Pattern Buffer. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
 independent of Pattern Buffer timing. The Pattern Buffer exercises the built server with
-AI-simulated badges.in realistic play scenarios. It is a required quality
+AI-simulated badges. In realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
 **Convergence handshake.** After each Pattern Buffer execution, the builder maps
@@ -841,7 +841,7 @@ Pattern Buffer findings and pass/fail disposition are recorded in DECISIONS.md (
 **Method.** The builder starts up to two MCP client connections to the same server process
 sharing one `TTRPG_DATA_DIR`. Sub-workflows exercising cross-badge interaction
 (S6, S14h, S17, S23, S26) use one connection for the Game Master badge and one for the Player badge.
-All other sub-workflows use a single connection switching badges.as needed.
+All other sub-workflows use a single connection switching badges as needed.
 Both connections target the same Novel via `TTRPG_NOVEL`. The builder interleaves
 calls between the two connections when simulating cross-badge turn-taking. Every scenario
 states its objective, the tool calls to make, which badge calls each, and the pass
