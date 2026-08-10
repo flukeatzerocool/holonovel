@@ -856,34 +856,10 @@ Items follow the same confidence model and `[ruleset]` tagging contract
 as REQ-225. Extraction that produces no items from these sources SHALL
 NOT mark the module barren — `supplementary_guidance` remains populated
 by existing REQ-225 sources. Items SHALL carry a `component_type`
-annotation identifying the narrative area they enrich: `scene_type`,
-`relationship`, `countdown`, `secret`, `player_signal`,
-`story_journal`, `scene_beats`, `pacing`, `autonomy`,
-`constraint_override`, `scene_world`, or
-`npc_world`.
-
-The `constraint_override` component type SHALL map to GM advice chapters
-discussing mechanics that bypass physical world limits — teleportation
-spells, phasing abilities, light-source magic — and SHALL feed the
-constraint override design patterns (REQ-325). The `scene_world` component
-type SHALL map to setting and location descriptions with explicit adjacency,
-sight lines, or spatial relationships — rooms that connect to other rooms,
-environments where line of sight matters (REQ-326). The `npc_world`
-component type SHALL map to NPC interaction guidelines mentioning
-positioning, patrol routes, territory, or situational awareness — NPCs
-placed in specific rooms with behavioral context (REQ-327). The
-`scene_beats` component type SHALL map to GM advice chapters discussing
-dramatic structure — rising action, climax, denouement, scene
-sequences — and SHALL feed the story beats briefing surface (REQ-335).
-The `pacing` component type SHALL map to session-management advice
-discussing scene duration, action-to-description cadence, and when to
-cut scenes — and SHALL feed the pacing signal surface (REQ-336). The
-`autonomy` component type SHALL map to solo-play and GM-emulation
-advice discussing NPC agency, faction independence, and automated world
-reaction — and SHALL feed faction autonomous advancement (REQ-338) and
-NPC goal pursuit (REQ-339). Items extracted with these component types
-follow the same confidence model and `[ruleset]` tagging contract. Items SHALL include the corresponding world-model REQ
-citation in their `source_anchor`.
+annotation identifying the narrative area they enrich. Each component
+type maps to a specific ruleset source category defined by the
+extraction heuristics in §6.3. Items SHALL include the corresponding
+world-model REQ citation in their `source_anchor`.
 
 *Acceptance criterion:* A ruleset with GM advice chapters produces at
 least one `[ruleset]` synthesis item in `supplementary_guidance`
@@ -936,54 +912,30 @@ ruleset terminology — never invented names. Character creation, condition mana
 combat encounter management, table rolling, and session recap are the minimum tool categories any
 ruleset deserves; missing categories are recorded as waivers.
 
-Tools in the following categories exist independent of ruleset content and SHALL
-always be present in `tools/list`:
+Tools in the following infrastructure categories exist independent of ruleset
+content and SHALL always be present in `tools/list`:
 
-- **World** — room, thing, exit, and property CRUD; parser command dispatch;
-  `convert_source`. (`holonovel` package.)
-- **Novels** — save-file operations: lifecycle (`create_novel`, `resume_novel`,
-  `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`,
-  `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints
-  (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`,
-  `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`),
-  resume state (`save_pause_context`, `get_resume_context`), and archive
-  (`compact_audit_log`), and server notes (`set_server_note`,
-  `remove_server_note`, `list_server_notes`).
-- **Badges & Workflow** — `set_badge`, `respond`, `undo`, `redo`, `help`.
-  The identity and permission layer — never waived.
-- **Narrative** — story-content tools, grouped by function: Scene & Tone
-  (`set_scene_state`, `set_scene_type`, `set_narrative_directive`,
-  `generate_encounter`), Cast & Characters (`create_npc`, `update_npc`,
-  `remove_npc`, `set_personality` (NPCs), `set_voice_examples` (NPCs),
-  `set_relationship`, `get_relationships`), World State (`set_lore_entry`,
-  `update_lore_entry`, `remove_lore_entry`, `toggle_lore_entry`,
-  `set_lore_group`, `suggest_lore`, `create_faction`, `update_faction`,
-  `remove_faction`, `set_countdown`, `advance_countdown`, `remove_countdown`,
-  `set_vow`, `mark_milestone`, `resolve_vow`, `forsake_vow`,
-  `set_secret`, `reveal_secret`, `check_knowledge`), Player Interaction
-  (`present_choices`, `suggest_actions`, `player_signal`), Story Memory
-  (`record_story`, `update_story`, `remove_story`, `list_stories`,
-   `session_recap`, `compress_audit`), Session
-  Management (`set_briefing_order`, `load_adventure`, `generate_adventure`), and
-  Enrichment Controls (`revert_synthesis`, `list_synthesis_items`,
-  `activate_synthesis_item`, `deactivate_synthesis_item`,
-  `remove_synthesis_item`, `toggle_action_patterns`,
-  `player_synthesize`, `player_remove_synthesis`,
-  `player_list_synthesis`). These categories
-  are never waived.
+- **World** — room, thing, exit, and property operations; parser command
+  dispatch; source conversion. (`holonovel` package.)
+- **Novels** — save-file lifecycle, exchange, checkpoints, notes, resume
+  state, archive, and server notes.
+- **Badges & Workflow** — badge switching, workflow response, undo/redo,
+  and help. The identity and permission layer — never waived.
+- **Narrative** — story-content tools, grouped by function: Scene & Tone,
+  Cast & Characters, World State, Player Interaction, Story Memory, Session
+  Management, and Enrichment Controls.
 
-The `help` tool SHALL present these infrastructure categories as the base
-grouping for its task map. The builder MAY subdivide or rename categories for
-runtime display, but every tool in the infrastructure enumeration SHALL appear
-under exactly one help category. The mapping from infrastructure category to
-help category name SHALL be recorded in DECISIONS.md. Help category names are
-advisory — the GM may override them (REQ-067) — but the infrastructure
-classification is immutable.
+These infrastructure categories are never waived. The `help` tool SHALL
+present these categories as the base grouping for its task map. The builder
+MAY subdivide or rename categories for runtime display, but every tool in
+the infrastructure enumeration SHALL appear under exactly one help category.
+The mapping from infrastructure category to help category name SHALL be
+recorded in DECISIONS.md. Help category names are advisory — the GM may
+override them (REQ-067) — but the infrastructure classification is immutable.
 
-Tools whose results depend on indexed ruleset
-content (`search_rules`, `suggest_actions`, `generate_adventure`,
-`generate_encounter`) produce empty or context-only results when that content is
-absent — they are not absent from the tool surface.
+Tools whose results depend on indexed ruleset content produce empty or
+context-only results when that content is absent — they are not absent from
+the tool surface.
 *Acceptance criterion:* `tools/list` includes at minimum character creation,
 condition management, combat, table rolling, and session recap tools; a missing
 category is recorded as a waiver in DECISIONS.md.
@@ -999,21 +951,16 @@ only by category enum; the per-tool justification list in DECISIONS.md matches t
 live `tools/list` registry.
 _Check:_ T3, T35.
 
-**REQ-022 — Resources.** The server provides `ruleset://` (with badge filtering),
-`entities://`, `entity://<id>`, `audit://novel`, `roster://<type>`, `roster://<id>`,
-`guidance://<badge>`, `guidance://<badge>/anti-slop`, `guidance://<badge>/tone`,
-`guidance://<badge>/foundations`, `guidance://shared/badge-switch`, `scene://current`, `scene://history`,
-`countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
-`entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
-`synthesis://voice_examples`, `synthesis://briefing_order`,
-`synthesis://action_patterns`, `synthesis://adventure_advice`,
-`synthesis://narrative_voices`, `synthesis://status`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://<slug>/preview`, `novel://setup`, `room://<id>`,
-`thing://<id>`, `world://map`, `world://kinds`, `graph://novel`,
-`spec://build` (GM-filtered),
-`output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
-roster-record, and `output://` templates. `resources/read` returns Markdown with a small
-source header.
+**REQ-022 — Resources.** The server provides resources covering ruleset content
+(with badge filtering), entities at collection and individual URIs, the audit
+log, the roster, badge-specific guidance (foundations, anti-slop, tone,
+badge-switch), scene state, countdowns, the party roster, NPCs at
+collection and individual URIs, entity personality and voice examples, lore
+entries, enrichment modules, adventure content, novel state, rooms and
+things, the world map and kind registry, the knowledge graph, the build
+specification, and per-tool output pointers. `resources/templates/list`
+advertises entity, roster-record, and output-pointer templates.
+`resources/read` returns Markdown with a source header.
 *Acceptance criterion:* `resources/list` includes all required URIs;
 `resources/templates/list` includes entity, roster, and `output://` templates;
 each resource declares a media type and title.
@@ -1070,78 +1017,27 @@ each other in their disambiguation clauses; a verifier can map a natural-languag
 player intent to the correct tool using only the tool descriptions.
 _Check:_ T3, T49.
 
-**REQ-025 — spec_health.** A `spec_health` tool reports: confidence scores
-(per-file and overall), conversion fidelity (per-content-type rates, overall rate,
-sample set, unresolved ambiguities, confidence cap counts — per REQ-102; absent
-when conversion was not selected), convergence summary (per-metric iterations run,
-findings per iteration, residual gaps for each metric in §6.5), including a per-category confidence breakdown —
-for each of the seven extraction categories (§6.3: concepts, entities, actions, tables, resolution, roles, guidance),
-the count and percentage of HIGH, MEDIUM, and LOW items, and per-metric velocity —
-for each quantitative metric in both Phase 1 and Phase 2, the per-iteration delta (Δ)
-from the previous measurement, recorded as a signed value. Velocity
-SHALL be reported alongside each metric's iteration count. When a metric's
-velocity drops to zero for two consecutive iterations while the metric remains
-below threshold, the builder SHALL record a `[velocity-stall]` finding in
-DECISIONS.md (5) and the metric's step is aborted per §6.5.1 no-delta
-detection — the velocity stall counts as the stalled iteration. This
-integrates velocity into the existing no-delta detection mechanism without
-adding a separate exit criterion, indexed
-counts (anchors, concepts, entity types, actions, tables, procedures, guidance items,
-synthesis items per module — ruleset-native count for each of the seven output modules),
-pending sections, MUST-action coverage, defect count, ruleset-version status,
-spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
-last-modified, active — per REQ-093; the dedicated `list_novels` tool — REQ-257 — is the
-primary save-file browsing surface), and prompt health — each registered prompt's name, presence
-(present/absent), length relative to its configured budget, and stale references
-(tool or resource names appearing in prompt text that do not match any registered
-tool or resource). Counts are derived from live registrations at call time — the
-running tool catalog, resource map, prompt list, search index, and extracted data
-arrays — not from hardcoded numeric literals. The Player badge sees only
-player-filtered metrics. Output is filtered by badge. The convergence summary section
-is absent when the build is not yet complete. `spec_health` SHALL include a
-`gap_audit` section containing: a delta summary comparing the server's recorded
-spec version against the current spec version recorded at build time — a
-`server_spec_version` field (CalVer date-stamp from the server's build
-fingerprint), a `current_spec_version` field (CalVer date-stamp from the active
-build), and a `version_advanced` boolean (true when `current_spec_version` is
-lexicographically greater than `server_spec_version`, indicating the spec has
-advanced and a gap audit is needed); a tool-catalog comparison (tool count from live registry vs
-expected per REQ-020 categories, with per-category presence), a resource-map
-comparison (URI count from live registry vs REQ-022 catalog), a prompt-list
-comparison (prompt count and names from live registry vs REQ-023 contract, with
-per-prompt title and argument-description presence), and a badge-gating summary
-(tool count per gate classification per REQ-136). The `gap_audit` section
-SHALL be absent when the build is not yet complete.
-
-`spec_health` SHALL include a `cross_ref_health` section reporting: (a)
-`total_cross_refs` — the count of cross-references discovered during extraction across
-all ruleset sections (a spell referencing a condition, a class feature referencing a
-spell, equipment referencing a mechanic); (b) `resolved` — cross-references where the
-referenced entry exists in the extraction; (c) `unresolved` — cross-references where
-the referenced entry does not exist in the extraction, each flagged with the source
-entry, the referenced target, and the source anchor; (d) `unresolved_pct` — percentage.
-When `unresolved_pct` exceeds 5%, `spec_health` SHALL include a `[fidelity_warning]`
-annotation. The builder records the `cross_ref_health` section in DECISIONS.md (4).
-
-A rebuilt server re-computes cross-reference health from the current extraction. A
-previously resolved cross-reference that becomes unresolved after a ruleset change SHALL
-be flagged as a `[regression]` in the `unresolved` list.
-
-`spec_health` must report a `pattern_buffer_scenarios` field containing
-`passed` (count of sub-workflows that passed on the most recent run),
-`total` (total sub-workflow count per §6.6), and `last_run` (ISO 8601
-timestamp of the most recent Pattern Buffer execution, absent if never run).
-When `last_run` is absent, `passed` and `total` are absent. The field is
-badge-filtered: Player badge sees this field; no GM-only content is exposed.
-
-`spec_health` SHALL include a `search_index_coverage` field containing:
-`total_headings` (the count of `##` and `###` headings in the ruleset source at
-build time), `indexed_headings` (the count of headings with entries in the
-runtime search index), and `coverage_pct` (indexed_headings / total_headings ×
-100). A coverage below 100% SHALL include an `unmapped_sections` array listing
-each unmapped heading with its source file and anchor. Coverage below the
-configurable threshold SHALL surface a `[search-coverage-warning]`
-annotation.
+**REQ-025 — spec_health.** A `spec_health` tool reports build-health metrics
+derived from live registrations at call time — not from hardcoded numeric
+literals. Reported categories include: confidence scores per-file and overall;
+conversion fidelity when conversion was selected (per-content-type rates,
+overall rate, sample set, unresolved ambiguities, confidence cap counts);
+convergence summary (per-metric iterations, findings, residual gaps, and
+per-extraction-category confidence breakdown); indexed counts (anchors,
+concepts, entity types, actions, tables, procedures, guidance items,
+enrichment items per module); pending sections; MUST-action coverage; defect
+count; ruleset-version status; verification workflow dispositions; available
+Novels on disk; prompt health (each registered prompt's presence, length
+relative to budget, and stale references); a gap audit section comparing
+current spec version against build-time version with tool-catalog,
+resource-map, prompt-list, and badge-gating comparisons; cross-reference
+health (total, resolved, unresolved, and unresolved percentage across
+discovered ruleset cross-references, with regression detection on rebuild);
+Pattern Buffer scenarios (passed, total, last run timestamp); and search
+index coverage (total headings, indexed headings, coverage percentage, with
+unmapped sections where coverage is below threshold). The Player badge sees
+only player-filtered metrics. Build-phase-dependent sections (convergence
+summary, gap audit) are absent when the build is not yet complete.
 
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
 a tool, resource, or prompt increments the count immediately; counts are derived
@@ -1548,14 +1444,13 @@ constraint override check — does the active entity have a mechanic that bypass
 a blocking constraint (per REQ-324, REQ-325)? (c) scene composition — prose
 description derived from room data if movement or inspection occurred.
 
-The return value SHALL include: `status` (one of `resolved`, `blocked`,
-`ambiguous`, `no_world_model`), `constraint_results` (array of constraint name
-and result), `override_hints` (available constraint bypasses for the active
-entity, or empty), `scene_description` (prose from room data or null), and
-`room_context` (current room name, exits, visible things, present NPCs, or
-null when world model is unpopulated). The return MAY also include
-`suggested_mechanics` (list of follow-up mechanical tool suggestions relevant
-to the intent — stealth for sneaking, perception for searching — not executed).
+The return value SHALL include: the resolution status, constraint results
+for each world-model constraint checked, override hints for available
+constraint bypasses applicable to the active entity, scene description
+derived from room data when relevant, and room context (current room name,
+exits, visible things, present NPCs). The return MAY also include
+a list of follow-up mechanical tool suggestions relevant to the intent
+(stealth for sneaking, perception for searching — not executed).
 
 The tool is callable by the AI narrator (any badge), the Game Master badge,
 and the Observer badge (read-only per REQ-305).
@@ -1605,15 +1500,15 @@ characters returns `[ERROR] [NOT_FOUND]` with the canonical text. Each
 decision enumerates options — limited to at most 25 entries, derived from the ruleset
 index, with empty-string and "cancel" always available. An unrecognized decision or
 option returns `[ERROR] [NOT_FOUND]` with valid values.
-`respond(cancel)` SHALL restore the pre-workflow snapshot from the persisted
-`pending_workflow.snapshot` field. Restoration SHALL overwrite all
-Novel-tier fields with the snapshot values, clear `pending_workflow` to
-null, and reset `pending_staleness_counter` to zero. The restored state
-SHALL be audited with a `[workflow_cancelled]` audit entry recording the
-decision text and the pre-workflow snapshot timestamp. After restoration,
-all blocked tools (undo, redo, set_badge) are callable. Cancel restoration
-works after a server restart — the persisted snapshot covers the full
-pre-workflow Novel state.
+`respond(cancel)` SHALL restore the pre-workflow snapshot (persisted per
+REQ-055). Restoration SHALL overwrite all Novel-tier fields with the
+snapshot values, clear the pending workflow state, and reset the
+staleness counter. The restored state SHALL be audited with a
+workflow-cancellation entry recording the decision text and the
+pre-workflow snapshot timestamp. After restoration, all blocked tools
+(undo, redo, set_badge) are callable. Cancel restoration works after a
+server restart — the persisted snapshot covers the full pre-workflow
+Novel state.
 
 A workflow begins when a tool returns `[NEED_INPUT]` and ends when `respond`
 successfully drains the decision. Only one workflow may be pending per Novel at a time
@@ -1996,26 +1891,27 @@ _Check:_ T-new-305.
 
 **REQ-306 — Adjustable autonomy.** The server provides a `set_autonomy(options)`
 tool — Game Master only, Novel-scoped. The tool accepts an object with four
-independent sliders, each with a default middle value:
-
-| Slider | Values | Default | Controls |
-|--------|--------|---------|----------|
-| `level` | `full` / `mechanical_prompt` / `manual` | `mechanical_prompt` | Who decides wbadge. `full` — AI auto-plays everything. `mechanical_prompt` — AI auto-plays narrative decisions (dialogue, exploration direction, social approach), world-model navigation, and character flavor, but SHALL pause for TTRPG ruleset mechanical decisions: dice rolls, combat actions, spell selection, condition management, character advancement, and ruleset-derived generation tables. `manual` — human decides everything (current default, formalized). |
-| `confirmation` | `auto` / `confirm` / `prompt` | `prompt` | How decisions are presented. `auto` — AI executes without asking. `confirm` — AI proposes its chosen action as the default option in `present_choices`, human confirms or vetoes. `prompt` — AI presents options via `present_choices` without a default, human chooses. |
-| `safety` | `safe` / `moderate` / `hardcore` | `moderate` | Consequence severity. `safe` — no permanent character death; lethal damage reduces HP to 1 and applies incapacitation. `moderate` — death possible but telegraphed; dramatic but survivable challenges. `hardcore` — full consequences; death permanent; no warnings. |
-| `creativity` | `predictable` / `standard` / `chaotic` | `standard` | How much the AI surprises the player. `predictable` — optimal, rational decisions. `standard` — occasional complications and character flaws. `chaotic` — dramatic twists, suboptimal emotional choices, unwinnable encounters. |
+independent sliders: `level` (full/mechanical_prompt/manual, defaulting to
+mechanical_prompt) — who decides what badge the AI wears, from auto-playing
+everything to requiring human decisions on all ruleset mechanical actions;
+`confirmation` (auto/confirm/prompt, defaulting to prompt) — how decisions are
+presented, from auto-execution to prompting with options; `safety`
+(safe/moderate/hardcore, defaulting to moderate) — consequence severity, from
+no permanent death to full consequences; `creativity`
+(predictable/standard/chaotic, defaulting to standard) — how much the AI
+surprises the player, from optimal decisions to dramatic twists.
 
 The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived
 resolution mechanics — tools classified as command or hybrid per REQ-015 whose
 behavior is derived from the ruleset, not from the world model or narrative
-infrastructure. Inform parser commands (`go north`, `take lamp`) and narrative
-state tools (`set_scene_state`, `create_npc`) are never paused. At
-`mechanical_prompt` level, when a mechanical decision point is reached, the AI
-SHALL call `present_choices` (REQ-235) with `[NEED_INPUT]` to present the
-decision; the human responds via `respond`. All four slider values SHALL be
-visible in `badge_briefing` and `spec_health`. Autonomy composes with any badge
-— a human Player with `level=full` lets the AI auto-play their character; a
-human GM with `level=full` lets the AI run all NPCs and player characters.
+infrastructure. Inform parser commands and narrative state tools are never
+paused. At `mechanical_prompt` level, when a mechanical decision point is
+reached, the AI SHALL call `present_choices` (REQ-235) with `[NEED_INPUT]` to
+present the decision; the human responds via `respond`. All four slider values
+SHALL be visible in `badge_briefing` and `spec_health`. Autonomy composes with
+any badge — a human Player with `level=full` lets the AI auto-play their
+character; a human GM with `level=full` lets the AI run all NPCs and player
+characters.
 
 Player signal preferences (REQ-069) — pace, difficulty, tone, focus, and
 boundary — SHALL be respected at all autonomy levels. Autonomy controls
@@ -2317,21 +2213,15 @@ the server SHALL insert a `[session_boundary]` marker entry (REQ-237) before the
 first mutating entry of the session — the marker is a mutating entry for
 hash-chain purposes and is included in `audit://novel` output.
 
-The audit log SHALL be stored as an `audit_log` array in the Novel JSON,
-appended on each mutating tool call alongside the Novel state write per REQ-092.
-Each entry is a JSON object with `timestamp`, `badge`, `tool`, `args`, and `prefix`
-fields. Each audit entry chains the hash of the preceding entry, producing a
-tamper-evident sequence verified end-to-end on load. A hash chain broken at any
-point SHALL produce a `[corrupted_audit]` warning in `spec_health` — the server
-loads entries up to the break point. `end_novel` removes the Novel JSON and its
-backup — the audit log is part of the Novel and removed with it. `export_novel`
-(REQ-096) serializes the `audit_log` array directly from the Novel JSON.
+A hash chain broken at any point SHALL report a mismatch in `spec_health` and
+stderr; the server loads entries up to the break point. The audit log is part
+of the Novel and is removed with it by `end_novel`.
 Badge switches via `set_badge` (all values: `player`, `game_master`, `none`)
 SHALL produce audit entries recording the old hat, new hat, and timestamp.
-Badge-switch entries carry `[badge_switch]` as the tool-name field. They are
-recorded in the append-only audit log and included in `audit://novel`
-output, but they are not mutating state operations for undo/redo purposes —
-`undo` SHALL NOT reverse a badge switch.
+Badge-switch entries carry the badge-switch designation as their tool-name
+field. They are recorded in the append-only audit log and included in
+`audit://novel` output, but they are not mutating state operations for
+undo/redo purposes — `undo` SHALL NOT reverse a badge switch.
 *Acceptance criterion:* A combat attack produces an audit entry with timestamp,
 badge, tool name, arguments, and output prefix; `audit://novel` returns entries in
 append order with chained hashes.
@@ -2346,10 +2236,10 @@ the entity affected is owned by the current player; the Game Master sees all ent
 Forbidden-call entries (REQ-133) carry a `[BOUNDARY_VIOLATION]` prefix in the output column
 to distinguish them from mutating entries. State queries are not recorded and do not
 appear. When no Novel is active, `resources/read` returns `[ERROR] [STATE_CONFLICT]`.
-*Acceptance criterion:* `resources/read` on `audit://novel` returns all audit entries
-in append order with chained hashes visible (REQ-040); Player badge sees only own-entity
-and own-badge entries; forbidden-call entries carry `[BOUNDARY_VIOLATION]` prefix;
-state query tool calls are absent from the resource.
+*Acceptance criterion:* `resources/read` on `audit://novel` returns audit entries
+in append order with chained hashes; Player badge sees only own-entity and
+own-badge entries; forbidden-call entries are distinguished; state queries are
+absent.
 _Check:_ T203.
 
 **REQ-041 — Snapshots and undo.** Every mutating tool call saves a per-call snapshot.
@@ -2575,9 +2465,11 @@ recap from these fields; the tool SHALL NOT generate recap prose.
 `session_recap` accepts optional parameters: `session_id` (when
 provided, scopes the recap to the audit log range bounded by the matching
 `[session_boundary]` marker and the next marker, or the log end for the current
-session; when omitted, spans the full log range); `max_transitions` (configurable, default 3,
-minimum 1, maximum 20) — the number of scene state transitions to return; `max_rolls`
-(configurable, default 5, minimum 1, maximum 50) — the number of significant rolls to
+session; when omitted, spans the full log range);
+`max_transitions` (configurable, bounded 1–20) — the number of scene state
+transitions to return;
+`max_rolls`
+(configurable, bounded 1–50) — the number of significant rolls to
 return. Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]`
 with the valid range enumerated. When `session_id` does not match any
 `[session_boundary]` marker, return `[ERROR] [NOT_FOUND]` with valid
@@ -4536,7 +4428,7 @@ undo/redo purposes — `undo` SHALL NOT reverse a story journal entry. Player ba
 `[FORBIDDEN]`.
 
 Story journal entries SHALL be surfaced: (a) in `session_recap` under a `story_entries`
-field — paginated via `offset`/`limit` params, default 10; (b) in `badge_briefing` under
+field — paginated via `offset`/`limit` params; (b) in `badge_briefing` under
 a `story` section token, configurable via `TTRPG_STORY_JOURNAL_DISPLAY` —
 entries whose `entity_ids` overlap the current active entities or whose `scene_anchor`
 matches the current scene; (c) in `export_novel` output under `story_journal`; (d) in
@@ -6802,7 +6694,7 @@ beat is `climax`, every countdown carrying the `on_scene_transition` flag
 (REQ-125, REQ-073) SHALL advance two ticks per scene transition instead of one.
 `Setup` and `denouement` beats SHALL NOT alter the default advancement rate —
 countdowns advance one tick per transition as standard. The acceleration
-multiplier SHALL be configurable via `TTRPG_CLIMAX_ACCELERATION` (default 2).
+multiplier SHALL be configurable via `TTRPG_CLIMAX_ACCELERATION`.
 Setting `TTRPG_CLIMAX_ACCELERATION` to 1 SHALL disable acceleration (climax
 beats advance countdowns at the standard rate). The acceleration SHALL apply
 only to `on_scene_transition` countdowns — countdowns of type `round` and those
@@ -6823,7 +6715,7 @@ _Check:_ T-new-360.
 **REQ-336 — Dramatic pacing signal.** The server SHALL track the count of
 tool calls (mutating and non-mutating) since the last scene transition or beat
 change. When the count exceeds a configurable ceiling
-(`TTRPG_PACING_WINDOW`, default 20), `badge_briefing` SHALL include a pacing
+(`TTRPG_PACING_WINDOW`), `badge_briefing` SHALL include a pacing
 signal in the `narrative_threads` section (REQ-281): `[pacing] Scene
 stabilized — N actions since last transition.` The signal is advisory — it
 does not block or auto-advance narration. The ceiling SHALL be configurable
@@ -6912,7 +6804,7 @@ _Check:_ T-new-358.
 **REQ-338 — Faction autonomous advancement.** Faction clocks (REQ-233)
 SHALL advance one tick on each scene transition per the existing coupling
 contract. In addition, faction clocks SHALL advance one autonomous tick per
-`TTRPG_FACTION_AUTONOMY_INTERVAL` scene transitions (configurable, default 3)
+`TTRPG_FACTION_AUTONOMY_INTERVAL` scene transitions (configurable)
 to represent faction pursuit of goals off-screen. The autonomous tick SHALL be
 recorded in the faction's clock with an `[autonomous]` annotation. Faction
 clocks with `TTRPG_FACTION_AUTONOMY_INTERVAL` set to zero SHALL NOT receive

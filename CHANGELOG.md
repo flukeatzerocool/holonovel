@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-10 — REQ body contract hygiene
+
+- Tightened six REQ bodies that exceeded character limits with
+  implementation detail — removed JSON field enumeration and storage-format
+  language from the audit log contract, replaced tool-name catalogs and URI
+  template lists with category descriptions, collapsed spec_health's
+  field-level enumeration into a categorical summary, and converted the
+  adjustable-autonomy slider table to prose. (REQ-040, REQ-020, REQ-022,
+  REQ-025, REQ-354, REQ-306)
+- Replaced implementation tokens in workflow and audit-surface REQs with
+  descriptive prose. (REQ-042, REQ-168, REQ-323)
+- Stripped six unjustified bare-default values — numeric defaults are the
+  builder's domain per Appendix M. (REQ-072, REQ-246, REQ-353, REQ-336,
+  REQ-338)
+
 ## 2026-08-10 — Enrichment → Synthesis (flat model, no tiers)
 
 - Renamed the enrichment workflow to Synthesis — a single flat workflow with two
