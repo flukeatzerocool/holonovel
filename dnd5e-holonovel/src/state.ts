@@ -293,9 +293,22 @@ function normalizeSceneType(raw: unknown): SceneType[] {
 
 // ── State Manager ──────────────────────────────────────────────────
 
+export interface CodexEntry {
+  id: string;
+  kind: string;
+  name: string;
+  description: string;
+  data: Record<string, unknown>;
+  tags: string[];
+  created_at: string;
+  modified_at: string;
+  source_novel?: string;
+}
+
 export class StateManager {
   novels = new Map<string, NovelState>();
   roster = new Map<string, RosterEntity>();
+  codexUndoEntry: CodexEntry | null = null;
   activeNovelId: string | null = null;
 
   buildFingerprint: {

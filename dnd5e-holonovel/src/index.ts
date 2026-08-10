@@ -342,6 +342,14 @@ server.registerTool("undo", {
   description: "Undo the most recent mutation. Restores previous snapshot.",
   inputSchema: {},
 }, async () => {
+  if (state.codexUndoEntry) {
+    const codex = loadCodex();
+    codex[state.codexUndoEntry.id] = state.codexUndoEntry;
+    saveCodex(codex);
+    const entry = state.codexUndoEntry;
+    state.codexUndoEntry = null;
+    return ok(`Codex entry '${entry.id}' restored.`);
+  }
   const novel = requireNovel();
   const result = state.undo(novel, getHat());
   return ok("Undo successful.");
@@ -1225,6 +1233,15 @@ server.registerTool("spec_health", {
     weapons: listWeapons().length,
     armor: listArmor().length,
     novels_available: novels,
+    server_notes: Object.keys(loadServerNotes()).length,
+    codex: (() => {
+      const codex = loadCodex();
+      const byKind: Record<string, number> = {};
+      for (const e of Object.values(codex)) {
+        byKind[e.kind] = (byKind[e.kind] ?? 0) + 1;
+      }
+      return { total: Object.keys(codex).length, by_kind: byKind };
+    })(),
     active_novel_health: hat !== "player" ? novelHealth : undefined,
     enrichment: state.getEnrichmentHealth(),
     gauntlet_scenarios: {
@@ -2823,6 +2840,361 @@ server.registerTool("list_server_notes", {
   return ok(`Server notes (${keys.length}):\n${lines.join("\n")}`);
 });
 
+// --- Codex ---
+
+import type { CodexEntry } from "./state.js";
+
+const codexPath = path.join(DATA_DIR, "codex.json");
+
+function loadCodex(): Record<string, CodexEntry> {
+  try { return JSON.parse(fs.readFileSync(codexPath, "utf-8")); } catch { return {}; }
+}
+
+function saveCodex(codex: Record<string, CodexEntry>): void {
+  const tmp = codexPath + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(codex, null, 2));
+  fs.renameSync(tmp, codexPath);
+}
+
+function codexSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const CODEX_KINDS = ["npc", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing"] as const;
+
+server.registerTool("codex_set", {
+  title: "Set Codex Entry",
+  description: "Create or update a codex entry. Game Master only.",
+  inputSchema: {
+    kind: z.enum(["npc", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing"]),
+    name: z.string(),
+    data: z.record(z.string(), z.unknown()),
+    description: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+  },
+}, async ({ kind, name, data, description, tags }: any) => {
+  requireGM();
+  const id = codexSlug(name);
+  const codex = loadCodex();
+  const now = new Date().toISOString();
+  const existing = codex[id];
+  codex[id] = {
+    id,
+    kind,
+    name,
+    description: description ?? "",
+    data,
+    tags: tags ?? [],
+    created_at: existing?.created_at ?? now,
+    modified_at: now,
+    source_novel: existing?.source_novel,
+  };
+  saveCodex(codex);
+  return ok(`Codex entry '${id}' (${kind}) ${existing ? "updated" : "created"}.`);
+});
+
+server.registerTool("codex_import", {
+  title: "Import Codex Entry",
+  description: "Import a codex entry into the active Novel. Game Master only.",
+  inputSchema: { id: z.string() },
+}, async ({ id: entryId }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const codex = loadCodex();
+  const entry = codex[entryId];
+  if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
+  switch (entry.kind) {
+    case "npc": {
+      const npcName = (entry.data.name as string) ?? entry.name;
+      const npcId = `npc_${Date.now()}`;
+      novel.npcs.set(npcId, {
+        id: npcId, name: npcName,
+        description: (entry.data.description as string) ?? entry.description,
+        disposition: (entry.data.disposition as string),
+        location: (entry.data.location as string),
+        ac: entry.data.ac as number, hp: entry.data.hp as number, max_hp: entry.data.hp as number,
+        speed: entry.data.speed as number, conditions: [], condition_rounds: {},
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `NPC '${npcName}' imported from codex.`);
+      return ok(`NPC '${npcName}' created from codex entry '${entryId}'.`);
+    }
+    case "scene": {
+      novel.scene_description = (entry.data.description as string) ?? "";
+      novel.scene_location = (entry.data.location as string) ?? null;
+      novel.scene_time_of_day = (entry.data.time_of_day as string) ?? null;
+      novel.scene_atmosphere = (entry.data.atmosphere as string) ?? null;
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Scene set from codex entry '${entryId}'.`);
+      return ok(`Scene set from codex entry '${entryId}'.`);
+    }
+    case "encounter": {
+      if (!entry.data.participants || !Array.isArray(entry.data.participants)) {
+        return err("INVALID_INPUT", "Codex encounter entry missing participants array.");
+      }
+      const participants = entry.data.participants as string[];
+      const dangers = (entry.data.dangers as any[]) ?? [];
+      for (const p of participants) {
+        if (!novel.entities.has(p) && !novel.npcs.has(p)) {
+          return err("NOT_FOUND", `Participant '${p}' not found in active Novel.`);
+        }
+      }
+      novel.combat = {
+        participants,
+        dangers,
+        round: 1,
+        current_turn: 0,
+        turn_order: [],
+        active: true,
+      };
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Combat initialized from codex entry '${entryId}'.`);
+      return ok(`Combat initialized from codex entry '${entryId}': ${participants.length} participants, ${dangers.length} dangers.`);
+    }
+    case "lore_entry": {
+      const loreKey = (entry.data.key as string) ?? entryId;
+      novel.lore.set(loreKey, {
+        key: loreKey,
+        content: (entry.data.content as string) ?? "",
+        triggers: (entry.data.triggers as string[]) ?? [],
+        hat_scope: (entry.data.hat_scope as "game_master" | "shared") ?? "game_master",
+        priority: (entry.data.priority as number) ?? 0,
+        sticky: (entry.data.sticky as number) ?? 0,
+        sticky_remaining: (entry.data.sticky as number) ?? 0,
+        enabled: true,
+        group: (entry.data.group as string),
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Lore entry '${loreKey}' imported from codex.`);
+      return ok(`Lore entry '${loreKey}' created from codex entry '${entryId}'.`);
+    }
+    case "faction": {
+      const factionId = `faction_${codexSlug(entry.name)}`;
+      novel.factions.push({
+        id: factionId,
+        name: entry.data.name as string ?? entry.name,
+        description: (entry.data.description as string) ?? "",
+        goals: (entry.data.goals as string[]) ?? [],
+        resources: (entry.data.resources as string) ?? "",
+        clock: 0,
+        clock_max: (entry.data.clock_max as number) ?? 4,
+        status: "active",
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Faction '${entry.name}' imported from codex.`);
+      return ok(`Faction '${entry.name}' created from codex entry '${entryId}'.`);
+    }
+    case "countdown": {
+      novel.countdowns.set(entry.data.name as string ?? entry.name, {
+        name: (entry.data.name as string) ?? entry.name,
+        ticks: 0,
+        total: (entry.data.ticks as number) ?? 4,
+        type: (entry.data.type as "round" | "narrative") ?? "narrative",
+        scope: (entry.data.scope as string),
+        direction: (entry.data.direction as string),
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Countdown '${entry.name}' imported from codex.`);
+      return ok(`Countdown '${entry.name}' created from codex entry '${entryId}'.`);
+    }
+    case "room": {
+      if (!novel.world) return err("STATE_CONFLICT", "No world model loaded in active Novel.");
+      const roomName = (entry.data.name as string) ?? entry.name;
+      const roomId = codexSlug(roomName);
+      novel.world.rooms.set(roomId, {
+        name: roomName,
+        description: (entry.data.description as string) ?? "",
+        exits: new Map(),
+        doorRefs: new Map(),
+        annotations: {},
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Room '${roomName}' imported from codex.`);
+      return ok(`Room '${roomName}' created from codex entry '${entryId}'.`);
+    }
+    case "thing": {
+      if (!novel.world) return err("STATE_CONFLICT", "No world model loaded in active Novel.");
+      const thingName = (entry.data.name as string) ?? entry.name;
+      const containerName = (entry.data.location as string) ?? null;
+      novel.world.things.set(thingName, {
+        name: thingName,
+        description: (entry.data.description as string) ?? "",
+        kind: (entry.data.kind as any) ?? "thing",
+        location: containerName,
+        locationType: containerName ? "room" : null,
+        portable: entry.data.portable as boolean ?? true,
+        openable: entry.data.openable as boolean ?? false,
+        open: false,
+        lockable: entry.data.lockable as boolean ?? false,
+        locked: false,
+        lit: false,
+        switchable: false,
+        switched_on: false,
+        enterable: false,
+        vehiclePassengers: [],
+        wearable: false,
+        worn_by: null,
+        readable: false,
+        read_text: null,
+        edible: false,
+        drinkable: false,
+        climbable: false,
+        transparent: false,
+        annotations: {},
+      });
+      state.saveNovel(novel);
+      audit("codex_import", { id: entryId }, `Thing '${thingName}' imported from codex.`);
+      return ok(`Thing '${thingName}' created from codex entry '${entryId}'.`);
+    }
+    default:
+      return err("UNIMPLEMENTED", `Import for kind '${entry.kind}' not yet supported.`);
+  }
+});
+
+server.registerTool("codex_capture", {
+  title: "Capture to Codex",
+  description: "Capture an existing Novel artifact into the codex. Game Master only.",
+  inputSchema: {
+    kind: z.enum(["npc", "scene", "encounter", "lore_entry", "faction", "countdown"]),
+    source_id: z.string(),
+  },
+}, async ({ kind, source_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const codex = loadCodex();
+  const now = new Date().toISOString();
+  let entry: CodexEntry | null = null;
+  switch (kind) {
+    case "npc": {
+      const npc = novel.npcs.get(source_id);
+      if (!npc) return err("NOT_FOUND", `NPC '${source_id}' not found.`);
+      entry = {
+        id: codexSlug(npc.name), kind: "npc", name: npc.name,
+        description: npc.description ?? "",
+        data: { name: npc.name, description: npc.description, disposition: npc.disposition, ac: npc.ac, hp: npc.hp, speed: npc.speed },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+    case "scene": {
+      entry = {
+        id: codexSlug("scene-" + source_id), kind: "scene", name: source_id,
+        description: novel.scene_description.substring(0, 100),
+        data: { description: novel.scene_description, location: novel.scene_location, time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+    case "encounter": {
+      if (!novel.combat) return err("STATE_CONFLICT", "No active combat to capture.");
+      const combatName = `encounter-${novel.combat.participants.length}p`;
+      entry = {
+        id: codexSlug(combatName), kind: "encounter", name: combatName,
+        description: `Encounter with ${novel.combat.participants.length} participants`,
+        data: { participants: novel.combat.participants, dangers: novel.combat.dangers },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+    case "lore_entry": {
+      const lore = novel.lore.get(source_id);
+      if (!lore) return err("NOT_FOUND", `Lore entry '${source_id}' not found.`);
+      entry = {
+        id: codexSlug(lore.key), kind: "lore_entry", name: lore.key,
+        description: lore.content.substring(0, 100),
+        data: { key: lore.key, content: lore.content, triggers: lore.triggers, hat_scope: lore.hat_scope, priority: lore.priority, sticky: lore.sticky, group: lore.group },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+    case "faction": {
+      const faction = novel.factions.find(f => f.id === source_id);
+      if (!faction) return err("NOT_FOUND", `Faction '${source_id}' not found.`);
+      entry = {
+        id: codexSlug(faction.name), kind: "faction", name: faction.name,
+        description: faction.description.substring(0, 100),
+        data: { name: faction.name, description: faction.description, goals: faction.goals, resources: faction.resources, clock_max: faction.clock_max },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+    case "countdown": {
+      const cd = novel.countdowns.get(source_id);
+      if (!cd) return err("NOT_FOUND", `Countdown '${source_id}' not found.`);
+      entry = {
+        id: codexSlug(cd.name), kind: "countdown", name: cd.name,
+        description: `Countdown: ${cd.total} ticks (${cd.type})`,
+        data: { name: cd.name, ticks: cd.total, type: cd.type, scope: cd.scope, direction: cd.direction },
+        tags: [], created_at: now, modified_at: now, source_novel: novel.slug,
+      };
+      break;
+    }
+  }
+  if (!entry) return err("UNIMPLEMENTED", `Capture for kind '${kind}' not yet supported.`);
+  codex[entry.id] = entry;
+  saveCodex(codex);
+  audit("codex_capture", { kind, source_id }, `Captured ${kind} '${source_id}' to codex.`);
+  return ok(`Captured ${kind} '${source_id}' to codex as '${entry.id}'.`);
+});
+
+server.registerTool("codex_list", {
+  title: "List Codex Entries",
+  description: "List codex entries, filterable by kind and tag. Game Master only.",
+  inputSchema: {
+    kind: z.enum(["npc", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing"]).optional(),
+    tag: z.string().optional(),
+  },
+}, async ({ kind, tag }: any) => {
+  requireGM();
+  const codex = loadCodex();
+  let entries = Object.values(codex);
+  if (kind) entries = entries.filter(e => e.kind === kind);
+  if (tag) entries = entries.filter(e => e.tags.includes(tag));
+  if (entries.length === 0) return ok("[No codex entries match.]");
+  const lines = entries.map(e =>
+    `- **${e.id}** (${e.kind}): ${e.name}${e.description ? " — " + e.description.substring(0, 80) + (e.description.length > 80 ? "…" : "") : ""}${e.tags.length ? " [" + e.tags.join(", ") + "]" : ""}`
+  );
+  const byKind = entries.reduce<Record<string, number>>((acc, e) => { acc[e.kind] = (acc[e.kind] ?? 0) + 1; return acc; }, {});
+  const kindSums = Object.entries(byKind).map(([k, c]) => `${k}: ${c}`).join(", ");
+  return ok(`Codex (${entries.length} entries: ${kindSums}):\n${lines.join("\n")}`);
+});
+
+server.registerTool("codex_info", {
+  title: "Codex Entry Info",
+  description: "Show full details of a codex entry. Game Master only.",
+  inputSchema: { id: z.string() },
+}, async ({ id: entryId }: any) => {
+  requireGM();
+  const codex = loadCodex();
+  const entry = codex[entryId];
+  if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
+  return ok(
+    `**${entry.name}** (${entry.kind})\n` +
+    `ID: ${entry.id}\n` +
+    `Description: ${entry.description || "(none)"}\n` +
+    `Tags: ${entry.tags.length ? entry.tags.join(", ") : "(none)"}\n` +
+    `Created: ${entry.created_at}\n` +
+    `Modified: ${entry.modified_at}\n` +
+    `Source Novel: ${entry.source_novel ?? "(none)"}\n` +
+    `---\n${JSON.stringify(entry.data, null, 2)}`
+  );
+});
+
+server.registerTool("codex_delete", {
+  title: "Delete Codex Entry",
+  description: "Remove a codex entry. Game Master only. Undo restores within same connection.",
+  inputSchema: { id: z.string() },
+}, async ({ id: entryId }: any) => {
+  requireGM();
+  const codex = loadCodex();
+  const entry = codex[entryId];
+  if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
+  state.codexUndoEntry = { ...entry };
+  delete codex[entryId];
+  saveCodex(codex);
+  return ok(`Codex entry '${entryId}' deleted. Undo available.`);
+});
+
 // --- Adventure Catalog ---
 
 server.registerTool("list_adventures", {
@@ -3066,6 +3438,28 @@ server.registerResource("lore-single", new ResourceTemplate("lore://{key}", {
     return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "forbidden" }), mimeType: "application/json" }] };
   }
   return { contents: [{ uri: uri.href, text: JSON.stringify({ key: entry.key, content: entry.content, triggers: entry.triggers, hat_scope: entry.hat_scope, priority: entry.priority, sticky: entry.sticky, sticky_remaining: entry.sticky_remaining, enabled: entry.enabled, group: entry.group }, null, 2), mimeType: "application/json" }] };
+});
+
+// Codex resource (REQ-321)
+server.registerResource("codex-entry", new ResourceTemplate("codex://{id}", {
+  list: async () => {
+    const codex = loadCodex();
+    return { resources: Object.keys(codex).map(k => ({
+      uri: `codex://${k}`, name: codex[k].name,
+      title: `Codex: ${codex[k].name} (${codex[k].kind})`,
+    })) };
+  },
+}), { title: "Codex Entry" }, async (uri) => {
+  const parts = uri.href.replace("codex://", "").split("/");
+  const entryId = parts[0] ?? "";
+  const codex = loadCodex();
+  const entry = codex[entryId];
+  if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  const hat = getHat();
+  if (hat !== "game_master" && hat !== null) {
+    return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "forbidden" }), mimeType: "application/json" }] };
+  }
+  return { contents: [{ uri: uri.href, text: JSON.stringify(entry, null, 2), mimeType: "application/json" }] };
 });
 
 // ── Prompts ────────────────────────────────────────────────────────

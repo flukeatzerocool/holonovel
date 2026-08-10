@@ -9,7 +9,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311 | 74    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321 | 75    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
@@ -3865,6 +3865,40 @@ banished to the outer dark")` stores the note; server restart preserves it;
 `list_server_notes()` returns the note; Player hat returns `[FORBIDDEN]`;
 `spec_health` reports the server note count.
 _Check:_ T-new-285.
+
+**REQ-321 — Codex.** THE server SHALL carry a server-level codex — a typed content
+library for reusable GM-authored content (NPCs, scenes, encounters, lore entries,
+factions, countdowns, rooms, things) that persists outside Novels and survives server
+restarts. THE codex SHALL support content kinds: `npc`, `scene`, `encounter`,
+`lore_entry`, `faction`, `countdown`, `room`, `thing`. `codex_set(kind, name, data,
+description?, tags?)` SHALL create or update a codex entry with upsert semantics —
+the `data` parameter carries a kind-specific payload whose shape mirrors the
+corresponding Novel tool parameters. `codex_import(id)` SHALL materialize a codex
+entry into the active Novel by delegating to the existing tool for the entry's kind
+(e.g., NPC entry → `create_npc`, scene entry → `set_scene_state`, encounter entry →
+`init_combat`). `codex_capture(kind, source_id)` SHALL pull an existing Novel
+artifact into the codex — the captured entry carries a `source_novel` field tracing
+its origin. `codex_list(kind?, tag?)` SHALL return a filterable list of codex
+entries with id, kind, name, description, and tags. `codex_info(id)` SHALL return
+the full record including the kind-specific data payload. `codex_delete(id)` SHALL
+remove an entry with no confirmation gate — `undo` SHALL restore a deleted entry
+within the same connection. Codex entries persist to
+`.holonovel-state/codex.json` with atomic writes and backup rotation. The codex
+SHALL survive `end_novel`, `revert_enrichment`, and server rebuilds. Codex entries
+SHALL be surfaced in `spec_health` under a `codex` key (count partitioned by kind).
+The codex SHALL be retrievable at `codex://<id>` as a resource. Codex entries SHALL
+NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots. Codex entries
+SHALL carry no mechanical effect within a Novel until explicitly imported via
+`codex_import`. WHEN the Player hat calls any codex tool, THE system SHALL return
+`[FORBIDDEN]`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]`
+when no Novel is active.
+*Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff,
+scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
+"village"])` stores the entry; server restart preserves it; `end_novel` preserves
+it; `codex://blacksmith` returns full content; `codex_list("npc")` returns the
+entry; Player hat returns `[FORBIDDEN]`; `codex_import("blacksmith")` into an
+active Novel creates the NPC; `spec_health` reports codex counts by kind.
+_Check:_ T-new-322.
 
 ### 5.7 Determinism, Safety, and Performance
 

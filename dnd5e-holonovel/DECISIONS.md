@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.09
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
@@ -297,7 +297,7 @@
 - **Verification:** typecheck 0 errors
 - **Changed code paths:** src/index.ts (respond handler, advance_combat handler, hat_briefing, run_workflow, main startup), src/state.ts (saveNovel with fsync + unique tmp, advanceCombat auto-advance, combatReport)
 - **Gauntlet:** automated test suite not present — typecheck only. Manual Gauntlet TBD.
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Full Spec Synchronization v2026.08.08
 - **Date:** 2026-08-07
@@ -329,7 +329,7 @@
 - **Verification:** typecheck 0 errors, no automated test suite (test_scripts/ empty)
 - **Changed code paths:** src/state.ts (NpcState personality/voice_examples, NovelState pending_workflow/connection_counter/pending_staleness_counter, auditForbidden, verifyAuditChain, getEnrichmentHealth, cleanupExpiredTrash, initCombat seed), src/index.ts (spec_health rewrite, roll_skill_check validation, init_combat seed, set_scene_state transition hook + sticky decay, set_personality/set_voice_examples NPC support, SPEC_HASH update, startup connection_counter + trash cleanup)
 - **Gauntlet:** Test suite directory empty — manual smoke test via spec_health.
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Macro Expansion, Help Categories, Audit Access
 - **Date:** 2026-08-07
@@ -347,7 +347,7 @@
 - **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings), test suite empty (no automated tests)
 - **Changed code paths:** src/index.ts (SPEC_HASH, expandMacros wiring in ok/raw/err, help rewrite, set_help_category, compress_audit rewrite, set_countdown params, BUILDER_CATEGORIES, buildExampleInvocation), src/state.ts (Countdown scope/direction, NovelState.help_category_overrides, serialization), src/macros.ts (countdown scope/direction expansion), AGENTS.md (tool list)
 - **Gauntlet:** automated test suite directory empty — manual verification via spec_health smoke test
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Spec Synchronization v2026.08.08 (Cycle 3)
 - **Date:** 2026-08-07
@@ -377,7 +377,7 @@
 - **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
 - **Changed code paths:** src/state.ts (scene_type → array, normalizeSceneType, buildFingerprint.specHash), src/index.ts (set_scene_type union schema, spec_health gap_audit + gauntlet_scenarios, SPEC_HASH update, scene_type display joins), AGENTS.md (tool count)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Pipeline Cycle Sync
 - **Date:** 2026-08-07
@@ -396,7 +396,7 @@
 - **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
 - **Changed code paths:** src/index.ts (SPEC_HASH, create_character quick-mode response, compress_audit simplified)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Spec File Structure Reorganization Sync
 - **Date:** 2026-08-07
@@ -425,7 +425,7 @@
 - **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests), spec-delta exit 0 confirmed
 - **Changed code paths:** src/index.ts (SPEC_HASH), DECISIONS.md (traceability table + gap disposition), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** test suite directory empty — manual smoke test via spec_health
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Full Rebuild (REQ-098)
 - **Date:** 2026-08-07
@@ -440,7 +440,7 @@
 - **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings), spec-delta exit 0 (in sync), version-sync OK
 - **Changed code paths:** src/index.ts (__dirname resolution for rulesetDir and DATA_DIR, expected_minimum 62→61)
 - **Gauntlet:** passed 9/22 sub-workflows (same as prior run `2026-08-06`); no automated test suite — manual smoke test via spec_health. Blocking sub-workflows: spec_health reports healthy build fingerprint, all prompt budgets within limits, 61 tools registered (matches expected_minimum), 4 resources, 5 prompts.
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Combat Enhancements + World-Model Layer (195-208)
 - **Date:** 2026-08-07
@@ -466,7 +466,7 @@
 - **Verification:** typecheck 0 errors, build-index (1,021 files, 1,817 headings)
 - **Changed code paths:** src/index.ts (SPEC_HASH, init_combat guard + validation, apply_condition rounds param, add_combat_participant, remove_combat_participant, BUILDER_CATEGORIES, GMToolsSet), src/state.ts (NovelEntity.condition_rounds, NpcState.condition_rounds, advanceCombat condition expiry, processConditionExpiry helper, addCombatParticipant, removeCombatParticipant)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: combat lifecycle changes (REQ-043 surface) → S3, S4, S5; condition management (REQ-206) → S9; new tool added (REQ-205) → S1
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Spec Revision Sync (REQ-209/210/211, World-Model Prose)
 - **Date:** 2026-08-07
@@ -483,7 +483,7 @@
 - **Verification:** typecheck 0 errors, test_scripts/ empty (no automated test suite)
 - **Changed code paths:** src/index.ts (SPEC_HASH), dnd5e/holonovel.md (regenerated from canonical)
 - **Gauntlet:** No implemented gaps map to runtime surfaces — no Gauntlet scenarios selected per §6.6 surface-to-scenario mapping
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update (REQ-098) — Structured Scene Fields + Parameterized Tables
 - **Date:** 2026-08-07
@@ -502,7 +502,7 @@
 - **Verification:** typecheck 0 errors, test_scripts/ empty (no automated tests)
 - **Changed code paths:** src/index.ts (SPEC_HASH, set_scene_state inputSchema/handler, roll_on_table rewrite with gen table registry, hat_briefing scene fields, scene_history entries, spec_health additions, lastSpecReview startup, macro context, export_novel markdown), src/state.ts (NovelState scene_location/time_of_day/atmosphere fields, createNovel/loadNovelFromData/novelToJSON/novelFromJSON/undo/redo serialization), src/macros.ts (scene location/time_of_day/atmosphere macros), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: tool signature change (set_scene_state, roll_on_table) → S1; scene state surface (REQ-076a) → S20; table generation (REQ-212) → S7; hat gating (GM-only tables) → S6
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a
 
 ### Spec-Driven Update Gap Disposition (REQ-098)
 - **Date:** 2026-08-08
@@ -573,4 +573,4 @@
 - **Verification:** typecheck 0 errors, test suite 38/38 passed
 - **Changed code paths:** src/index.ts (SPEC_HASH → runtime hash computation, spec_version update, spec_hash_current, safety_protocols, gap_audit simplification), dnd5e/holonovel.md (regenerated)
 - **Gauntlet:** Per §6.6 surface-to-scenario mapping: no tool surface changes → S1 (tool sweep) for spec_health changes; no state model changes
-- **Spec hash:** 2b41810dabdc42ea1b10e0fefc61be0e1afef76cbf463c7dc7d2acced2bfa3c4
+- **Spec hash:** c68ea23420d1c40f991f5970637cec14ac9a67b6125a4335ff18cfe1dd82091a

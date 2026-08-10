@@ -288,6 +288,7 @@ guard, the gap is explicit.
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, hat_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
+| Codex          | Server-level typed content library for reusable GM-authored content (NPCs, scenes, encounters, lore, factions, countdowns, rooms, things) that persists outside Novels. `codex://<id>`. Game Master only. REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               | entities, NPCs, scene state, countdowns, lore, enrichment, adventure,            |
 |               | audit log, snapshots, and hat state for a single ruleset story. A Novel          |
