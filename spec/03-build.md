@@ -70,10 +70,11 @@ two tiers: Required first, then Advanced.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| B1  | Ruleset path(s)              | File paths or `none`             | —                   |
+| B1  | Ruleset(s) to build              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
 | B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
-| B6  | What should the server be called? | Name                          | `[game_name]-holonovel` |
+| B6  | What should the server be called? | Name                          | `[game_name]-holonovel` for single ruleset; `holonovel-multi` for multiple |
+| B13 | Which rulesets to include? | Derived from B1 when multiple rulesets are specified | all rulesets in B1 |
 
 **Advanced Build questions.** After the builder confirms Required answers, the
 builder presents the Advanced defaults and asks whether the operator wants to
@@ -90,10 +91,26 @@ defaults without further prompting.
 | B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
 | B12 | World and narrative surface prominence? | secondary / visible / prominent | visible           |
+| B15 | Per-ruleset build mode overrides | none / comma-separated `slug:mode` pairs | none |
 
 The builder SHALL record all answers — Required and Advanced — in
 DECISIONS.md (1). When the operator declines the Advanced prompt, the
 defaults are recorded with a `(defaults accepted)` annotation.
+
+**Multi-ruleset intake.** When B1 specifies two or more `slug=path` pairs, the builder
+SHALL parse each pair. The slug MUST be a valid slug per §7.1a. The path MUST be a
+readable directory containing at least one `.md` file. The builder SHALL verify each
+path exists and is readable before Discovery begins. A path that does not exist or
+contains no `.md` files SHALL be recorded as a finding in DECISIONS.md (1) — the
+operator may correct it or remove that ruleset from the build. The builder SHALL
+record the slug-to-path mapping in DECISIONS.md (1). Ruleset-free mode (B1=`none`)
+and single-ruleset mode (B1 has exactly one `slug=path` pair) are unchanged — the
+builder proceeds with the existing pipeline. Multi-ruleset mode triggers the Combine
+step after all rulesets complete Construction and the Pattern Buffer.
+
+B13 defaults to all rulesets in B1. B15 allows per-ruleset `production` or
+`quick-build` overrides — when not specified, each ruleset inherits the global B9
+setting.
 
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
 are indexed, no extraction occurs, and the server is built from the `holonovel`
@@ -401,6 +418,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
 | 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
+| 7     | Combine: merge N builds into one MCP server (multi-ruleset only; skipped for single-ruleset and ruleset-free) | G8 pass, per-ruleset G2 replay in combined server |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
@@ -417,6 +435,63 @@ material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
 `package.json`). The dnd5e-holonovel server's `LICENSE.md` is the canonical
 template.
+
+### 6.4.2 Combine step
+
+*Prepare:* Load files from `build-phase-map.md` Combine row: 03-build.md §6.4.2,
+02-requirements.md §5.16.
+
+The Combine step merges N independently-verified ruleset builds into a single
+MCP server. Each ruleset build SHALL have passed Steps 1–6, the Pattern Buffer,
+and verification workflows G2–G5 before Combine begins. The step is skipped for
+single-ruleset and ruleset-free builds. The step SHALL operate in this order:
+
+1. **Scaffold.** Initialize a new MCP server using the `holonovel` package
+   (version from B10) as the base — same scaffold as Step 1, but with a
+   combined server name from B6 (B13 when B6 is `holonovel-multi`).
+
+2. **Register infrastructure.** Register all infrastructure tools (REQ-020
+   World, Novels, Badges, Narrative categories) exactly once from the
+   holonovel scaffold. These tools carry `ruleset: null` annotations.
+
+3. **Register per-ruleset tools.** For each ruleset build, register every
+   ruleset-derived tool with the `<slug>_` prefix. Each tool carries its
+   `ruleset` annotation set to the ruleset slug. Tool parameter schemas are
+   preserved verbatim from the per-ruleset build — prefixing is a name change
+   only.
+
+4. **Register resources.** Infrastructure resources (`spec://build`,
+   `world://kinds`, `world://map`, `entities://`, `scenes://`, `roster://`,
+   `output://`, `audit://`, `guidance://`) are registered once from the
+   scaffold. Per-ruleset resources (`ruleset://`, `monsters://`, `spells://`,
+   `equipment://`, `classes://`, `adventure://`) SHALL be namespaced as
+   `<slug>://<path>` — each ruleset's resource tree is a separate URI
+   namespace.
+
+5. **Register prompts.** Infrastructure prompts (`intro`, `session_zero`,
+   `novel_setup`, `badge_briefing`, `run_workflow`) are registered once.
+   Their content composition is ruleset-aware — each prompt reads from the
+   active Novel's ruleset model at invocation time.
+
+6. **Verify isolation.** The builder SHALL audit the combined server's
+   `tools/list` for: (a) every ruleset-derived tool carries a `ruleset`
+   annotation matching one of the B1 slugs; (b) no infrastructure tool
+   carries a prefix; (c) no two tools share the same registered name; (d) the
+   `ruleset_prefix_map` matches the B1 slug-to-path mapping. A violation is a
+   combine defect that SHALL be resolved before verification.
+
+7. **Re-verify per ruleset.** Run G2 (golden transcript) against each
+   ruleset's fixture in the combined server. Run the Pattern Buffer
+   sub-workflows S2–S9, S13–S14, S16, S18, S21, and S24–S27 against each
+   ruleset in the combined server — these are ruleset-specific and must
+   re-verify. Run sub-workflows S1, S10–S12, S15, S17, S19–S20, and
+   S22–S23 once — these are infrastructure and ruleset-agnostic.
+
+8. **Run G8.** Execute the cross-ruleset isolation verification workflow
+   (§8 G8). A G8 failure SHALL block the build.
+
+After Combine, verify that `spec_health` reports per-ruleset metrics and
+`ruleset_prefix_map`.
 
 ### 6.4.1 Prompt composition
 

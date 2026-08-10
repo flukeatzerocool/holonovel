@@ -16,6 +16,15 @@
 | Unicode/zero-width resilience         |               |                    |             |                   |            | ✓          |                    |
 | Runtime import extraction            |               |                    |             |                   |            |            | ✓                  |
 
+**Per-ruleset fixture annotation.** When a fixture targets a specific ruleset
+in a multi-ruleset build, its heading SHALL carry the ruleset slug in a
+standardized annotation: `### Fixture Name (dnd5e)`. The golden transcript for
+a per-ruleset fixture SHALL include a header line `# ruleset: <slug>` as its
+first line. Multi-ruleset golden transcripts SHALL alternate between
+ruleset-scoped sections, each preceded by a `# ruleset: <slug>` header. The
+fixture's RNG witness table (Appendix B.4/N.4/W.4) SHALL carry a per-ruleset
+section with independent witness values.
+
 ---
 
 ## Appendix B: Golden Fixture

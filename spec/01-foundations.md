@@ -12,7 +12,9 @@
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
 > verification workflows, 14 handoff verification steps,
-> and a golden-transcript replay. One server per ruleset. No network at runtime
+> and a golden-transcript replay. One server per ruleset; multiple rulesets may be
+> combined into one MCP server (tools carry ruleset prefixes; one ruleset per
+> Novel, siloed per §5.16). No network at runtime
 > (REQ-051). Badges control tool-access gating (REQ-032): `player`, `game_master`,
 > `observer`, or `none`, switchable via `set_badge` (REQ-066). The AI's narrative role is
 > the counterpart of the active badge by default — human as Player → AI as Game Master,
@@ -143,6 +145,17 @@ play with a real LLM, (3) hand off four specified artifacts and nothing else (§
 survive an independent verification (§10) where a second AI re-runs the verification workflows blind from a
 cold checkout, comparing its results against the builder's own.
 
+**Multi-ruleset mode.** When multiple rulesets are selected at intake (B1), the builder
+runs Discovery and Construction independently for each ruleset — each producing its own
+RULESET_MODEL.md, confidence scores, and verification record. After all rulesets pass
+Construction and the Pattern Buffer, a Combine step (§6.4 Step 7) merges them into a
+single MCP server. Ruleset-derived tools carry a `<slug>_` prefix (REQ-379).
+Infrastructure tools (World, Narrative, Novels, Badges) carry no prefix and are shared
+across all rulesets. Each Novel is bound to exactly one ruleset at creation (REQ-380); the
+active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
+Cross-ruleset contamination is a build defect (F8). The operator may add or remove
+rulesets by rebuilding the combined server.
+
 ---
 
 ## 2. Requirements at a Glance
@@ -174,6 +187,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `convert_source` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
+| F8   | Mechanics from one ruleset leak into a Novel bound to a different ruleset — Starfinder condition names appear in a D&D combat, or a D&D spell lookup succeeds under a Mothership Novel. | Tool prefix gating (REQ-379, REQ-381); per-ruleset extraction isolation (REQ-382); cross-ruleset isolation verification (G8) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
 guard, the gap is explicit.
@@ -231,6 +245,15 @@ guard, the gap is explicit.
 - Kind contract violation → REQ-200 kind hierarchy enforcement
 - Malformed adventure with corrupt `## World` section → REQ-171, partial index with prose fallback
 - Exit symmetry broken → REQ-198 implicit reverse exit creation
+
+**F8 — Ruleset cross-contamination.**
+
+- Missing ruleset annotation on tool → REQ-379, G8
+- Novel created without ruleset binding → REQ-380
+- Ruleset gating not enforced at call time → REQ-381, G8
+- Search index returns results from wrong ruleset → REQ-382
+- Infrastructure tool accepts ruleset-specific parameters → REQ-379 parameter contract
+- Combine step mis-prefixes a ruleset tool → G8 per-ruleset tool-name audit
 
 ---
 
@@ -326,6 +349,11 @@ guard, the gap is explicit.
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
 | Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
+| Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
+| Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
+| Combined build   | A build in which B1 specifies two or more ruleset paths. Each ruleset is discovered and constructed independently, then merged into one MCP server via the Combine step (§6.4 Step 7). The combined server's `serverInfo.name` is set by B13. |
+| Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable for the Novel's lifetime. |
+| Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
 database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
