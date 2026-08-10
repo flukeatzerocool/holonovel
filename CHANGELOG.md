@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-09 — T1 enrichment for world-model features
+
+- Added 30 enrichment entries across both manifests covering all five
+  Inform-derived world-model REQs (316–320): kind hierarchy design, device
+  puzzle patterns, vehicle encounter and journey design, environmental text
+  storytelling, parser command tier system, extended property design patterns,
+  and narrative verb workflows.
+- D&D 5e manifest gains 12 entries (lore_templates, action_patterns,
+  supplementary_guidance, adventure_advice templates and starters).
+- Ruleset-free manifest gains 18 entries covering the same domains with
+  deeper world-model emphasis (the world model is the primary surface in
+  ruleset-free mode).
+- All entries tagged `vendor`, sourced to the world-model-provider.md
+  documentation, with citations to Inform 7 chapters (Artistic License 2.0):
+  Writing with Inform Ch4/Ch7/Ch8/Ch17, Recipe Book Ch8/Ch9.
+
 ## 2026-08-09 — Codex: server-level content library
 
 - Added a server-level Codex — a typed content library for reusable GM-authored

@@ -89,6 +89,30 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       hat_scope: "game_master",
       category: "magic_item_lore",
     },
+    {
+      content: "Device puzzle design — a device is switched on or switched off. Puzzle states are binary — power, access, visibility, safety. Design puzzles where the device's state gates progress: a powered-down elevator blocks ascent, a switched-on alarm draws patrols, a deactivated force field exposes a path. The puzzle is not the device — it's what the device controls. Place devices where multiple rooms can observe their effects.",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "device_puzzles",
+    },
+    {
+      content: "Vehicle encounters — a vehicle is enterable and mobile. Design vehicles as contained world fragments: boarding changes location context, passengers share the vehicle's fate, exits from the interior can change mid-scene (a docking station, a crash site, an override hatch). Vehicles can be escape routes, mobile bases, or traps — what boards with you matters as much as where it travels.",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "vehicle_encounters",
+    },
+    {
+      content: "Environmental text through readable objects — inscriptions, books, scrolls, and other readable things deliver lore without an NPC mouthpiece. A readable object tells the player what the world thinks is worth recording. Use read_text for the text players discover through the 'read' command; use the description property for what they see when they 'examine'. The gap between what's readable and what's visible is a puzzle design tool.",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "environmental_text",
+    },
   ],
   action_patterns: [
     {
@@ -126,6 +150,36 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       expected_categories: ["Resolution", "Command"],
       ruleset_section: "06_Gameplay/Order_of_Combat.md — Stabilizing a Creature",
       source_url: "ruleset/06_Gameplay/Order_of_Combat.md",
+    },
+    {
+      intent: "I want to turn a device on, off, or interact with a machine",
+      expected_categories: ["Command"],
+      ruleset_section: "World Model — devices are switchable (REQ-316)",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+    },
+    {
+      intent: "I want to enter, exit, or navigate aboard a vehicle",
+      expected_categories: ["Command"],
+      ruleset_section: "World Model — vehicles are enterable (REQ-317)",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+    },
+    {
+      intent: "I want to wear, remove, eat, or drink an item",
+      expected_categories: ["Command"],
+      ruleset_section: "World Model — extended property commands (REQ-318)",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+    },
+    {
+      intent: "I want to read text from an inscription, book, or readable object",
+      expected_categories: ["Command"],
+      ruleset_section: "World Model — readable property (REQ-318)",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+    },
+    {
+      intent: "I want to ask, tell, give, show, or throw something at an NPC",
+      expected_categories: ["Command"],
+      ruleset_section: "World Model — narrative-intent verbs (REQ-320)",
+      source_url: "narrative_world_model/world/world-model-provider.md",
     },
   ],
   supplementary_guidance: [
@@ -169,6 +223,30 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       hat_scope: "game_master",
       category: "inspiration",
     },
+    {
+      content: "Device interaction in D&D world design — treat devices as environmental mechanics, not character abilities. A device's switched state is visible and testable: a lever is up or down, a gate is open or closed. Use devices for puzzles that don't require skill checks — a player who deduces the correct switch combination solves the puzzle regardless of their character's Intelligence score. D&D characters interact with devices via the 'switch on/off' parser commands, not ability checks — the puzzle is solved by player reasoning, not dice.",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "device_design",
+    },
+    {
+      content: "Vehicle encounter design for D&D — vehicles extend the combat and exploration surfaces. A combat encounter aboard a moving vehicle adds terrain change on every turn (the steering deck, the cargo hold, the crow's nest). A vehicle chase uses speed and countdowns rather than attack rolls. Movement between vehicle interiors (deck to cabin, pilot seat to engine room) is room-level navigation with the vehicle as boundary. Vehicle exits are conditional room connections — they change based on the vehicle's state (docked, airborne, damaged, abandoned).",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "vehicle_design",
+    },
+    {
+      content: "Parser commands in the world model — Core tier (go, look, examine, take, drop, inventory, wait, open, close, unlock, lock) covers fundamental physical interaction with the world. Standard tier (wear, remove, eat, drink, climb, enter, exit, switch on, switch off, sit, stand, push, pull, light, extinguish, listen, smell, touch, insert, read) extends to object properties and sensory actions. Narrative tier (ask, tell, give, show, throw) covers NPC-directed social verbs that route to the GM surface for narrative resolution. Commands not matching any tier fall through to the GM for interpretation — this keeps the parser open-ended.",
+      source_url: "narrative_world_model/world/world-model-provider.md",
+      confidence: "HIGH",
+      tag: "vendor",
+      hat_scope: "game_master",
+      category: "parser_commands",
+    },
   ],
   adventure_advice: {
     templates: [
@@ -186,6 +264,13 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
         tag: "vendor",
         hat_scope: "game_master",
       },
+      {
+        content: "Device-based puzzle design — a puzzle consists of at least two devices whose states interact. The combination that solves the puzzle gates progress. Map device response to environmental change: a switched-on generator lights a dark room, a deactivated barrier opens a path, a toggled lever raises a portcullis. Multi-room puzzles use devices whose effects are only observable from another location — the player must learn the relationship by observation, not by being told.",
+        source_url: "narrative_world_model/world/world-model-provider.md",
+        confidence: "HIGH",
+        tag: "vendor",
+        hat_scope: "game_master",
+      },
     ],
     scenario_starters: [
       {
@@ -198,6 +283,13 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       {
         content: "Two racing clocks — the party must complete their objective before a danger clock fills. If the party's clock fills first, they succeed with a cost. If the danger clock fills first, the situation escalates but creates a new angle of approach. The clock shows progress — it doesn't determine it.",
         source_url: "narrative_world_model/bitd/progress-clocks.md",
+        confidence: "HIGH",
+        tag: "vendor",
+        hat_scope: "game_master",
+      },
+      {
+        content: "A vehicle escape — the party boards a vehicle to flee a pursuing danger. The vehicle's interior is a multi-room location. A countdown tracks pursuit proximity. Each turn, one player navigates (steering/evasion checks), another manages onboard hazards (damage control, cargo shifting), a third defends against boarding attempts. The vehicle itself has properties (condition, speed) that change turn by turn.",
+        source_url: "narrative_world_model/world/world-model-provider.md",
         confidence: "HIGH",
         tag: "vendor",
         hat_scope: "game_master",
