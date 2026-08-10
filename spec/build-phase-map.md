@@ -14,12 +14,14 @@ independently specify file lists.**
 | Convert (if selected)          | 03-build.md §6.2 Convert, appendices-reference.md §G                          | 3,000   |
 | Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2, §5.15 | 5,000   |
 | Construction (§6.4)            | 03-build.md §6.4, 02-requirements.md §5.3–§5.7, 04-runtime.md                 | 7,500   |
+| Combine (§6.4.2)               | 03-build.md §6.4.2, 02-requirements.md §5.16                                   | 3,500   |
 | Convergence (§6.5)             | 03-build.md §6.5, 02-requirements.md (all), 05-verification.md, 08-synthesis.md §11.4 (when synthesis metrics in scope) | 9,200   |
 | Ruleset Pattern Buffer (§6.6)         | 03-build.md §6.6, 05-verification.md, 06-artifacts.md                         | 3,000   |
 | Holonovel Pattern Buffer (§6.6)         | 03-build.md §6.6 Holonovel Pattern Buffer (holonovel package verification only — not part of TTRPG builds)   | 1,800   |
 | Gates G0–G5 (§8)               | 05-verification.md (full)                                                     | 1,800   |
 | Handoff (§9)                   | 06-artifacts.md, 07-independent.md                                            | 2,000   |
 | Synthesis (§11, optional) | 08-synthesis.md, appendices-reference.md §J                                  | 2,500   |
+| G8 isolation (§8)              | 05-verification.md G8, 02-requirements.md §5.16                              | 1,500   |
 | Spec-driven update (§6.7)      | 03-build.md §6.7 + files changed per git diff                                 | Variable |
 | Appendix lookup from gate req  | appendices-reference.md or appendices-fixtures.md (relevant appendix) | 500–2,000 |
 | Independent verification (§10) | All files (cold checkout — full spec load; no token efficiency applied)       | 30,000   |

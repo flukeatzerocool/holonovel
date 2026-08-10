@@ -442,6 +442,15 @@ date-stamps matching CHANGELOG entries.
 | REQ-376 | Holonovel Pattern Buffer traceability | 2026-08-10 |
 | REQ-377 | Mechanical coupling extraction | 2026-08-10 |
 | REQ-378 | Mechanical coupling verification | 2026-08-10 |
+| REQ-379 | Tool namespacing             | 2026-08-10 |
+| REQ-380 | Novel ruleset binding        | 2026-08-10 |
+| REQ-381 | Ruleset-scoped tool gating   | 2026-08-10 |
+| REQ-382 | Per-ruleset extraction isolation | 2026-08-10 |
+| REQ-383 | Combined server health       | 2026-08-10 |
+| REQ-384 | Cross-ruleset Novel switching | 2026-08-10 |
+| REQ-385 | suggest_actions cross-ruleset scoping | 2026-08-10 |
+| REQ-386 | Cross-ruleset import rejection | 2026-08-10 |
+| REQ-387 | Codex ruleset annotation     | 2026-08-10 |
 
 ---
 
@@ -878,6 +887,16 @@ diet.
 | T-new-393 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T-new-394 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], hat_scope="shared". Call `set_scene_state("You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with hat_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
 | T-new-395 | Automated | Archetype verification: parse §7.7 property groups, assert all 17 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
+| T-new-396 | Automated | Tool namespacing: build combined D&D + Starfinder server. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
+| T-new-397 | Automated | Novel ruleset binding: call `create_novel("test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `novel_info`. Call `create_novel("test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
+| T-new-398 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
+| T-new-399 | Automated | Extraction isolation: call `dnd5e_search_rules("fireball")` under D&D Novel — assert D&D-only results. Call `starfinder_search_rules("laser")` under Starfinder Novel — assert Starfinder-only results. Assert no cross-contamination in source anchors. | REQ-382 |
+| T-new-400 | Automated | Combined spec_health: assert `spec_health.ruleset_health` contains per-ruleset sections with independent counts. Assert `combined` section includes `ruleset_prefix_map` and total tool count. Assert Player badge sees only active Novel's ruleset health. | REQ-383 |
+| T-new-401 | Automated | Cross-ruleset switching: create D&D and Starfinder Novels. Switch between them — assert ruleset-derived tool availability changes. Assert audit log records both switches. Assert D&D Novel state unchanged after switching back. | REQ-384 |
+| T-new-402 | Automated | suggest_actions scoping: call `suggest_actions("attack")` under D&D Novel — assert D&D-prefixed tool suggestions only. Same intent under Starfinder Novel — assert Starfinder-prefixed only. | REQ-385 |
+| T-new-403 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
+| T-new-404 | Automated | Codex ruleset annotation: assert `codex_list(ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `codex_list(ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `codex_import` of D&D spell codex entry into Starfinder Novel is rejected. Assert `codex_capture("npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `codex_list(ruleset="starfinder")`; assert `codex_import` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
+| T-new-405 | Automated | G8 isolation workflow: run all seven G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
 
 ---
 
@@ -1579,7 +1598,20 @@ match as a finding.
 | persona_scope | badge_scope | REQ-032, REQ-083 |
 | persona_filter | badge_filter | REQ-086 |
 | persona_briefing | badge_briefing | REQ-109 |
+| person_briefing | badge_briefing | REQ-109 |
 | oce, oce-state | `.holonovel-state` | REQ-055 |
+
+**Multi-ruleset glossary.** These terms are defined in §4 and are collected here
+for forward reference:
+
+| Term | Citing REQ |
+|------|-----------|
+| ruleset slug | REQ-379 |
+| tool prefix | REQ-379 |
+| combined build | §6.4.2 |
+| ruleset scope | REQ-380 |
+| inapplicable hint | REQ-381 |
+| cross-ruleset isolation | §8 G8 |
 
 ---
 

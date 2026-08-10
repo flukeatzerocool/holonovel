@@ -19,6 +19,7 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G5       | Ruleset | The Pattern Buffer — operational verification        |
 | G6       | Ruleset | Synthesis lifecycle                           |
 | G7       | Ruleset | Narrative coherence attestation                 |
+| G8       | Ruleset | Cross-ruleset isolation                         |
 
 In prose, verification workflows are referred to by their canonical `GN` form
 (G0, G2, etc.), established in this table. The legacy "Gate N" form is
@@ -154,4 +155,54 @@ Each persona archetype exercises at least one Pattern Buffer sub-workflow:
 | Curious Player       | S8, S18              | Search ambiguity, adventure generation            |
 | Rules Lawyer         | S8                   | Ambiguous alias → `[AMBIGUOUS]` with enumeration  |
 | Forgetful Player ×2  | S22, S24             | Workflow staleness, session-boundary recovery     |
+
+**Verification workflow G8 — Cross-ruleset isolation.** Run after the Combine
+step on a server built with at least two rulesets. The workflow SHALL verify:
+
+1. **Tool isolation.** With a Novel bound to ruleset A active, call a
+   ruleset-derived tool from ruleset B. Assert `[ERROR] [INVALID_INPUT]`
+   naming ruleset A as the active scope. Call an infrastructure tool — assert
+   `[OK]`. Switch to a Novel bound to ruleset B. Assert the reverse — ruleset
+   A tool fails, ruleset B tool succeeds.
+
+2. **Search isolation.** `search_rules("core mechanic")` under a ruleset A
+   Novel returns A-ruleset results only. Under a ruleset B Novel, returns
+   B-ruleset results only. Assert no result carries a source anchor from the
+   wrong ruleset.
+
+3. **Lookup isolation.** `lookup_spell(name)` under each ruleset's Novel
+   returns entries from that ruleset's catalogue. A spell that exists in both
+   rulesets under the same name returns the ruleset-A entry in A's Novel and
+   the ruleset-B entry in B's Novel.
+
+4. **Import rejection.** Export a ruleset-A Novel. Build a new combined server
+   that does not include ruleset A. Attempt to `import_novel` — assert
+   `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
+
+5. **Cross-ruleset Novel switching.** Create Novel A (ruleset A). Create
+   Novel B (ruleset B). Call a ruleset-A dice-resolution tool — assert `[OK]`.
+   `switch_novel` to Novel B. Call the same ruleset-A tool — assert per
+   REQ-381. Call a ruleset-B dice-resolution tool — assert `[OK]`. Verify
+   Novel A's state is unchanged on disk.
+
+6. **spec_health per-ruleset.** Assert `spec_health.ruleset_health` contains
+   one entry per ruleset with independent counts. Assert `combined` section
+   includes `ruleset_prefix_map`.
+
+7. **Name clash audit.** Assert no two tools in `tools/list` share the same
+   registered name. Assert every tool's `ruleset` annotation is either a
+   known slug or `null`.
+
+8. **Codex isolation.** Call `codex_capture("npc", name)` from a ruleset-A
+   Novel — assert the created entry carries `ruleset` set to ruleset A's slug.
+   Call `codex_import` of that entry into a ruleset-B Novel — assert
+   `[ERROR] [STATE_CONFLICT]` naming both rulesets.
+
+G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
+build. G8 is a ruleset-facing workflow — each combined server must pass it
+once per combination of rulesets.
+
+*Acceptance criterion:* A combined D&D + Starfinder server passes all seven
+G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
+_Check:_ T-new-404.
 

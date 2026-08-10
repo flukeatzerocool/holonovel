@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-08-10 — Multi-ruleset isolation hardening
+
+- Closed codex capture ruleset-inheritance gap: `codex_capture` now defaults
+  `ruleset` to the source Novel's ruleset scope, preventing cross-ruleset
+  contamination through captured codex entries. (REQ-387)
+- Added `codex_adventure` bootstrap gating: `create_novel(codex_adventure=...)`
+  validates the Codex entry's ruleset against the new Novel's ruleset scope
+  in multi-ruleset servers, preventing cross-ruleset adventure injection.
+  (REQ-088, REQ-387)
+- Fixed Pattern Buffer Combine-step categorization: S2 (Character creation)
+  and S3 (Encounter setup) moved from infrastructure-once to per-ruleset
+  re-verification — they are extraction-dependent and must re-verify
+  against each ruleset's tools in the combined server. (§6.4.2)
+- Added `help` tool ruleset filtering: tool listings and query results
+  now scope to the active Novel's ruleset when a Novel is active,
+  preventing cross-ruleset tool suggestions. (REQ-067)
+- G8 verification workflow: added step 8 (Codex isolation) verifying
+  `codex_capture` ruleset tagging and cross-ruleset import rejection.
+  (§8 G8)
+- Extended T-new-387 test to cover `codex_capture` ruleset defaults.
+  (REQ-387)
+
+## 2026-08-10 — Multi-ruleset build support
+
+- Multi-ruleset builds let operators combine two or more TTRPG rulesets
+  into a single MCP server (D&D 5e + Starfinder + Mothership, or any
+  combination). Each ruleset is discovered and verified independently,
+  then merged in a new Combine build step. (REQ-379–387)
+- Ruleset-derived tools carry a `<slug>_` prefix (e.g. `dnd5e_roll_save`)
+  while infrastructure tools (scene management, NPCs, world model) are
+  shared without prefix. Tools, resources, and prompts are siloed — a
+  D&D spell lookup cannot return Starfinder results. (REQ-379, REQ-382)
+- Each Novel is bound to exactly one ruleset at creation. Switching
+  between Novels switches the active ruleset scope. Cross-ruleset tool
+  calls return a descriptive error naming the active Novel's ruleset.
+  (REQ-380, REQ-381, REQ-384)
+- Codex entries carry an optional `ruleset` annotation so reusable
+  content (NPCs, equipment, spells) is filterable by ruleset;
+  ruleset-agnostic entries (rooms, generic NPCs) are visible to all
+  Novels. Roster imports and Novel imports are gated by ruleset match.
+  (REQ-386, REQ-387)
+- New verification workflow G8 validates cross-ruleset isolation across
+  seven steps — tool gating, search isolation, lookup isolation, import
+  rejection, Novel switching, spec_health per-ruleset, and tool name
+  uniqueness. Combined server health splits metrics per ruleset for
+  independent confidence tracking. (REQ-383, §8 G8)
+- Added F8 failure mode for ruleset cross-contamination with fault tree
+  mapping to the new isolation requirements. Single-ruleset servers and
+  ruleset-free mode are backward compatible — no changes to existing
+  builds. (§1, §3, §4, §5.16, §6.2, §6.4.2, §7.6, §7.7)
+
 ## 2026-08-10 — Push pipeline hardening
 
 - Push pipeline now runs spec checks before propagating assembled output

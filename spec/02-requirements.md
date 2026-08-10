@@ -19,6 +19,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.13 | Holodeck | 369–371, 374–376 | 6 |
 | 5.14 | Content Sources | 372–373 | 2 |
 | 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
+| 5.16    | Multi-Ruleset Build                  | 379–387                                             | 9     |
 
 ### 5.1 Output and Error Contracts
 
@@ -1273,7 +1274,10 @@ dice and resolution, combat, lookups, state, adventure) with one-line descriptio
 (3) a pointer to `badge_briefing` for hat-specific guidance. With a query, it
 searches tool descriptions, prompt summaries, and guidance text for the most relevant
 matches and returns their names, descriptions, and example invocations from the tool-use
-playbook. Output is badge-filtered. The Game Master may customize the task-map category
+playbook. Output is badge-filtered. When a Novel is active, tool listings and query results
+SHALL be ruleset-filtered — showing only tools whose `ruleset` annotation
+matches the active Novel's ruleset scope or is `null`. The Game Master may
+customize the task-map category
 assignments via a Novel-scoped mapping. A tool reassigned to a user-defined category
 is removed from its builder-assigned category. The mapping persists with the Novel.
 Player badge results always reflect builder-assigned categories. The builder-assigned
@@ -4047,7 +4051,8 @@ per REQ-229. The adventure data payload for kind `adventure` SHALL carry: `title
 `sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`,
 `## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind,
 source_id)` SHALL pull an existing Novel artifact into the codex — the captured
-entry carries a `source_novel` field tracing its origin. `codex_capture("adventure")`
+entry carries a `source_novel` field tracing its origin. The captured entry SHALL
+default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")`
 SHALL pull the active Novel's adventure content (loaded or generated) into the Codex
 as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure
 data payload defined above. When the active Novel has no adventure content,
@@ -5445,6 +5450,9 @@ creates the Novel, imports the Codex adventure scaffold (world-model, NPCs, fact
 lore, synthesis linkages per REQ-321), and marks `adventure_set: true` in Novel
 metadata. When `codex_adventure` is provided and the referenced Codex entry does not
 exist or is not of kind `adventure`, `create_novel` SHALL return `[ERROR] [NOT_FOUND]`.
+In a multi-ruleset server, the referenced Codex entry's `ruleset` field SHALL match
+the Novel's ruleset scope (per REQ-387); a mismatch returns
+`[ERROR] [STATE_CONFLICT]` naming both rulesets.
 When no Codex entries exist on the server, the parameter is ignored silently.
 `description` is an optional free-text field
 (one paragraph recommended), stored in the Novel JSON, surfaced in `novel://current`,
@@ -7591,4 +7599,188 @@ thresholds. At least one coupling is Mechanical (automatic), not
 Navigational. A ruleset-free build produces `[ruleset-free]` annotation for
 all mechanical coupling metrics.
 _Check:_ T-new-389.
+
+### 5.16 Multi-Ruleset Build
+
+**REQ-379 — Tool namespacing.** Every tool registered in `tools/list` carries a
+`ruleset` annotation — the ruleset slug for ruleset-derived tools, or `null` for
+infrastructure tools. Ruleset-derived tools carry a `<slug>_` prefix in their
+registered name. Infrastructure tools — those in the World, Novels, Badges &
+Workflow, and Narrative REQ-020 categories — SHALL carry no prefix. The set of
+ruleset-derived tools is the union of tools classified during Discovery (§6.3) as
+Concepts-derived, Entities-derived, Actions-derived, Tables-derived,
+Resolution-derived, or Roles-derived. Tool names that clash between two rulesets
+under the prefix scheme (e.g., both rulesets extract a tool named
+`roll_skill_check`) are resolved by the prefix — the tool names are distinct on
+the registry surface. The mapping of prefix to ruleset slug SHALL be recorded in
+DECISIONS.md (1) during the Combine step and reported in `spec_health` under a
+`ruleset_prefix_map` field. A tool whose `ruleset` annotation does not match any
+known ruleset is a combine defect.
+
+*Acceptance criterion:* `tools/list` for a combined D&D + Starfinder server
+reports `dnd5e_roll_skill_check` with `ruleset: "dnd5e"`, and
+`starfinder_roll_skill_check` with `ruleset: "starfinder"`. `create_npc`
+carries `ruleset: null`. `spec_health.ruleset_prefix_map` maps each prefix
+to its ruleset slug.
+_Check:_ T-new-396.
+
+**REQ-380 — Novel ruleset binding.** `create_novel` SHALL accept a required
+`ruleset` parameter — a ruleset slug matching one of the prefixes in the server's
+`ruleset_prefix_map`. The Novel's `ruleset` field SHALL be immutable for the
+Novel's lifetime. `resume_novel` SHALL restore the bound ruleset from the Novel's
+persisted state. `clone_novel` SHALL preserve the source Novel's ruleset.
+`switch_novel` to a Novel bound to a different ruleset SHALL activate that Novel's
+ruleset scope — the ruleset-derived tool surface changes to match. `create_novel`
+with a ruleset slug not present in the server's `ruleset_prefix_map` returns
+`[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. A conformant server
+with exactly one ruleset MAY accept `create_novel` without the `ruleset`
+parameter, defaulting to that single ruleset — this preserves backward
+compatibility with single-ruleset servers built before multi-ruleset support.
+
+*Acceptance criterion:* `create_novel("greyhawk", ruleset="dnd5e")`
+succeeds and the Novel's `ruleset` field is `"dnd5e"`. Subsequent calls to
+`dnd5e_roll_skill_check` succeed against this Novel. `create_novel("absalom",
+ruleset="starfinder")` succeeds with `ruleset: "starfinder"`. Calling
+`dnd5e_lookup_spell` against the Starfinder Novel returns an error per
+REQ-381.
+_Check:_ T-new-397.
+
+**REQ-381 — Ruleset-scoped tool gating.** When a Novel with ruleset scope `X`
+is active, only tools whose `ruleset` annotation is `X` or `null` SHALL be
+callable. A call to a tool annotated with a different ruleset scope returns
+`[ERROR] [INVALID_INPUT]` with the corrective action stating the active
+Novel's ruleset and directing the caller to tools matching that ruleset. This
+gating is independent of badge gating (REQ-032) — both filters apply. A call
+that passes badge gating but fails ruleset gating returns
+`[ERROR] [INVALID_INPUT]` with the active Novel's ruleset named in the
+corrective action. A call that fails both returns `[ERROR] [FORBIDDEN]` (badge
+gating takes precedence in the response taxonomy). Ruleset scope applies to
+every MCP surface: `tools/list` SHALL include all registered tools regardless
+of active Novel, but tools whose ruleset scope does not match the active
+Novel's scope SHALL be annotated with an `inapplicable` hint — their
+descriptions remain visible for discoverability. `resources/list` and
+`prompts/list` SHALL include all entries; resources and prompts whose content
+draws from a ruleset model SHALL badge-filter and ruleset-filter their
+output. When no Novel is active, all tools are callable and no ruleset gating
+applies — the server operates with full cross-ruleset access.
+
+*Acceptance criterion:* With a D&D-bound Novel active, `starfinder_roll_skill_check`
+returns `[ERROR] [INVALID_INPUT]` naming the active Novel's ruleset as `dnd5e`.
+With no Novel active, the same call succeeds. `tools/list` includes all tools
+with `inapplicable` annotations on mismatched-ruleset tools.
+_Check:_ T-new-398.
+
+**REQ-382 — Per-ruleset extraction isolation.** Each ruleset's extraction model
+— search index, canonical lookup catalogues (spells, equipment, monsters,
+conditions, classes, abilities), generation tables, condition registry, constraint
+override catalog, and mechanical coupling metadata — SHALL be isolated from every
+other ruleset's model. A `search_rules` call under a D&D-bound Novel searches
+only the D&D index. The same query under a Starfinder-bound Novel searches only
+the Starfinder index. `lookup_spell`, `lookup_equipment`, `lookup_monster`,
+`lookup_class`, and analogous ruleset-derived lookup tools SHALL search only
+their ruleset's catalogue. `roll_on_table` SHALL enumerate only the tables
+extracted from the active Novel's ruleset. `suggest_actions` SHALL return only
+tool suggestions from the active Novel's ruleset. `spec_health` SHALL report
+per-ruleset extraction metrics.
+
+*Acceptance criterion:* `dnd5e_search_rules("fireball")` under a D&D Novel
+returns D&D Fireball results with source anchors in the D&D ruleset.
+`starfinder_search_rules("fireball")` under a Starfinder Novel returns results
+from the Starfinder ruleset (or `[NOT_FOUND]`). The same tool called under the
+wrong Novel returns per REQ-381. `spec_health` reports `ruleset_dnd5e` and
+`ruleset_starfinder` sections with independent counts.
+_Check:_ T-new-399.
+
+**REQ-383 — Combined server health.** `spec_health` SHALL report per-ruleset
+metrics in a `ruleset_health` object keyed by ruleset slug. Each slug entry
+contains: confidence scores (overall and per-file), indexed counts (anchors,
+concepts, entity types, actions, tables, procedures, guidance items, synthesis
+items per module), MUST-action coverage, defect count, and verification workflow
+dispositions. A `combined` summary reports total tool count, total resource
+count, total prompt count, active Novel count, and the `ruleset_prefix_map`.
+The per-ruleset sections SHALL be absent when the build is not yet complete.
+Player-badge calls SHALL filter per-ruleset sections: the Player sees only
+metrics for the active Novel's ruleset (if a Novel is active with a badge) or no
+per-ruleset sections (if no Novel is active). The `combined` summary section is
+visible to all badges.
+
+*Acceptance criterion:* A combined D&D + Starfinder server's `spec_health`
+includes `ruleset_health.dnd5e` and `ruleset_health.starfinder` with independent
+counts, plus a `combined` section with the prefix map. Under a Player badge with
+a D&D Novel active, only `ruleset_health.dnd5e` is visible.
+_Check:_ T-new-400.
+
+**REQ-384 — Cross-ruleset Novel switching.** `switch_novel(slug)` SHALL
+activate the target Novel's ruleset scope. The ruleset-derived tool surface —
+which lookup tools, which dice-resolution tools, which generation tables, which
+`search_rules` index, which `suggest_actions` suggestions, and which condition
+registry — SHALL change to match the activated Novel's ruleset. Switching
+between Novels of different rulesets SHALL NOT corrupt either Novel's state. The
+`badge_briefing` prompt SHALL recompose using the activated Novel's ruleset
+model. Infrastructure tools and their state (scene, NPCs, world model, lore,
+countdowns) are unchanged — they operate on the activated Novel's data
+regardless of ruleset. Switching Novels SHALL be an audited mutation with the
+source and destination slugs and their rulesets recorded.
+
+*Acceptance criterion:* Switching from a D&D Novel (slug `greyhawk`) to a
+Starfinder Novel (slug `absalom-station`) changes the `badge_briefing` to use
+Starfinder terminology, makes `starfinder_roll_skill_check` callable, and
+makes `dnd5e_roll_skill_check` return per REQ-381. The D&D Novel's state is
+unchanged on disk. Switching back restores D&D ruleset scope. The audit log
+records both switches with ruleset metadata.
+_Check:_ T-new-401.
+
+**REQ-385 — suggest_actions cross-ruleset scoping.** `suggest_actions` SHALL
+return only tool suggestions whose `ruleset` annotation matches the active
+Novel's ruleset scope, plus infrastructure tools. When the world model is
+populated, `suggest_actions` SHALL also return parser `command` suggestions
+(per REQ-319) — these are infrastructure and unrestricted. A `suggest_actions`
+call with no Novel active SHALL return `[ERROR] [STATE_CONFLICT]` directing the
+caller to create or resume a Novel. The action-suggestion catalogue is drawn
+from the active Novel's ruleset model. Suggestions SHALL use the prefixed tool
+names for ruleset-derived tools.
+
+*Acceptance criterion:* `suggest_actions("attack the goblin")` under a D&D Novel
+returns `dnd5e_roll_weapon_attack` as a suggestion. The same intent under a
+Starfinder Novel returns `starfinder_roll_weapon_attack`. Neither returns the
+other ruleset's tool.
+_Check:_ T-new-402.
+
+**REQ-386 — Cross-ruleset import rejection.** `import_novel` SHALL validate
+the imported Novel's `ruleset` field against the server's known ruleset slugs
+(from `ruleset_prefix_map`). An import whose ruleset does not match any known
+slug returns `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. The
+import succeeds when the ruleset is known — the imported Novel's ruleset is
+preserved as-is. `import_character(roster_id)` SHALL validate that the Roster
+entry's ruleset matches the active Novel's ruleset scope. A mismatch returns
+`[ERROR] [STATE_CONFLICT]` naming the entry's ruleset and the Novel's
+ruleset. `export_novel` SHALL include the Novel's `ruleset` field in the
+export manifest. A Novel exported from a combined server is importable into
+any conformant server that recognizes its ruleset slug.
+
+*Acceptance criterion:* Exporting a D&D Novel includes `ruleset: "dnd5e"` in
+the manifest. Importing a Starfinder Novel into a D&D + Mothership server
+rejects with valid rulesets enumerated. Importing a character from a
+Starfinder Roster entry into a D&D Novel rejects with both rulesets named.
+_Check:_ T-new-403.
+
+**REQ-387 — Codex ruleset annotation.** Every codex entry SHALL carry an optional
+`ruleset` field — the slug matching one entry in the server's `ruleset_prefix_map`,
+or `null` for ruleset-agnostic entries (rooms, scenes, generic NPCs without
+mechanical stats, lore entries). `codex_set` SHALL default the `ruleset` field
+to the active Novel's ruleset scope when one is active, or leave it `null` when
+no Novel is active (the caller MAY override). `codex_capture` SHALL default
+`ruleset` to the source Novel's ruleset scope, mirroring the `codex_set`
+default. `codex_list` SHALL support a
+`ruleset` filter parameter — when provided, returns only entries whose
+`ruleset` matches or is `null`. `codex_import` into a Novel SHALL show only
+entries whose `ruleset` matches the Novel's ruleset or is `null`. A
+`codex_import` of a ruleset-specific entry (e.g., a D&D spell) into a Novel of
+a different ruleset returns `[ERROR] [STATE_CONFLICT]` naming both rulesets.
+
+*Acceptance criterion:* `codex_list(ruleset="dnd5e")` returns D&D-tagged entries
+plus untagged entries. `codex_list(ruleset="starfinder")` returns Starfinder-tagged
+entries plus untagged entries — no D&D entries. `codex_import` of a D&D spell
+codex entry into a Starfinder Novel is rejected.
+_Check:_ T-new-387.
 
