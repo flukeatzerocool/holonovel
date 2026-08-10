@@ -388,6 +388,15 @@ date-stamps matching CHANGELOG entries.
 | REQ-320 | Narrative-intent parser verbs | 2026-08-09 |
 | REQ-321 | Codex | 2026-08-09 |
 | REQ-322 | Vow-countdown coupling | 2026-08-09 |
+| REQ-323 | resolve_intent tool | 2026-08-10 |
+| REQ-324 | Constraint override extraction | 2026-08-10 |
+| REQ-325 | Constraint override catalog | 2026-08-10 |
+| REQ-326 | Scene-world coupling | 2026-08-10 |
+| REQ-327 | NPC-world coupling | 2026-08-10 |
+| REQ-328 | Lore-world coupling | 2026-08-10 |
+| REQ-329 | Countdown-world coupling | 2026-08-10 |
+| REQ-330 | Knowledge-world coupling | 2026-08-10 |
+| REQ-331 | Story journal-world coupling | 2026-08-10 |
 
 ---
 
@@ -754,6 +763,15 @@ diet.
 | T-new-323 | Automated | Adventure generation codex: call `generate_adventure("The goblin king demands tribute")` with active Novel — assert scaffold at `adventure://generated/<anchor>`. Call `generate_adventure("The dragon hoard", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: generated`. Call `codex_info("<slug>")` — assert full adventure data payload including title, premise, overview, hook, locations, npc_suggestions, encounter_seeds, genre_tags, sections. Restart server — assert Codex entry survives. Call `generate_adventure("The dragon hoard", target="codex")` again — assert entry replaced (same slug). | REQ-090 |
 | T-new-324 | Automated | Adventure loading codex: call `load_adventure("tomb-of-the-serpent-king")` with active Novel — assert world-model populated and NPCs created. Call `load_adventure("tomb-of-the-serpent-king", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: loaded:tomb-of-the-serpent-king`. Call `codex_info("<slug>")` — assert full sections payload. Restart server — assert Codex entry survives. | REQ-079 |
 | T-new-325 | Automated | Vow-countdown coupling: call `set_vow("Find Crown", "Recover the lost Crown of Alara", parties=["pc_1"], difficulty="dangerous", scope="shared")` — assert `badge_briefing` narrative_threads includes countdown suggestion. Accept suggestion via decision workflow — assert 20-tick `mission`-type countdown created with name `vow:Find Crown`. Call `mark_milestone("Find Crown")` — assert both milestone counter and countdown advance by one tick. Advance countdown to fill — assert vow becomes eligible for `resolve_vow`. Call `resolve_vow("Find Crown", "Found it", "Kingdom restored")` — assert countdown removed. Call `set_vow("Other Vow", "A minor task", parties=["pc_1"], difficulty="troublesome", scope="gm")` — decline countdown suggestion — assert vow functions with milestones-only (current behavior). | REQ-322 |
+| T-new-326 | Automated | resolve_intent tool: populate world model with rooms Entrance (exits: north → Hall), Hall (exits: south, north → Chapel, locked door north), Chapel. Call `resolve_intent("go north")` from Entrance — assert status `resolved`, room_context.name = "Hall". Call `resolve_intent("go north")` from Hall — assert status `blocked` with constraint `locked`. Create character with Knock spell — create override entry. Call `resolve_intent("go north")` from Hall as that character — assert override_hints includes Knock. Call `resolve_intent("go east")` where no east exit — assert `blocked` with constraint `exit`. Call `resolve_intent` under Player badge — assert `[FORBIDDEN]`. World model unpopulated — assert `no_world_model`. Assert tool appears in `tools/list`. Assert `help("resolve_intent")` returns usage. | REQ-323 |
+| T-new-327 | Automated | Constraint override extraction: build against a ruleset containing Knock, Fly, Passwall, and Darkvision spells (or equivalent mechanics). Assert RULESET_MODEL.md records ≥4 constraint overrides with type, mechanic name, mechanic source, and source anchor. Assert each override classified by type (lockable, solid, dark, etc.). Build ruleset-free — assert scan skipped with "ruleset-free" annotation. | REQ-324 |
+| T-new-328 | Automated | Constraint override catalog: build with constraint overrides present. Call `resources/read` on `constraints://active` as Game Master — assert all overrides returned with type, name, source, prerequisites. Call as Player with active entity having 1 override — assert only that override returned. Call `resolve_intent` against a locked door with Knock available — assert error response includes `Hint: Knock (1 slot remaining) can open it.` Call with no override available — assert no hint. `spec_health` reports `constraint_override_counts` by type. | REQ-325 |
+| T-new-329 | Automated | Scene-world coupling: create world model with room "Throne Room" (exits: north, south; things: throne, chandelier). Call `set_scene_state("The royal chamber", location="Throne Room")` — assert `scene://current` includes `room_id`, `room_name: "Throne Room"`. Call `resolve_intent("look")` as GM — assert exits and contained things composable. Call `set_scene_state("The void", location="Nowhere")` — assert `location` is free-text, no `room_id`. Call `set_scene_state("The room", location="Throne")` — assert fuzzy match resolves to "Throne Room". Call `undo` — assert scene state restored. | REQ-326 |
+| T-new-330 | Automated | NPC-world coupling: create world model with rooms Forge and Inn. Call `create_npc("Blacksmith", location="Forge")` — assert NPC registered in Forge room. Call `resolve_intent("look")` from Forge — assert Blacksmith listed in room_context.present_npcs. Call `update_npc("blacksmith", location="Inn")` — assert Blacksmith no longer in Forge; `resolve_intent("look")` from Inn lists Blacksmith. Call `create_npc("Stranger", location="The Void")` — assert no room match; NPC carries free-text location only, not registered in any room. Assert `characters_present` on `set_scene_state` still governs badge_briefing NPC presence. | REQ-327 |
+| T-new-331 | Automated | Lore-world coupling: create world model with room Chapel, thing altar_01. Call `set_lore_entry("altar_secret", "The altar hums with dark power", world_target="altar_01")`. Call `resolve_intent("examine altar")` from Chapel — assert lore triggers with `[world]` tag. Call `resolve_intent("look")` from Chapel (no target interaction) — assert lore does NOT trigger on keyword match alone. Call `set_lore_entry("room_rumor", "The chapel feels wrong", triggers=["chapel"], world_target="chapel")`. Call `resolve_intent("look")` from Chapel with "chapel" keyword in scene — assert lore triggers on keyword match. Call `resolve_intent("enter chapel")` — assert lore triggers on room entry. Call `suggest_lore` — assert world-targeted lore returned when target reachable. | REQ-328 |
+| T-new-332 | Automated | Countdown-world coupling: create world model with room Guard Room. Call `set_countdown("ambush", 3, type="narrative", triggers=["on_room_enter(guard_room)"])`. Call `resolve_intent("go north")` from adjacent room into Guard Room — assert countdown advances by one tick. Navigate into Guard Room three times — assert countdown fires and is removed. Call `set_countdown("raid", 5, type="round", triggers=["on_room_enter(throne_room)", "on_thing_take(crown_01)"])`. Start combat — advance_combat four times — assert countdown at 1 tick remaining. Navigate into Throne Room — assert countdown fires. Remove countdown — assert no further trigger fires. | REQ-329 |
+| T-new-333 | Automated | Knowledge-world coupling: create world model with rooms Entrance, Guard Room, Chapel. Call `resolve_intent("go north")` from Entrance to Guard Room as entity "rogue_01" — assert `knowledge_state` includes "Guard Room" under "Explored" with timestamp. Call `resolve_intent("go north")` from Guard Room to Chapel — assert Chapel added. Return to Guard Room — assert no duplicate. Call `set_scene_state("Camp", characters_present=["rogue_01"])` — assert GM declaration overrides exploration presence. `knowledge_state` retains all prior exploration entries. Call `resolve_intent("look")` in Guard Room — assert NPCs seen added to knowledge. | REQ-330 |
+| T-new-334 | Automated | Story journal-world coupling: create world model with room Library. Call `set_scene_state("The library", location="Library")` (scene-world coupled). Call `record_story("moment", "Found the hidden map behind the bookshelf")` — assert entry auto-populates `room_id: "library"` and `scene_anchor` includes "Library". Call `list_stories` — assert entry shows room name. Call `set_scene_state("The void", location="Nowhere")` (no match). Call `record_story("moment", "Drifted through nothingness")` — assert `room_id` absent. Call `session_recap` — assert "Library" in narrative_orientation for first entry, absent for second. | REQ-331 |
 
 ---
 
@@ -1112,6 +1130,29 @@ save or 2d6 poison damage.
 @lore(Entrance Chamber) The murals depict the Serpent King conquering seven
 nations. A faded inscription reads: "Only the worthy may wear the crown."
 ```
+
+### Scene-world coupling example
+
+When a world model is populated from adventure content and the Game Master sets a
+scene whose `location` matches a room, the room's spatial reality composes into the
+scene. The GM's free-text description provides narrative framing:
+
+1. `set_scene_state("The king's burial chamber", location="Throne Room")` — the
+   scene's spatial truth is the Throne Room: exits north/south (Obsidian Door),
+   contained things (Serpent Crown). The description "The king's burial chamber" is
+   narrative framing — it replaces the room's default prose but does not override
+   exits or containment.
+2. `resolve_intent("look")` from the Game Master badge returns:
+   - Room: Throne Room
+   - Description: "The king's burial chamber" (framed)
+   - Exits: north (Obsidian Door, locked), south (Hall of Statues)
+   - Visible things: Serpent Crown
+3. `resolve_intent("go south")` — spatial transition resolves correctly.
+4. When no room matches, `location` is a free-text label (current behavior).
+
+NPCs whose `location` field matches a room name auto-register: `@npc(Serpent King
+Ghost, Throne Room)` places the NPC in the Throne Room, visible on `resolve_intent`
+from that room.
 
 ### Indexing and badge gating
 

@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-08-10 — World model deep integration
+
+- Redefined the world model as spatial foundation for scene composition
+  rather than optional scaffolding. The new conflict resolution order
+  places world constraints first (walls are solid, doors block, darkness
+  conceals), with ruleset overrides (Knock, Ethereal Jaunt) requiring
+  explicit named mechanics to suspend a constraint. (REQ-309, §5.10)
+- Added `resolve_intent` tool: accepts natural-language spatial intent
+  and resolves it against world-model constraints, returns room context
+  and prose scene description. AI narrator calls it silently on the
+  player's behalf — parser verb names are never exposed to the Player
+  badge. (REQ-323)
+- Added constraint override discovery: the builder scans ruleset mechanics
+  for patterns that suspend physical constraints (pass through solid, open
+  locked, see in darkness) and registers them in a catalog surfaced at
+  `constraints://active`. Error responses include override hints when the
+  active entity has a relevant bypass. (REQ-324, REQ-325)
+- `set_scene_state` now resolves its `location` field against the
+  world-model room graph. When a room matches, the room's exits, things,
+  and NPCs become the scene's spatial truth — the GM's description is
+  narrative framing. (REQ-326)
+- NPC location resolves against the room graph. An NPC whose location
+  matches a world-model room appears in that room's context. (REQ-327)
+- Lore entries accept an optional `world_target` field — a room, thing,
+  or exit reference. World-targeted lore fires on interaction, not
+  keyword match. (REQ-328)
+- Countdowns accept world-model triggers: `on_room_enter`, `on_thing_take`,
+  and `on_door_open`. World events advance countdowns mechanically.
+  (REQ-329)
+- Room exploration via `resolve_intent` auto-adds entities to presence
+  and populates `knowledge_state` with visited rooms and encountered NPCs.
+  (REQ-330)
+- Story journal entries auto-populate `room_id` when recorded in a
+  scene coupled to a world-model room. (REQ-331)
+- Parser `command` is now Game Master only. Player badge never sees parser
+  verb names — `suggest_actions` maps spatial intents to `resolve_intent`.
+  (REQ-196, REQ-309)
+
 ## 2026-08-10 — Badge rename, Codex expansion, vendor enrichment, badge integration
 
 - Renamed "Hat" to "Badge" throughout the specification — ~200 references

@@ -5,15 +5,15 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 | 24    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315 | 27    |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296 | 31    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324 | 28    |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 | 32    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
-| 5.5     | Badges and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322 | 76    |
+| 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–331 | 78    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268 | 38    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328 | 40    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320                 | 17    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327        | 20    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
 ### 5.1 Output and Error Contracts
@@ -834,6 +834,43 @@ _Check:_ T-new-225.
 (§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
 system, and semantic interpretation of image-only content.
 
+**REQ-324 — Constraint override extraction.** During Discovery (§6.3), the
+builder SHALL scan for mechanics that explicitly suspend world-model physical
+constraints. The builder SHALL match language patterns indicating constraint
+suspension in spell descriptions, class features, items, and abilities:
+
+| Pattern | Constraint overridden |
+|---------|----------------------|
+| "opens locked," "unlocks" | `lockable` |
+| "pass through solid," "incorporeal" | `solid` |
+| "see in darkness," "darkvision" | `dark` |
+| "fly," "levitate," "climb" | `ground_constraint`, `climbable` |
+| "teleport," "dimension door" | `solid`, `exit_constraint` |
+| "breathe underwater" | `underwater` |
+| "detect invisible," "see invisible" | `hidden` |
+| "find traps," "detect traps" | `hidden`, `readable` |
+| "force open," "bend bars" | `lockable`, `solid` |
+| "create passage" | `solid` |
+| "silence," "muffle" | `sound` |
+| "squeeze through," "tiny" | `solid` |
+| "read any language" | `readable` |
+| "walk on water" | `liquid` |
+
+Each override SHALL be classified by constraint type and mechanic source
+(spell, class_feature, item, ability). Overrides SHALL carry the mechanic's
+name, prerequisites (level, spell slot, item equipped), and source anchor.
+Discovered overrides SHALL be registered in RULESET_MODEL.md. The patterns
+are ruleset-agnostic — any ruleset's mechanics can match them. When no
+overrides are discovered, RULESET_MODEL.md records zero overrides — this is
+not an error. The override catalog is fed into the constraint override
+registry (REQ-325) and `resolve_intent` (REQ-323). In ruleset-free mode,
+the scan SHALL be skipped with "ruleset-free" annotation.
+*Acceptance criterion:* A ruleset with Knock, Fly, and Darkvision spells
+produces at least three constraint overrides classified by type in
+RULESET_MODEL.md, each with mechanic name and source anchor. A ruleset
+without constraint-overriding mechanics produces zero overrides.
+_Check:_ T-new-324.
+
 ### 5.3 Tools, Resources, and Lookups
 
 **REQ-020 — Tools.** Server behavior is modeled as MCP tools. Tools derive names from
@@ -1442,6 +1479,42 @@ calling a skill-check tool with the new skill name returns `[OK]`; removing a sk
 and rebuilding produces `[NOT_FOUND]` for the removed skill. Both enumerations reflect
 the live state — no hardcoded skill list produces stale values.
 _Check:_ T39b.
+
+**REQ-323 — resolve_intent tool.** THE server SHALL register a `resolve_intent`
+tool that takes a natural-language spatial intent string and resolves it against
+the world model. The tool is pure-resolution — it returns data without mutating
+state. Resolution order SHALL be: (a) world-model constraint check — is the
+target direction or object reachable, visible, and physically possible? (b)
+constraint override check — does the active entity have a mechanic that bypasses
+a blocking constraint (per REQ-324, REQ-325)? (c) scene composition — prose
+description derived from room data if movement or inspection occurred.
+
+The return value SHALL include: `status` (one of `resolved`, `blocked`,
+`ambiguous`, `no_world_model`), `constraint_results` (array of constraint name
+and result), `override_hints` (available constraint bypasses for the active
+entity, or empty), `scene_description` (prose from room data or null), and
+`room_context` (current room name, exits, visible things, present NPCs, or
+null when world model is unpopulated). The return MAY also include
+`suggested_mechanics` (list of follow-up mechanical tool suggestions relevant
+to the intent — stealth for sneaking, perception for searching — not executed).
+
+The tool is callable by the AI narrator (any badge) and the Game Master badge.
+Player badge calls SHALL return `[ERROR] [FORBIDDEN]` — the AI narrator calls
+`resolve_intent` on the player's behalf. The tool SHALL be registered in
+`tools/list` and SHALL support `help("<tool_name>")`. `suggest_actions` SHALL
+return `resolve_intent` for spatial intents under both badges; under the Game
+Master badge, `suggest_actions` MAY also return parser `command` for
+direct world-model inspection.
+
+When the world model is unpopulated, `resolve_intent` SHALL return `status:
+"no_world_model"` with a message directing the caller to populate the world
+model. `resolve_intent` is complementary to `suggest_actions` (which suggests
+tools) and `command` (direct parser invocation) — it does not replace either.
+*Acceptance criterion:* `resolve_intent("go north")` against a populated world
+model with a north exit returns status `resolved` with room context for the
+destination room. `resolve_intent("go north")` against a wall returns `blocked`
+with the constraint named. Player badge returns `[FORBIDDEN]`.
+_Check:_ T-new-323.
 
 *Out of scope:* real-time collaboration tools, streaming resource endpoints,
 tools that modify the ruleset source, and MCP protocol features beyond the standard
@@ -2514,6 +2587,23 @@ briefings; a GM-only countdown "patrol" appears only in the GM briefing;
 `advance_countdown("patrol")` at tick 1 fires and removes it.
 _Check:_ T54, T139.
 
+**REQ-329 — Countdown-world coupling.** Countdowns SHALL accept an optional `trigger`
+array with world-model event types. Supported trigger types: `on_room_enter(<room_id>)`
+— fires when the active entity enters the named room via parser navigation;
+`on_thing_take(<thing_id>)` — fires when the named thing is taken; `on_door_open(<exit_ref>)`
+— fires when the named exit's door is opened. World-model events that match a trigger
+SHALL advance the countdown by one tick. Multiple triggers per countdown SHALL be
+permitted — if any trigger matches, the countdown advances. Trigger resolution is
+mechanical — the countdown fires regardless of narrative framing. A countdown with no
+`trigger` array SHALL use existing advancement behavior (manual `advance_countdown` or
+round/narrative type advancement). Triggers SHALL NOT replace existing advancement
+— a round countdown with a trigger advances on both round completion AND trigger match.
+*Acceptance criterion:* `set_countdown("ambush", 3, type="narrative",
+triggers=["on_room_enter(guard_room)"])` — parser navigation into the guard room advances
+the countdown by one tick. A countdown without triggers behaves as before. A round
+countdown with a trigger advances on both round end and trigger match.
+_Check:_ T-new-329.
+
 **REQ-289 — Vow tracking.** The Game Master may track narrative vows — intangible
 promises, quests, or obligations that bind entities or the party. `set_vow(name,
 description, parties, difficulty, scope)` creates a vow: `name` (unique identifier),
@@ -2763,7 +2853,9 @@ via `set_scene_state(description, ...)`. In addition to `description` (required)
 tool accepts optional fields: `location`, `time_of_day`, `atmosphere` (per REQ-076a),
 `scene_type` (per REQ-087), `narrative_directive` (per REQ-081),
 `skip_transition_hook` (per REQ-125), and `characters_present` (per REQ-307 — array of
-entity IDs present in this scene; omitted defaults to all imported entities). Each call creates a timestamped entry in
+entity IDs present in this scene; omitted defaults to all imported entities). When
+`location` resolves to a world-model room (REQ-326), the room provides spatial truth
+for the scene — the GM's `description` is narrative framing. Each call creates a timestamped entry in
 the audit log; previous entries are retained in audit history. `scene://current` returns
 the most recent scene state. `scene://history` returns up to a configurable maximum of
 the most recent entries. When the cap is exceeded, the most recent entries
@@ -2885,6 +2977,25 @@ include the trap.
 wizard's knowledge still excludes the trap until `reveal_secret("floor_trap",
 "wizard_01")` is called.
 _Check:_ T-new-308.
+
+**REQ-330 — Knowledge-world coupling.** WHEN an entity explores rooms via parser
+navigation (`resolve_intent` per REQ-323 or `command` per REQ-196), the entity SHALL
+be auto-added to presence for that scene/room. Rooms visited via exploration SHALL
+produce knowledge state entries: room names visited, visible things examined, NPCs
+encountered. Exploration-derived knowledge SHALL be retained per REQ-308 — once an
+entity has visited a room, it knows the room regardless of current presence. The
+`knowledge_state` briefing section SHALL include exploration-derived entries alongside
+revealed secrets — grouped as "Explored" (rooms visited, things seen) and "Learned"
+(secrets revealed via `reveal_secret`). The GM's explicit `characters_present` on
+`set_scene_state` (REQ-307) SHALL remain the primary presence mechanism — exploration
+presence supplements, it does not replace. When the GM sets `characters_present` that
+conflicts with exploration presence, the explicit GM declaration wins.
+*Acceptance criterion:* A character in room "Entrance" navigates via `resolve_intent`
+to "Guard Room" — `knowledge_state` includes "Guard Room" under "Explored" with
+timestamp. Moving to "Chapel" adds Chapel. Returning to "Guard Room" does not create
+a duplicate entry. `set_scene_state("Camp", characters_present=["pc_1"])` overrides
+exploration presence — pc_1 is present in Camp regardless of prior room.
+_Check:_ T-new-330.
 
 **REQ-311 — NPC memory model.** EACH NPC SHALL maintain a per-NPC memory of its
 interactions with player entities, independent of the global knowledge system (REQ-308).
@@ -4325,6 +4436,22 @@ returns `[ERROR] [RULE_VIOLATION]`; `remove_story(0)` deletes; undo does not rem
 entries; Player badge returns `[FORBIDDEN]`; `spec_health` shows per-type counts.
 _Check:_ T282.
 
+**REQ-331 — Story journal-world coupling.** Story journal entries SHALL accept an
+optional `room_id` field. When `record_story` is called during a scene that is
+coupled to a world-model room (REQ-326), `room_id` SHALL auto-populate with the
+room's ID. Entries with `room_id` SHALL annotate their `scene_anchor` with the
+room's name — surfaced in `list_stories` and `export_novel` output. `session_recap`
+`narrative_orientation` SHALL include room names for entries that carry them.
+`badge_briefing` `story` section entries SHALL include room context when available.
+The `room_id` field is optional — entries in non-room-coupled scenes or scenes
+with unmatched locations SHALL carry no `room_id`. Backward compatible: existing
+story journal entries without `room_id` are valid.
+*Acceptance criterion:* `record_story("moment", "Discovered the hidden passage")`
+with scene coupled to world-model room "Library" — entry auto-populates
+`room_id: "library"` and `scene_anchor` includes "Library". Same call with
+unmatched location — `room_id` absent.
+_Check:_ T-new-331.
+
 **REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
 memory — a per-entity fact store derived automatically from state-changing tool calls,
 surviving process restart and full rebuild. Facts are recorded by the engine, not the AI,
@@ -4507,7 +4634,13 @@ token-to-group mapping SHALL be documented in DECISIONS.md per REQ-082. The
 mapping SHALL be stable across builds — tokens do not change when the ruleset
 changes unless a REQ-109 group is added or removed. When a REQ-109 group has no
 runtime representation (e.g., ruleset lacks the construct), the builder SHALL
-still assign a token that produces an empty section. The valid token set is the
+still assign a token that produces an empty section. The builder SHALL also assign
+tokens for world-model briefing sections: `world_state` (current room context from
+the world model, including room name, exits, and contained visible things — rendered
+when world-model tier is populated) and `room_detail` (room description and
+examination-level detail — rendered as a dedicated section at `visible` and
+`prominent` prominence levels, folded into scene state at `secondary`). The valid
+token set is the
 authoritative vocabulary for `set_briefing_order` and enrichment briefing_order
 recommendations.
 
@@ -4599,6 +4732,24 @@ Call `badge_briefing` twice on scene B — assert counter unchanged. After 3 sce
 changes without re-triggering, assert entry no longer appears in `badge_briefing`
 lore section. Revert scene back to A — assert counter resets to 3.
 _Check:_ T299.
+
+**REQ-328 — Lore-world coupling.** Lore entries SHALL accept an optional `world_target`
+field — a room ID, thing ID, or exit reference in the world model. When `world_target`
+is set, the lore entry SHALL trigger when the target is examined, entered, or
+interacted with via parser navigation — not on keyword match. `world_target` SHALL
+take precedence over `triggers` for activation: when both are present, the entry
+fires on target interaction AND keyword match. Entries without `world_target` SHALL
+use keyword matching per REQ-083 (current behavior). `suggest_lore` SHALL return
+world-targeted entries whose target is reachable from the current scene — same room
+or adjacent via open exit. World-targeted lore entries SHALL appear in `badge_briefing`
+lore section with a `[world]` tag and the target name. The `world_target` field is
+optional — backward compatible with all existing lore entries.
+*Acceptance criterion:* `set_lore_entry("altar_secret", "The altar hums with power",
+world_target="altar_01")` — lore fires when `resolve_intent("examine altar")` succeeds,
+regardless of keyword match. `set_lore_entry("altar_secret", "The altar hums",
+triggers=["altar"], world_target="altar_01")` — fires on both target interaction and
+keyword match.
+_Check:_ T-new-328.
 
 **REQ-158 — Independent verification obligation.** A build claimed as complete SHALL
 be accompanied by an independent verification report (§10) with a final verdict of
@@ -5818,33 +5969,49 @@ _Check:_ T278.
 The server SHALL incorporate a world-model layer — a subsystem that models rooms,
 things, exits, containment, kinds, and properties as typed objects with mechanical
 contracts. The layer extends every Novel's state model with a spatial world model,
-parser command dispatch tools, and world-model CRUD tools. It does not replace or
-constrain TTRPG mechanics — it augments them.
+parser command dispatch tools, and world-model CRUD tools. The world model is the
+**spatial foundation** for scene composition — when populated, it defines what is
+physically possible in the story. The ruleset resolves what succeeds within those
+constraints. Narrative frames the result.
 
-Conflict-resolution order:
+Conflict-resolution order reflects this relationship:
 
-1. TTRPG ruleset contracts (dice, combat, conditions, spells — §§5.1–5.9)
-   override all infrastructure behavior. The TTRPG ruleset drives resolution;
-   infrastructure tools serve narration, state management, and scene composition.
-2. Novel save-file operations (Novels): lifecycle, exchange, checkpoints, notes,
-   resume state, and archive — manage the save-file container.
-3. Narrative infrastructure tools (REQ-020 categories, §5.6–5.8) are purely
-   additive. They never conflict with TTRPG mechanics — they provide scene
-   management, character personality, lore tracking, and GM-facing narrative
-   scaffolding. Narrative tools and TTRPG mechanics address separate domains
-   (narrative vs. mechanical); no override is needed between them.
-4. The World layer provides optional spatial navigation. Its default surface
-   prominence is `secondary`, configurable via `TTRPG_WORLD_PROMINENCE`
-   (REQ-309). Parser commands are available when a world model is populated;
-   they never drive the story's resolution layer.
+1. **World constraints** — spatial reality. Walls are solid; doors block passage;
+   darkness conceals. The world model defines default physical constraints. These
+   are the medium the story operates within, not an optional module.
+
+2. **Ruleset overrides of world constraints** — explicit mechanics that suspend a
+   specific world constraint (Knock opens locked doors, Ethereal Jaunt passes
+   through solid objects, darkvision sees in darkness). Overrides require an
+   explicit named mechanic — the ruleset cannot silently contradict world-model
+   state. Override discovery (§5.2 REQ-324) and the constraint override catalog
+   (REQ-325) govern registration and lookup.
+
+3. **Ruleset resolution** — for actions that are possible (within constraints or
+   after override), the ruleset determines success, failure, or effect. Dice,
+   conditions, spells — these resolve mechanical outcomes without affecting
+   world-model spatial state unless a mechanic explicitly does so.
+
+4. **Narrative framing** — meaning, tone, story continuity. Framing respects
+   both world constraints and ruleset outcomes; it never contradicts either.
+
+Parser commands are an **AI-narrator resolution engine** — they resolve spatial
+intent silently when the player describes actions in natural language. Parser verb
+names are never exposed to the Player badge. The Game Master may inspect the
+world-model directly through the parser command tool.
 _Check:_ T237.
 
 **World surface prominence.** REQ-309 defines a `TTRPG_WORLD_PROMINENCE`
 configuration with three levels controlling the default surface emphasis of
 world-model and narrative infrastructure tools across help categories,
-`badge_briefing` composition, and `suggest_actions` intent mapping. At the
+`badge_briefing` composition, and `suggest_actions` intent mapping. Parser
+commands are a Game-Master tool — the Player badge never sees parser verb names
+or the `command` tool. At every prominence level, the AI narrator resolves
+player spatial intent through `resolve_intent` (REQ-323) without exposing parser
+mechanics. At the
 default `secondary` level: In TTRPG builds, the parser `command` SHALL be
-the only world-model tool visible in the primary help surface — and only when
+the only world-model tool visible in the primary help surface (under "World
+Inspection", Game Master only) — and only when
 a world model is populated. All other World tools (`create_room`, `delete_room`,
 `create_thing`, `delete_thing`, `create_exit`, `delete_exit`, `convert_source`)
 SHALL be placed in a secondary "World (Setup)" category at the bottom of the
@@ -5887,9 +6054,13 @@ per REQ-088, REQ-092. A Novel whose world-model tier has not been populated
 (no rooms declared) SHALL report an empty world model — the TTRPG layer is
 not dependent on world-model population. _Check:_ T238.
 
-**REQ-196 — Parser command dispatch.** THE system SHALL accept
-natural-language text commands and resolve them against the world model's
-current state. Recognized commands SHALL include: navigation (walk, move,
+**REQ-196 — Parser command dispatch.** THE parser command system SHALL accept
+natural-language text and resolve it against the world model's current state. The
+`command` tool is an AI-narrator resolution engine — the AI narrator calls it
+internally when the player describes spatial actions. The tool is Game Master only;
+Player badge calls return `[ERROR] [FORBIDDEN]`. The tool's `tools/list`
+description SHALL state "AI-narrator tool — resolves spatial intent internally."
+Recognized commands SHALL include: navigation (walk, move,
 or go directions), inspection (examine named objects, look at current room),
 object interaction (take portable things, drop carried things, open/close
 openable objects), inventory listing, and wait. Navigation SHALL resolve exit
@@ -6220,24 +6391,34 @@ by `set_help_category` (REQ-067) and `set_briefing_order` (REQ-082). TTRPG
 resolution authority is unchanged by this setting — it affects presentation, not
 mechanics.
 
+Parser `command` and all parser verb names SHALL be Game Master only. The Player
+badge SHALL never see parser verb names in help, `suggest_actions`, or any tool
+output. The AI narrator resolves player spatial intent through `resolve_intent`
+(REQ-323) — the parser is never exposed to the Player as a callable tool. At
+every prominence level, `suggest_actions` under the Player badge SHALL map
+spatial intents to `resolve_intent`, never to `command`.
+
 At `secondary` (default): World-model tools SHALL be placed in a secondary help
-category. `badge_briefing` SHALL fold world-model state into the scene state section;
+category. Parser `command` SHALL appear as "World Inspection" in the GM-only tool
+surface — it SHALL NOT appear in Player help. `badge_briefing` SHALL fold
+world-model state into the scene state section;
 narrative-tool sections SHALL render only when their data is non-empty.
 `suggest_actions` SHALL NOT return parser commands for exploration or navigation
-intents.
-
+intents; Player-badge spatial intents SHALL map to `resolve_intent`.
 At `visible`: World-model and narrative tools SHALL appear in primary help
-categories alongside TTRPG tools. `badge_briefing` SHALL include a dedicated
+categories. Parser `command` SHALL appear in "World Inspection" (GM only).
+`badge_briefing` SHALL include a dedicated
 world-model state section with an empty-state marker when the world-model tier is
-unpopulated. `suggest_actions` SHALL return parser commands alongside TTRPG
-mechanics for spatial intents whose registered tools are absent — parser command
-suggestions SHALL NOT replace existing TTRPG tool suggestions.
+unpopulated. `suggest_actions` SHALL return `resolve_intent` for spatial intents
+under both badges; under the Game Master badge, `suggest_actions` SHALL also
+return parser `command` for spatial intents for direct world-model inspection.
 
-At `prominent`: Parser `command` SHALL be a top-level help entry; world CRUD tools
+At `prominent`: Parser `command` SHALL be a top-level GM help entry under "World
+Inspection"; world CRUD tools
 SHALL appear in a primary setup category. `badge_briefing` SHALL include world-model
-state in the decision-critical group. `suggest_actions` SHALL prefer parser commands
-over TTRPG mechanics for exploration and navigation intents — parser command
-suggestions SHALL appear before TTRPG tool suggestions when both match the intent.
+state in the decision-critical group. `suggest_actions` under the Game Master badge
+SHALL prefer parser `command` for spatial inspection; under the Player badge,
+`suggest_actions` SHALL return `resolve_intent` for all spatial intents.
 
 In ruleset-free mode (B1=`none`), the setting SHALL be skipped — the world-model
 and narrative layers are the primary surface by definition (REQ-218). The builder
@@ -6245,17 +6426,97 @@ SHALL NOT record a `TTRPG_WORLD_PROMINENCE` value in DECISIONS.md when B1 is
 `none`, and the intake question (B12) SHALL NOT be asked.
 
 *Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=secondary` produces
-the current default help categorization (World in secondary category).
-`TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level help
+the current default help categorization (World in secondary category, parser GM-only).
+`TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level GM help
 entry and includes world-model state in the decision-critical briefing group.
-`TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with all three
-layers in primary help.
+`TTRPG_WORLD_PROMINENCE=visible` produces an intermediate surface with world-model
+and narrative tools in primary help. At all levels, Player-badge `suggest_actions`
+returns `resolve_intent` for spatial intents — never `command`.
 
-The prominence setting applies uniformly across badges.— Player and Game Master badges
-receive the same surface emphasis. Per-badge prominence overrides are a recognized future
-extension (a GM building world content may prefer `prominent` while the Player navigating
-it prefers `secondary`) but are out of scope for this revision.
+The prominence setting applies uniformly across badges— Game Master and Player receive
+the same world-model state surface in `badge_briefing`. Per-badge prominence overrides
+are a recognized future extension (a GM building world content may prefer `prominent`
+display emphasis while the Player navigating it prefers `secondary` display emphasis)
+but are out of scope for this revision. Parser `command` tool access is badge-gated
+independently of prominence — the Player badge can never call `command` directly
+regardless of `TTRPG_WORLD_PROMINENCE` value.
 _Check:_ T-new-309.
+
+**REQ-325 — Constraint override catalog.** THE server SHALL expose constraint
+overrides (REQ-324) at a `constraints://active` resource. The resource SHALL
+be badge-filtered: Game Master sees all overrides; Player sees overrides for
+the active entity only. Each override entry SHALL carry: constraint type,
+mechanic name, mechanic source (spell, class_feature, item, ability),
+prerequisites (level, spell slot count, item name), and source anchor.
+`spec_health` SHALL report `constraint_override_counts` by constraint type and
+by mechanic source.
+
+Error responses that cite a world-model constraint SHALL include override hints
+when the active entity possesses a relevant bypass: `[RULE_VIOLATION] The door
+is locked. Hint: Knock (1 slot remaining) can open it.` Hints SHALL be
+sourced from the override catalog at call time — never hardcoded. When the
+entity has no relevant override, hints SHALL be absent. Override hints SHALL
+be badge-filtered: Player-badge errors SHALL enumerate only the active entity's
+overrides; Game Master-badge errors SHALL enumerate all known overrides.
+*Acceptance criterion:* A character with Knock prepared attempts to pass a
+locked door — `resolve_intent("go north")` returns an override hint citing
+Knock. A character without knock receives no hint. `constraints://active`
+returns overrides badge-filtered.
+_Check:_ T-new-325.
+
+**REQ-326 — Scene-world coupling.** WHEN `set_scene_state` provides a `location`
+that fuzzy-matches a world-model room name (case-insensitive, substring match
+with closest word-edit-distance for disambiguation), THE room SHALL become the
+scene's spatial truth:
+
+- The room's description, exits, and contained visible things SHALL be
+  composable into the scene's spatial reality.
+- The GM's free-text `description` field SHALL serve as narrative framing of
+  that reality — it may supplement or override the room's prose description
+  but SHALL NOT contradict exit or containment data.
+- `scene://current` SHALL include the resolved `room_id` and room name when
+  a match exists.
+- `resolve_intent` under the Game Master badge (for GM inspection) SHALL
+  compose the full scene from room data and narrative framing.
+- Under the Player badge, scene composition SHALL occur through AI narration
+  via `resolve_intent` — the Player never sees room graph data directly.
+
+When the world model is unpopulated or no room name matches the location,
+`location` works as a free-text label (current behavior). Room-coupled scenes
+are backward compatible: unmatched location strings produce no spatial truth
+but remain valid scene labels.
+*Acceptance criterion:* `set_scene_state("The throne room", location="Throne
+Room")` where world model has room "Throne Room" with exits [north, south] and
+contained things [throne, chandelier] — `scene://current` includes `room_id`,
+and `resolve_intent` returns exits and things. `set_scene_state("The void",
+location="Nowhere")` where no room matches — `location` is a free-text label.
+_Check:_ T-new-326.
+
+**REQ-327 — NPC-world coupling.** NPCs' `location` field SHALL resolve against
+the world-model room graph. When an NPC's `location` string fuzzy-matches a
+room name, the NPC SHALL be registered in that room:
+
+- `command("look")` or equivalent inspection SHALL list the NPC among the
+  room's present entities.
+- `create_npc` with a `location` matching a room name SHALL register the NPC
+  in that room at creation time.
+- `update_npc` changes to `location` SHALL re-register the NPC — the NPC is
+  removed from the prior room (if any) and registered in the new room (if
+  matched).
+- NPCs whose location does not match any room SHALL NOT be registered in a
+  specific room — their location is a free-text label (current behavior).
+- Room-registered NPCs SHALL appear in `room_context` of `resolve_intent`
+  results for that room.
+- NPC presence in `badge_briefing` and `party://current` SHALL continue to
+  be governed by `characters_present` on `set_scene_state` (REQ-307) — room
+  registration supplements, it does not replace presence tracking.
+
+*Acceptance criterion:* `create_npc("Blacksmith", location="Forge")` where
+world model has room "Forge" — `resolve_intent("look")` from Forge lists
+Blacksmith. `update_npc("blacksmith", location="Inn")` — Blacksmith is no
+longer in Forge; listed in Inn. No matching room — Blacksmith carries
+free-text location only.
+_Check:_ T-new-327.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
