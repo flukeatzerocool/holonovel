@@ -13,6 +13,26 @@ const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
 ).version;
 
+function computeSourceHash(): string {
+  try {
+    const srcDir = new URL("../../src", import.meta.url).pathname;
+    const h = crypto.createHash("sha256");
+    const entries = fs.readdirSync(srcDir, { recursive: true }).sort();
+    for (const entry of entries) {
+      const p = path.join(srcDir, entry as string);
+      try {
+        if (fs.statSync(p).isFile()) {
+          h.update(entry as string);
+          h.update(fs.readFileSync(p));
+        }
+      } catch { /* skip */ }
+    }
+    return h.digest("hex");
+  } catch {
+    return "unavailable";
+  }
+}
+
 // ── Types ──────────────────────────────────────────────────────────
 
 export type Hat = "player" | "game_master" | null;
@@ -194,6 +214,7 @@ export class StateManager {
     specVersion: string;
     specRepoUrl: string;
     specHash: string;
+    sourceHash: string;
     rulesetHash: string;
     buildTimestamp: string;
     lastSpecReview?: string;
@@ -214,6 +235,7 @@ export class StateManager {
       specVersion: SPEC_VERSION,
       specRepoUrl: "https://github.com/anomalyco/Holonovel",
       specHash: "unknown",
+      sourceHash: computeSourceHash(),
       rulesetHash: "ruleset-free",
       buildTimestamp: new Date().toISOString(),
     };

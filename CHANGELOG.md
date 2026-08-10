@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-09 — Incremental build-order fingerprinting + source hashing
+
+- Build-order now fingerprints all watched directories (spec/, both servers'
+  src/, vendor content) and skips steps whose inputs haven't changed since
+  the last successful run. Second consecutive `npm run build-order` completes
+  in under 1 second if nothing has changed.
+- Both servers' `spec_health` output now includes `source_hash` — a SHA-256
+  of all files in the server's `src/` directory — and `build_order` — the
+  full build-order fingerprint from the last successful pipeline run. This
+  lets an AI session query `spec_health` to determine whether a rebuild is
+  needed without reading source files.
+- Build-order fingerprint is saved to `.holonovel-state/` and copied into
+  both server data dirs after each successful run, making it visible to
+  `spec_health` on both servers.
+- Fixed stale hardcoded `spec_version: "2026.08.08"` in dnd5e `spec_health`.
+
 ## 2026-08-09 — Unified build-order pipeline
 
 - Added `npm run build-order` — a single command that sequences the full

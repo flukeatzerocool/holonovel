@@ -1516,9 +1516,10 @@ server.registerTool("spec_health", {
   const rooms = novel ? novel.world.rooms.size : 0;
   const things = novel ? novel.world.things.size : 0;
 
-  const health = {
+  const health: Record<string, unknown> = {
     spec_version: state.buildFingerprint.specVersion,
     spec_hash: state.buildFingerprint.specHash,
+    source_hash: state.buildFingerprint.sourceHash,
     ruleset_hash: "ruleset-free",
     build_timestamp: state.buildFingerprint.buildTimestamp,
     confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
@@ -1535,6 +1536,13 @@ server.registerTool("spec_health", {
     entities, npcs, lore_entries: loreCount, countdowns,
     enrichment_active: state.enriched,
   };
+
+  const fingerprintPath = path.join(DATA_DIR, "build-order-fingerprint.json");
+  if (fs.existsSync(fingerprintPath)) {
+    try {
+      health.build_order = JSON.parse(fs.readFileSync(fingerprintPath, "utf-8"));
+    } catch { /* ignore unreadable fingerprint */ }
+  }
 
   return raw(JSON.stringify(health, null, 2));
 });
