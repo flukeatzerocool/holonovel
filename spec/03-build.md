@@ -1246,6 +1246,9 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-002c | S6 | Badge-filtered error values |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
+| REQ-329 | S16, S23 | Countdown-world coupling |
+| REQ-330 | S16, S19 | Knowledge-world coupling |
+| REQ-331 | S16 | Story journal-world coupling |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
