@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-10 — Badge-coupling annotations and enrichment coverage
+
+- The cross-property coupling table now includes a Badge Scope column
+  annotating every coupling as GM-only, Player-visible,
+  Observer-visible, or editing-mode-only — builders can trace badge
+  impact on every cross-group dependency. (§7.7.1)
+- The Badges terminology entry cross-references the coupling table so
+  the identity and permission layer is explicitly linked to its
+  downstream effects. (§4)
+- Observer badge briefing now includes presence markers and knowledge
+  state for all entities, matching the GM-level visibility contract —
+  no character's percepts are hidden when spectating. (REQ-366)
+- Extended enrichment extraction with three new component types —
+  scene beats, pacing, and autonomy — mapping GM advice on dramatic
+  structure, session cadence, and solo-play agency into
+  supplementary guidance. (REQ-354)
+
 ## 2026-08-10 — Badge integration tightening
 
 - Observer badge now renders enrichment content in `badge_briefing` under

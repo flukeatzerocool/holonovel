@@ -317,7 +317,7 @@ guard, the gap is explicit.
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—badge-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
-| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. |
+| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active badge by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `badge_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
 | Observer          | Spectator mode (REQ-305). The human wears the Observer badge (`set_badge("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
@@ -1197,7 +1197,8 @@ NOT mark the module barren — `supplementary_guidance` remains populated
 by existing REQ-225 sources. Items SHALL carry a `component_type`
 annotation identifying the narrative area they enrich: `scene_type`,
 `relationship`, `countdown`, `secret`, `player_signal`,
-`story_journal`, `constraint_override`, `scene_world`, or
+`story_journal`, `scene_beats`, `pacing`, `autonomy`,
+`constraint_override`, `scene_world`, or
 `npc_world`.
 
 The `constraint_override` component type SHALL map to GM advice chapters
@@ -1209,9 +1210,18 @@ sight lines, or spatial relationships — rooms that connect to other rooms,
 environments where line of sight matters (REQ-326). The `npc_world`
 component type SHALL map to NPC interaction guidelines mentioning
 positioning, patrol routes, territory, or situational awareness — NPCs
-placed in specific rooms with behavioral context (REQ-327). Items extracted
-with these component types follow the same confidence model and `[ruleset]`
-tagging contract. Items SHALL include the corresponding world-model REQ
+placed in specific rooms with behavioral context (REQ-327). The
+`scene_beats` component type SHALL map to GM advice chapters discussing
+dramatic structure — rising action, climax, denouement, scene
+sequences — and SHALL feed the story beats briefing surface (REQ-335).
+The `pacing` component type SHALL map to session-management advice
+discussing scene duration, action-to-description cadence, and when to
+cut scenes — and SHALL feed the pacing signal surface (REQ-336). The
+`autonomy` component type SHALL map to solo-play and GM-emulation
+advice discussing NPC agency, faction independence, and automated world
+reaction — and SHALL feed faction autonomous advancement (REQ-338) and
+NPC goal pursuit (REQ-339). Items extracted with these component types
+follow the same confidence model and `[ruleset]` tagging contract. Items SHALL include the corresponding world-model REQ
 citation in their `source_anchor`.
 
 *Acceptance criterion:* A ruleset with GM advice chapters produces at
@@ -7805,12 +7815,21 @@ inspection tools — `resolve_intent` (REQ-323), parser `look` and
 `examine` commands, and resource reads (`room://<id>`, `thing://<id>`,
 `world://map`) — consistent with the state-query permission of REQ-305.
 
+The observer `badge_briefing` SHALL include presence markers and
+`knowledge_state` for all entities present in the Novel — the observer
+sees what the AI (playing both roles) knows for every character. Entity
+presence markers (REQ-307) and knowledge scoped by attendance (REQ-308)
+are unfiltered under the observer badge, matching the GM-level visibility
+contract: the human watches the AI auto-play, so no entity's percepts are
+hidden.
+
 *Acceptance criterion:* Call `set_badge("observer")` on a populated
 Novel. Assert `badge_briefing` includes scene state, entity personality,
 and narrative threads with omniscient-role orientation directive. Assert
-`badge_briefing` excludes secrets, faction clocks, countdown positions,
-and DM context. Assert `set_scene_state("test")` returns `[FORBIDDEN]`
-as before.
+`badge_briefing` includes `[not present]` markers and `knowledge_state`
+for all entities (not just the active entity). Assert `badge_briefing`
+excludes secrets, faction clocks, countdown positions, and DM context.
+Assert `set_scene_state("test")` returns `[FORBIDDEN]` as before.
 _Check:_ T-new-373.
 
 **REQ-346 — Narrative coherence attestation.** Before handoff (§9), the
@@ -9631,69 +9650,69 @@ contracts defined in the individual REQs below. This section enumerates every
 cross-group dependency so that builders initialize and maintain them in a
 consistent order.
 
-| Property pair        | Coupling                                                                                                              | Nature          | REQs                |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
-| Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | Navigational    | REQ-083             |
-| Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | Mechanical      | REQ-125, REQ-073    |
-| Scene → Faction      | Faction clocks advance one tick on each scene transition                                                              | Mechanical      | REQ-233             |
-| Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | Mechanical      | REQ-043, REQ-075, REQ-124 |
-| Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | Navigational    | REQ-079, REQ-119    |
-| Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | Navigational    | REQ-080, REQ-083    |
-| Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Navigational   | REQ-080             |
-| Faction → Countdown  | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal                               | Mechanical      | REQ-233, REQ-073    |
-| Secret → Relationship| When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended                    | Navigational    | REQ-234, REQ-236    |
-| Relationship → Lore  | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry                | Navigational    | REQ-236             |
-| Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | Mechanical      | REQ-235, REQ-073    |
-| Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | Mechanical      | REQ-235, REQ-233    |
-| DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | Navigational   | REQ-232, REQ-233, REQ-236 |
-| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Navigational   | REQ-242 |
-| Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `badge_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | Mechanical | REQ-250, REQ-125 |
-| Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | Navigational   | REQ-250, REQ-083 |
-| Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | Mechanical | REQ-247, REQ-079 |
-| NPC → NPC Memory | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | Mechanical | REQ-311 |
-| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Navigational | REQ-310 |
-| World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | Mechanical | REQ-233a, REQ-310 |
-| NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Navigational | REQ-311, REQ-310 |
-| Codex → NPC | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | Mechanical | REQ-321, REQ-332 |
-| Codex → World | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | Mechanical | REQ-321 |
-| Codex → Lore | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | Mechanical | REQ-321 |
-| Codex → Faction | `codex_import` of kind `faction` creates a faction in the Novel | Mechanical | REQ-321 |
-| Codex → Countdown | `codex_import` of kind `countdown` creates a countdown in the Novel | Mechanical | REQ-321 |
-| Codex → Adventure | `codex_import` of kind `adventure` populates world-model, NPCs, factions, lore, and enrichment linkages | Mechanical | REQ-321, REQ-229 |
-| Vows → Countdown | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | Mechanical | REQ-322 |
-| World → Scene | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Mechanical | REQ-125, REQ-198 |
-| Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Navigational | REQ-333 |
-| Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Navigational | REQ-242 |
-| Story Beats → Narrative Threads | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | Narrative | REQ-335, REQ-281 |
-| Beat → Countdown | `climax` beat accelerates `on_scene_transition` countdowns by `TTRPG_CLIMAX_ACCELERATION` ticks (default 2); `setup`/`denouement` beats use standard rate | Mechanical | REQ-335, REQ-353, REQ-125, REQ-073 |
-| Pacing Signal → Narrative Threads | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | Narrative | REQ-336, REQ-281 |
-| Pacing Signal → Faction Autonomous | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | Mechanical | REQ-336, REQ-338, REQ-351 |
-| Pacing Signal → NPC Goal Pursuit | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | Mechanical | REQ-336, REQ-339, REQ-351 |
-| Scene → World Model | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | Narrative | REQ-342 |
-| suggest_actions → resolve_intent | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | Navigational | REQ-343, REQ-323 |
-| Faction → Autonomous Countdown | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | Mechanical | REQ-338 |
-| Faction Autonomous → NPC Goal Pursuit | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Mechanical | REQ-338, REQ-339, REQ-348 |
-| NPC Goals → World in Motion | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Narrative | REQ-339, REQ-233a |
-| Countdown Fire (absent) → Story Journal | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | Mechanical | REQ-340, REQ-246 |
-| Countdown → Knowledge | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | Mechanical | REQ-340, REQ-349, REQ-286 |
-| Voice Feedback → Voice Examples | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Mechanical | REQ-344, REQ-077 |
-| Background → Lore | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Navigational | REQ-345, REQ-350, REQ-083 |
-| Voice Feedback → Codex | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | Mechanical | REQ-344, REQ-347, REQ-321 |
-| Secret → Countdown | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-355, REQ-234, REQ-073 |
-| Vow → Lore | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Navigational | REQ-356, REQ-289, REQ-083 |
-| Story Journal → Faction | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Navigational | REQ-357, REQ-246, REQ-233 |
-| Countdown → NPC | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | Mechanical | REQ-358, REQ-073, REQ-075 |
-| Countdown → World State | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | Mechanical | REQ-368 |
-| Vehicle → Scene | Vehicle entry/exit records story journal moment entries | Navigational | REQ-317 |
-| World → Novel Enrichment | World-model rooms and things as synthesis source for adventure_advice and lore_templates | Navigational | §11.3 |
-| Enrichment → Constraint Overrides | `constraint_override` component_type items feed override design patterns | Navigational | REQ-354 |
-| Relationship → Countdown | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-359, REQ-236, REQ-073 |
-| Lore → Countdown | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Navigational | REQ-360, REQ-083, REQ-073 |
-| NPC → Vow | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-361, REQ-077, REQ-289 |
-| Faction → Vow | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-362, REQ-233, REQ-289 |
-| Secret → World Model | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | Navigational | REQ-363, REQ-234, REQ-195 |
-| Faction → World Model | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | Navigational | REQ-364, REQ-233, REQ-195 |
-| Server Notes → Narrative | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside enrichment items | Navigational | REQ-365, REQ-285 |
+| Property pair        | Coupling                                                                                                              | Badge Scope   | Nature          | REQs                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |-------------- | --------------- | ------------------- |
+| Scene → Lore         | Lore trigger keywords matched against scene description text; changing scene state reactivates or deactivates entries | GM-only       | Navigational    | REQ-083             |
+| Scene → Countdown    | Countdowns carrying `on_scene_transition` flag decrement when `set_scene_state` produces a new description           | GM-only       | Mechanical      | REQ-125, REQ-073    |
+| Scene → Faction      | Faction clocks advance one tick on each scene transition                                                              | GM-only       | Mechanical      | REQ-233             |
+| Combat ↔ NPC         | NPCs may participate as combat participants alongside entities and dangers                                           | GM-only       | Mechanical      | REQ-043, REQ-075, REQ-124 |
+| Adventure → NPC      | Adventure module NPC stat blocks are reference templates — the Game Master creates named NPCs from them at runtime    | GM-only       | Navigational    | REQ-079, REQ-119    |
+| Enrichment → Lore    | Enrichment produces lore templates surfaced via `suggest_lore`; GM activates them with `set_lore_entry`              | GM-only       | Navigational    | REQ-080, REQ-083    |
+| Enrichment → Scene/Entity/NPC | Enrichment adds voice_examples, narrative guidance, and supplementary content to scene, entity, and NPC surfaces — additive and inert, never mechanical | Player-visible (shared-scope), GM-only (GM-scope) | Navigational   | REQ-080             |
+| Faction → Countdown  | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal                               | GM-only       | Mechanical      | REQ-233, REQ-073    |
+| Secret → Relationship| When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended                    | GM-only       | Navigational    | REQ-234, REQ-236    |
+| Relationship → Lore  | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry                | GM-only       | Navigational    | REQ-236             |
+| Choice → Countdown   | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick                 | GM-only       | Mechanical      | REQ-235, REQ-073    |
+| Choice → Faction     | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock                    | GM-only       | Mechanical      | REQ-235, REQ-233    |
+| DM Context → State   | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | GM-only       | Navigational   | REQ-232, REQ-233, REQ-236 |
+| Notes → Scene       | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Player-visible, badge-scoped | Navigational   | REQ-242 |
+| Adventure Scene Waypoint → Scene | Setting `adventure_scene` populates the adventure scene description in `badge_briefing` alongside free-text scene state; changing waypoint fires scene transition hook | GM-only       | Mechanical | REQ-250, REQ-125 |
+| Adventure Scene Waypoint → Lore | Location lore entries from adventure pre-population (REQ-079) are triggered by scene matching the waypoint anchor | GM-only       | Navigational   | REQ-250, REQ-083 |
+| Adventure Index → NPC | Structural extraction populates NPC entities in the Novel on `load_adventure` | GM-only       | Mechanical | REQ-247, REQ-079 |
+| NPC → NPC Memory | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | GM-only       | Mechanical | REQ-311 |
+| Campaign Memory → Scene | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | GM-only       | Navigational | REQ-310 |
+| World Reactivity → Campaign Memory | World in Motion accepted changes produce campaign memory facts | GM-only       | Mechanical | REQ-233a, REQ-310 |
+| NPC Memory → Campaign Memory | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | GM-only       | Navigational | REQ-311, REQ-310 |
+| Codex → NPC | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | GM-only (editing mode) | Mechanical | REQ-321, REQ-332 |
+| Codex → World | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
+| Codex → Lore | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
+| Codex → Faction | `codex_import` of kind `faction` creates a faction in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
+| Codex → Countdown | `codex_import` of kind `countdown` creates a countdown in the Novel | GM-only (editing mode) | Mechanical | REQ-321 |
+| Codex → Adventure | `codex_import` of kind `adventure` populates world-model, NPCs, factions, lore, and enrichment linkages | GM-only (editing mode) | Mechanical | REQ-321, REQ-229 |
+| Vows → Countdown | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | GM-only       | Mechanical | REQ-322 |
+| World → Scene | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
+| Story Journal → Lore | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | GM-only       | Navigational | REQ-333 |
+| Notes → Lore | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Player-visible, badge-scoped | Navigational | REQ-242 |
+| Story Beats → Narrative Threads | Beat transitions populate the `story_beats` sequence in the `narrative_threads` briefing section | GM-only (GM surface), Player-visible (shared-scope beats in Player surface) | Narrative | REQ-335, REQ-281 |
+| Beat → Countdown | `climax` beat accelerates `on_scene_transition` countdowns by `TTRPG_CLIMAX_ACCELERATION` ticks (default 2); `setup`/`denouement` beats use standard rate | GM-only | Mechanical | REQ-335, REQ-353, REQ-125, REQ-073 |
+| Pacing Signal → Narrative Threads | When the pacing counter exceeds `TTRPG_PACING_WINDOW`, a pacing signal renders in `narrative_threads` | GM-only | Narrative | REQ-336, REQ-281 |
+| Pacing Signal → Faction Autonomous | When a pacing signal fires, every faction clock receives an immediate autonomous tick, overriding the interval threshold | GM-only | Mechanical | REQ-336, REQ-338, REQ-351 |
+| Pacing Signal → NPC Goal Pursuit | When a pacing signal fires, every goal-carrying NPC produces an immediate goal pursuit suggestion | GM-only | Mechanical | REQ-336, REQ-339, REQ-351 |
+| Scene → World Model | `set_scene_state` with `location` resolving to a room derives scene description from world-model state | GM-only (mutation); Player-visible (read) | Narrative | REQ-342 |
+| suggest_actions → resolve_intent | Spatial domain results in `suggest_actions` delegate to `resolve_intent` for exit, constraint, and thing context — same resolution pipeline | GM-only (resolve_intent); Player-visible (suggest_actions results) | Navigational | REQ-343, REQ-323 |
+| Faction → Autonomous Countdown | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | GM-only | Mechanical | REQ-338 |
+| Faction Autonomous → NPC Goal Pursuit | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | GM-only | Mechanical | REQ-338, REQ-339, REQ-348 |
+| NPC Goals → World in Motion | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | GM-only | Narrative | REQ-339, REQ-233a |
+| Countdown Fire (absent) → Story Journal | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
+| Countdown → Knowledge | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
+| Voice Feedback → Voice Examples | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
+| Background → Lore | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350, REQ-083 |
+| Voice Feedback → Codex | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | GM-only (editing mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
+| Secret → Countdown | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-355, REQ-234, REQ-073 |
+| Vow → Lore | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289, REQ-083 |
+| Story Journal → Faction | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-357, REQ-246, REQ-233 |
+| Countdown → NPC | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | GM-only | Mechanical | REQ-358, REQ-073, REQ-075 |
+| Countdown → World State | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | GM-only | Mechanical | REQ-368 |
+| Vehicle → Scene | Vehicle entry/exit records story journal moment entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
+| World → Novel Enrichment | World-model rooms and things as synthesis source for adventure_advice and lore_templates | GM-only | Navigational | §11.3 |
+| Enrichment → Constraint Overrides | `constraint_override` component_type items feed override design patterns | GM-only | Navigational | REQ-354 |
+| Relationship → Countdown | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | GM-only | Navigational | REQ-359, REQ-236, REQ-073 |
+| Lore → Countdown | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | GM-only | Navigational | REQ-360, REQ-083, REQ-073 |
+| NPC → Vow | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-361, REQ-077, REQ-289 |
+| Faction → Vow | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | GM-only | Navigational | REQ-362, REQ-233, REQ-289 |
+| Secret → World Model | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | GM-only | Navigational | REQ-363, REQ-234, REQ-195 |
+| Faction → World Model | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | GM-only | Navigational | REQ-364, REQ-233, REQ-195 |
+| Server Notes → Narrative | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside enrichment items | GM-only | Navigational | REQ-365, REQ-285 |
 
 A coupling marked "Navigational" means it affects only guidance surfaces
 (`badge_briefing`, resource rendering, suggestion tools) and does not influence
@@ -11741,7 +11760,7 @@ diet.
 | T-new-358 | Automated | Codex adventure beat sequences: create Codex adventure entry via `codex_set("adventure", "Test Quest", {title: "Test Quest", premise: "...", sections: {}, suggested_beats: [{beat: "setup", scene_preview: "The tavern is quiet..."}, {beat: "escalation", scene_preview: "A fight breaks out..."}, {beat: "climax", scene_preview: "The dragon rises!"}]})`. Call `create_novel("test-quest", codex_adventure="test-quest")` — assert `badge_briefing` `story_beats` shows all three beats tagged `[adventure_scaffold]`. Call `set_scene_state("The tavern hums with conversation", beat="setup")` — assert first beat replaced, `[adventure_scaffold]` tag removed on this entry. Advance scene to second beat without explicit `beat` parameter — assert second scaffold beat still present with `[adventure_scaffold]` tag. Advance to third beat via `set_scene_state(beat="climax")` — assert scaffold replaced. Create adventure WITHOUT `suggested_beats` — call `codex_import` — assert no beat pre-population. | REQ-352, REQ-088, REQ-321, REQ-337 |
 | T-new-359 | Automated | Narrative coherence G7 gate: execute G7 verification workflow. Assert DECISIONS.md (6) contains `narrative_coherence` section with `@section evidence` sub-heading. Assert implementation status lists every REQ in §5.12 with disposition. Assert `badge_briefing` narrative section population evidence present. Assert smoke-session transcript embedded with ≥5 turns. Assert `spec_health.narrative_coherence` reports `pass`, `partial`, or `fail`. Assert `fail` disposition blocks handoff. | REQ-346, G7 |
 | T-new-360 | Automated | Beat-accelerated countdowns: set beat to `climax`. Create countdown with `on_scene_transition` flag, 5 ticks. Call `set_scene_state("Scene A")` — assert countdown at 3 ticks (5 − 2 × 1). Call `set_scene_state("Scene B")` — assert countdown at 1 tick (3 − 2). Call `set_scene_state("Scene C")` — assert countdown fires (1 − 2 ≤ 0). Set `TTRPG_CLIMAX_ACCELERATION=3`. Create new countdown with 5 ticks. Call `set_scene_state("Scene D")` — assert countdown at 2 ticks (5 − 3). Set beat to `setup` — call `set_scene_state("Scene E")` — assert countdown at 1 tick (standard single-tick). Set `TTRPG_CLIMAX_ACCELERATION=1` — set beat to `climax`, advance scene — assert standard single-tick (acceleration disabled). Assert `round`-type countdowns are unaffected by beat. | REQ-353, REQ-335, REQ-125, REQ-073 |
-| T-new-361 | Automated | Extended narrative enrichment: run Discovery on a ruleset with GM advice chapters covering scene pacing and NPC relationships. Assert `list_enrichment_items(tier=1, module="supplementary_guidance")` includes items with `component_type` annotations of `scene_type`, `relationship`, and at least one of `countdown`, `secret`, `player_signal`, or `story_journal`, AND at least one of `constraint_override`, `scene_world`, or `npc_world` (vendor content satisfies these when extraction is barren). Assert items carry `[ruleset]` tag or `[vendor]` tag with source anchors.. Assert ruleset with no such chapters produces no additional items beyond the existing REQ-225 extraction. | REQ-354 |
+| T-new-361 | Automated | Extended narrative enrichment: run Discovery on a ruleset with GM advice chapters covering scene pacing, NPC relationships, dramatic structure, and solo-play guidance. Assert `list_enrichment_items(tier=1, module="supplementary_guidance")` includes items with `component_type` annotations matching the REQ-354 catalogue (`scene_type`, `relationship`, `countdown`, `secret`, `player_signal`, `story_journal`, `scene_beats`, `pacing`, `autonomy`, `constraint_override`, `scene_world`, `npc_world` — any combination of at least two types, with vendor content satisfying barren extraction slots per REQ-225). Assert items carry `[ruleset]` tag or `[vendor]` tag with source anchors. Assert ruleset with no such chapters produces no additional items beyond the existing REQ-225 extraction. | REQ-354 |
 | T-new-362 | Automated | Secret-countdown coupling: create a secret "betrayal" and a countdown with `scope` containing "betrayal." Call `reveal_secret("betrayal", "pc_01")` — assert `badge_briefing` `narrative_threads` includes countdown-advancement advisory. Create a secret and countdown with no text overlap — assert no advisory. | REQ-355, REQ-234, REQ-073 |
 | T-new-363 | Automated | Vow-lore coupling: create lore entry "crown_of_alara" with trigger "crown". Call `set_vow("Find the Crown", "Retrieve the Crown of Alara", ...)` with at least one party member. Assert `badge_briefing` `narrative_threads` includes `[vow-relevant] crown_of_alara`. Call `resolve_vow` — assert match no longer appears. Create lore entry with no overlap to an unrelated vow — assert no match. | REQ-356, REQ-289, REQ-083 |
 | T-new-364 | Automated | Story journal-faction coupling: create faction "Merchant Guild" with goal "Control the docks." Call `record_story("consequence", "The docks were destroyed")` — assert `badge_briefing` `narrative_threads` includes faction-clock-advancement advisory. Call `record_story("moment", "The sunset was beautiful")` — assert no advisory (no entity/location overlap). | REQ-357, REQ-246, REQ-233 |
@@ -11753,7 +11772,7 @@ diet.
 | T-new-370 | Automated | Secret-world coupling: create world-model room "Vault". Call `set_secret("vault-trap", "The floor is pressure-plated", world_target="vault")`. Call `set_scene_state("The strongroom", location="Vault")` — assert `badge_briefing` `narrative_threads` includes `[world-linked]` vault-trap entry. Call `set_scene_state(..., location="Inn")` — assert entry absent. | REQ-363, REQ-234, REQ-195 |
 | T-new-371 | Automated | Faction-world coupling: create room "Throne Room". Call `create_faction("Royal Guard", goals=["Protect the crown"], territory=["throne_room"])`. Call `set_scene_state(..., location="Throne Room")` — assert `badge_briefing` `narrative_threads` includes `[territorial] Royal Guard`. Call `set_scene_state(..., location="Pantry")` — assert faction absent. | REQ-364, REQ-233, REQ-195 |
 | T-new-372 | Automated | Server notes narrative coupling: call `set_server_note("old-gods", "The old gods were banished...", narrative_tag="lore_seed")` — assert `badge_briefing` supplementary guidance includes `[lore_seed]`. Call `set_server_note("dm-reminder", "Remind players...", narrative_tag="session_reminder")` — assert `[session_reminder]` tag. Call without `narrative_tag` — assert absent from briefing. Player badge — assert absent. | REQ-365, REQ-285 |
-| T-new-373 | Automated | Observer narrative surface: call `set_badge("observer")` on a populated Novel. Assert `badge_briefing` includes scene state, entity personality, and narrative threads with omniscient orientation. Assert `badge_briefing` excludes secrets, faction clocks, countdown positions, and DM context. Assert `set_scene_state(...)` from observer returns `[FORBIDDEN]`. | REQ-366, REQ-305 |
+| T-new-373 | Automated | Observer narrative surface: call `set_badge("observer")` on a populated Novel with entities carrying both active and non-present states, and knowledge gating active (entity present in some scenes, absent from others). Assert `badge_briefing` includes scene state, entity personality, and narrative threads with omniscient-role orientation directive. Assert `badge_briefing` includes `[not present]` markers for entities absent from the current scene. Assert `badge_briefing` includes `knowledge_state` for all entities in the Novel (not only the active entity), matching the GM-level visibility contract. Assert `badge_briefing` excludes secrets, faction clocks, countdown positions, and DM context. Assert `set_scene_state(...)` from observer returns `[FORBIDDEN]`. | REQ-366, REQ-305 |
 | T-new-374 | Automated | Property propagation: create world model with rooms. Call `convert_source("An iron chest is a container. It is in the Entrance Chamber. A glass jar is a container. It is transparent. It is in the iron chest. A glowing lantern is in the glass jar. It is lit. It is switched on.")`. Assert `command("look")` — lantern NOT visible (opaque outer chest blocks glass jar regardless). Remove chest from chain, place jar directly in room — assert `command("look")` shows "a glowing lantern (inside the glass jar)". Call `command("switch off lantern")` — assert `command("look")` shows "a dark lantern (inside the glass jar)". Create vehicle in dark cave with `lit: true` — assert `command("enter boat")` and `command("look")` shows lit interior. Create vehicle with `lit: false` — assert interior inherits dark from cave. | REQ-367 |
 | T-new-375 | Automated | Countdown-world effect coupling: create world model with room Cellar. Call `set_countdown("flood", 3, type="narrative", world_effect={type:"describe", target:"cellar", value:"Knee-deep water fills the cellar, rising fast."})`. Advance three narrative ticks — assert countdown fires, cellar.description equals new text, prior description in undo stack. Call `undo` — assert prior description restored. Create countdown with `world_effect.type="property", target="lantern_01", property="lit", value=false` — fire — assert lantern no longer lit. Create countdown with `world_effect.type="exit", target="cellar", action="create", direction="north", destination="cave"` — fire — assert north exit created. Create countdown targeting room that is deleted before fire — assert `[WARNING] target missing — effect not applied` in audit log, countdown removed from active. | REQ-368 |
 
