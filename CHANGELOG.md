@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-10 — Enrichment → Synthesis (flat model, no tiers)
+
+- Renamed the enrichment workflow to Synthesis — a single flat workflow with two
+  sources (external web research, internal Novel-state analysis) and no tiers.
+  (REQ-080, REQ-227)
+- Ruleset Wisdom is no longer framed as an enrichment tier. It is build output
+  and a first-class archetype (P5–P11), always present in the Novel and not
+  subject to synthesis reversion. (REQ-225)
+- Merged community enrichment and novel enrichment into one Synthesis workflow at
+  §11. Deleted the old `08-enrichment.md` spec file and created
+  `08-synthesis.md`. Vendor content (§11.4) is repositioned as Ruleset Wisdom.
+- Consolidated REQs 262–268 (previously "Novel enrichment tier" through "Novel
+  enrichment in dashboard") into five synthesis REQs: 262 (Synthesis tool),
+  263 (Synthesis auto-trigger), 264 (Synthesis confidence model), 265 (Synthesis
+  in badge_briefing), 266 (Synthesis in dashboard). REQs 267–268 are retired.
+- All tool names re-mapped: `revert_enrichment` → `revert_synthesis`,
+  `player_enrich` → `player_synthesize`, `synthesize_novel_enrichment` →
+  `synthesize`, etc. Resource URIs: `enrichment://` → `synthesis://`.
+  Environment variable: `TTRPG_ENRICH_STALE_DAYS` →
+  `TTRPG_SYNTHESIS_STALE_DAYS`. (REQ-103, REQ-260, REQ-261)
+- Updated the §4 terminology table, §7.7 property table (Enrichment → Synthesis,
+  Novel Enrichment removed), coupling table (Enrichment → Synthesis),
+  archetype definition, completeness register, and cross-property coupling rows.
+- Renamed G6 from "Enrichment lifecycle" to "Synthesis lifecycle" (§8).
+- Updated intake question E5, build-phase-map, REQ titles in Appendix E,
+  test descriptions for T-new-262 through T-new-268, and spec assembly script.
+  Renamed §5.8 heading to "Synthesis, Lore, and Macros."
+
 ## 2026-08-10 — Convergence and Pattern Buffer strengthened from Holodeck taxonomy
 
 - Added archetype coverage as a new Phase 1 convergence metric — every property

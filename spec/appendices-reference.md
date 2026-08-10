@@ -155,7 +155,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-069 | Player feedback signal    | 2026-08-06   |
 | REQ-078 | Session zero prompt       | 2026-08-04   |
 | REQ-079 | Adventure modules         | 2026-08-04   |
-| REQ-080 | Enrichment boundaries     | 2026-08-06   |
+| REQ-080 | Synthesis boundaries     | 2026-08-06   |
 | REQ-081 | Narrative directive       | 2026-08-06   |
 | REQ-082 | Prompt section ordering   | 2026-08-04   |
 | REQ-083 | Dynamic lore              | 2026-08-05   |
@@ -179,7 +179,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-065 | Build fingerprint         | 2026-08-08   |
 | REQ-066 | set_badge                   | 2026-08-02   |
 | REQ-102 | Source conversion contract  | 2026-08-05   |
-| REQ-103 | Enrichment reversion      | 2026-08-07   |
+| REQ-103 | Synthesis reversion      | 2026-08-07   |
 | REQ-104 | Undo after creation       | 2026-08-06   |
 | REQ-105 | Spec resource             | 2026-08-06   |
 | REQ-106 | Spec repository URL       | 2026-08-06   |
@@ -212,7 +212,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-127 | Ruleset-native personality mapping | 2026-08-06   |
 | REQ-128 | Signal briefing surface   | 2026-08-06   |
 | REQ-129 | Property group cardinality | 2026-08-06   |
-| REQ-130 | Enrichment rebuild contract | 2026-08-06   |
+| REQ-130 | Synthesis rebuild contract | 2026-08-06   |
 | REQ-131 | Novel initialization order | 2026-08-06   |
 | REQ-132 | Adventure generation lifecycle | 2026-08-06   |
 | REQ-133 | Forbidden-call audit      | 2026-08-06   |
@@ -224,13 +224,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-139 | Resource URI completeness reporting | 2026-08-06   |
 | REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
 | REQ-224 | Workflow staleness detection     | 2026-08-07 |
-| REQ-225 | Ruleset-native enrichment extraction | 2026-08-07 |
+| REQ-225 | Ruleset Wisdom extraction | 2026-08-07 |
 | REQ-226 | Narrative voice profiles            | 2026-08-07 |
-| REQ-227 | Two-tier enrichment model           | 2026-08-07 |
-| REQ-228 | Enrichment consistency during updates | 2026-08-07 |
-| REQ-229 | Adventure enrichment linkage            | 2026-08-07 |
-| REQ-230 | Enrichment status dashboard             | 2026-08-07 |
-| REQ-231 | Per-module enrichment toggle            | 2026-08-07 |
+| REQ-227 | Synthesis model           | 2026-08-07 |
+| REQ-228 | Synthesis consistency during updates | 2026-08-07 |
+| REQ-229 | Adventure synthesis linkage            | 2026-08-07 |
+| REQ-230 | Synthesis status dashboard             | 2026-08-07 |
+| REQ-231 | Per-module synthesis toggle            | 2026-08-07 |
 | REQ-232 | Pause/resume context                    | 2026-08-08 |
 | REQ-233 | Factions                                | 2026-08-08 |
 | REQ-233a | World reactivity                       | 2026-08-08 |
@@ -243,9 +243,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-240 | Clone Novel                            | 2026-08-08 |
 | REQ-241 | Checkpoints                            | 2026-08-08 |
 | REQ-242 | Notes                                  | 2026-08-08 |
-| REQ-243 | Enrichment population during updates | 2026-08-08 |
+| REQ-243 | Synthesis population during updates | 2026-08-08 |
 | REQ-244 | Convergence cache key | 2026-08-08 |
-| REQ-245 | Pre-computed enrichment manifest | 2026-08-08 |
+| REQ-245 | Pre-computed synthesis manifest | 2026-08-08 |
 | REQ-246 | Story journal                 | 2026-08-08 |
 | REQ-247 | Adventure structure extraction | 2026-08-08 |
 | REQ-248 | Adventure overview resource   | 2026-08-08 |
@@ -270,8 +270,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-156 | NPC description field           | 2026-08-06   |
 | REQ-157 | Combat determinism             | 2026-08-06   |
 | REQ-158 | Independent verification obligation | 2026-08-06   |
-| REQ-159 | Enrichment briefing integration | 2026-08-06   |
-| REQ-160 | Enrichment health reporting  | 2026-08-07   |
+| REQ-159 | Synthesis briefing integration | 2026-08-06   |
+| REQ-160 | Synthesis health reporting  | 2026-08-07   |
 | REQ-161 | Intake workflow contract     | 2026-08-07   |
 | REQ-162 | Build-mode profiles          | 2026-08-07   |
 | REQ-163 | Client config verification   | 2026-08-07   |
@@ -331,15 +331,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-257 | List Novels                | 2026-08-08 |
 | REQ-258 | Novel info                 | 2026-08-08 |
 | REQ-259 | Update Novel description   | 2026-08-08 |
-| REQ-260 | Granular enrichment activation | 2026-08-08 |
-| REQ-261 | Player enrichment | 2026-08-08 |
-| REQ-262 | Novel enrichment tier | 2026-08-08 |
-| REQ-263 | Novel enrichment synthesis tool | 2026-08-08 |
-| REQ-264 | Novel enrichment auto-trigger | 2026-08-08 |
-| REQ-265 | Novel enrichment removal | 2026-08-08 |
-| REQ-266 | Novel enrichment confidence model | 2026-08-08 |
-| REQ-267 | Novel enrichment in badge_briefing | 2026-08-08 |
-| REQ-268 | Novel enrichment in enrichment dashboard | 2026-08-08 |
+| REQ-260 | Granular synthesis activation | 2026-08-08 |
+| REQ-261 | Player synthesis | 2026-08-08 |
+| REQ-262 | Synthesis tool | 2026-08-08 |
+| REQ-263 | Synthesis auto-trigger | 2026-08-08 |
+| REQ-264 | Synthesis confidence model | 2026-08-08 |
+| REQ-265 | Synthesis in badge_briefing | 2026-08-08 |
+| REQ-266 | Synthesis in dashboard | 2026-08-08 |
 | REQ-269 | Safety protocol status | 2026-08-08 |
 | REQ-270 | Artifact version identification | 2026-08-08 |
 | REQ-271 | AGENTS.md structure contract | 2026-08-08 |
@@ -419,7 +417,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-351 | Pacing-triggered autonomy | 2026-08-10 |
 | REQ-352 | Codex adventure beat sequences | 2026-08-10 |
 | REQ-353 | Beat-accelerated countdown advancement | 2026-08-10 |
-| REQ-354 | Extended narrative enrichment extraction | 2026-08-10 |
+| REQ-354 | Extended narrative extraction | 2026-08-10 |
 | REQ-355 | Secret-countdown coupling | 2026-08-10 |
 | REQ-356 | Vow-lore coupling | 2026-08-10 |
 | REQ-357 | Story journal-faction coupling | 2026-08-10 |
@@ -744,8 +742,8 @@ diet.
 | T-new-264 | Automated | Novel enrichment auto-trigger: set `TTRPG_NOVEL_ENRICH_AUTO_TRIGGER=on_session_start`. Change `TTRPG_SESSION_ID` — assert `synthesize_novel_enrichment` triggers, items appear in `list_enrichment_items(tier=3)` with `activated: false`. Set to `off` — assert no auto-trigger on session change. Set to `on_scene_change` — call `set_scene_state("new scene")` — assert synthesis triggers. Assert `spec_health` shows `novel_enrich_auto_trigger: <threshold>`. Create a ruleset-free Novel with no state — assert synthesis produces `[novel] [empty — no state]` markers. | REQ-264 |
 | T-new-265 | Automated | Novel enrichment removal: create a Novel with `[novel]` enrichment items. Call `revert_novel_enrichment()` — assert `list_enrichment_items(tier=3)` returns 0 items. Assert Tier 1 (`[ruleset]`) items unchanged. Assert Tier 2 (`[supplementary]`) items unchanged. Call `revert_enrichment` — assert Tier 2 items removed, `[novel]` items remain at 0 (already removed). Call `revert_novel_enrichment()` on empty tier — assert `[OK] No novel enrichment to revert`. Assert Player badge returns `[FORBIDDEN]`. | REQ-265, REQ-103 |
 | T-new-266 | Automated | Novel enrichment confidence: create a Novel with an NPC carrying explicit personality text. Call `synthesize_novel_enrichment()` — assert voice example item carries `[novel] [MEDIUM]`. Create a story journal entry and call synthesis — assert theme-detection item carries `[novel] [LOW]`. Edit the NPC personality, call synthesis — assert `collected_at` timestamp updated. Assert `MEDIUM` items always correspond to explicit-field sources; `LOW` items always correspond to inference sources. | REQ-266 |
-| T-new-267 | Automated | Novel enrichment in badge_briefing: create a Novel with active `[novel]` enrichment items. Call `badge_briefing` under GM badge — assert `[novel]` items appear under respective enrichment sections tagged `[novel]` alongside `[ruleset]`, `[supplementary]`, and `[player]` items. Switch to Player badge — assert only `[novel]` items with scope `shared` or `player` visible; `game_master`-scoped items absent. Call `deactivate_enrichment_item` on a `[novel]` item scoped `shared` — assert item hidden from Player badge. Call `revert_novel_enrichment` — assert no `[novel]` section in `badge_briefing` (no empty-section marker). | REQ-267, REQ-032, REQ-260 |
-| T-new-268 | Automated | Novel enrichment in enrichment dashboard: create a Novel with `[novel]` enrichment items in voice_examples and lore_templates modules. Call `resources/read` on `enrichment://status` — assert `novel` column present in per-module table alongside `ruleset-native` and `community` columns. Assert non-zero counts for voice_examples and lore_templates in the `novel` column. Call `spec_health` — assert `novel_enrichment_status` with per-module activated/total counts and `novel_enrichment_last_synthesis` timestamp. Call `revert_novel_enrichment` — assert `novel` column shows zero counts. | REQ-268, REQ-230 |
+| T-new-267 | Automated | Synthesis in badge_briefing: create a Novel with active synthesis items. Call `badge_briefing` under GM badge — assert synthesis items appear under respective sections tagged `[supplementary]` alongside `[ruleset]`, `[vendor]`, and `[player]` items. Switch to Player badge — assert only synthesis items with scope `shared` or `player` visible; `game_master`-scoped items absent. Call `deactivate_synthesis_item` on a synthesis item scoped `shared` — assert item hidden from Player badge. Call `revert_synthesis` — assert no synthesis section in `badge_briefing` (no empty-section marker). | REQ-265, REQ-032, REQ-260 |
+| T-new-268 | Automated | Synthesis in dashboard: create a Novel with synthesis items in voice_examples and lore_templates modules. Call `resources/read` on `synthesis://status` — assert synthesis column present in per-module table alongside Ruleset Wisdom column. Assert non-zero counts for voice_examples and lore_templates in the synthesis column. Call `spec_health` — assert `synthesis_status` with per-module activated/total counts and `synthesis_last_run` timestamp. Call `revert_synthesis` — assert synthesis column shows zero counts. | REQ-266, REQ-230 |
 | T-new-285 | Automated | Server notes: call `set_server_note("campaign-bible", "The old gods were banished to the outer dark")` — assert stored. Call `list_server_notes()` — assert returns `{key: "campaign-bible", preview: "The old gods were banished to the outer dark"}`. Call `server-notes://campaign-bible` — assert full content returned. Restart server — assert server note survives. Create and `end_novel` — assert server notes persist. Switch to Player badge — assert `set_server_note`, `remove_server_note`, `list_server_notes`, and `server-notes://<key>` all return `[FORBIDDEN]`. Call `spec_health` — assert `server_notes` count present. Call `remove_server_note("campaign-bible")` — assert `list_server_notes()` is empty. | REQ-285 |
 | T289    | Automated | Safety protocol status: build a server with a known badge-gating defect — assert `spec_health.safety_protocols.badge_boundary` reports `offline`. Fix the defect — assert reports `online`. Induce a non-blocking failure in S16 (narrative state) — assert relevant property reports `degraded`. Assert all four properties present in `spec_health` output. Assert a ruleset-free build reports `state_loss` and `badge_boundary` as `online`, `data_corruption` and `unrecoverable_crash` as `unverified`. | REQ-269 |
 | T290    | Automated | Artifact version identification: build a server and inspect the first line of each handoff artifact — assert each begins with `<!-- built against Holonovel spec vXX.XX.XX -->` matching `spec_health.spec_version`. Remove the comment from one artifact — assert handoff verification flags a defect. Assert version mismatch between artifact and `spec_health` is a handoff defect. | REQ-270 |

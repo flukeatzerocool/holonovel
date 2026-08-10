@@ -11,7 +11,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 | 79    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328, 333 | 41    |
+| 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 | 39    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
@@ -283,7 +283,7 @@ and served at `guidance://<badge>/anti-slop`. The spec carries a synopsis in App
 full anti-slop catalogue is sourced from the Enrich workflow (§11.1) as supplementary guidance,
 with genre-specific examples from the `adventure_advice` module. Anti-slop guidance is
 badge-filtered and appears in `badge_briefing` after foundations and before scene state.
-*Acceptance criterion:* (a) Without enrichment, `badge_briefing` includes at least one
+*Acceptance criterion:* (a) Without synthesis, `badge_briefing` includes at least one
 `[anti-slop]`-tagged item per badge sourced from the Appendix J synopsis, each carrying a
 forbidden narrative pattern and a corrected alternative; (b) the content is badge-filtered
 (rows 1–10 are GM-scoped, rows 5–7 and 12 are Player-scoped, rows 8–11 are GM-scoped);
@@ -294,14 +294,14 @@ _Check:_ T223.
 **REQ-184 — Anti-slop resource rendering.** The server serves anti-slop guidance at
 `guidance://<badge>/anti-slop` as a Markdown resource. The resource SHALL include every
 Appendix J synopsis pattern whose scope matches the requested badge. Each pattern SHALL
-appear as a `[anti-slop]`-tagged item with its Forbidden and Correct text. When enrichment
+appear as a `[anti-slop]`-tagged item with its Forbidden and Correct text. When synthesis
 is active (REQ-159), the resource SHALL include both the Appendix J synopsis and
-enrichment-supplied anti-slop items; enrichment items SHALL be tagged `[supplementary]`
-with source URL and confidence. Without enrichment, the resource SHALL contain only the
+synthesis-supplied anti-slop items; synthesis items SHALL be tagged `[supplementary]`
+with source URL and confidence. Without synthesis, the resource SHALL contain only the
 Appendix J synopsis.
 *Acceptance criterion:* `guidance://<badge>/anti-slop` returns Markdown containing every
 Appendix J pattern for the requested hat, each tagged `[anti-slop]` and badge-filtered;
-enrichment-sourced items carry `[supplementary]` with source URL.
+synthesis-sourced items carry `[supplementary]` with source URL.
 _Check:_ T223.
 
 **REQ-194 — Anchor derivation.** Anchors SHALL be derived from heading text
@@ -420,7 +420,7 @@ fields, imperative verbs, and definition-list markup. Sections
 flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is
 computed per-section and aggregated per REQ-147, with the player-filtered view as the gating metric. The player filter excludes:
 guidance items with GM-only badge scope (REQ-016), mechanics extracted from
-GM-only ruleset sections (REQ-032), and enrichment content tagged `[gm_only]`
+GM-only ruleset sections (REQ-032), and synthesis content tagged `[gm_only]`
 (REQ-080). The builder computes player-filtered confidence by applying these
 exclusions before aggregation per REQ-147.
 *Acceptance criterion:* A spell extracted from a table cell at a ruleset-normative
@@ -784,14 +784,14 @@ DECISIONS.md (5). DECISIONS.md (2) records the selected converter and any
 cross-converter verification results in DECISIONS.md (5).
 _Check:_ T93.
 
-**REQ-225 — Ruleset-native enrichment extraction.** During Discovery (§6.3), the
-builder SHALL classify extracted guidance into the seven enrichment output modules
+**REQ-225 — Ruleset Wisdom extraction.** During Discovery (§6.3), the
+builder SHALL classify extracted guidance into the seven output modules
 (voice_examples, briefing_order, lore_templates, action_patterns,
 supplementary_guidance, adventure_advice, narrative_voices) using the ruleset's own
 text. Extraction sources and confidence: ruleset example-of-play dialogue = HIGH,
 ruleset GM advice chapters = HIGH, ruleset setting descriptions = HIGH, ruleset
 "Inspirational Reading" or Appendix N media citations = HIGH, ruleset encounter
-tables = HIGH. Ruleset-native items carry `[ruleset]` tag with source anchor.
+tables = HIGH. Ruleset Wisdom items carry `[ruleset]` tag with source anchor.
 
 Classification is feedback-driven, not a one-pass sort. After the initial
 classification pass, the builder SHALL check each module for content. When a module
@@ -825,12 +825,12 @@ Items are sorted into module slots: example-of-play dialogue →
 voice_examples, GM advice chapter structure → briefing_order, setting/location
 descriptions → lore_templates, example-of-play resolution sequences →
 action_patterns, GM/player advice prose → supplementary_guidance, encounter tables
-and campaign frameworks → adventure_advice. Tier 1 enrichment (ruleset-native +
-vendor) is populated at build time and is always present in the Novel (REQ-227). In ruleset-free mode
-(B1=none), all enrichment modules SHALL be empty — recorded as "ruleset-free" in
+and campaign frameworks → adventure_advice. Ruleset Wisdom (ruleset-native +
+vendor) is populated at build time and is always present in the Novel. In ruleset-free mode
+(B1=none), all Wisdom modules SHALL be empty — recorded as "ruleset-free" in
 DECISIONS.md (4).
 *Acceptance criterion:* A ruleset with GM advice chapters and example-of-play
-dialogues produces ruleset-native enrichment items in ≥4 of the 7 modules with
+dialogues produces Ruleset Wisdom items in ≥4 of the 7 modules with
 `[ruleset]` tag and source anchors.
 _Check:_ T-new-225.
 
@@ -838,7 +838,7 @@ _Check:_ T-new-225.
 (§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
 system, and semantic interpretation of image-only content.
 
-**REQ-354 — Extended narrative enrichment extraction.** During Discovery
+**REQ-354 — Extended narrative extraction.** During Discovery
 (§6.3), the builder SHALL extend REQ-225 extraction to include the
 following sources, mapping each to the `supplementary_guidance` output
 module: scene type and pacing conventions (from GM advice chapters
@@ -965,11 +965,11 @@ always be present in `tools/list`:
   (`record_story`, `update_story`, `remove_story`, `list_stories`,
    `session_recap`, `compress_audit`), Session
   Management (`set_briefing_order`, `load_adventure`, `generate_adventure`), and
-  Enrichment Controls (`revert_enrichment`, `list_enrichment_items`,
-  `activate_enrichment_item`, `deactivate_enrichment_item`,
-  `remove_enrichment_item`, `toggle_action_patterns`,
-  `player_enrich`, `player_remove_enrichment`,
-  `player_list_enrichment`). These categories
+  Enrichment Controls (`revert_synthesis`, `list_synthesis_items`,
+  `activate_synthesis_item`, `deactivate_synthesis_item`,
+  `remove_synthesis_item`, `toggle_action_patterns`,
+  `player_synthesize`, `player_remove_synthesis`,
+  `player_list_synthesis`). These categories
   are never waived.
 
 The `help` tool SHALL present these infrastructure categories as the base
@@ -1005,9 +1005,9 @@ _Check:_ T3, T35.
 `guidance://<badge>/foundations`, `guidance://shared/badge-switch`, `scene://current`, `scene://history`,
 `countdown://active`, `party://current`, `npc://<id>`, `npcs://`, `entity://<id>/personality`,
 `entity://<id>/voice_examples`, `lore://active`, `lore://<key>`, `lore://templates`,
-`enrichment://voice_examples`, `enrichment://briefing_order`,
-`enrichment://action_patterns`, `enrichment://adventure_advice`,
-`enrichment://narrative_voices`, `enrichment://status`, `adventure://<slug>/<anchor>`, `novel://current`,
+`synthesis://voice_examples`, `synthesis://briefing_order`,
+`synthesis://action_patterns`, `synthesis://adventure_advice`,
+`synthesis://narrative_voices`, `synthesis://status`, `adventure://<slug>/<anchor>`, `novel://current`,
 `novel://<slug>`, `novel://<slug>/preview`, `novel://setup`, `room://<id>`,
 `thing://<id>`, `world://map`, `world://kinds`, `graph://novel`,
 `spec://build` (GM-filtered),
@@ -1087,7 +1087,7 @@ detection — the velocity stall counts as the stalled iteration. This
 integrates velocity into the existing no-delta detection mechanism without
 adding a separate exit criterion, indexed
 counts (anchors, concepts, entity types, actions, tables, procedures, guidance items,
-enrichment items per module — ruleset-native count for each of the seven output modules),
+synthesis items per module — ruleset-native count for each of the seven output modules),
 pending sections, MUST-action coverage, defect count, ruleset-version status,
 spec_repo_url, verification workflow dispositions, available Novels on disk (slug, name,
 last-modified, active — per REQ-093; the dedicated `list_novels` tool — REQ-257 — is the
@@ -1148,31 +1148,31 @@ a tool, resource, or prompt increments the count immediately; counts are derived
 from arrays at call time, not hardcoded.
 _Check:_ T15, T45, T93, T105, T154.
 
-**REQ-160 — Enrichment health reporting.** `spec_health` SHALL report
-enrichment status with these minimum fields: (a) `enrichment_active` —
-boolean indicating whether enrichment state exists; (b) `module_counts`
+**REQ-160 — Synthesis health reporting.** `spec_health` SHALL report
+synthesis status with these minimum fields: (a) `synthesis_active` —
+boolean indicating whether synthesis state exists; (b) `module_counts`
 — per-module item count for each of the seven output modules (§11.1); (c)
-`stale_count` — number of inactive enrichment items whose `collected_at`
-exceeds `TTRPG_ENRICH_STALE_DAYS`; (d) `activated_count` — number of
-enrichment items the Game Master has incorporated into active Novel state
+`stale_count` — number of inactive synthesis items whose `collected_at`
+exceeds `TTRPG_SYNTHESIS_STALE_DAYS`; (d) `activated_count` — number of
+synthesis items the Game Master has incorporated into active Novel state
 via Novel-scoped tools (REQ-159); (e) `fingerprint` — the enrichment
 fingerprint used for idempotence detection (ruleset content hash +
 intake answers). Stale items SHALL appear with the `[stale]` flag when
-listed. When enrichment has never been run, `enrichment_active` is false
+listed. When synthesis has never been run, `synthesis_active` is false
 and all count fields are zero.
-When enrichment is absent (never run or reverted), `module_counts`
+When synthesis is absent (never run or reverted), `module_counts`
 SHALL include all seven module names — `voice_examples`,
 `briefing_order`, `lore_templates`, `action_patterns`,
 `supplementary_guidance`, `adventure_advice`, `narrative_voices` — each with value zero.
 An absent `module_counts` field or an empty object does not satisfy
 this contract.
-The enrichment health section is visible
-to all badges — Player and GM alike see whether enrichment is active and
+The synthesis health section is visible
+to all badges — Player and GM alike see whether synthesis is active and
 how many items are stale, but per-module content is badge-filtered per
 REQ-080.
-*Acceptance criterion:* After enrichment, `spec_health` reports
-`enrichment_active: true`, per-module counts matching the manifest, and
-a non-empty fingerprint. After `revert_enrichment`, `enrichment_active`
+*Acceptance criterion:* After synthesis, `spec_health` reports
+`synthesis_active: true`, per-module counts matching the manifest, and
+a non-empty fingerprint. After `revert_synthesis`, `synthesis_active`
 is false and all counts are zero. Stale items increment
 `stale_count` and carry `[stale]` flag. After GM activates a lore
 template via `set_lore_entry`, `activated_count` increments by one.
@@ -2126,8 +2126,8 @@ current scene as active, the section renders "[Entity not present in this scene]
 retained knowledge.
 _Check:_ T-new-287.
 
-**REQ-159 — Enrichment briefing integration.** When enrichment is active
-(§11.1), `badge_briefing` SHALL include enrichment-derived content as
+**REQ-159 — Synthesis briefing integration.** When synthesis is active
+(§11.1), `badge_briefing` SHALL include synthesis-derived content as
 follows: (a) supplementary guidance items SHALL appear in the guidance
 section, tagged `[supplementary]` with source URL and confidence, badge-filtered
 by badge_scope (REQ-080); (b) entity voice examples sourced from enrichment
@@ -2135,16 +2135,16 @@ SHALL appear alongside roster-sourced voice examples under the entity
 personality group, tagged `[supplementary]` (REQ-077); (c) adventure
 advice SHALL appear when the active Novel contains a generated adventure
 (REQ-132), tagged `[supplementary]`. Enrichment-sourced content follows
-the same badge filtering rules as the enrichment resource surfaces —
-game_master-scoped items are hidden from the Player badge. When enrichment
-is not active, the briefing renders without enrichment content — no
-empty-section markers for enrichment groups.
+the same badge filtering rules as the synthesis resource surfaces —
+game_master-scoped items are hidden from the Player badge. When synthesis
+is not active, the briefing renders without synthesis content — no
+empty-section markers for synthesis groups.
 *Acceptance criterion:* After enrichment, `badge_briefing` under the GM
 badge includes supplementary guidance items tagged `[supplementary]`
 alongside source URLs. Enrich-sourced voice examples appear under entity
 personality with `[supplementary]` tag. Under the Player badge,
-game_master-scoped enrichment items are absent. After
-`revert_enrichment`, enrichment content is absent from all badge views.
+game_master-scoped synthesis items are absent. After
+`revert_synthesis`, synthesis content is absent from all badge views.
 _Check:_ T194.
 
 *Out of scope:* authentication or authorization mechanisms, multi-connection badge
@@ -3194,7 +3194,7 @@ GM sees all NPC voice directives; Player badge sees directives for NPCs created 
 `shared` scope.
 
 The voice directive is rendered inline in the entity personality group, after personality
-fields and before any enrichment-sourced content. It is advisory — it provides the AI GM
+fields and before any synthesis-sourced content. It is advisory — it provides the AI GM
 with voice constraints but does not mechanically enforce them. `voice_examples` stored
 in the roster (entity-level) follow the same directive rendering in the entity personality
 group but use the entity's own voice_examples, not NPC-role synthesis.
@@ -3510,7 +3510,7 @@ is a narrative-only adventure — it populates Novel state (factions, lore, NPCs
 and scene history seeds) without creating spatial rooms. `load_adventure` processes
 all present sections regardless of spatial content.
 
-**REQ-229 — Adventure enrichment linkage.** After `load_adventure` processes
+**REQ-229 — Adventure synthesis linkage.** After `load_adventure` processes
 `@npc`, `@encounter`, and `@lore` annotations, the server SHALL scan both
 enrichment tiers (ruleset-native and community) for matches against the newly
 loaded adventure content: voice examples matched to NPC creature types via the
@@ -3520,23 +3520,23 @@ themes. For non-Appendix-K adventures, matches SHALL be derived
 from structural extraction content (REQ-247): voice examples matched to
 extracted NPC names via the ruleset index, lore templates matched to
 extracted location keywords, action patterns matched to extracted encounter
-descriptions. Ruleset-native enrichment items SHALL be automatically
+descriptions. Ruleset-native synthesis items SHALL be automatically
 activated for the GM — items are active in `badge_briefing`, enrichment
 resources, and suggestion surfaces immediately after `load_adventure`
-completes. Community enrichment items SHALL remain inert per REQ-080, with
+completes. Community synthesis items SHALL remain inert per REQ-080, with
 a prompt in the load response offering activation: "Community enrichment
-X items found. Review at `enrichment://status` and activate individually."
+X items found. Review at `synthesis://status` and activate individually."
 Matches are surfaced in the `load_adventure` augmentation section:
 "Enrichment found X voice examples for adventure NPCs, Y lore templates for
-adventure locations. Review at `enrichment://status`." The augmentation
+adventure locations. Review at `synthesis://status`." The augmentation
 section SHALL appear after the world-model population confirmation. When no
-matches are found, the augmentation section is omitted. When enrichment has not
+matches are found, the augmentation section is omitted. When synthesis has not
 been run (community tier empty) and ruleset-native enrichment provides no
 matches, the section is omitted with no error.
 *Acceptance criterion:* Loading an adventure with `@npc(goblin)` and enrichment
 voice_examples containing "goblin" entries produces an augmentation section with
-match count and `enrichment://status` pointer. Loading an adventure with no
-matching enrichment items omits the augmentation section.
+match count and `synthesis://status` pointer. Loading an adventure with no
+matching synthesis items omits the augmentation section.
 _Check:_ T-new-229.
 
 **REQ-170 — Adventure discovery surface.** `spec_health` SHALL report the set of
@@ -4066,7 +4066,7 @@ badge_scope?)` creates or updates a note. `remove_note(key)` removes a note — 
 caller's badge must own the scope, or be Game Master. `list_notes()` returns note keys,
 content previews (first 100 characters), and badge_scope — badge-filtered. Notes are inert
 narrative context — they do not trigger lore matching, countdown hooks, or any
-mechanical effect. Notes persist with the Novel, survive `revert_enrichment`, and are
+mechanical effect. Notes persist with the Novel, survive `revert_synthesis`, and are
 removed by `end_novel`. Notes SHALL be surfaced in `badge_briefing` under the `notes`
 section token — Game Master sees all scopes; Player sees `player` and `shared` scopes
 only. Notes SHALL be retrievable at `notes://<key>` as a badge-filtered resource. Notes
@@ -4094,7 +4094,7 @@ server note keys and a content preview (first 100 characters). Server notes are
 inert narrative context — they do not trigger any mechanical effect within
 Novels. Server notes persist to `.holonovel-state/server-notes.json` with atomic
 writes and backup rotation. Server notes survive `end_novel`,
-`revert_enrichment`, and server rebuilds. Server notes SHALL be surfaced in
+`revert_synthesis`, and server rebuilds. Server notes SHALL be surfaced in
 `spec_health` under a `server_notes` key (count). Server notes SHALL be
 retrievable at `server-notes://<key>` as a resource. Server notes SHALL NOT
 appear in `export_novel`, `clone_novel`, or checkpoint snapshots. WHEN the Player
@@ -4135,7 +4135,7 @@ relationship set via `set_relationship` for each pair, `voice_profile` → apply
 SHALL materialize the adventure scaffold into the active Novel: populate world-model
 tier from the stored `## World` section data (rooms, things, exits per REQ-079),
 create NPCs from extracted NPC data, set factions from extracted faction data, create
-lore entries from extracted location descriptions, and activate enrichment linkages
+lore entries from extracted location descriptions, and activate synthesis linkages
 per REQ-229. The adventure data payload for kind `adventure` SHALL carry: `title`,
 `slug`, `source` (one of `generated`, `loaded:<adventure_slug>`,
 `captured:<novel_slug>`), `premise`, `overview`, `hook`, `locations` (array of
@@ -4174,7 +4174,7 @@ import `shared`-visibility entries of kind `character`; the Game Master badge ma
 import any entry regardless of visibility. Player badge import of any other kind
 SHALL return `[FORBIDDEN]`. Codex entries persist to `.holonovel-state/codex.json`
 with atomic writes and backup rotation. The codex SHALL survive `end_novel`,
-`revert_enrichment`, and server rebuilds. Codex entries SHALL be surfaced in
+`revert_synthesis`, and server rebuilds. Codex entries SHALL be surfaced in
 `spec_health` under a `codex` key (count partitioned by kind). The codex SHALL be
 retrievable at `codex://<id>` as a resource, badge-filtered by visibility. Codex
 entries SHALL NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots.
@@ -4509,7 +4509,7 @@ with a corrected narration. `spec_health` reports `narration_rejection_count: 1`
 `TTRPG_NARRATION_VALIDATION=off`, the same narration passes through.
 _Check:_ T-new-313.
 
-### 5.8 Enrichment, Lore, and Macros
+### 5.8 Synthesis, Lore, and Macros
 
 **REQ-246 — Story journal.** The server provides story journal tools — Game Master only.
 `record_story(type, entry)` records a narrative memory in the Novel's
@@ -4651,74 +4651,73 @@ prioritized by scene relevance. Facts survive Novel persistence and are present 
 `export_novel("json")`.
 _Check:_ T-new-311.
 
-**REQ-080 — Enrichment boundaries.** Enrichment consists of three source
-categories with distinct storage models:
+**REQ-080 — Synthesis boundaries.** Synthesis consists of two source categories
+with a unified storage model, separate from Ruleset Wisdom:
 
-1. **Tier 1 (ruleset-native)** — extracted during Discovery from the ruleset's own
-text per REQ-225, populated at build time. Tier 1 content is **build output**: full
-item definitions (voice_examples, lore templates, action patterns, etc.) live in the
-build's extraction directory, not in the Novel JSON. The Novel stores only activation
-keys under `enrichment_activated: {module: [key, ...]}`, recording which Tier 1 items
-the GM has activated. Items tagged `[ruleset]` with source anchors.
+1. **External (web-researched)** — optionally run post-build per §11.1. Items are
+stored in full within the Novel JSON under a `synthesis` key, organized by output
+module. Items tagged `[supplementary]` with source URLs.
 
-2. **Tier 2 (community)** — web-researched post-build per §11.1, optionally run.
-Tier 2 items are stored in full within the Novel JSON. Items tagged
-`[supplementary]` with source URLs.
+2. **Internal (Novel-state analysis)** — generated at runtime per §11.2. Items are
+stored in the same `synthesis` key as external items. Items tagged `[supplementary]`
+with `novel://` source URIs.
 
-3. **Player-authored (player)** — created at runtime by the Player badge via
-`player_enrich` (REQ-261). Items are stored in full within the Novel JSON under a
-`player_enrichment` key, organized by output module. Items are tagged `[player]`
+3. **Player-authored** — created at runtime by the Player badge via
+`player_synthesize` (REQ-261). Items are stored in full within the Novel JSON under a
+`player_synthesis` key, organized by output module. Items are tagged `[player]`
 and are active immediately upon creation in the player-facing subset of modules:
 `voice_examples`, `action_patterns`, `supplementary_guidance`, `narrative_voices`,
-and `lore_templates`. Default badge scope is `shared` (visible to both badges.; the
+and `lore_templates`. Default badge scope is `shared` (visible to both badges); the
 player may scope items `player` (private). Player items are subject to a per-module
 cap of 15 items. The GM may not modify or remove `[player]` items but may override
 their `badge_scope` to `game_master` to incorporate them into the GM's active
-enrichment set.
+synthesis set.
 
-On Novel startup, Tier 1 activation keys resolve against the build's current tier 1
-extraction. Keys that match stay active with the latest extracted content. Vanished
-keys — those whose anchors no longer resolve — silently drop and are reported in
-`spec_health` as `[enrichment_gap]` entries. New Tier 1 items discovered in the current
-extraction but not present in the activation keys start inactive. When a ruleset
-rebuild occurs, fresh extraction replaces the build output directory; the same key
-resolution logic applies on next Novel startup.
+Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) is build output — always
+present in the Novel, not subject to synthesis reversion. On Novel startup, Ruleset
+Wisdom activation keys resolve against the build's current Wisdom extraction. Keys
+that match stay active with the latest extracted content. Vanished keys — those whose
+anchors no longer resolve — silently drop and are reported in `spec_health` as
+`[wisdom_gap]` entries. New Wisdom items discovered in the current extraction but not
+present in the activation keys start inactive. When a ruleset rebuild occurs, fresh
+extraction replaces the build output directory; the same key resolution logic applies
+on next Novel startup.
 
-Community items never replace ruleset-native items. Player items never replace
-ruleset-native or community items — the three source categories coexist. The GM
-activates items from Tier 1 and Tier 2 via the same tool calls. Player items are
-active immediately upon creation; the player may deactivate their own items via
-`deactivate_enrichment_item` (REQ-260). Enrichment may ADD content to entity
+Synthesis items never replace Ruleset Wisdom items. Player items never replace
+Ruleset Wisdom or synthesis items — the three source categories coexist. The GM
+activates synthesis items via `activate_synthesis_item`. Player items are active
+immediately upon creation; the player may deactivate their own items via
+`deactivate_synthesis_item` (REQ-260). Synthesis may ADD content to entity
 voice_examples (REQ-077), prompt ordering recommendations (REQ-082), lore templates
 (REQ-083), action suggestion patterns (REQ-084, REQ-115), adventure advice (REQ-090,
-§11.1), narrative voice profiles (REQ-226), and supplementary guidance. Enrichment
+§11), narrative voice profiles (REQ-226), and supplementary guidance. Synthesis
 MUST NOT modify mechanical fields (stats, saves, HP, conditions, combat state),
-build-derived tool registrations, badge gating rules, or any ruleset-derived values.
-Enrichment recommendations for prompt ordering, lore templates, and adventure advice
+build-derived tool registrations, badge gating rules, or any Ruleset Wisdom content.
+Synthesis recommendations for prompt ordering, lore templates, and adventure advice
 are inert — they never auto-apply; the GM must explicitly activate them via the
-corresponding tools. Community enrichment items that have never been activated and
-whose `collected_at` timestamp exceeds `TTRPG_ENRICH_STALE_DAYS` are flagged as
-`[stale]` in `spec_health` and excluded from enrichment resource surfaces.
-Ruleset-native items do not carry staleness flags — they are canonical. Stale items
+corresponding tools. External synthesis items that have never been activated and
+whose `collected_at` timestamp exceeds `TTRPG_SYNTHESIS_STALE_DAYS` are flagged as
+`[stale]` in `spec_health` and excluded from synthesis resource surfaces.
+Ruleset Wisdom items do not carry staleness flags — they are canonical. Stale items
 are retained on disk and reactivate if the GM explicitly activates them. Re-running
-community Enrich refreshes timestamps for all community items. Every community enrich
-finding carries source_url, quoted_excerpt, badge_scope, confidence (derived from
+synthesis refreshes timestamps for all external items. Every external synthesis finding
+carries source_url, quoted_excerpt, badge_scope, confidence (derived from
 source authority, not mechanical completeness), output_module, and collected_at (ISO
-8601 timestamp of collection) — all non-empty. Ruleset-native items carry source
-anchor, confidence, output_module, and `[ruleset]` tag. Reverting enrichment
-(REQ-103) removes only community enrichment; ruleset-native and
+8601 timestamp of collection) — all non-empty. Ruleset Wisdom items carry source
+anchor, confidence, output_module, and `[ruleset]` or `[vendor]` tag. Reverting
+synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and
 player items persist.
 
-*Acceptance criterion:* Enrich-sourced voice_examples carry `[supplementary]` tag
-and source URL; ruleset-native items carry `[ruleset]` tag and source anchor;
-player-authored items carry `[player]` tag and appear in both Player and GM
-`badge_briefing` by default; a
-stale community enrich item (past `TTRPG_ENRICH_STALE_DAYS`) is flagged
-`[stale]` in `spec_health` and excluded from surfaces; `revert_enrichment` removes
-community items but preserves ruleset-native and player items; a Novel's Tier 1 activation key that
-no longer resolves against the build's current extraction appears as an
-`[enrichment_gap]` entry in `spec_health`; new Tier 1 items in the current extraction
-with no matching activation key start inactive.
+*Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag
+and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source
+anchor; player-authored items carry `[player]` tag and appear in both Player and GM
+`badge_briefing` by default; a stale synthesis item (past
+`TTRPG_SYNTHESIS_STALE_DAYS`) is flagged `[stale]` in `spec_health` and excluded
+from surfaces; `revert_synthesis` removes synthesis items but preserves Ruleset
+Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves
+against the build's current extraction appears as a `[wisdom_gap]` entry in
+`spec_health`; new Wisdom items in the current extraction with no matching activation
+key start inactive.
 
 _Check:_ T63, T95, T97, T125.
 
@@ -4823,7 +4822,7 @@ badge. The template's badge_scope is advisory — the Game Master may activate
 a template with any badge_scope value via `set_lore_entry`, regardless of
 the template's source scope. Suggested templates carry the same
 provenance fields (key, content preview, triggers, confidence,
-source_url, badge_scope) as lore templates in the enrichment manifest.
+source_url, badge_scope) as lore templates in the synthesis manifest.
 (REQ-155) Lore entries and groups persist with the Novel. Player badge mutating
 and grouping attempts return `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `set_lore_entry("tavern_rumor", "The innkeeper knows
@@ -4921,7 +4920,7 @@ countdowns. The tool is pure-resolution (idempotent, no state mutation). Results
 badge-filtered: GM-only tools are excluded from Player results. The tool does not
 fabricate actions — every suggestion maps to a registered tool or documented ruleset
 procedure. Enrich-derived action patterns (§11.1) may supplement the matching index.
-They are **inert** — visible at `enrichment://action_patterns` for review but excluded
+They are **inert** — visible at `synthesis://action_patterns` for review but excluded
 from `suggest_actions` results until the GM activates them via the Novel-scoped action
 pattern toggle (REQ-115). Unactivated enrich patterns remain reference-only and do not
 influence tool output. `suggest_actions` is the canonical mechanism for
@@ -4929,7 +4928,7 @@ intent-to-tool mapping at runtime; the server provides no dedicated `use_tool` o
 `lookup_rule` prompt for this function — directing callers to this tool instead
 eliminates the redundancy of maintaining two surfaces for the same capability.
 *Acceptance criterion:* `suggest_actions("persuade the guard")` returns matching
-tools; `suggest_actions("xyzzy")` returns an empty list; enrichment patterns are
+tools; `suggest_actions("xyzzy")` returns an empty list; synthesis patterns are
 excluded from results until activated via `toggle_action_patterns`.
 _Check:_ T68, T96, T120.
 
@@ -4979,20 +4978,20 @@ _Check:_ T-new-315.
 the Novel-scoped action pattern activation state between enabled and
 disabled. When enabled, enrich-derived action patterns (§11.1) supplement
 the `suggest_actions` (REQ-084) matching index. When disabled, patterns
-remain visible at `enrichment://action_patterns` for review but are
+remain visible at `synthesis://action_patterns` for review but are
 excluded from `suggest_actions` results. The toggle is pure-resolution
 (idempotent, no state beyond the boolean). Player badge returns
 `[ERROR] [FORBIDDEN]`.
 *Acceptance criterion:* `toggle_action_patterns()` flips the Novel-scoped boolean;
 when enabled, `suggest_actions` includes enrichment patterns; when disabled,
-patterns remain at `enrichment://action_patterns` only.
+patterns remain at `synthesis://action_patterns` only.
 _Check:_ T119.
 
 **REQ-114 — Suggestion coverage.** The builder tests action suggestion coverage
 against a curated intent set spanning every ruleset-defined action category
 identified during discovery. Each curated intent entry records: the natural-language
 intent text, the expected action categories per REQ-015 that the intent should map
-to, and the ruleset section or enrichment source that defines the category. The full
+to, and the ruleset section or synthesis source that defines the category. The full
 curated set and its derivation are recorded in RULESET_MODEL.md. Coverage below
 80% — fewer than 80% of curated intents for which `suggest_actions` returns at
 least one tool matching the expected action categories — is recorded as a
@@ -5004,294 +5003,232 @@ discovered action category; coverage below 80% records the uncovered categories
 and their intents in DECISIONS.md (5) with named uncovered categories.
 _Check:_ T117.
 
-**REQ-103 — Enrichment reversion.** The server provides a `revert_enrichment`
-tool that removes all community enrichment state (tier 2, `[supplementary]`-tagged
-items) from the Novel per REQ-227. Tier 1 enrichment (`[ruleset]`-tagged and
-`[vendor]`-tagged items) persists — `revert_enrichment` SHALL NOT remove or alter
-Tier 1 enrichment items.
-tool — Game Master only. Removes all enrichment state (seven output modules from
-§11.1), restoring the pre-enrich server state. Does not mutate mechanical fields,
-build-derived tool registrations, badge gating rules, or any Tier 1 enrichment
-content (tagged `[ruleset]` or `[vendor]`). Does not modify DECISIONS.md — the enrichment manifest and verification
-results remain for audit.
-GM-configured Novel state that references enrichment content —
-briefing_order set via `set_briefing_order` (REQ-082) and the
-action pattern activation toggle (REQ-115) — is Novel state, not
-enrichment state. It survives reversion unchanged: the GM's
-configuration choices persist even when the enrichment data they
-reference is absent. After re-enrichment, these choices apply to
-the new enrichment data without reconfiguration.
-Build-rebuild enrichment behavior is defined in §11.1
-(Rebuild scenarios). Player badge returns `[ERROR] [FORBIDDEN]`. Pure-state
-tool: idempotent, fully reversible — re-running Enrich after reversion repopulates
-enrichment state.
-*Acceptance criterion:* After `revert_enrichment()`, all
-community enrichment surfaces (enrichment resource URIs with `[supplementary]`
-items) return empty or absent; ruleset-native enrichment items (`[ruleset]`-tagged)
-persist unchanged; `lore://templates` returns only Novel-scoped lore entries, never
-community enrichment-sourced templates; `spec_health` reports
-`community_enrichment_active: false` with zero counts for community modules.
-Re-running Enrich repopulates community modules; a second revert call changes
-nothing (idempotent).
+**REQ-103 — Synthesis reversion.** The server provides a `revert_synthesis`
+tool — Game Master only. Removes all synthesis items (external web-sourced and
+internal Novel-state-synthesized, `[supplementary]`-tagged) from the Novel.
+Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) persists —
+`revert_synthesis` SHALL NOT remove or alter Ruleset Wisdom content. Player
+items (`[player]`-tagged) persist. Does not mutate mechanical fields, build-derived
+tool registrations, badge gating rules, or DECISIONS.md — the synthesis manifest and
+verification results remain for audit. GM-configured Novel state that references
+synthesis content — briefing_order set via `set_briefing_order` (REQ-082) and the
+action pattern activation toggle (REQ-115) — is Novel state, not synthesis state. It
+survives reversion unchanged: the GM's configuration choices persist even when the
+synthesis data they reference is absent. After re-synthesis, these choices apply to
+the new synthesis data without reconfiguration. Player badge returns
+`[ERROR] [FORBIDDEN]`. Pure-state tool: idempotent, fully reversible — re-running
+synthesis after reversion repopulates synthesis items.
+
+*Acceptance criterion:* After `revert_synthesis()`, all synthesis surfaces
+(`synthesis://` resource URIs with `[supplementary]` items) return empty or absent;
+Ruleset Wisdom items (`[ruleset]`, `[vendor]`-tagged) persist unchanged;
+`lore://templates` returns only Novel-scoped lore entries, never synthesis-sourced
+templates; `spec_health` reports `synthesis_active: false` with zero counts for
+synthesis modules. Re-running synthesis repopulates modules; a second revert call
+changes nothing (idempotent).
+
 _Check:_ T94, T125.
 
-**REQ-260 — Granular enrichment activation.** The Game Master may manage
-enrichment items individually. `list_enrichment_items(module?, tier?)` returns
-all available enrichment items with key, preview, source, source tag, and activated
-status — Tier 1 resolved from current build output, Tier 2 from Novel JSON.
-`activate_enrichment_item(module, key)` activates one item: Tier 1 adds the key to
-the Novel's `enrichment_activated` keys; Tier 2 marks the item active in Novel
-JSON. `deactivate_enrichment_item(module, key)` deactivates without removal —
-Tier 1 removes the key from the activation set; Tier 2 marks the item inactive in
-Novel JSON. `remove_enrichment_item(module, key)` permanently deletes a Tier 2 item
-from the Novel JSON. Calling `remove_enrichment_item` on a Tier 1 item SHALL return
-`[ERROR] [RULE_VIOLATION]` directing the caller to `deactivate_enrichment_item` —
-Tier 1 items cannot be removed, only deactivated. The above activation, deactivation,
-and removal tools are Game Master only. Activation and deactivation state persists
-with the Novel. Existing `toggle_enrichment_module` and `revert_enrichment` tools
-remain unchanged as convenience shortcuts.
+**REQ-260 — Granular synthesis activation.** The Game Master may manage
+synthesis items individually. `list_synthesis_items(module?)` returns
+all available items with key, preview, source, source tag, and activated
+status — Ruleset Wisdom resolved from current build output, synthesis from Novel JSON.
+`activate_synthesis_item(module, key)` activates one item: Ruleset Wisdom adds the
+key to the Novel's `synthesis_activated` keys; synthesis items marked active in Novel
+JSON. `deactivate_synthesis_item(module, key)` deactivates without removal.
+`remove_synthesis_item(module, key)` permanently deletes a synthesis item from the
+Novel JSON. Calling `remove_synthesis_item` on a Ruleset Wisdom item SHALL return
+`[ERROR] [RULE_VIOLATION]` directing the caller to `deactivate_synthesis_item` —
+Ruleset Wisdom items cannot be removed, only deactivated. The above activation,
+deactivation, and removal tools are Game Master only. Activation and deactivation
+state persists with the Novel. Existing `toggle_synthesis_module` and
+`revert_synthesis` tools remain unchanged as convenience shortcuts.
 
-The Player badge may call `activate_enrichment_item` and `deactivate_enrichment_item`
+The Player badge may call `activate_synthesis_item` and `deactivate_synthesis_item`
 on items they authored (tagged `[player]`) — items stored under the
-`player_enrichment` key in Novel JSON. Player-created items are active immediately
-upon creation; `deactivate_enrichment_item` suppresses a player item from the player's
-`badge_briefing` and enrichment surfaces without deleting it. The Player may NOT call
-`remove_enrichment_item` — they use `player_remove_enrichment` (REQ-261) for their
+`player_synthesis` key in Novel JSON. Player-created items are active immediately
+upon creation; `deactivate_synthesis_item` suppresses a player item from the player's
+`badge_briefing` and synthesis surfaces without deleting it. The Player may NOT call
+`remove_synthesis_item` — they use `player_remove_synthesis` (REQ-261) for their
 own items. Player badge attempts to activate, deactivate, or remove any item NOT tagged
 `[player]` SHALL return `[ERROR] [FORBIDDEN]`.
 
 *Acceptance criterion:*
-`list_enrichment_items(tier=1)` shows all Tier 1 items with activation status
-and source tag;
-`activate_enrichment_item("voice_examples", "goblin-snarl")` activates the item
-and it appears in enrichment surfaces;
-`deactivate_enrichment_item("voice_examples", "goblin-snarl")` removes it from
-surfaces; `remove_enrichment_item("voice_examples", "goblin-snarl")` on a Tier 1 item
-returns `[RULE_VIOLATION]`; on a Tier 2 item it permanently deletes it;
-Player calls `deactivate_enrichment_item` on a `[player]` item — item hidden from
-player briefing; Player calls `activate_enrichment_item` on a `[ruleset]` item —
+`list_synthesis_items()` shows all items with activation status and source tag;
+`activate_synthesis_item("voice_examples", "goblin-snarl")` activates the item
+and it appears in synthesis surfaces;
+`deactivate_synthesis_item("voice_examples", "goblin-snarl")` removes it from
+surfaces; `remove_synthesis_item("voice_examples", "goblin-snarl")` on a Ruleset
+Wisdom item returns `[RULE_VIOLATION]`; on a synthesis item it permanently deletes
+it; Player calls `deactivate_synthesis_item` on a `[player]` item — item hidden from
+player briefing; Player calls `activate_synthesis_item` on a `[ruleset]` item —
 returns `[FORBIDDEN]`.
 
 _Check:_ T-new-260.
 
-**REQ-261 — Player enrichment.** The player may create enrichment items in a
-player-facing subset of enrichment modules: `voice_examples`, `action_patterns`,
+**REQ-261 — Player synthesis.** The player may create synthesis items in a
+player-facing subset of output modules: `voice_examples`, `action_patterns`,
 `supplementary_guidance`, `narrative_voices`, and `lore_templates` — modules where
 player-authored content enriches the shared story experience. Three tools provide
-player enrichment:
+player synthesis:
 
-`player_enrich(module, key, content, triggers?, badge_scope?)` creates a `[player]`-tagged
+`player_synthesize(module, key, content, triggers?, badge_scope?)` creates a `[player]`-tagged
 enrichment item in the specified module. `key` is a unique snake_case slug within
 the module. `content` is a Markdown string. `triggers` is an optional keyword array
 for lore_templates (ignored for other modules). `badge_scope` defaults to `shared`
 — the item is visible to both Player and GM badges. The player may set `badge_scope` to
-`player` to keep the item private. `player_remove_enrichment(module, key)` removes a
+`player` to keep the item private. `player_remove_synthesis(module, key)` removes a
 `[player]`-tagged item. Returns `[RULE_VIOLATION]` if the item is not player-authored.
-`player_list_enrichment(module?)` lists all `[player]`-tagged items, optionally filtered
+`player_list_synthesis(module?)` lists all `[player]`-tagged items, optionally filtered
 by module, with key, preview, scope, and activated status.
 
-Player-created items are stored in the Novel JSON under a `player_enrichment` key,
+Player-created items are stored in the Novel JSON under a `player_synthesis` key,
 organized by module. Items survive restarts and follow the Novel's persistence
 contract (REQ-092). Player items are active immediately upon creation — the player
-does not need to activate them separately. The player may `deactivate_enrichment_item`
+does not need to activate them separately. The player may `deactivate_synthesis_item`
 on their own items to suppress them from their briefing without deletion. Player items
 are subject to the same per-module budget caps as community enrichment (§11.1), with a
-per-module player cap of 15 items each. The GM badge sees player enrichment items in
-`list_enrichment_items` and in `badge_briefing` filtered by the item's `badge_scope`.
-The GM may not modify or remove player enrichment items — attempts return
+per-module player cap of 15 items each. The GM badge sees player synthesis items in
+`list_synthesis_items` and in `badge_briefing` filtered by the item's `badge_scope`.
+The GM may not modify or remove player synthesis items — attempts return
 `[FORBIDDEN]` — but may override an item's `badge_scope` from `shared` to `game_master`
-to incorporate it into the GM's active enrichment set. `revert_enrichment` (REQ-103)
-and `revert_novel_enrichment` (REQ-265) SHALL NOT remove `[player]` items.
+to incorporate it into the GM's active synthesis set. `revert_synthesis` (REQ-103)
+and `revert_synthesis` (REQ-265) SHALL NOT remove `[player]` items.
 Player badge only.
 
 *Acceptance criterion:*
-`player_enrich("action_patterns", "feint-suggestion", "When I feint, suggest
+`player_synthesize("action_patterns", "feint-suggestion", "When I feint, suggest
 deception check")` creates an item that appears in the player's `suggest_actions`
 output and in the GM's `badge_briefing` (shared scope);
-`player_enrich("voice_examples", "growl", "Get away from my hoard!", [],
+`player_synthesize("voice_examples", "growl", "Get away from my hoard!", [],
 "player")` creates a private item visible only to the Player badge;
-`player_remove_enrichment("action_patterns", "feint-suggestion")` removes it;
-`player_remove_enrichment` on a Tier 1 `[ruleset]` item returns `[RULE_VIOLATION]`;
-`player_list_enrichment()` returns all player-authored items with module, key,
+`player_remove_synthesis("action_patterns", "feint-suggestion")` removes it;
+`player_remove_synthesis` on a Tier 1 `[ruleset]` item returns `[RULE_VIOLATION]`;
+`player_list_synthesis()` returns all player-authored items with module, key,
 preview, and scope; GM badge returns `[FORBIDDEN]` on player enrichment tools;
 player items survive server restart.
 
 _Check:_ T-new-261.
 
-**REQ-262 — Novel enrichment tier.** The server SHALL support a third enrichment tier, tagged
-`[novel]`, synthesized from the active Novel's own state. Items carry source
-citations of the form `novel://<slug>/<source_type>/<identifier>` — e.g.,
-`novel://my-campaign/lore/tavern-rumor`. Items are stored in full within the
-Novel JSON under a `novel_enrichment` key, alongside Tier 2 community items per
-REQ-092. Items persist with the Novel across server restarts. Items are
-Novel-scoped — they do not transfer between Novels. Items are removed by
-`revert_novel_enrichment` (REQ-265), not by `revert_enrichment` (REQ-103).
-Items are inert — they do not auto-apply to any surface. The GM activates
-individual `[novel]` items via the same granular tools as Tier 1 and Tier 2
-(REQ-260). The Player may deactivate individual `[novel]` items via
-`deactivate_enrichment_item` when the GM has overridden their scope to
-`shared` or `player` (REQ-261).
+**REQ-262 — Synthesis tool.** The server provides a `synthesize(force?)` tool —
+Game Master only. It analyzes the Novel's state across seven source categories and
+produces synthesis items for each output module that has synthesizable content:
+NPCs (personality, disposition, goals, voice examples), lore entries, the story
+journal, scene history, factions, secrets, relationships, countdowns, and
+world-model rooms and things — per §11.2. Internal synthesis items are stored in
+the Novel JSON under the `synthesis` key alongside external items. Items carry
+`[supplementary]` tag with `novel://` source URIs.
 
-*Acceptance criterion:* `list_enrichment_items(tier=3)` returns items tagged
-`[novel]` with Novel-scoped source citations. `revert_enrichment` does not
-remove `[novel]` items — they persist unchanged. `revert_novel_enrichment`
-removes all `[novel]` items. After `end_novel`, `[novel]` items are discarded
-with the Novel JSON.
+Modules that produce no synthesizable content produce empty sections with
+`[empty]` markers. The tool records a `synthesis_fingerprint` — a hash of the
+Novel state at synthesis time — to detect staleness without re-synthesis. Calling
+the tool when no Novel state has changed since the last synthesis returns
+`[OK] Synthesis up to date — <ISO 8601 timestamp>`. The `force` parameter bypasses
+the staleness check and re-synthesizes all modules. Items produced by synthesis are
+inert (inactive by default) — the GM must activate them via REQ-260. Player badge
+returns `[FORBIDDEN]`.
+
+*Acceptance criterion:* Calling `synthesize()` with NPCs possessing personality
+fields produces `[supplementary]` voice examples with
+`source: novel://<slug>/npc/<npc_id>`. Calling again with no state changes returns
+the up-to-date message with timestamp. Calling with `force=true` re-synthesizes
+regardless. Player badge returns `[FORBIDDEN]`.
 
 _Check:_ T-new-262.
 
-**REQ-263 — Novel enrichment synthesis tool.** The server provides a
-`synthesize_novel_enrichment(force?)` tool — Game Master only. It analyzes the
-Novel's state across six source categories and produces enrichment items for
-each output module that has synthesizable content:
+**REQ-263 — Synthesis auto-trigger.** When `TTRPG_SYNTHESIS_AUTO_TRIGGER` is set
+to one of `off` (default), `on_session_start`, or `on_scene_change`, the server
+SHALL trigger `synthesize` automatically per the selected threshold.
+`on_session_start`: triggers when `TTRPG_SESSION_ID` changes (a
+`[session_boundary]` marker is inserted per REQ-237). `on_scene_change`: triggers
+after every `set_scene_state` call. Auto-triggered synthesis uses the staleness
+fingerprint — if no relevant state changed since the last synthesis, synthesis is
+skipped. Auto-triggered items are inert (inactive by default) — the GM must
+activate them. The auto-trigger threshold is visible in `spec_health` as
+`synthesis_auto_trigger: <threshold>`. When a ruleset-free Novel has no entities,
+NPCs, or story journal entries, synthesis produces empty modules with
+`[empty — no state]` markers.
 
-1. **NPCs** (personality, disposition, goals, voice examples) → voice example
-   candidates, NPC spotlight suggestions.
-2. **Lore entries** → cross-referenced connections between related entries,
-   suggested new lore templates.
-3. **Story journal** → narrative tone profile, unresolved thread detection,
-   pattern synthesis across entries.
-4. **Scene history + current scene** → prep suggestions, unresolved hooks,
-   scene pacing notes.
-5. **Factions + secrets + relationships** → faction conflict suggestions,
-   secret-revelation timing, NPC relationship gap recommendations.
-6. **Countdowns** → pacing warnings, suggested new countdowns, tension
-   scaling recommendations.
-
-Modules that produce no synthesizable content produce empty sections with
-`[novel] [empty]` markers. The tool records a `novel_enrichment_fingerprint` —
-a hash of the Novel state at synthesis time — to detect staleness without
-re-synthesis. Calling the tool when no Novel state has changed since the last
-synthesis returns `[OK] Novel enrichment up to date — <ISO 8601 timestamp>`.
-The `force` parameter bypasses the staleness check and re-synthesizes all
-modules. Items produced by synthesis are inert (inactive by default) — the GM
-must activate them via REQ-260. Player badge returns `[FORBIDDEN]`.
-
-*Acceptance criterion:* Calling `synthesize_novel_enrichment()` with NPCs
-possessing personality fields produces `[novel]` voice examples with
-`source: novel://<slug>/npc/<npc_id>`. Calling again with no state changes
-returns the up-to-date message with timestamp. Calling with `force=true`
-re-synthesizes regardless. Player badge returns `[FORBIDDEN]`.
+*Acceptance criterion:* With `TTRPG_SYNTHESIS_AUTO_TRIGGER=on_session_start`, a
+session boundary marker triggers synthesis. With `off`, synthesis requires explicit
+`synthesize` invocation. Auto-synthesized items appear in `list_synthesis_items()`
+with `activated: false`. A ruleset-free Novel with no populated state produces
+empty module markers.
 
 _Check:_ T-new-263.
 
-**REQ-264 — Novel enrichment auto-trigger.** When
-`TTRPG_NOVEL_ENRICH_AUTO_TRIGGER` is set to one of `off` (default),
-`on_session_start`, or `on_scene_change`, the server SHALL trigger
-`synthesize_novel_enrichment` automatically per the selected threshold.
-`on_session_start`: triggers when `TTRPG_SESSION_ID` changes (a
-`[session_boundary]` marker is inserted per REQ-237). `on_scene_change`:
-triggers after every `set_scene_state` call. Auto-triggered synthesis uses the
-staleness fingerprint — if no relevant state changed since the last synthesis,
-synthesis is skipped. Auto-triggered items are inert (inactive by default) —
-the GM must activate them. The auto-trigger threshold is visible in
-`spec_health` as `novel_enrich_auto_trigger: <threshold>`. When a
-ruleset-free Novel has no entities, NPCs, or story journal entries, synthesis
-produces empty modules with `[novel] [empty — no state]` markers.
+**REQ-264 — Synthesis confidence model.** All internal synthesis items carry a
+`confidence` field reflecting their synthesis source, not external authority.
+Items derived from explicit Novel fields — NPC personality text, voice examples,
+named relationships, faction descriptions, secret content — carry `MEDIUM`. Items
+derived from inference — pattern detection across story journal entries,
+cross-referenced lore connections, scene-theme extraction, countdown tension
+analysis — carry `LOW`. Items carry `[supplementary]` tag alongside the
+confidence tag. The tag pair (`[supplementary] [MEDIUM]` or `[supplementary]
+[LOW]`) signals both provenance and reliability. Internal synthesis items do not
+carry the `[stale]` flag — they are regenerated on demand, not collected at a
+fixed time. When a source field changes (e.g., NPC personality is edited), the
+corresponding item's `collected_at` timestamp is updated to reflect the synthesis
+time. Confidence is re-evaluated on each synthesis pass — an item that was
+`MEDIUM` may become `LOW` if its source was replaced with inferred content.
 
-*Acceptance criterion:* With `TTRPG_NOVEL_ENRICH_AUTO_TRIGGER=on_session_start`,
-a session boundary marker triggers synthesis. With `off`, synthesis requires
-explicit `synthesize_novel_enrichment` invocation. Auto-synthesized items
-appear in `list_enrichment_items(tier=3)` with `activated: false`. A ruleset-free
-Novel with no populated state produces empty module markers.
+*Acceptance criterion:* A voice example synthesized from an NPC's explicit
+personality field carries `[supplementary] [MEDIUM]`. A "recurring theme" insight
+derived from cross-referencing three story journal entries carries
+`[supplementary] [LOW]`. After editing an NPC's personality, re-synthesis updates
+the `collected_at` timestamp for that NPC's items.
 
 _Check:_ T-new-264.
 
-**REQ-265 — Novel enrichment removal.** The server provides a
-`revert_novel_enrichment` tool — Game Master only. Removes all
-`[novel]`-tagged enrichment items from the Novel JSON. Does not affect
-Tier 1 (`[ruleset]`) or Tier 2 (`[supplementary]`) items. Does not
-affect the staleness fingerprint — the GM may re-synthesize immediately
-after removal. Pure-state, idempotent — calling on a Novel with no
-`[novel]` items returns `[OK] No novel enrichment to revert`. Player
-hat returns `[FORBIDDEN]`. `revert_enrichment` (REQ-103) SHALL NOT
-remove `[novel]` items — the three tiers have independent removal
-boundaries.
+**REQ-265 — Synthesis in badge_briefing.** Synthesis items appear in
+`badge_briefing` under their respective sections, tagged `[supplementary]` with
+confidence, alongside Ruleset Wisdom and `[player]` items. Badge filtering follows
+the same rules as REQ-159: items assigned `badge_scope: game_master` are hidden
+from the Player badge. Internal synthesis item badge scope defaults to
+`game_master` — they are GM prep aids by nature. The GM may override the scope to
+`shared` or `player`. The Player may deactivate individual synthesis items via
+`deactivate_synthesis_item` when the GM has overridden their scope to `shared` or
+`player` (REQ-260). When no synthesis items are active, `badge_briefing` SHALL NOT
+include an empty synthesis section — unlike Ruleset Wisdom sections which require
+explicit empty-state markers per REQ-109. The absence of synthesis content is not a
+deficiency to signal.
 
-*Acceptance criterion:* After `revert_novel_enrichment()`,
-`list_enrichment_items(tier=3)` returns 0 items. Tier 1 and Tier 2
-items are unchanged. `revert_enrichment` does not remove `[novel]`
-items. Calling `revert_novel_enrichment` on an empty `[novel]` tier
-returns the idempotent OK message.
+*Acceptance criterion:* Synthesis items appear in `badge_briefing` under their
+respective sections tagged `[supplementary]` with confidence, alongside
+`[ruleset]`, `[vendor]`, and `[player]` items. Player badge sees only items whose
+scope is `shared` or `player`. Deactivated items via REQ-260 are hidden from the
+Player badge. After `revert_synthesis`, synthesis items are absent from
+`badge_briefing` with no empty-section marker.
 
 _Check:_ T-new-265.
 
-**REQ-266 — Novel enrichment confidence model.** All `[novel]` items carry a
-`confidence` field reflecting their synthesis source, not external authority.
-Items derived from explicit Novel fields — NPC personality text, voice
-examples, named relationships, faction descriptions, secret content — carry
-`MEDIUM`. Items derived from inference — pattern detection across story
-journal entries, cross-referenced lore connections, scene-theme extraction,
-countdown tension analysis — carry `LOW`. Items carry a `[novel]` tag in
-addition to the confidence tag. The tag pair (`[novel] [MEDIUM]` or `[novel]
-[LOW]`) signals both provenance and reliability. `[novel]` items do not carry
-the `[stale]` flag — they are regenerated on demand, not collected at a fixed
-time. When a source field changes (e.g., NPC personality is edited), the
-corresponding `[novel]` item's `collected_at` timestamp is updated to reflect
-the synthesis time. Confidence is re-evaluated on each synthesis pass — an
-item that was `MEDIUM` may become `LOW` if its source was replaced with
-inferred content.
+**REQ-266 — Synthesis in dashboard.** `synthesis://status` (REQ-230) SHALL
+include a synthesis column in its per-module table, showing `[supplementary]` item
+counts alongside Ruleset Wisdom counts. `spec_health` SHALL surface
+`synthesis_status` with per-module activated/total counts and the last synthesis
+timestamp (`synthesis_last_run` as ISO 8601). `synthesis://status` SHALL include a
+`synthesis` section with the auto-trigger threshold, last synthesis timestamp, and
+a per-module breakdown of item counts. When no synthesis items exist,
+`synthesis://status` SHALL include the synthesis column with zero counts — the
+column is always present.
 
-*Acceptance criterion:* A voice example synthesized from an NPC's explicit
-personality field carries `[novel] [MEDIUM]`. A "recurring theme" insight
-derived from cross-referencing three story journal entries carries `[novel]
-[LOW]`. After editing an NPC's personality, re-synthesis updates the
-`collected_at` timestamp for that NPC's items.
+*Acceptance criterion:* `synthesis://status` displays synthesis item counts per
+module alongside Ruleset Wisdom counts. `spec_health` includes
+`synthesis_last_run` timestamp and `synthesis_status` with per-module counts.
+After `synthesize()`, the synthesis column shows non-zero counts for populated
+modules.
 
 _Check:_ T-new-266.
 
-**REQ-267 — Novel enrichment in badge_briefing.** `[novel]` items appear in
-`badge_briefing` under their respective enrichment sections, tagged `[novel]`
-with confidence, alongside Tier 1, Tier 2, and `[player]` items. Badge filtering follows
-the same rules as Tier 2 items (REQ-159): items assigned `badge_scope:
-game_master` are hidden from the Player badge. `[novel]` item badge scope
-defaults to `game_master` — they are GM prep aids by nature. The GM may
-override the scope to `shared` or `player`. The Player may deactivate individual
-`[novel]` items via `deactivate_enrichment_item` when the GM has overridden their
-scope to `shared` or `player` (REQ-260). When no `[novel]`
-items are active, `badge_briefing` SHALL NOT include an empty `[novel]` section —
-unlike Tier 1 and Tier 2 enrichment sections which require explicit
-empty-state markers per REQ-109. The absence of `[novel]` content is not a
-deficiency to signal.
-
-*Acceptance criterion:* `[novel]` items appear in `badge_briefing` under their
-respective enrichment sections tagged with `[novel]` and confidence, alongside
-`[ruleset]`, `[supplementary]`, and `[player]` items. Player
-badge sees only items whose scope is `shared` or `player`. Deactivated items via
-REQ-260 are hidden from the Player badge. After `revert_novel_enrichment`,
-`[novel]` items are absent from `badge_briefing` with no empty-section marker.
-
-_Check:_ T-new-267.
-
-**REQ-268 — Novel enrichment in enrichment dashboard.** `enrichment://status`
-(REQ-230) SHALL include a `novel` column in its per-module table, showing
-`[novel]` item counts alongside Tier 1 and Tier 2 counts — three columns:
-`ruleset-native`, `community`, `novel`. `spec_health` SHALL surface
-`novel_enrichment_status` with per-module activated/total counts and the
-last synthesis timestamp (`novel_enrichment_last_synthesis` as ISO 8601).
-`enrichment://status` SHALL include a `novel_enrichment` section with the
-auto-trigger threshold, last synthesis timestamp, and a per-module breakdown
-of `[novel]` item counts. When no `[novel]` items exist,
-`enrichment://status` SHALL include the `novel` column with zero counts — the
-column is always present.
-
-*Acceptance criterion:* `enrichment://status` displays three columns per
-module: ruleset-native, community, novel. `spec_health` includes
-`novel_enrichment_last_synthesis` timestamp and `novel_enrichment_status`
-with per-module counts. After `synthesize_novel_enrichment()`, the `novel`
-column shows non-zero counts for populated modules.
-
-_Check:_ T-new-268.
-
-**REQ-130 — Enrichment rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
-enrichment state SHALL preserve every enrichment item that the Game
+**REQ-130 — Synthesis rebuild contract.** Re-running the Enrich workflow against a Novel that already contains
+synthesis state SHALL preserve every enrichment item that the Game
 Master has incorporated into active Novel state through any Novel-scoped
 tool call. An enrichment item is "activated" when a Novel-scoped GM tool
 call causes it to appear in at least one tool-observable surface (tool
 output, resource, or prompt) for the current Novel. Items never
 incorporated into active state — those that appear only in enrichment
 resource surfaces — are "inactive." The builder may replace inactive
-enrichment items with fresh enrich output. Activated items SHALL NOT be
+synthesis items with fresh enrich output. Activated items SHALL NOT be
 removed, downgraded, or altered in their activated state by
 re-enrichment. The enriched state's foundational principle — additive,
 inert, never modifying mechanical fields — extends to replacement:
@@ -5299,7 +5236,7 @@ replacing inactive items is not modifying; removing or downgrading
 activated items is modifying and is forbidden. The builder SHALL record
 whether replacement preserved activated items or performed a full
 replacement in DECISIONS.md (5). Full replacement — removing all
-enrichment including activated items — requires `revert_enrichment`
+enrichment including activated items — requires `revert_synthesis`
 (REQ-103) before re-running Enrich.
 *Acceptance criterion:* Create lore entry from enrich template, activate
 it. Re-run enrich — assert the activated entry persists unchanged. Revert
@@ -5313,7 +5250,7 @@ discovered during the guidance pass). Each profile records: `name` (e.g., "Sword
 Sorcery — Conan"), `source` (ruleset anchor), `media_title`, `media_type` (film,
 novel, game, or other), and `description` (narrative techniques and stylistic
 markers from the source material). Community enrichment (§11.1) may add
-supplementary profiles. Stored at `enrichment://narrative_voices`. Profiles are
+supplementary profiles. Stored at `synthesis://narrative_voices`. Profiles are
 inert — the GM applies them via narrative directive (REQ-081) by naming the
 profile. When the ruleset provides no inspirational media section, the builder SHALL
 attempt to populate the module from vendor content — IF Craft Corpus genre
@@ -5325,28 +5262,29 @@ is also absent.
 ≥2 narrative voice profiles with source anchors and descriptions.
 _Check:_ T-new-226.
 
-**REQ-227 — Two-tier enrichment model.** Enrichment SHALL consist of exactly two
-tiers: Tier 1 (ruleset-native + vendor) extracted at build time from two sources —
-the ruleset's own text per REQ-225 and the vendor content bundles in
-`holonovel/narrative_world_model/` per §11.2 — populated at build time, never
-removed by `revert_enrichment`. Tier 1 items carry `[ruleset]` or `[vendor]` tags
-with source anchors. Tier 2 (community) optionally collected via web research per
-§11.1, defaults to off at intake, tagged `[supplementary]`, removed by
-`revert_enrichment`. Both tiers coexist in all enrichment resource URIs and
-`badge_briefing` enrichment sections. The GM activates items from either tier via the
-same tool calls. Community items SHALL NOT replace or override ruleset-native or
-vendor items with matching keys — conflicts are recorded with `conflicts_with`
-reference to the Tier 1 item. Tier 1 enrichment is part of the build output;
-community enrichment is additive post-build and off by default.
-*Acceptance criterion:* A build with ruleset content SHALL populate Tier 1
-enrichment (ruleset-native + vendor) in the Novel at creation time; community
-enrichment, when run, adds `[supplementary]` items alongside `[ruleset]` and
-`[vendor]` items; `revert_enrichment` removes only `[supplementary]` items.
+**REQ-227 — Synthesis model.** Synthesis SHALL be a single workflow with two
+sources: external (web-researched per §11.1, defaults to off at intake, tagged
+`[supplementary]`, removed by `revert_synthesis`) and internal (Novel-state
+analysis per §11.2, tagged `[supplementary]` with `novel://` source URIs,
+removed by `revert_synthesis`). Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged
+items) is build output from two sources — the ruleset's own text per REQ-225 and
+the vendor content bundles in `holonovel/narrative_world_model/` per §11.4 —
+populated at build time, never removed by `revert_synthesis`. Synthesis items and
+Ruleset Wisdom coexist in all resource URIs and `badge_briefing` sections. The GM
+activates synthesis items via the same tool calls as Wisdom items. Synthesis items
+SHALL NOT replace or override Ruleset Wisdom items with matching keys — conflicts
+are recorded with `conflicts_with` reference to the Wisdom item.
+
+*Acceptance criterion:* A build with ruleset content SHALL populate Ruleset Wisdom
+in the Novel at creation time; synthesis, when run, adds `[supplementary]` items
+alongside `[ruleset]` and `[vendor]` items; `revert_synthesis` removes all
+`[supplementary]` items.
+
 _Check:_ T-new-227.
 
-**REQ-228 — Enrichment consistency during spec-driven updates.** During a
+**REQ-228 — Synthesis consistency during spec-driven updates.** During a
 spec-driven update per REQ-098, after the gap audit identifies changed surfaces,
-the builder SHALL scan all enrichment items (both tiers) for references to surfaces
+the builder SHALL scan all synthesis items (both tiers) for references to surfaces
 identified as changed or removed in the gap audit. Orphan references SHALL be
 classified: `auto-repairable` (tool was renamed — update the enrichment reference
 to the new name), `GM-review` (the referenced surface was removed — the GM should
@@ -5363,8 +5301,8 @@ item referencing a removed ruleset section is flagged `GM-review` with the gap
 audit row cited.
 _Check:_ T-new-228.
 
-**REQ-230 — Enrichment status dashboard.** The server SHALL provide an
-`enrichment://status` resource showing per-module enrichment counts for the active
+**REQ-230 — Synthesis status dashboard.** The server SHALL provide an
+`synthesis://status` resource showing per-module enrichment counts for the active
 Novel: total items, activated items (GM-activated via Novel-scoped tool calls),
 inactive items, stale community items, and pending-suggestion count (enrichment
 items matching current adventure/scene content but not yet activated). Counts are
@@ -5377,30 +5315,30 @@ at read time. The resource respects badge filtering per REQ-032. `spec_health`
 SHALL surface a summary: `enrichment_status` with per-module activated/total
 counts.
 *Acceptance criterion:* After activating 2 lore templates and 1 voice example,
-`enrichment://status` shows lore_templates: activated=2, total=N; voice_examples:
+`synthesis://status` shows lore_templates: activated=2, total=N; voice_examples:
 activated=1, total=N. Other modules show activated=0. Player badge sees only
 shared-scope items.
 _Check:_ T-new-230.
 
-**REQ-231 — Per-module enrichment toggle.** The GM may enable or disable
-individual enrichment output modules at runtime via `toggle_enrichment_module(module,
+**REQ-231 — Per-module synthesis toggle.** The GM may enable or disable
+individual enrichment output modules at runtime via `toggle_synthesis_module(module,
 enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`,
 `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`,
 `narrative_voices`. Disabling a module SHALL suppress all items in that module
-from `badge_briefing`, `suggest_actions`, `suggest_lore`, and enrichment resource
+from `badge_briefing`, `suggest_actions`, `suggest_lore`, and synthesis resource
 URIs for the current Novel. Disabling does not delete items — the items persist in
 Novel state and re-appear when the module is re-enabled. Ruleset-native modules
 default to enabled; community modules default to enabled when community enrichment
 has been run. The toggle state persists with the Novel. Player badge attempts return
 `[ERROR] [FORBIDDEN]`. An unknown module name returns `[INVALID_INPUT]` with valid
 module names enumerated.
-*Acceptance criterion:* `toggle_enrichment_module("voice_examples", false)` removes
-voice examples from `badge_briefing` and `enrichment://voice_examples` for the active
+*Acceptance criterion:* `toggle_synthesis_module("voice_examples", false)` removes
+voice examples from `badge_briefing` and `synthesis://voice_examples` for the active
 Novel; re-enabling restores them; an unknown module returns `[INVALID_INPUT]`;
 Player badge returns `[FORBIDDEN]`.
 _Check:_ T-new-231.
 
-**REQ-243 — Enrichment population during spec-driven updates.** During a
+**REQ-243 — Synthesis population during spec-driven updates.** During a
 spec-driven update per REQ-098, after the gap audit implements new or changed
 surfaces and before Pattern Buffer re-execution, the builder SHALL run a scoped
 ruleset-native enrichment re-classification. The builder: (a) identifies new or
@@ -5409,13 +5347,13 @@ tools, resources, prompts, or state fields; (b) maps each surface to the source
 ruleset sections that produced it, using the extraction citations in
 RULESET_MODEL.md; (c) runs REQ-225 classification on only those sections,
 producing new `[ruleset]`-tagged items; (d) merges new items into the existing
-enrichment manifest — appending to modules, never replacing existing items;
+synthesis manifest — appending to modules, never replacing existing items;
 (e) records the added item count per module in DECISIONS.md alongside the gap
 audit row reference. When the gap audit identifies no new surfaces (patch-level
 change), this step SHALL be skipped with a "no new surfaces — skipped" annotation.
 The scoped re-classification SHALL NOT trigger a full re-read of the ruleset —
 only the sections that produced the new surfaces are re-read. This step SHALL
-NOT trigger web research. Community enrichment items are not affected.
+NOT trigger web research. Community synthesis items are not affected.
 *Acceptance criterion:* After a Minor update that adds a new `lookup_<category>`
 tool, ruleset-native action_patterns and supplementary_guidance receive new
 `[ruleset]` items for the new tool. DECISIONS.md records the added count per module.
@@ -5456,7 +5394,7 @@ convergence loop regardless of key match. A cold checkout (no prior
 DECISIONS.md) runs the full convergence loop.
 _Check:_ T-new-244.
 
-**REQ-245 — Pre-computed enrichment manifest.** The holonovel package SHALL ship a
+**REQ-245 — Pre-computed synthesis manifest.** The holonovel package SHALL ship a
 `CONVERGENCE.md` manifest at the package root recording Phase 2 convergence
 results per package version: the holonovel package version, the specification version the
 manifest was computed against, all eight Phase 2 convergence metric results, and
@@ -5470,7 +5408,7 @@ Pattern Buffer fresh and update the manifest with the new results and spec versi
 TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
 reference this manifest — it applies only to holonovel package builds.
 
-A ruleset source MAY include a pre-built enrichment manifest
+A ruleset source MAY include a pre-built synthesis manifest
 (`enrichment_manifest.json` alongside the ruleset Markdown) containing the
 seven-module REQ-225 extraction output, each module's `[ruleset]`-tagged items
 with source anchors and confidence labels, the ruleset content hash it was
@@ -5482,13 +5420,13 @@ manifest's ruleset content hash matches the current ruleset content hash: the
 builder SHALL use the pre-built manifest, recording `pre-built enrichment
 manifest — validated` in DECISIONS.md (4). When any validation condition fails,
 the builder SHALL fall back to live REQ-225 extraction with the annotation
-`pre-built enrichment manifest — <failure reason>, live extraction` in
+`pre-built synthesis manifest — <failure reason>, live extraction` in
 DECISIONS.md (4). When no manifest is present, the builder proceeds with live
 extraction as normal.
 *Acceptance criterion:* A holonovel package build whose CONVERGENCE.md spec
 version matches the current spec reports Phase 2 metrics and Holonovel Pattern Buffer
 results as cached. A TTRPG build against a ruleset with a valid pre-built
-enrichment manifest skips REQ-225 extraction and uses the manifest. A ruleset
+synthesis manifest skips REQ-225 extraction and uses the manifest. A ruleset
 without a manifest runs live REQ-225 extraction as before.
 _Check:_ T-new-245.
 
@@ -5601,7 +5539,7 @@ _Check:_ T274.
 and activates it for the calling connection. An optional `codex_adventure` parameter —
 a Codex entry ID of kind `adventure` — bootstraps the Novel in one atomic operation:
 creates the Novel, imports the Codex adventure scaffold (world-model, NPCs, factions,
-lore, enrichment linkages per REQ-321), and marks `adventure_set: true` in Novel
+lore, synthesis linkages per REQ-321), and marks `adventure_set: true` in Novel
 metadata. When `codex_adventure` is provided and the referenced Codex entry does not
 exist or is not of kind `adventure`, `create_novel` SHALL return `[ERROR] [NOT_FOUND]`.
 When no Codex entries exist on the server, the parameter is ignored silently.
@@ -5823,7 +5761,7 @@ a preference, not a block: (a) encounter tables, NPC archetypes, and location te
 that carry a matching genre tag SHALL be drawn from first; (b) untagged or `universal`
 tables SHALL be drawn from only when genre-matching content is exhausted; (c) content
 tagged with a non-matching genre SHALL be excluded unless the GM explicitly requests it
-via a `!include_all` prefix on the premise/context string; (d) enrichment content SHALL
+via a `!include_all` prefix on the premise/context string; (d) synthesis content SHALL
 be filtered by genre tag when the Novel's genre is set.
 
 Generation tables (REQ-213) SHALL carry an optional `genre_tags` field extracted during
@@ -5973,12 +5911,12 @@ import, (f) countdown names are unique within the import, (g) clock `opposes`
 and `unlocks` references resolve to countdowns present in the import,
 (h) adventure content referenced in `manifest.adventure_module_slugs` is
 either embedded or the slugs are recorded as missing with a warning, (i) Tier 2
-enrichment items whose `source_url` the target server never fetched SHALL be
+synthesis items whose `source_url` the target server never fetched SHALL be
 flagged `[stale]`, (j) Tier 1 enrichment activation keys whose anchor does not
 resolve against the target build's current extraction SHALL be flagged
 `[orphan]`. Tier 2 stale items and Tier 1 orphan items are imported inert (inactive).
 Module toggle state that references absent enrichment modules produces a
-warning. When `strict` is `true`, any staleness or orphan enrichment items also
+warning. When `strict` is `true`, any staleness or orphan synthesis items also
 block the import. `dry-run`
 reports all validation failures with each item's path. In `replace` and
 `merge` modes, failures surface as `[WARNING]` with enumerated items but
@@ -6027,8 +5965,8 @@ entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), aud
 entry count, story journal entry count, story journal total characters (on-disk byte count),
 snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when
 configured), on-disk file size in bytes (with warning if exceeding 4 MB),
-`enrichment_gap_count` — the number of activated Tier 1 keys that no longer resolve
-against the current build's extraction (per REQ-080, surfaced as `[enrichment_gap]`
+`synthesis_gap_count` — the number of activated Tier 1 keys that no longer resolve
+against the current build's extraction (per REQ-080, surfaced as `[synthesis_gap]`
 entries), and a `healthy` flag — set to false if any warning is active.
 `spec_health` reports a sliding window of Novel file-size deltas and snapshot depth
 deltas over the most recent sessions (distinct `TTRPG_SESSION_ID` values in the audit
@@ -6053,11 +5991,11 @@ Dependencies are: Adventure content before NPCs (NPCs may reference adventure
 stat block templates per REQ-119), NPCs before Lore entries (Lore content may
 reference NPCs), Scene state last among property groups (Scene changes trigger
 Lore matching and Countdown hooks per REQ-083, REQ-125). Enrichment activation keys
-(`enrichment_activated`, REQ-080) SHALL be
-loaded before enrichment state resolution, so that Tier 1 key resolution against
-current build output determines which enrichment items are active before any
-enrichment surfaces are computed. Combat state, pending workflows, remaining
-enrichment state, and audit log entries SHALL be restored after all property
+(`synthesis_activated`, REQ-080) SHALL be
+loaded before synthesis state resolution, so that Tier 1 key resolution against
+current build output determines which synthesis items are active before any
+synthesis surfaces are computed. Combat state, pending workflows, remaining
+synthesis state, and audit log entries SHALL be restored after all property
 groups. An out-of-order initialization that produces observable
 differences in `badge_briefing` content, resource URI output, or tool behavior
 between two invocations of the same Novel against the same builder is a
@@ -7441,7 +7379,7 @@ _Check:_ T-new-371.
 `set_server_note` (REQ-285) SHALL accept an optional `narrative_tag`
 parameter from the set: `campaign_bible`, `house_rules`, `lore_seed`, or
 `session_reminder`. Server notes carrying a `narrative_tag` SHALL surface
-in the `badge_briefing` supplementary guidance alongside enrichment items
+in the `badge_briefing` supplementary guidance alongside synthesis items
 (REQ-080), tagged with the narrative tag value. Server notes without a
 `narrative_tag` SHALL remain in the server notes resource only, as
 current behavior. This is a navigational coupling — server notes are
@@ -7470,7 +7408,7 @@ the DM context (REQ-232). The observer SHALL NOT mutate state — the
 read-only contract of REQ-305 applies to all narrative tools.
 Enrichment content (REQ-159) SHALL render in the observer `badge_briefing`
 under the same badge-filtering rules as the Player badge:
-game_master-scoped enrichment items are hidden; shared-scope items are
+game_master-scoped synthesis items are hidden; shared-scope items are
 visible. The observer SHALL have read-only access to world-model
 inspection tools — `resolve_intent` (REQ-323), parser `look` and
 `examine` commands, and resource reads (`room://<id>`, `thing://<id>`,
@@ -7548,8 +7486,8 @@ rendered as first-class server behavior, not advisory guidance. WHERE Ruleset
 Wisdom content describes pacing patterns, dramatic structure, NPC voice
 conventions, or encounter design, THE server SHALL mechanically enact those
 patterns per the coupling contracts defined in §7.7.0 (P5–P11). The GM may
-override individual Wisdom items via `deactivate_enrichment_item`. Ruleset
-Wisdom survives `revert_enrichment`. Wisdom items extracted from the ruleset
+override individual Wisdom items via `deactivate_synthesis_item`. Ruleset
+Wisdom survives `revert_synthesis`. Wisdom items extracted from the ruleset
 but not yet implemented in the current build SHALL render as Navigational
 suggestions until the builder implements the Mechanical coupling.
 
@@ -7643,7 +7581,7 @@ The waiver SHALL re-evaluate on each builder version.
 
 *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")`
 in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`,
-`badge_briefing`, and `list_enrichment_items`. Assert Wisdom mechanically
+`badge_briefing`, and `list_synthesis_items`. Assert Wisdom mechanically
 couples per P5–P11. Call `remove_supplementary("xanathars-guide.md")` —
 assert tools and Wisdom removed. End Novel and resume — assert supplementary
 ruleset re-resolves. Move the source file — assert `[supplementary_gap]` in

@@ -17,7 +17,7 @@ or **ruleset-facing** (each ruleset must pass them independently).
 | G3       | Fixture | Injection resistance                           |
 | G4       | Ruleset | Derived test catalogue                         |
 | G5       | Ruleset | The Pattern Buffer — operational verification        |
-| G6       | Ruleset | Enrichment lifecycle                           |
+| G6       | Ruleset | Synthesis lifecycle                           |
 | G7       | Ruleset | Narrative coherence attestation                 |
 
 In prose, verification workflows are referred to by their canonical `GN` form
@@ -107,17 +107,17 @@ This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).
 
-**Verification workflow G6 — Enrichment lifecycle (ruleset-facing).** After the
-enrichment workflow (§11) completes, verify: all enrichment items carry a source
-tag (`[ruleset]`, `[supplementary]`, `[novel]`, or `[player]`); `[ruleset]`-tagged
-items survive server rebuild with unchanged ruleset hash; deactivated items are
-absent from `badge_briefing` and `suggest_actions` output; `enrichment://status`
-reports correct per-module active/inactive counts; `revert_enrichment` removes all
-`[supplementary]` items while preserving `[ruleset]`, `[novel]`, and `[player]`
+**Verification workflow G6 — Synthesis lifecycle (ruleset-facing).** After the
+synthesis workflow (§11) completes, verify: all synthesis items carry a source
+tag (`[supplementary]` or `[player]`); Ruleset Wisdom (`[ruleset]`, `[vendor]`) items
+survive server rebuild with unchanged ruleset hash; deactivated items are
+absent from `badge_briefing` and `suggest_actions` output; `synthesis://status`
+reports correct per-module active/inactive counts; `revert_synthesis` removes all
+`[supplementary]` items while preserving Ruleset Wisdom and `[player]`
 items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Pattern Buffer re-runs after every server code change: during Build
-completion, after Enrich (§11), after spec-driven updates (REQ-098), and after
+completion, after Synthesis (§11), after spec-driven updates (REQ-098), and after
 any manual code modification.
 
 **Verification workflow G7 — Narrative coherence attestation (ruleset-facing).**
