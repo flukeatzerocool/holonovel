@@ -99,10 +99,11 @@ test catalogue — individual tool contracts are exercised by G2 (fixture
 transcript) and operational behavior by G5 (Pattern Buffer scenarios).
 
 **Verification workflow G5 — The Pattern Buffer (operational verification).** For a
-ruleset server, run the 29-sub-workflow Pattern Buffer defined in §6.6. All blocking
-sub-workflows (S1, S2, S4, S5, S6, S12, S13, S15, S19, S20, S21, S22, S23, S25, S26, S29) must pass.
-For the Holonovel server, run the 18-sub-workflow Holonovel Pattern Buffer (I1–I18) defined
-in §6.6 Holonovel Pattern Buffer. All blocking sub-workflows (I1–I6, I10, I14–I18) must pass.
+ruleset server, run the Pattern Buffer defined in §6.6. All blocking
+sub-workflows listed in §6.6 exit criteria must pass.
+For the Holonovel server, run the Holonovel Pattern Buffer defined
+in §6.6 Holonovel Pattern Buffer. All blocking sub-workflows listed in §6.6
+Holonovel Pattern Buffer exit criteria must pass.
 This workflow uniquely verifies operational behavior under AI-simulated play —
 deterministic tool contracts are verified by G2 (golden transcript) and G4
 (derived tests).

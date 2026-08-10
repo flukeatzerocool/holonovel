@@ -21,9 +21,9 @@
 > Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
 > human. Multi-character support with entity presence (REQ-307) and knowledge gating by
 > presence (REQ-308): one adventure loads as a hybrid world-model
-> and prose modules (REQ-079). State tiers: world model, roster, Novels, lore, and
-> synthesis enhances guidance; connections are ephemeral transport; Novel audit logs
-> persist. RNG deterministic and seedable. Requirements state the contract; verification
+> and prose modules (REQ-079). State tiers: world model, roster, Novels (with synthesis
+> state), lore, and codex (server-level); connections are ephemeral transport; Novel
+> audit logs persist. RNG deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
 ## Contents
@@ -310,6 +310,7 @@ guard, the gap is explicit.
 |                | state of its own — Novel state and audit log survive the connection.         |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
+| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P42) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
 | Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
