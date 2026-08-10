@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-10 — World-model integration and enrichment completeness
+
+- Implicit action hints now cover new kinds — parsers suggest reaching
+  vehicles in adjacent rooms, opening containers to read inscriptions,
+  and correctly suppress hints when switching a device is the solution
+  rather than a precondition. (REQ-284)
+- Vehicles now record story journal entries on enter and exit, coupling
+  vehicle traversal into the narrative surface without affecting the GM's
+  scene state. (REQ-317)
+- Containers and vehicles now propagate properties across containment
+  boundaries — a lit lantern inside a transparent jar reports light to
+  the room, while an opaque outer container blocks everything regardless
+  of inner transparency. (REQ-367)
+- Countdowns can now mutate world-model state when they fire:
+  descriptions, properties, and exits can change as countdown effects,
+  with deleted-target handling producing `[WARNING]` annotations rather
+  than blocking the countdown. (REQ-368)
+- Enrichment extraction now identifies three new narrative component
+  types — `constraint_override`, `scene_world`, and `npc_world` — mapping
+  GM advice chapters to world-model integration patterns. (REQ-354)
+- Novel enrichment synthesis gains an 8th source category powered by the
+  world model itself — populated rooms and descriptive things produce
+  adventure-advice scene hooks and lore templates from room-to-thing
+  relationships. (§11.3)
+- A new enrichment verification step audits the manifest for world-model
+  component type coverage, catching barren categories before handoff.
+  (§11.1)
+- The runtime coupling table now documents five new couplings:
+  countdown→world state, vehicle→scene, world→novel enrichment, and
+  enrichment→constraint overrides. (§7.8)
+
 ## 2026-08-10 — Narrative Architecture integration tightening
 
 - Voice feedback corrections are now capturable to the Codex as

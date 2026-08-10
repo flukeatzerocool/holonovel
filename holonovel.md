@@ -347,7 +347,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | §       | Title                               | REQs                                                | Count |
 |---------|-------------------------------------|-----------------------------------------------------|-------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 | 24    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324 | 28    |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 | 29    |
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 | 32    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
@@ -355,7 +355,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
 | 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328, 333 | 41    |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327        | 20    |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
 
@@ -1196,8 +1196,23 @@ as REQ-225. Extraction that produces no items from these sources SHALL
 NOT mark the module barren — `supplementary_guidance` remains populated
 by existing REQ-225 sources. Items SHALL carry a `component_type`
 annotation identifying the narrative area they enrich: `scene_type`,
-`relationship`, `countdown`, `secret`, `player_signal`, or
-`story_journal`.
+`relationship`, `countdown`, `secret`, `player_signal`,
+`story_journal`, `constraint_override`, `scene_world`, or
+`npc_world`.
+
+The `constraint_override` component type SHALL map to GM advice chapters
+discussing mechanics that bypass physical world limits — teleportation
+spells, phasing abilities, light-source magic — and SHALL feed the
+constraint override design patterns (REQ-325). The `scene_world` component
+type SHALL map to setting and location descriptions with explicit adjacency,
+sight lines, or spatial relationships — rooms that connect to other rooms,
+environments where line of sight matters (REQ-326). The `npc_world`
+component type SHALL map to NPC interaction guidelines mentioning
+positioning, patrol routes, territory, or situational awareness — NPCs
+placed in specific rooms with behavioral context (REQ-327). Items extracted
+with these component types follow the same confidence model and `[ruleset]`
+tagging contract. Items SHALL include the corresponding world-model REQ
+citation in their `source_anchor`.
 
 *Acceptance criterion:* A ruleset with GM advice chapters produces at
 least one `[ruleset]` enrichment item in `supplementary_guidance`
@@ -6609,10 +6624,23 @@ player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the
 (inventory) first.` `command("unlock chest")` when no key exists in the world model →
 `[RULE_VIOLATION] The chest is locked.` (no hint — no reachable key exists).
 
+The hint contract SHALL extend to the following precondition failures for new kinds,
+following the same reachability rules:
+
+| Precondition | Hint pattern |
+|---|---|
+| `command("read inscription")` when the readable thing is inside a closed container in the room | `Hint: The <thing> is inside the <container> — open it first.` |
+| `command("enter raft")` when the vehicle is in an adjacent room visible through an open exit | `Hint: The <vehicle> is in the <room> to the <direction>.` |
+| `command("climb rope ladder")` when climbable ladder is in an adjacent room visible through an open exit | `Hint: The <climbable> is in the <room> to the <direction>.` |
+| `command("switch on lantern")` targeting a device that is `switched_off` in a dark room | No hint — switching the device is the solution, not a precondition. |
+| `command("read scroll")` when a wearable thing required to permit reading is not worn (e.g., "you need glasses to read") | No hint — stateless; the parser returns `[RULE_VIOLATION]` listing the missing equipment type. |
+
 *Acceptance criterion:* Create a world model with a locked chest and an iron key in the
 room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
 and its location. Remove the key from the world model — `command("open chest")` returns
-`[RULE_VIOLATION]` with no hint.
+`[RULE_VIOLATION]` with no hint. A readable inscription inside a closed glass jar produces
+"Hint: The inscription is inside the glass jar — open it first." A vehicle in an adjacent
+room produces the direction-bearing hint. A switched-off lantern produces no hint.
 _Check:_ T-new-310.
 
 **REQ-316 — Device kind.** THE world-model layer SHALL define a `device`
@@ -6648,7 +6676,17 @@ return the player to the room containing the vehicle. Vehicle interior
 rooms SHALL NOT appear in `world://map` independently — they are child
 objects of the vehicle, not world-graph nodes. The kind declaration "A raft
 is a vehicle. 'Description.' It is in the Lake." SHALL be recognized by
-`convert_source`. _Check:_ T-new-318.
+`convert_source`.
+
+WHEN a player enters a vehicle via `command("enter <vehicle>")`, the server
+SHALL record a `[vehicle-entry]` story journal entry of type `moment` with
+the context `entered <vehicle>` and the vehicle's interior description. WHEN
+the player exits the vehicle, a `[vehicle-exit]` entry SHALL record the room
+returned to. These entries SHALL appear in `session_recap` scene transitions
+and SHALL be surfaced in `badge_briefing` narrative context when present.
+This couples vehicle traversal into the narrative surface without affecting
+scene state — the GM's `set_scene_state` remains authoritative.
+_Check:_ T-new-318.
 
 **REQ-318 — Extended property contracts.** THE world-model layer SHALL
 extend the `thing` type with the following properties, each enabling a
@@ -6999,6 +7037,73 @@ Blacksmith. `update_npc("blacksmith", location="Inn")` — Blacksmith is no
 longer in Forge; listed in Inn. No matching room — Blacksmith carries
 free-text location only.
 _Check:_ T-new-327.
+
+**REQ-367 — Property propagation across containment.** WHEN a container or
+vehicle carries a property that affects perception of its contents, the
+property SHALL propagate from the container boundary. Propagation SHALL
+evaluate containment from outermost to innermost. An opaque or `dark`
+container at any level in the chain SHALL block perception of all
+recursively contained things — propagation SHALL stop at the first opaque
+boundary. Inner containers' `transparent` properties are irrelevant when an
+outer container is opaque.
+
+A `transparent` container containing a `lit` and `switched_on` device SHALL
+report the device's light state to the room — "a glowing lantern (inside the
+glass case)." A `transparent` container containing a `lit` device that is
+`switched_off` SHALL NOT report light — "a dark lantern (inside the glass
+case)." A `dark` container SHALL block perception of its contents regardless
+of `transparent` — "a brass urn (opaque, what's inside is hidden)."
+
+A vehicle interior SHALL inherit the `lit`/`dark` state of the vehicle's
+exterior room unless the vehicle itself is `lit`. `command("look")` output
+SHALL reflect propagated state.
+
+*Acceptance criterion:* A world model with a transparent jar containing a
+switched-on lantern in a dark room — `command("look")` reports "a glowing
+lantern (inside the glass jar)." Switch the lantern off — `command("look")`
+reports "a dark lantern (inside the glass jar)." Place the jar inside an
+opaque iron chest — `command("look")` does not mention the lantern. A
+vehicle in a dark cave with the vehicle itself `lit` — interior shows as
+lit; vehicle not `lit` — interior inherits dark.
+_Check:_ T-new-374.
+
+**REQ-368 — Countdown-world effect coupling.** Countdowns SHALL accept an
+optional `world_effect` field. WHEN a countdown with `world_effect` fires,
+the effect SHALL be applied immediately after the countdown is removed from
+active countdowns:
+
+- `world_effect.type` is one of: `describe` (change room description),
+  `property` (toggle a world-model property), or `exit`
+  (open/close/create/remove an exit).
+- `describe` with `target=<room_id>` and `value="<description>"` SHALL
+  replace the target room's `description` field. The prior description is
+  preserved in the undo snapshot preceding the countdown fire.
+- `property` with `target=<thing_id>`, `property=<name>`, `value=<new_value>`
+  SHALL set the target thing's property. Only properties defined in REQ-318
+  are addressable; attempting an undefined property returns
+  `[RULE_VIOLATION]` in the audit log.
+- `exit` with `target=<room_id>`, `direction=<dir>`,
+  `destination=<room_id>` SHALL create the exit per REQ-198 with implicit
+  reverse exit. `action=remove` deletes the existing exit. `action=open` or
+  `action=close` changes the exit's door state.
+
+All `world_effect` mutations are snapshot-able and surfaced in
+`badge_briefing` `narrative_threads` as `[countdown-effect]`. WHEN a
+countdown with `world_effect` fires and the referenced target has been
+deleted between creation and firing, the countdown SHALL still fire —
+removed from active countdowns and recorded in the audit log with a
+`[WARNING]` entry carrying the effect type, target ID, and `target missing —
+effect not applied` annotation. The countdown is not re-queued. An `undo`
+that restores the deleted target before the countdown fires SHALL restore
+the effect's ability to apply.
+
+*Acceptance criterion:* `set_countdown("flood", 3, type="narrative",
+world_effect={type:"describe", target:"cellar", value:"Knee-deep water
+fills the cellar, rising fast."})`. Advance three narrative ticks — assert
+countdown fires, cellar room description replaced, prior description in
+undo snapshot. Create countdown with `world_effect.target="nonexistent"` and
+fire — assert `[WARNING] target missing — effect not applied` in audit log.
+_Check:_ T-new-375.
 
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
@@ -9559,6 +9664,10 @@ consistent order.
 | Vow → Lore | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Navigational | REQ-356, REQ-289, REQ-083 |
 | Story Journal → Faction | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Navigational | REQ-357, REQ-246, REQ-233 |
 | Countdown → NPC | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | Mechanical | REQ-358, REQ-073, REQ-075 |
+| Countdown → World State | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | Mechanical | REQ-368 |
+| Vehicle → Scene | Vehicle entry/exit records story journal moment entries | Navigational | REQ-317 |
+| World → Novel Enrichment | World-model rooms and things as synthesis source for adventure_advice and lore_templates | Navigational | §11.3 |
+| Enrichment → Constraint Overrides | `constraint_override` component_type items feed override design patterns | Navigational | REQ-354 |
 | Relationship → Countdown | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-359, REQ-236, REQ-073 |
 | Lore → Countdown | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Navigational | REQ-360, REQ-083, REQ-073 |
 | NPC → Vow | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-361, REQ-077, REQ-289 |
@@ -10134,7 +10243,13 @@ results in DECISIONS.md:
    terms) is cross-referenced against the live tool registry, ruleset index, and
    resource map. Orphan references — items pointing to tools, sections, or
    keywords absent from the current build — are recorded in DECISIONS.md with
-   the "orphan" disposition and their source URLs.
+    the "orphan" disposition and their source URLs.
+10. World-model coverage audit: verify that the enrichment manifest includes at
+    least one item from each world-model component type (`constraint_override`,
+    `scene_world`, and `npc_world` per REQ-354). Barren component types SHALL
+    be recorded as enrichment defects with the "empty" disposition and the
+    component type named. Vendor content items tagged `[vendor]` in these
+    categories satisfy this check.
 
 These are verification steps, not new verification workflows. Failures are enrichment defects recorded in
 DECISIONS.md; the server state rolls back to the pre-enrich snapshot.
@@ -10296,6 +10411,7 @@ Each category maps to specific output modules:
 | Scene history + current scene | description, location, time_of_day, atmosphere, scene type (REQ-076, REQ-087) | adventure_advice, supplementary_guidance, briefing_order |
 | Factions + secrets + relationships | faction state (REQ-233), secret knowledge status (REQ-234), relationship objects (REQ-236) | supplementary_guidance, lore_templates |
 | Countdowns | name, remaining ticks, type, scope, direction (REQ-072, REQ-073) | supplementary_guidance, adventure_advice |
+| Rooms + Things | room name, description, exits, contained things; thing name, description, properties, location (REQ-195, REQ-198) | adventure_advice, lore_templates |
 
 **Synthesis rules.** For each source category, the builder applies
 category-specific heuristics:
@@ -10341,6 +10457,17 @@ category-specific heuristics:
    scope or direction, produce a tension note linking them. When a Novel has no
    countdowns but has active factions, produce a countdown suggestion.
 
+8. **Rooms + Things → adventure_advice.** When a Novel has 3 or more
+   populated rooms with exits forming a connected graph, produce one
+   scene-hook suggestion per room referencing its description, exits, and
+   notable contents — "The Hall of Statues (3 exits: north to Crypt, east
+   to Gallery, west to Armory) — a confrontation here blocks three paths."
+   **Rooms + Things → lore_templates.** When a thing carries descriptive
+   text via `readable`, `description`, or `read_text` with named entities
+   (capitalized proper nouns), produce a lore template linking the named
+   entity to the thing's room. Up to 3 suggestions per synthesis pass from
+   this source across both output modules combined.
+
 **Output module budgets.** Novel enrichment follows the same budget caps as
 community enrichment (§11.1), with per-synthesis-pass limits:
 
@@ -10351,7 +10478,7 @@ community enrichment (§11.1), with per-synthesis-pass limits:
 | Lore templates | 5 | 30 |
 | Action patterns | 5 | 10 |
 | Supplementary guidance | 10 | 20 |
-| Adventure advice | 5 | 30 |
+| Adventure advice | 8 | 30 |
 | Narrative voices | 1 | 15 |
 
 The per-pass cap limits how many new items a single synthesis pass produces.
@@ -11192,6 +11319,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-364 | Faction-world coupling | 2026-08-10 |
 | REQ-365 | Server notes narrative coupling | 2026-08-10 |
 | REQ-366 | Observer narrative surface | 2026-08-10 |
+| REQ-367 | Property propagation across containment | 2026-08-10 |
+| REQ-368 | Countdown-world effect coupling | 2026-08-10 |
 
 ---
 
@@ -11542,7 +11671,7 @@ diet.
 | T-new-301 | Automated | Convergence loop audit trail: run convergence with ≥2 iterations. Assert DECISIONS.md (5) contains traceable records per iteration: iteration number, REQ/test addressed, change summary, re-test result, and token cost. Assert convergence_summary includes total iterations, final disposition per REQ, and aggregate token cost. | REQ-301 |
 | T-new-302 | Automated | Per-section content hashing: build with a ruleset containing 10 sections. After initial build, change one section's content. Assert the delta detection identifies the single changed section. Assert only the changed section re-runs extraction. Assert `spec_health.section_hashes` includes per-section hashes. Assert unchanged sections produce "[section unchanged — re-validating from previous build]" annotations. | REQ-302 |
 | T-new-303 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Gauntlet sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Gauntlet summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
-| T-new-310 | Automated | Implicit action hints: create a world model with a locked chest and an iron key in the room. Call `command("open chest")` — assert `[RULE_VIOLATION]` with hint naming the iron key and its location. Call `command("unlock chest")` — assert `[OK]`. Call `command("open chest")` — assert `[OK]`. Remove the iron key, call `command("open chest")` on a new locked chest — assert `[RULE_VIOLATION]` with no hint (no reachable key). Assert hint format matches: `Hint: You need the <object name> (<location>) first.` | REQ-284 |
+| T-new-310 | Automated | Implicit action hints: create a world model with a locked chest and an iron key in the room. Call `command("open chest")` — assert `[RULE_VIOLATION]` with hint naming the iron key and its location. Call `command("unlock chest")` — assert `[OK]`. Call `command("open chest")` — assert `[OK]`. Remove the iron key, call `command("open chest")` on a new locked chest — assert `[RULE_VIOLATION]` with no hint (no reachable key). Assert hint format matches: `Hint: You need the <object name> (<location>) first.` A readable inscription inside a closed transparent jar — assert `Hint: The inscription is inside the glass jar — open it first.` A vehicle in an adjacent room with an open exit — assert direction-bearing hint for `command("enter raft")`. A switched-off lantern — assert no hint. A container in an adjacent room — assert no hint (not covered by implication contract). | REQ-284 |
 | T-new-311 | Automated | Campaign Memory: after a session with 2 NPCs, 3 scene changes, 1 faction clock advancement, and 1 story journal decision, assert `spec_health` campaign_memory counts ≥ thresholds. Assert `badge_briefing` includes `## Campaign Memory` section with facts prioritized by scene relevance. Create an NPC with personality fields — assert per-NPC fact appears after NPC participates in combat (REQ-043). Advance a faction clock — assert per-thread fact appears. Change scene 3 times — assert per-location facts appear. Assert `export_novel("json")` includes `campaign_memory`. Assert facts survive Novel persistence. | REQ-310 |
 | T-new-312 | Automated | NPC memory model: create NPC "Blacksmith" with `goals="Repay debt"`. Import player entity "Fighter". Set scene to forge with both present. Call `apply_condition("blacksmith", "frightened")` — assert NPC memory records the event with `disposition: hostile`. Assert `badge_briefing` `## NPC Memory` shows emotional state and the interaction. Set scene with only Fighter present — assert Blacksmith memory absent (not present in scene). Switch back — assert memory persists. Create second NPC "Innkeeper" with no prior contact — assert "no prior contact" marker. Assert `spec_health.npc_memory_count ≥ 1`. | REQ-311, REQ-307, REQ-308 |
 | T-new-313 | Automated | Pre-narration validation: create NPC, apply dead condition. Simulate AI narration claiming the dead NPC speaks. Assert engine rejects with `[REJECTED]` and corrective suggestion citing deceased state. Assert `spec_health.narration_rejection_count: 1`. Set `TTRPG_NARRATION_VALIDATION=off` — assert same narration passes through. Assert validation rejects damage claims exceeding ruleset maxima. Assert Player badge never receives invalid narration text. | REQ-312 |
@@ -11550,7 +11679,7 @@ diet.
 | T-new-315 | Automated | Proactive action surfacing: create wizard entity with known 3rd-level spell slots. Set scene type to combat. Assert `badge_briefing` `## Available Actions` includes weapon attack and spell actions. Assert "Cast Fireball" appears only when 3rd-level slot available — spend the slot, assert "Cast Fireball" absent. Set scene type to social. Assert persuasion and deception actions appear instead of combat actions. Assert `suggest_actions("fight")` continues to return reactive results independently. Assert at most 8 actions listed. | REQ-084, REQ-084a, REQ-109 |
 | T-new-316 | Automated | Search-index coverage: build a server against a ruleset with a known table of contents. Call `spec_health` — assert `search_index_coverage.coverage_pct` = 100 and `unmapped_sections` is empty. Call `search_rules("ability scores")` — assert at least one result from the character creation chapter. Call `search_rules` with a heading text from the ruleset's own TOC — assert result. Manually remove one heading's entry from the search index, call `search_rules` for that heading — assert zero results and `spec_health.search_index_coverage` drops below 100 with the unmapped heading listed. | REQ-315 |
 | T-new-317 | Automated | Device lifecycle: create a device `create_thing("lantern", {kind: "device", lit: true})`. Assert `command("switch on lantern")` returns `[OK]`. Assert lantern has `switched_on: true`. Assert `command("switch on lantern")` again returns `[WARNING]` (already on). Assert `command("switch off lantern")` returns `[OK]`. Assert `command("switch off lantern")` again returns `[WARNING]`. Assert `command("switch on nonexistent")` returns `[NOT_FOUND]`. Create a non-device thing — assert `command("switch on rock")` returns `[RULE_VIOLATION]`. Assert `convert_source` recognizes "It is switchable." and "It is switched on." property assertions. | REQ-316 |
-| T-new-318 | Automated | Vehicle lifecycle: create a world model with a vehicle `convert_source("A raft is a vehicle. 'A rickety wooden raft.' It is in the Underground Lake.")`. Assert vehicle is `enterable: true`, `portable: false`. Assert `command("enter raft")` returns `[OK]`. Assert player viewpoint is inside vehicle. Assert `command("look")` shows vehicle interior. Assert `command("exit")` returns to the Underground Lake. Assert `command("get out")` is equivalent. Assert `command("enter raft")` + `command("go north")` moves both player and vehicle. Assert vehicle persists at its last location when unoccupied. Assert `command("enter nonexistent")` returns `[NOT_FOUND]`. Assert `command("enter rock")` on non-enterable returns `[RULE_VIOLATION]`. | REQ-317 |
+| T-new-318 | Automated | Vehicle lifecycle: create a world model with a vehicle `convert_source("A raft is a vehicle. 'A rickety wooden raft.' It is in the Underground Lake.")`. Assert vehicle is `enterable: true`, `portable: false`. Assert `command("enter raft")` returns `[OK]`. Assert player viewpoint is inside vehicle. Assert `command("look")` shows vehicle interior. Assert `command("exit")` returns to the Underground Lake. Assert `command("get out")` is equivalent. Assert `command("enter raft")` + `command("go north")` moves both player and vehicle. Assert vehicle persists at its last location when unoccupied. Assert `command("enter nonexistent")` returns `[NOT_FOUND]`. Assert `command("enter rock")` on non-enterable returns `[RULE_VIOLATION]`. Assert entering vehicle creates `[vehicle-entry]` story journal `moment` entry; assert exiting creates `[vehicle-exit]` entry. Assert vehicle entries appear in `session_recap` and `badge_briefing` narrative context. | REQ-317 |
 | T-new-319 | Automated | Extended property contracts: create things with properties `convert_source("A silver ring is in the Entrance Chamber. It is wearable. A red mushroom is in the Entrance Chamber. It is edible. An iron lever is in the Entrance Chamber. It is climbable. A glass jar is a container. It is transparent. The inscription on the altar reads 'Beware the serpent.' The altar is in the Entrance Chamber. It is readable.")`. Assert ring is `wearable: true`. Assert mushroom is `edible: true`. Assert lever is `climbable: true`. Assert jar is `transparent: true`. Assert altar is `readable: true` with `read_text: 'Beware the serpent.'`. Assert `command("wear ring")` returns `[OK]`. Assert `command("eat mushroom")` returns `[OK]`. Assert `command("read altar")` returns the inscription text. Assert each property assertion is recognized by `convert_source`. Assert missing-property commands return `[RULE_VIOLATION]`. | REQ-318 |
 | T-new-320 | Automated | Extended parser commands: populate a world model with objects supporting all new standard-tier commands. Assert `command("wear hat")` succeeds for wearable thing in inventory. Assert `command("remove hat")` succeeds when worn. Assert `command("read scroll")` returns `read_text`. Assert `command("eat mushroom")` succeeds for edible in inventory. Assert `command("drink potion")` succeeds for drinkable in inventory. Assert `command("climb rope ladder")` resolves associated exit. Assert `command("enter tent")` succeeds for enterable. Assert `command("sit bench")` succeeds for supporter. Assert `command("stand")` succeeds. Assert `command("light torch")` succeeds for `lit` thing. Assert `command("extinguish torch")` succeeds. Assert `command("listen")` returns `[OK]`. Assert `command("smell")` returns `[OK]`. Assert `command("touch altar")` returns `[OK]`. Assert `command("again")` repeats last command. Assert `command("g")` is equivalent. Assert `command("help")` lists verbs grouped by tier. Assert `command("verbs")` reports per-tier counts. Assert all property-violation cases return `[RULE_VIOLATION]`. | REQ-319 |
 | T-new-321 | Automated | Narrative-intent verbs: populate a world model with an NPC. Assert `command("ask guard about crypt")` returns `[OK] You ask guard about crypt.` Assert `command("tell guard about amulet")` returns `[OK]`. Assert `command("give sword to guard")` transfers item from inventory and returns `[OK]`. Assert `command("show shield to guard")` does NOT transfer and returns `[OK]`. Assert `command("throw rock at statue")` moves rock from inventory to room and returns `[OK]`. Assert `command("give fixed_altar to guard")` returns `[RULE_VIOLATION]`. Assert `command("throw nonexistent at guard")` returns `[NOT_FOUND]`. Assert `command("ask nobody about crypt")` where nobody matches returns `[WARNING]`. | REQ-320 |
@@ -11593,7 +11722,7 @@ diet.
 | T-new-358 | Automated | Codex adventure beat sequences: create Codex adventure entry via `codex_set("adventure", "Test Quest", {title: "Test Quest", premise: "...", sections: {}, suggested_beats: [{beat: "setup", scene_preview: "The tavern is quiet..."}, {beat: "escalation", scene_preview: "A fight breaks out..."}, {beat: "climax", scene_preview: "The dragon rises!"}]})`. Call `create_novel("test-quest", codex_adventure="test-quest")` — assert `badge_briefing` `story_beats` shows all three beats tagged `[adventure_scaffold]`. Call `set_scene_state("The tavern hums with conversation", beat="setup")` — assert first beat replaced, `[adventure_scaffold]` tag removed on this entry. Advance scene to second beat without explicit `beat` parameter — assert second scaffold beat still present with `[adventure_scaffold]` tag. Advance to third beat via `set_scene_state(beat="climax")` — assert scaffold replaced. Create adventure WITHOUT `suggested_beats` — call `codex_import` — assert no beat pre-population. | REQ-352, REQ-088, REQ-321, REQ-337 |
 | T-new-359 | Automated | Narrative coherence G7 gate: execute G7 verification workflow. Assert DECISIONS.md (6) contains `narrative_coherence` section with `@section evidence` sub-heading. Assert implementation status lists every REQ in §5.12 with disposition. Assert `badge_briefing` narrative section population evidence present. Assert smoke-session transcript embedded with ≥5 turns. Assert `spec_health.narrative_coherence` reports `pass`, `partial`, or `fail`. Assert `fail` disposition blocks handoff. | REQ-346, G7 |
 | T-new-360 | Automated | Beat-accelerated countdowns: set beat to `climax`. Create countdown with `on_scene_transition` flag, 5 ticks. Call `set_scene_state("Scene A")` — assert countdown at 3 ticks (5 − 2 × 1). Call `set_scene_state("Scene B")` — assert countdown at 1 tick (3 − 2). Call `set_scene_state("Scene C")` — assert countdown fires (1 − 2 ≤ 0). Set `TTRPG_CLIMAX_ACCELERATION=3`. Create new countdown with 5 ticks. Call `set_scene_state("Scene D")` — assert countdown at 2 ticks (5 − 3). Set beat to `setup` — call `set_scene_state("Scene E")` — assert countdown at 1 tick (standard single-tick). Set `TTRPG_CLIMAX_ACCELERATION=1` — set beat to `climax`, advance scene — assert standard single-tick (acceleration disabled). Assert `round`-type countdowns are unaffected by beat. | REQ-353, REQ-335, REQ-125, REQ-073 |
-| T-new-361 | Automated | Extended narrative enrichment: run Discovery on a ruleset with GM advice chapters covering scene pacing and NPC relationships. Assert `list_enrichment_items(tier=1, module="supplementary_guidance")` includes items with `component_type` annotations of `scene_type`, `relationship`, and at least one of `countdown`, `secret`, `player_signal`, or `story_journal`. Assert items carry `[ruleset]` tag with source anchors. Assert ruleset with no such chapters produces no additional items beyond the existing REQ-225 extraction. | REQ-354 |
+| T-new-361 | Automated | Extended narrative enrichment: run Discovery on a ruleset with GM advice chapters covering scene pacing and NPC relationships. Assert `list_enrichment_items(tier=1, module="supplementary_guidance")` includes items with `component_type` annotations of `scene_type`, `relationship`, and at least one of `countdown`, `secret`, `player_signal`, or `story_journal`, AND at least one of `constraint_override`, `scene_world`, or `npc_world` (vendor content satisfies these when extraction is barren). Assert items carry `[ruleset]` tag or `[vendor]` tag with source anchors.. Assert ruleset with no such chapters produces no additional items beyond the existing REQ-225 extraction. | REQ-354 |
 | T-new-362 | Automated | Secret-countdown coupling: create a secret "betrayal" and a countdown with `scope` containing "betrayal." Call `reveal_secret("betrayal", "pc_01")` — assert `badge_briefing` `narrative_threads` includes countdown-advancement advisory. Create a secret and countdown with no text overlap — assert no advisory. | REQ-355, REQ-234, REQ-073 |
 | T-new-363 | Automated | Vow-lore coupling: create lore entry "crown_of_alara" with trigger "crown". Call `set_vow("Find the Crown", "Retrieve the Crown of Alara", ...)` with at least one party member. Assert `badge_briefing` `narrative_threads` includes `[vow-relevant] crown_of_alara`. Call `resolve_vow` — assert match no longer appears. Create lore entry with no overlap to an unrelated vow — assert no match. | REQ-356, REQ-289, REQ-083 |
 | T-new-364 | Automated | Story journal-faction coupling: create faction "Merchant Guild" with goal "Control the docks." Call `record_story("consequence", "The docks were destroyed")` — assert `badge_briefing` `narrative_threads` includes faction-clock-advancement advisory. Call `record_story("moment", "The sunset was beautiful")` — assert no advisory (no entity/location overlap). | REQ-357, REQ-246, REQ-233 |
@@ -11606,6 +11735,8 @@ diet.
 | T-new-371 | Automated | Faction-world coupling: create room "Throne Room". Call `create_faction("Royal Guard", goals=["Protect the crown"], territory=["throne_room"])`. Call `set_scene_state(..., location="Throne Room")` — assert `badge_briefing` `narrative_threads` includes `[territorial] Royal Guard`. Call `set_scene_state(..., location="Pantry")` — assert faction absent. | REQ-364, REQ-233, REQ-195 |
 | T-new-372 | Automated | Server notes narrative coupling: call `set_server_note("old-gods", "The old gods were banished...", narrative_tag="lore_seed")` — assert `badge_briefing` supplementary guidance includes `[lore_seed]`. Call `set_server_note("dm-reminder", "Remind players...", narrative_tag="session_reminder")` — assert `[session_reminder]` tag. Call without `narrative_tag` — assert absent from briefing. Player badge — assert absent. | REQ-365, REQ-285 |
 | T-new-373 | Automated | Observer narrative surface: call `set_badge("observer")` on a populated Novel. Assert `badge_briefing` includes scene state, entity personality, and narrative threads with omniscient orientation. Assert `badge_briefing` excludes secrets, faction clocks, countdown positions, and DM context. Assert `set_scene_state(...)` from observer returns `[FORBIDDEN]`. | REQ-366, REQ-305 |
+| T-new-374 | Automated | Property propagation: create world model with rooms. Call `convert_source("An iron chest is a container. It is in the Entrance Chamber. A glass jar is a container. It is transparent. It is in the iron chest. A glowing lantern is in the glass jar. It is lit. It is switched on.")`. Assert `command("look")` — lantern NOT visible (opaque outer chest blocks glass jar regardless). Remove chest from chain, place jar directly in room — assert `command("look")` shows "a glowing lantern (inside the glass jar)". Call `command("switch off lantern")` — assert `command("look")` shows "a dark lantern (inside the glass jar)". Create vehicle in dark cave with `lit: true` — assert `command("enter boat")` and `command("look")` shows lit interior. Create vehicle with `lit: false` — assert interior inherits dark from cave. | REQ-367 |
+| T-new-375 | Automated | Countdown-world effect coupling: create world model with room Cellar. Call `set_countdown("flood", 3, type="narrative", world_effect={type:"describe", target:"cellar", value:"Knee-deep water fills the cellar, rising fast."})`. Advance three narrative ticks — assert countdown fires, cellar.description equals new text, prior description in undo stack. Call `undo` — assert prior description restored. Create countdown with `world_effect.type="property", target="lantern_01", property="lit", value=false` — fire — assert lantern no longer lit. Create countdown with `world_effect.type="exit", target="cellar", action="create", direction="north", destination="cave"` — fire — assert north exit created. Create countdown targeting room that is deleted before fire — assert `[WARNING] target missing — effect not applied` in audit log, countdown removed from active. | REQ-368 |
 
 ---
 

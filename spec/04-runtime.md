@@ -235,6 +235,10 @@ consistent order.
 | Vow → Lore | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Navigational | REQ-356, REQ-289, REQ-083 |
 | Story Journal → Faction | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Navigational | REQ-357, REQ-246, REQ-233 |
 | Countdown → NPC | Countdown fire shifts disposition of NPCs whose `location` matches countdown `scope` by one step toward countdown `direction` | Mechanical | REQ-358, REQ-073, REQ-075 |
+| Countdown → World State | `world_effect` fires on countdown, mutates world-model properties (describe, property, exit) | Mechanical | REQ-368 |
+| Vehicle → Scene | Vehicle entry/exit records story journal moment entries | Navigational | REQ-317 |
+| World → Novel Enrichment | World-model rooms and things as synthesis source for adventure_advice and lore_templates | Navigational | §11.3 |
+| Enrichment → Constraint Overrides | `constraint_override` component_type items feed override design patterns | Navigational | REQ-354 |
 | Relationship → Countdown | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Navigational | REQ-359, REQ-236, REQ-073 |
 | Lore → Countdown | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Navigational | REQ-360, REQ-083, REQ-073 |
 | NPC → Vow | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Navigational | REQ-361, REQ-077, REQ-289 |
