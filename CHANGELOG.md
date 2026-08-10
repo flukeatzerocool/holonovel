@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-08-10 — Holodeck: automated cross-property coupling
+
+- Defined 11 Holodeck archetypes (Temporal, Entity-bearing, Scene-anchored,
+  Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance,
+  Session, Ruleset Wisdom) that classify every Novel property group's behavioral
+  nature. (REQ-369, §7.7.0)
+- Coupling pattern rules (P1–P23) between archetypes now determine every
+  cross-property interaction — the coupling table (§7.7.1) is derived from these
+  rules rather than hand-enumerated. Coupling completeness is mechanically
+  enforced: every property-group pair must carry either a coupling row or an
+  explicit `[none]` declaration. (REQ-370)
+- T1 enrichment is redefined as Ruleset Wisdom — a first-class archetype with
+  mechanical couplings. Wisdom content (pacing patterns, NPC voice conventions,
+  encounter design) renders as server behavior, not advisory guidance. NPCs
+  created while Wisdom is active inherit voice and personality automatically;
+  countdowns advance on Wisdom-described rhythms. (REQ-371)
+- Content sources — rulesets, supplementary rulesets, and adventure modules —
+  are now modeled as inputs that populate archetype-bearing property groups,
+  not as coupling participants themselves. Adventure-specific coupling rows are
+  replaced by the populated properties' own archetype rules. (§7.7.0 preamble)
+- Supplementary TTRPG rulesets can be imported at runtime via
+  `import_supplementary`. The server runs mini-extraction (mechanics become
+  tools, Wisdom couples mechanically), activated per-Novel and removable via
+  `remove_supplementary`. Dynamic tool registration supports this. When a
+  builder's stack cannot support runtime tool registration, a waiver limits
+  import to Wisdom only. (REQ-372, REQ-373)
+- Supplementary import and dynamic tool registration are covered by Gauntlet
+  sub-workflows S30 and S31, tested with the new Appendix Z fixture.
+- `npm run validate` now includes a coupling completeness check that verifies
+  every property-group pair is accounted for in §7.7.1.
+
 ## 2026-08-10 — Badge-coupling annotations and enrichment coverage
 
 - The cross-property coupling table now includes a Badge Scope column

@@ -52,7 +52,10 @@ presenting questions. If the probe fails, the builder falls back to `build` only
 records the failure in DECISIONS.md. If the probe succeeds, the default includes
 `enrich`; the operator may still deselect it.
 
-**Convert workflow.** Asked when `convert` is selected.
+**Convert workflow.** Asked when `convert` is selected. The workflow produces Markdown
+passing all Appendix H blocking checks and meeting content-type fidelity thresholds.
+The builder selects a converter satisfying the capability profile (Appendix G.1),
+produces the converted Markdown, and verifies fidelity per Appendix G.2.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -466,7 +469,7 @@ before any server code is written.
 | -------------------- | ----------------------------------- | ------------- | ---------------------------------------- |
 | Confidence           | Player-filtered HIGH + MEDIUM       | Light ≥85%, Standard ≥80%, Heavy ≥75%, Huge ≥70% | Re-extract, narrow scope, log as defect  |
 | Extraction fidelity  | Cross-reference resolved citations  | 100%          | Re-extract, cite, or log finding         |
-| Conversion fidelity  | G.2 progressive fidelity rate (per content type)| ≥ 90%         | Switch converter, re-run progressive phases |
+| Conversion fidelity  | Conversion output fidelity rate (per content type)| ≥ 90%         | Switch converter, re-run fidelity verification |
 | Extraction completeness | Mechanical sections with ≥1 extraction / total mechanical sections | ≥ 95% | Re-read missed sections, re-extract |
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
@@ -543,6 +546,7 @@ translated into tools, resources, and state.
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
 | Truncation accuracy        | Percentage of test cases where truncation fires within ±5% of the configured byte threshold and recovery pointers resolve correctly | 100% | Fix truncation threshold, repair output:// resolution |
 | Narrative coherence  | Narrative-critical REQs implemented; smoke-session transcript embedded; badge_briefing narrative sections populated; G7 attestation present in DECISIONS.md (6) | Pass + G7 attestation present | Remediate missing narrative REQs, re-run smoke session |
+| Coupling completeness | Fraction of property-group pairs (from §7.7 × §7.7.1 cross-product, excluding `[content source]` groups) with implemented couplings | 100% | Implement missing couplings; Ruleset Wisdom couplings flagged Navigational instead of Mechanical are findings |
 
 **Suggestion coverage constraint.** The curated intent set SHALL include at
 minimum: one intent per extraction action category (classified during Discovery
@@ -562,8 +566,8 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all nine metrics meet threshold (input-validation conditional —
-eight when REQ-141 is in scope, seven otherwise), or 3 iterations without
+Phase 2 exit: all ten metrics meet threshold (input-validation conditional —
+eleven when REQ-141 is in scope, nine otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
@@ -798,7 +802,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S29) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S31) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Gauntlet and subsequent re-runs after enrichment
 or spec-driven updates. The operator MAY override with `--full-gauntlet` to force
@@ -993,6 +997,24 @@ four items is incomplete and blocks handoff.
     "dry-run", strict=true)` with broken references reports all failures and blocks
     import. Assert `suggest_actions("attack the goblin")` returns at least one
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
+30. **Supplementary ruleset import** — call `import_supplementary` with the Appendix Z
+    fixture. Assert `tools/list` includes `lookup_spell("frostbite")` and
+    `lookup_monster("ice_wraith")` annotated with supplementary slug. Invoke
+    `lookup_spell("frostbite")` — assert `[OK]` with response prefix, error taxonomy,
+    and source quoting per REQ-001, REQ-002, REQ-061. Assert Wisdom items appear in
+    `list_enrichment_items(tier=1)` with source anchor. Assert `badge_briefing`
+    `narrative_threads` includes countdown-pacing advisory without manual activation
+    (P7 coupling). Call `remove_supplementary` — assert tools absent from
+    `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
+    re-resolved. Move the fixture file — assert `[supplementary_gap]` in
+    `spec_health`, remaining content with `[partial]` marker. Player badge
+    `import_supplementary` returns `[FORBIDDEN]`. (Blocking.)
+31. **Dynamic tool registration** — call `import_supplementary` with Appendix Z.
+    Assert `tools/list` includes supplementary tools. Invoke a supplementary-derived
+    tool — assert conforms to REQ-001, REQ-002, REQ-003, REQ-061. Call
+    `remove_supplementary` — assert tools deregistered, tool invocation returns
+    tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
+    waiver — assert only Wisdom imported, no new tools. (Blocking.)
 
 **REQ-108 — Gauntlet traceability.** The builder must ensure at least one
 Gauntlet sub-workflow exercises each requirement in §5.5 (Badges and Access),
@@ -1078,7 +1100,7 @@ and logged in DECISIONS.md (6) with the subsuming citation.
 
 **Exit criteria.** The Gauntlet completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
-20, 21, 22, 23, 25, 26, and 29 are blocking — Build is incomplete until they pass. Other failures are
+20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
 

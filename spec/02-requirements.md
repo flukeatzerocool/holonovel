@@ -16,6 +16,8 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
+| 5.13 | Holodeck | 369–371 | 3 |
+| 5.14 | Content Sources | 372–373 | 2 |
 
 ### 5.1 Output and Error Contracts
 
@@ -761,16 +763,17 @@ _Check:_ T292.
 
 **REQ-102 — Source conversion contract.** When the Convert workflow is selected (§6.2),
 source materials are converted to Markdown per Appendix G. The builder SHALL select a
-converter from the Appendix G.1 catalog or record a justified alternative in
-DECISIONS.md (2). Conversion SHALL proceed per the progressive sampling protocol
-(Appendix G.2): trial page (Phase 1) at ≥70% fidelity gates the batch, content-type
+converter satisfying the capability profile in Appendix G.1 and record the selection in
+DECISIONS.md (2). Conversion fidelity SHALL be verified per Appendix G.2; progressive
+sampling is the RECOMMENDED verification method: trial page (Phase 1) at ≥70% fidelity
+gates the batch, content-type
 expansion (Phase 2) gates at ≥90% per type, and batch conversion (Phase 3) completes
 the source. PDF sources SHALL additionally follow the format-specific protocol
 (Appendix G.3): column detection, multi-page table reassembly, image-content
 classification, and OCR fallback. HTML sources SHALL additionally follow the
 format-specific protocol (Appendix G.4): dynamic content detection, chrome stripping,
 chrome fingerprinting, pagination, and content-type classification. The builder SHALL
-run cross-converter verification (Appendix G.6) on the Phase 2 fidelity sample pages.
+run cross-converter verification (Appendix G.6) on the fidelity sample pages.
 Fidelity results SHALL be reported in the structured format (Appendix G.5). The
 converter and its version are pinned in DECISIONS.md (2). Flagged artifacts receive a
 disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity
@@ -7505,4 +7508,131 @@ A build missing this attestation is a handoff defect.
 section sub-headed `@section evidence` with the three attestation points and
 an embedded or linked smoke-session transcript.
 _Check:_ T-new-352.
+
+---
+
+### 5.13 Holodeck
+
+**REQ-369 — Holodeck archetype taxonomy.** Every Novel property group
+(§7.7) SHALL be assigned one or more archetypes — Temporal, Entity-bearing,
+Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational,
+Decision, Guidance, Session, or Ruleset Wisdom — as defined in §7.7.0.
+Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling
+pattern rules (P1–P23, §7.7.0). A coupling that does not trace to a pattern
+rule is a spec defect. Archetypes classified as `[content source]` denote
+input sources that populate property groups — they are excluded from the
+coupling cross-product. `npm run validate` SHALL verify that every coupling
+row in §7.7.1a cites a valid pattern rule.
+
+*Acceptance criterion:* `npm run validate` reports no untraced coupling rows
+and no coupling row with an invalid or missing pattern rule reference.
+_Check:_ T-new-376.
+
+**REQ-370 — Coupling completeness.** Every ordered property-group pair in
+the Novel properties table (§7.7) — excluding `[content source]` groups —
+SHALL be accounted for in the coupling table (§7.7.1). Each pair SHALL carry
+either a defined coupling in §7.7.1a or an explicit `[none]` declaration in
+§7.7.1b. An ordered pair with neither is a spec defect. `npm run validate`
+SHALL report any unaccounted pair as an error. WHEN a new property group is
+added to §7.7, THE author SHALL assign its archetypes and extend §7.7.1 for
+every pair involving the new group — pattern rules dictate coupling behaviors;
+`[none]` is declared where no pattern rule applies.
+
+*Acceptance criterion:* `npm run validate` exits zero on coupling
+completeness; exits non-zero when any ordered pair is unaccounted.
+_Check:_ T-new-377.
+
+**REQ-371 — Ruleset Wisdom as rendered reality.** Ruleset Wisdom — the seven
+enrichment output modules extracted during Discovery (REQ-225) — SHALL be
+rendered as first-class server behavior, not advisory guidance. WHERE Ruleset
+Wisdom content describes pacing patterns, dramatic structure, NPC voice
+conventions, or encounter design, THE server SHALL mechanically enact those
+patterns per the coupling contracts defined in §7.7.0 (P5–P11). The GM may
+override individual Wisdom items via `deactivate_enrichment_item`. Ruleset
+Wisdom survives `revert_enrichment`. Wisdom items extracted from the ruleset
+but not yet implemented in the current build SHALL render as Navigational
+suggestions until the builder implements the Mechanical coupling.
+
+*Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom
+carries voice_examples, goals, and personality patterns without manual GM
+activation. A countdown created from Wisdom pacing patterns advances
+automatically on scene transitions. Deactivating the responsible Wisdom item
+suppresses the mechanical behavior.
+_Check:_ T-new-378.
+
+---
+
+### 5.14 Content Sources
+
+**REQ-372 — Supplementary ruleset import.** The server SHALL support runtime
+import of supplementary TTRPG rulesets via `import_supplementary`. Import is
+Novel-scoped — each Novel records its active supplementary rulesets under
+`supplementary_rulesets: [<slug>, ...]`. Import IS reversible via
+`remove_supplementary`. WHEN a supplementary ruleset is imported, THE server
+SHALL:
+
+- (a) Run extraction against the supplementary source per REQ-011 (confidence
+  thresholds) and REQ-225 (Wisdom module classification). Extraction
+  confidence SHALL be recorded in the Novel's metadata alongside the content
+  hash. Confidence below the `TTRPG_CONFIDENCE_FLOOR` (REQ-011) SHALL NOT
+  block import — low-confidence items carry `[LOW]` markers in tool output
+  and badge briefing, and `spec_health` SHALL report
+  `supplementary_confidence_warnings`.
+
+- (b) Register extracted mechanics as MCP tools per REQ-020 and REQ-373,
+  available in the current Novel — new spells, classes, monsters, equipment,
+  and resolution mechanics.
+
+- (c) Render extracted Ruleset Wisdom per REQ-371 (P5–P11) — mechanically
+  coupled, not advisory.
+
+- (d) Record the supplementary ruleset's slug and content hash in the Novel's
+  metadata.
+
+- (e) On Novel resume, re-resolve supplementary rulesets — if a source file
+  is missing or hash-mismatched, surface `[supplementary_gap]` in
+  `spec_health` and render available content with a `[partial]` marker.
+
+Import is Game Master only, editing-mode only (no badge active).
+Supplementary rulesets do not affect other Novels — tools and Wisdom are
+Novel-scoped. The server MAY cache extraction results across Novels that
+import the same supplementary source. `remove_supplementary` deactivates all
+tools and Wisdom from the supplementary ruleset in the current Novel; state
+derived from supplementary content (NPCs created from supplementary stat
+blocks, lore from supplementary Wisdom) persists — the tools that created
+them are no longer available.
+
+WHEN the builder's chosen stack cannot support dynamic tool registration,
+THE builder SHALL record a waiver in DECISIONS.md (5) citing the technical
+constraint, and supplementary ruleset import SHALL be limited to Ruleset
+Wisdom only — mechanics from supplementary sources require a full rebuild.
+The waiver SHALL re-evaluate on each builder version.
+
+*Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")`
+in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`,
+`badge_briefing`, and `list_enrichment_items`. Assert Wisdom mechanically
+couples per P5–P11. Call `remove_supplementary("xanathars-guide.md")` —
+assert tools and Wisdom removed. End Novel and resume — assert supplementary
+ruleset re-resolves. Move the source file — assert `[supplementary_gap]` in
+`spec_health`.
+_Check:_ T-new-379.
+
+**REQ-373 — Dynamic tool registration.** The server SHALL support
+registration of additional MCP tools at runtime when supplementary rulesets
+are imported (REQ-372). Dynamically registered tools SHALL conform to the
+same contracts as build-time tools: response prefix (REQ-001), error
+taxonomy (REQ-002), roll transparency (REQ-003), source quoting (REQ-061),
+and badge gating (REQ-032). `tools/list` SHALL include dynamically
+registered tools alongside build-time tools. `tools/list` output SHALL
+annotate dynamically registered tools with their source supplementary
+ruleset slug. When a supplementary ruleset is removed (REQ-372), its tools
+SHALL be deregistered — `tools/list` and tool invocation SHALL behave as if
+the tools were never present.
+
+*Acceptance criterion:* After `import_supplementary`, `tools/list` includes
+new tools annotated with source slug. Tool invocation produces `[OK]` with
+response prefix, error taxonomy, and source quoting. After
+`remove_supplementary`, tools are absent from `tools/list` and invocation
+returns `[NOT_FOUND]` (tool not recognized by the MCP layer).
+_Check:_ T-new-380.
 

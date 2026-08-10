@@ -725,6 +725,206 @@ function checkGauntletCoverageMap(text: string, reqIndex: Map<string, string>): 
   return issues;
 }
 
+function checkCouplingCompleteness(text: string): string[] {
+  const issues: string[] = [];
+  const VALID_ARCHETYPES = new Set([
+    "Temporal", "Entity-bearing", "Scene-anchored", "Knowledge-carrying",
+    "Narrative-memory", "Spatial", "Relational", "Decision", "Guidance",
+    "Session", "Ruleset Wisdom"
+  ]);
+  const CONTENT_SOURCE_MARKER = "[content source]";
+
+  const propsMatch = text.match(/\*\*Novel properties\.\*\*[\s\S]*?(?=\nDangers and non-entity)/);
+  const propsText = propsMatch ? propsMatch[0] : "";
+  if (!propsText) {
+    issues.push("ERROR: §7.7 Novel properties table not found");
+    return issues;
+  }
+  const propLines = propsText.split("\n");
+  const propGroups: { name: string; archetypes: string[] }[] = [];
+  let inPropTable = false;
+  for (const line of propLines) {
+    if (line.includes("| Property |") && line.includes("Archetypes")) {
+      inPropTable = true;
+      continue;
+    }
+    if (inPropTable && line.startsWith("|") && line.includes("|")) {
+      const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
+      if (cols.length >= 2) {
+        const name = cols[0];
+        const archetypeStr = cols[1];
+        if (name && !name.startsWith("-") && name !== "Property") {
+          let archetypes: string[];
+          if (archetypeStr.includes(CONTENT_SOURCE_MARKER)) {
+            archetypes = [CONTENT_SOURCE_MARKER];
+          } else {
+            archetypes = archetypeStr.split(",").map((s) => s.trim()).filter(Boolean);
+            for (const a of archetypes) {
+              if (!VALID_ARCHETYPES.has(a)) {
+                issues.push(
+                  `WARNING: Property "${name}" has unrecognized archetype "${a}" — not in defined set`
+                );
+              }
+            }
+          }
+          propGroups.push({ name, archetypes });
+        }
+      }
+    }
+    if (inPropTable && !line.startsWith("|")) break;
+  }
+
+  if (propGroups.length === 0) {
+    issues.push("ERROR: No property groups found in §7.7 table");
+    return issues;
+  }
+
+  const couplingMatch = text.match(
+    /##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Completeness register)/
+  );
+  const couplingSection = couplingMatch ? couplingMatch[0] : "";
+  const couplingPairs = new Set<string>();
+  if (couplingSection) {
+    const couplingLines = couplingSection.split("\n");
+    let inCouplingTable = false;
+    for (const line of couplingLines) {
+      if (line.includes("| Property pair |") && line.includes("Pattern Rule")) {
+        inCouplingTable = true;
+        continue;
+      }
+      if (inCouplingTable && line.startsWith("|") && line.includes("|")) {
+        const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
+        if (cols.length >= 2) {
+          const pair = cols[0];
+          const patternRule = cols.length >= 2 ? cols[1] : "";
+          if (pair && !pair.startsWith("-") && pair !== "Property pair") {
+            const normalized = pair
+              .replace(/\s*[↔→]\s*/g, "→")
+              .replace(/\s+/g, " ")
+              .trim();
+            couplingPairs.add(normalized);
+            if (patternRule && patternRule !== "—" && !/^P\d+/.test(patternRule)) {
+              issues.push(
+                `ERROR: Coupling row "${pair}" has invalid Pattern Rule "${patternRule}" — expected P\d+ or "—"`
+              );
+            }
+          }
+        }
+      }
+      if (inCouplingTable && !line.startsWith("|") && line.trim().length > 0) break;
+    }
+  }
+
+  const registerMatch = text.match(
+    /##### 7\.7\.1b Completeness register[\s\S]*?(?=\n### 7\.8 )/
+  );
+  const registerSection = registerMatch ? registerMatch[0] : "";
+  const nonePairs = new Set<string>();
+  let hasWildcard = false;
+  if (registerSection) {
+    const registerLines = registerSection.split("\n");
+    let inRegisterTable = false;
+    for (const line of registerLines) {
+      if (line.includes("| Property pair |") && line.includes("Disposition")) {
+        inRegisterTable = true;
+        continue;
+      }
+      if (inRegisterTable && line.startsWith("|") && line.includes("|")) {
+        const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
+        if (cols.length >= 2) {
+          const pair = cols[0];
+          const disposition = cols[1] || "";
+          if (pair && !pair.startsWith("-") && pair !== "Property pair") {
+            if (pair.toLowerCase().includes("all remaining unlisted")) {
+              hasWildcard = true;
+            } else if (disposition.includes("[none")) {
+              if (pair.includes("*")) {
+                const sourceGroup = pair.split("→")[0].trim();
+                for (const pg of propGroups) {
+                  if (pg.name !== sourceGroup) {
+                    nonePairs.add(`${sourceGroup}→${pg.name}`);
+                  }
+                }
+              } else {
+                const normalized = pair
+                  .replace(/\s*[↔→]\s*/g, "→")
+                  .replace(/\s+/g, " ")
+                  .trim();
+                nonePairs.add(normalized);
+              }
+            }
+          }
+        }
+      }
+      if (inRegisterTable && !line.startsWith("|") && line.trim().length > 0) break;
+    }
+  }
+
+  const sourceGroups = new Set(
+    propGroups
+      .filter((pg) => pg.archetypes.includes(CONTENT_SOURCE_MARKER))
+      .map((pg) => pg.name)
+  );
+  const couplingGroups = propGroups.filter(
+    (pg) => !pg.archetypes.includes(CONTENT_SOURCE_MARKER)
+  );
+
+  const unaccounted: string[] = [];
+  for (const source of couplingGroups) {
+    for (const target of couplingGroups) {
+      if (source.name === target.name) continue;
+      const pair = `${source.name}→${target.name}`;
+      if (!couplingPairs.has(pair) && !nonePairs.has(pair)) {
+        unaccounted.push(pair);
+      }
+    }
+  }
+
+  const effectiveUnaccounted = hasWildcard ? [] : unaccounted;
+
+  if (effectiveUnaccounted.length > 0) {
+    issues.push(
+      `ERROR: ${effectiveUnaccounted.length} property-group pair(s) unaccounted in §7.7.1:`
+    );
+    for (const p of effectiveUnaccounted) {
+      issues.push(`ERROR:   UNACCOUNTED: ${p}`);
+    }
+  }
+
+  const activePropNames = new Set(couplingGroups.map((pg) => pg.name));
+  for (const pair of couplingPairs) {
+    const arrow = pair.includes("↔") ? "↔" : "→";
+    const [src, tgt] = pair.split(arrow).map((s) => s.trim());
+    if (src && !activePropNames.has(src) && !sourceGroups.has(src)) {
+      issues.push(`WARNING: Coupling source "${src}" not found in §7.7 property groups`);
+    }
+    if (tgt && !activePropNames.has(tgt) && !sourceGroups.has(tgt)) {
+      issues.push(`WARNING: Coupling target "${tgt}" not found in §7.7 property groups`);
+    }
+  }
+
+  const totalPairs =
+    couplingGroups.length * (couplingGroups.length - 1);
+  const accounted = couplingPairs.size + nonePairs.size;
+  const pct = totalPairs > 0 ? Math.round((accounted / totalPairs) * 100) : 100;
+  if (hasWildcard) {
+    console.log(
+      `\nCoupling completeness: ${accounted}/${totalPairs} pairs explicitly accounted for ` +
+        `(${pct}%) — wildcard covers ${totalPairs - accounted} remaining`
+    );
+  } else {
+    console.log(
+      `\nCoupling completeness: ${accounted}/${totalPairs} pairs accounted for (${pct}%)`
+    );
+  }
+
+  if (issues.length === 0) {
+    console.log("PASS: All property-group pairs accounted for in §7.7.1");
+  }
+
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -891,6 +1091,20 @@ function main(): void {
     }
   } else {
     console.log("PASS: Gauntlet REQ coverage map complete");
+  }
+
+  const couplingIssues = checkCouplingCompleteness(text);
+  if (couplingIssues.length > 0) {
+    console.log("\n=== COUPLING COMPLETENESS ===\n");
+    for (const issue of couplingIssues) {
+      if (issue.startsWith("ERROR")) {
+        console.log(issue);
+        errors++;
+      } else {
+        console.log(issue);
+        warnings++;
+      }
+    }
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);

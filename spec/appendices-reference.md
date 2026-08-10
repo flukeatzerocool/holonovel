@@ -434,6 +434,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-366 | Observer narrative surface | 2026-08-10 |
 | REQ-367 | Property propagation across containment | 2026-08-10 |
 | REQ-368 | Countdown-world effect coupling | 2026-08-10 |
+| REQ-369 | Holodeck archetype taxonomy | 2026-08-10 |
+| REQ-370 | Coupling completeness | 2026-08-10 |
+| REQ-371 | Ruleset Wisdom as rendered reality | 2026-08-10 |
+| REQ-372 | Supplementary ruleset import | 2026-08-10 |
+| REQ-373 | Dynamic tool registration | 2026-08-10 |
 
 ---
 
@@ -850,6 +855,11 @@ diet.
 | T-new-373 | Automated | Observer narrative surface: call `set_badge("observer")` on a populated Novel with entities carrying both active and non-present states, and knowledge gating active (entity present in some scenes, absent from others). Assert `badge_briefing` includes scene state, entity personality, and narrative threads with omniscient-role orientation directive. Assert `badge_briefing` includes `[not present]` markers for entities absent from the current scene. Assert `badge_briefing` includes `knowledge_state` for all entities in the Novel (not only the active entity), matching the GM-level visibility contract. Assert `badge_briefing` excludes secrets, faction clocks, countdown positions, and DM context. Assert `set_scene_state(...)` from observer returns `[FORBIDDEN]`. | REQ-366, REQ-305 |
 | T-new-374 | Automated | Property propagation: create world model with rooms. Call `convert_source("An iron chest is a container. It is in the Entrance Chamber. A glass jar is a container. It is transparent. It is in the iron chest. A glowing lantern is in the glass jar. It is lit. It is switched on.")`. Assert `command("look")` — lantern NOT visible (opaque outer chest blocks glass jar regardless). Remove chest from chain, place jar directly in room — assert `command("look")` shows "a glowing lantern (inside the glass jar)". Call `command("switch off lantern")` — assert `command("look")` shows "a dark lantern (inside the glass jar)". Create vehicle in dark cave with `lit: true` — assert `command("enter boat")` and `command("look")` shows lit interior. Create vehicle with `lit: false` — assert interior inherits dark from cave. | REQ-367 |
 | T-new-375 | Automated | Countdown-world effect coupling: create world model with room Cellar. Call `set_countdown("flood", 3, type="narrative", world_effect={type:"describe", target:"cellar", value:"Knee-deep water fills the cellar, rising fast."})`. Advance three narrative ticks — assert countdown fires, cellar.description equals new text, prior description in undo stack. Call `undo` — assert prior description restored. Create countdown with `world_effect.type="property", target="lantern_01", property="lit", value=false` — fire — assert lantern no longer lit. Create countdown with `world_effect.type="exit", target="cellar", action="create", direction="north", destination="cave"` — fire — assert north exit created. Create countdown targeting room that is deleted before fire — assert `[WARNING] target missing — effect not applied` in audit log, countdown removed from active. | REQ-368 |
+| T-new-376 | Automated | Holodeck archetype verification: parse Novel properties table (§7.7), assert every property group has ≥1 archetype tag from the defined set (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, or `[content source]`). Assert every active coupling row in §7.7.1a cites a pattern rule in the Pattern Rule column (P1–P23 or `—` for uncategorized couplings). Assert no coupling row cites an undefined pattern rule. Assert every property group's archetypes are used by ≥1 coupling row (no orphaned archetype assignments). | REQ-369 |
+| T-new-377 | Automated | Coupling completeness: parse Novel properties table (§7.7) for all property groups, extract non-`[content source]` groups, parse coupling tables (§7.7.1a and §7.7.1b) for all documented pairs. Compute the directed cross-product of non-source groups. Assert every ordered pair has either a coupling row in §7.7.1a or an explicit `[none]` declaration in §7.7.1b. Assert `npm run validate` exits non-zero when a pair is unaccounted. | REQ-370 |
+| T-new-378 | Automated | Ruleset Wisdom as rendered reality: build with a ruleset that produces Ruleset Wisdom items. Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `activate_enrichment_item` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `deactivate_enrichment_item` on a Wisdom item — assert the coupled behavior ceases. Call `revert_enrichment` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
+| T-new-379 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `list_enrichment_items(tier=1)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary_gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
+| T-new-380 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
 
 ---
 
@@ -864,22 +874,74 @@ the ruleset for every downstream purpose — parsing, extraction, citations, ver
 itself hashed and frozen at the conversion checkpoint. Conversion never modifies the
 originals.
 
-### G.1 Converter Catalog
+### G.1 Capability Profile
 
-The builder SHALL select a converter from this catalog or record a justified alternative
-in DECISIONS.md (2). The catalog lists recommended converters with format strengths and
-known failure modes.
+The builder SHALL select a converter that satisfies every capability dimension applicable
+to the source format. Each dimension names the format(s) it applies to, defines the
+contract the converter must meet, and specifies a verification method. The builder records
+the selected converter and how it satisfies each dimension in DECISIONS.md (2). Any
+dimension the converter cannot satisfy SHALL be recorded as an artifact with disposition
+`waived` or `pending`.
 
-| Converter | Format | Strengths | Known failure modes |
-| --------- | ------ | --------- | ------------------- |
-| `marker-pdf` | PDF | Strong table extraction, preserves cell alignment | Multi-column reading order; splits merged cells across page breaks |
-| `docling` | PDF | Preserves reading order, handles column layouts | Weak inline formatting preservation; loses bold/italic in stat blocks |
-| `pandoc` | PDF/HTML | Universal format support, mature table handling | Weak layout preservation; column layouts become flat linear text |
-| `turndown` + `mozilla/readability` | HTML | Strong chrome stripping, content extraction | JavaScript-rendered content; tables with colspan/rowspan |
-| `pandoc` (HTML reader) | HTML | Preserves table structure, handles inline formatting | Sidebar/adornment content mixed into main flow |
-| `pdfplumber` | PDF | Precise text positioning, column-aware extraction | No Markdown output natively — requires post-processing pipeline |
+**PDF capability dimensions:**
+
+| Capability | Applies to | Verification |
+|-----------|-----------|--------------|
+| Text extraction accuracy | All PDF | Content-type fidelity ≥90% (G.2) |
+| Reading-order preservation | Multi-column PDF | Column detection (G.3): no interleaved sentences across columns |
+| Table structure preservation | Table-bearing PDF | Row/column count within ±10% of source; content-type fidelity ≥90% on table samples |
+| Inline formatting preservation | All PDF | Bold-label count within ±10% of source |
+| Scanned document support | Scan-based PDF | ≥200 characters extracted per sampled page; else OCR attempted and recorded |
+| Multi-page table reassembly | Multi-page PDF | No orphaned header rows; row count matches source |
+| Image content classification | All PDF | Mechanical images flagged for operator review; decorative images not counted |
+
+**HTML capability dimensions:**
+
+| Capability | Applies to | Verification |
+|-----------|-----------|--------------|
+| Chrome stripping | All HTML | Chrome fingerprinting (G.4): deduplicated blocks ≥0; mechanical content identifiable after stripping |
+| Dynamic content detection | All HTML | ≥500 visible-text characters per page, or flag as `[js-dependent]` |
+| Pagination following | Multi-page HTML | Page budget, depth, and URL-seen set recorded; `[page-budget-exhausted]` logged if reached |
+| Content-type classification | All HTML | Zero-mechanical pages skipped and logged with reason |
+| Table and formatting preservation | HTML with tables | Same verification as PDF table/formatting checks |
+
+#### Known-Good Converters
+
+*Informational — not prescriptive. Prefer permissively-licensed converters (MIT,
+Apache 2.0). Copyleft licenses (GPL, AGPL) may impose distribution obligations on the
+built server.*
+
+**PDF converters:**
+
+| Converter | Package | Strengths | License |
+|-----------|---------|-----------|---------|
+| Docling | `docling` | Rich structured output, reading-order detection, RAG integrations | MIT |
+| pdf-craft | `pdf-craft` | Scanned book specialist, DeepSeek OCR, fully offline | MIT |
+| pdfplumber | `pdfplumber` | Precise text positioning; requires post-processing pipeline | MIT |
+| MarkItDown | `markitdown` | Multi-format, fast for digital PDFs; weak on table structure | MIT |
+| Marker | `marker-pdf` | Strong table extraction, reading-order detection, optional LLM boost; GPU preferred | Apache 2.0 (code); AI Pubs Open RAIL-M (model weights — free for <$5M annual revenue) |
+| MinerU | `mineru` | Best CJK support, complex layouts, broad accelerator compatibility | Apache 2.0 |
+| PyMuPDF4LLM | `pymupdf4llm` | Lightweight, fastest for native PDFs, no GPU; useless for scanned documents | AGPL (copyleft — embedding may impose obligations) |
+| Pandoc | `pandoc` | Universal format support, mature; weak on layout preservation | GPL (copyleft) |
+
+**HTML converters:**
+
+| Converter | Package | Strengths | License |
+|-----------|---------|-----------|---------|
+| Turndown + Mozilla/readability | `turndown` | Strong chrome stripping, mature HTML→MD pipeline | MIT |
+| MarkItDown | `markitdown` | Multi-format, fast HTML→MD path | MIT |
+| trafilatura | `trafilatura` | Web content extraction with metadata preservation | GPL (copyleft) |
+| Pandoc (HTML reader) | `pandoc` | Preserves table structure, handles inline formatting; sidebar content mixed into main flow | GPL (copyleft) |
 
 ### G.2 Progressive Sampling Protocol
+
+Progressive fidelity sampling is the RECOMMENDED verification method — it catches
+converter defects on a trial page before committing to full-batch conversion. A
+builder with a pre-validated converter whose fidelity evidence is already recorded
+in DECISIONS.md may bypass the progressive protocol and proceed directly to full
+conversion followed by the Appendix H checklist. The fidelity thresholds (≥70%
+trial, ≥90% per content type) remain normative regardless of the verification
+method used.
 
 Conversion fidelity is measured in three phases. Each phase gates the next.
 
@@ -997,15 +1059,15 @@ follow the table as prose.
 
 ### G.6 Cross-Converter Verification
 
-The builder SHALL run a second converter from the catalog on the Phase 2 fidelity
-sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
+The builder SHALL run a second converter satisfying the capability profile on the
+fidelity sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
 Disagreements — text present in one output but not the other, or different word order
 — SHALL be flagged as artifacts with disposition `pending`. The converter pair and
 disagreement count SHALL be recorded in DECISIONS.md (5).
 
-If the catalog offers no second converter for the source format, the builder SHALL
-record a `[single-converter]` finding in DECISIONS.md (5) with the justification —
-informational, not blocking.
+If no second converter satisfying the capability profile is available for the source
+format, the builder SHALL record a `[single-converter]` finding in DECISIONS.md (5)
+with the justification — informational, not blocking.
 
 **Pin.** The converter and its version are recorded in DECISIONS.md (2); the same
 converter produces the frozen Markdown and any later diagnostic re-run.
@@ -1287,6 +1349,11 @@ build artifact — it is a spec-maintainer reference.
 - [ ] No worked examples disguised as requirements
 - [ ] Trust-the-loop test: would the convergence loop catch this deviation?
 - [ ] Red-team test: answered four questions from §4 Standing Rule 8
+- [ ] Holodeck archetypes: new property group assigned archetypes in §7.7; coupling table
+      extended for all property-group pairs per REQ-370; `[none]` declared where inapplicable
+- [ ] Content sources: new content source type assigned property-group population mappings;
+      downstream couplings covered by populated properties' archetype rules; no new coupling
+      rows needed in §7.7.1
 
 These checks are mechanically enforced by `npm run validate` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,
