@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-10 — Synthesis rename stragglers and typo sweep
+
+- Renamed residual "Enrich" references to "Synthesis" across the
+  requirements body (§5), build intake questions (§6.2), and
+  appendix text — stale references to "Enrich workflow," "Enrichment
+  Controls," and "enrichment modules" now match the §11 Synthesis
+  rename. Q0 intake option changed from `enrich` to `synthesize`.
+  `TTRPG_MAX_ENRICHMENT_ITEMS` renamed to `TTRPG_MAX_SYNTHESIS_ITEMS`.
+- Fixed eight run-together typos where "badges." collided with the
+  following word ("badges.for" → "badges. For", etc.) across
+  requirements, build process, fixtures, and appendix reference text.
+
 ## 2026-08-10 — REQ body contract hygiene
 
 - Tightened six REQ bodies that exceeded character limits with
