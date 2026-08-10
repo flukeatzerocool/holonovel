@@ -1194,10 +1194,11 @@ server.registerTool("spec_health", {
   const resourceUris = ["spec://build", "lore://groups", "lore://templates", "lore://{key}"];
 
   const health: any = {
-    spec_version: "2026.08.08",
+    spec_version: state.buildFingerprint.specVersion,
     spec_repo_url: "https://github.com/anomalyco/Holonovel",
     spec_hash: specHash,
     spec_hash_current: !specDrift,
+    source_hash: state.buildFingerprint.sourceHash,
     ruleset_hash: state.buildFingerprint.rulesetHash,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     last_spec_review: state.buildFingerprint.lastSpecReview ?? new Date().toISOString(),
@@ -1256,6 +1257,13 @@ server.registerTool("spec_health", {
       unrecoverable_crash: { status: "online" as const },
     },
   };
+
+  const fingerprintPath = path.join(DATA_DIR, "build-order-fingerprint.json");
+  if (fs.existsSync(fingerprintPath)) {
+    try {
+      health.build_order = JSON.parse(fs.readFileSync(fingerprintPath, "utf-8"));
+    } catch { /* ignore unreadable fingerprint */ }
+  }
 
   return ok(JSON.stringify(health, null, 2));
 });
