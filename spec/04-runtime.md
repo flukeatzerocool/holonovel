@@ -156,6 +156,7 @@ discarded by `end_novel`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
+| World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -313,7 +314,8 @@ the coupling completeness contract (REQ-370).
 
 ##### 7.7.1b Completeness register
 
-Every Novel property-group pair from §7.7 is accounted for below. Pairs not listed
+Every Novel property-group pair from §7.7 is accounted for below, including the World
+Model group (Spatial). Pairs not listed
 in §7.7.1a carry `[none]` — no interaction. Pairs where the source is a content
 source (Adventure, Codex) are `[none]` — content sources populate property groups
 which couple via their own archetype rules.
