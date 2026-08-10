@@ -36,14 +36,13 @@ README DESIGN:
 
 # Holonovel
 
-**One spec. Any game. Zero code.**
+**Build the Holodeck. Load your campaign.**
 
-Holonovel is spec-driven RPG infrastructure. You have the books — this makes your
-AI know every rule, every table, every condition track. A single specification
-reads any rulebook and produces a complete MCP game server. Two servers ship in
-this repo: a world-model base and a full D&D 5e build. D&D 5e today. Mothership
-tomorrow. No hand-coding, no waiting for someone to build your game. Your books.
-Your server. Your table.
+A *holonovel* is a Star Trek holodeck program — an interactive story where you step
+inside as a character and the rules govern. Holonovel builds the server (the
+Holodeck). Your campaign is the program (the Novel). Your rulebooks become the engine.
+D&D 5e today. Mothership tomorrow. No holograms, no 3D — your books, rendered as
+tools and mechanics, running inside the room. Your books. Your server. Your table.
 
 ## Try it now
 

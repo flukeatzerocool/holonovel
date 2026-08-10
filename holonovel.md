@@ -96,6 +96,13 @@ token and time costs. The builder prefers incremental updates when the spec delt
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
 
+**The north star.** A *holonovel* is a Star Trek holodeck program — an interactive
+narrative where the user steps inside as a character, the cast responds with intent,
+and the rules govern every outcome. Holonovel builds the server (the Holodeck) and
+loads your campaign (the Holonovel program) from your rulebooks. The Novel is the
+saved program file — create it, resume it, export and share it. No holograms. No 3D.
+Your books, rendered as tools and mechanics, running inside the room.
+
 **The play model (TTRPG).** Two badges, enforced server-side when the story is active.
 The Novel is the container — a named, persistent save file holding the world model,
 entities, scenes, and all state. Entering a Novel (create or resume) starts in editing
