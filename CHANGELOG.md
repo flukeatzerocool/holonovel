@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-10 — Novel integration and Codex provenance
+
+- The Codex now tracks provenance through Novel artifacts. When you import
+  an NPC or faction from the Codex, the Novel records its origin — re-importing
+  the same Codex entry updates the existing artifact in-place rather than
+  creating a duplicate. Stale Codex templates are flagged in spec_health.
+  (REQ-332)
+- Codex import accepts a batch array for atomic multi-entry bootstrapping.
+  (REQ-321)
+- Codex capture supports an `update_source` flag to push Novel improvements
+  back to the source Codex entry rather than creating a separate copy.
+  (REQ-321)
+- `create_novel` now accepts an optional `codex_adventure` parameter for
+  one-shot Novel bootstrapping from a Codex adventure template. (REQ-088)
+- Story journal entries of type `revelation` or `moment` can be promoted
+  to lore entries via `promote_story_to_lore` — narrative memory becomes
+  world fact. (REQ-333)
+- Novels can be archived separately from deletion — an archival lifecycle
+  state distinct from trash, for long-term reference of finished campaigns.
+  Archived Novels are read-only, searchable, and restorable. (REQ-334)
+- Added `novel://<slug>/preview` resource for browsing Novel contents
+  without activating. (REQ-022, REQ-258)
+- The coupling table in §7.7.1 now surfaces nine missing property
+  dependencies including Codex artifacts, vow-countdown coupling, world-scene
+  transitions, story journal to lore promotion, and notes-lore cross-surfacing.
+
 ## 2026-08-10 — World model deep integration
 
 - Redefined the world model as spatial foundation for scene composition

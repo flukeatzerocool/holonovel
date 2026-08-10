@@ -9,10 +9,10 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 | 32    |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
 | 5.5     | Hats and Access                     | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–331 | 78    |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 | 79    |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
-| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328 | 40    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259                | 20    |
+| 5.8     | Enrichment, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–268, 328, 333 | 41    |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327        | 20    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 
@@ -950,7 +950,8 @@ _Check:_ T3, T35.
 `enrichment://voice_examples`, `enrichment://briefing_order`,
 `enrichment://action_patterns`, `enrichment://adventure_advice`,
 `enrichment://narrative_voices`, `enrichment://status`, `adventure://<slug>/<anchor>`, `novel://current`,
-`novel://<slug>`, `novel://setup`, `room://<id>`, `thing://<id>`, `world://map`, `world://kinds`, `graph://novel`,
+`novel://<slug>`, `novel://<slug>/preview`, `novel://setup`, `room://<id>`,
+`thing://<id>`, `world://map`, `world://kinds`, `graph://novel`,
 `spec://build` (GM-filtered),
 `output://{tool_name}/{counter}`. `resources/templates/list` advertises entity,
 roster-record, and `output://` templates. `resources/read` returns Markdown with a small
@@ -4048,8 +4049,12 @@ for world-building content) or `shared` (visible to both badges). `codex_set(kin
 name, data, description?, tags?, visibility?)` SHALL create or update a codex entry
 with upsert semantics — the `data` parameter carries a kind-specific payload whose
 shape mirrors the corresponding Novel or roster tool parameters. `codex_import(id)`
-SHALL materialize a codex entry into the active Novel by delegating to the existing
-tool for the entry's kind: `npc` → `create_npc`, `character` → `import_character`,
+— where `id` is a string or an array of strings — SHALL materialize one or more
+codex entries into the active Novel. An array SHALL be processed atomically: all
+entries applied as a single undo snapshot; partial failure reports the failed
+entry with its array index and cause, and the operation SHALL NOT produce side
+effects on novel state. Materialization delegates to the existing tool for the
+entry's kind: `npc` → `create_npc`, `character` → `import_character`,
 `scene` → `set_scene_state`, `encounter` → `init_combat`, `lore_entry` →
 `set_lore_entry`, `faction` → `create_faction`, `countdown` → `set_countdown`,
 `room` → `create_room`, `thing` → `create_thing`, `equipment_template` →
@@ -4076,6 +4081,15 @@ data payload defined above. When the active Novel has no adventure content,
 `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action
 `"No adventure content in the active Novel. Load an adventure via load_adventure or
 generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a
+
+WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the
+captured artifact originated from a prior `codex_import` (detected by the provenance
+field defined in REQ-332), THE system SHALL update the source Codex entry in-place
+rather than creating a separate entry. When `update_source` is `true` but the
+artifact has no Codex provenance, the system SHALL return `[ERROR] [STATE_CONFLICT]`
+with corrective action directing the caller to omit `update_source`.
+
+`codex_list(kind?, tag?)` SHALL return a
 filterable list of codex entries with id, kind, name, description, tags, and
 visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player
 badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
@@ -4112,8 +4126,40 @@ returns `[FORBIDDEN]`; `codex_import("my-adventure")` with kind `adventure` into
 active Novel populates world-model, NPCs, factions, lore, and activates enrichment
 linkages; `codex_capture("adventure")` from an active Novel with adventure content
 stores it in Codex with `source: captured:<slug>`; without adventure content returns
-`[STATE_CONFLICT]`; `spec_health` reports codex counts by kind.
-_Check:_ T-new-322.
+`[STATE_CONFLICT]`; `codex_import(["blacksmith", "innkeeper", "guild-faction"])`
+imports three entries atomically; `codex_import(["blacksmith", "nonexistent"])`
+reports `nonexistent` at index 1 as `[NOT_FOUND]` and imports nothing;
+`codex_capture("npc", "blacksmith", update_source=true)` on a codex-sourced NPC
+updates the Codex entry in-place; `codex_capture("npc", "handcrafted-npc",
+update_source=true)` on an NPC with no codex_source returns `[STATE_CONFLICT]`;
+`spec_health` reports codex counts by kind.
+_Check:_ T-new-322, T-new-338, T-new-339.
+
+**REQ-332 — Codex provenance.** WHEN a Novel artifact (NPC, room, thing, lore
+entry, faction, countdown) is created via `codex_import`, THE artifact SHALL
+carry a `codex_source` field recording: the Codex entry ID, the import timestamp,
+and the Codex entry's `modified_at` value at the time of import. `codex_import`
+of an entry whose `codex_source` already references that Codex entry SHALL update
+the existing artifact in-place rather than creating a duplicate — fields present
+in the Codex entry SHALL overwrite corresponding Novel artifact fields; fields
+set only in the Novel (runtime state like HP, conditions, disposition) SHALL be
+preserved. `novel_info` SHALL report `codex_sources` — an array of `{id, kind,
+imported_at, codex_modified_at}` for every Codex-sourced artifact in the Novel.
+WHEN a Codex entry's `modified_at` timestamp is newer than the import timestamp
+recorded in the Novel artifact's `codex_source`, THE `spec_health` tool SHALL
+flag the artifact as `[codex_stale]` — the Codex template has been updated since
+import. `clone_novel` and checkpoint snapshots SHALL preserve `codex_source`
+fields on copied artifacts.
+
+*Acceptance criterion:* `codex_import("blacksmith")` creates NPC "Blacksmith"
+with `codex_source: {id: "blacksmith", imported_at: <ISO>, codex_modified_at:
+<ISO>}`. Updating the blacksmith Codex entry via `codex_set`, then calling
+`codex_import("blacksmith")` again updates the existing NPC (same entity ID)
+rather than creating a new one. `novel_info()` reports `codex_sources` including
+the blacksmith entry. After updating the Codex entry, `spec_health` reports
+`[codex_stale]` for the Novel's blacksmith NPC.
+
+_Check:_ T-new-336.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -4451,6 +4497,29 @@ with scene coupled to world-model room "Library" — entry auto-populates
 `room_id: "library"` and `scene_anchor` includes "Library". Same call with
 unmatched location — `room_id` absent.
 _Check:_ T-new-331.
+
+**REQ-333 — Story journal to lore promotion.** THE server SHALL provide a
+`promote_story_to_lore(index, key?)` tool — Game Master only. Accepts a story
+journal entry index of type `revelation` or `moment` and creates a lore entry
+whose key SHALL be either the explicit `key` parameter (when provided) or a slug
+derived from the first sentence of the journal entry. The lore entry's content
+SHALL be the journal entry text; its triggers SHALL be derived from entity and
+location names mentioned in the entry. The journal entry is unchanged —
+promotion is non-destructive. Promoting a `decision` or `consequence` type entry
+SHALL return `[ERROR] [RULE_VIOLATION]` — decisions and consequences are
+immutable. When a lore entry already exists at the target key, the system SHALL
+return `[STATE_CONFLICT]` with corrective action suggesting a `key` parameter to
+disambiguate. The created lore entry carries a `source` field citing the story
+journal index as `story_journal:<index>`. Player badge returns `[FORBIDDEN]`.
+
+*Acceptance criterion:* `record_story("revelation", "The old well leads to the
+undercity")` then `promote_story_to_lore(0)` creates lore entry
+`the-old-well-leads-to-the-undercity` with `source: story_journal:0`.
+`promote_story_to_lore(0, key="well-undercity-link")` uses the explicit key
+(succeeds only if that key is not already taken). Promoting a `decision` entry
+returns `[RULE_VIOLATION]`. Player badge returns `[FORBIDDEN]`.
+
+_Check:_ T-new-336.
 
 **REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
 memory — a per-entity fact store derived automatically from state-changing tool calls,
@@ -5459,7 +5528,14 @@ _Check:_ T274.
 
 **REQ-088 — Novel lifecycle.** A Novel is a named, persistent save file on disk.
 `create_novel(name, description?)` creates a new Novel at `.holonovel-state/novels/<slug>.json`
-and activates it for the calling connection. `description` is an optional free-text field
+and activates it for the calling connection. An optional `codex_adventure` parameter —
+a Codex entry ID of kind `adventure` — bootstraps the Novel in one atomic operation:
+creates the Novel, imports the Codex adventure scaffold (world-model, NPCs, factions,
+lore, enrichment linkages per REQ-321), and marks `adventure_set: true` in Novel
+metadata. When `codex_adventure` is provided and the referenced Codex entry does not
+exist or is not of kind `adventure`, `create_novel` SHALL return `[ERROR] [NOT_FOUND]`.
+When no Codex entries exist on the server, the parameter is ignored silently.
+`description` is an optional free-text field
 (one paragraph recommended), stored in the Novel JSON, surfaced in `novel://current`,
 `list_novels`, `novel_info`, and `export_novel` manifest. `resume_novel(slug)` activates an existing Novel
 from disk. `switch_novel(slug)` (REQ-095) switches the active Novel for a connection.
@@ -5492,7 +5568,10 @@ proceeds with no Novel active — it does not silently swallow the error.
 "A noir detective story set in a rain-soaked city.")` creates `novels/my-novel.json`
 and stores the description; `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on
 "yes", the file is moved to `.trash/` and the roster survives.
-_Check:_ T72, T73, T98, T159.
+`create_novel("dragon-game", codex_adventure="dragon-hoard")` creates the Novel and
+imports the dragon-hoard Codex adventure scaffold atomically;
+`create_novel("broken", codex_adventure="nonexistent")` returns `[NOT_FOUND]`.
+_Check:_ T72, T73, T98, T159, T-new-335.
 
 **REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
 Novel's save file and its backup to a `.trash/` subdirectory within the state directory
@@ -5569,7 +5648,8 @@ count, cumulative play time, on-disk file size, story journal entry counts
 by type, checkpoint count, notes count, adventure source (slug, "generated",
 or "none"), setup-completion flags, format version, compression flag,
 enrichment status (Tier 1 activated key count per module, Tier 2 item count per
-module, stale item count), and the active badge. Badge-filtered. When the
+module, stale item count), `codex_sources` (array of `{id, kind, imported_at,
+codex_modified_at}` per REQ-332), and the active badge. Badge-filtered. When the
 specified slug doesn't exist on disk, returns `[NOT_FOUND]` with available
 slugs enumerated. When no slug is given and no Novel is active, returns
 `[NOT_FOUND]` directing the caller to `list_novels` or `create_novel`.
@@ -5963,6 +6043,36 @@ lists both Novels; `clone_novel("my-novel", "my-novel-fork")` a second time
 returns `[STATE_CONFLICT]`; `clone_novel("my-novel", "trimmed", trim_audit_
 sessions=2)` clones with only the 2 most recent sessions' audit entries.
 _Check:_ T278.
+
+**REQ-334 — Novel archive.** THE server SHALL provide an `archive_novel(slug)`
+tool — Game Master only, Novel must not be active in another connection. Marks
+the Novel as archived: the Novel file SHALL be moved from
+`.holonovel-state/novels/<slug>.json` to
+`.holonovel-state/archive/<slug>.json` with its backup files. The active badge
+is deactivated; the Novel is no longer active. IF the Novel is active in another
+connection, THE system SHALL return `[STATE_CONFLICT]`. Archived Novels SHALL be
+read-only — all mutating tools SHALL return `[STATE_CONFLICT]` with corrective
+action directing the caller to `unarchive_novel`. Archive is distinct from trash
+(REQ-117): archived Novels are long-term reference files, never auto-deleted.
+`list_novels` SHALL accept an optional `filter` parameter with values `active`
+(default, excludes archived and trashed), `archived` (archived-only), or `all`.
+`unarchive_novel(slug)` SHALL restore an archived Novel to active status at
+`.holonovel-state/novels/<slug>.json` with full state preserved — all property
+groups and metadata intact. Player badge returns `[FORBIDDEN]`. Archived Novels
+SHALL surface in `spec_health` under an `archived_novels` key with slug and
+archive timestamp. Codex entries captured from an archived Novel via
+`codex_capture` SHALL preserve their `source_novel` field — the archived Novel
+remains the provenance reference.
+
+*Acceptance criterion:* `archive_novel("my-novel")` moves the file to
+`.holonovel-state/archive/my-novel.json`; `list_novels()` excludes it;
+`list_novels(filter="archived")` includes it with archive timestamp;
+`resume_novel("my-novel")` returns `[STATE_CONFLICT]`;
+`unarchive_novel("my-novel")` restores the Novel to active state with all
+property groups intact. `spec_health.archived_novels` lists the archived slug.
+Player badge returns `[FORBIDDEN]`.
+
+_Check:_ T-new-337.
 
 ### 5.10 World-Model Layer
 

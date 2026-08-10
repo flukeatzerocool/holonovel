@@ -1249,6 +1249,9 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-329 | S16, S23 | Countdown-world coupling |
 | REQ-330 | S16, S19 | Knowledge-world coupling |
 | REQ-331 | S16 | Story journal-world coupling |
+| REQ-332 | S15, S16 | Codex provenance |
+| REQ-333 | S16 | Story journal to lore promotion |
+| REQ-334 | S15 | Novel archiving |
 
 **Fingerprint-driven Gauntlet scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
