@@ -16,7 +16,7 @@ _The normative core. Each requirement is one paragraph followed by its check cit
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
 | 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
 | 5.12 | Narrative Architecture | 335–366 | 31 |
-| 5.13 | Holodeck | 369–371, 374–375 | 5 |
+| 5.13 | Holodeck | 369–371, 374–376 | 6 |
 | 5.14 | Content Sources | 372–373 | 2 |
 
 ### 5.1 Output and Error Contracts
@@ -7422,6 +7422,27 @@ Navigational to Mechanical where the coupling contract supports it.
 coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational
 causes this metric to fail, directing the builder to re-classify.
 _Check:_ T-new-382.
+
+**REQ-376 — Holonovel Pattern Buffer traceability.** The builder must ensure at least
+one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10
+(World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the
+world-model error contracts of REQ-367
+(World-model property contracts). The builder records a Holonovel
+sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ,
+naming the sub-workflow(s) that exercise it. When a REQ in these sections changes
+during a holonovel package version advance, the builder re-examines every
+sub-workflow mapped to it. Gaps — a REQ in the covered sections with no mapped
+sub-workflow — are logged as process-compliance findings and must be resolved
+before the holonovel package is published. New REQs added to the covered sections
+during a spec revision require the builder to propose at least one new Holonovel
+Pattern Buffer sub-workflow exercising their contract; the proposal is a finding,
+not a blocker.
+
+*Acceptance criterion:* After a full Holonovel Pattern Buffer run, DECISIONS.md (6)
+contains a Holonovel sub-workflow-to-REQ mapping covering every REQ in the
+specified sections. Gaps detected by `npm run validate` are errors that block
+assembly.
+_Check:_ T-new-387.
 
 ---
 

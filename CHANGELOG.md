@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-10 — Pattern Buffer coverage expansion and Holodeck coupling hardening
+
+- Holonovel Pattern Buffer now has a formal REQ coverage map (REQ-376)
+  mapping every world-model and narrative-architecture requirement to
+  exercised sub-workflows, mirroring the Ruleset PB's traceability
+  (REQ-108). Gaps detected by `npm run validate` block assembly.
+- Expanded REQ-108's scope from §5.5-5.7 + REQ-002 to cover all
+  exercised sections: §5.8 (Synthesis), §5.10 (World-Model Layer),
+  §5.12 (Narrative Architecture), and §5.13 (Holodeck). The REQ
+  coverage map table grew from 77 to 120 rows.
+- World Model (rooms, things, exits, vehicles) is now a formal property
+  group in §7.7 with the Spatial archetype, closing a gap where
+  world-model couplings existed in §7.7.1a but the group itself wasn't
+  in the properties table.
+- Three new Pattern Buffer sub-workflows cover untested coupling pattern
+  rule chains: S34 (Entity-bearing chain — P24 + P25 + P26 + P27),
+  S35 (Narrative architecture chain — P1 + P28 + P29 + P30 + P31),
+  and S36 (Decision chain — P4 + P12 + P20). All are non-blocking.
+- Cascade-aware scoping: changed surfaces now pull in sub-workflows for
+  surfaces coupled through Mechanical linkages in §7.7.1, closing a gap
+  where Scene changes wouldn't trigger Countdown or Faction sub-workflow
+  re-execution.
+- Sub-workflow segmentation allows independently-verifiable segments
+  within a sub-workflow to carry their own surface hashes, enabling
+  finer-grained re-execution within stable spec/ruleset contexts.
+  Blocking sub-workflows always re-execute as a unit.
+
 ## 2026-08-10 — Synthesis rename stragglers and typo sweep
 
 - Renamed residual "Enrich" references to "Synthesis" across the

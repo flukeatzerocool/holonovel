@@ -439,6 +439,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-373 | Dynamic tool registration | 2026-08-10 |
 | REQ-374 | Archetype coverage | 2026-08-10 |
 | REQ-375 | Wisdom mechanical coupling rate | 2026-08-10 |
+| REQ-376 | Holonovel Pattern Buffer traceability | 2026-08-10 |
 
 ---
 
@@ -866,6 +867,7 @@ diet.
 | T-new-384 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with Wisdom active — assert character_sheet shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on set_scene_state (P7). suggest_actions returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
 | T-new-385 | Automated | S27 blocking promotion: enrichment lifecycle sub-workflow now blocked from handoff on failure. Assert mechanical enactment assertions (P6, P7, P10) execute as part of S27. Assert deactivating Wisdom item suppresses mechanical behavior; reactivating restores it. | §6.6 S27 |
 | T-new-386 | Automated | Cross-model audit archetype coverage: run cross-model audit per REQ-299. Assert coverage includes ≥2 distinct archetype categories from §7.7.0. Assert audit report enumerates archetype categories compared. Assert archetype disagreements recorded as findings with both models' assignments and source anchors. | REQ-299 |
+| T-new-387 | Automated | Holonovel Pattern Buffer traceability: after a full Holonovel Pattern Buffer run, assert DECISIONS.md (6) contains a Holonovel sub-workflow-to-REQ mapping covering every REQ in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and REQ-367. Assert each covered REQ maps to at least one Holonovel PB sub-workflow. Assert gaps detected by `npm run validate` are errors that block assembly. | REQ-376 |
 
 ---
 
