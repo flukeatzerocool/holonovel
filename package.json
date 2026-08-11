@@ -17,7 +17,7 @@
     "validate-readme": "npx tsx scripts/validate-readme.ts",
     "detect-dupes": "npx tsx scripts/detect-near-dupes.ts",
     "check": "npm run lint && npm run validate:sdd && npm run validate-readme",
-    "check:fast": "npm run lint && npm run validate:fast && npm run validate-readme",
+    "check:fast": "npm run lint && (npm run validate:fast & npm run validate-readme & wait)",
     "check:full": "npm run check && npm run detect-dupes",
     "assemble": "npx tsx scripts/assemble.ts",
     "build-order": "npx tsx scripts/build-order.ts",
