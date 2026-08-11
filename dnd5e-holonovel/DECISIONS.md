@@ -35,7 +35,7 @@
 - **Validation:** Zod 4.x
 - **Build tools:** `tsx` for scripts, `tsc` for compilation
 - **Spec version:** 2026.08.09
-- **Spec hash:** acf3e99d8bc0122490f3f199157ae996275503e648f0f848389cf9077a9095fc
+- **Spec hash:** 5180b29669e7c2de9aa7fde7ffd2529e9e86463649cb10e15bdad0e9e7551afa
 - **Ruleset fingerprint:** e3b0c44298fc1c14
 
 <!-- @section traceability -->
