@@ -379,103 +379,42 @@ function checkAssumptions(text: string): string[] {
   return issues;
 }
 
-// ─── Proofreading: Voice ────────────────────────────────────────────────
+// ─── Proofreading: Consolidated ──────────────────────────────────────────
 
-function checkPassiveVoice(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  const passiveRe = /\b(is|are|was|were|been|being)\s+(\w+(?:ed|en|t)|built|made|found|known|seen|taken|given)\b/gi;
-  for (const [reqId, entry] of reqs) {
-    if (entry.sentences.length === 0) continue;
-    let passiveCount = 0;
-    for (const s of entry.sentences) {
-      if (passiveRe.test(s)) passiveCount++;
-    }
-    const pct = passiveCount / entry.sentences.length;
-    if (pct > 0.4) issues.push(`${reqId}: ${passiveCount}/${entry.sentences.length} sentences passive (${Math.round(pct * 100)}%)`);
-  }
-  return issues;
+interface ProofreadingIssues {
+  passive: string[];
+  modal: string[];
+  xref: string[];
+  doubleNeg: string[];
+  sentLen: string[];
+  condStack: string[];
+  emptySec: string[];
+  pronoun: string[];
+  termDrift: string[];
+  readability: string[];
 }
 
-function checkModalDrift(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  for (const [reqId, entry] of reqs) {
-    const mustMatch = entry.body.match(/\bmust\b/gi);
-    const willMatch = entry.body.match(/\bwill\b/gi);
-    const shouldMatch = entry.body.match(/\bshould\b/gi);
-    if ((mustMatch || willMatch || shouldMatch) && /\bSHALL\b/.test(entry.body)) {
-      const parts: string[] = [];
-      if (mustMatch) parts.push(`"must" (${mustMatch.length})`);
-      if (willMatch) parts.push(`"will" (${willMatch.length})`);
-      if (shouldMatch) parts.push(`"should" (${shouldMatch.length})`);
-      issues.push(`${reqId}: ${parts.join(", ")} alongside SHALL — consider standardizing to SHALL`);
-    }
-  }
-  return issues;
+function emptyIssues(): ProofreadingIssues {
+  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [] };
 }
 
-// ─── Proofreading: Format ───────────────────────────────────────────────
+function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, terms: { term: string; canonical: string }[]): ProofreadingIssues {
+  const issues = emptyIssues();
 
-function checkCrossRefFormat(text: string): string[] {
-  const issues: string[] = [];
+  // ── Cross-reference format (text-level) ──
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("```") || line.startsWith("|") || line.startsWith("#")) continue;
     if (/req\s+\d{3}/i.test(line) && !/REQ-\d{3}/.test(line)) {
-      issues.push(`line ${i + 1}: non-canonical REQ reference — use "REQ-NNN"`);
+      issues.xref.push(`line ${i + 1}: non-canonical REQ reference — use "REQ-NNN"`);
     }
     if (/section\s+\d/i.test(line) && !/^##\s/.test(line) && !/^\s*-/.test(line)) {
-      issues.push(`line ${i + 1}: non-canonical section reference — use "§N"`);
+      issues.xref.push(`line ${i + 1}: non-canonical section reference — use "§N"`);
     }
   }
-  return issues;
-}
 
-function checkDoubleNegatives(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  const dnRe = /\b(not\s+fail|not\s+omit|never\s+not|not\s+absent|not\s+missing)\b/gi;
-  for (const [reqId, entry] of reqs) {
-    const matches = entry.body.match(dnRe);
-    if (matches) issues.push(`${reqId}: double negative "${matches[0]}" — simplify`);
-  }
-  return issues;
-}
-
-// ─── Proofreading: Structure ────────────────────────────────────────────
-
-function checkSentenceLength(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  for (const [reqId, entry] of reqs) {
-    const wordCounts = entry.sentences.map((s) => s.split(/\s+/).filter((w) => w.length > 0).length);
-    const veryLong = wordCounts.filter((w) => w > 45);
-    const allLong = wordCounts.every((w) => w > 30);
-    if (veryLong.length > 0) {
-      issues.push(`${reqId}: ${veryLong.length} sentence(s) exceed 45 words (max ${Math.max(...wordCounts)})`);
-    } else if (allLong && wordCounts.length > 1) {
-      issues.push(`${reqId}: all ${wordCounts.length} sentences >30 words — monotonous density`);
-    }
-  }
-  return issues;
-}
-
-function checkConditionStacking(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  for (const [reqId, entry] of reqs) {
-    for (const s of entry.sentences) {
-      const conjunctions = (s.match(/\b(and|or)\b/gi) || []).length;
-      const conditionals = (s.match(/\b(if|when|while|unless)\b/gi) || []).length;
-      if (conjunctions > 3 || conditionals > 2) {
-        issues.push(`${reqId}: sentence with ${conjunctions} conjunctions, ${conditionals} conditionals — multiple contracts`);
-        break;
-      }
-    }
-  }
-  return issues;
-}
-
-function checkEmptySections(text: string): string[] {
-  const issues: string[] = [];
-  const lines = text.split("\n");
+  // ── Empty sections (text-level) ──
   let lastHeading = "";
   let lastHeadingLine = 0;
   let nonBlankLines = 0;
@@ -487,7 +426,7 @@ function checkEmptySections(text: string): string[] {
     }
     if (/^#{2,4}\s+/.test(line) && !line.includes("Contents")) {
       if (lastHeading && nonBlankLines === 0) {
-        issues.push(`empty section: line ${lastHeadingLine} "${lastHeading}" — no prose content`);
+        issues.emptySec.push(`empty section: line ${lastHeadingLine} "${lastHeading}" — no prose content`);
       }
       lastHeading = line.trim().replace(/^#+\s*/, "");
       lastHeadingLine = i + 1;
@@ -496,49 +435,96 @@ function checkEmptySections(text: string): string[] {
     }
     if (line.trim().length > 0 && !line.trim().startsWith("---")) nonBlankLines++;
   }
-  return issues;
-}
 
-// ─── Proofreading: Clarity ──────────────────────────────────────────────
-
-function checkPronounAmbiguity(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
+  // ── Per-REQ checks (single loop) ──
+  const passiveRe = /\b(is|are|was|were|been|being)\s+(\w+(?:ed|en|t)|built|made|found|known|seen|taken|given)\b/gi;
+  const dnRe = /\b(not\s+fail|not\s+omit|never\s+not|not\s+absent|not\s+missing)\b/gi;
   const initialPronounRe = /^(It|This|That|These|Those)\s/i;
   const pronounDensityRe = /\b(it|they|them|this|that|these|those)\b/gi;
+  const termSet = new Set(terms.map((t) => t.term.toLowerCase()));
+
   for (const [reqId, entry] of reqs) {
-    for (const s of entry.sentences) {
-      if (initialPronounRe.test(s)) {
-        issues.push(`${reqId}: sentence starts with ambiguous pronoun "${s.slice(0, 30)}…"`);
-        break;
-      }
-      const words = s.split(/\s+/).filter((w) => w.length > 0);
-      const pronounCount = (s.match(pronounDensityRe) || []).length;
-      if (words.length > 0 && pronounCount / words.length > 0.2) {
-        issues.push(`${reqId}: pronoun density ${Math.round(pronounCount / words.length * 100)}% — ambiguous referents`);
+    const body = entry.body;
+    const sentences = entry.sentences;
+    if (sentences.length === 0) continue;
+    const words = body.split(/\s+/).filter((w) => w.length > 0);
+
+    // Passive voice
+    let passiveCount = 0;
+    for (const s of sentences) { if (passiveRe.test(s)) passiveCount++; }
+    const passivePct = passiveCount / sentences.length;
+    if (passivePct > 0.4) issues.passive.push(`${reqId}: ${passiveCount}/${sentences.length} sentences passive (${Math.round(passivePct * 100)}%)`);
+
+    // Modal drift
+    const mustMatch = body.match(/\bmust\b/gi);
+    const willMatch = body.match(/\bwill\b/gi);
+    const shouldMatch = body.match(/\bshould\b/gi);
+    if ((mustMatch || willMatch || shouldMatch) && /\bSHALL\b/.test(body)) {
+      const parts: string[] = [];
+      if (mustMatch) parts.push(`"must" (${mustMatch.length})`);
+      if (willMatch) parts.push(`"will" (${willMatch.length})`);
+      if (shouldMatch) parts.push(`"should" (${shouldMatch.length})`);
+      issues.modal.push(`${reqId}: ${parts.join(", ")} alongside SHALL — consider standardizing to SHALL`);
+    }
+
+    // Double negatives
+    const dnMatch = body.match(dnRe);
+    if (dnMatch) issues.doubleNeg.push(`${reqId}: double negative "${dnMatch[0]}" — simplify`);
+
+    // Sentence length
+    const wordCounts = sentences.map((s) => s.split(/\s+/).filter((w) => w.length > 0).length);
+    const veryLong = wordCounts.filter((w) => w > 45);
+    const allLong = wordCounts.every((w) => w > 30);
+    if (veryLong.length > 0) {
+      issues.sentLen.push(`${reqId}: ${veryLong.length} sentence(s) exceed 45 words (max ${Math.max(...wordCounts)})`);
+    } else if (allLong && wordCounts.length > 1) {
+      issues.sentLen.push(`${reqId}: all ${wordCounts.length} sentences >30 words — monotonous density`);
+    }
+
+    // Condition stacking
+    for (const s of sentences) {
+      const conjunctions = (s.match(/\b(and|or)\b/gi) || []).length;
+      const conditionals = (s.match(/\b(if|when|while|unless)\b/gi) || []).length;
+      if (conjunctions > 3 || conditionals > 2) {
+        issues.condStack.push(`${reqId}: sentence with ${conjunctions} conjunctions, ${conditionals} conditionals — multiple contracts`);
         break;
       }
     }
-  }
-  return issues;
-}
 
-function checkTermDrift(reqs: Map<string, ReqBodyEntry>, terms: { term: string; canonical: string }[]): string[] {
-  const issues: string[] = [];
-  if (terms.length === 0) return issues;
-  const termSet = new Set(terms.map((t) => t.term.toLowerCase()));
-  for (const [reqId, entry] of reqs) {
-    const words = entry.body.split(/\s+/).filter((w) => w.length > 0);
+    // Pronoun ambiguity
+    for (const s of sentences) {
+      if (initialPronounRe.test(s)) {
+        issues.pronoun.push(`${reqId}: sentence starts with ambiguous pronoun "${s.slice(0, 30)}…"`);
+        break;
+      }
+      const sWords = s.split(/\s+/).filter((w) => w.length > 0);
+      const pronounCount = (s.match(pronounDensityRe) || []).length;
+      if (sWords.length > 0 && pronounCount / sWords.length > 0.2) {
+        issues.pronoun.push(`${reqId}: pronoun density ${Math.round(pronounCount / sWords.length * 100)}% — ambiguous referents`);
+        break;
+      }
+    }
+
+    // Term drift
     for (const w of words) {
       const clean = w.replace(/[`*_,.()]/g, "").toLowerCase();
       if (termSet.has(clean) && w !== w.toLowerCase() && w.includes("_")) {
         const canonical = terms.find((t) => t.term.toLowerCase() === clean)?.canonical;
         if (canonical && w !== canonical) {
-          issues.push(`${reqId}: term "${w}" drifts from canonical "${canonical}"`);
+          issues.termDrift.push(`${reqId}: term "${w}" drifts from canonical "${canonical}"`);
           break;
         }
       }
     }
+
+    // Readability (Flesch-Kincaid)
+    if (words.length > 0) {
+      const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
+      const grade = 0.39 * (words.length / sentences.length) + 11.8 * (syllables / words.length) - 15.59;
+      if (grade > 15) issues.readability.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 15`);
+    }
   }
+
   return issues;
 }
 
@@ -549,18 +535,6 @@ function countSyllables(word: string): number {
   let count = groups.length;
   if (word.endsWith("e") && count > 1) count--;
   return Math.max(1, count);
-}
-
-function checkReadability(reqs: Map<string, ReqBodyEntry>): string[] {
-  const issues: string[] = [];
-  for (const [reqId, entry] of reqs) {
-    const words = entry.body.split(/\s+/).filter((w) => w.length > 0);
-    if (words.length === 0 || entry.sentences.length === 0) continue;
-    const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
-    const grade = 0.39 * (words.length / entry.sentences.length) + 11.8 * (syllables / words.length) - 15.59;
-    if (grade > 15) issues.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 15`);
-  }
-  return issues;
 }
 
 // ─── Separators & Structural ────────────────────────────────────────────
@@ -1065,43 +1039,27 @@ function main(): void {
   const reqsWithSentences = extractReqBodiesWithSentences(text);
   const terms = extractTerminology(text);
 
-  console.log("\n=== PROOFREADING: VOICE ===\n");
-  const passiveIssues = checkPassiveVoice(reqsWithSentences);
-  const modalIssues = checkModalDrift(reqsWithSentences);
-  if (passiveIssues.length > 0) { for (const i of passiveIssues) console.log(`WARNING: ${i}`); warnings += passiveIssues.length; }
-  else { console.log("PASS: Passive voice within threshold"); }
-  if (modalIssues.length > 0) { for (const i of modalIssues) console.log(`WARNING: ${i}`); warnings += modalIssues.length; }
-  else { console.log("PASS: Modal verb consistency"); }
+  console.log("\n=== PROOFREADING ===\n");
+  const proof = consolidateProofreading(text, reqsWithSentences, terms);
 
-  console.log("\n=== PROOFREADING: FORMAT ===\n");
-  const xrefFormatIssues = checkCrossRefFormat(text);
-  const doubleNegIssues = checkDoubleNegatives(reqsWithSentences);
-  if (xrefFormatIssues.length > 0) { for (const i of xrefFormatIssues) console.log(`WARNING: ${i}`); warnings += xrefFormatIssues.length; }
-  else { console.log("PASS: Cross-reference format consistent"); }
-  if (doubleNegIssues.length > 0) { for (const i of doubleNegIssues) console.log(`WARNING: ${i}`); warnings += doubleNegIssues.length; }
-  else { console.log("PASS: No double negatives detected"); }
-
-  console.log("\n=== PROOFREADING: STRUCTURE ===\n");
-  const sentLenIssues = checkSentenceLength(reqsWithSentences);
-  const condStackIssues = checkConditionStacking(reqsWithSentences);
-  const emptySecIssues = checkEmptySections(text);
-  if (sentLenIssues.length > 0) { for (const i of sentLenIssues) console.log(`WARNING: ${i}`); warnings += sentLenIssues.length; }
-  else { console.log("PASS: Sentence length within bounds"); }
-  if (condStackIssues.length > 0) { for (const i of condStackIssues) console.log(`WARNING: ${i}`); warnings += condStackIssues.length; }
-  else { console.log("PASS: No condition stacking detected"); }
-  if (emptySecIssues.length > 0) { for (const i of emptySecIssues) console.log(`WARNING: ${i}`); warnings += emptySecIssues.length; }
-  else { console.log("PASS: No empty sections detected"); }
-
-  console.log("\n=== PROOFREADING: CLARITY ===\n");
-  const pronounIssues = checkPronounAmbiguity(reqsWithSentences);
-  const termDriftIssues = checkTermDrift(reqsWithSentences, terms);
-  const readabilityIssues = checkReadability(reqsWithSentences);
-  if (pronounIssues.length > 0) { for (const i of pronounIssues) console.log(`WARNING: ${i}`); warnings += pronounIssues.length; }
-  else { console.log("PASS: No ambiguous pronoun references"); }
-  if (termDriftIssues.length > 0) { for (const i of termDriftIssues) console.log(`WARNING: ${i}`); warnings += termDriftIssues.length; }
-  else { console.log("PASS: Term usage consistent with Terminology table"); }
-  if (readabilityIssues.length > 0) { for (const i of readabilityIssues) console.log(`WARNING: ${i}`); warnings += readabilityIssues.length; }
-  else { console.log("PASS: Readability within grade threshold"); }
+  const proofCats: [string[], string, string][] = [
+    [proof.passive, "PASS: Passive voice within threshold", "WARNING"],
+    [proof.modal, "PASS: Modal verb consistency", "WARNING"],
+    [proof.xref, "PASS: Cross-reference format consistent", "WARNING"],
+    [proof.doubleNeg, "PASS: No double negatives detected", "WARNING"],
+    [proof.sentLen, "PASS: Sentence length within bounds", "WARNING"],
+    [proof.condStack, "PASS: No condition stacking detected", "WARNING"],
+    [proof.emptySec, "PASS: No empty sections detected", "WARNING"],
+    [proof.pronoun, "PASS: No ambiguous pronoun references", "WARNING"],
+    [proof.termDrift, "PASS: Term usage consistent with Terminology table", "WARNING"],
+    [proof.readability, "PASS: Readability within grade threshold", "WARNING"],
+  ];
+  for (const [iss, passMsg, level] of proofCats) {
+    if (iss.length > 0) {
+      for (const i of iss) console.log(`${level}: ${i}`);
+      warnings += iss.length;
+    } else { console.log(passMsg); }
+  }
 
   const sepIssues = checkSeparators(text);
   if (sepIssues.length > 0) { for (const issue of sepIssues) console.log(`WARNING: ${issue}`); warnings += sepIssues.length; }

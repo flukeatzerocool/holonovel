@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-10 — Validate performance: 4x speedup for sdd-strict
+
+- Optimized `extractReqBodiesWithSentences` in parse-spec.ts: replaced O(N²)
+  progressive text.slice() pattern with a single-pass boundary index, and
+  replaced a JavaScript lookbehind regex in `splitSentences` with a
+  linear-character scan. validate:sdd drops from >10 minutes to <3 minutes.
+- Consolidated 8 proofreading check functions into one loop over REQ bodies
+  in validate.ts, eliminating 7 redundant map iterations.
+
 ## 2026-08-10 — README rewrite, badge model, license appendix
 
 - Rewrote README.md against a comprehensive 10-dimension style guide: five
