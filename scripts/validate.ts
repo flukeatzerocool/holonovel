@@ -1049,8 +1049,13 @@ function main(): void {
   const reqsWithSentences = extractReqBodiesWithSentences(text);
   const terms = extractTerminology(text);
 
+  const noProofread = process.argv.includes("--no-proofread");
+
   console.log("\n=== PROOFREADING ===\n");
-  const proof = consolidateProofreading(text, reqsWithSentences, terms);
+  if (noProofread) {
+    console.log("SKIPPED: proofreading disabled (--no-proofread)");
+  } else {
+    const proof = consolidateProofreading(text, reqsWithSentences, terms);
 
   const proofCats: [string[], string, string][] = [
     [proof.passive, "PASS: Passive voice within threshold", "WARNING"],
@@ -1069,6 +1074,7 @@ function main(): void {
       for (const i of iss) console.log(`${level}: ${i}`);
       warnings += iss.length;
     } else { console.log(passMsg); }
+  }
   }
 
   const sepIssues = checkSeparators(text);
