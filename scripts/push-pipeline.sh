@@ -86,7 +86,7 @@ wait
 # ── 4. Update stored spec hashes in DECISIONS.md ──
 
 echo -e "${GREEN}=== 4. Update stored spec hashes in DECISIONS.md ===${NC}"
-SPEC_HASH=$(node -e "const {readFileSync}=require('fs');console.log(JSON.parse(readFileSync('.holonovel-state/build-order-fingerprint.json','utf-8')).spec_hash)")
+SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
