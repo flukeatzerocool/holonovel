@@ -23,10 +23,9 @@ function findReqBoundaries(text: string): { id: string; start: number; end: numb
   }
   const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+/gm;
   for (let i = 0; i < boundaries.length; i++) {
-    const slice = text.slice(boundaries[i].start);
-    terminatorRe.lastIndex = 0;
-    const tm = terminatorRe.exec(slice);
-    boundaries[i].end = tm ? boundaries[i].start + tm.index : text.length;
+    terminatorRe.lastIndex = boundaries[i].start;
+    const tm = terminatorRe.exec(text);
+    boundaries[i].end = tm ? tm.index : text.length;
   }
   return boundaries;
 }

@@ -4,10 +4,8 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   readSpec,
-  extractReqBodies,
   extractReqBodiesWithSentences,
   extractTerminology,
-  splitSentences,
   type ReqBodyEntry,
 } from "./lib/parse-spec.js";
 
@@ -201,9 +199,8 @@ function checkSpecViolations(text: string): string[] {
 
 // ─── REQ Shape Checks (SDD Strict) ─────────────────────────────────────
 
-function checkReqShape(text: string): string[] {
+function checkReqShape(reqs: Map<string, ReqBodyEntry>): string[] {
   const issues: string[] = [];
-  const reqs = extractReqBodiesWithSentences(text);
 
   for (const [reqId, entry] of reqs) {
     const body = entry.body;
@@ -245,9 +242,8 @@ interface Pattern {
   regex: RegExp;
 }
 
-function checkAmbiguity(text: string): string[] {
+function checkAmbiguity(reqBodies: Map<string, { id: string; body: string }>): string[] {
   const issues: string[] = [];
-  const reqs = extractReqBodies(text);
 
   const patterns: Pattern[] = [
     { label: "vague qualifier", regex: /\b(appropriate|suitable|reasonable|proper)(?:\s+level|\s+amount)?\b/gi },
@@ -258,7 +254,7 @@ function checkAmbiguity(text: string): string[] {
     { label: "sufficiently", regex: /\bsufficiently\b/gi },
   ];
 
-  for (const [reqId, { body }] of reqs) {
+  for (const [reqId, { body }] of reqBodies) {
     for (const { label, regex } of patterns) {
       for (const m of body.matchAll(new RegExp(regex.source, regex.flags))) {
         const ctx = body.slice(Math.max(0, (m.index ?? 0) - 30), (m.index ?? 0) + (m[0]?.length ?? 0) + 30).replace(/\n/g, " ");
@@ -637,9 +633,9 @@ function checkStaleGateReferences(text: string): string[] {
   const workflowsEnd = text.indexOf("\n## ", workflowsStart + 1);
   const workflowsSection = text.slice(workflowsStart, workflowsEnd !== -1 ? workflowsEnd : undefined);
   const canonicalWorkflows = new Set<string>();
+  const workflowRe = /\|\s*(G\d+[a-z0-9]*)\s*\|/g;
   let tableMatch: RegExpExecArray | null;
-  while ((tableMatch = /\|\s*(G\d+[a-z0-9]*)\s*\|/g.exec(workflowsSection)) !== null) canonicalWorkflows.add(tableMatch[1]);
-  if (canonicalWorkflows.size === 0) return issues;
+  while ((tableMatch = workflowRe.exec(workflowsSection)) !== null) canonicalWorkflows.add(tableMatch[1]);
 
   const lines = text.split("\n");
   let inBlock = false;
@@ -1007,7 +1003,8 @@ function main(): void {
   else console.log("PASS: All requirement blocks follow canonical shape");
 
   console.log("\n=== REQ SHAPE (SDD STRICT) ===\n");
-  const shapeIssues = checkReqShape(text);
+  const reqsWithSentences = extractReqBodiesWithSentences(text);
+  const shapeIssues = checkReqShape(reqsWithSentences);
   if (shapeIssues.length > 0) {
     for (const issue of shapeIssues) {
       const isSoft = issue.includes("review for splitting");
@@ -1026,7 +1023,7 @@ function main(): void {
   } else { console.log("PASS: No spec authoring violations detected"); }
 
   console.log("\n=== AMBIGUITY SCAN ===\n");
-  const ambiguityIssues = checkAmbiguity(text);
+  const ambiguityIssues = checkAmbiguity(reqsWithSentences);
   if (ambiguityIssues.length > 0) {
     for (const issue of ambiguityIssues) console.log(`WARNING: ${issue}`);
     warnings += ambiguityIssues.length;
@@ -1046,7 +1043,6 @@ function main(): void {
     warnings += assumptionIssues.length;
   } else { console.log("PASS: No structural assumption patterns detected"); }
 
-  const reqsWithSentences = extractReqBodiesWithSentences(text);
   const terms = extractTerminology(text);
 
   const noProofread = process.argv.includes("--no-proofread");
