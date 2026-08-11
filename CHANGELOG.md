@@ -15,6 +15,34 @@
 - Clarified a naming ambiguity in the staged-file pattern where
   `holonovel/` (server directory) could be misread as `holonovel.md`.
 
+- Removed the misleading sentence-count check from validate:sdd. The
+  800-character body limit is sufficient to constrain REQ size. The
+  code checked for >8 sentences but reported a "5-sentence limit" —
+  the mismatch made the check worse than useless.
+
+- Split 265 REQ bodies exceeding the 800-character limit into 967
+  sub-REQs using a programmatic splitter. Each sub-REQ body fits within
+  the limit while preserving all original text. Sub-REQs use the
+  existing letter-suffix convention (REQ-NNNa, REQ-NNNb).
+
+- Updated REQ identifier regular expressions across validate.ts and
+  parse-spec.ts to support multi-character suffixes (letters and
+  digits), replacing the old single-letter `[a-z]?` pattern.
+
+- Added sub-REQ cross-reference resolution: citations to a split REQ
+  (e.g., REQ-043) now resolve to any of its sub-REQs (REQ-043a,
+  REQ-043b), preventing false dangling-citation errors.
+
+- Regenerated the Appendix E requirements manifest with all 967 REQ
+  entries, including sub-REQs created during the body-length split.
+
+- Added `scripts/split-long-reqs.ts` — a build tool for
+  programmatically splitting REQ bodies at paragraph, sentence, or
+  word boundaries.
+
+- Redirected validate:sdd output in the push pipeline to avoid
+  pipe-timeout caused by streaming 1000+ diagnostic lines.
+
 ## 2026-08-10 — Validate performance: 4x speedup for sdd-strict
 
 - Optimized `extractReqBodiesWithSentences` in parse-spec.ts: replaced O(N²)
