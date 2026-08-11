@@ -726,25 +726,16 @@ In `quick-build` mode, same-model audits are acceptable; the builder records a
 `quick-build` annotation in DECISIONS.md (6) in place of any cross-model
 requirement.
 
-**REQ-299 — Cross-model audit sufficiency.** A cross-model audit that meets the
-sufficiency criteria SHALL produce: (a) findings with REQ citations and specific
-discrepancies — expected extraction vs. auditor's finding, with source anchors — not
-general assessments; (b) coverage of at least 3 distinct extraction categories from
-REQ-210; (c) coverage of at least 2 distinct Holodeck archetype categories from
-§7.7.0; (d) a minimum of 1 finding, or an explicit statement that systematic comparison
-was performed across the cited categories and produced zero findings — this statement
-SHALL enumerate the categories compared.
-
-An audit that produces "extraction looks complete, no issues found" without enumerated
-comparison categories SHALL be recorded as `[insufficient]` in DECISIONS.md (4) and the
-builder SHALL re-run the audit against specific extraction categories. WHEN two models
-disagree on a mechanical extraction, THE higher-confidence extraction (per REQ-011) is
-authoritative; the disagreement is recorded as a permanent finding with both models'
-positions and the confidence differential.
-
-*Acceptance criterion:* A cross-model audit report includes findings with REQ citations,
-specific discrepancies, covers ≥3 extraction categories and ≥2 archetype categories, and
-produces ≥1 finding or an enumerated zero-finding statement.
+**REQ-299 — Cross-model audit sufficiency.** A cross-model audit SHALL
+produce findings with REQ citations and specific discrepancies — not general
+assessments — covering ≥3 extraction categories (REQ-210) and ≥2 Holodeck
+archetype categories (§7.7.0), with ≥1 finding or an enumerated zero-finding
+statement. An audit producing only "no issues found" SHALL be recorded as
+`[insufficient]` and re-run. WHEN models disagree, the higher-confidence
+extraction (REQ-011) is authoritative.
+*Acceptance criterion:* Audit includes REQ-cited findings covering ≥3
+extraction categories and ≥2 archetype categories, with ≥1 finding or an
+enumerated zero-finding statement.
 _Check:_ T-new-299.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
@@ -1307,7 +1298,9 @@ no convergence metric under these rules is logged as a process-compliance
 finding — the builder records the novel defect class in DECISIONS.md (6)
 with a proposed metric mapping for future builds. _Check:_ T250.
 
-**Surface-to-scenario mapping.** During spec-driven updates (REQ-098), the builder
+### Surface-to-scenario mapping
+
+During spec-driven updates (REQ-098), the builder
 selects Pattern Buffer sub-workflows based on which surfaces changed — not the blanket
 set. The gap audit identifies the changed tools, resources, and prompts; the
 builder maps each to scenarios via the table below. A sub-workflow is selected when
@@ -1751,7 +1744,9 @@ covered sections during a spec revision require the builder to propose at least 
 new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a
 finding, not a blocker. _Check:_ T-new-387.
 
-**Holonovel REQ Pattern Buffer coverage map.** The following table maps every
+### Holonovel REQ Pattern Buffer coverage map
+
+The following table maps every
 requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13
 (Holodeck), and the world-model error contracts to at least one Holonovel Pattern
 Buffer sub-workflow that exercises its contract. This table is normative — it ships
@@ -1826,25 +1821,16 @@ for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
 spec summaries and implementation analysis — use fresh entries to reduce re-reading.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
-to match changes in this specification, the operator must audit gaps across the tool
-catalog, resource map, prompt list, state model, badge gating, and behavioral
-contracts; produce a documented plan with gap dispositions (implemented / deferred /
-waived) each citing the relevant REQ; implement changes with passing verification
-workflows; restart the MCP server process and confirm `spec_health` reports the updated
-specification version; re-run only those Pattern Buffer sub-workflows that exercise the tools, resources,
-or prompts identified as changed by the gap audit. The builder selects scenarios
-from the surface-to-scenario mapping in §6.6: a sub-workflow is selected when any
-tool, resource, or prompt it exercises appears in the gap audit's
-implemented-disposition rows. Sub-workflows not exercised by the changed surfaces
-are skipped. S1 (tool surface sweep) is always selected when new tools are added
-or existing tool signatures changed. Zero failures on all selected sub-workflows;
-implement any unimplemented Pattern Buffer sub-workflows from §6.6; and
-record all gap dispositions in a dated DECISIONS.md entry.
-The Holonovel Pattern Buffer sub-workflows (I1–I18, §6.6) are not included in TTRPG
-spec-driven updates — they are run separately when the `holonovel` package
-is built and published.
+to match spec changes, the operator SHALL audit gaps, produce a disposition plan,
+implement changes, and re-run only Pattern Buffer sub-workflows exercising changed
+surfaces. The builder selects scenarios from the surface-to-scenario mapping in §6.6.
+Gap dispositions include: implemented, deferred, or waived — each citing the relevant
+REQ. Pattern Buffer sub-workflows not exercised by changed surfaces are skipped.
+*Acceptance criterion:* Gap audit produces one row per affected surface with REQ
+citation and disposition; selected Pattern Buffer sub-workflows show zero failures.
+_Check:_ T84.
 
-**Delta classes.**
+#### Delta classes
 
 | Class   | Trigger                                                       | Verification workflow                                                  |
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
@@ -1856,7 +1842,9 @@ The builder classifies the delta during gap audit. A major spec version incremen
 always triggers the Major class. The operator may override the classification at
 intake (U2).
 
-**Implementation fingerprint comparison.** Before the gap audit begins, the builder
+#### Implementation fingerprint comparison
+
+Before the gap audit begins, the builder
 SHALL compute the five implementation fingerprint components (REQ-313) and compare
 them against the stored fingerprints from the prior build recorded in DECISIONS.md
 (1). When all five components are unchanged and the spec version is unchanged, the
@@ -1869,7 +1857,9 @@ output; only components with changed fingerprints run fresh verification. The
 fingerprint delta summary — which components changed, which remain unchanged, and
 the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
 
-**Gap audit method.** Before the version comparison, the builder SHALL compare the
+#### Gap audit method
+
+Before the version comparison, the builder SHALL compare the
 installed holonovel package version against the build-time holonovel package version recorded in the
 server's build fingerprint (REQ-065). A mismatch SHALL be recorded as an informational
 finding in the gap audit — the Update workflow proceeds, but DECISIONS.md records the
@@ -1887,13 +1877,17 @@ conventions (§7.4), state model (§7.7), and REQ-032 badge gating. Behavioral
 contracts are verified by Pattern Buffer re-run. The audit produces one row per identified
 gap with: the affected surface, the citing REQ, the disposition, and the reason.
 
-**State migration.** When the state model changes, the builder verifies that
+#### State migration
+
+When the state model changes, the builder verifies that
 existing Novel state loads without error under REQ-065 compatibility rules. Novel
 state fields present in stored state but absent in the updated model are preserved
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-**Enrichment consistency check.** After the gap audit and before Pattern Buffer
+#### Enrichment consistency check
+
+After the gap audit and before Pattern Buffer
 re-execution, the builder SHALL scan all synthesis items (ruleset-native and
 community tiers) for references to surfaces identified as changed or removed in the
 gap audit per REQ-228. The builder cross-references: action pattern tool names
@@ -1906,7 +1900,9 @@ Orphan references are classified per REQ-228 and recorded in DECISIONS.md (6)
 with the gap audit row reference. This is a cross-reference scan — no web
 research occurs.
 
-**Synthesis population.** After the synthesis consistency check, the builder
+#### Synthesis population
+
+After the synthesis consistency check, the builder
 SHALL run a scoped ruleset-native synthesis re-classification per REQ-243:
 identify new or changed surfaces from the gap audit's implemented-disposition
 rows, map each surface to its source ruleset sections via RULESET_MODEL.md

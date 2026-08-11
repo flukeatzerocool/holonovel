@@ -313,6 +313,12 @@ guard, the gap is explicit.
     with natural language access paths SHALL be mechanically verified at
     assembly time, reported in `spec_health` at runtime, and checked against the
     Appendix M authoring checklist before every new or modified REQ is committed.
+12. **REQ atomicity.** Every requirement is exactly one paragraph — no
+    exceptions. A REQ body that requires a second paragraph (blank line),
+    a bullet list, a numbered step sequence, or an embedded table is at
+    minimum two REQs. Sub-REQs (XXXa, XXXb) are the mechanism for
+    composable concerns. `npm run check` enforces this mechanically via
+    `validate --sdd-strict` — violations exit non-zero and block commits.
 
 **Terminology.**
 
