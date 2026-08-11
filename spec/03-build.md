@@ -540,6 +540,13 @@ step. Construction steps are audited in two batches: after Steps 1–3 (scaffold
 pipeline) and after Steps 4–6 (tools, state, prompts). The subagent reports findings;
 the builder resolves each before the next batch.
 
+**Context scoping.** Each build phase SHALL load only the files listed for
+that phase in `build-phase-map.md`. When the builder operates across multiple
+agent contexts, the builder SHOULD scope each phase to a separate context with
+only its phase's files loaded, rather than retaining the full spec across all
+phases. Context scoping is a recommendation — a single-context build is always
+acceptable. The builder SHALL NOT gate or block on multi-context availability.
+
 **Auditor pre-flight.** In `production` mode, before the first checkpoint audit
 for a ruleset, and every 5 build sessions thereafter or when the spec version
 changes, the builder seeds one deliberate
