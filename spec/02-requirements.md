@@ -242,13 +242,17 @@ corruption symptom, the recovery step (restore from `.bak`), and the
 verification command to confirm recovery.
 _Check:_ T186.
 
-**REQ-154 — README.md handoff content.** Every build's README.md includes: (a)
+**REQ-154a — README.md handoff content (Part a).**
+Every build's README.md includes: (a)
 prerequisite environment and setup instructions that an operator can follow
 from a cold checkout; (b) a copy-paste `mcpServers` configuration entry
 with key names matching the build-time client target's documented schema
 (§6.2 B3); (c) the RNG continuity contract — whether deterministic replay
 is guaranteed by seed or session-dependent; (d) the badge model with
-tool-access implications; (e) the state model describing what survives
+tool-access implications.
+
+**REQ-154b — README.md handoff content (Part b).**
+Every build's README.md also includes: (e) the state model describing what survives
 restart and what is connection-scoped; and (f) a license footer rendering
 the Appendix U content license table — one line per source listing source
 name, license identifier, and copyright holder, flowing into a single
@@ -502,14 +506,18 @@ only by category enum; the per-tool justification list in DECISIONS.md matches t
 live `tools/list` registry.
 _Check:_ T3, T35.
 
-**REQ-022 — Resources.** The server provides resources covering ruleset content
+**REQ-022a — Resources (Part a).**
+The server provides resources covering ruleset content
 (with badge filtering), entities at collection and individual URIs, the audit
 log, the roster, badge-specific guidance (foundations, anti-slop, tone,
 badge-switch), scene state, countdowns, the party roster, NPCs at
 collection and individual URIs, entity personality and voice examples, lore
 entries, synthesis modules, adventure content, novel state, rooms and
 things, the world map and kind registry, the knowledge graph, the build
-specification, and per-tool output pointers. `resources/templates/list`
+specification, and per-tool output pointers.
+
+**REQ-022b — Resources (Part b).**
+`resources/templates/list`
 advertises entity, roster-record, and output-pointer templates.
 `resources/read` returns Markdown with a source header.
 *Acceptance criterion:* `resources/list` includes all required URIs;
@@ -535,8 +543,11 @@ Descriptions longer than three sentences are truncated in `tools/list`; the full
 **REQ-025a — spec_health (Part a).**
 derived from live registrations at call time — not from hardcoded numeric literals.
 
-**REQ-025b — spec_health (Part b).**
-Reported categories include: confidence scores per-file and overall; conversion fidelity when conversion was selected (per-content-type rates, overall rate, sample set, unresolved ambiguities, confidence cap counts); convergence summary (per-metric iterations, findings, residual gaps, and per-extraction-category confidence breakdown); indexed counts (anchors, concepts, entity types, actions, tables, procedures, guidance items, synthesis items per module); pending sections; MUST-action coverage; defect count; ruleset-version status; verification workflow dispositions; available Novels on disk; prompt health (each registered prompt's presence, length relative to budget, and stale references); a gap audit section comparing current spec version against build-time version with tool-catalog, resource-map, prompt-list, and badge-gating comparisons; cross-reference health (total, resolved, unresolved, and unresolved percentage across discovered ruleset cross-references, with regression detection on rebuild); Pattern Buffer scenarios (passed, total, last run timestamp); and search index coverage (total headings, indexed headings, coverage percentage, with unmapped sections where coverage is below threshold).
+**REQ-025b1 — spec_health (Part b1).**
+Reported categories include: confidence scores per-file and overall; conversion fidelity when conversion was selected (per-content-type rates, overall rate, sample set, unresolved ambiguities, confidence cap counts); convergence summary (per-metric iterations, findings, residual gaps, and per-extraction-category confidence breakdown); indexed counts (anchors, concepts, entity types, actions, tables, procedures, guidance items, synthesis items per module); pending sections; MUST-action coverage; defect count; ruleset-version status; verification workflow dispositions; available Novels on disk.
+
+**REQ-025b2 — spec_health (Part b2).**
+Also reported: prompt health (each registered prompt's presence, length relative to budget, and stale references); a gap audit section comparing current spec version against build-time version with tool-catalog, resource-map, prompt-list, and badge-gating comparisons; cross-reference health (total, resolved, unresolved, and unresolved percentage across discovered ruleset cross-references, with regression detection on rebuild); Pattern Buffer scenarios (passed, total, last run timestamp); and search index coverage (total headings, indexed headings, coverage percentage, with unmapped sections where coverage is below threshold).
 
 **REQ-025c — spec_health (Part c).**
 The Player badge sees only player-filtered metrics. Build-phase-dependent sections (convergence summary, gap audit) are absent when the build is not yet complete. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154.
@@ -681,8 +692,17 @@ arguments, is visible to all badges (unfiltered), and serves as a structured gui
 **REQ-078b — Session zero prompt (Part b).**
 The builder MAY generate narrative prose — tuning option descriptions, example character introductions, plaintext capability examples — using its own language capabilities when the ruleset model provides sufficient context. Missing ruleset content SHALL produce the corresponding section with a plain-English fallback description — this is not a defect. The prompt SHALL be verbose throughout — every section SHALL describe narrative possibilities in plain English without tool names or technical syntax, per Standing Rule 10.
 
-**REQ-078c — Session zero prompt (Part c).**
-The prompt SHALL include eight sections in order: (1) a welcome explaining session zero's purpose as creative alignment and a safety check — this is where the GM and player agree on the shape of the story before anyone rolls, and the preferences recorded here feed into the GM's narration for the entire story; (2) per-signal explanations — for each of tone, difficulty, pace, focus, and boundary, a plain-English description of what the signal controls narratively and three to five named tuning options each with a paragraph describing what that choice means for the story (scene style, narrative voice, consequences model, encounter design), plus a plain-English example instruction the player could write; (3) character introductions — three example character descriptions at increasing detail (a minimal one-to-two-sentence archetype, a three-paragraph description covering physical appearance and mannerisms then personality and voice then backstory and motivation, and a media reference that names a known character as shorthand then elaborates what to emphasise or change about that archetype), each self-contained as a usable model for the player's own description; (4) character creation — every mechanical choice category the ruleset provides (species/ancestry, class/archetype, background, stat generation, equipment) described in plain English with what each option means for the character's capabilities narratively, noting that roster characters are already available for import; (5) adventure confirmation — presenting loaded adventure premise, factions with their starting tensions, pre-populated NPCs with personality summaries, and the opening scene with a plain-English confirmation that the GM can accept or describe what to change, or guiding from-scratch definition when no adventure is loaded; (6) narrative capabilities — plain-English descriptions of what the GM can do during the story organized by context (combat, exploration, dialogue, world-building), with plaintext examples written as natural-language instructions the GM would give; (7) a quick-start guide summarising what is ready and describing how the first scene begins — the GM sets the opening scene, the player describes what their character does; (8) post-session encouragement to refine characters between stories — personality, voice, dialogue examples referencing favorite media, and mechanical advancement when the ruleset provides it.
+**REQ-078c1 — Session zero prompt (Part c1).**
+Sections 1–2 of the eight-section prompt: (1) a welcome explaining session zero's purpose as creative alignment and a safety check — this is where the GM and player agree on the shape of the story before anyone rolls, and the preferences recorded here feed into the GM's narration for the entire story; (2) per-signal explanations — for each of tone, difficulty, pace, focus, and boundary, a plain-English description of what the signal controls narratively and three to five named tuning options each with a paragraph describing what that choice means for the story (scene style, narrative voice, consequences model, encounter design), plus a plain-English example instruction the player could write.
+
+**REQ-078c2 — Session zero prompt (Part c2).**
+Sections 3–4: (3) character introductions — three example character descriptions at increasing detail (a minimal one-to-two-sentence archetype, a three-paragraph description covering physical appearance and mannerisms then personality and voice then backstory and motivation, and a media reference that names a known character as shorthand then elaborates what to emphasise or change about that archetype), each a usable model for the player's description; (4) character creation — every mechanical choice category the ruleset provides (species/ancestry, class/archetype, background, stat generation, equipment) described in plain English with what each option means for the character's capabilities narratively, noting that roster characters are already available for import.
+
+**REQ-078c3 — Session zero prompt (Part c3).**
+Sections 5–6: (5) adventure confirmation — presenting loaded adventure premise, factions with their starting tensions, pre-populated NPCs with personality summaries, and the opening scene with a plain-English confirmation that the GM can accept or describe what to change, or guiding from-scratch definition when no adventure is loaded; (6) narrative capabilities — plain-English descriptions of what the GM can do during the story organized by context (combat, exploration, dialogue, world-building), with plaintext examples written as natural-language instructions the GM would give.
+
+**REQ-078c4 — Session zero prompt (Part c4).**
+Sections 7–8: (7) a quick-start guide summarising what is ready and describing how the first scene begins — the GM sets the opening scene, the player describes what their character does; (8) post-session encouragement to refine characters between stories — personality, voice, dialogue examples referencing favorite media, and mechanical advancement when the ruleset provides it.
 
 **REQ-078d — Session zero prompt (Part d).**
 The prompt SHALL use the ruleset's own terminology for mechanical concepts. `session_zero` is listed in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run `session_zero` before play. *Acceptance criterion:* `session_zero` prompt contains all eight sections in order; per-signal explanations include three to five named tuning options with narrative paragraphs; character introductions include three example descriptions at increasing detail; narrative capabilities section uses plain English and plaintext examples with no tool names. _Check:_ T22, T124.
@@ -968,8 +988,14 @@ these groups, split into two sourcing layers: **Orientation layer** (sourced fro
 **REQ-109b — Badge briefing composition (Part b).**
 Narrate scenes, make decisions for all player characters, advance combat.
 
-**REQ-109c — Badge briefing composition (Part c).**
-Play the Novel." **State surface layer** (sourced from the active badge per REQ-032): current scene state (REQ-076), narrative POV directive (REQ-220), active entities with summary stats and presence markers (REQ-074, REQ-307), active NPCs (REQ-075), active countdowns — badge-filtered by `badge_scope` (REQ-073), active lore entries (REQ-083), active adventure content (REQ-079), registered tools relevant to the current scene type (REQ-087), active combat state — round, turn order, and current participant (if in-combat; REQ-043), active entity personality fields and voice examples — badge-filtered per REQ-077 (REQ-077), the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089, including a "Session zero not yet completed" reminder when `session_zero_completed` is false), a pointer to the intro prompt (REQ-063), story journal entries — entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246), the current autonomy state — all four slider values from `set_autonomy` (REQ-306) when set, campaign memory facts (GM only, REQ-310), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
+**REQ-109c1 — Badge briefing composition (Part c1).**
+Play the Novel." **State surface layer** (sourced from the active badge per REQ-032): current scene state (REQ-076), narrative POV directive (REQ-220), active entities with summary stats and presence markers (REQ-074, REQ-307), active NPCs (REQ-075), active countdowns — badge-filtered by `badge_scope` (REQ-073), active lore entries (REQ-083), active adventure content (REQ-079), registered tools relevant to the current scene type (REQ-087), active combat state — round, turn order, and current participant (if in-combat; REQ-043).
+
+**REQ-109c2 — Badge briefing composition (Part c2).**
+Also reported: active entity personality fields and voice examples — badge-filtered per REQ-077 (REQ-077), the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), Novel setup metadata (REQ-089, including a "Session zero not yet completed" reminder when `session_zero_completed` is false), a pointer to the intro prompt (REQ-063).
+
+**REQ-109c3 — Badge briefing composition (Part c3).**
+Further reported: story journal entries — entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246), the current autonomy state — all four slider values from `set_autonomy` (REQ-306) when set, campaign memory facts (GM only, REQ-310), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
 
 **REQ-109d — Badge briefing composition (Part d).**
 Groups whose data source is empty SHALL include an explicit empty-state marker describing which category is empty. Markers preserve the expected briefing structure and prevent the caller from inferring non-existent content. The enumeration order above is the builder's required default section ordering for `badge_briefing`.
@@ -1209,14 +1235,20 @@ The optional `rounds` parameter on `apply_condition` sets the combat-round durat
 
 **REQ-217d — Condition tools (Part d).**
 The Game Master badge SHALL include expiry round counts when the `rounds` parameter was set. *Acceptance criterion:* `apply_condition(entity, "prone")` adds the condition and returns `[OK]`; a second call returns `[WARNING]` with "Condition already active."; `remove_condition(entity, "prone")` removes it; `remove_condition` on an entity without the condition returns `[WARNING]` with "Condition not present."; applying "not_a_condition" returns `[INVALID_INPUT]` with valid conditions listed; Player `apply_condition` on another player's entity returns `[FORBIDDEN]`; applied condition appears on `character_sheet` and `badge_briefing` entity summary. _Check:_ T258.
-**REQ-072a — Session recap (Part a).**
-that returns a structured summary of the active Novel: session timespan (earliest to latest audit entry), active entities with final state (HP, conditions, status — where status is a derived mechanical flag: "alive" when HP > 0, "unconscious" at HP = 0, "dead" when the ruleset's death condition is applied; rulesets without a death condition SHALL report "alive" and "incapacitated"), completed confrontations, pending confrontations, current scene state, active lore entries and their trigger status, the current narrative directive, current scene type, the last N scene state transitions (configurable), roster changes (entities created or removed in this Novel during the audit-log timespan), condition changes, and the last N significant rolls (configurable). `session_recap` output is badge-filtered: the Player badge sees only own-entity data; the Game Master badge sees all. `session_recap` output does not produce narrative prose — it returns structured data the LLM uses to narrate the recap.
+**REQ-072a1 — Session recap (Part a1).**
+`session_recap` returns a structured summary of the active Novel: session timespan (earliest to latest audit entry), active entities with final state (HP, conditions, status — where status is a derived mechanical flag: "alive" when HP > 0, "unconscious" at HP = 0, "dead" when the ruleset's death condition is applied; rulesets without a death condition SHALL report "alive" and "incapacitated"), completed confrontations, pending confrontations, current scene state, active lore entries and their trigger status, the current narrative directive, and current scene type.
+
+**REQ-072a2 — Session recap (Part a2).**
+Also reported: the last N scene state transitions (configurable), roster changes (entities created or removed in this Novel during the audit-log timespan), condition changes, and the last N significant rolls (configurable). `session_recap` output is badge-filtered: the Player badge sees only own-entity data; the Game Master badge sees all. `session_recap` output does not produce narrative prose — it returns structured data the LLM uses to narrate the recap.
 
 **REQ-072b — Session recap (Part b).**
 The output SHALL be a machine-parseable structure.
 
-**REQ-072c — Session recap (Part c).**
-At minimum it SHALL contain the following named fields with typed values: `timespan_start` and `timespan_end` (ISO 8601 timestamps, or null if audit log empty), `entities` (array of objects with `name`, `hp`, `max_hp`, `conditions`, and `status` string fields), `confrontations_completed` (array of objects with `participants`, `rounds`, and `outcome` derived from audit-log combat lifecycles per REQ-175), `confrontation_pending` (null or object describing the active combat), `scene` (current description), `scene_type` (lore_entries (array of objects with `key` and `active`), `narrative_directive` (free-text or null), `scene_transitions` (array of `{from, to, timestamp}` objects, most recent N), `roster_changes` (array of `{entity_id, action` — "created" or "removed", `timestamp}`), `condition_changes` (array of `{entity_id, condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls` (per REQ-174), `total_combat_rounds`, and `story_entries` (array of objects with `type`, `entry`, `timestamp`, `scene_anchor`, and `entity_ids` — most recent N, default 10).
+**REQ-072c1 — Session recap (Part c1).**
+At minimum it SHALL contain these named fields with typed values: `timespan_start` and `timespan_end` (ISO 8601 timestamps, or null if audit log empty), `entities` (array of objects with `name`, `hp`, `max_hp`, `conditions`, and `status` string fields), `confrontations_completed` (array of objects with `participants`, `rounds`, and `outcome` derived from audit-log combat lifecycles per REQ-175), `confrontation_pending` (null or object describing the active combat), `scene` (current description), `scene_type`, `lore_entries` (array of objects with `key` and `active`), `narrative_directive` (free-text or null).
+
+**REQ-072c2 — Session recap (Part c2).**
+Also: `scene_transitions` (array of `{from, to, timestamp}` objects, most recent N), `roster_changes` (array of `{entity_id, action` — "created" or "removed", `timestamp}`), `condition_changes` (array of `{entity_id, condition, action` — "applied" or "removed", `timestamp}`), `significant_rolls` (per REQ-174), `total_combat_rounds`, and `story_entries` (array of objects with `type`, `entry`, `timestamp`, `scene_anchor`, and `entity_ids` — most recent N, default 10).
 
 **REQ-072d — Session recap (Part d).**
 Missing or inapplicable fields SHALL be present with a typed null or empty array, not omitted.
@@ -1557,8 +1589,11 @@ The builder SHALL record the counter storage format in DECISIONS.md. *Acceptance
 **REQ-129a — Property group cardinality (Part a).**
 group has an enforced maximum item count. Exceeding the maximum on a create or set operation SHALL return `[ERROR] [STATE_CONFLICT]` with the affected group named and the current and maximum counts reported.
 
-**REQ-129b — Property group cardinality (Part b).**
-Maximums and their configuration sources are: NPCs — `TTRPG_MAX_NPCS` (also used by REQ-097 for health warnings; this REQ adds enforcement at the same threshold); Lore entries — `TTRPG_MAX_LORE_ENTRIES` (also used by REQ-097; the lore token budget per REQ-083 is an independent constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS`; Entities per Novel — `TTRPG_MAX_ENTITIES`, exceeding on `import_character` or `create_character` SHALL return `[ERROR] [STATE_CONFLICT]` with counts reported; Roster entities — `TTRPG_MAX_ROSTER_ENTITIES`, exceeding on `create_character` SHALL return `[ERROR] [STATE_CONFLICT]` before any state mutation; Synthesis items per output module — `TTRPG_MAX_SYNTHESIS_ITEMS`; Story journal entries — `TTRPG_MAX_STORY_ENTRIES`, exceeding on `record_story` SHALL return `[ERROR] [STATE_CONFLICT]`.
+**REQ-129b1 — Property group cardinality (Part b1).**
+Maximums and their configuration sources are: NPCs — `TTRPG_MAX_NPCS` (also used by REQ-097 for health warnings; this REQ adds enforcement at the same threshold); Lore entries — `TTRPG_MAX_LORE_ENTRIES` (also used by REQ-097; the lore token budget per REQ-083 is an independent constraint); Countdowns — `TTRPG_MAX_COUNTDOWNS`; Synthesis items per output module — `TTRPG_MAX_SYNTHESIS_ITEMS`; Story journal entries — `TTRPG_MAX_STORY_ENTRIES`, exceeding on `record_story` SHALL return `[ERROR] [STATE_CONFLICT]`.
+
+**REQ-129b2 — Property group cardinality (Part b2).**
+Entities per Novel — `TTRPG_MAX_ENTITIES`, exceeding on `import_character` or `create_character` SHALL return `[ERROR] [STATE_CONFLICT]` with counts reported; Roster entities — `TTRPG_MAX_ROSTER_ENTITIES`, exceeding on `create_character` SHALL return `[ERROR] [STATE_CONFLICT]` before any state mutation.
 
 **REQ-129c — Property group cardinality (Part c).**
 Scene history entries are capped per REQ-076. Setting a maximum to zero SHALL disable that group's mutating tools — create, set, and update operations return `[STATE_CONFLICT]`. `spec_health` SHALL report the current count and maximum for every group, with an `overflow` flag when at maximum. A warning fires in `spec_health` when entity count exceeds 80% of the entity maximum; the `healthy` flag is set to false when at maximum.
@@ -1592,8 +1627,11 @@ The optional `target` parameter accepts `novel` (default when a Novel is active)
 **REQ-079i — Adventure modules (Part i).**
 When no Novel is active and `target` is omitted, `target` defaults to `codex`. `load_adventure` SHALL be callable regardless of Novel state — no Novel is required for `target: "codex"`. State isolation: world-model objects, NPCs, and lore created by adventure loading are Novel entities — discarded by `end_novel`. Switching adventures replaces the active adventure's world model (if present) and prose content but retains Novel entities created outside adventure loading.
 
-**REQ-079j — Adventure modules (Part j).**
-Adventure module content loaded into a Novel SHALL be included in `export_novel` (REQ-096): when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true`, the module's prose content and world-model assertions are embedded inline; when `false`, module slugs are recorded in the export manifest for reconstitution at import time. *Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")` activates the adventure, populates the world-model tier with rooms/things/ exits from the `## World` section, links `@npc` annotations, and surfaces the adventure hook and current room in `badge_briefing`; a module without a `## World` section loads as flat indexed content. `load_adventure("tomb-of-the-serpent-king", target="codex")` with no Novel active stores the adventure scaffold in Codex; `codex_list("adventure")` returns the entry with `source: loaded:tomb-of-the-serpent-king`; server restart preserves it. _Check:_ T59, T60, T61, T-new-324.
+**REQ-079j1 — Adventure modules (Part j1).**
+Adventure module content loaded into a Novel SHALL be included in `export_novel` (REQ-096): when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true`, the module's prose content and world-model assertions are embedded inline; when `false`, module slugs are recorded in the export manifest for reconstitution at import time.
+
+**REQ-079j2 — Adventure modules (Part j2).**
+*Acceptance criterion:* `load_adventure("tomb-of-the-serpent-king")` activates the adventure, populates the world-model tier with rooms/things/ exits from the `## World` section, links `@npc` annotations, and surfaces the adventure hook and current room in `badge_briefing`; a module without a `## World` section loads as flat indexed content. `load_adventure("tomb-of-the-serpent-king", target="codex")` with no Novel active stores the adventure scaffold in Codex; `codex_list("adventure")` returns the entry with `source: loaded:tomb-of-the-serpent-king`; server restart preserves it. _Check:_ T59, T60, T61, T-new-324.
 **REQ-292a — Adventure catalog (Part a).**
 (always callable) returning metadata for every adventure module present in `TTRPG_ADVENTURE`. Each entry SHALL include: `slug`, `title`, `preview` (2–3 sentence GM-facing premise), `genre_tags`, `room_count`, `npc_count`, `complexity` (estimated: `short`, `standard`, `epic` based on room count thresholds), and `last_modified`. An optional `filter` parameter accepts a genre tag string and returns only matching adventures.
 
@@ -1646,8 +1684,11 @@ _Check:_ T209.
 **REQ-247a — Adventure structure extraction (Part a).**
 builder SHALL extract structural content from every adventure module using discoverable patterns — no Appendix K formatting is required.
 
-**REQ-247b — Adventure structure extraction (Part b).**
-The builder SHALL apply three heuristics in order: (a) heading extraction — every `##` or `###` heading in the adventure file becomes a structural table-of-contents entry; headings that are purely numeric or exceed 50 characters without whitespace are excluded (garbled OCR text); confidence HIGH; (b) NPC extraction — a bolded name followed within 3 lines by a numeric stat value, a role noun, or a page reference is an NPC reference; stat values that parse as numbers populate the NPC's fields; non-parsing values are recorded in a `notes` narrative field; confidence LOW; (c) location and faction extraction — a heading whose text contains no rule/action keywords (roll, check, save, attack, damage) and has at least 100 words of prose below it is a scene/location description; a heading within 80 words of a goal- or resource-describing sentence and containing an organization term (Guild, Fleet, Council, Company, Syndicate) is a faction reference; confidence MEDIUM.
+**REQ-247b1 — Adventure structure extraction (Part b1).**
+The builder SHALL apply three heuristics in order: (a) heading extraction — every `##` or `###` heading in the adventure file becomes a structural table-of-contents entry; headings that are purely numeric or exceed 50 characters without whitespace are excluded (garbled OCR text); confidence HIGH; (b) NPC extraction — a bolded name followed within 3 lines by a numeric stat value, a role noun, or a page reference is an NPC reference; stat values that parse as numbers populate the NPC's fields; non-parsing values are recorded in a `notes` narrative field; confidence LOW.
+
+**REQ-247b2 — Adventure structure extraction (Part b2).**
+And: (c) location and faction extraction — a heading whose text contains no rule/action keywords (roll, check, save, attack, damage) and has at least 100 words of prose below it is a scene/location description; a heading within 80 words of a goal- or resource-describing sentence and containing an organization term (Guild, Fleet, Council, Company, Syndicate) is a faction reference; confidence MEDIUM.
 
 **REQ-247c — Adventure structure extraction (Part c).**
 Garbled text matching no pattern is discarded silently — the contract guarantees extraction is attempted, not that it yields results. Output is recorded in the build's adventure index. The step is skipped when no adventure files are present. *Acceptance criterion:* Build with a non-Appendix-K adventure — assert structural index produced with scene headings, NPC references, and location entries; a module with no discoverable structure produces an empty index without error. _Check:_ T283.
@@ -1779,8 +1820,11 @@ Faction identifiers are accepted as valid for either direction. *Acceptance crit
 **REQ-237a — Session segmentation (Part a).**
 `[session_boundary]` audit log marker entry when a new `TTRPG_SESSION_ID` value is detected on the first mutating tool call after a server start or Novel resume. The marker entry carries `session_id`, `started_at` (ISO 8601 timestamp of first mutating call), and `ended_at` (ISO 8601 timestamp of the previous session's last mutating entry, or null for the first session). The marker is a mutating entry for audit-chain purposes (REQ-040) but its output prefix is the marker identifier.
 
-**REQ-237b — Session segmentation (Part b).**
-Markers SHALL be badge-filtered: the Player badge sees only session boundary timespans without the `session_id`; the Game Master sees the full marker entry. `session_recap` (REQ-072) SHALL accept an optional `session_id` parameter — when provided, the recap is scoped to the audit log range bounded by the matching `[session_boundary]` entry and the next marker. `spec_health` SHALL report a `sessions` array in Novel metadata with per-session objects containing `session_id`, `entry_count`, `timespan_start`, `timespan_end` and `combat_rounds`, `significant_roll_count`, and `scene_transitions`. *Acceptance criterion:* After two sessions with different `TTRPG_SESSION_ID` values, the audit log contains two `[session_boundary]` entries; `session_recap(session_id="s1")` returns only entries from session s1; `spec_health` reports per-session metrics for both sessions. _Check:_ T275.
+**REQ-237b1 — Session segmentation (Part b1).**
+Markers SHALL be badge-filtered: the Player badge sees only session boundary timespans without the `session_id`; the Game Master sees the full marker entry. `session_recap` (REQ-072) SHALL accept an optional `session_id` parameter — when provided, the recap is scoped to the audit log range bounded by the matching `[session_boundary]` entry and the next marker. `spec_health` SHALL report a `sessions` array in Novel metadata with per-session objects containing `session_id`, `entry_count`, `timespan_start`, `timespan_end` and `combat_rounds`, `significant_roll_count`, and `scene_transitions`.
+
+**REQ-237b2 — Session segmentation (Part b2).**
+*Acceptance criterion:* After two sessions with different `TTRPG_SESSION_ID` values, the audit log contains two `[session_boundary]` entries; `session_recap(session_id="s1")` returns only entries from session s1; `spec_health` reports per-session metrics for both sessions. _Check:_ T275.
 **REQ-073a1 — Clock types (Part a) (Part a1).**
 selecting the clock's interaction model. `danger` (default) fills on consequences — full triggers danger. `racing` creates two opposed clocks, first to full wins. `linked` triggers an unlocked clock on completion, rendered as an indented chain tree. `tug_of_war` allows advancing and retreating ticks; `retreat_countdown` SHALL remove ticks without going below zero. `faction` advances one tick per scene transition for factions (REQ-233). `mission` auto-decrements one tick per `resume_novel`, reaching zero changes mission parameters. `link_countdown(parent_name, child_name)` creates a linked relationship between two existing clocks.
 
@@ -1865,8 +1909,17 @@ Mutating codex operations (`codex_set`, `codex_capture`, `codex_delete`) SHALL r
 **REQ-321l — Codex (Part l).**
 Codex entries SHALL be surfaced in `spec_health` under a `codex` key (count partitioned by kind). The codex SHALL be retrievable at `codex://<id>` as a resource, badge-filtered by visibility. Codex entries SHALL NOT appear in `export_novel`, `clone_novel`, or checkpoint snapshots.
 
-**REQ-321m — Codex (Part m).**
-Codex entries SHALL carry no mechanical effect within a Novel until explicitly imported via `codex_import`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]` when no Novel is active. *Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` stores the entry with default visibility `library`; `codex_set("npc", "Blacksmith", ..., visibility="shared")` stores with `shared` visibility; server restart preserves entries; `end_novel` preserves them; `codex://blacksmith` returns full content; `codex_list("npc")` under Player badge returns only `shared` entries; `codex_list("npc")` under Game Master badge returns all entries; `codex_list("npc")` with the Editor badge returns all entries; Player badge `codex_set(...)` returns `[FORBIDDEN]`; Game Master badge `codex_import("blacksmith")` into an active Novel creates the NPC; Player badge `codex_import("fighter-01")` of a `shared`-visibility `character` entry imports the character; Player badge `codex_import("blacksmith")` returns `[FORBIDDEN]`; `codex_import("my-adventure")` with kind `adventure` into an active Novel populates world-model, NPCs, factions, lore, and activates synthesis linkages; `codex_capture("adventure")` from an active Novel with adventure content stores it in Codex with `source: captured:<slug>`; without adventure content returns `[STATE_CONFLICT]`; `codex_import(["blacksmith", "innkeeper", "guild-faction"])` imports three entries atomically; `codex_import(["blacksmith", "nonexistent"])` reports `nonexistent` at index 1 as `[NOT_FOUND]` and imports nothing; `codex_capture("npc", "blacksmith", update_source=true)` on a codex-sourced NPC updates the Codex entry in-place; `codex_capture("npc", "handcrafted-npc", update_source=true)` on an NPC with no codex_source returns `[STATE_CONFLICT]`; `spec_health` reports codex counts by kind. _Check:_ T-new-322, T-new-338, T-new-339.
+**REQ-321m1 — Codex (Part m1).**
+Codex entries SHALL carry no mechanical effect within a Novel until explicitly imported via `codex_import`. `codex_import` and `codex_capture` SHALL return `[STATE_CONFLICT]` when no Novel is active.
+
+**REQ-321m2 — Codex (Part m2).**
+*Acceptance criterion:* `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` stores the entry with default visibility `library`; `codex_set("npc", "Blacksmith", ..., visibility="shared")` stores with `shared` visibility; server restart preserves entries; `end_novel` preserves them; `codex://blacksmith` returns full content; `codex_list("npc")` under Player badge returns only `shared` entries; `codex_list("npc")` under Game Master badge returns all entries; `codex_list("npc")` with the Editor badge returns all entries; Player badge `codex_set(...)` returns `[FORBIDDEN]`.
+
+**REQ-321m3 — Codex (Part m3).**
+*Acceptance criterion:* Game Master badge `codex_import("blacksmith")` into an active Novel creates the NPC; Player badge `codex_import("fighter-01")` of a `shared`-visibility `character` entry imports the character; Player badge `codex_import("blacksmith")` returns `[FORBIDDEN]`; `codex_import("my-adventure")` with kind `adventure` into an active Novel populates world-model, NPCs, factions, lore, and activates synthesis linkages; `codex_import(["blacksmith", "innkeeper", "guild-faction"])` imports three entries atomically; `codex_import(["blacksmith", "nonexistent"])` reports `nonexistent` at index 1 as `[NOT_FOUND]` and imports nothing.
+
+**REQ-321m4 — Codex (Part m4).**
+*Acceptance criterion:* `codex_capture("adventure")` from an active Novel with adventure content stores it in Codex with `source: captured:<slug>`; without adventure content returns `[STATE_CONFLICT]`; `codex_capture("npc", "blacksmith", update_source=true)` on a codex-sourced NPC updates the Codex entry in-place; `codex_capture("npc", "handcrafted-npc", update_source=true)` on an NPC with no codex_source returns `[STATE_CONFLICT]`; `spec_health` reports codex counts by kind. _Check:_ T-new-322, T-new-338, T-new-339.
 **REQ-332a — Codex provenance (Part a).**
 entry, faction, countdown) is created via `codex_import`, THE artifact SHALL carry a `codex_source` field recording: the Codex entry ID, the import timestamp, and the Codex entry's `modified_at` value at the time of import. `codex_import` of an entry whose `codex_source` already references that Codex entry SHALL update the existing artifact in-place rather than creating a duplicate — fields present in the Codex entry SHALL overwrite corresponding Novel artifact fields; fields set only in the Novel (runtime state like HP, conditions, disposition) SHALL be preserved. `novel_info` SHALL report `codex_sources` — an array of `{id, kind, imported_at, codex_modified_at}` for every Codex-sourced artifact in the Novel.
 
@@ -2104,8 +2157,11 @@ Synthesis recommendations for prompt ordering, lore templates, and adventure adv
 **REQ-080f — Synthesis boundaries (Part f).**
 Re-running synthesis refreshes timestamps for all external items. Every external synthesis finding carries source_url, quoted_excerpt, badge_scope, confidence (derived from source authority, not mechanical completeness), output_module, and collected_at (ISO 8601 timestamp of collection) — all non-empty. Ruleset Wisdom items carry source anchor, confidence, output_module, and `[ruleset]` or `[vendor]` tag.
 
-**REQ-080g — Synthesis boundaries (Part g).**
-Reverting synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and player items persist. *Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source anchor; player-authored items carry `[player]` tag and appear in both Player and GM `badge_briefing` by default; a stale synthesis item (past `TTRPG_SYNTHESIS_STALE_DAYS`) is flagged `[stale]` in `spec_health` and excluded from surfaces; `revert_synthesis` removes synthesis items but preserves Ruleset Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves against the build's current extraction appears as a `[wisdom_gap]` entry in `spec_health`; new Wisdom items in the current extraction with no matching activation key start inactive. _Check:_ T63, T95, T97, T125.
+**REQ-080g1 — Synthesis boundaries (Part g1).**
+Reverting synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and player items persist.
+
+**REQ-080g2 — Synthesis boundaries (Part g2).**
+*Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source anchor; player-authored items carry `[player]` tag and appear in both Player and GM `badge_briefing` by default; a stale synthesis item (past `TTRPG_SYNTHESIS_STALE_DAYS`) is flagged `[stale]` in `spec_health` and excluded from surfaces; `revert_synthesis` removes synthesis items but preserves Ruleset Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves against the build's current extraction appears as a `[wisdom_gap]` entry in `spec_health`; new Wisdom items in the current extraction with no matching activation key start inactive. _Check:_ T63, T95, T97, T125.
 **REQ-081a — Narrative directive (Part a).**
 the `narrative_directive` parameter on `set_scene_state`. Each directive has a `label` (non-empty, unique within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the prior entry. An empty array clears all directives. For backward compatibility, `set_narrative_directive` also accepts a single `directive` string — treated as `[{"label": "primary", "instruction": <string>}]`. Directives appear in `badge_briefing` for the Game Master badge only and at `novel://current`, grouped under "Narrative Directives" with their labels.
 
@@ -2408,8 +2464,11 @@ For backward compatibility, the builder may accept `end_game` as a deprecated al
 **REQ-088g — Novel lifecycle (Part g).**
 In either case, the Novel is the active Novel before the first tool call or prompt is served.
 
-**REQ-088h — Novel lifecycle (Part h).**
-If `TTRPG_NOVEL` is set but activation fails for any reason other than non-existence (e.g., corrupt file, checksum mismatch), the server reports the error in stderr and `spec_health`, and proceeds with no Novel active — it does not silently swallow the error. *Acceptance criterion:* `create_novel("my-novel", "A noir detective story set in a rain-soaked city.")` creates `novels/my-novel.json` and stores the description; `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved to `.trash/` and the roster survives. `create_novel("dragon-game", codex_adventure="dragon-hoard")` creates the Novel and imports the dragon-hoard Codex adventure scaffold atomically; `create_novel("broken", codex_adventure="nonexistent")` returns `[NOT_FOUND]`. _Check:_ T72, T73, T98, T159, T-new-335.
+**REQ-088h1 — Novel lifecycle (Part h1).**
+If `TTRPG_NOVEL` is set but activation fails for any reason other than non-existence (e.g., corrupt file, checksum mismatch), the server reports the error in stderr and `spec_health`, and proceeds with no Novel active — it does not silently swallow the error.
+
+**REQ-088h2 — Novel lifecycle (Part h2).**
+*Acceptance criterion:* `create_novel("my-novel", "A noir detective story set in a rain-soaked city.")` creates `novels/my-novel.json` and stores the description; `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved to `.trash/` and the roster survives. `create_novel("dragon-game", codex_adventure="dragon-hoard")` creates the Novel and imports the dragon-hoard Codex adventure scaffold atomically; `create_novel("broken", codex_adventure="nonexistent")` returns `[NOT_FOUND]`. _Check:_ T72, T73, T98, T159, T-new-335.
 **REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
 Novel's save file and its backup to a `.trash/` subdirectory within the state directory
 rather than deleting them immediately. Files in `.trash/` are excluded from `listNovels`
@@ -2522,8 +2581,11 @@ For version 1 Novels, the server SHALL auto-migrate: if a `.holonovel-state/nove
 **REQ-092g — Novel persistence (Part g).**
 Version > current: surface a `[WARNING] [format_future]` in `spec_health` — the Novel may contain fields the current server cannot interpret; the server loads the Novel with the existing graceful migration rules and the warning remains active until the format version matches. WHEN `TTRPG_NOVEL_COMPRESS` is `true` (configurable), the serialized Novel JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be compressed when the primary is compressed.
 
-**REQ-092h — Novel persistence (Part h).**
-The 4 MB health warning threshold in REQ-097 applies to the on-disk compressed size. `export_novel` output (REQ-096) SHALL be uncompressed regardless of this setting — the interchange format is always uncompressed JSON or Markdown. `TTRPG_NOVEL_COMPRESS` SHALL be recorded in the Novel's metadata for integrity verification on resume: a compressed Novel loaded with compression disabled SHALL produce a `[WARNING] [compression_mismatch]`; an uncompressed Novel loaded with compression enabled loads normally. *Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string; `cat novels/<slug>.json | jq .novel_format_version` returns `2`; `cat novels/<slug>.json | jq .audit_log` returns an array with 10 entries; a version 1 Novel with a valid JSONL file auto-migrates on load; a corrupt primary file triggers backup restore. _Check:_ T77, T88, T156, T282.
+**REQ-092h1 — Novel persistence (Part h1).**
+The 4 MB health warning threshold in REQ-097 applies to the on-disk compressed size. `export_novel` output (REQ-096) SHALL be uncompressed regardless of this setting — the interchange format is always uncompressed JSON or Markdown. `TTRPG_NOVEL_COMPRESS` SHALL be recorded in the Novel's metadata for integrity verification on resume: a compressed Novel loaded with compression disabled SHALL produce a `[WARNING] [compression_mismatch]`; an uncompressed Novel loaded with compression enabled loads normally.
+
+**REQ-092h2 — Novel persistence (Part h2).**
+*Acceptance criterion:* After 10 mutations, the Novel JSON on disk is non-empty and parseable; `cat novels/<slug>.json | jq .checksum` returns a non-empty string; `cat novels/<slug>.json | jq .novel_format_version` returns `2`; `cat novels/<slug>.json | jq .audit_log` returns an array with 10 entries; a version 1 Novel with a valid JSONL file auto-migrates on load; a corrupt primary file triggers backup restore. _Check:_ T77, T88, T156, T282.
 **REQ-093a — Novel listing and metadata (Part a).**
 slug, name, last-modified timestamp, active flag. `list_novels` (REQ-257) is the dedicated save-file browsing surface — `spec_health` is the build-health dashboard. `novel_info(slug?)` (REQ-258) returns extended metadata for a single Novel.
 
@@ -2549,8 +2611,11 @@ The `scope` parameter selects the payload: `full` (all state tiers, audit log, s
 **REQ-096c — Novel interchange (Part c).**
 No dedicated `synthesis` scope — Ruleset Wisdom activation keys export as part of `full` scope in the manifest's `synthesis_activation` field; synthesis items export as the `synthesis` key in `full` scope (per Appendix Q). Each scope outputs Appendix Q schema with omitted keys for excluded tiers. Single scope per call. `import_novel(data, mode, strict?)` (Game Master only, mode `dry-run`, `replace`, or `merge`, strict defaults to `false`) imports a previously exported Novel. `dry-run` reports what would change without side effects. `replace` replaces the active Novel's state with the import data.
 
-**REQ-096d — Novel interchange (Part d).**
-On import, the server SHALL validate: (a) entity IDs within the import are unique, (b) NPC references in lore entry trigger lists resolve to NPCs present in the import (or the existing Novel for merge mode), (c) faction references in `dm_context.active_threads` resolve to factions present in the import, (d) relationship targets resolve to entities, NPCs, or factions present in the import, (e) world-model exit references resolve to rooms present in the import, (f) countdown names are unique within the import, (g) clock `opposes` and `unlocks` references resolve to countdowns present in the import, (h) adventure content referenced in `manifest.adventure_module_slugs` is either embedded or the slugs are recorded as missing with a warning, (i) Tier 2 synthesis items whose `source_url` the target server never fetched SHALL be flagged `[stale]`, (j) Tier 1 synthesis activation keys whose anchor does not resolve against the target build's current extraction SHALL be flagged `[orphan]`.
+**REQ-096d1 — Novel interchange (Part d1).**
+On import, the server SHALL validate: (a) entity IDs within the import are unique, (b) NPC references in lore entry trigger lists resolve to NPCs present in the import (or the existing Novel for merge mode), (c) faction references in `dm_context.active_threads` resolve to factions present in the import, (d) relationship targets resolve to entities, NPCs, or factions present in the import, (e) world-model exit references resolve to rooms present in the import, (f) countdown names are unique within the import, (g) clock `opposes` and `unlocks` references resolve to countdowns present in the import, (h) adventure content referenced in `manifest.adventure_module_slugs` is either embedded or the slugs are recorded as missing with a warning.
+
+**REQ-096d2 — Novel interchange (Part d2).**
+On import, the server SHALL additionally validate: (i) Tier 2 synthesis items whose `source_url` the target server never fetched SHALL be flagged `[stale]`, (j) Tier 1 synthesis activation keys whose anchor does not resolve against the target build's current extraction SHALL be flagged `[orphan]`.
 
 **REQ-096e — Novel interchange (Part e).**
 Tier 2 stale items and Tier 1 orphan items are imported inert (inactive). Module toggle state that references absent synthesis modules produces a warning. When `strict` is `true`, any staleness or orphan synthesis items also block the import. `dry-run` reports all validation failures with each item's path. In `replace` and `merge` modes, failures surface as `[WARNING]` with enumerated items but import proceeds.
@@ -2564,10 +2629,16 @@ The export SHALL include a `manifest` object containing: `novel_format_version` 
 **REQ-096h — Novel interchange (Part h).**
 The manifest is advisory — `import_novel` surfaces mismatches as warnings but does not block import. `export_novel` SHALL embed loaded adventure module content inline in the `adventure` key when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true` (default `false`). When `false`, the export's `manifest.adventure_module_slugs` field records which adventure modules were active at export time but their content is not embedded — the import target must have those modules indexed to restore adventure content.
 
-**REQ-096i — Novel interchange (Part i).**
-Adventure modules embedded inline SHALL include their prose content (all narrative sections per REQ-079) and world-model assertions (`## World` section); embedded content carries the module's build-time content hash for integrity verification on import. `TTRPG_EXPORT_EMBED_ADVENTURES` SHALL be recorded in the Novel's build fingerprint as part of the Build workflow's Advanced questions (B9 area). *Acceptance criterion:* `export_novel("json")` → `import_novel(data, "dry-run")` reports changes without side effects; `import_novel(data, "replace")` restores the exported state; round-trip is byte-identical; `export_novel("json", "lore")` produces a payload with only the lore tier present; `import_novel (data, "dry-run", strict=true)` with broken references reports all failures and blocks import; `export_novel("json")` includes a `manifest` object with all declared fields present. _Check:_ T100, T281.
-**REQ-097a — Novel health (Part a).**
-the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log entry count, story journal entry count, story journal total characters (on-disk byte count), snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when configured), on-disk file size in bytes (with warning if exceeding 4 MB), `synthesis_gap_count` — the number of activated Tier 1 keys that no longer resolve against the current build's extraction (per REQ-080, surfaced as `[synthesis_gap]` entries), and a `healthy` flag — set to false if any warning is active. `spec_health` reports a sliding window of Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct `TTRPG_SESSION_ID` values in the audit log, bounded to the last 7 by default).
+**REQ-096i1 — Novel interchange (Part i1).**
+Adventure modules embedded inline SHALL include their prose content (all narrative sections per REQ-079) and world-model assertions (`## World` section); embedded content carries the module's build-time content hash for integrity verification on import. `TTRPG_EXPORT_EMBED_ADVENTURES` SHALL be recorded in the Novel's build fingerprint as part of the Build workflow's Advanced questions (B9 area).
+
+**REQ-096i2 — Novel interchange (Part i2).**
+*Acceptance criterion:* `export_novel("json")` → `import_novel(data, "dry-run")` reports changes without side effects; `import_novel(data, "replace")` restores the exported state; round-trip is byte-identical; `export_novel("json", "lore")` produces a payload with only the lore tier present; `import_novel (data, "dry-run", strict=true)` with broken references reports all failures and blocks import; `export_novel("json")` includes a `manifest` object with all declared fields present. _Check:_ T100, T281.
+**REQ-097a1 — Novel health (Part a1).**
+`spec_health` SHALL report for the active Novel: NPC count (with warning if near `TTRPG_MAX_NPCS` when configured), lore entry count (with warning if near `TTRPG_MAX_LORE_ENTRIES` when configured), audit log entry count, story journal entry count, story journal total characters (on-disk byte count), snapshot stack depth (with warning if near `TTRPG_MAX_SNAPSHOT_DEPTH` when configured), on-disk file size in bytes (with warning if exceeding 4 MB), `synthesis_gap_count` — the number of activated Tier 1 keys that no longer resolve against the current build's extraction (per REQ-080, surfaced as `[synthesis_gap]` entries), and a `healthy` flag — set to false if any warning is active.
+
+**REQ-097a2 — Novel health (Part a2).**
+`spec_health` reports a sliding window of Novel file-size deltas and snapshot depth deltas over the most recent sessions (distinct `TTRPG_SESSION_ID` values in the audit log, bounded to the last 7 by default).
 
 **REQ-097b — Novel health (Part b).**
 A Novel whose growth trajectory projects an on-disk file size exceeding 4 MB within the next 3 sessions is flagged with a `[size_growth]` warning. The file-size metric reported in `spec_health` SHALL match the on-disk file size as reported by the operating system, including all serialization overhead (encoding, checksum field, whitespace formatting). A file reported at size S bytes in `spec_health` whose on-disk size differs by more than 1% is a `[size_mismatch]` warning — indicating a durability or serialization defect. The growth trajectory SHALL use the on-disk size, not the in-memory representation size.
@@ -2746,7 +2817,8 @@ A vehicle reaching capacity SHALL reject additional passengers with `[RULE_VIOLA
 
 **REQ-317d — Vehicle kind (Part d).**
 WHEN a player enters a vehicle via `command("enter <vehicle>")`, the server SHALL record a `[vehicle-entry]` story journal entry of type `moment` with the context `entered <vehicle>` and the vehicle's interior description. WHEN the player exits the vehicle, a `[vehicle-exit]` entry SHALL record the room returned to. These entries SHALL appear in `session_recap` scene transitions and SHALL be surfaced in `badge_briefing` narrative context when present. This couples vehicle traversal into the narrative surface without affecting scene state — the GM's `set_scene_state` remains authoritative. _Check:_ T-new-318.
-**REQ-318 — Extended property contracts.** THE world-model layer SHALL
+**REQ-318a — Extended property contracts (Part a).**
+THE world-model layer SHALL
 extend the `thing` type with properties enabling parser commands, each
 defaulting to false: `switchable` enables `switch on`/`switch off`; `switched_on`
 records current switch state; `wearable` enables `wear`/`remove`; `readable`
@@ -2754,6 +2826,8 @@ enables `read` with `read_text` providing revealed text and defaulting to null;
 `edible` enables `eat`, removing the thing from inventory; `drinkable` enables
 `drink`; `enterable` enables `enter` for containers or vehicles; `climbable`
 enables `climb`; `transparent` makes contents visible when closed.
+
+**REQ-318b — Extended property contracts (Part b).**
 `convert_source` SHALL recognize property assertions for each boolean
 property: "It is wearable.", "It is readable.", "It is edible.", "It is
 transparent.", "It is switched on.", "It is enterable.", "It is climbable."
@@ -2897,8 +2971,11 @@ No matching room — Blacksmith carries free-text location only. _Check:_ T-new-
 **REQ-367a — Property propagation across containment (Part a).**
 vehicle carries a property that affects perception of its contents, the property SHALL propagate from the container boundary. Propagation SHALL evaluate containment from outermost to innermost. An opaque or `dark` container at any level in the chain SHALL block perception of all recursively contained things — propagation SHALL stop at the first opaque boundary. Inner containers' `transparent` properties are irrelevant when an outer container is opaque.
 
-**REQ-367b — Property propagation across containment (Part b).**
-A `transparent` container containing a `lit` and `switched_on` device SHALL report the device's light state to the room — "a glowing lantern (inside the glass case)." A `transparent` container containing a `lit` device that is `switched_off` SHALL NOT report light — "a dark lantern (inside the glass case)." A `dark` container SHALL block perception of its contents regardless of `transparent` — "a brass urn (opaque, what's inside is hidden)." A vehicle interior SHALL inherit the `lit`/`dark` state of the vehicle's exterior room unless the vehicle itself is `lit`. `command("look")` output SHALL reflect propagated state. *Acceptance criterion:* A world model with a transparent jar containing a switched-on lantern in a dark room — `command("look")` reports "a glowing lantern (inside the glass jar)." Switch the lantern off — `command("look")` reports "a dark lantern (inside the glass jar)." Place the jar inside an opaque iron chest — `command("look")` does not mention the lantern.
+**REQ-367b1 — Property propagation across containment (Part b1).**
+A `transparent` container containing a `lit` and `switched_on` device SHALL report the device's light state to the room — "a glowing lantern (inside the glass case)." A `transparent` container containing a `lit` device that is `switched_off` SHALL NOT report light — "a dark lantern (inside the glass case)." A `dark` container SHALL block perception of its contents regardless of `transparent` — "a brass urn (opaque, what's inside is hidden)." A vehicle interior SHALL inherit the `lit`/`dark` state of the vehicle's exterior room unless the vehicle itself is `lit`. `command("look")` output SHALL reflect propagated state.
+
+**REQ-367b2 — Property propagation across containment (Part b2).**
+*Acceptance criterion:* A world model with a transparent jar containing a switched-on lantern in a dark room — `command("look")` reports "a glowing lantern (inside the glass jar)." Switch the lantern off — `command("look")` reports "a dark lantern (inside the glass jar)." Place the jar inside an opaque iron chest — `command("look")` does not mention the lantern.
 
 **REQ-367c — Property propagation across containment (Part c).**
 A vehicle in a dark cave with the vehicle itself `lit` — interior shows as lit; vehicle not `lit` — interior inherits dark. _Check:_ T-new-374.

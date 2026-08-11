@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-11 — REQ body-length compliance (20 → 0 errors)
+
+- Split 20 REQ bodies that exceeded the 800-character SDD-strict limit
+  into 43 sub-REQs. All REQs now satisfy shape constraints. Appendix E
+  grows from 966 to 991 REQ rows. Cross-references preserved by the
+  existing sub-REQ group resolution logic.
+- AGENTS.md now documents `check:fast` as the recommended local pre-commit
+  gate and `check` for CI/push. The stale 500-character body-length claim
+  is corrected to 800.
+
 ## 2026-08-11 — Fast validation gate and pre-commit reliability
 
 - Added `check:fast` — runs lint, structural validation (with proofreading
