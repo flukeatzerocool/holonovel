@@ -13,6 +13,7 @@ const server = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]
   : "dnd5e-holonovel";
 
+// Must match push-pipeline.sh SERVERS
 if (server !== "dnd5e-holonovel" && server !== "holonovel") {
   console.error("Usage: npm run spec-delta -- --server holonovel|dnd5e-holonovel");
   process.exit(1);
@@ -149,7 +150,14 @@ if (!report.in_sync) {
   }
 }
 
+const reportOnly = process.argv.includes("--report-only");
+
 console.log(JSON.stringify(report, null, 2));
+
+if (reportOnly) {
+  console.error(`\nSpec delta: ${report.classification.toUpperCase()}${report.in_sync ? " (already in sync)" : ""}`);
+  process.exit(0);
+}
 
 if (!report.in_sync) {
   console.error(`\nSpec delta detected: ${report.classification.toUpperCase()}`);
