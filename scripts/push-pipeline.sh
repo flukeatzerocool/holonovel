@@ -1,21 +1,15 @@
 #!/usr/bin/env zsh
 # push-pipeline.sh — assemble spec, sync servers, push.
 #
-# Tier 1 enrichment (vendor content + ruleset-native) is populated during
-# the build step by the AI maintainer. This script handles the mechanical
-# parts: build-order (spec assembly + checks + propagation + typecheck +
-# version sync) then hash update, fingerprint, commit, and push.
+# Ruleset Wisdom (vendor content + ruleset-native) is extracted during
+# build-order as a fingerprint-scoped step. This script handles the mechanical
+# parts: build-order (spec assembly + checks + propagation + wisdom extraction +
+# typecheck + version sync) then hash update, fingerprint, commit, and push.
 #
 # Spec → holonovel → dnd5e propagation order is enforced by build-order
 # (scripts/build-order.ts). Source changes in holonovel/src/world/ or
 # holonovel/narrative_world_model/ trigger source-propagate which copies
 # the world-model layer and vendor content into dnd5e-holonovel.
-#
-# For enrichment manifest population, run this before the script:
-#   opencode run --agent build "Update enrichment manifests from vendor
-#   content in holonovel/narrative_world_model/ and SRD ruleset text.
-#   Populate all 7 modules, tag [vendor] or [ruleset], update spec_version.
-#   Do NOT commit."
 #
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes]
@@ -40,9 +34,6 @@ for arg in "$@"; do
       echo "  --dry-run   Full pipeline including file writes — skip git commit, push, deploy."
       echo "  --yes (-y)  Skip confirmation prompt before push/deploy."
       echo "  --help (-h) Show this message."
-      echo ""
-      echo "Before running, populate enrichment manifests:"
-      echo "  opencode run --agent build \"Update enrichment manifests ...\""
       exit 0
       ;;
     *)
@@ -74,9 +65,9 @@ if ! git diff --cached --exit-code --quiet 2>/dev/null; then
   exit 1
 fi
 
-# ── 1. Build order (assemble, check, propagate, source-propagate, typecheck, version) ──
+# ── 1. Build order (assemble, check, propagate, wisdom, typecheck, version) ──
 
-echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → typecheck → version) ===${NC}"
+echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → wisdom → typecheck → version) ===${NC}"
 npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 
 # ── 2. Cross-property coupling ──
@@ -88,13 +79,14 @@ npm run refresh-properties
 
 echo -e "${GREEN}=== 3. Spec-delta report ===${NC}"
 for server in "${SERVERS[@]}"; do
-  npm run spec-delta -- --server "$server" --report-only
+  npm run spec-delta -- --server "$server" --report-only &
 done
+wait
 
 # ── 4. Update stored spec hashes in DECISIONS.md ──
 
 echo -e "${GREEN}=== 4. Update stored spec hashes in DECISIONS.md ===${NC}"
-SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+SPEC_HASH=$(node -e "const {readFileSync}=require('fs');console.log(JSON.parse(readFileSync('.holonovel-state/build-order-fingerprint.json','utf-8')).spec_hash)")
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
@@ -108,12 +100,13 @@ done
 
 echo -e "${GREEN}=== 5. Fingerprint and scoped spec-driven update ===${NC}"
 for server in "${SERVERS[@]}"; do
-  npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
-  npx tsx scripts/update-server.ts --server "$server" \
-    --spec-hash "$SPEC_HASH" \
-    --scope-by-fingerprint \
-    || echo -e "${YELLOW}  WARNING: $server update script returned non-zero — check logs${NC}"
+  (npx tsx scripts/fingerprint.ts --server "$server" > /dev/null && \
+   npx tsx scripts/update-server.ts --server "$server" \
+     --spec-hash "$SPEC_HASH" \
+     --scope-by-fingerprint) || \
+   echo -e "${YELLOW}  WARNING: $server update script returned non-zero — check logs${NC}" &
 done
+wait
 
 # ── Dry-run exit ──
 

@@ -48,6 +48,7 @@ interface Fingerprint {
   holonovel_world_hash: string;
   holonovel_vendor_hash: string;
   dnd5e_src_hash: string;
+  dnd5e_ruleset_hash: string;
   root_version: string;
 }
 
@@ -72,6 +73,7 @@ function computeCurrent(): Fingerprint {
     holonovel_world_hash: hashDir(join(root, "holonovel", "src", "world")),
     holonovel_vendor_hash: hashDir(join(root, "holonovel", "narrative_world_model")),
     dnd5e_src_hash: hashDir(join(root, "dnd5e-holonovel", "src")),
+    dnd5e_ruleset_hash: hashDir(join(root, "dnd5e-holonovel", "ruleset")),
     root_version: rootPkg.version,
   };
 }
@@ -112,6 +114,8 @@ const worldChanged = firstRun || current.holonovel_world_hash !== saved.holonove
 const vendorChanged = firstRun || current.holonovel_vendor_hash !== saved.holonovel_vendor_hash;
 const holoSrcChanged = firstRun || current.holonovel_src_hash !== saved.holonovel_src_hash;
 const dndSrcChanged = firstRun || current.dnd5e_src_hash !== saved.dnd5e_src_hash;
+const rulesetChanged = firstRun || current.dnd5e_ruleset_hash !== saved.dnd5e_ruleset_hash;
+const wisdomChanged = firstRun || rulesetChanged || vendorChanged;
 const versionChanged = firstRun || current.root_version !== saved.root_version;
 
 const steps: Step[] = [];
@@ -146,29 +150,38 @@ if (worldChanged || vendorChanged) {
   steps.push({ label: "4. Propagate source to dnd5e-holonovel", fn: () => skip("4. Propagate source to dnd5e-holonovel", "world/ + vendor unchanged") });
 }
 
-// Step 5: Typecheck holonovel
+// Step 5: Ruleset Wisdom extraction (depends on dnd5e ruleset/ + holonovel vendor content)
+// Inserts after source-propagate so vendor content is in place; typecheck follows to verify output
+if (wisdomChanged) {
+  const wisdomCmd = `opencode run --agent build \"Perform Ruleset Wisdom extraction (REQ-225) on dnd5e-holonovel. Read ruleset guidance from dnd5e-holonovel/ruleset/ and vendor content from holonovel/narrative_world_model/. Classify into seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices), tag [ruleset] or [vendor], and update dnd5e-holonovel/src/enrichment.ts DEFAULT_ENRICHMENT manifest.\"`;
+  steps.push({ label: "5. Ruleset Wisdom extraction", fn: () => run("5. Ruleset Wisdom extraction", wisdomCmd) });
+} else {
+  steps.push({ label: "5. Ruleset Wisdom extraction", fn: () => skip("5. Ruleset Wisdom extraction", "ruleset + vendor unchanged") });
+}
+
+// Step 6: Typecheck holonovel
 if (holoSrcChanged) {
-  steps.push({ label: "5. Typecheck holonovel", fn: () => run("5. Typecheck holonovel", "npm run typecheck", join(root, "holonovel")) });
+  steps.push({ label: "6. Typecheck holonovel", fn: () => run("6. Typecheck holonovel", "npm run typecheck", join(root, "holonovel")) });
 } else {
-  steps.push({ label: "5. Typecheck holonovel", fn: () => skip("5. Typecheck holonovel", "holonovel/src/ unchanged") });
+  steps.push({ label: "6. Typecheck holonovel", fn: () => skip("6. Typecheck holonovel", "holonovel/src/ unchanged") });
 }
 
-// Step 6: Typecheck dnd5e-holonovel
+// Step 7: Typecheck dnd5e-holonovel
 if (dndMustTypecheck) {
-  steps.push({ label: "6. Typecheck dnd5e-holonovel", fn: () => run("6. Typecheck dnd5e-holonovel", "npm run typecheck", join(root, "dnd5e-holonovel")) });
+  steps.push({ label: "7. Typecheck dnd5e-holonovel", fn: () => run("7. Typecheck dnd5e-holonovel", "npm run typecheck", join(root, "dnd5e-holonovel")) });
 } else {
-  steps.push({ label: "6. Typecheck dnd5e-holonovel", fn: () => skip("6. Typecheck dnd5e-holonovel", "dnd5e-holonovel/src/ unchanged") });
+  steps.push({ label: "7. Typecheck dnd5e-holonovel", fn: () => skip("7. Typecheck dnd5e-holonovel", "dnd5e-holonovel/src/ unchanged") });
 }
 
-// Step 7: Version-bump
+// Step 8: Version-bump
 if (versionChanged) {
-  steps.push({ label: "7. Bump versions", fn: () => run("7. Bump versions", "npx tsx scripts/version-bump.ts") });
+  steps.push({ label: "8. Bump versions", fn: () => run("8. Bump versions", "npx tsx scripts/version-bump.ts") });
 } else {
-  steps.push({ label: "7. Bump versions", fn: () => skip("7. Bump versions", "version unchanged") });
+  steps.push({ label: "8. Bump versions", fn: () => skip("8. Bump versions", "version unchanged") });
 }
 
-// Step 8: Version-check — always runs (fast, catch-all)
-steps.push({ label: "8. Verify version consistency", fn: () => run("8. Verify version consistency", "npx tsx scripts/version-check.ts") });
+// Step 9: Version-check — always runs (fast, catch-all)
+steps.push({ label: "9. Verify version consistency", fn: () => run("9. Verify version consistency", "npx tsx scripts/version-check.ts") });
 
 // ── Execute ──
 

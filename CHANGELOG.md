@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-11 — Ruleset Wisdom extraction in build-order, pipeline efficiency
+
+- Ruleset Wisdom extraction is now a fingerprint-scoped step in
+  `build-order.ts` — invoked when `dnd5e-holonovel/ruleset/` or
+  `holonovel/narrative_world_model/` change; skipped when sources are
+  unchanged. Replaces the manual pre-pipeline enrichment step.
+- Spec: renamed "Enrichment classification" to "Ruleset Wisdom
+  extraction" in §6.3, correcting terminology inherited from pre-rename.
+- `build-order.ts` fingerprint gains `dnd5e_ruleset_hash` component
+  covering the SRD ruleset source directory.
+- `push-pipeline.sh` spec-delta and fingerprint/update-server loops
+  now run in parallel per server. Spec hash is read from the fingerprint
+  file instead of recomputed from holonovel.md. Stale enrichment
+  manifest population comments removed.
+
 ## 2026-08-11 — build-order integrated into push-pipeline
 
 - The push-pipeline script now delegates spec assembly, checks,
