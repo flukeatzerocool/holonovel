@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-11 — Fast validation gate and pre-commit reliability
+
+- Added `check:fast` — runs lint, structural validation (with proofreading
+  skipped), and README guardrail in under 30 seconds. The full `check`
+  command still exists for CI; `check:fast` is the new default for local
+  iteration.
+- Added `validate:fast` — runs `validate.ts` with `--sdd-strict --quick
+  --no-proofread`, skipping the slow proofreading pass (passive voice,
+  readability, sentence analysis on ~400 REQs) plus the Pattern Buffer
+  and Coupling completeness checks.
+- The pre-commit hook now runs `spec-delta.ts --report-only` — spec delta
+  is still reported but no longer blocks commits. Every spec edit produces
+  a hash mismatch with downstream artifacts; this is expected, not an
+  error.
+- Removed a duplicate `REQ-376b` row from Appendix E.
+
 ## 2026-08-11 — Validate backlog: 303 errors → zero
 
 - The REQ citation validator now understands sub-REQ group references —

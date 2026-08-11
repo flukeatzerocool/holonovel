@@ -8188,7 +8188,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
 | REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
 | REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
-| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-300 | Structured failure diagnostics | 2026-08-11 |
 | REQ-301 | Convergence loop audit trail | 2026-08-11 |
 | REQ-303 | Scoped re-verification | 2026-08-11 |
