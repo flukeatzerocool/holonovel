@@ -16,14 +16,15 @@
     "validate-readme": "npx tsx scripts/validate-readme.ts",
     "detect-dupes": "npx tsx scripts/detect-near-dupes.ts",
     "check": "npm run lint && npm run validate:sdd && npm run validate-readme",
-    "check:pre-commit": "npm run lint && npm run validate:quick && npm run validate-readme",
     "check:full": "npm run check && npm run detect-dupes",
     "assemble": "npx tsx scripts/assemble.ts",
     "build-order": "npx tsx scripts/build-order.ts",
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",
     "source-propagate": "npx tsx scripts/source-propagate.ts",
     "version-bump": "npx tsx scripts/version-bump.ts",
-    "version-check": "npx tsx scripts/version-check.ts"
+    "version-check": "npx tsx scripts/version-check.ts",
+    "refresh-properties": "npx tsx scripts/cross-property-couple.ts",
+    "spec-delta": "npx tsx scripts/spec-delta.ts"
   },
   "keywords": [],
   "author": "",
