@@ -3,7 +3,13 @@
 #
 # Tier 1 enrichment (vendor content + ruleset-native) is populated during
 # the build step by the AI maintainer. This script handles the mechanical
-# parts: spec assembly, copy to server dirs, typecheck, version sync, push.
+# parts: build-order (spec assembly + checks + propagation + typecheck +
+# version sync) then hash update, fingerprint, commit, and push.
+#
+# Spec → holonovel → dnd5e propagation order is enforced by build-order
+# (scripts/build-order.ts). Source changes in holonovel/src/world/ or
+# holonovel/narrative_world_model/ trigger source-propagate which copies
+# the world-model layer and vendor content into dnd5e-holonovel.
 #
 # For enrichment manifest population, run this before the script:
 #   opencode run --agent build "Update enrichment manifests from vendor
@@ -68,43 +74,26 @@ if ! git diff --cached --exit-code --quiet 2>/dev/null; then
   exit 1
 fi
 
-# ── 1. Assemble spec ──
+# ── 1. Build order (assemble, check, propagate, source-propagate, typecheck, version) ──
 
-echo -e "${GREEN}=== 1. Assemble spec ===${NC}"
-npm run assemble
+echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → typecheck → version) ===${NC}"
+npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 
 # ── 2. Cross-property coupling ──
 
 echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"
 npm run refresh-properties
 
-# ── 3. Run spec checks ──
+# ── 3. Spec-delta report ──
 
-echo -e "${GREEN}=== 3. Run spec checks ===${NC}"
-npm run lint || { echo -e "${RED}Lint FAILED${NC}"; exit 1; }
-npm run validate:sdd > /tmp/validate-sdd.log 2>&1 || { echo -e "${RED}validate:sdd FAILED — see /tmp/validate-sdd.log${NC}"; tail -10 /tmp/validate-sdd.log; exit 1; }
-npm run validate-readme
-
-# ── 4. Spec-delta report ──
-
-echo -e "${GREEN}=== 4. Spec-delta report ===${NC}"
+echo -e "${GREEN}=== 3. Spec-delta report ===${NC}"
 for server in "${SERVERS[@]}"; do
   npm run spec-delta -- --server "$server" --report-only
 done
 
-# ── 5. Copy spec to server directories ──
+# ── 4. Update stored spec hashes in DECISIONS.md ──
 
-echo -e "${GREEN}=== 5. Copy spec to server directories ===${NC}"
-npx tsx scripts/spec-propagate.ts
-
-# ── 6. Version-bump servers ──
-
-echo -e "${GREEN}=== 6. Version-bump servers ===${NC}"
-npm run version-bump
-
-# ── 7. Update stored spec hashes in DECISIONS.md ──
-
-echo -e "${GREEN}=== 7. Update stored spec hashes in DECISIONS.md ===${NC}"
+echo -e "${GREEN}=== 4. Update stored spec hashes in DECISIONS.md ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
@@ -115,9 +104,9 @@ for server in "${SERVERS[@]}"; do
   fi
 done
 
-# ── 7a. Fingerprint and scoped spec-driven update ──
+# ── 5. Fingerprint and scoped spec-driven update ──
 
-echo -e "${GREEN}=== 7a. Fingerprint and scoped spec-driven update ===${NC}"
+echo -e "${GREEN}=== 5. Fingerprint and scoped spec-driven update ===${NC}"
 for server in "${SERVERS[@]}"; do
   npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
   npx tsx scripts/update-server.ts --server "$server" \
@@ -125,18 +114,6 @@ for server in "${SERVERS[@]}"; do
     --scope-by-fingerprint \
     || echo -e "${YELLOW}  WARNING: $server update script returned non-zero — check logs${NC}"
 done
-
-# ── 8. Typecheck both servers ──
-
-echo -e "${GREEN}=== 8. Typecheck both servers ===${NC}"
-for server in "${SERVERS[@]}"; do
-  (cd "$server" && npm run typecheck) || { echo -e "${RED}$server typecheck FAILED${NC}"; exit 1; }
-done
-
-# ── 9. Version sync check ──
-
-echo -e "${GREEN}=== 9. Version sync check ===${NC}"
-npx tsx scripts/version-check.ts
 
 # ── Dry-run exit ──
 
@@ -156,9 +133,9 @@ if ! $SKIP_CONFIRM; then
   fi
 fi
 
-# ── 10. Stage and commit ──
+# ── 6. Stage and commit ──
 
-echo -e "${GREEN}=== 10. Stage and commit ===${NC}"
+echo -e "${GREEN}=== 6. Stage and commit ===${NC}"
 git add holonovel.md spec/ scripts/cross-property-couple.ts package.json
 for f in CHANGELOG.md README.md; do
   [[ -f "$f" ]] && git add "$f"
@@ -175,13 +152,13 @@ fi
 COMMIT_DATE=$(date +%Y-%m-%d)
 git commit -m "Push pipeline $COMMIT_DATE
 
-  Spec assembled, coupled to README and wiki, checked, copied to both servers.
-  Both servers typechecked, spec-delta confirms sync.
-  Stored spec hashes updated in DECISIONS.md."
+  Build-order: spec assembled, checked, propagated to servers, source
+  propagated holonovel→dnd5e, both servers typechecked, versions synced.
+  Spec-delta confirms sync. Stored spec hashes updated in DECISIONS.md."
 
-# ── 10a. Tag ──
+# ── 6a. Tag ──
 
-echo -e "${GREEN}=== 10a. Tag ===${NC}"
+echo -e "${GREEN}=== 6a. Tag ===${NC}"
 VERSION=$(node -e "console.log(require('./package.json').version)")
 TAG="v$VERSION"
 if git tag -l "$TAG" | grep -q "^$TAG$"; then
@@ -192,14 +169,14 @@ else
   git tag "$TAG"
 fi
 
-# ── 11. Push main ──
+# ── 7. Push main ──
 
-echo -e "${GREEN}=== 11. Push main ===${NC}"
+echo -e "${GREEN}=== 7. Push main ===${NC}"
 git push origin main --tags || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
 
-# ── 12. Push wiki ──
+# ── 8. Push wiki ──
 
-echo -e "${GREEN}=== 12. Push wiki ===${NC}"
+echo -e "${GREEN}=== 8. Push wiki ===${NC}"
 WIKI_DIR=".holonovel-state/wiki"
 if [[ -d "$WIKI_DIR/.git" ]]; then
   git -C "$WIKI_DIR" add -A
@@ -213,9 +190,9 @@ else
   echo -e "${YELLOW}  Wiki directory not found, skipping.${NC}"
 fi
 
-# ── 13. Deploy to MCP target ──
+# ── 9. Deploy to MCP target ──
 
-echo -e "${GREEN}=== 13. Deploy to MCP target ===${NC}"
+echo -e "${GREEN}=== 9. Deploy to MCP target ===${NC}"
 DEPLOY_DIR="$HOME/Holonovel-deployed"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
   DEPLOY_PREV=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)

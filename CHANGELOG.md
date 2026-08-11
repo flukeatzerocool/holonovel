@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-11 — build-order integrated into push-pipeline
+
+- The push-pipeline script now delegates spec assembly, checks,
+  propagation, source propagation (holonovel→dnd5e), typechecking,
+  and version sync to `build-order.ts` instead of running each step
+  independently. The source-propagate step — which copies the world
+  model, parser, and vendor content from holonovel to dnd5e — now
+  runs automatically as part of every pipeline push, closing the gap
+  where dnd5e could drift behind holonovel's reference implementation.
+  Steps are fingerprint-scoped: only changed components run.
+
 ## 2026-08-11 — Traceability drift check + pipeline documentation
 
 - A new traceability drift checker catches stale DECISIONS.md entries
