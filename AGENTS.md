@@ -103,9 +103,16 @@ Push to origin: `git push origin main`.
   new or modified REQ.
 - Appendix M defines what belongs in a REQ vs. what belongs elsewhere
   (builder, convergence loop, gates).
-- `npm run validate` checks for spec-level violations — long REQ bodies,
-  parameter type annotations, Default: clauses, enumerated token catalogs,
-  and lifecycle repetition — and warns on each.
+- `npm run validate --sdd-strict` checks REQ block integrity, REQ shape (one
+  paragraph, no tables/bullets/steps, 500-char limit, 5-sentence limit), spec
+  violations (parameter types, Default: clauses, enumerated catalogs), ambiguity
+  (hedging, vague qualifiers), cross-references (dead citations, orphan REQs),
+  assumptions (magic numbers, absolute language, untiered thresholds), and
+  proofreading quality (passive voice, modal drift, cross-ref format, sentence
+  length, double negatives, term drift, condition stacking, pronoun ambiguity,
+  readability grade, empty sections). All run in a single pass. Shape violations
+  and spec violations are ERRORS under --sdd-strict; proofreading checks are
+  WARNINGS.
 
 ## Gates
 
@@ -119,12 +126,8 @@ This runs:
 
 | Command                    | What it checks                                    |
 |----------------------------|---------------------------------------------------|
-| `npm run lint`             | markdownlint style rules (`.markdownlint.json`)  |
-| `npm run validate`         | Cross-references, TOC sync, REQ blocks, separators, spec violations |
-| `npm run audit-assumptions`| Structural assumption patterns (citations, magic numbers, absolute language) |
-| `npm run scan-ambiguity`   | Hedging, vague qualifiers, indefinite language in REQ bodies |
-| `npm run check-cross-refs`  | Dead citations, orphan REQs, divergent scope |
-| `npm run detect-dupes`      | Near-duplicate paragraphs within 40-sentence window |
+| `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
+| `npm run validate:sdd`     | All checks in one pass: REQ integrity, shape, ambiguity, cross-refs, assumptions, proofreading (10 dimensions) |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 
 Also available separately:
@@ -132,22 +135,24 @@ Also available separately:
 | Command              | What it checks                                    |
 |----------------------|---------------------------------------------------|
 | `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`)         |
+| `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
+| `npm run validate:quick` | Fast iteration — skips heavy coupling/patterning checks |
 
-All must pass. `npm run validate` exits non-zero on errors (uncited REQs,
-undefined test IDs, TOC discrepancies, or malformed blocks). Warnings
-(uncited test IDs, missing separators, stale appendix ranges, hardcoded
-cross-section counts) are informational.
+All must pass with 0 errors. Warnings (proofreading quality, stale appendix
+ranges, hardcoded cross-section counts) are informational.
 
 ## Before committing spec changes
 
 When you change files in `spec/`, verify before committing:
 
 - [ ] `npm run assemble && npm run check` passes with 0 errors (warnings are informational)
+- [ ] No REQ body contains tables, bullet lists, numbered steps, or blank lines
+- [ ] No REQ body exceeds 500 characters or 5 sentences
+- [ ] No REQ body contains parameter types, Default: clauses, or enumerated
+      catalogs (>5 tokens)
 - [ ] All cross-section counts match their targets (e.g., §6.5 metric count
       matches REQ-025 text)
 - [ ] Appendix ranges like "Appendices A–X" match actual appendix count
-- [ ] No REQ body contains parameter types, Default: clauses, or enumerated
-      catalogs (>5 tokens) — `npm run validate` flags these
 - [ ] Renamed headings or appendices are followed by a spec-wide grep
       for stale references
 - [ ] Gate/workflow references use `GN` form (not "Gate N") outside §8

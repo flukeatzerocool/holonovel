@@ -142,6 +142,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-052 | Path containment          | 2026-08-02   |
 | REQ-054 | Input safety              | 2026-08-02   |
 | REQ-055 | Durability and resume     | 2026-08-02   |
+| REQ-055a| Badge precedence on resume | 2026-08-09 |
+| REQ-055b| Story-in-progress notice   | 2026-08-09 |
 | REQ-067 | Help and tool discovery   | 2026-08-04   |
 | REQ-070 | Anti-slop guidance        | 2026-08-07   |
 | REQ-071 | Narrative tone samples    | 2026-08-04   |
@@ -247,6 +249,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-244 | Convergence cache key | 2026-08-08 |
 | REQ-245 | Pre-computed synthesis manifest | 2026-08-08 |
 | REQ-246 | Story journal                 | 2026-08-08 |
+| REQ-246a| Story journal surfacing      | 2026-08-09 |
 | REQ-247 | Adventure structure extraction | 2026-08-08 |
 | REQ-248 | Adventure overview resource   | 2026-08-08 |
 | REQ-249 | Adventure navigation resource | 2026-08-08 |
@@ -376,6 +379,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-310 | Campaign Memory | 2026-08-08 |
 | REQ-311 | NPC memory model | 2026-08-08 |
 | REQ-312 | Pre-narration validation gate | 2026-08-08 |
+| REQ-312a| Bounds conformance          | 2026-08-09 |
+| REQ-312b| Permission conformance      | 2026-08-09 |
+| REQ-312c| State conformance           | 2026-08-09 |
 | REQ-313 | Server implementation fingerprinting | 2026-08-09 |
 | REQ-314 | Fingerprint-driven partial rebuild | 2026-08-09 |
 | REQ-315 | Full-text ruleset indexing | 2026-08-09 |
@@ -1397,19 +1403,47 @@ build artifact — it is a spec-maintainer reference.
       has a coupling row in §7.7.1a with a Session-archetype source (player_signal or
       set_narrative_directive). System configuration is annotated as non-behavioral
       with justification.
+- [ ] REQ body is exactly one paragraph — no blank lines, no tables, no bullet lists,
+      no numbered steps
+- [ ] REQ body is ≤ 500 characters
+- [ ] REQ contains exactly one logical contract — if it has multiple SHALL clauses
+      covering distinct concerns, split it
+- [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
+- [ ] REQ body contains ≤ 5 sentences
+- [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens
 
-These checks are mechanically enforced by `npm run validate` — parameter type
+These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,
-lifecycle repetition, stale appendix ranges, and hardcoded cross-section counts
-all surface as warnings before commit.
+lifecycle repetition, multi-paragraph REQs, embedded tables, bullet lists,
+numbered steps, and sentence-count violations all surface as errors before commit.
+The proofreading checks (passive voice, modal drift, double negatives, sentence length,
+condition stacking, pronoun ambiguity, term drift, readability) surface as warnings.
 
-**REQ anatomy.** One paragraph stating the *what*. Ends in `_Check:_` with test
-citations. Contains no parameter types, no algorithm descriptions, no default values,
-no catalog enumerations, no tool-name lists. REQs covering complex state contracts
-(briefing composition, multi-tier persistence, large-field tool surfaces) may
-exceed one paragraph where the contract resists subdivision. The body SHALL
-remain a single logical contract; sub-REQs (e.g., REQ-XXXa) are used for
-composable, separable concerns that diverge from the parent's scope.
+**REQ anatomy.** One paragraph stating a single verifiable contract — the
+*what*. Ends in `_Check:` with test citations. Contains no parameter types,
+no algorithm descriptions, no default values, no catalog enumerations
+(>5 tokens), no markdown tables, no bullet lists, no numbered steps, and
+no blank lines. A REQ body IS a single paragraph — if it needs more, it
+is at minimum two REQs. Sub-REQs (e.g., REQ-XXXa) handle composable,
+separable concerns. The gate (`npm run check`) fails on any violation —
+there is no grandfathering.
+
+**SDD enforcement rules.** The following are mechanically enforced at
+commit time via `npm run check`:
+
+- No REQ body shall exceed 500 characters.
+- No REQ body shall contain a markdown table.
+- No REQ body shall contain bullet lists or numbered steps.
+- No REQ body shall span more than one paragraph (no blank lines).
+- No REQ body shall exceed 5 sentences.
+- No REQ body shall contain more than 8 SHALL clauses.
+- Every REQ body shall end with `_Check:` citing at least one test ID.
+- No REQ body shall enumerate more than 5 backtick-delimited tokens.
+
+These rules are not advisory. A REQ violating any rule is a spec defect
+that blocks the assemble gate. The author SHALL split the REQ or move
+procedural content to the appropriate section (§6 for build processes,
+§7.7 for coupling, Appendices for reference tables, §B.3 for worked examples).
 
 **What belongs elsewhere:**
 
@@ -1422,6 +1456,11 @@ composable, separable concerns that diverge from the parent's scope.
 - Worked examples and step-by-step procedures → golden transcript (§B.3) and the Pattern Buffer (§6.6)
 - JSON schemas and file format specifications → builder's implementation; verification workflows verify
   correctness
+- Procedural pipelines and phase descriptions → §6 (Build Process)
+- Pattern-matching tables and classification heuristics → §6.3 (Discovery)
+- Coupling acceleration and state-machine rules → §7.7 (Coupling Table)
+- Return-value field enumerations → Appendix O (Behavioral Contracts)
+- Infrastructure tool category enumerations → Appendix T (Tool Surface Map)
 
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
 G2, G4, G5, the convergence loop, or a Pattern Buffer sub-workflow, do not specify the mechanism
@@ -1460,6 +1499,24 @@ a spec-maintainer signal, not a build requirement.
 
 O.1–O.7 contracts are defined in §5 (REQ-001, REQ-002, REQ-003, REQ-032, REQ-041,
 REQ-042, REQ-043, REQ-055, REQ-092). Output formats are documented in §7.3.
+
+**O.2 — Error taxonomy (canonical catalog):**
+
+| Category | Raised when | Corrective action |
+|----------|------------|-------------------|
+| `[FORBIDDEN]` | Caller lacks badge permission for the tool | "Use `set_badge` to switch to the required badge." |
+| `[NOT_FOUND]` | Named entity or value does not exist in the indexed catalogue | Enumerate badge-filtered valid values; include "Did you mean?" hint for close matches |
+| `[INVALID_INPUT]` | Input is malformed, out of range, or fails format validation | Enumerate badge-filtered valid values |
+| `[STATE_CONFLICT]` | Action cannot proceed in current state (empty undo stack, ended Novel, pending workflow, coupling conflict) | Describe the state that must change; for coupling conflicts, enumerate the conflicting coupling rows (§7.7.1a) |
+| `[RULE_VIOLATION]` | Input is well-formed but violates a ruleset constraint | Cite the ruleset anchor forbidding the action |
+| `[UNIMPLEMENTED]` | Valid input but feature not yet modeled (waiver exists) | Name the unimplemented subsystem and cite the waiver entry in DECISIONS.md |
+| `[AMBIGUOUS]` | Input matches multiple canonical entries | Enumerate matching entries with distinguishing fields |
+| `[MISSING_PARAM]` | Required parameter is absent or empty and no default is defined | Name the missing parameter and its expected format |
+
+Empty-string searches return no results — not an error — with valid-value enumeration.
+An error that matches a single close name SHALL include a "Did you mean?" hint. When
+multiple close matches exist, list them all ("Did you mean one of…"). `Corrective
+action: <action>` follows on a separate line.
 
 **O.1 — Roll transparency example:**
 
@@ -1627,9 +1684,28 @@ Domain terms are defined in §4 (Terminology). This appendix is a forward refere
 
 ---
 
-## Appendix T: Reserved
+## Appendix T: Tool Surface Map
 
-This appendix letter is reserved for future use.
+Infrastructure tools in four immutable categories, independent of ruleset
+content, always present in `tools/list`. These are never waived.
+
+| Category | Tools |
+|----------|-------|
+| **World** | Room, thing, exit, and property operations; parser command dispatch; source conversion (`holonovel` package) |
+| **Novels** | Save-file lifecycle, exchange, checkpoints, notes, resume state, archive, and server notes |
+| **Badges & Workflow** | Badge switching, workflow response, undo/redo, and help — the identity and permission layer |
+| **Narrative** | Story-content tools, grouped: Scene & Tone, Cast & Characters, World State, Player Interaction, Story Memory, Session Management, Synthesis Controls |
+
+The `help` tool SHALL present these categories as the base grouping. The builder
+MAY subdivide or rename categories for runtime display, but every tool in the
+infrastructure enumeration SHALL appear under exactly one help category. The
+mapping from infrastructure category to help category name SHALL be recorded in
+DECISIONS.md. Help category names are advisory — the GM may override them
+(REQ-067) — but the infrastructure classification is immutable.
+
+_Verify:_ T3, T5, T32, T33.
+
+---
 
 ---
 

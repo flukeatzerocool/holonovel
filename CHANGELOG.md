@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-08-10 — SDD structural-violation cleanup and cross-reference repair
+
+- Fixed 6 sub-REQs (055a, 055b, 246a, 312a, 312b, 312c) missing from the
+  Appendix E requirements manifest — dead cross-reference citations from the
+  prior commit's REQ splits.
+- Replaced retired test T7 with active test T84 in REQ-098's check line.
+- Removed bullet lists from 15 REQ bodies (065, 073, 077, 084a, 233a, 237,
+  269, 274, 283, 310, 311, 314, 326, 327, 368, 372), converting enumerations
+  to prose contracts.
+- Removed markdown tables from 6 REQ bodies (015, 284, 318, 319, 320, 137)
+  and converted table data to prose or moved tables to section-level headings
+  outside REQ boundaries.
+- Removed numbered steps from 5 REQ bodies (080, 271, 273, 277, 308).
+- Fixed duplicate REQ-073 heading (missing em-dash delimiter) that caused
+  spurious parser boundary failures.
+- Added h3 section separators before two build-phase tables (§6 Pattern Buffer
+  coverage maps) to correctly delimit REQ-208 and REQ-376 body boundaries.
+
+## 2026-08-10 — SDD enforcement: REQ atomicity gate and unified validation tooling
+
+- Added Standing Rule 12 (REQ atomicity): every REQ is exactly one paragraph —
+  no exceptions. Enforced mechanically via `validate --sdd-strict` — violations
+  exit non-zero and block commits.
+- Merged three standalone validation scripts (`scan-ambiguity.ts`,
+  `check-cross-refs.ts`, `audit-assumptions.ts`) into `validate.ts` — single
+  read of the spec, single pass of all checks.
+- Added REQ shape checks (tables, bullet lists, numbered steps, multi-paragraph,
+  >500 chars, >5 sentences, >8 SHALL clauses) gated under `--sdd-strict`.
+- Added 10 proofreading checks: passive voice density, modal verb drift,
+  cross-reference format, sentence length outliers, double negatives, defined
+  term drift, condition stacking, ambiguous pronoun reference, reading-grade
+  metric (Flesch-Kincaid), and empty section detection. All WARNING-level.
+- Added `--quick` flag to skip heavy checks (coupling completeness, Pattern
+  Buffer coverage) for fast iteration.
+- Restructured `npm run check` from 7 tools (7 reads) to 3 reads:
+  `lint && validate:sdd && validate-readme`. Full gate (`check:full`) adds
+  `detect-dupes`.
+- Rewrote Appendix M: removed "complex state contract" escape hatch, added SDD
+  enforcement rules, added 6 new checklist items.
+- Added Appendix T (Tool Surface Map) replacing reserved slot.
+- Added error taxonomy catalog to Appendix O.2.
+- Moved REQ declarations: 002 category catalog → Appendix O.2, 020
+  infrastructure enumeration → Appendix T.
+- Split REQ-055 → 055 (durability) + 055a (badge precedence) + 055b
+  (resume notice).
+- Split REQ-312 → 312 (gate) + 312a (bounds) + 312b (permission) + 312c
+  (state).
+- Split REQ-246 → 246 (tool surface) + 246a (surfacing).
+- Tightened REQ-020, REQ-140, REQ-201, REQ-225, REQ-246, REQ-299, REQ-312,
+  REQ-323, REQ-324, REQ-353, REQ-354 — removed embedded tables, bullet lists,
+  numbered steps, and multi-paragraph bodies.
+- Fixed §6.7 sub-headings from bold text (`**...**`) to h4 (`####`) to
+  correctly delimit REQ-098 body.
+- Updated §5 header text to state the one-paragraph rule explicitly.
+
 ## 2026-08-10 — Coupling completeness and Holodeck model alignment
 
 - Every coupling row in §7.7.1a now carries a Holodeck model column — a
