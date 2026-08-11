@@ -951,7 +951,17 @@ function main(): void {
 
   const reqIndex = extractReqIndex(text);
   const citedReqs = findReqCitations(text);
-  const undefinedReqs = new Set([...citedReqs].filter((r) => !reqIndex.has(r)));
+
+  // A cited REQ is valid if it exists in Appendix E OR (for group references
+  // ≤8 chars like REQ-001a or REQ-003) a longer sub-REQ exists with that prefix.
+  // Full sub-REQ IDs (≥9 chars) that are not in the manifest remain errors.
+  const reqKeys = [...reqIndex.keys()];
+  const isDefined = (cited: string): boolean => {
+    if (reqIndex.has(cited)) return true;
+    if (cited.length < 9) return reqKeys.some((k) => k.startsWith(cited) && k.length > cited.length);
+    return false;
+  };
+  const undefinedReqs = new Set([...citedReqs].filter((r) => !isDefined(r)));
   const uncitedReqs = new Set([...reqIndex.keys()].filter((r) => !citedReqs.has(r)));
 
   console.log("=== REQ MANIFEST ===\n");
