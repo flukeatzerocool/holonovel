@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-11 — Traceability drift check + pipeline documentation
+
+- A new traceability drift checker catches stale DECISIONS.md entries
+  where a REQ is marked Deferred but the tool or resource it references
+  already exists in the code. This runs as part of `check:fast` so it
+  surfaces before every commit. Four existing partial-implementation
+  entries (character_sheet, session_recap, create_character) were
+  caught on first run — they're correctly deferred but had stale
+  "not yet" wording.
+- The `update-server.ts` script now documents why it doesn't invoke
+  `opencode run` itself (opencode can't recursively invoke itself) and
+  provides a commented-out exec block that can be uncommented when
+  running outside of opencode in a bare shell or CI pipeline.
+
 ## 2026-08-11 — Full spec-server synchronization + fingerprint-scoped pipeline
 
 - The holonovel reference server gained 45 new tools covering the full
