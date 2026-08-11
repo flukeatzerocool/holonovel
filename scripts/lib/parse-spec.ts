@@ -51,8 +51,12 @@ export function extractReqBodiesWithSentences(text: string): Map<string, ReqBody
     const rest = text.slice(bodyStart);
     const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
     const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
-    const paragraphCount = body.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
-    reqs.set(reqId, { id: reqId, body, sentences: splitSentences(body), paragraphCount });
+    const hrIdx = body.indexOf('\n---\n');
+    const trimmedBody = hrIdx >= 0 ? body.slice(0, hrIdx).trimEnd() : body;
+    const paragraphCount = trimmedBody.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
+    const acIdx = trimmedBody.indexOf('*Acceptance criterion:*');
+    const normativeBody = acIdx >= 0 ? trimmedBody.slice(0, acIdx).trimEnd() : trimmedBody;
+    reqs.set(reqId, { id: reqId, body: normativeBody, sentences: splitSentences(normativeBody), paragraphCount });
   }
   return reqs;
 }

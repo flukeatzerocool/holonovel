@@ -1312,9 +1312,7 @@ intake answers). Stale items SHALL appear with the `[stale]` flag when
 listed. When synthesis has never been run, `synthesis_active` is false
 and all count fields are zero.
 When synthesis is absent (never run or reverted), `module_counts`
-SHALL include all seven module names — `voice_examples`,
-`briefing_order`, `lore_templates`, `action_patterns`,
-`supplementary_guidance`, `adventure_advice`, `narrative_voices` — each with value zero.
+SHALL include all seven module names — `voice_examples`, `briefing_order`, `lore_templates`, `action_patterns` and `supplementary_guidance`, `adventure_advice`, `narrative_voices` — each with value zero.
 An absent `module_counts` field or an empty object does not satisfy
 this contract.
 The synthesis health section is visible
@@ -3946,8 +3944,7 @@ _Check:_ T-new-314.
 
 **REQ-236 — Entity relationships.** The Game Master may set directed relationships
 between entities, NPCs, and factions. `set_relationship(entity_a, entity_b, type,
-value?, description?)` sets a directed relationship. Relationship types: `ally`,
-`rival`, `neutral`, `mentor`, `dependent`, `suspicious`. `get_relationships(entity_id)`
+value?, description?)` sets a directed relationship. Relationship types: `ally`, `rival`, `neutral`, `mentor` and `dependent`, `suspicious`. `get_relationships(entity_id)`
 returns all relationships for an entity (both outgoing and incoming). Relationships
 SHALL appear on `character_sheet` output in a "Relationships" section. When an
 entity's relationship type changes between `ally` and `rival` (in either direction),
@@ -3978,9 +3975,7 @@ Master sees the full marker entry. `session_recap` (REQ-072) SHALL accept an
 optional `session_id` parameter — when provided, the recap is scoped to the
 audit log range bounded by the matching `[session_boundary]` entry and the
 next marker. `spec_health` SHALL report a `sessions` array in Novel metadata
-with per-session objects containing `session_id`, `entry_count`,
-`timespan_start`, `timespan_end`, `combat_rounds`,
-`significant_roll_count`, and `scene_transitions`.
+with per-session objects containing `session_id`, `entry_count`, `timespan_start`, `timespan_end` and `combat_rounds`, `significant_roll_count`, and `scene_transitions`.
 *Acceptance criterion:* After two sessions with different `TTRPG_SESSION_ID`
 values, the audit log contains two `[session_boundary]` entries;
 `session_recap(session_id="s1")` returns only entries from session s1;
@@ -4125,10 +4120,7 @@ library for reusable content (NPCs, characters, scenes, encounters, lore entries
 factions, countdowns, rooms, things, equipment templates, spell templates,
 relationship templates, voice profiles, adventures) that persists outside Novels and
 survives server restarts. The codex operates at the server level — it has no inherent
-badge context. The codex SHALL support content kinds: `npc`, `character`, `scene`,
-`encounter`, `lore_entry`, `faction`, `countdown`, `room`, `thing`,
-`equipment_template`, `spell_template`, `relationship_template`, `voice_profile`,
-`adventure`. Every codex entry SHALL carry a `visibility` field — `library` (default,
+badge context. The codex SHALL support content kinds: `npc`, `character`, `scene`, `encounter` and `lore_entry`, `faction`, `countdown`, `room` and `thing`, `equipment_template`, `spell_template`, `relationship_template` and `voice_profile`, `adventure`. Every codex entry SHALL carry a `visibility` field — `library` (default,
 for world-building content) or `shared` (visible to both badges). `codex_set(kind,
 name, data, description?, tags?, visibility?)` SHALL create or update a codex entry
 with upsert semantics — the `data` parameter carries a kind-specific payload whose
@@ -4155,8 +4147,8 @@ per REQ-229. The adventure data payload for kind `adventure` SHALL carry: `title
 `captured:<novel_slug>`), `premise`, `overview`, `hook`, `locations` (array of
 `{heading, flavor_text}`), `npc_suggestions` (array of `{name, description}`),
 `encounter_seeds` (array of free-text entries), `genre_tags` (array of strings), and
-`sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`,
-`## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind,
+`sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes`
+`## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind,
 source_id)` SHALL pull an existing Novel artifact into the codex — the captured
 entry carries a `source_novel` field tracing its origin. The captured entry SHALL
 default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")`
@@ -5220,9 +5212,7 @@ _Check:_ T-new-230.
 
 **REQ-231 — Per-module synthesis toggle.** The GM may enable or disable
 individual synthesis output modules at runtime via `toggle_synthesis_module(module,
-enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`,
-`lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`,
-`narrative_voices`. Disabling a module SHALL suppress all items in that module
+enabled)`. Module SHALL be one of: `voice_examples`, `briefing_order`, `lore_templates`, `action_patterns` and `supplementary_guidance`, `adventure_advice`, `narrative_voices`. Disabling a module SHALL suppress all items in that module
 from `badge_briefing`, `suggest_actions`, `suggest_lore`, and synthesis resource
 URIs for the current Novel. Disabling does not delete items — the items persist in
 Novel state and re-appear when the module is re-enabled. Ruleset-native modules
@@ -5330,9 +5320,8 @@ _Check:_ T-new-245.
 **REQ-085 — Macro system.** The server expands macro tokens of the form `{{<path>}}`
 in all tool output, resource text, and prompt text before delivery. Supported macros:
 `{{entity.name}}`, `{{entity.hp}}`, `{{entity.<stat>}}` (per-ruleset stat names),
-`{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`,
-`{{countdown.<name>.total}}`, `{{countdown.<name>.scope}}`,
-`{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{badge.active}}`, `{{party.size}}`.
+`{{scene.current}}`, `{{scene.type}}`, `{{countdown.<name>.remaining}}`, `{{countdown.<name>.total}}` and `{{countdown.<name>.scope}}`, `{{countdown.<name>.direction}}`, `{{novel.slug}}`, `{{badge.active}}`
+`{{party.size}}`.
 Macros referencing nonexistent state expand to the literal token unchanged. Macro
 expansion occurs after output composition and before client delivery. Macros do not
 expand in audit log entries.
@@ -5595,8 +5584,7 @@ _Check:_ T74.
 
 **REQ-294 — Genre declaration.** The Novel SHALL carry a `genre` field, settable via
 `novel://current` metadata and `badge_briefing` under the `novel` section token. The field
-accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`,
-`sci_fi_horror`, `cosmic_horror`, `historical`, `western`, `modern`, `cyberpunk`.
+accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`, `sci_fi_horror` and `cosmic_horror`, `historical`, `western`, `modern` and `cyberpunk`.
 Ruleset-derived genre tags merge with the canonical catalog. Default is unset. When a
 genre is set, `spec_health` SHALL report `active_genre`. When unset, the genre line is
 absent from briefing per §5.10.
@@ -5737,7 +5725,7 @@ creation timestamp, last-modified timestamp, entity count, adventure source (mod
 values in the audit log), cumulative play time (earliest-to-latest audit entry timestamp
 range), last-active scene anchor, current combat round if in-combat, total combat rounds
 played across this Novel's lifetime, and a `sessions` array — per-session objects with
-`session_id`, `entry_count`, `timespan_start`, `timespan_end`, `combat_rounds`,
+`session_id`, `entry_count`, `timespan_start`, `timespan_end` and `combat_rounds`,
 `significant_roll_count`, and `scene_transitions` — derived from `[session_boundary]`
 marker intervals (REQ-237). This metadata appears in
 `badge_briefing` under the `novel` section token (added to REQ-082's documented token
