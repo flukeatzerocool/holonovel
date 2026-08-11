@@ -599,6 +599,7 @@ a category from REQ-002) use `isError: true` and are normal `result` objects —
 
 **REQ-001b2 — Error boundary (Part b2).**
 A conformant server never emits a protocol-level error with a REQ-002 category string embedded. *Acceptance criterion:* A tool called with a structurally invalid parameter returns an SDK-level `-32602` response before the handler — this response does not contain `[ERROR] [INVALID_INPUT]` or a REQ-002 category. A tool called with a semantically invalid parameter returns a result with `isError: true` and `[ERROR] [INVALID_INPUT]`. _Check:_ T180.
+
 ### 5.2 Extraction and Confidence
 
 During Discovery (§6.3), mechanical coupling metadata — which mechanics produce
@@ -1143,6 +1144,7 @@ tool that resolves a natural-language spatial intent against the world model wit
 
 **REQ-323b — resolve_intent tool (Part b).**
 Against a wall returns `blocked` with the constraint named. Player badge returns `[FORBIDDEN]`. _Check:_ T-new-323. *Out of scope:* real-time collaboration tools, streaming resource endpoints, tools that modify the ruleset source, and MCP protocol features beyond the standard tool/resource/prompt surface.
+
 ### 5.4 Decision workflows
 
 **REQ-056 — Advancement workflow.** If the ruleset defines character advancement (leveling,
@@ -1262,6 +1264,7 @@ The outcome SHALL be appended to the audit log with a `[choice]` tag; freeform r
 
 **REQ-235c — Structured player choices (Part c).**
 The choice outcome SHALL also advance any `linked` countdown triggered by the matching clock. *Acceptance criterion:* `present_choices("The goon blocks your path.", [{id: "talk", label: "Talk", description: "Persuade him"}, {id: "fight", label: "Fight", description: "Start combat"}])` returns `[NEED_INPUT]` with two options; `respond("The goon blocks your path.", "fight")` records a `[choice]` audit entry; a countdown with `scope: "fight"` advances. _Check:_ T273.
+
 ### 5.5 Badges and Access
 
 **REQ-030 — Single-user connection.** Each MCP connection serves one active badge at a
@@ -1375,6 +1378,7 @@ Decision-critical groups (scene state, the POV directive, entities, combat state
 
 **REQ-109f — Badge briefing composition (Part f).**
 The Game Master may override this order via `set_briefing_order` (REQ-082). *Acceptance criterion:* `badge_briefing` for a Novel with entities, combat, countdowns, and lore includes all mandatory groups; an empty data source displays its empty-state marker; decision-critical groups appear before supplementary groups. _Check:_ T109, T110, T149.
+
 #### Briefing Section Tokens
 
 **REQ-281a — Narrative-threads section token (Part a).**
@@ -1427,6 +1431,7 @@ the server is assigned to one of three gate classifications: callable only under
 
 **REQ-137b — Gate classification auditability (Part b).**
 Tool-category reassignment (REQ-067) does not alter gate classification. *Acceptance criterion:* The Player-filtered `tools/list` output contains exactly the tools classified as Player or un-gated in DECISIONS.md; the GM-filtered output contains exactly the tools classified as GM or un-gated; `set_badge` is always present in both lists. No tool is classified as both Player-only and GM-only. _Check:_ T151.
+
 ### Gate classification table
 
 The classification table in DECISIONS.md SHALL enumerate every registered tool
@@ -1676,6 +1681,7 @@ For shared-scope vows, the countdown suggestion and linked countdown state SHALL
 
 **REQ-322d — Vow-countdown coupling (Part d).**
 Filling the countdown makes the vow eligible for `resolve_vow`. `resolve_vow("Find Crown", ...)` removes the countdown. _Check:_ T-new-325.
+
 #### Entities, NPCs, and Adventure Content
 
 **REQ-074a — Multi-entity support (Part a).**
@@ -2076,6 +2082,7 @@ The generated world-model section SHALL contain at minimum: one room (the starti
 
 **REQ-132e — Adventure generation lifecycle (Part e).**
 When the generated adventure is replaced or the Novel is ended, the generated world-model objects SHALL be discarded — they are Novel-scoped per the base contract. *Acceptance criterion:* `generate_adventure("A haunted station")` produces adventure content at `adventure://generated/overview`; restarting the server preserves the generated adventure; `end_novel` discards it; a second `generate_adventure` replaces the first. _Check:_ T146.
+
 #### Fingerprinting and State Integrity
 
 **REQ-044 — Ruleset hash recording.** The server computes a SHA-256 content hash of the
@@ -2267,6 +2274,7 @@ WHEN a Codex entry's `modified_at` timestamp is newer than the import timestamp 
 
 **REQ-332c — Codex provenance (Part c).**
 Updating the blacksmith Codex entry via `codex_set`, then calling `codex_import("blacksmith")` again updates the existing NPC (same entity ID) rather than creating a new one. `novel_info()` reports `codex_sources` including the blacksmith entry. After updating the Codex entry, `spec_health` reports `[codex_stale]` for the Novel's blacksmith NPC. _Check:_ T-new-336.
+
 ### 5.7 Determinism, Safety, and Performance
 
 **REQ-050a — Determinism (Part a).**
@@ -2775,6 +2783,7 @@ The recommendation SHALL be surfaced in `badge_briefing` for the Game Master bad
 
 **REQ-234d — Secrets and knowledge (Part d).**
 WHEN a faction is revealed a secret that names another faction in its content, a `rival` relationship (REQ-236) SHALL be recommended between the knowledge-holding faction and the named faction. *Acceptance criterion:* `set_secret("murder_confession", "The butler killed Lord Ashworth")` creates a GM-only lore entry; `reveal_secret("murder_confession", "pc_detective")` adds "Known Information" to the detective's character sheet; `check_knowledge("pc_detective")` returns the secret. _Check:_ T274.
+
 ### 5.9 Novel Persistence and Transport
 
 **REQ-088a — Novel lifecycle (Part a).**
@@ -2996,6 +3005,7 @@ Codex entries captured from an archived Novel via `codex_capture` SHALL preserve
 
 **REQ-334d — Novel archive (Part d).**
 Player badge returns `[FORBIDDEN]`. _Check:_ T-new-337.
+
 ### 5.10 World-Model Layer
 
 The server SHALL incorporate a world-model layer — a subsystem that models rooms,
@@ -3305,6 +3315,7 @@ An `undo` that restores the deleted target before the countdown fires SHALL rest
 
 **REQ-368e — Countdown-world effect coupling (Part e).**
 Create countdown with `world_effect.target="nonexistent"` and fire — assert `[WARNING] target missing — effect not applied` in audit log. _Check:_ T-new-375. *Out of scope:* multiplayer synchronization, real-time collaborative editing, save-Novel versioning beyond the checksum model, and Novel migration between different rulesets.
+
 ### 5.11 Ruleset-Free Build Mode
 
 **REQ-218a — Ruleset-free build (Part a).**
@@ -3321,6 +3332,7 @@ classes, species, or equipment THE `create_character` tool SHALL accept a name a
 **REQ-219a2 — Ruleset-free entity creation (Part a) (Part a2).**
 The entity is valid as a combat participant in `init_combat` — it receives a turn in the order and auto-advances with an `[AUTO]` marker without mechanical effects (dangers and entities have no hit points, no damage, and no death state). `suggest_actions` SHALL include the entity's name and narrative fields in context but SHALL return no mechanical action suggestions. _Check:_ T260.
 **REQ-219b — Ruleset-free entity creation (Part b).**
+
 ---
 
 ### 5.12 Narrative Architecture
@@ -3552,6 +3564,7 @@ builder SHALL include in DECISIONS.md (6) a `narrative_coherence` attestation re
 **REQ-346a2 — Narrative coherence attestation (Part a) (Part a2).**
 A build missing this attestation is a handoff defect. *Acceptance criterion:* DECISIONS.md (6) contains a `narrative_coherence` section sub-headed `@section evidence` with the three attestation points and an embedded or linked smoke-session transcript. _Check:_ T-new-352.
 **REQ-346b — Narrative coherence attestation (Part b).**
+
 ---
 
 ### 5.13 Holodeck
@@ -3590,6 +3603,7 @@ Gaps — a REQ in the covered sections with no mapped sub-workflow — are logge
 **REQ-376a3 — Holonovel Pattern Buffer traceability (Part a) (Part a3).**
 Gaps detected by `npm run validate` are errors that block assembly. _Check:_ T-new-387.
 **REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
+
 ---
 
 ### 5.14 Content Sources
@@ -3614,6 +3628,7 @@ registration of additional MCP tools at runtime when supplementary rulesets are 
 **REQ-373a2 — Dynamic tool registration (Part a) (Part a2).**
 When a supplementary ruleset is removed (REQ-372), its tools SHALL be deregistered — `tools/list` and tool invocation SHALL behave as if the tools were never present. *Acceptance criterion:* After `import_supplementary`, `tools/list` includes new tools annotated with source slug. Tool invocation produces `[OK]` with response prefix, error taxonomy, and source quoting. After `remove_supplementary`, tools are absent from `tools/list` and invocation returns `[NOT_FOUND]` (tool not recognized by the MCP layer). _Check:_ T-new-380.
 **REQ-373b — Dynamic tool registration (Part b).**
+
 ---
 
 ### 5.15 Mechanical Coupling
@@ -3634,6 +3649,7 @@ verify that: (a) at least one mechanical tool per extraction category (Concepts,
 
 **REQ-378b — Mechanical coupling verification (Part b).**
 At least one coupling is Mechanical (automatic), not Navigational. A ruleset-free build produces `[ruleset-free]` annotation for all mechanical coupling metrics. _Check:_ T-new-389.
+
 ### 5.16 Multi-Ruleset Build
 
 **REQ-379a — Tool namespacing (Part a).**
@@ -3696,6 +3712,7 @@ A mismatch returns `[ERROR] [STATE_CONFLICT]` naming the entry's ruleset and the
 
 **REQ-387b — Codex ruleset annotation (Part b).**
 A `codex_import` of a ruleset-specific entry (e.g., a D&D spell) into a Novel of a different ruleset returns `[ERROR] [STATE_CONFLICT]` naming both rulesets. *Acceptance criterion:* `codex_list(ruleset="dnd5e")` returns D&D-tagged entries plus untagged entries. `codex_list(ruleset="starfinder")` returns Starfinder-tagged entries plus untagged entries — no D&D entries. `codex_import` of a D&D spell codex entry into a Starfinder Novel is rejected. _Check:_ T-new-387.
+
 #### End of requirements
 
 ---
@@ -4927,6 +4944,7 @@ classify each Pattern Buffer failure by applying these rules: a failure from a m
 
 **REQ-208b — Pattern Buffer convergence metric mapping (Part b).**
 A Pattern Buffer failure that maps to no convergence metric under these rules is logged as a process-compliance finding — the builder records the novel defect class in DECISIONS.md (6) with a proposed metric mapping for future builds. _Check:_ T250.
+
 ### Surface-to-scenario mapping
 
 During spec-driven updates (REQ-098), the builder
@@ -5364,6 +5382,7 @@ one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (
 
 **REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
 Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before the holonovel package is published. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T-new-387.
+
 ### Holonovel REQ Pattern Buffer coverage map
 
 The following table maps every

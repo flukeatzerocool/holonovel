@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-11 — Validate backlog: 303 errors → zero
+
+- The REQ citation validator now understands sub-REQ group references —
+  citing `REQ-001a` resolves when `REQ-001a1` and `REQ-001a2` exist, and
+  citing `REQ-003` resolves when `REQ-003a` through `REQ-003c` exist.
+  This resolved 283 cross-reference errors with zero false positives.
+  Citations of specific sub-REQs (≥9 chars) that aren't in Appendix E
+  remain errors.
+- Fixed 19 missing blank lines before section headings and horizontal
+  rules across `spec/02-requirements.md` and `spec/03-build.md`,
+  resolving all MD022 and MD003 lint errors.
+- Suppressed MD038 (spaces inside code spans) — the 8 flagged instances
+  were grammatically required spaces between code spans that markdownlint
+  misidentified as internal spaces.
+
 ## 2026-08-11 — SDD maturity: Tier 3 Spec-as-Source hardening
 
 - The spec now explicitly declares itself a Tier 3 Spec-as-Source system —

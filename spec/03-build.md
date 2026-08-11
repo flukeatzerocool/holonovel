@@ -1225,6 +1225,7 @@ classify each Pattern Buffer failure by applying these rules: a failure from a m
 
 **REQ-208b — Pattern Buffer convergence metric mapping (Part b).**
 A Pattern Buffer failure that maps to no convergence metric under these rules is logged as a process-compliance finding — the builder records the novel defect class in DECISIONS.md (6) with a proposed metric mapping for future builds. _Check:_ T250.
+
 ### Surface-to-scenario mapping
 
 During spec-driven updates (REQ-098), the builder
@@ -1662,6 +1663,7 @@ one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (
 
 **REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
 Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before the holonovel package is published. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T-new-387.
+
 ### Holonovel REQ Pattern Buffer coverage map
 
 The following table maps every
