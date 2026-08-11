@@ -141,6 +141,7 @@ Also available separately:
 | Command              | What it checks                                    |
 |----------------------|---------------------------------------------------|
 | `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`)         |
+| `npm run build-order` | Assemble + check + propagate + source-propagate + typecheck + version sync — the holonovel→dnd5e pipeline (fingerprint-scoped) |
 | `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) — use for CI and pre-push |
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
 | `npm run validate:sdd` | Full validation including proofreading |
