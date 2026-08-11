@@ -49,6 +49,10 @@ scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies)
 scripts/lib/parse-readme.ts   README structural parsers (headings, links, blockquotes)
 scripts/validate-readme.ts    README guardrail (structure, voice, links, comparison table)
 scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
+scripts/check-traceability.ts  DECISIONS.md traceability drift check (Deferred/Waived
+                           entries cross-referenced against registered tools/resources)
+scripts/fingerprint.ts    REQ-313 implementation fingerprint computation
+scripts/update-server.ts  Fingerprint-scoped Update workflow invoker (§6.7)
 ```
 
 ## Knowledge Base
@@ -130,6 +134,7 @@ This runs:
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
 | `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions (proofreading skipped) |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
+| `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
 
 Also available separately:
 

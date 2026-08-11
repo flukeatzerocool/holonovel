@@ -1,3 +1,19 @@
+/**
+ * update-server.ts — Fingerprint-scoped Update workflow invoker (§6.7).
+ *
+ * Compares stored implementation fingerprints against current source and
+ * determines rebuild scope (full, partial, scoped, or skip). Records
+ * fingerprint baselines for future delta comparisons.
+ *
+ * LIMITATION: This script prints `opencode run` commands but does NOT
+ * invoke them. Opencode cannot recursively invoke itself — `opencode run`
+ * from within an opencode session would deadlock. A human or CI with
+ * opencode access must run the printed command manually.
+ *
+ * When running OUTSIDE of opencode (bare shell, CI pipeline), uncomment
+ * the exec block at the bottom of this file to auto-invoke.
+ */
+
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -136,6 +152,13 @@ stored[server] = {
 };
 saveStored(stored);
 
-// For now, the AI maintainer (opencode run) is invoked manually.
-// This script records the decision and fingerprints.
+// The AI maintainer (opencode run) cannot be invoked from within opencode
+// (recursive invocation would deadlock). This script records the decision
+// and fingerprints; a human or CI with opencode access must run the command.
+//
+// When running OUTSIDE of opencode (bare shell, CI pipeline), uncomment:
+// ```
+// import { execSync } from "node:child_process";
+// execSync(updateCommand, { stdio: "inherit", cwd: root });
+// ```
 console.log("\nFingerprints saved. Next: run opencode to perform the actual update.");
