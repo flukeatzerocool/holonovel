@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-11 — SDD maturity: Tier 3 Spec-as-Source hardening
+
+- The spec now explicitly declares itself a Tier 3 Spec-as-Source system —
+  the specification is the canonical source code, humans edit the spec,
+  and generated server code is never edited by hand.
+- Standing rules (§4) are now formally designated the project's immutable
+  constitution, with an explicit precedence contract: constitution rules
+  override any conflicting instruction in §5–§11.
+- The convergence loop (§6.5) now carries a context-scoping
+  recommendation: when multiple agent contexts are available, each build
+  phase SHOULD run in a separate context scoped to its build-phase-map
+  row. Single-context builds remain the default and are always acceptable.
+- Appendix M gains a bloat-prevention contract — before adding a new REQ,
+  the author verifies no existing REQ covers the concern and no extension
+  would suffice. A §5 subsection exceeding 40 REQs triggers maintainer
+  review.
+- Appendix M gains a provenance contract — every REQ must be traceable to
+  its origin spec version and CHANGELOG entry via version control history.
+
 ## 2026-08-11 — Push pipeline hardening
 
 - The push pipeline now creates a `v{version}` git tag after each commit,

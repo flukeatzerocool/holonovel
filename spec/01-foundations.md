@@ -93,7 +93,10 @@ build phases or verification workflows.
 converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution mechanics,
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
 coding — the AI reads the ruleset and builds. The specification is the permanent
-artifact; implementations are disposable and rebuilt on demand. Full rebuilds have
+artifact; implementations are disposable and rebuilt on demand. This is a
+Spec-as-Source (Tier 3 SDD) system — the specification is the canonical source
+code. Humans edit the spec; the builder AI generates, verifies, and regenerates
+the server code. Generated server code is never edited by hand. Full rebuilds have
 token and time costs. The builder prefers incremental updates when the spec delta is
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
@@ -258,6 +261,14 @@ guard, the gap is explicit.
 ---
 
 ## 4. Standing Rules and Terminology
+
+**Constitution.** These rules constitute the project's immutable constitutional
+foundation — they apply to every feature, every build, and every spec revision
+regardless of ruleset or target platform. A substantive change to any standing
+rule requires a spec version bump and CHANGELOG entry. The builder SHALL treat
+these rules as non-negotiable constraints that override any conflicting
+instruction in §5–§11. Changes to terminology or clarity wording that do not
+alter meaning are editorial and do not require a version bump.
 
 **Standing rules.**
 

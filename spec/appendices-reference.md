@@ -2030,6 +2030,13 @@ is at minimum two REQs. Sub-REQs (e.g., REQ-XXXa) handle composable,
 separable concerns. The gate (`npm run check`) fails on any violation —
 there is no grandfathering.
 
+**Provenance.** Every REQ SHALL be traceable to its origin spec version and
+CHANGELOG entry via version control history. When a REQ is modified, the
+CHANGELOG entry SHALL cite the REQ by ID and the nature of the change.
+Appendix E mechanically verifies every REQ in §5 is cited exactly once in
+the traceability table. Provenance for deleted REQs is maintained by the
+CHANGELOG.
+
 **SDD enforcement rules.** The following are mechanically enforced at
 commit time via `npm run check`:
 
@@ -2046,6 +2053,16 @@ These rules are not advisory. A REQ violating any rule is a spec defect
 that blocks the assemble gate. The author SHALL split the REQ or move
 procedural content to the appropriate section (§6 for build processes,
 §7.7 for coupling, Appendices for reference tables, §B.3 for worked examples).
+
+**Bloat prevention.** Before adding a new REQ, the author SHALL verify:
+(a) no existing REQ already covers this concern; (b) the convergence loop
+would not catch the deviation without a new REQ; (c) the concern could not
+be covered by extending an existing REQ rather than proliferating new REQ IDs.
+The REQ-per-section count in the §5 table of contents serves as a bloat
+indicator — a §5 subsection exceeding 40 REQs SHALL trigger a maintainer
+review for consolidation. This check is mechanical (`npm run validate` reports
+section REQ counts) and informational — a flagged section may be justified by
+its domain complexity.
 
 **What belongs elsewhere:**
 
