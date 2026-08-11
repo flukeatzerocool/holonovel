@@ -2,7 +2,9 @@
 // REQ-040, REQ-041, REQ-043, REQ-055, REQ-065, REQ-073, REQ-074, REQ-075,
 // REQ-076, REQ-077, REQ-079, REQ-081, REQ-082, REQ-083, REQ-084,
 // REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-095, REQ-096,
-// REQ-097, REQ-116, REQ-195, REQ-198, REQ-199, REQ-218, REQ-219
+// REQ-097, REQ-116, REQ-195, REQ-198, REQ-199, REQ-218, REQ-219,
+// REQ-232, REQ-233, REQ-234, REQ-236, REQ-238, REQ-239, REQ-240,
+// REQ-241, REQ-242, REQ-246, REQ-256, REQ-257, REQ-258, REQ-285, REQ-289
 
 import * as fs from "fs";
 import * as path from "path";
@@ -44,6 +46,8 @@ export interface NovelEntity {
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
   inventory: string[]; // thing lowercased names held
   current_room: string | null;
+  conditions: string[];
+  condition_rounds: Record<string, number>;
 }
 
 export interface NpcState {
@@ -54,6 +58,8 @@ export interface NpcState {
   location?: string;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
+  conditions: string[];
+  condition_rounds: Record<string, number>;
 }
 
 export interface LoreEntry {
@@ -75,6 +81,8 @@ export interface Countdown {
   type: "round" | "narrative";
   scope?: string;
   direction?: string;
+  clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
+  on_scene_transition?: boolean;
 }
 
 export interface CombatState {
@@ -94,6 +102,91 @@ export interface AuditEntry {
   output_prefix: string;
   hash: string;
 }
+
+export interface StoryEntry {
+  index: number;
+  type: "decision" | "moment" | "revelation" | "bond" | "consequence";
+  entry: string;
+  scene_anchor: string;
+  entity_ids: string[];
+  timestamp: string;
+}
+
+export interface FactionState {
+  id: string;
+  name: string;
+  description: string;
+  goals: string[];
+  resources: string;
+  clock: number;
+  clock_max: number;
+  status: string;
+}
+
+export interface SecretState {
+  key: string;
+  content: string;
+  triggers: string[];
+  hat_scope: "game_master" | "shared";
+  known_by: string[];
+}
+
+export interface Relationship {
+  entity_a: string;
+  entity_b: string;
+  type: "ally" | "rival" | "neutral" | "mentor" | "dependent" | "suspicious";
+  value?: number;
+  description?: string;
+}
+
+export interface DMContext {
+  current_scene?: string;
+  immediate_situation?: string;
+  pending_player_action?: string;
+  short_term_plans?: string;
+  long_term_plans?: string;
+  active_threads?: { name: string; status: string; urgency: string; description: string }[];
+  npc_attitudes?: Record<string, string>;
+  player_goals?: string;
+  saved_at?: string;
+  story_context?: string[];
+  active_vows?: { name: string; difficulty: string; milestone_count: number }[];
+}
+
+export interface VowState {
+  name: string;
+  description: string;
+  parties: string[];
+  difficulty: "troublesome" | "dangerous" | "formidable" | "extreme" | "epic";
+  scope: "gm" | "shared" | "faction" | "party";
+  milestones: number;
+  rank_track: number;
+  state: "active" | "resolved" | "forsaken";
+  outcome?: string;
+  consequences?: string;
+  reason?: string;
+}
+
+export interface NoteEntry {
+  key: string;
+  content: string;
+  hat_scope: "game_master" | "player" | "shared";
+}
+
+export interface Checkpoint {
+  label: string;
+  timestamp: string;
+  state: any;
+}
+
+export interface ConditionState {
+  conditions: string[];
+  condition_rounds: Record<string, number>;
+}
+
+export const DIFFICULTY_TRACKS: Record<string, number> = {
+  troublesome: 12, dangerous: 8, formidable: 4, extreme: 2, epic: 1,
+};
 
 export interface NovelState {
   slug: string;
@@ -129,6 +222,18 @@ export interface NovelState {
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
   help_category_overrides: Record<string, string>;
+  story_journal: StoryEntry[];
+  factions: FactionState[];
+  secrets: SecretState[];
+  relationships: Relationship[];
+  dm_context: DMContext;
+  notes: NoteEntry[];
+  vows: VowState[];
+  checkpoints: Checkpoint[];
+  description: string;
+  genre: string;
+  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[] } | null;
+  adventure_scene_waypoint: { anchor: string; description: string } | null;
   // World-model tier
   world: WorldModel;
   metadata: {
@@ -237,6 +342,7 @@ export class StateManager {
   enriched = false;
   enrichmentManifest: any = null;
   maxLoreTokens: number | null = null;
+  serverNotes: Map<string, string> = new Map();
 
   private npcCounter = 0;
   private entityCounter = 0;
@@ -244,6 +350,7 @@ export class StateManager {
 
   constructor(stateDir: string) {
     this.stateDir = stateDir;
+    this.loadServerNotes();
     this.buildFingerprint = {
       specVersion: SPEC_VERSION,
       specRepoUrl: "https://github.com/anomalyco/Holonovel",
@@ -344,6 +451,18 @@ export class StateManager {
       pending_staleness_counter: 0,
       pov_mode: "character",
       help_category_overrides: {},
+      story_journal: [],
+      factions: [],
+      secrets: [],
+      relationships: [],
+      dm_context: {},
+      notes: [],
+      vows: [],
+      checkpoints: [],
+      description: "",
+      genre: "",
+      adventure_index: null,
+      adventure_scene_waypoint: null,
       world: createEmptyWorldModel(),
       metadata: {
         created: new Date().toISOString(),
@@ -429,6 +548,18 @@ export class StateManager {
       pending_staleness_counter: data.pending_staleness_counter ?? 0,
       pov_mode: data.pov_mode ?? "character",
       help_category_overrides: data.help_category_overrides ?? {},
+      story_journal: data.story_journal ?? [],
+      factions: data.factions ?? [],
+      secrets: data.secrets ?? [],
+      relationships: data.relationships ?? [],
+      dm_context: data.dm_context ?? {},
+      notes: data.notes ?? [],
+      vows: data.vows ?? [],
+      checkpoints: data.checkpoints ?? [],
+      description: data.description ?? "",
+      genre: data.genre ?? "",
+      adventure_index: data.adventure_index ?? null,
+      adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
       world: worldFromJSON(data.world),
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
@@ -524,6 +655,14 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
+    novel.story_journal = restored.story_journal;
+    novel.factions = restored.factions;
+    novel.secrets = restored.secrets;
+    novel.relationships = restored.relationships;
+    novel.dm_context = restored.dm_context;
+    novel.notes = restored.notes;
+    novel.vows = restored.vows;
+    novel.checkpoints = restored.checkpoints;
     novel.world = restored.world;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
@@ -556,6 +695,14 @@ export class StateManager {
     novel.hat = restored.hat;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
+    novel.story_journal = restored.story_journal;
+    novel.factions = restored.factions;
+    novel.secrets = restored.secrets;
+    novel.relationships = restored.relationships;
+    novel.dm_context = restored.dm_context;
+    novel.notes = restored.notes;
+    novel.vows = restored.vows;
+    novel.checkpoints = restored.checkpoints;
     novel.world = restored.world;
     novel.metadata = restored.metadata;
     this.saveNovel(novel);
@@ -815,6 +962,8 @@ ${turnOrder}`;
         voice_examples: entity.voice_examples,
         inventory: entity.inventory,
         current_room: entity.current_room,
+        conditions: entity.conditions,
+        condition_rounds: entity.condition_rounds,
       };
     }
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(rosterData, null, 2), "utf-8");
@@ -834,8 +983,32 @@ ${turnOrder}`;
         voice_examples: e.voice_examples,
         inventory: e.inventory || [],
         current_room: e.current_room || null,
+        conditions: e.conditions || [],
+        condition_rounds: e.condition_rounds || {},
       });
     }
+  }
+
+  // ── Server Notes (REQ-285) ─────────────────────────────────────
+
+  loadServerNotes(): void {
+    const filePath = path.join(this.stateDir, "server-notes.json");
+    if (!fs.existsSync(filePath)) return;
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      for (const [key, content] of Object.entries(data)) {
+        this.serverNotes.set(key, content as string);
+      }
+    } catch { /* ignore corrupt */ }
+  }
+
+  saveServerNotes(): void {
+    fs.mkdirSync(this.stateDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(this.stateDir, "server-notes.json"),
+      JSON.stringify(Object.fromEntries(this.serverNotes), null, 2),
+      "utf-8",
+    );
   }
 
   // ── Entity Factory (ruleset-free, REQ-219) ────────────────────
@@ -849,6 +1022,8 @@ ${turnOrder}`;
       personality,
       inventory: [],
       current_room: null,
+      conditions: [],
+      condition_rounds: {},
     };
     return entity;
   }
@@ -899,6 +1074,18 @@ function novelToJSON(novel: NovelState): any {
     pending_staleness_counter: novel.pending_staleness_counter,
     pov_mode: novel.pov_mode,
     help_category_overrides: novel.help_category_overrides,
+    story_journal: novel.story_journal,
+    factions: novel.factions,
+    secrets: novel.secrets,
+    relationships: novel.relationships,
+    dm_context: novel.dm_context,
+    notes: novel.notes,
+    vows: novel.vows,
+    checkpoints: novel.checkpoints,
+    description: novel.description,
+    genre: novel.genre,
+    adventure_index: novel.adventure_index,
+    adventure_scene_waypoint: novel.adventure_scene_waypoint,
     world: worldToJSON(novel.world),
     metadata: novel.metadata,
   };
@@ -939,6 +1126,18 @@ function novelFromJSON(data: any): NovelState {
     pending_staleness_counter: data.pending_staleness_counter ?? 0,
     pov_mode: data.pov_mode ?? "character",
     help_category_overrides: data.help_category_overrides ?? {},
+    story_journal: data.story_journal ?? [],
+    factions: data.factions ?? [],
+    secrets: data.secrets ?? [],
+    relationships: data.relationships ?? [],
+    dm_context: data.dm_context ?? {},
+    notes: data.notes ?? [],
+    vows: data.vows ?? [],
+    checkpoints: data.checkpoints ?? [],
+    description: data.description ?? "",
+    genre: data.genre ?? "",
+    adventure_index: data.adventure_index ?? null,
+    adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
     world: worldFromJSON(data.world),
     metadata: data.metadata ?? {
       created: new Date().toISOString(),

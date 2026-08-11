@@ -118,6 +118,16 @@
 | REQ-248 | Adventure index | `src/state.ts` — adventure_index field in NovelState; `src/index.ts` — load_adventure populates from extracted data if available |
 | REQ-249 | Adventure text extraction | Waived — build-time REQ; no adventure modules to extract |
 | REQ-250 | Adventure scene waypoint | `src/state.ts` — adventure_scene_waypoint field; `src/index.ts` — surfaced in hat_briefing, set on load_adventure |
+| REQ-195 | World-model state tier | `src/state.ts` — NovelState.world, worldToJSON/worldFromJSON; `src/world-model.ts` — full kind hierarchy |
+| REQ-196 | Parser command dispatch | `src/parser.ts` — dispatchCommand with all verbs; `src/index.ts` — command tool |
+| REQ-197 | Room description generation | `src/parser.ts` — handleLook generates room text; `src/index.ts` — command("look") |
+| REQ-198 | World-model CRUD | `src/index.ts` — create_room, delete_room, create_thing, delete_thing, create_exit, delete_exit |
+| REQ-199 | Property state tracking | `src/world-model.ts` — open/closed, locked/unlocked, portable, switchable, etc. |
+| REQ-200 | Kind mechanical contracts | `src/world-model.ts` — container, supporter, door, device, vehicle, person, backdrop, region kinds |
+| REQ-201 | Hybrid source conversion | `src/world-model.ts` — convertSource; `src/index.ts` — convert_source tool |
+| REQ-202 | World-model resources | `src/index.ts` — room://{id}, thing://{id}, world://map, world://kinds |
+| REQ-207 | Core-mechanic identification | Waived — build-time concern |
+| REQ-208 | Gauntlet convergence metric mapping | Waived — build-time/documentation convention |
 | REQ-251 | Generation intent guard | Deferred — spec-driven update; 2026-08-08 research |
 | REQ-252 | Narrative fast-forward | Deferred — spec-driven update; 2026-08-08 research |
 | REQ-253 | Tool-output verbosity control | Deferred — spec-driven update; 2026-08-08 research |

@@ -2,7 +2,49 @@
 
 **Spec hash:** 32d26613c11ea89e8b8c59f6322b6a6f6632317cbbdb2d747e9ce87a9e0886b2
 
-### Holonovel Rebuild — 2026-08-09
+### Holonovel Full Update — 2026-08-11
+
+| Field | Value |
+|-------|-------|
+| Spec version | 2026.08.09 |
+| Build fingerprint | recomputed at startup from embedded holonovel.md |
+| Delta class | major |
+| Changed | source, surfaces (all tools/resource/prompt surface changed) |
+| Verification | typecheck 0 errors |
+
+Gap audit — 45+ new tools added, state model expanded with all Novel-management features:
+
+| REQ | Gap | Disposition |
+|-----|-----|-------------|
+| REQ-232 | Missing pause/resume context | Added dm_context, save_pause_context, get_resume_context |
+| REQ-233 | Missing factions | Added factions type, create/update/remove_faction tools |
+| REQ-234 | Missing secrets/knowledge | Added secrets type, set_secret, reveal_secret, check_knowledge |
+| REQ-236 | Missing relationships | Added relationship type, set_relationship, get_relationships |
+| REQ-241 | Missing checkpoints | Added checkpoints type, set/list/restore/delete_checkpoint |
+| REQ-242 | Missing notes | Added notes type, set/remove/list_notes |
+| REQ-246 | Missing story journal | Added story journal type, record/update/remove/list_stories |
+| REQ-256 | Missing rename_novel | Added rename_novel tool |
+| REQ-257 | Missing list_novels | Added list_novels tool |
+| REQ-258 | Missing novel_info | Added novel_info tool |
+| REQ-240 | Missing clone_novel | Added clone_novel tool |
+| REQ-285 | Missing server notes | Added server_notes store, set/remove/list_server_notes |
+| REQ-289 | Missing vows | Added vow type, set_vow, mark_milestone, resolve_vow, forsake_vow |
+| REQ-235 | Missing present_choices | Added present_choices tool with respond integration |
+| REQ-291 | Missing oracle | Added ask_oracle tool |
+| REQ-115 | Missing toggle_action_patterns | Added toggle_action_patterns tool |
+| REQ-176 | Missing remove_entity | Added remove_entity tool |
+| REQ-177 | Missing remove_roster_character | Added remove_roster_character tool |
+| REQ-178 | Missing list_roster_characters | Added list_roster_characters tool |
+| REQ-168 | Audit resource | audit://novel resource already existed |
+| REQ-184 | Anti-slop resources | guidance://player/anti-slop and GM anti-slop already existed |
+| REQ-206 | Conditions | Added conditions fields to entities/NPCs, apply/remove_condition |
+| REQ-025 | spec_health completeness | Added tool_count, prompt_count, resource_count, enrichment_health, audit_chain, safety_protocols |
+| REQ-187 | Runtime spec hash | Replaced hardcoded SPEC_HASH with runtime computeSpecHash() |
+
+Tool surface: ~75 tools, ~22 resources, 5 prompts. All holonovel-capable runtime REQs implemented.
+Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent, genre filtering, autonomy modes) remains deferred.
+
+
 
 | Field | Value |
 |-------|-------|
