@@ -93,371 +93,973 @@ date-stamps matching CHANGELOG entries.
 
 | REQ     | Title                     | Spec version |
 | ------- | ------------------------- | ------------ |
-| REQ-001 | Response contract         | 2026-08-02   |
-| REQ-001a| Warning and Partial semantics | 2026-08-06 |
-| REQ-001b| Error boundary            | 2026-08-06 |
-| REQ-002 | Error taxonomy            | 2026-08-06 |
-| REQ-002a| Extended error category semantics | 2026-08-06 |
-| REQ-002b| Corrective-action contract | 2026-08-06 |
-| REQ-002c| Badge-filtered error values | 2026-08-06 |
-| REQ-003 | Roll transparency         | 2026-08-02   |
-| REQ-004 | Truncation                | 2026-08-02   |
-| REQ-004a| Stat block baseline view   | 2026-08-02   |
-| REQ-060 | Verbose output            | 2026-08-07 |
-| REQ-061 | Source quoting            | 2026-08-02   |
-| REQ-062 | Badge foundations       | 2026-08-04   |
-| REQ-064 | Badge behavioral boundaries | 2026-08-03   |
-| REQ-010 | Traceability              | 2026-08-02   |
-| REQ-011 | Confidence                | 2026-08-02   |
-| REQ-012 | Graceful fallback         | 2026-08-02   |
-| REQ-013 | No assumed mechanics      | 2026-08-02   |
-| REQ-014 | Source immutability       | 2026-08-07   |
-| REQ-015 | Action classification     | 2026-08-02   |
-| REQ-016 | Guidance extraction       | 2026-08-02   |
-| REQ-017 | Badge stories               | 2026-08-02   |
-| REQ-018 | Extraction evidence       | 2026-08-02   |
-| REQ-020 | Tools                     | 2026-08-02   |
-| REQ-021 | Tool-surface economy      | 2026-08-02   |
-| REQ-022 | Resources                 | 2026-08-02   |
-| REQ-023 | Prompts                   | 2026-08-02   |
-| REQ-024 | Tool documentation        | 2026-08-02   |
-| REQ-025 | spec_health               | 2026-08-07   |
-| REQ-057 | Canonical lookup tools    | 2026-08-02   |
-| REQ-058 | Tool-result fidelity      | 2026-08-02   |
-| REQ-059 | Parameter canon validation | 2026-08-07 |
-| REQ-030 | Single-user connection    | 2026-08-02   |
-| REQ-031 | Full access — the Editor badge | 2026-08-02   |
-| REQ-032 | Badge gating                | 2026-08-02   |
-| REQ-040 | Audit log                 | 2026-08-02   |
-| REQ-041 | State snapshotting        | 2026-08-02   |
-| REQ-042 | Decision workflows        | 2026-08-02   |
-| REQ-190 | Respond drain result      | 2026-08-07   |
-| REQ-191 | Option display-label pairs | 2026-08-07   |
-| REQ-192 | Batch-respond collision   | 2026-08-07   |
-| REQ-193 | Pending workflow staleness detection | 2026-08-07   |
-| REQ-043 | Combat state              | 2026-08-02   |
-| REQ-044 | Ruleset hash recording    | 2026-08-07   |
-| REQ-050 | Determinism               | 2026-08-06   |
-| REQ-051 | No runtime network access | 2026-08-02   |
-| REQ-052 | Path containment          | 2026-08-02   |
-| REQ-054 | Input safety              | 2026-08-02   |
-| REQ-055 | Durability and resume     | 2026-08-02   |
-| REQ-055a| Badge precedence on resume | 2026-08-09 |
-| REQ-055b| Story-in-progress notice   | 2026-08-09 |
-| REQ-067 | Help and tool discovery   | 2026-08-04   |
-| REQ-070 | Anti-slop guidance        | 2026-08-07   |
-| REQ-071 | Narrative tone samples    | 2026-08-04   |
-| REQ-072 | Session recap             | 2026-08-04   |
-| REQ-073 | Countdowns                | 2026-08-04   |
-| REQ-074 | Multi-entity support      | 2026-08-04   |
-| REQ-075 | Named-NPC state           | 2026-08-04   |
-| REQ-076 | Scene-state ledger        | 2026-08-06   |
-| REQ-076a| Structured scene fields   | 2026-08-06   |
-| REQ-077 | Entity personality fields | 2026-08-04   |
-| REQ-069 | Player feedback signal    | 2026-08-06   |
-| REQ-078 | Session zero prompt       | 2026-08-04   |
-| REQ-079 | Adventure modules         | 2026-08-04   |
-| REQ-080 | Synthesis boundaries     | 2026-08-06   |
-| REQ-081 | Narrative directive       | 2026-08-06   |
-| REQ-082 | Prompt section ordering   | 2026-08-04   |
-| REQ-083 | Dynamic lore              | 2026-08-05   |
-| REQ-084 | Action suggestions        | 2026-08-04   |
-| REQ-084a | Proactive action surfacing | 2026-08-08 |
-| REQ-085 | Macro system              | 2026-08-04   |
-| REQ-086 | Audit compression         | 2026-08-07   |
-| REQ-087 | Scene type tagging        | 2026-08-06   |
-| REQ-088 | Novel lifecycle           | 2026-08-06   |
-| REQ-089 | Novel setup               | 2026-08-05   |
-| REQ-090 | Adventure generation      | 2026-08-05   |
-| REQ-091 | Enhanced encounter generation | 2026-08-05   |
-| REQ-092 | Novel persistence         | 2026-08-02   |
-| REQ-093 | Novel metadata            | 2026-08-02   |
-| REQ-094 | Lorebook export/import    | 2026-08-02   |
-| REQ-095 | Novel switching           | 2026-08-02   |
-| REQ-096 | Novel interchange         | 2026-08-02   |
-| REQ-097 | Novel health              | 2026-08-02   |
-| REQ-056 | Advancement workflow      | 2026-08-02   |
-| REQ-063 | Connection introduction   | 2026-08-02   |
-| REQ-065 | Build fingerprint         | 2026-08-08   |
-| REQ-066 | set_badge                   | 2026-08-02   |
-| REQ-102 | Source conversion contract  | 2026-08-05   |
-| REQ-103 | Synthesis reversion      | 2026-08-07   |
-| REQ-104 | Undo after creation       | 2026-08-06   |
-| REQ-105 | Spec resource             | 2026-08-06   |
-| REQ-106 | Spec repository URL       | 2026-08-06   |
-| REQ-107 | Version coordination      | 2026-08-07   |
-| REQ-108 | Pattern Buffer traceability     | 2026-08-06   |
-| REQ-098 | Spec-driven update workflow | 2026-08-07   |
-| REQ-109 | Badge briefing composition  | 2026-08-06   |
-| REQ-099 | Confidence-floor acknowledgment | 2026-08-05   |
-| REQ-100 | Performance benchmark     | 2026-08-07   |
-| REQ-101 | Assumption audit trail    | 2026-08-05   |
-| REQ-110 | Tool surface consolidation | 2026-08-06   |
-| REQ-111 | Search result quality     | 2026-08-07   |
-| REQ-212 | Generation table rolling  | 2026-08-07   |
-| REQ-213 | Weighted table result mapping | 2026-08-07   |
-| REQ-112 | Cross-reference discovery | 2026-08-06   |
-| REQ-113 | Result count reporting    | 2026-08-06   |
-| REQ-114 | Suggestion coverage       | 2026-08-06   |
-| REQ-115 | Action pattern activation | 2026-08-06   |
-| REQ-116 | Redo                      | 2026-08-06   |
-| REQ-117 | Novel retention period    | 2026-08-06   |
-| REQ-118 | Prompt length budget      | 2026-08-06   |
-| REQ-119 | NPC stat block reference  | 2026-08-06   |
-| REQ-120 | NPC rendering             | 2026-08-06   |
-| REQ-121 | NPC resource URIs         | 2026-08-06   |
-| REQ-122 | NPC narrative fields      | 2026-08-06   |
-| REQ-123 | Builder-defined NPC stat fields | 2026-08-06   |
-| REQ-124 | NPC damage resolution     | 2026-08-06   |
-| REQ-125 | Scene transition hook     | 2026-08-06   |
-| REQ-126 | Voice examples rendering  | 2026-08-06   |
-| REQ-127 | Ruleset-native personality mapping | 2026-08-06   |
-| REQ-128 | Signal briefing surface   | 2026-08-06   |
-| REQ-129 | Property group cardinality | 2026-08-06   |
-| REQ-130 | Synthesis rebuild contract | 2026-08-06   |
-| REQ-131 | Novel initialization order | 2026-08-06   |
-| REQ-132 | Adventure generation lifecycle | 2026-08-06   |
-| REQ-133 | Forbidden-call audit      | 2026-08-06   |
-| REQ-134 | Minimum Player tool surface | 2026-08-06   |
-| REQ-135 | Badge briefing size budget  | 2026-08-06   |
-| REQ-136 | Editor-badge briefing         | 2026-08-06   |
-| REQ-137 | Gate classification auditability | 2026-08-06   |
-| REQ-138 | Prompt health reporting      | 2026-08-06   |
-| REQ-139 | Resource URI completeness reporting | 2026-08-06   |
-| REQ-140 | End-Novel confirmation dispatch | 2026-08-06   |
-| REQ-224 | Workflow staleness detection     | 2026-08-07 |
-| REQ-225 | Ruleset Wisdom extraction | 2026-08-07 |
-| REQ-226 | Narrative voice profiles            | 2026-08-07 |
-| REQ-227 | Synthesis model           | 2026-08-07 |
-| REQ-228 | Synthesis consistency during updates | 2026-08-07 |
-| REQ-229 | Adventure synthesis linkage            | 2026-08-07 |
-| REQ-230 | Synthesis status dashboard             | 2026-08-07 |
-| REQ-231 | Per-module synthesis toggle            | 2026-08-07 |
-| REQ-232 | Pause/resume context                    | 2026-08-08 |
-| REQ-233 | Factions                                | 2026-08-08 |
-| REQ-233a | World reactivity                       | 2026-08-08 |
-| REQ-234 | Secrets and knowledge                   | 2026-08-08 |
-| REQ-235 | Structured player choices               | 2026-08-08 |
-| REQ-236 | Entity relationships                    | 2026-08-08 |
-| REQ-237 | Session segmentation                    | 2026-08-08 |
-| REQ-238 | Backup rotation                        | 2026-08-08 |
-| REQ-239 | Audit log compaction                   | 2026-08-08 |
-| REQ-240 | Clone Novel                            | 2026-08-08 |
-| REQ-241 | Checkpoints                            | 2026-08-08 |
-| REQ-242 | Notes                                  | 2026-08-08 |
-| REQ-243 | Synthesis population during updates | 2026-08-08 |
-| REQ-244 | Convergence cache key | 2026-08-08 |
-| REQ-245 | Pre-computed synthesis manifest | 2026-08-08 |
-| REQ-246 | Story journal                 | 2026-08-08 |
-| REQ-246a| Story journal surfacing      | 2026-08-09 |
-| REQ-247 | Adventure structure extraction | 2026-08-08 |
-| REQ-248 | Adventure overview resource   | 2026-08-08 |
-| REQ-249 | Adventure navigation resource | 2026-08-08 |
-| REQ-250 | Adventure scene waypoint      | 2026-08-08 |
-| REQ-251 | Generation intent guard       | 2026-08-08 |
-| REQ-252 | Narrative fast-forward        | 2026-08-08 |
-| REQ-253 | Tool-output verbosity control | 2026-08-08 |
-| REQ-255 | Boundary signal propagation | 2026-08-08 |
-| REQ-141 | Input-validation convergence metric | 2026-08-06   |
-| REQ-142 | Blocking classification principle | 2026-08-06   |
-| REQ-146 | Reconciliation authority criteria  | 2026-08-06   |
-| REQ-147 | Confidence aggregation             | 2026-08-06   |
-| REQ-148 | Structural integrity gate | 2026-08-06   |
-| REQ-149 | MCP conformance gate | 2026-08-06   |
-| REQ-150 | Golden transcript coverage completeness | 2026-08-06   |
-| REQ-151 | Creation step enumeration     | 2026-08-06   |
-| REQ-152 | Starting equipment assignment | 2026-08-06   |
-| REQ-153 | AGENTS.md troubleshooting      | 2026-08-06   |
-| REQ-154 | README.md handoff content      | 2026-08-06   |
-| REQ-155 | Sticky counter decay            | 2026-08-06   |
-| REQ-156 | NPC description field           | 2026-08-06   |
-| REQ-157 | Combat determinism             | 2026-08-06   |
-| REQ-158 | Independent verification obligation | 2026-08-06   |
-| REQ-159 | Synthesis briefing integration | 2026-08-06   |
-| REQ-160 | Synthesis health reporting  | 2026-08-07   |
-| REQ-161 | Intake workflow contract     | 2026-08-07   |
-| REQ-162 | Build-mode profiles          | 2026-08-07   |
-| REQ-163 | Client config verification   | 2026-08-07   |
-| REQ-164 | Viability pre-check          | 2026-08-07   |
-| REQ-165 | Entity ownership for personality gating | 2026-08-07 |
-| REQ-166 | Personality briefing rendering | 2026-08-07 |
-| REQ-167 | Personality resource URIs   | 2026-08-07   |
-| REQ-168 | Audit resource              | 2026-08-07   |
-| REQ-169 | Audit chain integrity reporting | 2026-08-07 |
-| REQ-170 | Adventure discovery surface | 2026-08-07 |
-| REQ-171 | Adventure content validation | 2026-08-07 |
-| REQ-172 | Adventure content drift detection | 2026-08-07 |
-| REQ-173 | Connection counter             | 2026-08-07   |
-| REQ-174 | Significant-roll criterion for recap | 2026-08-07 |
-| REQ-175 | Confrontation summary derivation | 2026-08-07 |
-| REQ-176 | Entity removal                | 2026-08-07 |
-| REQ-177 | Roster entity removal          | 2026-08-07 |
-| REQ-178 | Roster listing                 | 2026-08-07 |
-| REQ-179 | Output pointer resource template | 2026-08-07 |
-| REQ-180 | Truncation budget unit           | 2026-08-07 |
-| REQ-181 | Character creation output surface | 2026-08-07 |
-| REQ-182 | Bounded-domain parameter documentation | 2026-08-07 |
-| REQ-183 | Live-index-derived error enumerations | 2026-08-07 |
-| REQ-184 | Anti-slop resource rendering | 2026-08-07 |
-| REQ-185 | Section token vocabulary     | 2026-08-07 |
-| REQ-186 | Section token discoverability | 2026-08-07 |
-| REQ-187 | Spec content hash computation | 2026-08-07 |
-| REQ-194 | Anchor derivation | 2026-08-07 |
-| REQ-195 | World-model state tier | 2026-08-07 |
-| REQ-196 | Parser command dispatch | 2026-08-07 |
-| REQ-197 | Room description generation | 2026-08-07 |
-| REQ-198 | World-model CRUD | 2026-08-07 |
-| REQ-199 | Property state tracking | 2026-08-07 |
-| REQ-200 | Kind mechanical contracts | 2026-08-07 |
-| REQ-201 | Hybrid source conversion | 2026-08-07 |
-| REQ-202 | World-model resources | 2026-08-07 |
-| REQ-222 | Parser command vocabulary extension | 2026-08-07 |
-| REQ-203 | Combat-init guard       | 2026-08-07 |
-| REQ-204 | Combat participant validation | 2026-08-07 |
-| REQ-205 | Mid-combat participant changes | 2026-08-07 |
-| REQ-206 | Combat-round condition expiry | 2026-08-07 |
-| REQ-221 | Combat-navigation interaction   | 2026-08-07 |
-| REQ-207 | Core-mechanic identification     | 2026-08-07 |
-| REQ-208 | Pattern Buffer convergence metric mapping | 2026-08-07 |
-| REQ-209 | Cross-format consistency     | 2026-08-07 |
-| REQ-210 | Extraction categories        | 2026-08-07 |
-| REQ-211 | Evidence record field contract | 2026-08-07 |
-| REQ-214 | Table classification         | 2026-08-07 |
-| REQ-215 | Table content extraction     | 2026-08-07 |
-| REQ-216 | Generation table badge filtering | 2026-08-07 |
-| REQ-217 | Condition tools               | 2026-08-07 |
-| REQ-218 | Ruleset-free build           | 2026-08-07 |
-| REQ-219 | Ruleset-free entity creation | 2026-08-07 |
-| REQ-220 | Narrative point of view | 2026-08-07 |
-| REQ-223 | POV mode control           | 2026-08-07 |
-| REQ-256 | Rename Novel               | 2026-08-08 |
-| REQ-257 | List Novels                | 2026-08-08 |
-| REQ-258 | Novel info                 | 2026-08-08 |
-| REQ-259 | Update Novel description   | 2026-08-08 |
-| REQ-260 | Granular synthesis activation | 2026-08-08 |
-| REQ-261 | Player synthesis | 2026-08-08 |
-| REQ-262 | Synthesis tool | 2026-08-08 |
-| REQ-263 | Synthesis auto-trigger | 2026-08-08 |
-| REQ-264 | Synthesis confidence model | 2026-08-08 |
-| REQ-265 | Synthesis in badge_briefing | 2026-08-08 |
-| REQ-266 | Synthesis in dashboard | 2026-08-08 |
-| REQ-269 | Safety protocol status | 2026-08-08 |
-| REQ-270 | Artifact version identification | 2026-08-08 |
-| REQ-271 | AGENTS.md structure contract | 2026-08-08 |
-| REQ-272 | Stock elements catalog | 2026-08-08 |
-| REQ-273 | Independent verification reproducibility tolerance | 2026-08-08 |
-| REQ-274 | Independent verifier confidence score | 2026-08-08 |
-| REQ-275 | Evidence hash commitment | 2026-08-08 |
-| REQ-276 | Independent verifier model criteria | 2026-08-08 |
-| REQ-277 | Fixture evolution contract | 2026-08-08 |
-| REQ-278 | Build-phase-map staleness detection | 2026-08-08 |
-| REQ-279 | Narrative orientation | 2026-08-08 |
-| REQ-280 | Source-anchor citation | 2026-08-08 |
-| REQ-281 | Narrative-threads section token | 2026-08-08 |
-| REQ-282 | NPC voice directive | 2026-08-08 |
-| REQ-283 | Verb coverage tiers | 2026-08-08 |
-| REQ-284 | Implicit action hints | 2026-08-08 |
-| REQ-285 | Server notes | 2026-08-08 |
-| REQ-286 | Knowledge-state section token | 2026-08-09 |
-| REQ-289 | Vow tracking | 2026-08-08 |
-| REQ-291 | Oracle tool | 2026-08-08 |
-| REQ-292 | Adventure catalog | 2026-08-08 |
-| REQ-294 | Genre declaration | 2026-08-08 |
-| REQ-295 | Genre-filtered generation | 2026-08-08 |
-| REQ-296 | Knowledge-graph resource | 2026-08-08 |
-| REQ-299 | Cross-model audit sufficiency | 2026-08-08 |
-| REQ-300 | Structured failure diagnostics | 2026-08-08 |
-| REQ-301 | Convergence loop audit trail | 2026-08-08 |
-| REQ-302 | Per-section content hashing | 2026-08-08 |
-| REQ-303 | Scoped re-verification | 2026-08-08 |
-| REQ-304 | Counterpart AI role | 2026-08-08 |
-| REQ-305 | Observer mode | 2026-08-08 |
-| REQ-306 | Adjustable autonomy | 2026-08-08 |
-| REQ-307 | Entity presence | 2026-08-08 |
-| REQ-308 | Knowledge gating by presence | 2026-08-08 |
-| REQ-309 | World and narrative surface prominence | 2026-08-08 |
-| REQ-310 | Campaign Memory | 2026-08-08 |
-| REQ-311 | NPC memory model | 2026-08-08 |
-| REQ-312 | Pre-narration validation gate | 2026-08-08 |
-| REQ-312a| Bounds conformance          | 2026-08-09 |
-| REQ-312b| Permission conformance      | 2026-08-09 |
-| REQ-312c| State conformance           | 2026-08-09 |
-| REQ-313 | Server implementation fingerprinting | 2026-08-09 |
-| REQ-314 | Fingerprint-driven partial rebuild | 2026-08-09 |
-| REQ-315 | Full-text ruleset indexing | 2026-08-09 |
-| REQ-316 | Device kind | 2026-08-09 |
-| REQ-317 | Vehicle kind | 2026-08-09 |
-| REQ-318 | Extended property contracts | 2026-08-09 |
-| REQ-319 | Extended parser command vocabulary | 2026-08-09 |
-| REQ-320 | Narrative-intent parser verbs | 2026-08-09 |
-| REQ-321 | Codex | 2026-08-09 |
-| REQ-322 | Vow-countdown coupling | 2026-08-09 |
-| REQ-323 | resolve_intent tool | 2026-08-10 |
-| REQ-324 | Constraint override extraction | 2026-08-10 |
-| REQ-325 | Constraint override catalog | 2026-08-10 |
-| REQ-326 | Scene-world coupling | 2026-08-10 |
-| REQ-327 | NPC-world coupling | 2026-08-10 |
-| REQ-328 | Lore-world coupling | 2026-08-10 |
-| REQ-329 | Countdown-world coupling | 2026-08-10 |
-| REQ-330 | Knowledge-world coupling | 2026-08-10 |
-| REQ-331 | Story journal-world coupling | 2026-08-10 |
-| REQ-332 | Codex provenance | 2026-08-10 |
-| REQ-333 | Story journal to lore promotion | 2026-08-10 |
-| REQ-334 | Novel archiving | 2026-08-10 |
-| REQ-335 | Scene beat taxonomy | 2026-08-10 |
-| REQ-336 | Dramatic pacing signal | 2026-08-10 |
-| REQ-337 | Narrative arc visibility | 2026-08-10 |
-| REQ-338 | Faction autonomous advancement | 2026-08-10 |
-| REQ-339 | NPC goal pursuit | 2026-08-10 |
-| REQ-340 | Discovered consequences | 2026-08-10 |
-| REQ-341 | Player-facing spatial surface | 2026-08-10 |
-| REQ-342 | Scene description from world-model state | 2026-08-10 |
-| REQ-343 | Unified intent resolution | 2026-08-10 |
-| REQ-344 | Voice example feedback | 2026-08-10 |
-| REQ-345 | Background-derived knowledge | 2026-08-10 |
-| REQ-346 | Narrative coherence attestation | 2026-08-10 |
-| REQ-347 | Voice feedback codex capture | 2026-08-10 |
-| REQ-348 | Faction-NPC goal coordination | 2026-08-10 |
-| REQ-349 | Consequence-to-knowledge coupling | 2026-08-10 |
-| REQ-350 | Background lore triggering | 2026-08-10 |
-| REQ-351 | Pacing-triggered autonomy | 2026-08-10 |
-| REQ-352 | Codex adventure beat sequences | 2026-08-10 |
-| REQ-353 | Beat-accelerated countdown advancement | 2026-08-10 |
-| REQ-354 | Extended narrative extraction | 2026-08-10 |
-| REQ-355 | Secret-countdown coupling | 2026-08-10 |
-| REQ-356 | Vow-lore coupling | 2026-08-10 |
-| REQ-357 | Story journal-faction coupling | 2026-08-10 |
-| REQ-358 | Countdown-NPC disposition coupling | 2026-08-10 |
-| REQ-359 | Relationship-countdown coupling | 2026-08-10 |
-| REQ-360 | Lore-countdown coupling | 2026-08-10 |
-| REQ-361 | NPC-vow coupling | 2026-08-10 |
-| REQ-362 | Faction-vow coupling | 2026-08-10 |
-| REQ-363 | Secret-world coupling | 2026-08-10 |
-| REQ-364 | Faction-world coupling | 2026-08-10 |
-| REQ-365 | Server notes narrative coupling | 2026-08-10 |
-| REQ-366 | Observer narrative surface | 2026-08-10 |
-| REQ-367 | Property propagation across containment | 2026-08-10 |
-| REQ-368 | Countdown-world effect coupling | 2026-08-10 |
-| REQ-369 | Holodeck archetype taxonomy | 2026-08-10 |
-| REQ-370 | Coupling derivation | 2026-08-10 |
-| REQ-371 | Ruleset Wisdom as rendered reality | 2026-08-10 |
-| REQ-372 | Supplementary ruleset import | 2026-08-10 |
-| REQ-373 | Dynamic tool registration | 2026-08-10 |
-| REQ-374 | Archetype coverage | 2026-08-10 |
-| REQ-375 | Wisdom mechanical coupling rate | 2026-08-10 |
-| REQ-376 | Holonovel Pattern Buffer traceability | 2026-08-10 |
-| REQ-377 | Mechanical coupling extraction | 2026-08-10 |
-| REQ-378 | Mechanical coupling verification | 2026-08-10 |
-| REQ-379 | Tool namespacing             | 2026-08-10 |
-| REQ-380 | Novel ruleset binding        | 2026-08-10 |
-| REQ-381 | Ruleset-scoped tool gating   | 2026-08-10 |
-| REQ-382 | Per-ruleset extraction isolation | 2026-08-10 |
-| REQ-383 | Combined server health       | 2026-08-10 |
-| REQ-384 | Cross-ruleset Novel switching | 2026-08-10 |
-| REQ-385 | suggest_actions cross-ruleset scoping | 2026-08-10 |
-| REQ-386 | Cross-ruleset import rejection | 2026-08-10 |
-| REQ-387 | Codex ruleset annotation     | 2026-08-10 |
-| REQ-388 | Holodeck config discovery     | 2026-08-10 |
+| REQ-101a | Assumption audit trail (Part a) | 2026-08-11 |
+| REQ-101b | Assumption audit trail (Part b) | 2026-08-11 |
+| REQ-101c | Assumption audit trail (Part c) | 2026-08-11 |
+| REQ-001 | Response contract | 2026-08-11 |
+| REQ-001a1 | Warning and Partial semantics (Part a1) | 2026-08-11 |
+| REQ-001a2 | Warning and Partial semantics (Part a2) | 2026-08-11 |
+| REQ-277 | Fixture evolution contract | 2026-08-11 |
+| REQ-002 | Error taxonomy | 2026-08-11 |
+| REQ-002a1 | Extended error category semantics (Part a1) | 2026-08-11 |
+| REQ-002a2 | Extended error category semantics (Part a2) | 2026-08-11 |
+| REQ-002b1 | Corrective-action contract (Part b1) | 2026-08-11 |
+| REQ-002b2 | Corrective-action contract (Part b2) | 2026-08-11 |
+| REQ-002c1 | Badge-filtered error values (Part c1) | 2026-08-11 |
+| REQ-002c2 | Badge-filtered error values (Part c2) | 2026-08-11 |
+| REQ-003a | Roll transparency (Part a) | 2026-08-11 |
+| REQ-003b | Roll transparency (Part b) | 2026-08-11 |
+| REQ-003c | Roll transparency (Part c) | 2026-08-11 |
+| REQ-004 | Truncation | 2026-08-11 |
+| REQ-004a | Stat block baseline view | 2026-08-11 |
+| REQ-179a | Output pointer resource template (Part a) | 2026-08-11 |
+| REQ-179b | Output pointer resource template (Part b) | 2026-08-11 |
+| REQ-118a | Prompt length budget (Part a) | 2026-08-11 |
+| REQ-118b | Prompt length budget (Part b) | 2026-08-11 |
+| REQ-113 | Result count reporting | 2026-08-11 |
+| REQ-060a | Verbose output (Part a) | 2026-08-11 |
+| REQ-060b | Verbose output (Part b) | 2026-08-11 |
+| REQ-061 | Source quoting | 2026-08-11 |
+| REQ-280a | Source-anchor citation (Part a) | 2026-08-11 |
+| REQ-280b | Source-anchor citation (Part b) | 2026-08-11 |
+| REQ-280c | Source-anchor citation (Part c) | 2026-08-11 |
+| REQ-062 | Badge foundations | 2026-08-11 |
+| REQ-070a | Anti-slop guidance (Part a) | 2026-08-11 |
+| REQ-070b | Anti-slop guidance (Part b) | 2026-08-11 |
+| REQ-184a | Anti-slop resource rendering (Part a) | 2026-08-11 |
+| REQ-184b | Anti-slop resource rendering (Part b) | 2026-08-11 |
+| REQ-194a | Anchor derivation (Part a) | 2026-08-11 |
+| REQ-194b | Anchor derivation (Part b) | 2026-08-11 |
+| REQ-071a | Narrative tone samples (Part a) | 2026-08-11 |
+| REQ-071b | Narrative tone samples (Part b) | 2026-08-11 |
+| REQ-064a | Badge behavioral boundaries (Part a) | 2026-08-11 |
+| REQ-064b | Badge behavioral boundaries (Part b) | 2026-08-11 |
+| REQ-064c | Badge behavioral boundaries (Part c) | 2026-08-11 |
+| REQ-064d | Badge behavioral boundaries (Part d) | 2026-08-11 |
+| REQ-064e | Badge behavioral boundaries (Part e) | 2026-08-11 |
+| REQ-064f | Badge behavioral boundaries (Part f) | 2026-08-11 |
+| REQ-001b1 | Error boundary (Part b1) | 2026-08-11 |
+| REQ-001b2 | Error boundary (Part b2) | 2026-08-11 |
+| REQ-010 | Traceability | 2026-08-11 |
+| REQ-011a | Confidence (Part a) | 2026-08-11 |
+| REQ-011b | Confidence (Part b) | 2026-08-11 |
+| REQ-011c | Confidence (Part c) | 2026-08-11 |
+| REQ-147a | Confidence aggregation (Part a) | 2026-08-11 |
+| REQ-147b | Confidence aggregation (Part b) | 2026-08-11 |
+| REQ-153 | AGENTS.md troubleshooting | 2026-08-11 |
+| REQ-154 | README.md handoff content | 2026-08-11 |
+| REQ-270 | Artifact version identification | 2026-08-11 |
+| REQ-271 | AGENTS.md structure contract | 2026-08-11 |
+| REQ-099 | Confidence-floor acknowledgment | 2026-08-11 |
+| REQ-207a | Core-mechanic identification (Part a) | 2026-08-11 |
+| REQ-207b | Core-mechanic identification (Part b) | 2026-08-11 |
+| REQ-207c | Core-mechanic identification (Part c) | 2026-08-11 |
+| REQ-012 | Graceful fallback | 2026-08-11 |
+| REQ-315a | Full-text ruleset indexing (Part a) | 2026-08-11 |
+| REQ-315b | Full-text ruleset indexing (Part b) | 2026-08-11 |
+| REQ-111a | Search result quality (Part a) | 2026-08-11 |
+| REQ-111b | Search result quality (Part b) | 2026-08-11 |
+| REQ-212a | Generation table rolling (Part a) | 2026-08-11 |
+| REQ-212b | Generation table rolling (Part b) | 2026-08-11 |
+| REQ-013 | No assumed mechanics | 2026-08-11 |
+| REQ-014 | Source immutability | 2026-08-11 |
+| REQ-015 | Action classification | 2026-08-11 |
+| REQ-214a | Table classification (Part a) | 2026-08-11 |
+| REQ-214b | Table classification (Part b) | 2026-08-11 |
+| REQ-214c | Table classification (Part c) | 2026-08-11 |
+| REQ-016 | Guidance extraction | 2026-08-11 |
+| REQ-017 | Badge stories | 2026-08-11 |
+| REQ-018 | Extraction evidence | 2026-08-11 |
+| REQ-146a | Reconciliation authority (Part a) | 2026-08-11 |
+| REQ-146b | Reconciliation authority (Part b) | 2026-08-11 |
+| REQ-146c | Reconciliation authority (Part c) | 2026-08-11 |
+| REQ-146d | Reconciliation authority (Part d) | 2026-08-11 |
+| REQ-209 | Cross-format consistency | 2026-08-11 |
+| REQ-210a | Extraction categories (Part a) | 2026-08-11 |
+| REQ-210b | Extraction categories (Part b) | 2026-08-11 |
+| REQ-215a | Table content extraction (Part a) | 2026-08-11 |
+| REQ-215b | Table content extraction (Part b) | 2026-08-11 |
+| REQ-215c | Table content extraction (Part c) | 2026-08-11 |
+| REQ-272 | Stock elements catalog | 2026-08-11 |
+| REQ-102a | Source conversion contract (Part a) | 2026-08-11 |
+| REQ-102b | Source conversion contract (Part b) | 2026-08-11 |
+| REQ-102c | Source conversion contract (Part c) | 2026-08-11 |
+| REQ-225a | Ruleset Wisdom extraction (Part a) | 2026-08-11 |
+| REQ-225b | Ruleset Wisdom extraction (Part b) | 2026-08-11 |
+| REQ-354 | Extended narrative extraction | 2026-08-11 |
+| REQ-324 | Constraint override extraction | 2026-08-11 |
+| REQ-020a | Tools (Part a) | 2026-08-11 |
+| REQ-020b | Tools (Part b) | 2026-08-11 |
+| REQ-021 | Tool-surface economy | 2026-08-11 |
+| REQ-022 | Resources | 2026-08-11 |
+| REQ-296a | Knowledge-graph resource (Part a) | 2026-08-11 |
+| REQ-296b | Knowledge-graph resource (Part b) | 2026-08-11 |
+| REQ-023a | Prompts (Part a) | 2026-08-11 |
+| REQ-023b | Prompts (Part b) | 2026-08-11 |
+| REQ-024a | Tool documentation (Part a) | 2026-08-11 |
+| REQ-024b | Tool documentation (Part b) | 2026-08-11 |
+| REQ-025a | spec_health (Part a) | 2026-08-11 |
+| REQ-025b | spec_health (Part b) | 2026-08-11 |
+| REQ-025c | spec_health (Part c) | 2026-08-11 |
+| REQ-160a | Synthesis health reporting (Part a) | 2026-08-11 |
+| REQ-160b | Synthesis health reporting (Part b) | 2026-08-11 |
+| REQ-160c | Synthesis health reporting (Part c) | 2026-08-11 |
+| REQ-169a | Audit chain integrity reporting (Part a) | 2026-08-11 |
+| REQ-169b | Audit chain integrity reporting (Part b) | 2026-08-11 |
+| REQ-138a | Prompt health reporting (Part a) | 2026-08-11 |
+| REQ-138b | Prompt health reporting (Part b) | 2026-08-11 |
+| REQ-139 | Resource URI completeness reporting | 2026-08-11 |
+| REQ-269 | Safety protocol status | 2026-08-11 |
+| REQ-388a | Holodeck config discovery (Part a) | 2026-08-11 |
+| REQ-388b | Holodeck config discovery (Part b) | 2026-08-11 |
+| REQ-388c | Holodeck config discovery (Part c) | 2026-08-11 |
+| REQ-388d | Holodeck config discovery (Part d) | 2026-08-11 |
+| REQ-105 | Spec resource | 2026-08-11 |
+| REQ-106 | Spec repository URL | 2026-08-11 |
+| REQ-107a | Version coordination (Part a) | 2026-08-11 |
+| REQ-107b | Version coordination (Part b) | 2026-08-11 |
+| REQ-187a | Spec content hash computation (Part a) | 2026-08-11 |
+| REQ-187b | Spec content hash computation (Part b) | 2026-08-11 |
+| REQ-278 | Build-phase-map staleness detection | 2026-08-11 |
+| REQ-161a | Intake workflow contract (Part a) | 2026-08-11 |
+| REQ-161b | Intake workflow contract (Part b) | 2026-08-11 |
+| REQ-161c | Intake workflow contract (Part c) | 2026-08-11 |
+| REQ-162a | Build-mode profiles (Part a) | 2026-08-11 |
+| REQ-162b | Build-mode profiles (Part b) | 2026-08-11 |
+| REQ-162c | Build-mode profiles (Part c) | 2026-08-11 |
+| REQ-163a | Client config verification (Part a) | 2026-08-11 |
+| REQ-163b | Client config verification (Part b) | 2026-08-11 |
+| REQ-164a | Viability pre-check (Part a) | 2026-08-11 |
+| REQ-164b | Viability pre-check (Part b) | 2026-08-11 |
+| REQ-067a | Help and tool discovery (Part a) | 2026-08-11 |
+| REQ-067b | Help and tool discovery (Part b) | 2026-08-11 |
+| REQ-067c | Help and tool discovery (Part c) | 2026-08-11 |
+| REQ-063a | Connection introduction (Part a) | 2026-08-11 |
+| REQ-063b | Connection introduction (Part b) | 2026-08-11 |
+| REQ-063c | Connection introduction (Part c) | 2026-08-11 |
+| REQ-078a | Session zero prompt (Part a) | 2026-08-11 |
+| REQ-078b | Session zero prompt (Part b) | 2026-08-11 |
+| REQ-078c | Session zero prompt (Part c) | 2026-08-11 |
+| REQ-078d | Session zero prompt (Part d) | 2026-08-11 |
+| REQ-057a | Canonical lookup tools (Part a) | 2026-08-11 |
+| REQ-057b | Canonical lookup tools (Part b) | 2026-08-11 |
+| REQ-112 | Cross-reference discovery | 2026-08-11 |
+| REQ-058 | Tool-result fidelity | 2026-08-11 |
+| REQ-110 | Tool surface consolidation | 2026-08-11 |
+| REQ-059a | Parameter canon validation (Part a) | 2026-08-11 |
+| REQ-059b | Parameter canon validation (Part b) | 2026-08-11 |
+| REQ-059c | Parameter canon validation (Part c) | 2026-08-11 |
+| REQ-182a | Bounded-domain parameter documentation (Part a) | 2026-08-11 |
+| REQ-182b | Bounded-domain parameter documentation (Part b) | 2026-08-11 |
+| REQ-183a | Live-index-derived error enumerations (Part a) | 2026-08-11 |
+| REQ-183b | Live-index-derived error enumerations (Part b) | 2026-08-11 |
+| REQ-323a | resolve_intent tool (Part a) | 2026-08-11 |
+| REQ-323b | resolve_intent tool (Part b) | 2026-08-11 |
+| REQ-056 | Advancement workflow | 2026-08-11 |
+| REQ-042a | Workflow decisions (Part a) | 2026-08-11 |
+| REQ-042b | Workflow decisions (Part b) | 2026-08-11 |
+| REQ-042c | Workflow decisions (Part c) | 2026-08-11 |
+| REQ-042d | Workflow decisions (Part d) | 2026-08-11 |
+| REQ-042e | Workflow decisions (Part e) | 2026-08-11 |
+| REQ-042f | Workflow decisions (Part f) | 2026-08-11 |
+| REQ-190 | Respond drain result | 2026-08-11 |
+| REQ-191 | Option display-label pairs | 2026-08-11 |
+| REQ-192 | Batch-respond collision | 2026-08-11 |
+| REQ-193a | Pending workflow staleness detection (Part a) | 2026-08-11 |
+| REQ-193b | Pending workflow staleness detection (Part b) | 2026-08-11 |
+| REQ-104a | Character creation workflow (Part a) | 2026-08-11 |
+| REQ-104b | Character creation workflow (Part b) | 2026-08-11 |
+| REQ-104c | Character creation workflow (Part c) | 2026-08-11 |
+| REQ-181a | Character creation output surface (Part a) | 2026-08-11 |
+| REQ-181b | Character creation output surface (Part b) | 2026-08-11 |
+| REQ-151a | Creation step enumeration (Part a) | 2026-08-11 |
+| REQ-151b | Creation step enumeration (Part b) | 2026-08-11 |
+| REQ-152a | Starting equipment assignment (Part a) | 2026-08-11 |
+| REQ-152b | Starting equipment assignment (Part b) | 2026-08-11 |
+| REQ-140 | End-Novel confirmation dispatch | 2026-08-11 |
+| REQ-224a | Workflow staleness detection (Part a) | 2026-08-11 |
+| REQ-224b | Workflow staleness detection (Part b) | 2026-08-11 |
+| REQ-224c | Workflow staleness detection (Part c) | 2026-08-11 |
+| REQ-235a | Structured player choices (Part a) | 2026-08-11 |
+| REQ-235b | Structured player choices (Part b) | 2026-08-11 |
+| REQ-235c | Structured player choices (Part c) | 2026-08-11 |
+| REQ-030 | Single-user connection | 2026-08-11 |
+| REQ-031a | Badge activation (Part a) | 2026-08-11 |
+| REQ-031b | Badge activation (Part b) | 2026-08-11 |
+| REQ-066a | set_badge tool (Part a) | 2026-08-11 |
+| REQ-066b | set_badge tool (Part b) | 2026-08-11 |
+| REQ-032a | Server-side gating (Part a) | 2026-08-11 |
+| REQ-032b | Server-side gating (Part b) | 2026-08-11 |
+| REQ-216a | Generation table badge filtering (Part a) | 2026-08-11 |
+| REQ-216b | Generation table badge filtering (Part b) | 2026-08-11 |
+| REQ-133a | Forbidden-call audit (Part a) | 2026-08-11 |
+| REQ-133b | Forbidden-call audit (Part b) | 2026-08-11 |
+| REQ-134 | Minimum Player tool surface | 2026-08-11 |
+| REQ-220a | Narrative point of view (Part a) | 2026-08-11 |
+| REQ-220b | Narrative point of view (Part b) | 2026-08-11 |
+| REQ-220c | Narrative point of view (Part c) | 2026-08-11 |
+| REQ-220d | Narrative point of view (Part d) | 2026-08-11 |
+| REQ-223a | POV mode control (Part a) | 2026-08-11 |
+| REQ-223b | POV mode control (Part b) | 2026-08-11 |
+| REQ-223c | POV mode control (Part c) | 2026-08-11 |
+| REQ-304a | Counterpart AI role (Part a) | 2026-08-11 |
+| REQ-304b | Counterpart AI role (Part b) | 2026-08-11 |
+| REQ-304c | Counterpart AI role (Part c) | 2026-08-11 |
+| REQ-305a | Observer mode (Part a) | 2026-08-11 |
+| REQ-305b | Observer mode (Part b) | 2026-08-11 |
+| REQ-306a | Adjustable autonomy (Part a) | 2026-08-11 |
+| REQ-306b | Adjustable autonomy (Part b) | 2026-08-11 |
+| REQ-306c | Adjustable autonomy (Part c) | 2026-08-11 |
+| REQ-306d | Adjustable autonomy (Part d) | 2026-08-11 |
+| REQ-306e | Adjustable autonomy (Part e) | 2026-08-11 |
+| REQ-109a | Badge briefing composition (Part a) | 2026-08-11 |
+| REQ-109b | Badge briefing composition (Part b) | 2026-08-11 |
+| REQ-109c | Badge briefing composition (Part c) | 2026-08-11 |
+| REQ-109d | Badge briefing composition (Part d) | 2026-08-11 |
+| REQ-109e | Badge briefing composition (Part e) | 2026-08-11 |
+| REQ-109f | Badge briefing composition (Part f) | 2026-08-11 |
+| REQ-281a | Narrative-threads section token (Part a) | 2026-08-11 |
+| REQ-281b | Narrative-threads section token (Part b) | 2026-08-11 |
+| REQ-281c | Narrative-threads section token (Part c) | 2026-08-11 |
+| REQ-286a | Knowledge-state section token (Part a) | 2026-08-11 |
+| REQ-286b | Knowledge-state section token (Part b) | 2026-08-11 |
+| REQ-286c | Knowledge-state section token (Part c) | 2026-08-11 |
+| REQ-159a | Synthesis briefing integration (Part a) | 2026-08-11 |
+| REQ-159b | Synthesis briefing integration (Part b) | 2026-08-11 |
+| REQ-159c | Synthesis briefing integration (Part c) | 2026-08-11 |
+| REQ-159d | Synthesis briefing integration (Part d) | 2026-08-11 |
+| REQ-135a | Badge briefing size budget (Part a) | 2026-08-11 |
+| REQ-135b | Badge briefing size budget (Part b) | 2026-08-11 |
+| REQ-135c | Badge briefing size budget (Part c) | 2026-08-11 |
+| REQ-180a | Truncation budget unit (Part a) | 2026-08-11 |
+| REQ-180b | Truncation budget unit (Part b) | 2026-08-11 |
+| REQ-136a | Editor-badge briefing (Part a) | 2026-08-11 |
+| REQ-136b | Editor-badge briefing (Part b) | 2026-08-11 |
+| REQ-137a | Gate classification auditability (Part a) | 2026-08-11 |
+| REQ-137b | Gate classification auditability (Part b) | 2026-08-11 |
+| REQ-148 | Structural integrity gate | 2026-08-11 |
+| REQ-149 | MCP conformance gate | 2026-08-11 |
+| REQ-150a | Golden transcript coverage completeness (Part a) | 2026-08-11 |
+| REQ-150b | Golden transcript coverage completeness (Part b) | 2026-08-11 |
+| REQ-211a | Evidence record field contract (Part a) | 2026-08-11 |
+| REQ-211b | Evidence record field contract (Part b) | 2026-08-11 |
+| REQ-211c | Evidence record field contract (Part c) | 2026-08-11 |
+| REQ-275 | Evidence hash commitment | 2026-08-11 |
+| REQ-276 | Independent verifier model criteria | 2026-08-11 |
+| REQ-040a | Audit log (Part a) | 2026-08-11 |
+| REQ-040b | Audit log (Part b) | 2026-08-11 |
+| REQ-040c | Audit log (Part c) | 2026-08-11 |
+| REQ-040d | Audit log (Part d) | 2026-08-11 |
+| REQ-168a | Audit resource (Part a) | 2026-08-11 |
+| REQ-168b | Audit resource (Part b) | 2026-08-11 |
+| REQ-041a | Snapshots and undo (Part a) | 2026-08-11 |
+| REQ-041b | Snapshots and undo (Part b) | 2026-08-11 |
+| REQ-041c | Snapshots and undo (Part c) | 2026-08-11 |
+| REQ-116 | Redo | 2026-08-11 |
+| REQ-043a | Conflict lifecycle (Part a) | 2026-08-11 |
+| REQ-043b | Conflict lifecycle (Part b) | 2026-08-11 |
+| REQ-043c | Conflict lifecycle (Part c) | 2026-08-11 |
+| REQ-043d | Conflict lifecycle (Part d) | 2026-08-11 |
+| REQ-043e | Conflict lifecycle (Part e) | 2026-08-11 |
+| REQ-043f | Conflict lifecycle (Part f) | 2026-08-11 |
+| REQ-043g | Conflict lifecycle (Part g) | 2026-08-11 |
+| REQ-203 | Combat-init guard | 2026-08-11 |
+| REQ-204a | Combat participant validation (Part a) | 2026-08-11 |
+| REQ-204b | Combat participant validation (Part b) | 2026-08-11 |
+| REQ-205a | Mid-combat participant changes (Part a) | 2026-08-11 |
+| REQ-205b | Mid-combat participant changes (Part b) | 2026-08-11 |
+| REQ-205c | Mid-combat participant changes (Part c) | 2026-08-11 |
+| REQ-206a | Combat-round condition expiry (Part a) | 2026-08-11 |
+| REQ-206b | Combat-round condition expiry (Part b) | 2026-08-11 |
+| REQ-206c | Combat-round condition expiry (Part c) | 2026-08-11 |
+| REQ-221a | Combat-navigation interaction (Part a) | 2026-08-11 |
+| REQ-221b | Combat-navigation interaction (Part b) | 2026-08-11 |
+| REQ-217a | Condition tools (Part a) | 2026-08-11 |
+| REQ-217b | Condition tools (Part b) | 2026-08-11 |
+| REQ-217c | Condition tools (Part c) | 2026-08-11 |
+| REQ-217d | Condition tools (Part d) | 2026-08-11 |
+| REQ-072a | Session recap (Part a) | 2026-08-11 |
+| REQ-072b | Session recap (Part b) | 2026-08-11 |
+| REQ-072c | Session recap (Part c) | 2026-08-11 |
+| REQ-072d | Session recap (Part d) | 2026-08-11 |
+| REQ-072e | Session recap (Part e) | 2026-08-11 |
+| REQ-072f | Session recap (Part f) | 2026-08-11 |
+| REQ-279a | Narrative orientation (Part a) | 2026-08-11 |
+| REQ-279b | Narrative orientation (Part b) | 2026-08-11 |
+| REQ-279c | Narrative orientation (Part c) | 2026-08-11 |
+| REQ-174a | Significant-roll criterion for recap (Part a) | 2026-08-11 |
+| REQ-174b | Significant-roll criterion for recap (Part b) | 2026-08-11 |
+| REQ-175a | Confrontation summary derivation (Part a) | 2026-08-11 |
+| REQ-175b | Confrontation summary derivation (Part b) | 2026-08-11 |
+| REQ-0731 | Countdowns (Part 1) | 2026-08-11 |
+| REQ-0732 | Countdowns (Part 2) | 2026-08-11 |
+| REQ-0733 | Countdowns (Part 3) | 2026-08-11 |
+| REQ-329a | Countdown-world coupling (Part a) | 2026-08-11 |
+| REQ-329b | Countdown-world coupling (Part b) | 2026-08-11 |
+| REQ-289a | Vow tracking (Part a) | 2026-08-11 |
+| REQ-289b | Vow tracking (Part b) | 2026-08-11 |
+| REQ-289c | Vow tracking (Part c) | 2026-08-11 |
+| REQ-289d | Vow tracking (Part d) | 2026-08-11 |
+| REQ-289e | Vow tracking (Part e) | 2026-08-11 |
+| REQ-322a | Vow-countdown coupling (Part a) | 2026-08-11 |
+| REQ-322b | Vow-countdown coupling (Part b) | 2026-08-11 |
+| REQ-322c | Vow-countdown coupling (Part c) | 2026-08-11 |
+| REQ-322d | Vow-countdown coupling (Part d) | 2026-08-11 |
+| REQ-074a | Multi-entity support (Part a) | 2026-08-11 |
+| REQ-074b | Multi-entity support (Part b) | 2026-08-11 |
+| REQ-074c | Multi-entity support (Part c) | 2026-08-11 |
+| REQ-176a | Entity removal (Part a) | 2026-08-11 |
+| REQ-176b | Entity removal (Part b) | 2026-08-11 |
+| REQ-177 | Roster entity removal | 2026-08-11 |
+| REQ-178a | Roster listing (Part a) | 2026-08-11 |
+| REQ-178b | Roster listing (Part b) | 2026-08-11 |
+| REQ-075a | Named-NPC state (Part a) | 2026-08-11 |
+| REQ-075b | Named-NPC state (Part b) | 2026-08-11 |
+| REQ-075c | Named-NPC state (Part c) | 2026-08-11 |
+| REQ-075d | Named-NPC state (Part d) | 2026-08-11 |
+| REQ-075e | Named-NPC state (Part e) | 2026-08-11 |
+| REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
+| REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
+| REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
+| REQ-119d | NPC stat block reference (Part d) | 2026-08-11 |
+| REQ-120 | NPC rendering | 2026-08-11 |
+| REQ-121 | NPC resource URIs | 2026-08-11 |
+| REQ-122a | NPC narrative fields (Part a) | 2026-08-11 |
+| REQ-122b | NPC narrative fields (Part b) | 2026-08-11 |
+| REQ-156 | NPC description field | 2026-08-11 |
+| REQ-123 | Builder-defined NPC stat fields | 2026-08-11 |
+| REQ-124a | NPC damage resolution (Part a) | 2026-08-11 |
+| REQ-124b | NPC damage resolution (Part b) | 2026-08-11 |
+| REQ-0761 | Scene-state ledger (Part 1) | 2026-08-11 |
+| REQ-0762 | Scene-state ledger (Part 2) | 2026-08-11 |
+| REQ-0763 | Scene-state ledger (Part 3) | 2026-08-11 |
+| REQ-0764 | Scene-state ledger (Part 4) | 2026-08-11 |
+| REQ-0765 | Scene-state ledger (Part 5) | 2026-08-11 |
+| REQ-0766 | Scene-state ledger (Part 6) | 2026-08-11 |
+| REQ-0767 | Scene-state ledger (Part 7) | 2026-08-11 |
+| REQ-076a1 | Structured scene fields (Part a1) | 2026-08-11 |
+| REQ-076a2 | Structured scene fields (Part a2) | 2026-08-11 |
+| REQ-252a | Narrative fast-forward (Part a) | 2026-08-11 |
+| REQ-252b | Narrative fast-forward (Part b) | 2026-08-11 |
+| REQ-252c | Narrative fast-forward (Part c) | 2026-08-11 |
+| REQ-307a | Entity presence (Part a) | 2026-08-11 |
+| REQ-307b | Entity presence (Part b) | 2026-08-11 |
+| REQ-307c | Entity presence (Part c) | 2026-08-11 |
+| REQ-308a | Knowledge gating by presence (Part a) | 2026-08-11 |
+| REQ-308b | Knowledge gating by presence (Part b) | 2026-08-11 |
+| REQ-330a | Knowledge-world coupling (Part a) | 2026-08-11 |
+| REQ-330b | Knowledge-world coupling (Part b) | 2026-08-11 |
+| REQ-330c | Knowledge-world coupling (Part c) | 2026-08-11 |
+| REQ-311a | NPC memory model (Part a) | 2026-08-11 |
+| REQ-311b | NPC memory model (Part b) | 2026-08-11 |
+| REQ-311c | NPC memory model (Part c) | 2026-08-11 |
+| REQ-311d | NPC memory model (Part d) | 2026-08-11 |
+| REQ-311e | NPC memory model (Part e) | 2026-08-11 |
+| REQ-311f | NPC memory model (Part f) | 2026-08-11 |
+| REQ-311g | NPC memory model (Part g) | 2026-08-11 |
+| REQ-077a | Entity personality fields (Part a) | 2026-08-11 |
+| REQ-077b | Entity personality fields (Part b) | 2026-08-11 |
+| REQ-077c | Entity personality fields (Part c) | 2026-08-11 |
+| REQ-077d | Entity personality fields (Part d) | 2026-08-11 |
+| REQ-077e | Entity personality fields (Part e) | 2026-08-11 |
+| REQ-077f | Entity personality fields (Part f) | 2026-08-11 |
+| REQ-126a | Voice examples rendering (Part a) | 2026-08-11 |
+| REQ-126b | Voice examples rendering (Part b) | 2026-08-11 |
+| REQ-282a | NPC voice directive (Part a) | 2026-08-11 |
+| REQ-282b | NPC voice directive (Part b) | 2026-08-11 |
+| REQ-282c | NPC voice directive (Part c) | 2026-08-11 |
+| REQ-282d | NPC voice directive (Part d) | 2026-08-11 |
+| REQ-127a | Ruleset-native personality mapping (Part a) | 2026-08-11 |
+| REQ-127b | Ruleset-native personality mapping (Part b) | 2026-08-11 |
+| REQ-165a | Entity ownership for personality gating (Part a) | 2026-08-11 |
+| REQ-165b | Entity ownership for personality gating (Part b) | 2026-08-11 |
+| REQ-166a | Personality briefing rendering (Part a) | 2026-08-11 |
+| REQ-166b | Personality briefing rendering (Part b) | 2026-08-11 |
+| REQ-166c | Personality briefing rendering (Part c) | 2026-08-11 |
+| REQ-167a | Personality resource URIs (Part a) | 2026-08-11 |
+| REQ-167b | Personality resource URIs (Part b) | 2026-08-11 |
+| REQ-069a | Player feedback signal (Part a) | 2026-08-11 |
+| REQ-069b | Player feedback signal (Part b) | 2026-08-11 |
+| REQ-069c | Player feedback signal (Part c) | 2026-08-11 |
+| REQ-128a | Signal briefing surface (Part a) | 2026-08-11 |
+| REQ-128b | Signal briefing surface (Part b) | 2026-08-11 |
+| REQ-255a | Boundary signal propagation (Part a) | 2026-08-11 |
+| REQ-255b | Boundary signal propagation (Part b) | 2026-08-11 |
+| REQ-255c | Boundary signal propagation (Part c) | 2026-08-11 |
+| REQ-173a | Connection counter (Part a) | 2026-08-11 |
+| REQ-173b | Connection counter (Part b) | 2026-08-11 |
+| REQ-173c | Connection counter (Part c) | 2026-08-11 |
+| REQ-129a | Property group cardinality (Part a) | 2026-08-11 |
+| REQ-129b | Property group cardinality (Part b) | 2026-08-11 |
+| REQ-129c | Property group cardinality (Part c) | 2026-08-11 |
+| REQ-129d | Property group cardinality (Part d) | 2026-08-11 |
+| REQ-079a | Adventure modules (Part a) | 2026-08-11 |
+| REQ-079b | Adventure modules (Part b) | 2026-08-11 |
+| REQ-079c | Adventure modules (Part c) | 2026-08-11 |
+| REQ-079d | Adventure modules (Part d) | 2026-08-11 |
+| REQ-079e | Adventure modules (Part e) | 2026-08-11 |
+| REQ-079f | Adventure modules (Part f) | 2026-08-11 |
+| REQ-079g | Adventure modules (Part g) | 2026-08-11 |
+| REQ-079h | Adventure modules (Part h) | 2026-08-11 |
+| REQ-079i | Adventure modules (Part i) | 2026-08-11 |
+| REQ-079j | Adventure modules (Part j) | 2026-08-11 |
+| REQ-292a | Adventure catalog (Part a) | 2026-08-11 |
+| REQ-292b | Adventure catalog (Part b) | 2026-08-11 |
+| REQ-292c | Adventure catalog (Part c) | 2026-08-11 |
+| REQ-292d | Adventure catalog (Part d) | 2026-08-11 |
+| REQ-229a | Adventure synthesis linkage (Part a) | 2026-08-11 |
+| REQ-229b | Adventure synthesis linkage (Part b) | 2026-08-11 |
+| REQ-229c | Adventure synthesis linkage (Part c) | 2026-08-11 |
+| REQ-229d | Adventure synthesis linkage (Part d) | 2026-08-11 |
+| REQ-170 | Adventure discovery surface | 2026-08-11 |
+| REQ-171a | Adventure content validation (Part a) | 2026-08-11 |
+| REQ-171b | Adventure content validation (Part b) | 2026-08-11 |
+| REQ-172 | Adventure content drift detection | 2026-08-11 |
+| REQ-247a | Adventure structure extraction (Part a) | 2026-08-11 |
+| REQ-247b | Adventure structure extraction (Part b) | 2026-08-11 |
+| REQ-247c | Adventure structure extraction (Part c) | 2026-08-11 |
+| REQ-248a | Adventure overview resource (Part a) | 2026-08-11 |
+| REQ-248b | Adventure overview resource (Part b) | 2026-08-11 |
+| REQ-249a | Adventure navigation resource (Part a) | 2026-08-11 |
+| REQ-249b | Adventure navigation resource (Part b) | 2026-08-11 |
+| REQ-250a | Adventure scene waypoint (Part a) | 2026-08-11 |
+| REQ-250b | Adventure scene waypoint (Part b) | 2026-08-11 |
+| REQ-250c | Adventure scene waypoint (Part c) | 2026-08-11 |
+| REQ-132a | Adventure generation lifecycle (Part a) | 2026-08-11 |
+| REQ-132b | Adventure generation lifecycle (Part b) | 2026-08-11 |
+| REQ-132c | Adventure generation lifecycle (Part c) | 2026-08-11 |
+| REQ-132d | Adventure generation lifecycle (Part d) | 2026-08-11 |
+| REQ-132e | Adventure generation lifecycle (Part e) | 2026-08-11 |
+| REQ-044 | Ruleset hash recording | 2026-08-11 |
+| REQ-302a | Per-section content hashing (Part a) | 2026-08-11 |
+| REQ-302b | Per-section content hashing (Part b) | 2026-08-11 |
+| REQ-065a | Build fingerprint (Part a) | 2026-08-11 |
+| REQ-065b | Build fingerprint (Part b) | 2026-08-11 |
+| REQ-065c | Build fingerprint (Part c) | 2026-08-11 |
+| REQ-065d | Build fingerprint (Part d) | 2026-08-11 |
+| REQ-065e | Build fingerprint (Part e) | 2026-08-11 |
+| REQ-065f | Build fingerprint (Part f) | 2026-08-11 |
+| REQ-313a | Server implementation fingerprinting (Part a) | 2026-08-11 |
+| REQ-313b | Server implementation fingerprinting (Part b) | 2026-08-11 |
+| REQ-313c | Server implementation fingerprinting (Part c) | 2026-08-11 |
+| REQ-313d | Server implementation fingerprinting (Part d) | 2026-08-11 |
+| REQ-314a | Fingerprint-driven partial rebuild (Part a) | 2026-08-11 |
+| REQ-314b | Fingerprint-driven partial rebuild (Part b) | 2026-08-11 |
+| REQ-314c | Fingerprint-driven partial rebuild (Part c) | 2026-08-11 |
+| REQ-314d | Fingerprint-driven partial rebuild (Part d) | 2026-08-11 |
+| REQ-232a | Pause/resume context (Part a) | 2026-08-11 |
+| REQ-232b | Pause/resume context (Part b) | 2026-08-11 |
+| REQ-232c | Pause/resume context (Part c) | 2026-08-11 |
+| REQ-232d | Pause/resume context (Part d) | 2026-08-11 |
+| REQ-2331 | Factions (Part 1) | 2026-08-11 |
+| REQ-2332 | Factions (Part 2) | 2026-08-11 |
+| REQ-2333 | Factions (Part 3) | 2026-08-11 |
+| REQ-233a1 | World reactivity (Part a1) | 2026-08-11 |
+| REQ-233a2 | World reactivity (Part a2) | 2026-08-11 |
+| REQ-233a3 | World reactivity (Part a3) | 2026-08-11 |
+| REQ-236a | Entity relationships (Part a) | 2026-08-11 |
+| REQ-236b | Entity relationships (Part b) | 2026-08-11 |
+| REQ-236c | Entity relationships (Part c) | 2026-08-11 |
+| REQ-237a | Session segmentation (Part a) | 2026-08-11 |
+| REQ-237b | Session segmentation (Part b) | 2026-08-11 |
+| REQ-073a1 | Clock types (Part a) (Part a1) | 2026-08-11 |
+| REQ-073a2 | Clock types (Part a) (Part a2) | 2026-08-11 |
+| REQ-073b1 | Clock types (Part b) (Part b1) | 2026-08-11 |
+| REQ-073b2 | Clock types (Part b) (Part b2) | 2026-08-11 |
+| REQ-239a | Audit log compaction (Part a) | 2026-08-11 |
+| REQ-239b | Audit log compaction (Part b) | 2026-08-11 |
+| REQ-239c | Audit log compaction (Part c) | 2026-08-11 |
+| REQ-239d | Audit log compaction (Part d) | 2026-08-11 |
+| REQ-241a | Checkpoints (Part a) | 2026-08-11 |
+| REQ-241b | Checkpoints (Part b) | 2026-08-11 |
+| REQ-241c | Checkpoints (Part c) | 2026-08-11 |
+| REQ-242a | Notes (Part a) | 2026-08-11 |
+| REQ-242b | Notes (Part b) | 2026-08-11 |
+| REQ-242c | Notes (Part c) | 2026-08-11 |
+| REQ-242d | Notes (Part d) | 2026-08-11 |
+| REQ-285a | Server notes (Part a) | 2026-08-11 |
+| REQ-285b | Server notes (Part b) | 2026-08-11 |
+| REQ-285c | Server notes (Part c) | 2026-08-11 |
+| REQ-321a | Codex (Part a) | 2026-08-11 |
+| REQ-321b | Codex (Part b) | 2026-08-11 |
+| REQ-321c | Codex (Part c) | 2026-08-11 |
+| REQ-321d | Codex (Part d) | 2026-08-11 |
+| REQ-321e | Codex (Part e) | 2026-08-11 |
+| REQ-321f | Codex (Part f) | 2026-08-11 |
+| REQ-321g | Codex (Part g) | 2026-08-11 |
+| REQ-321h | Codex (Part h) | 2026-08-11 |
+| REQ-321i | Codex (Part i) | 2026-08-11 |
+| REQ-321j | Codex (Part j) | 2026-08-11 |
+| REQ-321k | Codex (Part k) | 2026-08-11 |
+| REQ-321l | Codex (Part l) | 2026-08-11 |
+| REQ-321m | Codex (Part m) | 2026-08-11 |
+| REQ-332a | Codex provenance (Part a) | 2026-08-11 |
+| REQ-332b | Codex provenance (Part b) | 2026-08-11 |
+| REQ-332c | Codex provenance (Part c) | 2026-08-11 |
+| REQ-050a | Determinism (Part a) | 2026-08-11 |
+| REQ-050b | Determinism (Part b) | 2026-08-11 |
+| REQ-050c | Determinism (Part c) | 2026-08-11 |
+| REQ-273a | Independent verification reproducibility tolerance (Part a) | 2026-08-11 |
+| REQ-273b | Independent verification reproducibility tolerance (Part b) | 2026-08-11 |
+| REQ-274 | Independent verifier confidence score | 2026-08-11 |
+| REQ-213a | Weighted table result mapping (Part a) | 2026-08-11 |
+| REQ-213b | Weighted table result mapping (Part b) | 2026-08-11 |
+| REQ-213c | Weighted table result mapping (Part c) | 2026-08-11 |
+| REQ-291a | Oracle tool (Part a) | 2026-08-11 |
+| REQ-291b | Oracle tool (Part b) | 2026-08-11 |
+| REQ-291c | Oracle tool (Part c) | 2026-08-11 |
+| REQ-291d | Oracle tool (Part d) | 2026-08-11 |
+| REQ-157a | Combat determinism (Part a) | 2026-08-11 |
+| REQ-157b | Combat determinism (Part b) | 2026-08-11 |
+| REQ-051 | No runtime network access | 2026-08-11 |
+| REQ-052 | Path containment | 2026-08-11 |
+| REQ-251a | Generation intent guard (Part a) | 2026-08-11 |
+| REQ-251b | Generation intent guard (Part b) | 2026-08-11 |
+| REQ-251c | Generation intent guard (Part c) | 2026-08-11 |
+| REQ-251d | Generation intent guard (Part d) | 2026-08-11 |
+| REQ-100a | Performance benchmark (Part a) | 2026-08-11 |
+| REQ-100b | Performance benchmark (Part b) | 2026-08-11 |
+| REQ-100c | Performance benchmark (Part c) | 2026-08-11 |
+| REQ-100d | Performance benchmark (Part d) | 2026-08-11 |
+| REQ-253a | Tool-output verbosity control (Part a) | 2026-08-11 |
+| REQ-253b | Tool-output verbosity control (Part b) | 2026-08-11 |
+| REQ-253c | Tool-output verbosity control (Part c) | 2026-08-11 |
+| REQ-054 | Input safety | 2026-08-11 |
+| REQ-055 | Durability | 2026-08-11 |
+| REQ-055a | Badge precedence on resume | 2026-08-11 |
+| REQ-055b | Story-in-progress notice | 2026-08-11 |
+| REQ-3121 | Pre-narration validation gate (Part 1) | 2026-08-11 |
+| REQ-3122 | Pre-narration validation gate (Part 2) | 2026-08-11 |
+| REQ-312a | Bounds conformance | 2026-08-11 |
+| REQ-312b | Permission conformance | 2026-08-11 |
+| REQ-312c | State conformance | 2026-08-11 |
+| REQ-2461 | Story journal (Part 1) | 2026-08-11 |
+| REQ-2462 | Story journal (Part 2) | 2026-08-11 |
+| REQ-246a | Story journal surfacing | 2026-08-11 |
+| REQ-331a | Story journal-world coupling (Part a) | 2026-08-11 |
+| REQ-331b | Story journal-world coupling (Part b) | 2026-08-11 |
+| REQ-333a | Story journal to lore promotion (Part a) | 2026-08-11 |
+| REQ-333b | Story journal to lore promotion (Part b) | 2026-08-11 |
+| REQ-333c | Story journal to lore promotion (Part c) | 2026-08-11 |
+| REQ-310a | Campaign Memory (Part a) | 2026-08-11 |
+| REQ-310b | Campaign Memory (Part b) | 2026-08-11 |
+| REQ-310c | Campaign Memory (Part c) | 2026-08-11 |
+| REQ-310d | Campaign Memory (Part d) | 2026-08-11 |
+| REQ-310e | Campaign Memory (Part e) | 2026-08-11 |
+| REQ-310f | Campaign Memory (Part f) | 2026-08-11 |
+| REQ-310g | Campaign Memory (Part g) | 2026-08-11 |
+| REQ-080a | Synthesis boundaries (Part a) | 2026-08-11 |
+| REQ-080b | Synthesis boundaries (Part b) | 2026-08-11 |
+| REQ-080c | Synthesis boundaries (Part c) | 2026-08-11 |
+| REQ-080d | Synthesis boundaries (Part d) | 2026-08-11 |
+| REQ-080e | Synthesis boundaries (Part e) | 2026-08-11 |
+| REQ-080f | Synthesis boundaries (Part f) | 2026-08-11 |
+| REQ-080g | Synthesis boundaries (Part g) | 2026-08-11 |
+| REQ-081a | Narrative directive (Part a) | 2026-08-11 |
+| REQ-081b | Narrative directive (Part b) | 2026-08-11 |
+| REQ-081c | Narrative directive (Part c) | 2026-08-11 |
+| REQ-081d | Narrative directive (Part d) | 2026-08-11 |
+| REQ-082a | Prompt section ordering (Part a) | 2026-08-11 |
+| REQ-082b | Prompt section ordering (Part b) | 2026-08-11 |
+| REQ-082c | Prompt section ordering (Part c) | 2026-08-11 |
+| REQ-185a | Section token vocabulary (Part a) | 2026-08-11 |
+| REQ-185b | Section token vocabulary (Part b) | 2026-08-11 |
+| REQ-185c | Section token vocabulary (Part c) | 2026-08-11 |
+| REQ-186a | Section token discoverability (Part a) | 2026-08-11 |
+| REQ-186b | Section token discoverability (Part b) | 2026-08-11 |
+| REQ-083a | Dynamic lore (Part a) | 2026-08-11 |
+| REQ-083b | Dynamic lore (Part b) | 2026-08-11 |
+| REQ-083c | Dynamic lore (Part c) | 2026-08-11 |
+| REQ-083d | Dynamic lore (Part d) | 2026-08-11 |
+| REQ-083e | Dynamic lore (Part e) | 2026-08-11 |
+| REQ-083f | Dynamic lore (Part f) | 2026-08-11 |
+| REQ-155a | Sticky counter decay (Part a) | 2026-08-11 |
+| REQ-155b | Sticky counter decay (Part b) | 2026-08-11 |
+| REQ-328a | Lore-world coupling (Part a) | 2026-08-11 |
+| REQ-328b | Lore-world coupling (Part b) | 2026-08-11 |
+| REQ-158a | Independent verification obligation (Part a) | 2026-08-11 |
+| REQ-158b | Independent verification obligation (Part b) | 2026-08-11 |
+| REQ-0841 | Action suggestions (Part 1) | 2026-08-11 |
+| REQ-0842 | Action suggestions (Part 2) | 2026-08-11 |
+| REQ-0843 | Action suggestions (Part 3) | 2026-08-11 |
+| REQ-0844 | Action suggestions (Part 4) | 2026-08-11 |
+| REQ-084a1 | Proactive action surfacing (Part a1) | 2026-08-11 |
+| REQ-084a2 | Proactive action surfacing (Part a2) | 2026-08-11 |
+| REQ-084a3 | Proactive action surfacing (Part a3) | 2026-08-11 |
+| REQ-115a | Action pattern activation (Part a) | 2026-08-11 |
+| REQ-115b | Action pattern activation (Part b) | 2026-08-11 |
+| REQ-114a | Suggestion coverage (Part a) | 2026-08-11 |
+| REQ-114b | Suggestion coverage (Part b) | 2026-08-11 |
+| REQ-103a | Synthesis reversion (Part a) | 2026-08-11 |
+| REQ-103b | Synthesis reversion (Part b) | 2026-08-11 |
+| REQ-103c | Synthesis reversion (Part c) | 2026-08-11 |
+| REQ-103d | Synthesis reversion (Part d) | 2026-08-11 |
+| REQ-260a | Granular synthesis activation (Part a) | 2026-08-11 |
+| REQ-260b | Granular synthesis activation (Part b) | 2026-08-11 |
+| REQ-260c | Granular synthesis activation (Part c) | 2026-08-11 |
+| REQ-260d | Granular synthesis activation (Part d) | 2026-08-11 |
+| REQ-261a | Player synthesis (Part a) | 2026-08-11 |
+| REQ-261b | Player synthesis (Part b) | 2026-08-11 |
+| REQ-261c | Player synthesis (Part c) | 2026-08-11 |
+| REQ-261d | Player synthesis (Part d) | 2026-08-11 |
+| REQ-261e | Player synthesis (Part e) | 2026-08-11 |
+| REQ-262a | Synthesis tool (Part a) | 2026-08-11 |
+| REQ-262b | Synthesis tool (Part b) | 2026-08-11 |
+| REQ-262c | Synthesis tool (Part c) | 2026-08-11 |
+| REQ-263a | Synthesis auto-trigger (Part a) | 2026-08-11 |
+| REQ-263b | Synthesis auto-trigger (Part b) | 2026-08-11 |
+| REQ-264a | Synthesis confidence model (Part a) | 2026-08-11 |
+| REQ-264b | Synthesis confidence model (Part b) | 2026-08-11 |
+| REQ-264c | Synthesis confidence model (Part c) | 2026-08-11 |
+| REQ-265a | Synthesis in badge_briefing (Part a) | 2026-08-11 |
+| REQ-265b | Synthesis in badge_briefing (Part b) | 2026-08-11 |
+| REQ-265c | Synthesis in badge_briefing (Part c) | 2026-08-11 |
+| REQ-266a | Synthesis in dashboard (Part a) | 2026-08-11 |
+| REQ-266b | Synthesis in dashboard (Part b) | 2026-08-11 |
+| REQ-130a | Synthesis rebuild contract (Part a) | 2026-08-11 |
+| REQ-130b | Synthesis rebuild contract (Part b) | 2026-08-11 |
+| REQ-130c | Synthesis rebuild contract (Part c) | 2026-08-11 |
+| REQ-226a | Narrative voice profiles (Part a) | 2026-08-11 |
+| REQ-226b | Narrative voice profiles (Part b) | 2026-08-11 |
+| REQ-226c | Narrative voice profiles (Part c) | 2026-08-11 |
+| REQ-227a | Synthesis model (Part a) | 2026-08-11 |
+| REQ-227b | Synthesis model (Part b) | 2026-08-11 |
+| REQ-228a | Synthesis consistency during spec-driven updates (Part a) | 2026-08-11 |
+| REQ-228b | Synthesis consistency during spec-driven updates (Part b) | 2026-08-11 |
+| REQ-228c | Synthesis consistency during spec-driven updates (Part c) | 2026-08-11 |
+| REQ-230a | Synthesis status dashboard (Part a) | 2026-08-11 |
+| REQ-230b | Synthesis status dashboard (Part b) | 2026-08-11 |
+| REQ-231a | Per-module synthesis toggle (Part a) | 2026-08-11 |
+| REQ-231b | Per-module synthesis toggle (Part b) | 2026-08-11 |
+| REQ-243a | Synthesis population during spec-driven updates (Part a) | 2026-08-11 |
+| REQ-243b | Synthesis population during spec-driven updates (Part b) | 2026-08-11 |
+| REQ-243c | Synthesis population during spec-driven updates (Part c) | 2026-08-11 |
+| REQ-243d | Synthesis population during spec-driven updates (Part d) | 2026-08-11 |
+| REQ-244a | Convergence cache key (Part a) | 2026-08-11 |
+| REQ-244b | Convergence cache key (Part b) | 2026-08-11 |
+| REQ-244c | Convergence cache key (Part c) | 2026-08-11 |
+| REQ-244d | Convergence cache key (Part d) | 2026-08-11 |
+| REQ-244e | Convergence cache key (Part e) | 2026-08-11 |
+| REQ-245a | Pre-computed synthesis manifest (Part a) | 2026-08-11 |
+| REQ-245b | Pre-computed synthesis manifest (Part b) | 2026-08-11 |
+| REQ-245c | Pre-computed synthesis manifest (Part c) | 2026-08-11 |
+| REQ-245d | Pre-computed synthesis manifest (Part d) | 2026-08-11 |
+| REQ-245e | Pre-computed synthesis manifest (Part e) | 2026-08-11 |
+| REQ-085a | Macro system (Part a) | 2026-08-11 |
+| REQ-085b | Macro system (Part b) | 2026-08-11 |
+| REQ-086a | Audit compression (Part a) | 2026-08-11 |
+| REQ-086b | Audit compression (Part b) | 2026-08-11 |
+| REQ-086c | Audit compression (Part c) | 2026-08-11 |
+| REQ-087a | Scene type tagging (Part a) | 2026-08-11 |
+| REQ-087b | Scene type tagging (Part b) | 2026-08-11 |
+| REQ-087c | Scene type tagging (Part c) | 2026-08-11 |
+| REQ-125a | Scene transition hook (Part a) | 2026-08-11 |
+| REQ-125b | Scene transition hook (Part b) | 2026-08-11 |
+| REQ-234a | Secrets and knowledge (Part a) | 2026-08-11 |
+| REQ-234b | Secrets and knowledge (Part b) | 2026-08-11 |
+| REQ-234c | Secrets and knowledge (Part c) | 2026-08-11 |
+| REQ-234d | Secrets and knowledge (Part d) | 2026-08-11 |
+| REQ-088a | Novel lifecycle (Part a) | 2026-08-11 |
+| REQ-088b | Novel lifecycle (Part b) | 2026-08-11 |
+| REQ-088c | Novel lifecycle (Part c) | 2026-08-11 |
+| REQ-088d | Novel lifecycle (Part d) | 2026-08-11 |
+| REQ-088e | Novel lifecycle (Part e) | 2026-08-11 |
+| REQ-088f | Novel lifecycle (Part f) | 2026-08-11 |
+| REQ-088g | Novel lifecycle (Part g) | 2026-08-11 |
+| REQ-088h | Novel lifecycle (Part h) | 2026-08-11 |
+| REQ-117 | Novel retention period | 2026-08-11 |
+| REQ-095a | Novel switching (Part a) | 2026-08-11 |
+| REQ-095b | Novel switching (Part b) | 2026-08-11 |
+| REQ-256a | Rename Novel (Part a) | 2026-08-11 |
+| REQ-256b | Rename Novel (Part b) | 2026-08-11 |
+| REQ-259 | Update Novel description | 2026-08-11 |
+| REQ-257a | List Novels (Part a) | 2026-08-11 |
+| REQ-257b | List Novels (Part b) | 2026-08-11 |
+| REQ-258a | Novel info (Part a) | 2026-08-11 |
+| REQ-258b | Novel info (Part b) | 2026-08-11 |
+| REQ-089a | Novel setup (Part a) | 2026-08-11 |
+| REQ-089b | Novel setup (Part b) | 2026-08-11 |
+| REQ-089c | Novel setup (Part c) | 2026-08-11 |
+| REQ-089d | Novel setup (Part d) | 2026-08-11 |
+| REQ-294 | Genre declaration | 2026-08-11 |
+| REQ-090a | Adventure generation (Part a) | 2026-08-11 |
+| REQ-090b | Adventure generation (Part b) | 2026-08-11 |
+| REQ-090c | Adventure generation (Part c) | 2026-08-11 |
+| REQ-090d | Adventure generation (Part d) | 2026-08-11 |
+| REQ-090e | Adventure generation (Part e) | 2026-08-11 |
+| REQ-091a | Enhanced encounter generation (Part a) | 2026-08-11 |
+| REQ-091b | Enhanced encounter generation (Part b) | 2026-08-11 |
+| REQ-295a | Genre-filtered generation (Part a) | 2026-08-11 |
+| REQ-295b | Genre-filtered generation (Part b) | 2026-08-11 |
+| REQ-295c | Genre-filtered generation (Part c) | 2026-08-11 |
+| REQ-092a | Novel persistence (Part a) | 2026-08-11 |
+| REQ-092b | Novel persistence (Part b) | 2026-08-11 |
+| REQ-092c | Novel persistence (Part c) | 2026-08-11 |
+| REQ-092d | Novel persistence (Part d) | 2026-08-11 |
+| REQ-092e | Novel persistence (Part e) | 2026-08-11 |
+| REQ-092f | Novel persistence (Part f) | 2026-08-11 |
+| REQ-092g | Novel persistence (Part g) | 2026-08-11 |
+| REQ-092h | Novel persistence (Part h) | 2026-08-11 |
+| REQ-093a | Novel listing and metadata (Part a) | 2026-08-11 |
+| REQ-093b | Novel listing and metadata (Part b) | 2026-08-11 |
+| REQ-093c | Novel listing and metadata (Part c) | 2026-08-11 |
+| REQ-094a | Lorebook interchange (Part a) | 2026-08-11 |
+| REQ-094b | Lorebook interchange (Part b) | 2026-08-11 |
+| REQ-094c | Lorebook interchange (Part c) | 2026-08-11 |
+| REQ-096a | Novel interchange (Part a) | 2026-08-11 |
+| REQ-096b | Novel interchange (Part b) | 2026-08-11 |
+| REQ-096c | Novel interchange (Part c) | 2026-08-11 |
+| REQ-096d | Novel interchange (Part d) | 2026-08-11 |
+| REQ-096e | Novel interchange (Part e) | 2026-08-11 |
+| REQ-096f | Novel interchange (Part f) | 2026-08-11 |
+| REQ-096g | Novel interchange (Part g) | 2026-08-11 |
+| REQ-096h | Novel interchange (Part h) | 2026-08-11 |
+| REQ-096i | Novel interchange (Part i) | 2026-08-11 |
+| REQ-097a | Novel health (Part a) | 2026-08-11 |
+| REQ-097b | Novel health (Part b) | 2026-08-11 |
+| REQ-097c | Novel health (Part c) | 2026-08-11 |
+| REQ-131a | Novel initialization order (Part a) | 2026-08-11 |
+| REQ-131b | Novel initialization order (Part b) | 2026-08-11 |
+| REQ-131c | Novel initialization order (Part c) | 2026-08-11 |
+| REQ-238a | Backup rotation (Part a) | 2026-08-11 |
+| REQ-238b | Backup rotation (Part b) | 2026-08-11 |
+| REQ-240a | Clone Novel (Part a) | 2026-08-11 |
+| REQ-240b | Clone Novel (Part b) | 2026-08-11 |
+| REQ-240c | Clone Novel (Part c) | 2026-08-11 |
+| REQ-334a | Novel archive (Part a) | 2026-08-11 |
+| REQ-334b | Novel archive (Part b) | 2026-08-11 |
+| REQ-334c | Novel archive (Part c) | 2026-08-11 |
+| REQ-334d | Novel archive (Part d) | 2026-08-11 |
+| REQ-195a | World-model state tier (Part a) | 2026-08-11 |
+| REQ-195b | World-model state tier (Part b) | 2026-08-11 |
+| REQ-196a | Parser command dispatch (Part a) | 2026-08-11 |
+| REQ-196b | Parser command dispatch (Part b) | 2026-08-11 |
+| REQ-196c | Parser command dispatch (Part c) | 2026-08-11 |
+| REQ-196d | Parser command dispatch (Part d) | 2026-08-11 |
+| REQ-196e | Parser command dispatch (Part e) | 2026-08-11 |
+| REQ-196f | Parser command dispatch (Part f) | 2026-08-11 |
+| REQ-283a | Verb coverage tiers (Part a) | 2026-08-11 |
+| REQ-283b | Verb coverage tiers (Part b) | 2026-08-11 |
+| REQ-283c | Verb coverage tiers (Part c) | 2026-08-11 |
+| REQ-284a | Implicit action hints (Part a) | 2026-08-11 |
+| REQ-284b | Implicit action hints (Part b) | 2026-08-11 |
+| REQ-284c | Implicit action hints (Part c) | 2026-08-11 |
+| REQ-284d | Implicit action hints (Part d) | 2026-08-11 |
+| REQ-284e | Implicit action hints (Part e) | 2026-08-11 |
+| REQ-316a | Device kind (Part a) | 2026-08-11 |
+| REQ-316b | Device kind (Part b) | 2026-08-11 |
+| REQ-317a | Vehicle kind (Part a) | 2026-08-11 |
+| REQ-317b | Vehicle kind (Part b) | 2026-08-11 |
+| REQ-317c | Vehicle kind (Part c) | 2026-08-11 |
+| REQ-317d | Vehicle kind (Part d) | 2026-08-11 |
+| REQ-318 | Extended property contracts | 2026-08-11 |
+| REQ-319a | Extended parser command vocabulary (Part a) | 2026-08-11 |
+| REQ-319b | Extended parser command vocabulary (Part b) | 2026-08-11 |
+| REQ-319c | Extended parser command vocabulary (Part c) | 2026-08-11 |
+| REQ-319d | Extended parser command vocabulary (Part d) | 2026-08-11 |
+| REQ-320a | Narrative-intent parser verbs (Part a) | 2026-08-11 |
+| REQ-320b | Narrative-intent parser verbs (Part b) | 2026-08-11 |
+| REQ-320c | Narrative-intent parser verbs (Part c) | 2026-08-11 |
+| REQ-197a | Room description generation (Part a) | 2026-08-11 |
+| REQ-197b | Room description generation (Part b) | 2026-08-11 |
+| REQ-197c | Room description generation (Part c) | 2026-08-11 |
+| REQ-197d | Room description generation (Part d) | 2026-08-11 |
+| REQ-198 | World-model CRUD | 2026-08-11 |
+| REQ-199 | Property state tracking | 2026-08-11 |
+| REQ-200 | Kind mechanical contracts | 2026-08-11 |
+| REQ-201 | Hybrid source conversion | 2026-08-11 |
+| REQ-202a | World-model resources (Part a) | 2026-08-11 |
+| REQ-202b | World-model resources (Part b) | 2026-08-11 |
+| REQ-222a | Parser command vocabulary extension (Part a) | 2026-08-11 |
+| REQ-222b | Parser command vocabulary extension (Part b) | 2026-08-11 |
+| REQ-222c | Parser command vocabulary extension (Part c) | 2026-08-11 |
+| REQ-309a | World and narrative surface prominence (Part a) | 2026-08-11 |
+| REQ-309b | World and narrative surface prominence (Part b) | 2026-08-11 |
+| REQ-309c | World and narrative surface prominence (Part c) | 2026-08-11 |
+| REQ-309d | World and narrative surface prominence (Part d) | 2026-08-11 |
+| REQ-309e | World and narrative surface prominence (Part e) | 2026-08-11 |
+| REQ-309f | World and narrative surface prominence (Part f) | 2026-08-11 |
+| REQ-309g | World and narrative surface prominence (Part g) | 2026-08-11 |
+| REQ-309h | World and narrative surface prominence (Part h) | 2026-08-11 |
+| REQ-325a | Constraint override catalog (Part a) | 2026-08-11 |
+| REQ-325b | Constraint override catalog (Part b) | 2026-08-11 |
+| REQ-325c | Constraint override catalog (Part c) | 2026-08-11 |
+| REQ-326a | Scene-world coupling (Part a) | 2026-08-11 |
+| REQ-326b | Scene-world coupling (Part b) | 2026-08-11 |
+| REQ-326c | Scene-world coupling (Part c) | 2026-08-11 |
+| REQ-326d | Scene-world coupling (Part d) | 2026-08-11 |
+| REQ-327a | NPC-world coupling (Part a) | 2026-08-11 |
+| REQ-327b | NPC-world coupling (Part b) | 2026-08-11 |
+| REQ-327c | NPC-world coupling (Part c) | 2026-08-11 |
+| REQ-367a | Property propagation across containment (Part a) | 2026-08-11 |
+| REQ-367b | Property propagation across containment (Part b) | 2026-08-11 |
+| REQ-367c | Property propagation across containment (Part c) | 2026-08-11 |
+| REQ-368a | Countdown-world effect coupling (Part a) | 2026-08-11 |
+| REQ-368b | Countdown-world effect coupling (Part b) | 2026-08-11 |
+| REQ-368c | Countdown-world effect coupling (Part c) | 2026-08-11 |
+| REQ-368d | Countdown-world effect coupling (Part d) | 2026-08-11 |
+| REQ-368e | Countdown-world effect coupling (Part e) | 2026-08-11 |
+| REQ-218a | Ruleset-free build (Part a) | 2026-08-11 |
+| REQ-218b | Ruleset-free build (Part b) | 2026-08-11 |
+| REQ-218c | Ruleset-free build (Part c) | 2026-08-11 |
+| REQ-219a1 | Ruleset-free entity creation (Part a) (Part a1) | 2026-08-11 |
+| REQ-219a2 | Ruleset-free entity creation (Part a) (Part a2) | 2026-08-11 |
+| REQ-219b | Ruleset-free entity creation (Part b) | 2026-08-11 |
+| REQ-335a | Scene beat taxonomy (Part a) | 2026-08-11 |
+| REQ-335b | Scene beat taxonomy (Part b) | 2026-08-11 |
+| REQ-335c | Scene beat taxonomy (Part c) | 2026-08-11 |
+| REQ-353 | Beat-accelerated countdown advancement | 2026-08-11 |
+| REQ-336a | Dramatic pacing signal (Part a) | 2026-08-11 |
+| REQ-336b | Dramatic pacing signal (Part b) | 2026-08-11 |
+| REQ-351a | Pacing-triggered autonomy (Part a) | 2026-08-11 |
+| REQ-351b | Pacing-triggered autonomy (Part b) | 2026-08-11 |
+| REQ-351c | Pacing-triggered autonomy (Part c) | 2026-08-11 |
+| REQ-337a | Narrative arc visibility (Part a) | 2026-08-11 |
+| REQ-337b | Narrative arc visibility (Part b) | 2026-08-11 |
+| REQ-352a | Codex adventure beat sequences (Part a) | 2026-08-11 |
+| REQ-352b | Codex adventure beat sequences (Part b) | 2026-08-11 |
+| REQ-352c | Codex adventure beat sequences (Part c) | 2026-08-11 |
+| REQ-352d | Codex adventure beat sequences (Part d) | 2026-08-11 |
+| REQ-338a | Faction autonomous advancement (Part a) | 2026-08-11 |
+| REQ-338b | Faction autonomous advancement (Part b) | 2026-08-11 |
+| REQ-338c | Faction autonomous advancement (Part c) | 2026-08-11 |
+| REQ-339a | NPC goal pursuit (Part a) | 2026-08-11 |
+| REQ-339b | NPC goal pursuit (Part b) | 2026-08-11 |
+| REQ-339c | NPC goal pursuit (Part c) | 2026-08-11 |
+| REQ-348a | Faction-NPC goal coordination (Part a) | 2026-08-11 |
+| REQ-348b | Faction-NPC goal coordination (Part b) | 2026-08-11 |
+| REQ-348c | Faction-NPC goal coordination (Part c) | 2026-08-11 |
+| REQ-340a | Discovered consequences (Part a) | 2026-08-11 |
+| REQ-340b | Discovered consequences (Part b) | 2026-08-11 |
+| REQ-340c | Discovered consequences (Part c) | 2026-08-11 |
+| REQ-349a | Consequence-to-knowledge coupling (Part a) | 2026-08-11 |
+| REQ-349b | Consequence-to-knowledge coupling (Part b) | 2026-08-11 |
+| REQ-349c | Consequence-to-knowledge coupling (Part c) | 2026-08-11 |
+| REQ-341a | Player-facing spatial surface (Part a) | 2026-08-11 |
+| REQ-341b | Player-facing spatial surface (Part b) | 2026-08-11 |
+| REQ-341c | Player-facing spatial surface (Part c) | 2026-08-11 |
+| REQ-342a | Scene description from world-model state (Part a) | 2026-08-11 |
+| REQ-342b | Scene description from world-model state (Part b) | 2026-08-11 |
+| REQ-343a | Unified intent resolution (Part a) | 2026-08-11 |
+| REQ-343b | Unified intent resolution (Part b) | 2026-08-11 |
+| REQ-343c | Unified intent resolution (Part c) | 2026-08-11 |
+| REQ-343d | Unified intent resolution (Part d) | 2026-08-11 |
+| REQ-344a | Voice example feedback (Part a) | 2026-08-11 |
+| REQ-344b | Voice example feedback (Part b) | 2026-08-11 |
+| REQ-344c | Voice example feedback (Part c) | 2026-08-11 |
+| REQ-347a | Voice feedback codex capture (Part a) | 2026-08-11 |
+| REQ-347b | Voice feedback codex capture (Part b) | 2026-08-11 |
+| REQ-347c | Voice feedback codex capture (Part c) | 2026-08-11 |
+| REQ-345a | Background-derived knowledge (Part a) | 2026-08-11 |
+| REQ-345b | Background-derived knowledge (Part b) | 2026-08-11 |
+| REQ-345c | Background-derived knowledge (Part c) | 2026-08-11 |
+| REQ-350a | Background lore triggering (Part a) | 2026-08-11 |
+| REQ-350b | Background lore triggering (Part b) | 2026-08-11 |
+| REQ-350c | Background lore triggering (Part c) | 2026-08-11 |
+| REQ-355a | Secret-countdown coupling (Part a) | 2026-08-11 |
+| REQ-355b | Secret-countdown coupling (Part b) | 2026-08-11 |
+| REQ-356a | Vow-lore coupling (Part a) | 2026-08-11 |
+| REQ-356b | Vow-lore coupling (Part b) | 2026-08-11 |
+| REQ-357a | Story journal-faction coupling (Part a) | 2026-08-11 |
+| REQ-357b | Story journal-faction coupling (Part b) | 2026-08-11 |
+| REQ-358a | Countdown-NPC disposition coupling (Part a) | 2026-08-11 |
+| REQ-358b | Countdown-NPC disposition coupling (Part b) | 2026-08-11 |
+| REQ-359a | Relationship-countdown coupling (Part a) | 2026-08-11 |
+| REQ-359b | Relationship-countdown coupling (Part b) | 2026-08-11 |
+| REQ-360a | Lore-countdown coupling (Part a) | 2026-08-11 |
+| REQ-360b | Lore-countdown coupling (Part b) | 2026-08-11 |
+| REQ-361a | NPC-vow coupling (Part a) | 2026-08-11 |
+| REQ-361b | NPC-vow coupling (Part b) | 2026-08-11 |
+| REQ-362a | Faction-vow coupling (Part a) | 2026-08-11 |
+| REQ-362b | Faction-vow coupling (Part b) | 2026-08-11 |
+| REQ-363a | Secret-world coupling (Part a) | 2026-08-11 |
+| REQ-363b | Secret-world coupling (Part b) | 2026-08-11 |
+| REQ-364a | Faction-world coupling (Part a) | 2026-08-11 |
+| REQ-364b | Faction-world coupling (Part b) | 2026-08-11 |
+| REQ-365a | Server notes narrative coupling (Part a) | 2026-08-11 |
+| REQ-365b | Server notes narrative coupling (Part b) | 2026-08-11 |
+| REQ-365c | Server notes narrative coupling (Part c) | 2026-08-11 |
+| REQ-366a | Observer narrative surface (Part a) | 2026-08-11 |
+| REQ-366b | Observer narrative surface (Part b) | 2026-08-11 |
+| REQ-366c | Observer narrative surface (Part c) | 2026-08-11 |
+| REQ-366d | Observer narrative surface (Part d) | 2026-08-11 |
+| REQ-346a1 | Narrative coherence attestation (Part a) (Part a1) | 2026-08-11 |
+| REQ-346a2 | Narrative coherence attestation (Part a) (Part a2) | 2026-08-11 |
+| REQ-346b | Narrative coherence attestation (Part b) | 2026-08-11 |
+| REQ-369a | Holodeck archetype taxonomy (Part a) | 2026-08-11 |
+| REQ-369b | Holodeck archetype taxonomy (Part b) | 2026-08-11 |
+| REQ-370a | Coupling derivation (Part a) | 2026-08-11 |
+| REQ-370b | Coupling derivation (Part b) | 2026-08-11 |
+| REQ-371a | Ruleset Wisdom as rendered reality (Part a) | 2026-08-11 |
+| REQ-371b | Ruleset Wisdom as rendered reality (Part b) | 2026-08-11 |
+| REQ-374a | Archetype coverage (Part a) | 2026-08-11 |
+| REQ-374b | Archetype coverage (Part b) | 2026-08-11 |
+| REQ-375a | Wisdom mechanical coupling rate (Part a) | 2026-08-11 |
+| REQ-375b | Wisdom mechanical coupling rate (Part b) | 2026-08-11 |
+| REQ-376a1 | Holonovel Pattern Buffer traceability (Part a) (Part a1) | 2026-08-11 |
+| REQ-376a2 | Holonovel Pattern Buffer traceability (Part a) (Part a2) | 2026-08-11 |
+| REQ-376a3 | Holonovel Pattern Buffer traceability (Part a) (Part a3) | 2026-08-11 |
+| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
+| REQ-372a | Supplementary ruleset import (Part a) | 2026-08-11 |
+| REQ-372b | Supplementary ruleset import (Part b) | 2026-08-11 |
+| REQ-372c | Supplementary ruleset import (Part c) | 2026-08-11 |
+| REQ-372d | Supplementary ruleset import (Part d) | 2026-08-11 |
+| REQ-372e | Supplementary ruleset import (Part e) | 2026-08-11 |
+| REQ-373a1 | Dynamic tool registration (Part a) (Part a1) | 2026-08-11 |
+| REQ-373a2 | Dynamic tool registration (Part a) (Part a2) | 2026-08-11 |
+| REQ-373b | Dynamic tool registration (Part b) | 2026-08-11 |
+| REQ-377a | Mechanical coupling extraction (Part a) | 2026-08-11 |
+| REQ-377b | Mechanical coupling extraction (Part b) | 2026-08-11 |
+| REQ-377c | Mechanical coupling extraction (Part c) | 2026-08-11 |
+| REQ-377d | Mechanical coupling extraction (Part d) | 2026-08-11 |
+| REQ-378a | Mechanical coupling verification (Part a) | 2026-08-11 |
+| REQ-378b | Mechanical coupling verification (Part b) | 2026-08-11 |
+| REQ-379a | Tool namespacing (Part a) | 2026-08-11 |
+| REQ-379b | Tool namespacing (Part b) | 2026-08-11 |
+| REQ-379c | Tool namespacing (Part c) | 2026-08-11 |
+| REQ-380a | Novel ruleset binding (Part a) | 2026-08-11 |
+| REQ-380b | Novel ruleset binding (Part b) | 2026-08-11 |
+| REQ-380c | Novel ruleset binding (Part c) | 2026-08-11 |
+| REQ-381a | Ruleset-scoped tool gating (Part a) | 2026-08-11 |
+| REQ-381b | Ruleset-scoped tool gating (Part b) | 2026-08-11 |
+| REQ-381c | Ruleset-scoped tool gating (Part c) | 2026-08-11 |
+| REQ-382a | Per-ruleset extraction isolation (Part a) | 2026-08-11 |
+| REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-08-11 |
+| REQ-382c | Per-ruleset extraction isolation (Part c) | 2026-08-11 |
+| REQ-383a | Combined server health (Part a) | 2026-08-11 |
+| REQ-383b | Combined server health (Part b) | 2026-08-11 |
+| REQ-384a | Cross-ruleset Novel switching (Part a) | 2026-08-11 |
+| REQ-384b | Cross-ruleset Novel switching (Part b) | 2026-08-11 |
+| REQ-384c | Cross-ruleset Novel switching (Part c) | 2026-08-11 |
+| REQ-385a | suggest_actions cross-ruleset scoping (Part a) | 2026-08-11 |
+| REQ-385b | suggest_actions cross-ruleset scoping (Part b) | 2026-08-11 |
+| REQ-386a | Cross-ruleset import rejection (Part a) | 2026-08-11 |
+| REQ-386b | Cross-ruleset import rejection (Part b) | 2026-08-11 |
+| REQ-387a | Codex ruleset annotation (Part a) | 2026-08-11 |
+| REQ-387b | Codex ruleset annotation (Part b) | 2026-08-11 |
+| REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
+| REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
+| REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
+| REQ-141a | Input-validation convergence metric (Part a) | 2026-08-11 |
+| REQ-141b | Input-validation convergence metric (Part b) | 2026-08-11 |
+| REQ-141c | Input-validation convergence metric (Part c) | 2026-08-11 |
+| REQ-141d | Input-validation convergence metric (Part d) | 2026-08-11 |
+| REQ-141e | Input-validation convergence metric (Part e) | 2026-08-11 |
+| REQ-141f | Input-validation convergence metric (Part f) | 2026-08-11 |
+| REQ-141g | Input-validation convergence metric (Part g) | 2026-08-11 |
+| REQ-141h | Input-validation convergence metric (Part h) | 2026-08-11 |
+| REQ-141i | Input-validation convergence metric (Part i) | 2026-08-11 |
+| REQ-141j | Input-validation convergence metric (Part j) | 2026-08-11 |
+| REQ-142a | Blocking classification principle (Part a) | 2026-08-11 |
+| REQ-142b | Blocking classification principle (Part b) | 2026-08-11 |
+| REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
+| REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
+| REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
+| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
+| REQ-300 | Structured failure diagnostics | 2026-08-11 |
+| REQ-301 | Convergence loop audit trail | 2026-08-11 |
+| REQ-303 | Scoped re-verification | 2026-08-11 |
+| REQ-098 | Spec-driven update workflow | 2026-08-11 |
 
 ---
 

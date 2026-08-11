@@ -1174,119 +1174,50 @@ four items is incomplete and blocks handoff.
     text >20 chars — assert vow-creation suggestion in `narrative_threads` (P20).
     Call `forsake_vow` — assert coupled countdown removed. (Non-blocking.)
 
-**REQ-108 — Pattern Buffer traceability.** The builder must ensure at least one
-Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access),
-§5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), §5.8
-(Synthesis, Lore, and Macros), §5.10 (World-Model Layer), §5.12 (Narrative
-Architecture), §5.13 (Holodeck), and the error contracts of REQ-002 (Error
-taxonomy). The builder records a sub-workflow-to-REQ mapping in DECISIONS.md (6)
-— one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ
-in these sections changes during a spec-driven update (REQ-098), the builder
-re-examines every sub-workflow mapped to it. Gaps — a REQ in the covered sections
-with no mapped sub-workflow — are logged as process-compliance findings and must be
-resolved before handoff. New REQs added to the covered sections during a spec
-revision require the builder to propose at least one new Pattern Buffer sub-workflow
-exercising their contract; the proposal is a finding, not a blocker. _Check:_
-T107.
+**REQ-108a — Pattern Buffer traceability (Part a).**
+Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), §5.8 (Synthesis, Lore, and Macros), §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the error contracts of REQ-002 (Error taxonomy). The builder records a sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a spec-driven update (REQ-098), the builder re-examines every sub-workflow mapped to it.
 
-**REQ-141 — Input-validation convergence metric.** The convergence handshake
-in §6.6 must map Pattern Buffer failures to four convergence metrics, adding
-"input-validation gap" to the existing three (MUST-coverage gap,
-mechanics-fidelity defect, process-compliance omission). A sub-workflow
-failure attributable to incorrect input handling — malformed parameters
-accepted without error, valid inputs rejected, error categories
-misclassified, or corrective-action text missing — maps to the
-input-validation metric. The builder re-enters Phase 2 of the convergence
-loop (§6.5) for only the affected metric. A failure that maps to no metric
-is a novel defect class and re-enters Phase 2 with all four metrics in
-scope.
-An input-validation failure is recorded in DECISIONS.md (6) with the
-failing input value, the error category returned (or absent), and the
-expected error category per REQ-002.
-This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other
-sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
-taxonomy) through their input contracts. _Check:_ T163.
-A single S21 execution that exceeds 10 minutes of wall-clock time does not fail
-the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs
-exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
-**Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
-wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3
-minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but
-is recorded with actual duration in DECISIONS.md (6). Three consecutive
-runs of the same sub-workflow exceeding its budget trigger a scope
-re-evaluation recorded in DECISIONS.md (5).
-**Global budget.** The full Pattern Buffer run of all sub-workflows must complete
-within 60 minutes of wall-clock time. A run exceeding the budget is
-recorded with actual duration and per-sub-workflow timings in
-DECISIONS.md (6). The operator may increase the budget for rulesets
-exceeding 2,000 indexed items (REQ-100 Huge tier).
-**Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
-as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
-descriptions above are canonical; the structured encoding is a lossless transcription.
-The structured encoding SHALL be accompanied by a single runnable test harness
-(`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes
-each against the live MCP server. The harness SHALL: (a) start the server process,
-(b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion
-against tool-observable surfaces, (d) record pass/fail with failure artifacts per the
-Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record
-non-blocking failures per the Exit criteria. The harness enables operator re-execution
-of the full Pattern Buffer without AI builder reasoning — re-runs after synthesis, after
-spec-driven updates, or after code changes consume zero AI tokens. The harness output
-SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
-failure details when applicable. The harness is recorded as a handoff artifact
-(§9 H13a).
-**Convergence integration.** The convergence handshake (see Timing block above)
-governs the Pattern Buffer ↔ Phase 2 feedback loop.
-**Improvement** is measured per iteration: fewer total assertion failures, or at
-least one blocking sub-workflow downgraded to non-blocking. Two stalled iterations is
-a stop; residual failures are logged in DECISIONS.md (5).
-**Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence
-gets at least one new regression assertion recorded in DECISIONS.md (6).
-**Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit
-accumulated regression assertions for redundancy. Subsumed assertions are removed
-and logged in DECISIONS.md (6) with the subsuming citation.
-**Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking
-failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
-20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
-accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
-failures are recorded with severity classification and diagnostic trail.
-A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be
-declared handoff-ready without explicit operator acknowledgment. The count of
-unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
-a per-failure severity assessment. The operator may override this ceiling by
-recording an acceptance entry in DECISIONS.md (5). This rule applies at handoff
-verification time (§9 H13) — non-blocking failures accumulated and logged during
-the build process are re-counted at handoff.
+**REQ-108b — Pattern Buffer traceability (Part b).**
+Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before handoff. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T107.
+**REQ-141a — Input-validation convergence metric (Part a).**
+in §6.6 must map Pattern Buffer failures to four convergence metrics, adding "input-validation gap" to the existing three (MUST-coverage gap, mechanics-fidelity defect, process-compliance omission). A sub-workflow failure attributable to incorrect input handling — malformed parameters accepted without error, valid inputs rejected, error categories misclassified, or corrective-action text missing — maps to the input-validation metric. The builder re-enters Phase 2 of the convergence loop (§6.5) for only the affected metric.
 
-**REQ-142 — Blocking classification principle.** A Pattern Buffer sub-workflow is
-classified as blocking when it exercises a correctness property whose
-failure would make the server unsafe to use in any play session — state
-loss, badge-boundary violation, data corruption, unrecoverable crash, or
-undetectable incorrect results in core play mechanics. A sub-workflow is
-non-blocking when it tests a property whose failure degrades experience but
-does not make the server unsafe — graceful-degradation edge cases, cosmetic
-output issues, or features documented as deferred in DECISIONS.md (5).
-The blocking classification of every sub-workflow is recorded in
-DECISIONS.md (6) with the safety property it protects and the REQ(s) it
-derives that classification from. When a new sub-workflow is added, the
-builder classifies it against this principle and records the rationale.
-When a sub-workflow's classification changes, the builder records the
-trigger — a spec revision, a discovered defect class, or an operator
-override. _Check:_ T164.
+**REQ-141b — Input-validation convergence metric (Part b).**
+A failure that maps to no metric is a novel defect class and re-enters Phase 2 with all four metrics in scope. An input-validation failure is recorded in DECISIONS.md (6) with the failing input value, the error category returned (or absent), and the expected error category per REQ-002. This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error taxonomy) through their input contracts. _Check:_ T163.
 
-**REQ-208 — Pattern Buffer convergence metric mapping.** The builder SHALL
-classify each Pattern Buffer failure by applying these rules: a failure from a
-missing tool or resource maps to MUST-coverage; a failure from incorrect
-tool output or behavior maps to mechanics-fidelity; a failure from missing
-or stale pre-build answers or verification records maps to
-process-compliance; a failure from incorrect input handling maps to
-input-validation (REQ-141). When a failure matches multiple rules, the most
-specific rule applies. The classification rule applied SHALL be recorded
-alongside each mapping in DECISIONS.md (6). A Pattern Buffer failure that maps to
-no convergence metric under these rules is logged as a process-compliance
-finding — the builder records the novel defect class in DECISIONS.md (6)
-with a proposed metric mapping for future builds. _Check:_ T250.
+**REQ-141c — Input-validation convergence metric (Part c).**
+A single S21 execution that exceeds 10 minutes of wall-clock time does not fail the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5). **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3 minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but is recorded with actual duration in DECISIONS.md (6).
 
+**REQ-141d — Input-validation convergence metric (Part d).**
+Three consecutive runs of the same sub-workflow exceeding its budget trigger a scope re-evaluation recorded in DECISIONS.md (5). **Global budget.** The full Pattern Buffer run of all sub-workflows must complete within 60 minutes of wall-clock time. A run exceeding the budget is recorded with actual duration and per-sub-workflow timings in DECISIONS.md (6).
+
+**REQ-141e — Input-validation convergence metric (Part e).**
+The operator may increase the budget for rulesets exceeding 2,000 indexed items (REQ-100 Huge tier). **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose descriptions above are canonical; the structured encoding is a lossless transcription. The structured encoding SHALL be accompanied by a single runnable test harness (`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes each against the live MCP server.
+
+**REQ-141f — Input-validation convergence metric (Part f).**
+The harness SHALL: (a) start the server process, (b) execute each sub-workflow's steps sequentially, (c) assert each pass criterion against tool-observable surfaces, (d) record pass/fail with failure artifacts per the Failure artifacts contract, and (e) exit zero when all sub-workflows pass or record non-blocking failures per the Exit criteria. The harness enables operator re-execution of the full Pattern Buffer without AI builder reasoning — re-runs after synthesis, after spec-driven updates, or after code changes consume zero AI tokens.
+
+**REQ-141g — Input-validation convergence metric (Part g).**
+The harness output SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with failure details when applicable. The harness is recorded as a handoff artifact (§9 H13a). **Convergence integration.** The convergence handshake (see Timing block above) governs the Pattern Buffer ↔ Phase 2 feedback loop. **Improvement** is measured per iteration: fewer total assertion failures, or at least one blocking sub-workflow downgraded to non-blocking.
+
+**REQ-141h — Input-validation convergence metric (Part h).**
+Two stalled iterations is a stop; residual failures are logged in DECISIONS.md (5). **Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence gets at least one new regression assertion recorded in DECISIONS.md (6). **Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit accumulated regression assertions for redundancy. Subsumed assertions are removed and logged in DECISIONS.md (6) with the subsuming citation. **Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking failures are resolved.
+
+**REQ-141i — Input-validation convergence metric (Part i).**
+Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19, 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All failures are recorded with severity classification and diagnostic trail. A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be declared handoff-ready without explicit operator acknowledgment. The count of unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside a per-failure severity assessment.
+
+**REQ-141j — Input-validation convergence metric (Part j).**
+The operator may override this ceiling by recording an acceptance entry in DECISIONS.md (5). This rule applies at handoff verification time (§9 H13) — non-blocking failures accumulated and logged during the build process are re-counted at handoff.
+**REQ-142a — Blocking classification principle (Part a).**
+classified as blocking when it exercises a correctness property whose failure would make the server unsafe to use in any play session — state loss, badge-boundary violation, data corruption, unrecoverable crash, or undetectable incorrect results in core play mechanics. A sub-workflow is non-blocking when it tests a property whose failure degrades experience but does not make the server unsafe — graceful-degradation edge cases, cosmetic output issues, or features documented as deferred in DECISIONS.md (5).
+
+**REQ-142b — Blocking classification principle (Part b).**
+The blocking classification of every sub-workflow is recorded in DECISIONS.md (6) with the safety property it protects and the REQ(s) it derives that classification from. When a new sub-workflow is added, the builder classifies it against this principle and records the rationale. When a sub-workflow's classification changes, the builder records the trigger — a spec revision, a discovered defect class, or an operator override. _Check:_ T164.
+**REQ-208a — Pattern Buffer convergence metric mapping (Part a).**
+classify each Pattern Buffer failure by applying these rules: a failure from a missing tool or resource maps to MUST-coverage; a failure from incorrect tool output or behavior maps to mechanics-fidelity; a failure from missing or stale pre-build answers or verification records maps to process-compliance; a failure from incorrect input handling maps to input-validation (REQ-141). When a failure matches multiple rules, the most specific rule applies. The classification rule applied SHALL be recorded alongside each mapping in DECISIONS.md (6).
+
+**REQ-208b — Pattern Buffer convergence metric mapping (Part b).**
+A Pattern Buffer failure that maps to no convergence metric under these rules is logged as a process-compliance finding — the builder records the novel defect class in DECISIONS.md (6) with a proposed metric mapping for future builds. _Check:_ T250.
 ### Surface-to-scenario mapping
 
 During spec-driven updates (REQ-098), the builder
@@ -1719,20 +1650,11 @@ are selected for changed surfaces.
 | Parser command vocabulary                          | 17                        |
 | Narrative verbs                                    | 18                        |
 
-**REQ-376 — Holonovel Pattern Buffer traceability.** The builder must ensure at least
-one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model
-Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the world-model
-error contracts of REQ-367 (World-model
-property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in
-DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise
-it. When a REQ in these sections changes during a holonovel package version advance,
-the builder re-examines every sub-workflow mapped to it. Gaps — a REQ in the covered
-sections with no mapped sub-workflow — are logged as process-compliance findings and
-must be resolved before the holonovel package is published. New REQs added to the
-covered sections during a spec revision require the builder to propose at least one
-new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a
-finding, not a blocker. _Check:_ T-new-387.
+**REQ-376a — Holonovel Pattern Buffer traceability (Part a).**
+one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the world-model error contracts of REQ-367 (World-model property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a holonovel package version advance, the builder re-examines every sub-workflow mapped to it.
 
+**REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
+Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before the holonovel package is published. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T-new-387.
 ### Holonovel REQ Pattern Buffer coverage map
 
 The following table maps every

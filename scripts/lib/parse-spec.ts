@@ -13,15 +13,15 @@ export function readSpec(specPath?: string): string {
   return fs.readFileSync(target, "utf-8");
 }
 
-const REQ_HEADER_RE = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
+const REQ_HEADER_RE = /\*\*(REQ-\d{3}[a-z0-9]*\s+—\s+.+?)\.\*\*/g;
 
 function findReqBoundaries(text: string): { id: string; start: number; end: number }[] {
   const boundaries: { id: string; start: number; end: number }[] = [];
   let match: RegExpExecArray | null;
   while ((match = REQ_HEADER_RE.exec(text)) !== null) {
-    boundaries.push({ id: match[1].match(/^(REQ-\d{3}[a-z]?)/)![1], start: match.index + match[0].length, end: -1 });
+    boundaries.push({ id: match[1].match(/^(REQ-\d{3}[a-z0-9]*)/)![1], start: match.index + match[0].length, end: -1 });
   }
-  const terminatorRe = /\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/gm;
+  const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+/gm;
   for (let i = 0; i < boundaries.length; i++) {
     const slice = text.slice(boundaries[i].start);
     terminatorRe.lastIndex = 0;

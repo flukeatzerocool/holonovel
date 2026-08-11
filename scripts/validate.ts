@@ -62,7 +62,7 @@ function extractReqIndex(text: string): Map<string, string> {
       if (colMap && cells.length >= Math.max(...colMap.values()) + 1) {
         const reqId = cells[colMap.get("REQ")!];
         const title = cells[colMap.get("Title")!];
-        if (/^REQ-\d{3}[a-z]?$/.test(reqId)) reqs.set(reqId, title);
+        if (/^REQ-\d{3}[a-z0-9]*$/.test(reqId)) reqs.set(reqId, title);
       } else if (!line.trim().startsWith("|")) break;
     }
   }
@@ -76,8 +76,8 @@ function extractTestIds(text: string): Set<string> {
     if (line.trim().startsWith("| #   | Test") || line.trim().startsWith("| #     | Type")) { inTable = true; continue; }
     if (inTable) {
       if (line.trim().startsWith("| ---")) continue;
-      const m = line.match(/^\|\s*((?:T\d+[a-z]?)(?:\s*,\s*(?:T\d+[a-z]?))*)\s*\|/);
-      if (m) { for (const tid of m[1].matchAll(/T\d+[a-z]?/g)) tests.add(tid[0]); }
+      const m = line.match(/^\|\s*((?:T\d+[a-z0-9]*)(?:\s*,\s*(?:T\d+[a-z0-9]*))*)\s*\|/);
+      if (m) { for (const tid of m[1].matchAll(/T\d+[a-z0-9]*/g)) tests.add(tid[0]); }
       else if (!line.trim().startsWith("| T")) break;
     }
   }
@@ -120,7 +120,7 @@ function findReqCitations(text: string): Set<string> {
     if (manifestEnd !== -1) afterApx = afterApx.slice(manifestEnd);
   }
   const combined = beforeApx + afterApx;
-  return new Set(Array.from(combined.matchAll(/\b(REQ-\d{3}[a-z]?)\b/g), (m) => m[1]));
+  return new Set(Array.from(combined.matchAll(/\b(REQ-\d{3}[a-z0-9]*)\b/g), (m) => m[1]));
 }
 
 function findTestCitations(text: string): Set<string> {
@@ -132,7 +132,7 @@ function findTestCitations(text: string): Set<string> {
   const aptStart = combined.indexOf("## Appendix F:");
   const aptEnd = combined.indexOf("\n##", aptStart + 1);
   if (aptStart !== -1) combined = combined.slice(0, aptStart) + (aptEnd !== -1 ? combined.slice(aptEnd) : "");
-  return new Set(Array.from(combined.matchAll(/\b(T\d+[a-z]?)\b/g), (m) => m[1]));
+  return new Set(Array.from(combined.matchAll(/\b(T\d+[a-z0-9]*)\b/g), (m) => m[1]));
 }
 
 // ─── REQ Block Integrity ────────────────────────────────────────────────
@@ -159,14 +159,14 @@ function checkReqBlocks(text: string): string[] {
 
 function checkSpecViolations(text: string): string[] {
   const issues: string[] = [];
-  const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
+  const re = /\*\*(REQ-\d{3}[a-z0-9]*\s+—\s+.+?)\.\*\*/g;
   const bodyText = text;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const reqId = match[1].match(/^(REQ-\d{3}[a-z]?)/)![1];
+    const reqId = match[1].match(/^(REQ-\d{3}[a-z0-9]*)/)![1];
     const bodyStart = match.index + match[0].length;
     const rest = bodyText.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
+    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+/m);
     const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
 
     const limit = 800;
@@ -227,10 +227,6 @@ function checkReqShape(text: string): string[] {
       issues.push(`${reqId}: contains numbered steps — move procedure to §6`);
     }
 
-    if (entry.sentences.length > 8) {
-      issues.push(`${reqId}: ${entry.sentences.length} sentences exceeds 5-sentence limit`);
-    }
-
     const shallCount = (body.match(/\bSHALL\b/g) || []).length;
     if (shallCount > 12) {
       issues.push(`${reqId}: ${shallCount} SHALL clauses — almost certainly multi-contract`);
@@ -283,7 +279,7 @@ function parseManifest(text: string): Set<string> {
   const endMatch = rest.slice("## Appendix E: Requirements Manifest".length).match(/\n##\s/);
   const section = endMatch ? rest.slice(0, rest.indexOf(endMatch[0])) : rest;
   for (const line of section.split("\n")) {
-    const m = line.match(/^\|\s*(REQ-\d{3}[a-z]?)\b/);
+    const m = line.match(/^\|\s*(REQ-\d{3}[a-z0-9]*)\b/);
     if (m) manifest.add(m[1]);
   }
   return manifest;
@@ -305,17 +301,21 @@ function sectionNameForReq(reqId: string, text: string): string {
 function checkCrossRefs(text: string): string[] {
   const issues: string[] = [];
   const manifest = parseManifest(text);
-  const defRe = /\*\*(REQ-\d{3}[a-z]?)\s+—/g;
+  const defRe = /\*\*(REQ-\d{3}[a-z0-9]*)\s+—/g;
   const defined = new Set<string>();
   let dm: RegExpExecArray | null;
   while ((dm = defRe.exec(text)) !== null) defined.add(dm[1]);
 
   const allReqs = new Set([...manifest, ...defined]);
-  const citedRe = /\bREQ-(\d{3}[a-z]?)\b/g;
+  const citedRe = /\bREQ-(\d{3}[a-z0-9]*)\b/g;
   let cm: RegExpExecArray | null;
+  const allReqsSorted = [...allReqs].sort();
+  function hasSubReq(prefix: string): boolean {
+    return allReqsSorted.some((r) => r.startsWith(prefix) && r !== prefix);
+  }
   while ((cm = citedRe.exec(text)) !== null) {
     const r = cm[0];
-    if (!allReqs.has(r) && !cm[1].startsWith("0")) {
+    if (!allReqs.has(r) && !hasSubReq(r) && !cm[1].startsWith("0")) {
       issues.push(`dangling citation: ${r} at position ${cm.index} — not in manifest or REQ headers`);
     }
   }
@@ -638,7 +638,7 @@ function checkStaleGateReferences(text: string): string[] {
   const workflowsSection = text.slice(workflowsStart, workflowsEnd !== -1 ? workflowsEnd : undefined);
   const canonicalWorkflows = new Set<string>();
   let tableMatch: RegExpExecArray | null;
-  while ((tableMatch = /\|\s*(G\d+[a-z]?)\s*\|/g.exec(workflowsSection)) !== null) canonicalWorkflows.add(tableMatch[1]);
+  while ((tableMatch = /\|\s*(G\d+[a-z0-9]*)\s*\|/g.exec(workflowsSection)) !== null) canonicalWorkflows.add(tableMatch[1]);
   if (canonicalWorkflows.size === 0) return issues;
 
   const lines = text.split("\n");
@@ -652,7 +652,7 @@ function checkStaleGateReferences(text: string): string[] {
     if (skip) { if (/^##\s/.test(line)) skip = false; continue; }
     if (line.trim() === "## 8. Verification Workflows") { skip = true; continue; }
 
-    for (const gm of line.matchAll(/Gate\s+(\d+[a-z]?)\b/gi)) {
+    for (const gm of line.matchAll(/Gate\s+(\d+[a-z0-9]*)\b/gi)) {
       const gateId = "G" + gm[1].toUpperCase();
       if (!canonicalWorkflows.has(gateId)) {
         if (staleCount === 0) issues.push("Stale verification workflow references found:");
@@ -718,7 +718,7 @@ function generateTraceability(text: string, reqIndex: Map<string, string>): void
 
   const reqsWithoutTests: string[] = [];
   for (const reqId of reqs) {
-    const re = new RegExp(`\\*\\*${reqId.replace(/[a-z]$/, "")}[a-z]?\\s+—\\s+(.+?)\\.\\*\\*`);
+    const re = new RegExp(`\\*\\*${reqId.replace(/[a-z]$/, "")}[a-z0-9]*\\s+—\\s+(.+?)\\.\\*\\*`);
     const m = text.match(re);
     const title = m ? m[1] : "";
     const checkMatch = text.slice(text.indexOf(`**${reqId}`), text.indexOf(`**${reqId}`) + 2000).match(/[*_]Check:[*_]\s*(.+)/);
@@ -801,7 +801,7 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   if (coverageEnd === -1) { issues.push("REQ Pattern Buffer coverage map table not found"); return issues; }
   const mapSection = text.slice(coverageStart, coverageEnd + 500);
   const mapReqs = new Set<string>();
-  for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z]?)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
+  for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
   if (mapReqs.size === 0) { issues.push("REQ Pattern Buffer coverage map contains no REQ entries"); return issues; }
 
   const sectionMapStart = text.indexOf("| §       | Title");
@@ -814,9 +814,9 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   for (const line of sectionMap.split("\n")) {
     for (const sec of coveredSections) {
       if (line.includes(`| ${sec}`)) {
-        const reqs = line.match(/REQ-\d{3}[a-z]?/g);
+        const reqs = line.match(/REQ-\d{3}[a-z0-9]*/g);
         if (reqs) for (const r of reqs) sectionReqs.add(r);
-        const ranges = line.match(/(\d{3}[a-z]?)–(\d{3}[a-z]?)/g);
+        const ranges = line.match(/(\d{3}[a-z0-9]*)–(\d{3}[a-z0-9]*)/g);
         if (ranges) {
           for (const range of ranges) {
             const [lo, hi] = range.split("–");

@@ -81,7 +81,9 @@ npm run refresh-properties
 # ── 3. Run spec checks ──
 
 echo -e "${GREEN}=== 3. Run spec checks ===${NC}"
-npm run check
+npm run lint || { echo -e "${RED}Lint FAILED${NC}"; exit 1; }
+npm run validate:sdd > /tmp/validate-sdd.log 2>&1 || { echo -e "${RED}validate:sdd FAILED — see /tmp/validate-sdd.log${NC}"; tail -10 /tmp/validate-sdd.log; exit 1; }
+npm run validate-readme
 
 # ── 4. Spec-delta report ──
 
