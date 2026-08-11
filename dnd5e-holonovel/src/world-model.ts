@@ -87,70 +87,32 @@ export function createEmptyWorldModel(): WorldModel {
 }
 
 export const BASE_PARSER_COMMANDS = [
-  // Core tier
-  { verb: "look", category: "navigation", tier: "core", args: [] },
-  { verb: "go", category: "navigation", tier: "core", args: ["direction"] },
-  { verb: "north", category: "navigation", tier: "core", args: [] },
-  { verb: "south", category: "navigation", tier: "core", args: [] },
-  { verb: "east", category: "navigation", tier: "core", args: [] },
-  { verb: "west", category: "navigation", tier: "core", args: [] },
-  { verb: "northeast", category: "navigation", tier: "core", args: [] },
-  { verb: "northwest", category: "navigation", tier: "core", args: [] },
-  { verb: "southeast", category: "navigation", tier: "core", args: [] },
-  { verb: "southwest", category: "navigation", tier: "core", args: [] },
-  { verb: "up", category: "navigation", tier: "core", args: [] },
-  { verb: "down", category: "navigation", tier: "core", args: [] },
-  { verb: "in", category: "navigation", tier: "core", args: [] },
-  { verb: "out", category: "navigation", tier: "core", args: [] },
-  { verb: "take", category: "object_interaction", tier: "core", args: ["thing"] },
-  { verb: "drop", category: "object_interaction", tier: "core", args: ["thing"] },
-  { verb: "inventory", category: "inventory", tier: "core", args: [] },
-  { verb: "i", category: "inventory", tier: "core", args: [] },
-  { verb: "examine", category: "inspection", tier: "core", args: ["thing"] },
-  { verb: "wait", category: "wait", tier: "core", args: [] },
-  // Standard tier
-  { verb: "open", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "close", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "unlock", category: "object_interaction", tier: "standard", args: ["thing", "key"] },
-  { verb: "lock", category: "object_interaction", tier: "standard", args: ["thing", "key"] },
-  { verb: "put", category: "object_interaction", tier: "standard", args: ["thing", "target"] },
-  { verb: "insert", category: "object_interaction", tier: "standard", args: ["thing", "target"] },
-  { verb: "search", category: "inspection", tier: "standard", args: ["thing"] },
-  { verb: "wear", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "remove", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "read", category: "inspection", tier: "standard", args: ["thing"] },
-  { verb: "eat", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "drink", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "climb", category: "navigation", tier: "standard", args: ["thing"] },
-  { verb: "enter", category: "navigation", tier: "standard", args: ["thing"] },
-  { verb: "exit", category: "navigation", tier: "standard", args: [] },
-  { verb: "get out", category: "navigation", tier: "standard", args: [] },
-  { verb: "switch on", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "switch off", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "push", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "pull", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "sit", category: "navigation", tier: "standard", args: ["thing"] },
-  { verb: "stand", category: "navigation", tier: "standard", args: [] },
-  { verb: "light", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "extinguish", category: "object_interaction", tier: "standard", args: ["thing"] },
-  { verb: "listen", category: "inspection", tier: "standard", args: [] },
-  { verb: "smell", category: "inspection", tier: "standard", args: [] },
-  { verb: "touch", category: "inspection", tier: "standard", args: ["thing"] },
-  // Narrative tier (REQ-320)
-  { verb: "ask", category: "narrative", tier: "standard", args: ["npc", "topic"] },
-  { verb: "tell", category: "narrative", tier: "standard", args: ["npc", "topic"] },
-  { verb: "give", category: "narrative", tier: "standard", args: ["thing", "npc"] },
-  { verb: "show", category: "narrative", tier: "standard", args: ["thing", "npc"] },
-  { verb: "throw", category: "narrative", tier: "standard", args: ["thing", "target"] },
-  // Meta tier
-  { verb: "again", category: "meta", tier: "core", args: [] },
-  { verb: "g", category: "meta", tier: "core", args: [] },
-  { verb: "help", category: "wait", tier: "core", args: [] },
-  { verb: "commands", category: "wait", tier: "core", args: [] },
-  { verb: "verbs", category: "wait", tier: "core", args: [] },
-  { verb: "brief", category: "wait", tier: "core", args: [] },
-  { verb: "verbose", category: "wait", tier: "core", args: [] },
-  { verb: "normal", category: "wait", tier: "core", args: [] },
+  { verb: "look", category: "navigation", args: [] },
+  { verb: "go", category: "navigation", args: ["direction"] },
+  { verb: "north", category: "navigation", args: [] },
+  { verb: "south", category: "navigation", args: [] },
+  { verb: "east", category: "navigation", args: [] },
+  { verb: "west", category: "navigation", args: [] },
+  { verb: "northeast", category: "navigation", args: [] },
+  { verb: "northwest", category: "navigation", args: [] },
+  { verb: "southeast", category: "navigation", args: [] },
+  { verb: "southwest", category: "navigation", args: [] },
+  { verb: "up", category: "navigation", args: [] },
+  { verb: "down", category: "navigation", args: [] },
+  { verb: "in", category: "navigation", args: [] },
+  { verb: "out", category: "navigation", args: [] },
+  { verb: "take", category: "object_interaction", args: ["thing"] },
+  { verb: "drop", category: "object_interaction", args: ["thing"] },
+  { verb: "inventory", category: "inventory", args: [] },
+  { verb: "i", category: "inventory", args: [] },
+  { verb: "open", category: "object_interaction", args: ["thing"] },
+  { verb: "close", category: "object_interaction", args: ["thing"] },
+  { verb: "unlock", category: "object_interaction", args: ["thing", "key"] },
+  { verb: "lock", category: "object_interaction", args: ["thing", "key"] },
+  { verb: "put", category: "object_interaction", args: ["thing", "target"] },
+  { verb: "search", category: "inspection", args: ["thing"] },
+  { verb: "examine", category: "inspection", args: ["thing"] },
+  { verb: "wait", category: "wait", args: [] },
 ];
 
 export function resolveThingName(input: string, thingsInRoom: WorldThing[], inventory: string[]): WorldThing[] {
@@ -289,12 +251,6 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       room.exits.set(dir as Direction, targetName);
       // Implicit reverse exit
       target.exits.set(oppositeDirection(dir as Direction), roomName);
-      // Associate climbable thing in source room with this exit direction
-      for (const [, thing] of world.things) {
-        if (thing.climbable && thing.location?.toLowerCase() === roomName.toLowerCase() && !room.doorRefs.has(dir as Direction)) {
-          room.doorRefs.set(dir as Direction, thing.name);
-        }
-      }
       currentRoom = null;
       currentThing = null;
       continue;
@@ -428,37 +384,20 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       continue;
     }
 
-    // Property declaration:
-
-    // Read text: "The inscription on the <name> reads '<text>'."
-    const readMatch = text.match(/^The inscription on the (.+?) reads ['"](.+)['"]\.\s*$/i);
-    if (readMatch) {
-      const name = readMatch[1].trim();
-      const readText = readMatch[2];
-      const thing = world.things.get(name.toLowerCase());
-      if (thing) {
-        thing.readable = true;
-        thing.read_text = readText;
-      } else {
-        warnings.push({ line: lnum, pattern: text, message: `Thing '${name}' not found for read_text declaration.` });
-      }
-      continue;
-    }
-
     // Property declaration: "<Name> is <property>." or "It is <property> and <property>."
-    const propMatch = text.match(/^It is (fixed|portable|openable|open|close|closed|lockable|locked|lit|dark|switchable|switched on|switched off|wearable|readable|edible|drinkable|enterable|climbable|transparent)(?: and (fixed|portable|locked|open|closed|switchable|switched on|wearable|readable|edible|drinkable|enterable|climbable|transparent))?\.\s*$/i) ||
-                      text.match(/^(.+?) is (fixed|portable|openable|open|lockable|locked|lit|dark|switchable|switched on|switched off|wearable|readable|edible|drinkable|enterable|climbable|transparent)\.\s*$/i);
+    const propMatch = text.match(/^It is (fixed|portable|openable|open|close|closed|lockable|locked|lit|dark)(?: and (fixed|portable|locked|open|closed))?\.\s*$/i) ||
+                      text.match(/^(.+?) is (fixed|portable|openable|open|lockable|locked|lit|dark)\.\s*$/i);
 
     if (propMatch) {
       let targetName = currentThing;
       let props: string[] = [];
 
-      if (propMatch[1] && propMatch[1].match(/^(fixed|portable|openable|open|lockable|locked|lit|dark|close|closed|switchable|switched on|switched off|wearable|readable|edible|drinkable|enterable|climbable|transparent)$/i)) {
+      if (propMatch[1] && propMatch[1].match(/^(fixed|portable|openable|open|lockable|locked|lit|dark|close|closed)$/i)) {
         // "It is ..." form
-        props = [propMatch[1], propMatch[2]].filter(Boolean).map(s => s!.toLowerCase().replace(/close$/, "closed").replace(/\s+/g, "_"));
+        props = [propMatch[1], propMatch[2]].filter(Boolean).map(s => s!.toLowerCase().replace(/close$/, "closed"));
       } else if (propMatch[1]) {
         targetName = propMatch[1].trim();
-        props = [propMatch[2]].filter(Boolean).map(s => s!.toLowerCase().replace(/\s+/g, "_"));
+        props = [propMatch[2]].filter(Boolean).map(s => s!.toLowerCase());
       }
 
       if (!targetName) {
@@ -484,16 +423,6 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           case "unlocked": thing.locked = false; break;
           case "lit": thing.lit = true; break;
           case "dark": thing.lit = false; break;
-          case "switchable": thing.switchable = true; break;
-          case "switched_on": thing.switched_on = true; break;
-          case "switched_off": thing.switched_on = false; break;
-          case "wearable": thing.wearable = true; break;
-          case "readable": thing.readable = true; break;
-          case "edible": thing.edible = true; break;
-          case "drinkable": thing.drinkable = true; break;
-          case "enterable": thing.enterable = true; break;
-          case "climbable": thing.climbable = true; break;
-          case "transparent": thing.transparent = true; break;
           default:
             warnings.push({ line: lnum, pattern: text, message: `Unknown property '${prop}'.` });
         }
@@ -550,15 +479,8 @@ export function worldKinds(): string {
   }
 
   lines.push("\n## Parser Commands");
-  const tiers = ["core", "standard"];
-  for (const tier of tiers) {
-    const tierCmds = BASE_PARSER_COMMANDS.filter(c => c.tier === tier);
-    if (tierCmds.length > 0) {
-      lines.push(`\n### ${tier.charAt(0).toUpperCase() + tier.slice(1)} Tier`);
-      for (const cmd of tierCmds) {
-        lines.push(`- \`${cmd.verb}\` [${cmd.category}]`);
-      }
-    }
+  for (const cmd of BASE_PARSER_COMMANDS) {
+    lines.push(`- \`${cmd.verb}\` [${cmd.category}]`);
   }
 
   return lines.join("\n");
