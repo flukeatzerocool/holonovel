@@ -147,7 +147,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-147a | Confidence aggregation (Part a) | 2026-08-11 |
 | REQ-147b | Confidence aggregation (Part b) | 2026-08-11 |
 | REQ-153 | AGENTS.md troubleshooting | 2026-08-11 |
-| REQ-154 | README.md handoff content | 2026-08-11 |
+| REQ-154a | README.md handoff content (Part a) | 2026-08-11 |
+| REQ-154b | README.md handoff content (Part b) | 2026-08-11 |
 | REQ-270 | Artifact version identification | 2026-08-11 |
 | REQ-271 | AGENTS.md structure contract | 2026-08-11 |
 | REQ-099 | Confidence-floor acknowledgment | 2026-08-11 |
@@ -191,7 +192,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-020a | Tools (Part a) | 2026-08-11 |
 | REQ-020b | Tools (Part b) | 2026-08-11 |
 | REQ-021 | Tool-surface economy | 2026-08-11 |
-| REQ-022 | Resources | 2026-08-11 |
+| REQ-022a | Resources (Part a) | 2026-08-11 |
+| REQ-022b | Resources (Part b) | 2026-08-11 |
 | REQ-296a | Knowledge-graph resource (Part a) | 2026-08-11 |
 | REQ-296b | Knowledge-graph resource (Part b) | 2026-08-11 |
 | REQ-023a | Prompts (Part a) | 2026-08-11 |
@@ -199,7 +201,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-024a | Tool documentation (Part a) | 2026-08-11 |
 | REQ-024b | Tool documentation (Part b) | 2026-08-11 |
 | REQ-025a | spec_health (Part a) | 2026-08-11 |
-| REQ-025b | spec_health (Part b) | 2026-08-11 |
+| REQ-025b1 | spec_health (Part b1) | 2026-08-11 |
+| REQ-025b2 | spec_health (Part b2) | 2026-08-11 |
 | REQ-025c | spec_health (Part c) | 2026-08-11 |
 | REQ-160a | Synthesis health reporting (Part a) | 2026-08-11 |
 | REQ-160b | Synthesis health reporting (Part b) | 2026-08-11 |
@@ -239,7 +242,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-063c | Connection introduction (Part c) | 2026-08-11 |
 | REQ-078a | Session zero prompt (Part a) | 2026-08-11 |
 | REQ-078b | Session zero prompt (Part b) | 2026-08-11 |
-| REQ-078c | Session zero prompt (Part c) | 2026-08-11 |
+| REQ-078c1 | Session zero prompt (Part c1) | 2026-08-11 |
+| REQ-078c2 | Session zero prompt (Part c2) | 2026-08-11 |
+| REQ-078c3 | Session zero prompt (Part c3) | 2026-08-11 |
+| REQ-078c4 | Session zero prompt (Part c4) | 2026-08-11 |
 | REQ-078d | Session zero prompt (Part d) | 2026-08-11 |
 | REQ-057a | Canonical lookup tools (Part a) | 2026-08-11 |
 | REQ-057b | Canonical lookup tools (Part b) | 2026-08-11 |
@@ -314,7 +320,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-306e | Adjustable autonomy (Part e) | 2026-08-11 |
 | REQ-109a | Badge briefing composition (Part a) | 2026-08-11 |
 | REQ-109b | Badge briefing composition (Part b) | 2026-08-11 |
-| REQ-109c | Badge briefing composition (Part c) | 2026-08-11 |
+| REQ-109c1 | Badge briefing composition (Part c1) | 2026-08-11 |
+| REQ-109c2 | Badge briefing composition (Part c2) | 2026-08-11 |
+| REQ-109c3 | Badge briefing composition (Part c3) | 2026-08-11 |
 | REQ-109d | Badge briefing composition (Part d) | 2026-08-11 |
 | REQ-109e | Badge briefing composition (Part e) | 2026-08-11 |
 | REQ-109f | Badge briefing composition (Part f) | 2026-08-11 |
@@ -378,9 +386,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-217b | Condition tools (Part b) | 2026-08-11 |
 | REQ-217c | Condition tools (Part c) | 2026-08-11 |
 | REQ-217d | Condition tools (Part d) | 2026-08-11 |
-| REQ-072a | Session recap (Part a) | 2026-08-11 |
+| REQ-072a1 | Session recap (Part a1) | 2026-08-11 |
+| REQ-072a2 | Session recap (Part a2) | 2026-08-11 |
 | REQ-072b | Session recap (Part b) | 2026-08-11 |
-| REQ-072c | Session recap (Part c) | 2026-08-11 |
+| REQ-072c1 | Session recap (Part c1) | 2026-08-11 |
+| REQ-072c2 | Session recap (Part c2) | 2026-08-11 |
 | REQ-072d | Session recap (Part d) | 2026-08-11 |
 | REQ-072e | Session recap (Part e) | 2026-08-11 |
 | REQ-072f | Session recap (Part f) | 2026-08-11 |
@@ -490,7 +500,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-173b | Connection counter (Part b) | 2026-08-11 |
 | REQ-173c | Connection counter (Part c) | 2026-08-11 |
 | REQ-129a | Property group cardinality (Part a) | 2026-08-11 |
-| REQ-129b | Property group cardinality (Part b) | 2026-08-11 |
+| REQ-129b1 | Property group cardinality (Part b1) | 2026-08-11 |
+| REQ-129b2 | Property group cardinality (Part b2) | 2026-08-11 |
 | REQ-129c | Property group cardinality (Part c) | 2026-08-11 |
 | REQ-129d | Property group cardinality (Part d) | 2026-08-11 |
 | REQ-079a | Adventure modules (Part a) | 2026-08-11 |
@@ -502,7 +513,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-079g | Adventure modules (Part g) | 2026-08-11 |
 | REQ-079h | Adventure modules (Part h) | 2026-08-11 |
 | REQ-079i | Adventure modules (Part i) | 2026-08-11 |
-| REQ-079j | Adventure modules (Part j) | 2026-08-11 |
+| REQ-079j1 | Adventure modules (Part j1) | 2026-08-11 |
+| REQ-079j2 | Adventure modules (Part j2) | 2026-08-11 |
 | REQ-292a | Adventure catalog (Part a) | 2026-08-11 |
 | REQ-292b | Adventure catalog (Part b) | 2026-08-11 |
 | REQ-292c | Adventure catalog (Part c) | 2026-08-11 |
@@ -516,7 +528,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-171b | Adventure content validation (Part b) | 2026-08-11 |
 | REQ-172 | Adventure content drift detection | 2026-08-11 |
 | REQ-247a | Adventure structure extraction (Part a) | 2026-08-11 |
-| REQ-247b | Adventure structure extraction (Part b) | 2026-08-11 |
+| REQ-247b1 | Adventure structure extraction (Part b1) | 2026-08-11 |
+| REQ-247b2 | Adventure structure extraction (Part b2) | 2026-08-11 |
 | REQ-247c | Adventure structure extraction (Part c) | 2026-08-11 |
 | REQ-248a | Adventure overview resource (Part a) | 2026-08-11 |
 | REQ-248b | Adventure overview resource (Part b) | 2026-08-11 |
@@ -561,7 +574,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-236b | Entity relationships (Part b) | 2026-08-11 |
 | REQ-236c | Entity relationships (Part c) | 2026-08-11 |
 | REQ-237a | Session segmentation (Part a) | 2026-08-11 |
-| REQ-237b | Session segmentation (Part b) | 2026-08-11 |
+| REQ-237b1 | Session segmentation (Part b1) | 2026-08-11 |
+| REQ-237b2 | Session segmentation (Part b2) | 2026-08-11 |
 | REQ-073a1 | Clock types (Part a) (Part a1) | 2026-08-11 |
 | REQ-073a2 | Clock types (Part a) (Part a2) | 2026-08-11 |
 | REQ-073b1 | Clock types (Part b) (Part b1) | 2026-08-11 |
@@ -592,7 +606,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-321j | Codex (Part j) | 2026-08-11 |
 | REQ-321k | Codex (Part k) | 2026-08-11 |
 | REQ-321l | Codex (Part l) | 2026-08-11 |
-| REQ-321m | Codex (Part m) | 2026-08-11 |
+| REQ-321m1 | Codex (Part m1) | 2026-08-11 |
+| REQ-321m2 | Codex (Part m2) | 2026-08-11 |
+| REQ-321m3 | Codex (Part m3) | 2026-08-11 |
+| REQ-321m4 | Codex (Part m4) | 2026-08-11 |
 | REQ-332a | Codex provenance (Part a) | 2026-08-11 |
 | REQ-332b | Codex provenance (Part b) | 2026-08-11 |
 | REQ-332c | Codex provenance (Part c) | 2026-08-11 |
@@ -654,7 +671,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-080d | Synthesis boundaries (Part d) | 2026-08-11 |
 | REQ-080e | Synthesis boundaries (Part e) | 2026-08-11 |
 | REQ-080f | Synthesis boundaries (Part f) | 2026-08-11 |
-| REQ-080g | Synthesis boundaries (Part g) | 2026-08-11 |
+| REQ-080g1 | Synthesis boundaries (Part g1) | 2026-08-11 |
+| REQ-080g2 | Synthesis boundaries (Part g2) | 2026-08-11 |
 | REQ-081a | Narrative directive (Part a) | 2026-08-11 |
 | REQ-081b | Narrative directive (Part b) | 2026-08-11 |
 | REQ-081c | Narrative directive (Part c) | 2026-08-11 |
@@ -766,7 +784,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-088e | Novel lifecycle (Part e) | 2026-08-11 |
 | REQ-088f | Novel lifecycle (Part f) | 2026-08-11 |
 | REQ-088g | Novel lifecycle (Part g) | 2026-08-11 |
-| REQ-088h | Novel lifecycle (Part h) | 2026-08-11 |
+| REQ-088h1 | Novel lifecycle (Part h1) | 2026-08-11 |
+| REQ-088h2 | Novel lifecycle (Part h2) | 2026-08-11 |
 | REQ-117 | Novel retention period | 2026-08-11 |
 | REQ-095a | Novel switching (Part a) | 2026-08-11 |
 | REQ-095b | Novel switching (Part b) | 2026-08-11 |
@@ -799,7 +818,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-092e | Novel persistence (Part e) | 2026-08-11 |
 | REQ-092f | Novel persistence (Part f) | 2026-08-11 |
 | REQ-092g | Novel persistence (Part g) | 2026-08-11 |
-| REQ-092h | Novel persistence (Part h) | 2026-08-11 |
+| REQ-092h1 | Novel persistence (Part h1) | 2026-08-11 |
+| REQ-092h2 | Novel persistence (Part h2) | 2026-08-11 |
 | REQ-093a | Novel listing and metadata (Part a) | 2026-08-11 |
 | REQ-093b | Novel listing and metadata (Part b) | 2026-08-11 |
 | REQ-093c | Novel listing and metadata (Part c) | 2026-08-11 |
@@ -809,13 +829,16 @@ date-stamps matching CHANGELOG entries.
 | REQ-096a | Novel interchange (Part a) | 2026-08-11 |
 | REQ-096b | Novel interchange (Part b) | 2026-08-11 |
 | REQ-096c | Novel interchange (Part c) | 2026-08-11 |
-| REQ-096d | Novel interchange (Part d) | 2026-08-11 |
+| REQ-096d1 | Novel interchange (Part d1) | 2026-08-11 |
+| REQ-096d2 | Novel interchange (Part d2) | 2026-08-11 |
 | REQ-096e | Novel interchange (Part e) | 2026-08-11 |
 | REQ-096f | Novel interchange (Part f) | 2026-08-11 |
 | REQ-096g | Novel interchange (Part g) | 2026-08-11 |
 | REQ-096h | Novel interchange (Part h) | 2026-08-11 |
-| REQ-096i | Novel interchange (Part i) | 2026-08-11 |
-| REQ-097a | Novel health (Part a) | 2026-08-11 |
+| REQ-096i1 | Novel interchange (Part i1) | 2026-08-11 |
+| REQ-096i2 | Novel interchange (Part i2) | 2026-08-11 |
+| REQ-097a1 | Novel health (Part a1) | 2026-08-11 |
+| REQ-097a2 | Novel health (Part a2) | 2026-08-11 |
 | REQ-097b | Novel health (Part b) | 2026-08-11 |
 | REQ-097c | Novel health (Part c) | 2026-08-11 |
 | REQ-131a | Novel initialization order (Part a) | 2026-08-11 |
@@ -852,7 +875,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-317b | Vehicle kind (Part b) | 2026-08-11 |
 | REQ-317c | Vehicle kind (Part c) | 2026-08-11 |
 | REQ-317d | Vehicle kind (Part d) | 2026-08-11 |
-| REQ-318 | Extended property contracts | 2026-08-11 |
+| REQ-318a | Extended property contracts (Part a) | 2026-08-11 |
+| REQ-318b | Extended property contracts (Part b) | 2026-08-11 |
 | REQ-319a | Extended parser command vocabulary (Part a) | 2026-08-11 |
 | REQ-319b | Extended parser command vocabulary (Part b) | 2026-08-11 |
 | REQ-319c | Extended parser command vocabulary (Part c) | 2026-08-11 |
@@ -892,7 +916,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-327b | NPC-world coupling (Part b) | 2026-08-11 |
 | REQ-327c | NPC-world coupling (Part c) | 2026-08-11 |
 | REQ-367a | Property propagation across containment (Part a) | 2026-08-11 |
-| REQ-367b | Property propagation across containment (Part b) | 2026-08-11 |
+| REQ-367b1 | Property propagation across containment (Part b1) | 2026-08-11 |
+| REQ-367b2 | Property propagation across containment (Part b2) | 2026-08-11 |
 | REQ-367c | Property propagation across containment (Part c) | 2026-08-11 |
 | REQ-368a | Countdown-world effect coupling (Part a) | 2026-08-11 |
 | REQ-368b | Countdown-world effect coupling (Part b) | 2026-08-11 |

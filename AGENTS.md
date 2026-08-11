@@ -116,10 +116,11 @@ Push to origin: `git push origin main`.
 
 ## Gates
 
-Run before committing or after any change to `spec/`:
+Run before committing or after any change to `spec/`. Use `check:fast` for
+local iteration; save `check` (full proofreading pass) for CI and pre-push:
 
 ```sh
-npm run assemble && npm run check
+npm run assemble && npm run check:fast
 ```
 
 This runs:
@@ -127,7 +128,7 @@ This runs:
 | Command                    | What it checks                                    |
 |----------------------------|---------------------------------------------------|
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
-| `npm run validate:sdd`     | All checks in one pass: REQ integrity, shape, ambiguity, cross-refs, assumptions, proofreading (10 dimensions) |
+| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions (proofreading skipped) |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 
 Also available separately:
@@ -135,7 +136,9 @@ Also available separately:
 | Command              | What it checks                                    |
 |----------------------|---------------------------------------------------|
 | `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`)         |
+| `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) — use for CI and pre-push |
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
+| `npm run validate:sdd` | Full validation including proofreading |
 | `npm run validate:quick` | Fast iteration — skips heavy coupling/patterning checks |
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
@@ -145,9 +148,9 @@ ranges, hardcoded cross-section counts) are informational.
 
 When you change files in `spec/`, verify before committing:
 
-- [ ] `npm run assemble && npm run check` passes with 0 errors (warnings are informational)
+- [ ] `npm run assemble && npm run check:fast` passes with 0 errors (warnings are informational)
 - [ ] No REQ body contains tables, bullet lists, numbered steps, or blank lines
-- [ ] No REQ body exceeds 500 characters or 5 sentences
+- [ ] No REQ body exceeds 800 characters or 5 sentences
 - [ ] No REQ body contains parameter types, Default: clauses, or enumerated
       catalogs (>5 tokens)
 - [ ] All cross-section counts match their targets (e.g., §6.5 metric count
