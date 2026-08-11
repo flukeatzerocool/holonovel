@@ -1197,36 +1197,29 @@ input-validation metric. The builder re-enters Phase 2 of the convergence
 loop (§6.5) for only the affected metric. A failure that maps to no metric
 is a novel defect class and re-enters Phase 2 with all four metrics in
 scope.
-
 An input-validation failure is recorded in DECISIONS.md (6) with the
 failing input value, the error category returned (or absent), and the
 expected error category per REQ-002.
-
 This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
-
 A single S21 execution that exceeds 10 minutes of wall-clock time does not fail
 the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
-
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
 wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3
 minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
-
 **Global budget.** The full Pattern Buffer run of all sub-workflows must complete
 within 60 minutes of wall-clock time. A run exceeding the budget is
 recorded with actual duration and per-sub-workflow timings in
 DECISIONS.md (6). The operator may increase the budget for rulesets
 exceeding 2,000 indexed items (REQ-100 Huge tier).
-
 **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
 as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
 descriptions above are canonical; the structured encoding is a lossless transcription.
-
 The structured encoding SHALL be accompanied by a single runnable test harness
 (`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes
 each against the live MCP server. The harness SHALL: (a) start the server process,
@@ -1239,27 +1232,21 @@ spec-driven updates, or after code changes consume zero AI tokens. The harness o
 SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
 failure details when applicable. The harness is recorded as a handoff artifact
 (§9 H13a).
-
 **Convergence integration.** The convergence handshake (see Timing block above)
 governs the Pattern Buffer ↔ Phase 2 feedback loop.
-
 **Improvement** is measured per iteration: fewer total assertion failures, or at
 least one blocking sub-workflow downgraded to non-blocking. Two stalled iterations is
 a stop; residual failures are logged in DECISIONS.md (5).
-
 **Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence
 gets at least one new regression assertion recorded in DECISIONS.md (6).
-
 **Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit
 accumulated regression assertions for redundancy. Subsumed assertions are removed
 and logged in DECISIONS.md (6) with the subsuming citation.
-
 **Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
-
 A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be
 declared handoff-ready without explicit operator acknowledgment. The count of
 unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
@@ -1276,7 +1263,6 @@ undetectable incorrect results in core play mechanics. A sub-workflow is
 non-blocking when it tests a property whose failure degrades experience but
 does not make the server unsafe — graceful-degradation edge cases, cosmetic
 output issues, or features documented as deferred in DECISIONS.md (5).
-
 The blocking classification of every sub-workflow is recorded in
 DECISIONS.md (6) with the safety property it protects and the REQ(s) it
 derives that classification from. When a new sub-workflow is added, the
@@ -1787,7 +1773,6 @@ builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate n
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
 initially `pending`, updated to `converged` when the discrepancy is resolved.
-
 *Acceptance criterion:* When Gate 2 fails on an init_combat turn-order mismatch,
 DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
 turn order, actual turn order, and a diff.
@@ -1798,7 +1783,6 @@ produce a traceable record in DECISIONS.md (5) containing: iteration number, the
 REQ or test ID addressed, the change made (summary), the re-test result, and the token
 cost. After convergence, DECISIONS.md (5) SHALL include a `convergence_summary`: total
 iterations, total token cost, REQ coverage, and final disposition.
-
 *Acceptance criterion:* A convergence loop requiring 3 iterations produces 3 audit trail
 entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
 _Check:_ T-new-301.
@@ -1808,7 +1792,6 @@ sub-workflows SHALL scope their verification to changed sections. Sub-workflows 
 verify unchanged sections only SHALL be skipped with a `[section unchanged — re-validating
 from previous build]` annotation. Cross-section sub-workflows SHALL run in full. Skipped
 sub-workflows carry the `[validated-by-prior-build]` disposition.
-
 *Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
 skips Pattern Buffer sub-workflows that verify unchanged sections and records the skip.
 _Check:_ T-new-303.

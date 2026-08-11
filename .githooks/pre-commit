@@ -10,4 +10,4 @@ echo "Running pre-commit checks..."
 npm run assemble
 npx tsx scripts/version-check.ts
 npx tsx scripts/spec-delta.ts
-npm run check
+npm run check:pre-commit

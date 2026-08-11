@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-10 — Multi-paragraph REQ flattening and fast shape validation
+
+- Removed 252 content-level blank lines from REQ bodies across
+  02-requirements.md and 03-build.md, collapsing all multi-paragraph REQs to
+  single-paragraph contracts. Blank lines before headings, REQ headers, and
+  `---` separators are preserved.
+- Fixed REQ-318 (Extended property contracts): replaced `(boolean, default false)`
+  parameter-type annotations with prose.
+- Added `scripts/validate-shape.ts` — a focused REQ shape validator that runs
+  in ~0.6s (vs. 600s for the full validate pipeline). Checks paragraph count,
+  body length, sentence count, SHALL count, tables, bullets, numbered steps,
+  parameter types, Default: clauses, and token enumeration.
+- Added `#### End of requirements` heading delimiter at end of
+  02-requirements.md to prevent the assembly file-separator from leaking into
+  the final REQ body.
+- Result: 0 multi-paragraph errors (down from 138), validation runs in         <1s
+  instead of 10m. 594 shape errors remain (body-length, sentence-count,
+  SHALL-count, catalog) as Phase D follow-up work.
+
 ## 2026-08-10 — SDD structural-violation cleanup and cross-reference repair
 
 - Fixed 6 sub-REQs (055a, 055b, 246a, 312a, 312b, 312c) missing from the
