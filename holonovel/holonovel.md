@@ -4102,8 +4102,8 @@ _Check:_ T173.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
 
-**Enrichment classification.** After the seven extraction categories are complete,
-the builder SHALL classify extracted guidance into synthesis output module slots per
+**Ruleset Wisdom extraction.** After the seven extraction categories are complete,
+the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
 briefing_order, setting/location descriptions → lore_templates, example-of-play
 resolution sequences → action_patterns, GM/player advice prose →
@@ -4116,7 +4116,7 @@ ruleset-native synthesis manifest, written to the Novel's synthesis state during
 construction (Step 5). Ruleset-free builds produce an empty manifest.
 
 **Mechanical coupling classification.** After the seven extraction categories
-are complete and Enrichment classification is done, the builder SHALL classify
+are complete and Ruleset Wisdom extraction is done, the builder SHALL classify
 extracted mechanical tools for Holodeck coupling effects per REQ-377. For each
 extracted tool in categories 1–6, the builder checks the tool's ruleset
 description for world-affecting language: destruction, illumination,
