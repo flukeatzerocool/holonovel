@@ -604,7 +604,6 @@ contract (REQ-003) governs the format of dice-roll results. Combat lifecycle
 output (advance_combat) SHALL follow the conflict lifecycle contract (REQ-043).
 Character creation and advancement results include all derived statistics
 alongside inputs (see REQ-181 for minimum surface).
-
 *Acceptance criterion:* A weapon lookup returns every field the ruleset defines
 for that weapon — damage dice, damage type, properties, weight, cost, range —
 not a summary. A spell lookup returns level, school, casting time, range,
@@ -632,13 +631,11 @@ Fireball"); and (c) the line range in the source Markdown (e.g., "lines 1420–1
 anchor is surfaced as a `source_anchor` field in the tool output, positioned after the
 mechanical data and before any narrative framing. The anchor enables the caller to verify
 the output against the ruleset source without re-running extraction.
-
 For `search_rules`, every result item SHALL carry its own `source_anchor`. For canonical
 lookups returning a single entry, the anchor SHALL be the heading from which the entry
 was extracted. The anchor is derived from extraction metadata per REQ-010 (traceability)
 and SHALL be present even when the extraction confidence is LOW — the anchor labels the
 source, not the confidence.
-
 *Acceptance criterion:* `lookup_spell("fireball")` returns a `source_anchor` field with
 file name, heading path, and line range. Every result in `search_rules("grapple")`
 carries its own `source_anchor`. A ruleset-free build returns `source_anchor: null` for
@@ -717,7 +714,6 @@ facts or narrative outcomes without Game Master confirmation. These boundaries a
 delivered in the `badge_briefing` orientation content, determined by the AI's role
 per REQ-304. When the AI has no narrative role (null-badge), tool output follows the
 active badge's boundary conventions.
-
 When a player's natural-language input carries both in-character and meta-intent
 simultaneously — e.g., "I examine the altar" (character action) + "what does my
 character see?" (meta-query) — the `suggest_actions` tool SHALL return both
@@ -727,7 +723,6 @@ informed by `badge_briefing`, SHALL resolve the in-character component through
 narration and redirect the meta-intent component through tool calls — it SHALL NOT
 silently treat a meta-query as an in-character action resolved without the player's
 knowledge.
-
 The `player_signal` tool SHALL accept a `register` signal with values `character`
 (speaking or acting in-character) and `meta` (asking a rules question or directing
 the GM out-of-character). Setting `register=meta` SHALL suppress in-character
@@ -736,14 +731,12 @@ similar tools present bare mechanical information without narrative framing. The
 register state persists for the session (discarded on connection close) and is
 visible in `badge_briefing` as a Player-Register line. Setting `register=character`
 restores narrative-framed output. The default register is `character`.
-
 When a badge is active, `badge_briefing` SHALL include a badge boundary directive — a
 single sentence: "You are in the story. Confine tool use and responses to the
 current Novel. To step away from the table, call `set_badge(\"none\")`." The
 directive is identical for both badges. It SHALL appear after the badge foundations
 (REQ-062) and before the anti-slop guidance (REQ-070). It is never truncated
 (REQ-135, tier 1).
-
 *Acceptance criterion:* A player typing "Can my character jump the chasm?" under
 `register=character` receives `suggest_actions` output with the acrobatics check
 tool AND a rules-lookup pointer; under `register=meta` the same input produces
@@ -751,7 +744,6 @@ only mechanical information with no "you attempt to jump" narrative framing. The
 register state appears in `badge_briefing` and does not persist across server restarts.
 The boundary directive appears in `badge_briefing` for both Player and GM badges.
 _Check:_ T51, T-new-badge-boundary.
-
 *Out of scope:* transport-layer error handling, client-side error formatting,
 error localization or internationalization, and error recovery strategies beyond the
 corrective-action model defined in REQ-002.
@@ -1014,7 +1006,6 @@ lookup table contains only deterministic reference data and is registered as a
 `lookup_<category>` tool or served via `ruleset://` resources. A table containing
 any dice-range row is a generation table — generation and lookup rows SHALL NOT
 coexist in the same registered tool entry.
-
 When the ruleset contains zero generation tables, `roll_on_table` SHALL be
 registered with an empty domain and return `[NOT_FOUND]` with a clear "no random
 generation tables in this ruleset" message on any call. The tool description
@@ -1022,13 +1013,11 @@ SHALL reflect this — it SHALL NOT advertise canonical table names that resolve
 nothing. When the ruleset contains at least one generation table, `roll_on_table`
 SHALL enumerate valid table names in its input schema dynamically from the
 ruleset model.
-
 *Acceptance criterion:* Building for D&D 5e produces a `roll_on_table` whose
 `table` parameter enumerates only generation tables (trinkets, madness tables,
 wand of wonder, etc.) — not lookup tables (ability_modifiers, difficulty_classes).
 Building for a ruleset with zero generation tables registers `roll_on_table` with
 an empty domain and a "no tables" response.
-
 _Check:_ T255.
 
 **REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
@@ -1112,7 +1101,6 @@ GM-only chapters are `game_master`, otherwise `shared`), and a `source_anchor`
 (heading and file path). Table content extraction follows the same confidence
 labeling and traceability rules as other extraction categories (REQ-011,
 REQ-010).
-
 The builder SHALL detect dice-range tables from Markdown table cells containing
 `d100`, `d%`, `d8`, `d20`, or explicit numeric ranges (`01-10`, `11-25`). A row
 whose first column is a numeric range is a generation result row. A row whose
@@ -1120,13 +1108,11 @@ first column is a name or label (not a numeric range) is a lookup row. Each
 generation table entry SHALL be stored in the ruleset model under
 `generation_tables` with its full content, and the server SHALL serve it via
 `roll_on_table` at runtime.
-
 *Acceptance criterion:* The D&D 5e build extracts at minimum the Short-Term
 Madness, Long-Term Madness, Indefinite Madness, Reincarnate Race, Wand of Wonder,
 and Trinkets tables. Each table entry includes dice_expression, ranges with
 result text, and a source_anchor. `spec_health` reports the count of extracted
 generation tables.
-
 _Check:_ T256.
 
 **REQ-272 — Stock elements catalog.** The builder SHALL record ruleset-derived
@@ -1175,7 +1161,6 @@ Wisdom modules SHALL be empty.
 dialogues produces Ruleset Wisdom items in ≥4 of 7 modules with `[ruleset]`
 tag and source anchors.
 _Check:_ T-new-225.
-
 *Out of scope:* extraction from non-Markdown sources without prior conversion
 (§6.2 Convert workflow), confidence models beyond the three-tier HIGH/MEDIUM/LOW
 system, and semantic interpretation of image-only content.
@@ -1249,7 +1234,6 @@ SHALL include: (a) `entities` — all Novel entities with their current relation
 relationships involving their active entities, `shared`-scope lore, and revealed secrets.
 When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has
 no briefing presence per §5.10.
-
 *Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with
 1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM badge
 includes entities, NPCs with relationships, lore_connections, secrets, and factions.
@@ -1277,14 +1261,12 @@ term for that action. Annotations match action classification.
 for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not
 "lookup_weapon."
 _Check:_ T3, T35, T39.
-
 The `description` field SHALL follow a three-clause structure: a one-line summary
 of the tool's action (verb + object), a "Use when:" clause naming concrete
 scenarios that select this tool, and a "Do NOT use when:" clause naming sibling
 tools the caller should prefer for similar-sounding requests. Descriptions longer
 than three sentences are truncated in `tools/list`; the full text remains
 available at `resources/read`.
-
 *Acceptance criterion:* Every tool's description contains all three clauses;
 overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name
 each other in their disambiguation clauses; a verifier can map a natural-language
@@ -1312,7 +1294,6 @@ index coverage (total headings, indexed headings, coverage percentage, with
 unmapped sections where coverage is below threshold). The Player badge sees
 only player-filtered metrics. Build-phase-dependent sections (convergence
 summary, gap audit) are absent when the build is not yet complete.
-
 *Acceptance criterion:* `spec_health` counts match the live registry — adding
 a tool, resource, or prompt increments the count immediately; counts are derived
 from arrays at call time, not hardcoded.
@@ -1576,7 +1557,6 @@ actions a player can take. The tone is engaging and energetic; the anti-slop cat
 prompts. The `help` tool and `badge_briefing` each point to it. For intent-to-tool
 mapping, callers are directed to `suggest_actions` (REQ-084) — no
 `use_tool` or `lookup_rule` prompt is provided.
-
 When `TTRPG_NOVEL` is unset at startup and one or more Novels exist on disk, the
 `intro` prompt SHALL present them as a browsable library: each Novel's name,
 description preview (first sentence or first 120 characters), session count,
@@ -1740,7 +1720,6 @@ with a north exit returns `resolved` with destination room context. Against a
 wall returns `blocked` with the constraint named. Player badge returns
 `[FORBIDDEN]`.
 _Check:_ T-new-323.
-
 *Out of scope:* real-time collaboration tools, streaming resource endpoints,
 tools that modify the ruleset source, and MCP protocol features beyond the standard
 tool/resource/prompt surface.
@@ -1778,7 +1757,6 @@ pre-workflow snapshot timestamp. After restoration, all blocked tools
 (undo, redo, set_badge) are callable. Cancel restoration works after a
 server restart — the persisted snapshot covers the full pre-workflow
 Novel state.
-
 A workflow begins when a tool returns `[NEED_INPUT]` and ends when `respond`
 successfully drains the decision. Only one workflow may be pending per Novel at a time
 — a tool that raises `[NEED_INPUT]` while a workflow is already pending returns
@@ -1912,7 +1890,6 @@ SHALL NOT fabricate equipment.
 *Acceptance criterion:* A character created under D&D 5e SRD carries class and
 background starting equipment by name.
 _Check:_ T32, G2.
-
 *Out of scope:* branching narrative trees, puzzle-solving workflows, and decision
 workflows that span multiple Novels or connections.
 
@@ -2040,12 +2017,10 @@ be visible in `spec_health` per-table metadata but the table content SHALL NOT.
 The `badge_briefing` SHALL enumerate available table names with their badge_scope,
 filtered per the active badge's access level. The error message SHALL direct the
 caller to `badge_briefing` for a non-revealing list of accessible tables.
-
 *Acceptance criterion:* `roll_on_table("madness_short_term")` called from the
 Player badge returns `[FORBIDDEN]` with the table name visible but no content; the
 same call from the Game Master badge returns the table result. `badge_briefing` under
 the Player badge lists only `badge_scope: "shared"` table names.
-
 _Check:_ T257.
 
 **REQ-133 — Forbidden-call audit.** Every tool invocation that returns
@@ -2164,7 +2139,6 @@ presented, from auto-execution to prompting with options; `safety`
 no permanent death to full consequences; `creativity`
 (predictable/standard/chaotic, defaulting to standard) — how much the AI
 surprises the player, from optimal decisions to dramatic twists.
-
 The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived
 resolution mechanics — tools classified as command or hybrid per REQ-015 whose
 behavior is derived from the ruleset, not from the world model or narrative
@@ -2176,7 +2150,6 @@ SHALL be visible in `badge_briefing` and `spec_health`. Autonomy composes with
 any badge — a human Player with `level=full` lets the AI auto-play their
 character; a human GM with `level=full` lets the AI run all NPCs and player
 characters.
-
 Player signal preferences (REQ-069) — pace, difficulty, tone, focus, and
 boundary — SHALL be respected at all autonomy levels. Autonomy controls
 who makes decisions; player signals define constraints on all decisions
@@ -2195,7 +2168,6 @@ _Check:_ T-new-306.
 
 **REQ-109 — Badge briefing composition.** `badge_briefing` surfaces
 these groups, split into two sourcing layers:
-
 **Orientation layer** (sourced from the AI's narrative role per REQ-304):
 badge foundations (REQ-062), anti-slop guidance (REQ-070), narrative tone samples
 (REQ-071), and badge behavioral boundary directive (REQ-064). When the AI's role is
@@ -2204,7 +2176,6 @@ player-oriented content. Under observer mode (REQ-305), the orientation layer SH
 include a dual-role instruction: "You are both Game Master and Player. The human is
 observing. Narrate scenes, make decisions for all player characters, advance combat.
 Play the Novel."
-
 **State surface layer** (sourced from the active badge per REQ-032):
 current scene state (REQ-076), narrative POV directive (REQ-220), active entities
 with summary stats and presence markers (REQ-074, REQ-307), active NPCs (REQ-075),
@@ -2221,7 +2192,6 @@ scene (GM only, REQ-246), the current autonomy state — all four slider values
 from `set_autonomy` (REQ-306) when set, campaign memory facts (GM only, REQ-310),
 world in motion entries (GM only, REQ-233a), and proactive available actions
 (REQ-084a).
-
 Groups whose data source is empty SHALL include an explicit empty-state marker
 describing which category is empty. Markers preserve the expected briefing structure
 and prevent the caller from inferring non-existent content. The enumeration order
@@ -2251,12 +2221,10 @@ in prose form; (d) active NPC dispositions where the disposition differs from th
 creation default, surfaced as "<NPC name> (<disposition>, set in session <N>)"; (e)
 active vow progress when populated (REQ-289). The section is badge-filtered: GM sees all;
 Player sees only own-entity bonds and `shared`-scope content.
-
 The `narrative_threads` token SHALL appear in the decision-critical group, after entities
 and before combat state. This token gives the AI GM a "what's currently unresolved"
 signal for narrative consistency. When all source data is empty, the token SHALL render
 its empty-state marker: "[No unresolved threads.]"
-
 *Acceptance criterion:* After recording a story journal `decision` with no `consequence`,
 setting a countdown, and creating an NPC with a non-default disposition, `badge_briefing`
 under the GM badge includes a `narrative_threads` section with the unresolved decision, the
@@ -2306,7 +2274,6 @@ personality with `[supplementary]` tag. Under the Player badge,
 game_master-scoped synthesis items are absent. After
 `revert_synthesis`, synthesis content is absent from all badge views.
 _Check:_ T194.
-
 *Out of scope:* authentication or authorization mechanisms, multi-connection badge
 synchronization, and badge inheritance across Novels. The spec assumes a
 single trusted operator — `set_badge` is always callable without
@@ -2478,7 +2445,6 @@ restarts for the same Novel. WHEN a new `TTRPG_SESSION_ID` value is detected,
 the server SHALL insert a `[session_boundary]` marker entry (REQ-237) before the
 first mutating entry of the session — the marker is a mutating entry for
 hash-chain purposes and is included in `audit://novel` output.
-
 A hash chain broken at any point SHALL report a mismatch in `spec_health` and
 stderr; the server loads entries up to the break point. The audit log is part
 of the Novel and is removed with it by `end_novel`.
@@ -2579,7 +2545,6 @@ mutation, `advance_combat` reports the participant name, weapon, damage roll
 transparency, and target HP change; after a turn with no mutations it reports the
 participant took no action.
 _Check:_ T25, T33, T110, T161, T162; G2.
-
 Combat state is Novel-scoped — it persists when the story ends via
 `set_badge("none")` or resumes via `set_badge("player")` or
 `set_badge("game_master")`. `end_novel` discards the combat state along with all
@@ -2684,12 +2649,10 @@ it creates a condition without automatic expiry. Both tools SHALL record mutatio
 entries in the audit log (REQ-040) and appear in `session_recap` condition changes
 (REQ-072). Applied conditions SHALL appear on `character_sheet` output and in
 `badge_briefing` entity summaries.
-
 Under the Player badge, condition entries in `character_sheet` and `badge_briefing`
 SHALL be rendered without expiry round counts — the Player sees only the condition
 name. The Game Master badge SHALL include expiry round counts when the `rounds`
 parameter was set.
-
 *Acceptance criterion:* `apply_condition(entity, "prone")` adds the condition and
 returns `[OK]`; a second call returns `[WARNING]` with "Condition already active.";
 `remove_condition(entity, "prone")` removes it; `remove_condition` on an entity
@@ -2755,14 +2718,12 @@ ticks in narrative form ("The ritual completes in 2 rounds"); and (e) active vow
 and milestone counts when vow tracking is populated (REQ-289). The paragraph SHALL use
 plain English without tool names, status prefixes, or structured field syntax — it reads
 as a "Previously on…" summary a returning player can understand immediately.
-
 The field SHALL be present when any of its source data is non-empty. When all source data
 is empty (new Novel with no play), the field SHALL contain the empty-state marker
 "[No narrative history yet — your story begins here.]" `session_recap` SHALL include
 `narrative_orientation` as its first field, before the structured data blocks. The
 paragraph is badge-filtered: Player badge sees orientation derived from `shared`-scope lore,
 own-entity story entries, and player-visible NPC dispositions per REQ-032.
-
 *Acceptance criterion:* After a session with a story journal decision, a narrative
 directive, and an active countdown, `session_recap()` returns a `narrative_orientation`
 field containing a 2–4 sentence prose summary synthesizing all three sources.
@@ -2849,14 +2810,12 @@ vow moves from active to resolved state, the outcome (free-text summary) is stor
 journal entry per REQ-246. `forsake_vow(vow_name, reason)` abandons a vow — the vow
 moves to `forsaken` state and is excluded from active displays; the reason is recorded
 alongside the vow.
-
 Active vows appear in `badge_briefing` (`narrative_threads` section per REQ-281) and
 `session_recap` (`narrative_orientation` per REQ-279). Resolved and forsaken vows
 appear in `session_recap` with their state and outcome/reason. Vow state persists
 with the Novel and is included in `save_pause_context` captures (REQ-232). Vow tools
 are Game Master only; the Player badge reads vow state via `badge_briefing` and
 `session_recap` when the vow's scope is `shared` or `party`.
-
 *Acceptance criterion:* `set_vow("Find the Crown", "Recover the lost Crown of Alara",
 parties=["pc_1", "pc_2"], difficulty="dangerous", scope="shared")` creates a vow with
 a 20-milestone track. `mark_milestone("Find the Crown")` advances the counter.
@@ -2880,7 +2839,6 @@ survive Novel persistence and SHALL be included in `save_pause_context` captures
 (REQ-232). For shared-scope vows, the countdown suggestion and linked countdown state
 SHALL be visible in Player and Observer `badge_briefing` `narrative_threads`;
 GM-scope vow countdowns remain GM-only.
-
 *Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a
 countdown suggestion in `badge_briefing`. Accepting creates a 20-tick `mission`-type
 countdown named `vow:Find Crown`. `mark_milestone("Find Crown")` advances both the
@@ -2961,7 +2919,6 @@ values SHALL clear the field without removing it from the NPC's known field set.
 `remove_npc(id)` deletes an NPC. `npcs://` lists all active NPCs. NPC state
 persists with the Novel. All NPC tools are Game Master only; the Player badge reads
 NPC state via `badge_briefing` and resource URIs.
-
 Every NPC SHALL carry depth metadata: `appearance_count` (incremented each
 time the NPC appears in a scene or is referenced in `badge_briefing`), `first_seen`
 (ISO 8601 timestamp of first appearance), and `last_seen` (ISO 8601 timestamp of
@@ -2974,7 +2931,6 @@ for each NPC with `appearance_count > 1`, the number of sessions they appeared i
 and the number of distinct scenes. An NPC not seen in 5 or more sessions SHALL carry
 a `[distant]` marker in `badge_briefing`. The depth metadata is automatically maintained
 by the server — the GM does not set it directly.
-
 *Acceptance criterion:* `create_npc("Innkeeper")` produces an NPC with `npc://<id>`
 URI; `update_npc(id, {disposition: "friendly"})` changes the field; `remove_npc(id)`
 deletes it. An NPC appearing in 3 scenes across 2 sessions displays `[recurring]` in
@@ -2994,7 +2950,6 @@ names enumerated.
 populates stat fields from the ruleset entry; an unknown reference returns
 `[NOT_FOUND]` with valid names.
 _Check:_ T126.
-
 Reference-populated fields are additive to the builder-determined NPC stat
 surface (REQ-123). A reference entry may carry fields beyond the builder's
 discovered conventions — those fields SHALL be included on the NPC and are
@@ -3107,7 +3062,6 @@ in the Scene section. The tick is a pacing aid — it does not trigger mechanics
 timestamped entries in `scene://history`; scene state is narrative context and
 does not change search results for mechanical terms.
 _Check:_ T57, T112, T132, T137.
-
 WHEN `set_scene_state` references a location that has established lore entries (REQ-083)
 and the new scene description contradicts an established property of that location, THE
 server SHALL emit a `[WARNING]` naming the contradiction and the conflicting lore entry.
@@ -3119,7 +3073,6 @@ location name; (b) NPC dispositions set explicitly (not creation defaults) for N
 perform semantic analysis — a lore entry stating "the Inn is crowded" with a trigger
 keyword "Inn" SHALL produce a `[WARNING]` when a scene description contains "the empty
 Inn."
-
 *Acceptance criterion:* Set a lore entry for "Blackwood Inn" with content "crowded and
 noisy" and trigger "Blackwood." Call `set_scene_state("The Blackwood Inn is quiet and
 deserted.")` — assert `[WARNING]` naming the lore entry. Call `set_scene_state("The
@@ -3243,7 +3196,6 @@ fields. WHEN a player entity interacts with an NPC — via combat, social checks
 or mechanical outcomes — the engine SHALL update the NPC's memory and disposition
 automatically without requiring a GM tool call; the GM may override via
 `update_npc`.
-
 WHEN an NPC is present in the current scene, THE engine SHALL surface the NPC's memory in
 `badge_briefing` as an `## NPC Memory` section within the entity personality group
 (REQ-109). The section SHALL include: a one-sentence emotional state summary, a summary
@@ -3251,11 +3203,9 @@ of the NPC's last 3 interactions with present player entities, and any goals the
 pursuing. NPC memory SHALL be gated by presence (REQ-307) — only NPCs in the current
 scene surface their memory. Memory facts persist with the Novel. `spec_health` SHALL
 report `npc_memory_count` — the total number of NPC memory entries across all NPCs.
-
 *Coupling:* NPC memory entries SHALL populate campaign memory facts (REQ-310) per-NPC
 category when the event involves significant state changes (goal advancement, disposition
 flip, relationship change).
-
 *Acceptance criterion:* After a session where an NPC (blacksmith) is threatened by a
 player entity, `update_npc` is not called, but `badge_briefing` under GM badge includes the
 NPC's memory section showing `disposition: hostile` and the threat event. After a second
@@ -3277,7 +3227,6 @@ fields set via `set_personality(entity_id, ...)` and persisted at the roster lev
   Player-only for own entities (per REQ-165), GM for all. On NPCs (REQ-122), setting
   voice_examples is Game Master only.
   voice examples sourced from synthesis carry a `[supplementary]` tag and source URL.
-
 These are narrative context — inert data, not mechanical. `set_personality(entity_id,
 fields)` sets description, voice, background, goals, and voice_examples — all as
 optional fields on one tool (Player-only for own entities per
@@ -3288,12 +3237,10 @@ mechanical stats, may be edited after creation). Novel-level overrides: if perso
 fields are set on a Novel entity via `set_personality`, they override the roster
 baseline for that Novel only. On Novel entity import, roster personality fields are
 copied alongside mechanical stats.
-
 Fields are surfaced in `badge_briefing` alongside entity stats and at
 `entity://<id>/personality`; voice_examples are surfaced under the entity personality
 group in `badge_briefing` per REQ-109. When an entity speaks in-character, voice_examples
 are rendered ahead of trait descriptions in the prompt context (REQ-126).
-
 **Authorship guidance.** Effective personality fields describe concrete behaviors rather
 than abstract traits. The `voice` field works best when it specifies how the entity
 speaks in practice — e.g., clipped sentences, reaches for sword before speaking when
@@ -3329,21 +3276,17 @@ array); (d) a synthesized "Avoid:" line derived from the voice field — counsel
 the NPC should NOT sound like. The directive block SHALL be badge-filtered per REQ-032:
 GM sees all NPC voice directives; Player badge sees directives for NPCs created with
 `shared` scope.
-
 The voice directive is rendered inline in the entity personality group, after personality
 fields and before any synthesis-sourced content. It is advisory — it provides the AI GM
 with voice constraints but does not mechanically enforce them. `voice_examples` stored
 in the roster (entity-level) follow the same directive rendering in the entity personality
 group but use the entity's own voice_examples, not NPC-role synthesis.
-
 Format: `Voice directive (<NPC name>, <role>): <voice>. Example: "<snippet 1>"
 Example: "<snippet 2>" Avoid: <voice mismatch counsel>.`
-
 WHEN `badge_briefing` renders voice_examples for entities or NPCs, only examples whose
 `tag` field matches at least one active `scene_type` (REQ-087) SHALL be surfaced.
 Examples with no `tag` or `tag: "neutral"` SHALL always surface. Entity-level
 voice_examples in the entity personality group follow the same filtering rule.
-
 *Acceptance criterion:* Create an NPC with `voice: "gruff, uses 'oi'"`, `voice_examples`
 containing two dialogue snippets, and `location` matching the current scene. Assert
 `badge_briefing` under the GM badge includes a voice directive block for the NPC.
@@ -3467,7 +3410,6 @@ positioned before the scene state group (REQ-109). The section SHALL list each a
 boundary value with an explicit directive: "Do not narrate, imply, or introduce content
 that evokes these topics." Boundary removal (empty value per REQ-069) removes the entry.
 The boundary advisory is never truncated by the briefing size budget (REQ-135, tier 1).
-
 When `set_scene_state`, `create_npc`, `update_npc`, `set_lore_entry`, `update_lore_entry`,
 or `set_narrative_directive` receive free-text input containing a substring that matches an
 active boundary value (case-insensitive), the server SHALL return `[WARNING]` identifying
@@ -3546,7 +3488,6 @@ properties, then link any TTRPG annotations (`@encounter`, `@trap`, `@npc`,
  section SHALL load as flat indexed content — their prose is searchable via
 `search_rules` and surfaced in `badge_briefing`, but no world-model objects
 are created.
-
 When the adventure module has undergone structural extraction (REQ-247),
 `load_adventure` SHALL additionally pre-populate Novel state from the
 extracted content: extracted NPCs SHALL become Novel-scoped NPC entities
@@ -3564,7 +3505,6 @@ participation is needed. When a pre-populated NPC's name fuzzy-matches a
 ruleset monster entry (per `lookup_monster`), the load response SHALL
 include a suggestion: "NPC '<name>' may match ruleset entry '<match>'.
 Confirm to populate stats."
-
 After loading, the adventure's prose content SHALL be accessible at
 `adventure://<adventure-slug>/<anchor>`. `search_rules` includes adventure
 content; active-adventure results are sorted first. Active-adventure results
@@ -3572,11 +3512,9 @@ SHALL carry HIGH match confidence when the query token appears in a section
 heading; MEDIUM when it appears in body text. The `[generated]` tag (REQ-132)
 SHALL NOT affect sort order — generated and indexed results sort by match
 strength identically; the tag is a source-of-origin marker only.
-
 `badge_briefing` includes the active adventure's hook, current location,
 and — when a world model is populated — the current room's name and visible
 contents.
-
 Adventure content is badge-filtered: sections marked with the ruleset's
 adjudicator term (e.g., `*Keeper only*`) are hidden from the Player badge.
 Unmarked sections are visible to all. Multiple adventures may be indexed;
@@ -3587,7 +3525,6 @@ Master only. `load_adventure` with a slug not matching any indexed adventure
 SHALL return `[NOT_FOUND]` and enumerate available adventure slugs. The
 `TTRPG_ADVENTURE` env var (optional, comma-separated paths) pre-loads
 adventures at startup.
-
 The optional `target` parameter accepts `novel` (default when a Novel is active) or
 `codex` (default when no Novel is active). `target: "codex"` SHALL process the adventure
 module's structural extraction (REQ-247) and store the resulting scaffold as a Codex entry
@@ -3598,7 +3535,6 @@ with all existing pre-population behavior (world-model tier population, NPC crea
 faction creation, lore entry creation). When no Novel is active and `target` is omitted,
 `target` defaults to `codex`. `load_adventure` SHALL be callable regardless of Novel
 state — no Novel is required for `target: "codex"`.
-
 State isolation: world-model objects, NPCs, and lore created by adventure
 loading are Novel entities — discarded by `end_novel`. Switching adventures
 replaces the active adventure's world model (if present) and prose content
@@ -3624,20 +3560,16 @@ Each entry SHALL include: `slug`, `title`, `preview` (2–3 sentence GM-facing p
 `genre_tags`, `room_count`, `npc_count`, `complexity` (estimated: `short`, `standard`,
 `epic` based on room count thresholds), and `last_modified`. An optional `filter` parameter
 accepts a genre tag string and returns only matching adventures.
-
 When `TTRPG_ADVENTURE` contains no adventure modules, `list_adventures` SHALL return an
 empty-state message: "[No adventure modules found.]" The catalog is badge-filtered: Player
 badge sees adventures with a `player_visible` flag or `shared` adventure hooks; GM badge sees
 all. `spec_health` SHALL report `adventure_catalog_count`. `list_adventures` has no
 briefing presence per §5.10.
-
 `help("list_adventures")` SHALL return usage examples and parameter contracts.
-
 *Acceptance criterion:* With 2 adventure modules, `list_adventures()` returns 2 entries
 with slug, title, preview, genre_tags, room_count, npc_count, complexity, and
 last_modified. Empty directory returns the empty-state message.
 _Check:_ T-new-292.
-
 Adventure modules MAY contain narrative sections in addition to or instead of the
 `## World` spatial section: `## Premise` — one-paragraph hook introducing the
 adventure; `## Factions` — named organizations with goals, resources, and starting
@@ -3813,7 +3745,6 @@ both an indexed adventure and a generated adventure active simultaneously —
 `badge_briefing` SHALL surface the indexed adventure's content first, then the
 generated adventure's content, and `search_rules` SHALL distinguish generated
 results with a `[generated]` tag.
-
 `generate_adventure(premise)` SHALL include a `## World` section in its
 generated output when the premise suggests spatial content (locations,
 dungeons, buildings). The generated world-model section SHALL contain at
@@ -3846,7 +3777,6 @@ _Check:_ T17.
 (REQ-044), the builder SHALL compute per-section content hashes — one hash per top-level
 heading section in the ruleset Markdown source. Each section hash SHALL use SHA-256 over
 the normalized section content. Per-section hashes SHALL be recorded in DECISIONS.md (4).
-
 During Build (§6.2–§6.3) when per-section hashes from a prior build are recorded in
 DECISIONS.md (4), and during spec-driven updates (§6.7), sections whose hash is
 unchanged SHALL be skipped —
@@ -3854,7 +3784,6 @@ their prior extraction output is referenced. Sections whose hash changed SHALL b
 re-extracted. The builder SHALL record a per-section delta summary: total sections,
 sections unchanged, sections changed, sections added, sections removed. This SHALL NOT
 override REQ-272 (stock elements catalog) — both operate independently.
-
 *Acceptance criterion:* A ruleset with 20 top-level sections, one of which changed,
 produces per-section hashes where 19 match the prior build and 1 is re-extracted.
 DECISIONS.md (4) records the delta summary.
@@ -3873,7 +3802,6 @@ listing the stored and current hashes; a ruleset content hash mismatch emits
 `[ruleset_drift]` listing the stored and current hashes (traceable to REQ-014); a
 holonovel version mismatch emits `[holonovel_drift]`; the build timestamp is expected to
 differ across restarts and does not emit a warning.
-
 Drift warnings are diagnostic surfaces, not safety interlocks — they do not block startup
 or degrade service. The active build's specification version, ruleset hash, and build
 timestamp always take precedence over stored values; stored values are retained for drift
@@ -3896,7 +3824,6 @@ ruleset modification after build produces a [ruleset_drift] warning in spec_heal
 stderr at next startup; a spec modification produces a [spec_drift] warning; neither
 blocks startup.
 _Check:_ T52, T224.
-
 *Out of scope:* relational database backends, distributed state across processes,
 cloud synchronization, and state migration between incompatible specification versions
 without the Update workflow (§6.7).
@@ -3936,7 +3863,6 @@ Registered surface changes require Pattern Buffer sub-workflows per §6.6 for th
 changed tools, resources, or prompts. Specification content hash changes per
 REQ-187 require a gap audit per REQ-098 then implementation of only changed
 surfaces.
-
 Cold checkout (no stored fingerprints) and builds where more than half the
 fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6).
 The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which
@@ -4007,11 +3933,9 @@ SHALL see a World in Motion section in `badge_briefing` listing pending world ch
 source, summary, and accept/modify/defer labels. Accept applies the change to canonical
 state. Modify raises a `[NEED_INPUT]` workflow. Defer suppresses the change (max 3
 deferrals; fourth escalates to `[WARNING]` in `spec_health`).
-
 A setting `TTRPG_WORLD_REACTIVITY` (defaults to active) controls whether the reactivity
 cycle runs. When `off`, scene transitions advance faction clocks only (current
 behavior).
-
 *Acceptance criterion:* With `TTRPG_WORLD_REACTIVITY=on`, an NPC with
 `goals="Steal the crown"` produces a World in Motion entry at scene transition
 showing goal pursuit progress. A relationship change on entity A (`ally` → `rival`
@@ -4028,14 +3952,12 @@ returns all relationships for an entity (both outgoing and incoming). Relationsh
 SHALL appear on `character_sheet` output in a "Relationships" section. When an
 entity's relationship type changes between `ally` and `rival` (in either direction),
 the GM SHALL be prompted via `badge_briefing` to consider a lore entry.
-
 WHEN `set_relationship` changes a relationship type between non-neutral categories
 (`ally` ↔ `rival`, `ally` ↔ `suspicious`, `rival` ↔ `suspicious`, or any change to or
 from `neutral`), THE server SHALL inject an event marker into the `narrative_threads`
 section token: "Relationship changed: `<entity_a>` and `<entity_b>` are now `<type>`."
 The marker persists for the duration of the current scene and is removed on the next
 scene transition.
-
 Relationships persist with the Novel and SHALL be saved as part of `save_pause_context` (REQ-232).
 Faction identifiers are accepted as valid for either direction.
 *Acceptance criterion:* `set_relationship("pc_1", "npc_guard", "suspicious",
@@ -4073,7 +3995,6 @@ tree. `tug_of_war` allows advancing and retreating ticks; `retreat_countdown`
 SHALL remove ticks without going below zero. `faction` advances one tick per scene
 transition for factions (REQ-233). `mission` auto-decrements one tick per
 `resume_novel`, reaching zero changes mission parameters.
-
 `link_countdown(parent_name, child_name)` creates a linked relationship between two
 existing clocks. The existing `type` parameter (`round`/`narrative`) controls tick
 timing — `clock_type` controls the clock's interaction model. Both parameters coexist:
@@ -4245,14 +4166,12 @@ data payload defined above. When the active Novel has no adventure content,
 `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action
 `"No adventure content in the active Novel. Load an adventure via load_adventure or
 generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a
-
 WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the
 captured artifact originated from a prior `codex_import` (detected by the provenance
 field defined in REQ-332), THE system SHALL update the source Codex entry in-place
 rather than creating a separate entry. When `update_source` is `true` but the
 artifact has no Codex provenance, the system SHALL return `[ERROR] [STATE_CONFLICT]`
 with corrective action directing the caller to omit `update_source`.
-
 `codex_list(kind?, tag?)` SHALL return a
 filterable list of codex entries with id, kind, name, description, tags, and
 visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player
@@ -4314,7 +4233,6 @@ recorded in the Novel artifact's `codex_source`, THE `spec_health` tool SHALL
 flag the artifact as `[codex_stale]` — the Codex template has been updated since
 import. `clone_novel` and checkpoint snapshots SHALL preserve `codex_source`
 fields on copied artifacts.
-
 *Acceptance criterion:* `codex_import("blacksmith")` creates NPC "Blacksmith"
 with `codex_source: {id: "blacksmith", imported_at: <ISO>, codex_modified_at:
 <ISO>}`. Updating the blacksmith Codex entry via `codex_set`, then calling
@@ -4322,7 +4240,6 @@ with `codex_source: {id: "blacksmith", imported_at: <ISO>, codex_modified_at:
 rather than creating a new one. `novel_info()` reports `codex_sources` including
 the blacksmith entry. After updating the Codex entry, `spec_health` reports
 `[codex_stale]` for the Novel's blacksmith NPC.
-
 _Check:_ T-new-336.
 
 ### 5.7 Determinism, Safety, and Performance
@@ -4382,18 +4299,15 @@ result row. The output SHALL include: (a) the dice notation (e.g., `d100`),
 text. When a roll falls outside all defined ranges, the tool SHALL return
 `[WARNING]` with the raw roll and a "no range matched" message — the tool SHALL
 NOT silently return a bare number.
-
 A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a
 list of `ranges` (each with `min`, `max`, `result`), and an optional `badge_scope`
 (`game_master` or `shared`, default `shared`). A generation table SHALL NOT
 interleave dice-range rows with static lookup rows — tables are classified as
 either generation or lookup at extraction; a table containing any dice-range row
 is a generation table.
-
 *Acceptance criterion:* `roll_on_table(table="wand_of_wonder", seed="42")`
 produces the same result row on two separate server restarts, with output
 including dice notation, individual die face, matched range, and result text.
-
 _Check:_ T254.
 
 **REQ-291 — Oracle tool.** THE server SHALL provide an `ask_oracle(question, likelihood,
@@ -4401,7 +4315,6 @@ seed?)` tool (GM only) for uncertainty resolution. The tool accepts a free-text 
 and a `likelihood` value — one of `certain` (90% yes), `likely` (70% yes), `even` (50%
 yes), `unlikely` (30% yes), or `impossible` (10% yes). It draws from the PRNG (REQ-050)
 and returns one of: `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`.
-
 Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an
 `EXCEPTIONAL_YES` or `EXCEPTIONAL_NO` — which signals a stronger, more intense version
 of the answer. The `question` parameter is recorded in the audit log; the draw is
@@ -4409,11 +4322,9 @@ deterministic and seedable. The oracle is positioned as a GM-input aid — it re
 uncertainty when the GM doesn't know what should happen, but SHALL NOT replace the AI
 GM's narrative judgment. Player badge returns `[FORBIDDEN]`. The oracle has no briefing
 presence — it is callable on demand only and fades into the background per §5.10.
-
 `help("ask_oracle")` SHALL return usage examples, parameter contracts, and common
 workflows. `suggest_actions("I don't know what's behind the door")` SHALL map to
 `ask_oracle`.
-
 *Acceptance criterion:* `ask_oracle("Is there a guard behind the door?", "even",
 seed="42")` returns `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Same
 seed + same call sequence produces the same result across restarts. Likelihood "certain"
@@ -4447,7 +4358,6 @@ malformed input are rejected.
 returns `[ERROR] [INVALID_INPUT]` without reading any file outside the configured
 directories.
 _Check:_ T20.
-
 Performance benchmarks are governed by REQ-100 below.
 
 **REQ-251 — Generation intent guard.** Before producing generation output, `generate_adventure`
@@ -4484,7 +4394,6 @@ Standard (100–500) ≤5 s; Heavy (500–2000) ≤10 s; Huge (2000+) ≤20 s.
 latency for 5 representative lookups; `spec_health` reports the most recent
 measurement.
 _Check:_ T87.
-
 The five representative lookups are one canonical call per lookup category
 registered on the server: `lookup_spell`, `lookup_equipment`, `lookup_monster`,
 `lookup_class`, and `search_rules`. If fewer than five lookup categories exist,
@@ -4551,7 +4460,6 @@ editing mode.
 *Acceptance criterion:* Resume a Novel with Player badge active — the server
 responds with a notice identifying "Player badge active."
 _Check:_ T108.
-
 *Out of scope:* hardware-level RNG, cryptographic security guarantees, formal
 verification of input safety, and performance under adversarial load beyond the tier
 benchmarks defined in REQ-100.
@@ -4590,7 +4498,6 @@ Novel state. A narration claiming a dead NPC acts or applying a condition alread
 active SHALL be rejected.
 *Acceptance criterion:* Narration claiming a deceased NPC speaks is rejected.
 _Check:_ T-new-313.
-
 *Out of scope:* Validation of narrative style, tone, or prose quality — these are AI
 judgment, not mechanical integrity.
 
@@ -4649,14 +4556,12 @@ immutable. When a lore entry already exists at the target key, the system SHALL
 return `[STATE_CONFLICT]` with corrective action suggesting a `key` parameter to
 disambiguate. The created lore entry carries a `source` field citing the story
 journal index as `story_journal:<index>`. Player badge returns `[FORBIDDEN]`.
-
 *Acceptance criterion:* `record_story("revelation", "The old well leads to the
 undercity")` then `promote_story_to_lore(0)` creates lore entry
 `the-old-well-leads-to-the-undercity` with `source: story_journal:0`.
 `promote_story_to_lore(0, key="well-undercity-link")` uses the explicit key
 (succeeds only if that key is not already taken). Promoting a `decision` entry
 returns `[RULE_VIOLATION]`. Player badge returns `[FORBIDDEN]`.
-
 _Check:_ T-new-336.
 
 **REQ-310 — Campaign Memory.** THE server SHALL maintain an engine-recorded campaign
@@ -4666,7 +4571,6 @@ and SHALL be stored in the Novel JSON per REQ-092. The campaign memory tracks pe
 facts (combat participation, scene presence, relationship changes, personality updates),
 per-thread facts (faction clock advances, narrative countdowns, orphaned decisions,
 active vows), and per-location facts (notable events and NPC presence at locations).
-
 WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory
 facts under a `## Campaign Memory` section. This section is a decision-critical group
 (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by
@@ -4677,14 +4581,12 @@ most 10 facts, ordered by priority. Campaign memory facts SHALL NOT introduce ne
 tools — they are a surfacing layer over existing state. `spec_health` SHALL report
 `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total.
 `export_novel` SHALL include `campaign_memory` in its payload.
-
 Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be
 presence-scoped: a fact is visible to the Player badge only when the active entity was
 present in the scene where the fact was recorded as determined by `characters_present`
 (REQ-307). The Game Master badge sees all facts (current behavior). Facts from scenes the
 entity attended are retained regardless of current presence — presence scoping gates
 visibility, not storage.
-
 Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for
 GM-authored or engine-derived facts that should remain GM-visible only), `shared`
 (visible to both badges. When presence-scoped), or `discovered` (visible to both badges.
@@ -4696,7 +4598,6 @@ of `badge_scope`. Facts created by the engine default to `gm`; the GM may overri
 scope via `set_lore_entry` (REQ-083) for facts that also correspond to lore entries.
 `discovered`-scope facts carry a `[discovered]` tag in `badge_briefing` distinct from
 the standard rendering.
-
 *Acceptance criterion:* After a session with two NPCs (each appearing in a scene and
 combat), three scene changes, one faction clock advancement, and one story journal
 decision, `spec_health` reports `campaign_memory.npcs ≥ 2`, `campaign_memory.threads ≥ 1`,
@@ -4715,7 +4616,6 @@ synthesis (created at runtime via `player_synthesize` per REQ-261) stores items
 in full within the Novel JSON under a `player_synthesis` key, tagged `[player]`,
 active immediately in player-facing modules, with a per-module cap of 15 items and
 default badge scope `shared`.
-
 Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) is build output — always
 present in the Novel, not subject to synthesis reversion. On Novel startup, Ruleset
 Wisdom activation keys resolve against the build's current Wisdom extraction. Keys
@@ -4725,7 +4625,6 @@ anchors no longer resolve — silently drop and are reported in `spec_health` as
 present in the activation keys start inactive. When a ruleset rebuild occurs, fresh
 extraction replaces the build output directory; the same key resolution logic applies
 on next Novel startup.
-
 Synthesis items never replace Ruleset Wisdom items. Player items never replace
 Ruleset Wisdom or synthesis items — the three source categories coexist. The GM
 activates synthesis items via `activate_synthesis_item`. Player items are active
@@ -4750,7 +4649,6 @@ source authority, not mechanical completeness), output_module, and collected_at 
 anchor, confidence, output_module, and `[ruleset]` or `[vendor]` tag. Reverting
 synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and
 player items persist.
-
 *Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag
 and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source
 anchor; player-authored items carry `[player]` tag and appear in both Player and GM
@@ -4761,7 +4659,6 @@ Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves
 against the build's current extraction appears as a `[wisdom_gap]` entry in
 `spec_health`; new Wisdom items in the current extraction with no matching activation
 key start inactive.
-
 _Check:_ T63, T95, T97, T125.
 
 **REQ-081 — Narrative directive.** The Game Master may set narrative directives via
@@ -4833,13 +4730,11 @@ examination-level detail — rendered as a dedicated section at `visible` and
 token set is the
 authoritative vocabulary for `set_briefing_order` and synthesis briefing_order
 recommendations.
-
 *Acceptance criterion:* Building for D&D 5e produces a DECISIONS.md table
 mapping every REQ-109 group name to a snake_case token. Building for the
 Appendix B fixture (which lacks combat, countdowns, lore, and adventures)
 produces a subset mapping — the token set shrinks but token names for shared
 groups are identical.
-
 _Check:_ T300.
 
 **REQ-186 — Section token discoverability.** The valid section token set SHALL
@@ -4851,12 +4746,10 @@ SHALL enumerate the valid token set. The `[INVALID_INPUT]` error from
 `set_briefing_order` (REQ-082) SHALL continue to enumerate valid tokens for
 the immediate caller, but callers are not required to probe via error to find
 valid tokens.
-
 *Acceptance criterion:* `spec_health` returns a `section_tokens` array with
 token, group, and has_content fields. `set_briefing_order` with an unknown
 token returns `[INVALID_INPUT]` with valid tokens enumerated — and the
 enumerated list matches the `section_tokens` field exactly.
-
 _Check:_ T225.
 
 **REQ-083 — Dynamic lore.** The Game Master may set (upsert — create or update), toggle,
@@ -4883,23 +4776,19 @@ sticky entries persist for their count after keywords leave; suppressed entries
 count appears in `spec_health`.
 _Check:_ T67, T79, T81, T82,
 T83.
-
 Extend `set_lore_entry` and `update_lore_entry`: each lore entry SHALL carry a
 `visibility` field — one of `gm_only` (applied to new entries), `shared` (visible to
 Player badge immediately), or `player_discovered` (set automatically when `reveal_secret`
 is called for this entry's key). `gm_only` entries are excluded from Player-badge surfaces
 including `badge_briefing`, `lore://active`, and `graph://novel`. `shared` entries are
 visible to both badges.
-
 When `set_lore_entry` creates a new entry without a `visibility` field, it defaults to
 `gm_only`. `update_lore_entry` MAY change the visibility field. The `badge_scope` field
 controls briefing presentation priority; `visibility` controls badge-filtered read access.
-
 *Acceptance criterion:* `set_lore_entry("secret", "content", visibility="shared")`
 creates a lore entry visible to Player badge. `set_lore_entry("gm_secret", "content")`
 creates a `gm_only` entry invisible to Player badge.
 _Check:_ T-new-298.
-
 WHEN a lore entry's `visibility` is `gm_only` or `player_discovered`, trigger matching
 SHALL additionally check `characters_present` (REQ-307): the entry fires only when at
 least one entity who knows about it — via `reveal_secret` or the original revelation that
@@ -4994,10 +4883,8 @@ prerequisites are met), count gating (at most 8 actions prioritized by scene-typ
 relevance), and badge filtering (Player badge sees only Player or un-gated actions per
 REQ-137). `suggest_actions` (REQ-084) remains the canonical intent-to-tool mapping;
 the proactive surface is a discovery aide, not a replacement.
-
 `badge_briefing` SHALL include an `available_actions` section token following the
 existing token contract (REQ-082, REQ-185).
-
 *Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists
 weapon attack, spell, and condition-clearance actions, filtered to the active entity's
 capabilities. A wizard with no 3rd-level slots does not see "Cast Fireball." An entity
@@ -5051,7 +4938,6 @@ synthesis data they reference is absent. After re-synthesis, these choices apply
 the new synthesis data without reconfiguration. Player badge returns
 `[ERROR] [FORBIDDEN]`. Pure-state tool: idempotent, fully reversible — re-running
 synthesis after reversion repopulates synthesis items.
-
 *Acceptance criterion:* After `revert_synthesis()`, all synthesis surfaces
 (`synthesis://` resource URIs with `[supplementary]` items) return empty or absent;
 Ruleset Wisdom items (`[ruleset]`, `[vendor]`-tagged) persist unchanged;
@@ -5059,7 +4945,6 @@ Ruleset Wisdom items (`[ruleset]`, `[vendor]`-tagged) persist unchanged;
 templates; `spec_health` reports `synthesis_active: false` with zero counts for
 synthesis modules. Re-running synthesis repopulates modules; a second revert call
 changes nothing (idempotent).
-
 _Check:_ T94, T125.
 
 **REQ-260 — Granular synthesis activation.** The Game Master may manage
@@ -5076,7 +4961,6 @@ Ruleset Wisdom items cannot be removed, only deactivated. The above activation,
 deactivation, and removal tools are Game Master only. Activation and deactivation
 state persists with the Novel. Existing `toggle_synthesis_module` and
 `revert_synthesis` tools remain unchanged as convenience shortcuts.
-
 The Player badge may call `activate_synthesis_item` and `deactivate_synthesis_item`
 on items they authored (tagged `[player]`) — items stored under the
 `player_synthesis` key in Novel JSON. Player-created items are active immediately
@@ -5085,7 +4969,6 @@ upon creation; `deactivate_synthesis_item` suppresses a player item from the pla
 `remove_synthesis_item` — they use `player_remove_synthesis` (REQ-261) for their
 own items. Player badge attempts to activate, deactivate, or remove any item NOT tagged
 `[player]` SHALL return `[ERROR] [FORBIDDEN]`.
-
 *Acceptance criterion:*
 `list_synthesis_items()` shows all items with activation status and source tag;
 `activate_synthesis_item("voice_examples", "goblin-snarl")` activates the item
@@ -5096,7 +4979,6 @@ Wisdom item returns `[RULE_VIOLATION]`; on a synthesis item it permanently delet
 it; Player calls `deactivate_synthesis_item` on a `[player]` item — item hidden from
 player briefing; Player calls `activate_synthesis_item` on a `[ruleset]` item —
 returns `[FORBIDDEN]`.
-
 _Check:_ T-new-260.
 
 **REQ-261 — Player synthesis.** The player may create synthesis items in a
@@ -5104,7 +4986,6 @@ player-facing subset of output modules: `voice_examples`, `action_patterns`,
 `supplementary_guidance`, `narrative_voices`, and `lore_templates` — modules where
 player-authored content enriches the shared story experience. Three tools provide
 player synthesis:
-
 `player_synthesize(module, key, content, triggers?, badge_scope?)` creates a `[player]`-tagged
 synthesis item in the specified module. `key` is a unique snake_case slug within
 the module. `content` is a Markdown string. `triggers` is an optional keyword array
@@ -5114,7 +4995,6 @@ for lore_templates (ignored for other modules). `badge_scope` defaults to `share
 `[player]`-tagged item. Returns `[RULE_VIOLATION]` if the item is not player-authored.
 `player_list_synthesis(module?)` lists all `[player]`-tagged items, optionally filtered
 by module, with key, preview, scope, and activated status.
-
 Player-created items are stored in the Novel JSON under a `player_synthesis` key,
 organized by module. Items survive restarts and follow the Novel's persistence
 contract (REQ-092). Player items are active immediately upon creation — the player
@@ -5128,7 +5008,6 @@ The GM may not modify or remove player synthesis items — attempts return
 to incorporate it into the GM's active synthesis set. `revert_synthesis` (REQ-103)
 and `revert_synthesis` (REQ-265) SHALL NOT remove `[player]` items.
 Player badge only.
-
 *Acceptance criterion:*
 `player_synthesize("action_patterns", "feint-suggestion", "When I feint, suggest
 deception check")` creates an item that appears in the player's `suggest_actions`
@@ -5140,7 +5019,6 @@ output and in the GM's `badge_briefing` (shared scope);
 `player_list_synthesis()` returns all player-authored items with module, key,
 preview, and scope; GM badge returns `[FORBIDDEN]` on player synthesis tools;
 player items survive server restart.
-
 _Check:_ T-new-261.
 
 **REQ-262 — Synthesis tool.** The server provides a `synthesize(force?)` tool —
@@ -5151,7 +5029,6 @@ journal, scene history, factions, secrets, relationships, countdowns, and
 world-model rooms and things — per §11.2. Internal synthesis items are stored in
 the Novel JSON under the `synthesis` key alongside external items. Items carry
 `[supplementary]` tag with `novel://` source URIs.
-
 Modules that produce no synthesizable content produce empty sections with
 `[empty]` markers. The tool records a `synthesis_fingerprint` — a hash of the
 Novel state at synthesis time — to detect staleness without re-synthesis. Calling
@@ -5160,13 +5037,11 @@ the tool when no Novel state has changed since the last synthesis returns
 the staleness check and re-synthesizes all modules. Items produced by synthesis are
 inert (inactive by default) — the GM must activate them via REQ-260. Player badge
 returns `[FORBIDDEN]`.
-
 *Acceptance criterion:* Calling `synthesize()` with NPCs possessing personality
 fields produces `[supplementary]` voice examples with
 `source: novel://<slug>/npc/<npc_id>`. Calling again with no state changes returns
 the up-to-date message with timestamp. Calling with `force=true` re-synthesizes
 regardless. Player badge returns `[FORBIDDEN]`.
-
 _Check:_ T-new-262.
 
 **REQ-263 — Synthesis auto-trigger.** When `TTRPG_SYNTHESIS_AUTO_TRIGGER` is set
@@ -5181,13 +5056,11 @@ activate them. The auto-trigger threshold is visible in `spec_health` as
 `synthesis_auto_trigger: <threshold>`. When a ruleset-free Novel has no entities,
 NPCs, or story journal entries, synthesis produces empty modules with
 `[empty — no state]` markers.
-
 *Acceptance criterion:* With `TTRPG_SYNTHESIS_AUTO_TRIGGER=on_session_start`, a
 session boundary marker triggers synthesis. With `off`, synthesis requires explicit
 `synthesize` invocation. Auto-synthesized items appear in `list_synthesis_items()`
 with `activated: false`. A ruleset-free Novel with no populated state produces
 empty module markers.
-
 _Check:_ T-new-263.
 
 **REQ-264 — Synthesis confidence model.** All internal synthesis items carry a
@@ -5204,13 +5077,11 @@ fixed time. When a source field changes (e.g., NPC personality is edited), the
 corresponding item's `collected_at` timestamp is updated to reflect the synthesis
 time. Confidence is re-evaluated on each synthesis pass — an item that was
 `MEDIUM` may become `LOW` if its source was replaced with inferred content.
-
 *Acceptance criterion:* A voice example synthesized from an NPC's explicit
 personality field carries `[supplementary] [MEDIUM]`. A "recurring theme" insight
 derived from cross-referencing three story journal entries carries
 `[supplementary] [LOW]`. After editing an NPC's personality, re-synthesis updates
 the `collected_at` timestamp for that NPC's items.
-
 _Check:_ T-new-264.
 
 **REQ-265 — Synthesis in badge_briefing.** Synthesis items appear in
@@ -5225,14 +5096,12 @@ from the Player badge. Internal synthesis item badge scope defaults to
 include an empty synthesis section — unlike Ruleset Wisdom sections which require
 explicit empty-state markers per REQ-109. The absence of synthesis content is not a
 deficiency to signal.
-
 *Acceptance criterion:* Synthesis items appear in `badge_briefing` under their
 respective sections tagged `[supplementary]` with confidence, alongside
 `[ruleset]`, `[vendor]`, and `[player]` items. Player badge sees only items whose
 scope is `shared` or `player`. Deactivated items via REQ-260 are hidden from the
 Player badge. After `revert_synthesis`, synthesis items are absent from
 `badge_briefing` with no empty-section marker.
-
 _Check:_ T-new-265.
 
 **REQ-266 — Synthesis in dashboard.** `synthesis://status` (REQ-230) SHALL
@@ -5244,13 +5113,11 @@ timestamp (`synthesis_last_run` as ISO 8601). `synthesis://status` SHALL include
 a per-module breakdown of item counts. When no synthesis items exist,
 `synthesis://status` SHALL include the synthesis column with zero counts — the
 column is always present.
-
 *Acceptance criterion:* `synthesis://status` displays synthesis item counts per
 module alongside Ruleset Wisdom counts. `spec_health` includes
 `synthesis_last_run` timestamp and `synthesis_status` with per-module counts.
 After `synthesize()`, the synthesis column shows non-zero counts for populated
 modules.
-
 _Check:_ T-new-266.
 
 **REQ-130 — Synthesis rebuild contract.** Re-running the Synthesis workflow against a Novel that already contains
@@ -5307,12 +5174,10 @@ Ruleset Wisdom coexist in all resource URIs and `badge_briefing` sections. The G
 activates synthesis items via the same tool calls as Wisdom items. Synthesis items
 SHALL NOT replace or override Ruleset Wisdom items with matching keys — conflicts
 are recorded with `conflicts_with` reference to the Wisdom item.
-
 *Acceptance criterion:* A build with ruleset content SHALL populate Ruleset Wisdom
 in the Novel at creation time; synthesis, when run, adds `[supplementary]` items
 alongside `[ruleset]` and `[vendor]` items; `revert_synthesis` removes all
 `[supplementary]` items.
-
 _Check:_ T-new-227.
 
 **REQ-228 — Synthesis consistency during spec-driven updates.** During a
@@ -5440,7 +5305,6 @@ version has advanced, the builder SHALL run convergence and the Holonovel
 Pattern Buffer fresh and update the manifest with the new results and spec version.
 TTRPG builders consuming the holonovel package as a dependency SHALL NOT load or
 reference this manifest — it applies only to holonovel package builds.
-
 A ruleset source MAY include a pre-built synthesis manifest
 (`synthesis_manifest.json` alongside the ruleset Markdown) containing the
 seven-module REQ-225 extraction output, each module's `[ruleset]`-tagged items
@@ -5502,7 +5366,6 @@ and activity-pillar descriptions (e.g., `crafting`, `investigation`, `survival`,
 the full resolved catalog in DECISIONS.md. Combat is not a scene type — it is a
 resolution mode with dedicated state (REQ-043); combat presence is signalled by the
 combat state group in `badge_briefing`, not by a scene type tag.
-
 Multiple scene types may be active simultaneously (e.g., `["social", "exploration"]`
 for negotiation during a journey). The `scene_type` parameter on `set_scene_state`
 accepts either a single type string or an array of type strings. The type tags are
@@ -5531,7 +5394,6 @@ countdown decrement) are invisible to the Player badge.
 does not record a `[scene_transition]` audit entry; a countdown with
 `on_scene_transition=true` decrements on scene change.
 _Check:_ T136.
-
 *Out of scope:* AI content generation at runtime (all generation is build-time),
 real-time web synthesis, and narrative quality assessment beyond the anti-slop
 guidance catalog.
@@ -5551,14 +5413,12 @@ overlap between the secret text and registered entity/NPC/faction names), a
 `suspicious` relationship (REQ-236) SHALL be recommended between the
 knowledge-holder and the implicated entity. The recommendation SHALL be surfaced
 in `badge_briefing` for the Game Master badge only.
-
 `reveal_secret(key, target_id)` SHALL accept faction identifiers as `target_id` alongside
 entity identifiers. `check_knowledge(faction_id, key?)` SHALL accept faction identifiers
 alongside entity identifiers and SHALL return secrets known to the faction. Faction-known
 secrets SHALL surface at `faction://<id>` for the GM badge. WHEN a faction is revealed a
 secret that names another faction in its content, a `rival` relationship (REQ-236) SHALL
 be recommended between the knowledge-holding faction and the named faction.
-
 *Acceptance criterion:* `set_secret("murder_confession", "The butler killed Lord
 Ashworth")` creates a GM-only lore entry; `reveal_secret("murder_confession",
 "pc_detective")` adds "Known Information" to the detective's character sheet;
@@ -5740,7 +5600,6 @@ accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcer
 Ruleset-derived genre tags merge with the canonical catalog. Default is unset. When a
 genre is set, `spec_health` SHALL report `active_genre`. When unset, the genre line is
 absent from briefing per §5.10.
-
 *Acceptance criterion:* After setting `genre: "noir"`, `spec_health` reports
 `active_genre: "noir"` and `badge_briefing` includes a `genre` line. Setting an unknown tag
 returns `[WARNING]` but the tag is stored.
@@ -5756,7 +5615,6 @@ templates by category match (adventure_templates for scaffold structure), genre-
 items by keyword match against the premise string, and scenario_starters by genre tag —
 each selection carrying its source_url and confidence in the output. No runtime network —
 all content from indexed data.
-
 The optional `target` parameter accepts `novel` (default when a Novel is active), `codex`
 (default when no Novel is active), or `both`. `target: "codex"` SHALL store the generated
 scaffold as a Codex entry of kind `adventure` under the derived slug with `source:
@@ -5768,7 +5626,6 @@ produce both. When no Novel is active and `target` is omitted, `target` defaults
 required. Regenerating with `target: "codex"` replaces the prior Codex entry at the same
 slug; regenerating with `target: "novel"` replaces the prior generated Novel adventure.
 The Game Master expands via existing tools; the LLM (GM badge) writes narrative prose.
-
 *Acceptance criterion:* `generate_adventure("The goblin king demands tribute")` produces a
 title, overview, hook, 2–6 locations, NPC names, and encounter seeds; the scaffold appears
 at `adventure://generated/<anchor>`. `generate_adventure("The dragon hoard",
@@ -5799,10 +5656,8 @@ tables SHALL be drawn from only when genre-matching content is exhausted; (c) co
 tagged with a non-matching genre SHALL be excluded unless the GM explicitly requests it
 via a `!include_all` prefix on the premise/context string; (d) synthesis content SHALL
 be filtered by genre tag when the Novel's genre is set.
-
 Generation tables (REQ-213) SHALL carry an optional `genre_tags` field extracted during
 Discovery (§6.3). A table with no `genre_tags` field is classified as `universal`.
-
 *Acceptance criterion:* With `genre: "noir"` set, `generate_encounter("dark alley")` drawn
 from tables where the noir-tagged table contains "mugger" and the universal table contains
 "dragon" SHALL return the mugger.
@@ -5840,7 +5695,6 @@ tainted. The checksum algorithm and field name are builder-determined; the
 convergence loop enforces that tainted state is detected. Undo snapshot stacks
 (REQ-041) persist with the Novel — they survive server restarts alongside all other
 Novel state tiers.
-
 The Novel JSON SHALL include a `novel_format_version` field — an integer, initially
 `2`, incremented when the Novel's on-disk schema changes incompatibly. On load, the
 server compares the stored version to the current format version. Version < current:
@@ -5855,7 +5709,6 @@ and set `novel_format_version` to `2`. Version > current: surface a `[WARNING]
 [format_future]` in `spec_health` — the Novel may contain fields the current server
 cannot interpret; the server loads the Novel with the existing graceful migration
 rules and the warning remains active until the format version matches.
-
 WHEN `TTRPG_NOVEL_COMPRESS` is `true` (configurable), the serialized Novel
 JSON SHALL be gzip-compressed before writing to disk. Backups SHALL be
 compressed when the primary is compressed. The 4 MB health warning threshold
@@ -5908,7 +5761,6 @@ is the lore-only interchange pathway.
 "replace")` → `export_lorebook()` produces identical output; Player badge returns
 `[FORBIDDEN]`.
 _Check:_ T80.
-
 Merge mode adds entries whose keys are not present in the Novel's lore tier and
 preserves all existing entries unchanged. Duplicate keys — entries whose key
 matches an existing lore entry — are skipped with a count reported in the
@@ -5932,7 +5784,6 @@ ledger). No dedicated `synthesis` scope — Ruleset Wisdom activation keys expor
 `full` scope in the manifest's `synthesis_activation` field; synthesis items export as
 the `synthesis` key in `full` scope (per Appendix Q). Each scope outputs
 Appendix Q schema with omitted keys for excluded tiers. Single scope per call.
-
 `import_novel(data, mode, strict?)` (Game Master only, mode `dry-run`,
 `replace`, or `merge`, strict defaults to `false`) imports a previously
 exported Novel. `dry-run` reports what would change without side effects.
@@ -5963,7 +5814,6 @@ with `isError: false` for `dry-run`. `merge` adds entities and NPCs from the
 import to the active Novel, skipping duplicates by entity or NPC ID. Player
 badge attempts return `[ERROR] [FORBIDDEN]`. Round-trip: export → import →
 export produces identical output (full scope, same format).
-
 The export SHALL include a `manifest` object containing: `novel_format_version`
 (defined in REQ-092), `server_spec_version` (CalVer from DECISIONS.md),
 `ruleset_hash` (SHA-256 of source ruleset), `builder_implementation` (name and
@@ -5974,7 +5824,6 @@ of populated tier names), and `waiver_dependent_mechanics` (array of mechanic
 names that depend on REQ-013 waivers recorded in DECISIONS.md). The manifest
 is advisory — `import_novel` surfaces mismatches as warnings but does not
 block import.
-
 `export_novel` SHALL embed loaded adventure module content inline in the
 `adventure` key when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true` (default
 `false`). When `false`, the export's `manifest.adventure_module_slugs` field
@@ -6107,7 +5956,6 @@ SHALL surface in `spec_health` under an `archived_novels` key with slug and
 archive timestamp. Codex entries captured from an archived Novel via
 `codex_capture` SHALL preserve their `source_novel` field — the archived Novel
 remains the provenance reference.
-
 *Acceptance criterion:* `archive_novel("my-novel")` moves the file to
 `.holonovel-state/archive/my-novel.json`; `list_novels()` excludes it;
 `list_novels(filter="archived")` includes it with archive timestamp;
@@ -6115,7 +5963,6 @@ remains the provenance reference.
 `unarchive_novel("my-novel")` restores the Novel to active state with all
 property groups intact. `spec_health.archived_novels` lists the archived slug.
 Player badge returns `[FORBIDDEN]`.
-
 _Check:_ T-new-337.
 
 ### 5.10 World-Model Layer
@@ -6256,7 +6103,6 @@ verbs discovered via REQ-222. `command("help")` SHALL group commands by tier;
 `world://kinds` SHALL report per-tier verb lists; `spec_health` SHALL include
 `parser_verb_coverage` with per-tier counts. The tier classification is advisory —
 it signals parser completeness, not mechanical enforcement.
-
 *Acceptance criterion:* A populated world model with openable doors, readable books,
 and wearable items reports `core` tier verbs (7), `standard` tier verbs (12+ depending
 on world-model supports), and `extended` tier verbs per REQ-222. A ruleset with no
@@ -6271,12 +6117,10 @@ when that object exists and is reachable in the world model. Reachable means: th
 is in the current room, in the player's inventory, or in an open container in either.
 The hint SHALL be appended to the rule-violation message as a separate line:
 `Hint: You need the <object name> (<location>) first.`
-
 Examples: `command("open chest")` when the chest is locked and the iron key is in the
 player's inventory → `[RULE_VIOLATION] The chest is locked. Hint: You need the iron key
 (inventory) first.` `command("unlock chest")` when no key exists in the world model →
 `[RULE_VIOLATION] The chest is locked.` (no hint — no reachable key exists).
-
 The hint contract SHALL extend to the following precondition failures for new
 kinds, following the same reachability rules. When a readable thing is inside a
 closed container in the room, the hint SHALL state the thing is inside the
@@ -6286,7 +6130,6 @@ targeting a switched-off device in a dark room, no hint is produced — switchin
 the device is the solution. When reading requires unworn wearable equipment, no
 hint is produced — the parser returns a `[RULE_VIOLATION]` listing the missing
 equipment type.
-
 *Acceptance criterion:* Create a world model with a locked chest and an iron key in the
 room. `command("open chest")` returns `[RULE_VIOLATION]` with a hint naming the iron key
 and its location. Remove the key from the world model — `command("open chest")` returns
@@ -6329,7 +6172,6 @@ rooms SHALL NOT appear in `world://map` independently — they are child
 objects of the vehicle, not world-graph nodes. The kind declaration "A raft
 is a vehicle. 'Description.' It is in the Lake." SHALL be recognized by
 `convert_source`.
-
 WHEN a player enters a vehicle via `command("enter <vehicle>")`, the server
 SHALL record a `[vehicle-entry]` story journal entry of type `moment` with
 the context `entered <vehicle>` and the vehicle's interior description. WHEN
@@ -6341,19 +6183,13 @@ scene state — the GM's `set_scene_state` remains authoritative.
 _Check:_ T-new-318.
 
 **REQ-318 — Extended property contracts.** THE world-model layer SHALL
-extend the `thing` type with the following properties, each enabling a
-parser command and carrying a default value. `switchable` (boolean, default
-false) enables `switch on`/`switch off`; `switched_on` (boolean, default
-false) records current switch state. `wearable` (boolean, default false)
-enables `wear`/`remove`, setting `worn_by` on wear. `readable` (boolean,
-default false) enables `read`, with `read_text` (string or null, default
-null) providing the revealed text. `edible` (boolean, default false) enables
-`eat`, removing the thing from inventory. `drinkable` (boolean, default
-false) enables `drink`. `enterable` (boolean, default false) enables `enter`
-for containers or vehicles. `climbable` (boolean, default false) enables
-`climb`. `transparent` (boolean, default false) makes contents visible when
-closed.
-
+extend the `thing` type with properties enabling parser commands, each
+defaulting to false: `switchable` enables `switch on`/`switch off`; `switched_on`
+records current switch state; `wearable` enables `wear`/`remove`; `readable`
+enables `read` with `read_text` providing revealed text and defaulting to null;
+`edible` enables `eat`, removing the thing from inventory; `drinkable` enables
+`drink`; `enterable` enables `enter` for containers or vehicles; `climbable`
+enables `climb`; `transparent` makes contents visible when closed.
 `convert_source` SHALL recognize property assertions for each boolean
 property: "It is wearable.", "It is readable.", "It is edible.", "It is
 transparent.", "It is switched on.", "It is enterable.", "It is climbable."
@@ -6380,7 +6216,6 @@ commands: `climb` (climbable targets with associated exits), `enter`
 `sit` (supporters, records sitting), `stand` (ceases sitting). Meta
 commands: `again`/`g` (repeats last command, session-local), `it`/`them`/`all`
 (pronoun disambiguation).
-
 `convert_source` directional exit adjacency SHALL associate a climbable
 thing with the exit in the same direction: when "A rope ladder is in the
 Entrance Chamber. It is climbable." is followed by "Up of the Entrance
@@ -6399,7 +6234,6 @@ commands resolve an NPC by name in the current room and record the topic
 intent; `give` transfers a thing from inventory to the NPC; `show` records
 intent without transferring; `throw` moves a thing to the target's room
 without equipping it.
-
 NPC resolution SHALL match by name substring against NPCs whose location
 matches the current room. When no NPC matches in the current room, the
 command SHALL still record the intent with a `[WARNING]` marker — the
@@ -6413,7 +6247,6 @@ verbatim description, and visible things with containment chains expressed
 in a standard format. The description SHALL be drawn from the source
 text — no generative prose is appended. Exit directions SHALL appear in
 status-line context, not in the room-description body.
-
 The system SHALL support three description modes settable via `command("brief")`,
 `command("verbose")`, and `command("normal")` (default). In `brief` mode,
 `command("look")` returns only the room name and exit directions — the verbatim
@@ -6424,7 +6257,6 @@ only; subsequent entries into seen rooms return the name and exits. The mode
 persists for the session — it is discarded on connection close. `command("brief")`
 and `command("verbose")` are always recognized verbs, even when the world-model
 tier is empty. `spec_health` SHALL report the current description mode.
-
 The `player_signal` interface SHALL accept a `detail` signal with values `terse`
 (room name + exits only, minimal combat feedback — participant name + result, no
 full roll transparency), `normal` (balanced output), and `rich` (full descriptions,
@@ -6512,14 +6344,12 @@ be server-scoped — it applies as the default to every Novel, overridable per-N
 by `set_help_category` (REQ-067) and `set_briefing_order` (REQ-082). TTRPG
 resolution authority is unchanged by this setting — it affects presentation, not
 mechanics.
-
 Parser `command` and all parser verb names SHALL be Game Master only. The Player
 badge SHALL never see parser verb names in help, `suggest_actions`, or any tool
 output. The AI narrator resolves player spatial intent through `resolve_intent`
 (REQ-323) — the parser is never exposed to the Player as a callable tool. At
 every prominence level, `suggest_actions` under the Player badge SHALL map
 spatial intents to `resolve_intent`, never to `command`.
-
 At `visible` (default): World-model and narrative tools SHALL appear in primary help
 categories. Parser `command` SHALL appear in "World Inspection" (GM only).
 `badge_briefing` SHALL include a dedicated
@@ -6534,19 +6364,16 @@ world-model state into the scene state section;
 narrative-tool sections SHALL render only when their data is non-empty.
 `suggest_actions` SHALL NOT return parser commands for exploration or navigation
 intents; Player-badge spatial intents SHALL map to `resolve_intent`.
-
 At `prominent`: Parser `command` SHALL be a top-level GM help entry under "World
 Inspection"; world CRUD tools
 SHALL appear in a primary setup category. `badge_briefing` SHALL include world-model
 state in the decision-critical group. `suggest_actions` under the Game Master badge
 SHALL prefer parser `command` for spatial inspection; under the Player badge,
 `suggest_actions` SHALL return `resolve_intent` for all spatial intents.
-
 In ruleset-free mode (B1=`none`), the setting SHALL be skipped — the world-model
 and narrative layers are the primary surface by definition (REQ-218). The builder
 SHALL NOT record a `TTRPG_WORLD_PROMINENCE` value in DECISIONS.md when B1 is
 `none`, and the intake question (B12) SHALL NOT be asked.
-
 *Acceptance criterion:* A build with `TTRPG_WORLD_PROMINENCE=visible` produces
 the default help categorization (world-model and narrative tools in primary help).
 `TTRPG_WORLD_PROMINENCE=prominent` places parser `command` as a top-level GM help
@@ -6554,7 +6381,6 @@ entry and includes world-model state in the decision-critical briefing group.
 `TTRPG_WORLD_PROMINENCE=secondary` produces a minimized surface with world-model
 tools in secondary categories. At all levels, Player-badge `suggest_actions`
 returns `resolve_intent` for spatial intents — never `command`.
-
 The prominence setting applies uniformly across badges— Game Master and Player receive
 the same world-model state surface in `badge_briefing`. Per-badge prominence overrides
 are a recognized future extension (a GM building world content may prefer `prominent`
@@ -6572,7 +6398,6 @@ mechanic name, mechanic source (spell, class_feature, item, ability),
 prerequisites (level, spell slot count, item name), and source anchor.
 `spec_health` SHALL report `constraint_override_counts` by constraint type and
 by mechanic source.
-
 Error responses that cite a world-model constraint SHALL include override hints
 when the active entity possesses a relevant bypass: `[RULE_VIOLATION] The door
 is locked. Hint: Knock (1 slot remaining) can open it.` Hints SHALL be
@@ -6598,7 +6423,6 @@ and room name when a match exists. `resolve_intent` under the Game Master badge
 (for GM inspection) SHALL compose the full scene from room data and narrative
 framing. Under the Player badge, scene composition SHALL occur through AI
 narration via `resolve_intent` — the Player never sees room graph data directly.
-
 When the world model is unpopulated or no room name matches the location,
 `location` works as a free-text label (current behavior). Room-coupled scenes
 are backward compatible: unmatched location strings produce no spatial truth
@@ -6623,7 +6447,6 @@ Room-registered NPCs SHALL appear in `room_context` of `resolve_intent` results
 for that room. NPC presence in `badge_briefing` and `party://current` SHALL
 continue to be governed by `characters_present` on `set_scene_state` (REQ-307)
 — room registration supplements, it does not replace presence tracking.
-
 *Acceptance criterion:* `create_npc("Blacksmith", location="Forge")` where
 world model has room "Forge" — `resolve_intent("look")` from Forge lists
 Blacksmith. `update_npc("blacksmith", location="Inn")` — Blacksmith is no
@@ -6639,18 +6462,15 @@ container at any level in the chain SHALL block perception of all
 recursively contained things — propagation SHALL stop at the first opaque
 boundary. Inner containers' `transparent` properties are irrelevant when an
 outer container is opaque.
-
 A `transparent` container containing a `lit` and `switched_on` device SHALL
 report the device's light state to the room — "a glowing lantern (inside the
 glass case)." A `transparent` container containing a `lit` device that is
 `switched_off` SHALL NOT report light — "a dark lantern (inside the glass
 case)." A `dark` container SHALL block perception of its contents regardless
 of `transparent` — "a brass urn (opaque, what's inside is hidden)."
-
 A vehicle interior SHALL inherit the `lit`/`dark` state of the vehicle's
 exterior room unless the vehicle itself is `lit`. `command("look")` output
 SHALL reflect propagated state.
-
 *Acceptance criterion:* A world model with a transparent jar containing a
 switched-on lantern in a dark room — `command("look")` reports "a glowing
 lantern (inside the glass jar)." Switch the lantern off — `command("look")`
@@ -6673,7 +6493,6 @@ target thing's property — only properties defined in REQ-318 are
 addressable. `exit` with `target=<room_id>`, `direction=<dir>`,
 `destination=<room_id>` SHALL create the exit per REQ-198 with implicit
 reverse exit.
-
 All `world_effect` mutations are snapshot-able and surfaced in
 `badge_briefing` `narrative_threads` as `[countdown-effect]`. WHEN a
 countdown with `world_effect` fires and the referenced target has been
@@ -6683,7 +6502,6 @@ removed from active countdowns and recorded in the audit log with a
 effect not applied` annotation. The countdown is not re-queued. An `undo`
 that restores the deleted target before the countdown fires SHALL restore
 the effect's ability to apply.
-
 *Acceptance criterion:* `set_countdown("flood", 3, type="narrative",
 world_effect={type:"describe", target:"cellar", value:"Knee-deep water
 fills the cellar, rising fast."})`. Advance three narrative ticks — assert
@@ -6691,7 +6509,6 @@ countdown fires, cellar room description replaced, prior description in
 undo snapshot. Create countdown with `world_effect.target="nonexistent"` and
 fire — assert `[WARNING] target missing — effect not applied` in audit log.
 _Check:_ T-new-375.
-
 *Out of scope:* multiplayer synchronization, real-time collaborative editing,
 save-Novel versioning beyond the checksum model, and Novel migration between
 different rulesets.
@@ -6759,7 +6576,6 @@ transition that retains the same beat SHALL NOT record a beat transition. The
 beat taxonomy is descriptive — the GM may set any beat at any time; the
 server does not enforce beat progression sequences. Scene beat SHALL influence
 countdown advancement rate per REQ-353.
-
 *Acceptance criterion:* `set_scene_state("The hall darkens", beat="escalation")`
 surfaces `Beat: escalation` after the scene type tag in `badge_briefing`.
 `session_recap` includes `beat_transitions` showing `{from: "mid_scene",
@@ -6789,7 +6605,6 @@ via `TTRPG_PACING_WINDOW`; setting it to zero disables pacing signals. The
 pacing counter resets on every `set_scene_state` call (scene transition) and
 on every beat change. When a pacing signal fires, the server SHALL additionally
 trigger autonomous advancement per REQ-351.
-
 *Acceptance criterion:* After 21 tool calls with no scene transition,
 `badge_briefing` includes `[pacing] Scene stabilized — 21 actions since last
 transition.` After `set_scene_state("new scene")`, the counter resets and the
@@ -6814,7 +6629,6 @@ without a scene transition past a second window, the pacing signal re-fires but
 autonomy does not re-trigger until a scene transition resets the pacing
 counter. This contract implements the narrative intuition that "while you were
 deliberating, the world moved."
-
 *Acceptance criterion:* Set `TTRPG_PACING_WINDOW=3`. Create faction with
 clock and NPC with goal. Perform 4 tool calls without scene transition — assert
 pacing signal fires AND audit log records `[pacing-autonomy]` with faction tick
@@ -6833,7 +6647,6 @@ description preview (first sentence) that produced them, e.g., `setup (\"The
 hall is quiet...\") -> escalation (\"The torches flicker...\")`. An empty
 sequence SHALL render `[No beats completed.]`. The sequence SHALL NOT exceed
 the most recent 10 completed beats.
-
 *Acceptance criterion:* After three `set_scene_state` calls with beats
 `setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat
 sequence. After 12 beat transitions, only the most recent 10 appear. An empty
@@ -6854,7 +6667,6 @@ replaces the scaffold entry. Scaffold beats SHALL NOT appear in
 `beat_transitions` in `session_recap` until a scene transition actually adopts
 them — only GM-confirmed or auto-adopted beats enter the transition history.
 Adventure entries without `suggested_beats` SHALL produce no pre-population.
-
 *Acceptance criterion:* Create Codex adventure entry with `suggested_beats:
 [{beat: "setup", scene_preview: "The tavern is quiet..."}, {beat:
 "escalation", scene_preview: "A fight breaks out..."}]`. Call
@@ -6880,7 +6692,6 @@ when an autonomous tick would fire a linked countdown, the countdown SHALL
 surface a `[pending_fire]` annotation in `badge_briefing`
 `narrative_threads` section (REQ-281) requiring GM confirmation via a
 workflow decision.
-
 *Acceptance criterion:* A faction with `TTRPG_FACTION_AUTONOMY_INTERVAL=3`
 advances its clock by one autonomous tick on the 3rd, 6th, and 9th scene
 transition. The tick is annotated `[autonomous]` in the clock state. An
@@ -6901,7 +6712,6 @@ Deferred suggestions SHALL re-appear at every subsequent scene transition
 until accepted or dismissed. Dismissed suggestions SHALL NOT re-appear for
 the same NPC in the same Novel. The feature is disabled by default
 (`TTRPG_NPC_AUTONOMY=off`); the GM enables it per Novel.
-
 *Acceptance criterion:* Create an NPC with `goals="Steal the crown"` and
 `disposition="suspicious"` (differs from default `neutral`). Set
 `TTRPG_NPC_AUTONOMY=on`. Call `set_scene_state("Throne room")` — assert
@@ -6924,7 +6734,6 @@ NPC goal pursuit SHALL resume. When `TTRPG_NPC_AUTONOMY=off`, faction
 autonomous advancement SHALL proceed normally per REQ-338 without NPC
 coordination. The contract prevents duplicate World-in-Motion events for the
 same narrative outcome.
-
 *Acceptance criterion:* Create faction "Merchant Guild" with goal "Expand to
 East Dock". Create NPC "Guildmaster Kael" with `goals="Secure the East Dock
 contract"`. Set `TTRPG_FACTION_AUTONOMY_INTERVAL=3` and
@@ -6948,7 +6757,6 @@ to `true`. The entry SHALL appear in `session_recap`
 fire while the player's entity IS present SHALL produce standard `consequence`
 entries with `discovered` unset. A `[discovered]` consequence SHALL populate
 the discovering entity's `knowledge_state` per REQ-349.
-
 *Acceptance criterion:* Create a countdown linked to Guard Room. Set entity
 absent (not in `characters_present`). Advance countdown to fire. Set entity
 present in Gatehouse scene (different location). Advance scene — no discovery.
@@ -6970,7 +6778,6 @@ what happened off-screen. If multiple entities discover the same consequence
 (are all present when the countdown location is reached), each entity's
 `knowledge_state` SHALL receive the entry independently. Consequence knowledge
 SHALL persist in `knowledge_state` across scene transitions and Novel restarts.
-
 *Acceptance criterion:* Create countdown linked to Guard Room. Set rogue_01
 absent. Advance countdown to fire. Set scene to Guard Room with rogue_01
 present — assert `[discovered]` story journal entry AND `knowledge_state`
@@ -6991,7 +6798,6 @@ player direct awareness of surroundings without requiring the AI narrator to
 explicitly describe every detail. When the world-model tier is unpopulated, no
 spatial surface appears — the empty-state marker renders `[No world model —
 surroundings are as described by the GM.]`.
-
 *Acceptance criterion:* A populated world model with rooms, exits, and things
 produces a spatial surface in Player `badge_briefing` containing the room name,
 exit directions, and visible things — without IDs or internal names. An
@@ -7009,7 +6815,6 @@ the derived world-model description SHALL serve as the scene description. When
 `location` does not resolve to any room, the `description` parameter SHALL be
 the sole scene description as before. This contract ensures the GM describes a
 room once — the world model is the source of spatial truth.
-
 *Acceptance criterion:* `set_scene_state("", location="Throne Room")` with
 the Throne Room containing a throne thing and two NPCs produces a scene
 description derived from the room description and its contents. The same call
@@ -7029,14 +6834,12 @@ return suggestions from all matching domains ordered by relevance. The tool
 SHALL accept an optional `entity_id` parameter; when provided, entity-specific
 context (personality fields per REQ-077, voice examples, equipment, known
 abilities) SHALL be included in the match weighting.
-
 Spatial domain results SHALL delegate to `resolve_intent` (REQ-323) for exit,
 constraint, and thing context. The intent resolver SHALL call `resolve_intent`
 with the player's spatial intent — the response SHALL incorporate the resolved
 room context, exits, constraints, and override hints — rather than
 independently querying the world model. This ensures spatial suggestions and
 parser-based navigation draw from the same resolution pipeline.
-
 Social intents SHALL resolve against: the target NPC's disposition (REQ-075),
 the caller entity's relationship to the target (REQ-236), any active scene
 type of `social` (REQ-087), and the ruleset's social-skill catalogue. The
@@ -7044,7 +6847,6 @@ resolution SHALL return: the most relevant skill check tool with the target
 NPC's name as context, any available constraint overrides that could affect
 the outcome (REQ-325), and a narrative framing hint derived from the NPC's
 personality fields.
-
 *Acceptance criterion:* `suggest_actions("convince the guard to let us
 pass", entity_id="bard_01")` returns mechanical suggestions (skill check
 with persuasion), spatial context (current room exits), and social context
@@ -7073,7 +6875,6 @@ issue up to 3 corrections per session (configurable via
 `[WARNING] Voice correction limit reached for this session.`. The limit resets
 on `TTRPG_SESSION_ID` change per REQ-237. Voice corrections SHALL be capturable
 to the Codex for cross-Novel persistence per REQ-347.
-
 *Acceptance criterion:* `player_signal("voice_feedback", "She wouldn't say
 that — she'd say 'The door is trapped. Stand back.'")` appends a
 `[player-corrected]` snippet. `badge_briefing` shows the correction.
@@ -7095,7 +6896,6 @@ distinct from `[player-corrected]` (REQ-344) and `[supplementary]` (REQ-080) in
 stats — it carries only personality and voice fields (REQ-077). The
 `update_source` flag SHALL push Novel-level voice corrections back to the source
 Codex entry in-place, matching the bidirectional sync contract of REQ-321.
-
 *Acceptance criterion:* Call `player_signal("voice_feedback", "She wouldn't
 say that — she'd say 'Stand back.'")` on an entity. Call
 `codex_capture("voice_profile", entity_id, update_source=true)` — assert Codex
@@ -7119,7 +6919,6 @@ Background knowledge is advisory — it instructs the AI narrator to permit
 reasonable inference but does not populate the `knowledge_state` with explicit
 facts. The background string SHALL additionally be matched against lore entry
 triggers per REQ-350.
-
 *Acceptance criterion:* Create entity with `background="Veteran of the
 Border Wars"`. `badge_briefing` `knowledge_state` includes
 `background_knowledge` subsection with the background text and boundary
@@ -7139,7 +6938,6 @@ facts. Background lore matching SHALL NOT fire on lore entries tagged
 `game_master`-scope (REQ-083 hat_scope) — only `shared`-scope entries are
 matched. The match SHALL re-evaluate on every `badge_briefing` render to
 accommodate lore entry additions and removals during play.
-
 *Acceptance criterion:* Create entity with `background="Veteran of the Border
 Wars"`. Create lore entry `border_treaty` with triggers `["border", "war",
 "treaty"]` and `hat_scope="shared"`. Call `badge_briefing` — assert
@@ -7158,7 +6956,6 @@ suggesting the countdown be advanced. The advisory SHALL carry the
 secret's key, the countdown name, and a prompt for the GM to advance or
 ignore. This is a navigational coupling — the server suggests; the GM
 decides.
-
 *Acceptance criterion:* Create a secret "betrayal" and a countdown with
 `scope` containing the term "betrayal." Call `reveal_secret("betrayal",
 "pc_01")` — assert `badge_briefing` `narrative_threads` includes a
@@ -7173,7 +6970,6 @@ lore entries in the `narrative_threads` briefing section (REQ-281) tagged
 `[vow-relevant]`. The match SHALL re-evaluate on each `badge_briefing`
 render. This is a navigational coupling — lore is surfaced as guidance,
 not auto-revealed.
-
 *Acceptance criterion:* Create lore entry "crown_of_alara" with trigger
 "crown". Call `set_vow("Find the Crown", "Retrieve the Crown of Alara",
 ...)` with at least one party member — assert `badge_briefing`
@@ -7190,7 +6986,6 @@ advisory in the `narrative_threads` briefing section (REQ-281). The
 advisory SHALL carry the faction name, the matching goal text, the story
 entry preview, and a prompt for the GM to advance or ignore. This is a
 navigational coupling — the server suggests; the GM decides.
-
 *Acceptance criterion:* Create faction "Merchant Guild" with goal
 "Control the docks." Call `record_story("consequence", "The docks were
 destroyed")` — assert `badge_briefing` `narrative_threads` includes
@@ -7210,7 +7005,6 @@ and so on. The shift SHALL be recorded in the audit log with
 `[countdown-disposition]` annotation carrying the NPC ID, countdown name,
 and disposition change. This is a mechanical coupling — disposition
 changes automatically on countdown fire.
-
 *Acceptance criterion:* Create NPC "Guard" with `disposition="neutral"`,
 `location="gatehouse"`. Create `hostile`-direction countdown with
 `scope="gatehouse"`. Fire the countdown — assert Guard's disposition
@@ -7228,7 +7022,6 @@ the countdown be advanced or a new countdown be created to represent the
 fallout. The advisory SHALL carry both entity names, the relationship
 change, and the matching countdown name. This is a navigational coupling
 — the server suggests; the GM decides.
-
 *Acceptance criterion:* Create countdown with `scope="alliance"`. Call
 `set_relationship("pc_01", "npc_guard", "ally")`. Then call
 `set_relationship("pc_01", "npc_guard", "rival")` — assert
@@ -7247,7 +7040,6 @@ briefing section (REQ-281) suggesting a countdown be created from the
 lore entry's content. The advisory SHALL carry the lore entry key, the
 matched urgency trigger, and a prompt for the GM to create or ignore.
 This is a navigational coupling — the server suggests; the GM decides.
-
 *Acceptance criterion:* Call `set_lore_entry("impending-raid", "The
 goblins are marching — they will be here by nightfall.",
 triggers=["raid", "imminent"])` — assert `badge_briefing`
@@ -7268,7 +7060,6 @@ corresponding vow via `set_vow` (REQ-289). This is a navigational
 coupling — the server suggests; the GM decides. An NPC whose goal text
 already appears in an active vow's `description` SHALL NOT produce a
 suggestion.
-
 *Acceptance criterion:* Create NPC "Blacksmith" with
 `goals="Forge the legendary blade Starfang"`. Invoke `badge_briefing` —
 assert `narrative_threads` includes vow-creation suggestion naming the
@@ -7288,7 +7079,6 @@ vow's `description`. The suggestion SHALL carry the faction name, the
 matching goal text, and a prompt for the GM to create a vow via `set_vow`
 (REQ-289). This is a navigational coupling — the server suggests; the GM
 decides.
-
 *Acceptance criterion:* Create faction "Thieves Guild" with goal
 "Steal the Crown of Alara". Create lore entry referencing "Crown of
 Alara". Invoke `badge_briefing` — assert `narrative_threads` includes
@@ -7306,7 +7096,6 @@ The secret SHALL surface in `badge_briefing` `narrative_threads` tagged
 `[world-linked]` when the active scene's `location` resolves to the
 targeted room. This is a navigational coupling — the secret is annotated
 with location context; it does not auto-reveal.
-
 *Acceptance criterion:* Create world-model room "Vault". Call
 `set_secret("vault-trap", "The floor is pressure-plated",
 world_target="vault")`. Call `set_scene_state("The strongroom",
@@ -7323,7 +7112,6 @@ appear in `badge_briefing` `narrative_threads` tagged `[territorial]`
 when the active scene's `location` resolves to a room within the
 faction's territory. This is a navigational coupling — the faction is
 annotated with location context; its clock behavior is unchanged.
-
 *Acceptance criterion:* Create world-model room "Throne Room". Call
 `create_faction("Royal Guard", goals=["Protect the crown"],
 territory=["throne_room"])`. Call `set_scene_state("The royal chamber",
@@ -7342,7 +7130,6 @@ in the `badge_briefing` supplementary guidance alongside synthesis items
 `narrative_tag` SHALL remain in the server notes resource only, as
 current behavior. This is a navigational coupling — server notes are
 surfaced as GM guidance in the briefing prompt.
-
 *Acceptance criterion:* Call `set_server_note("old-gods", "The old gods
 were banished to the outer dark", narrative_tag="lore_seed")` — assert
 `badge_briefing` supplementary guidance includes `[lore_seed] The old
@@ -7371,7 +7158,6 @@ visible. The observer SHALL have read-only access to world-model
 inspection tools — `resolve_intent` (REQ-323), parser `look` and
 `examine` commands, and resource reads (`room://<id>`, `thing://<id>`,
 `world://map`) — consistent with the state-query permission of REQ-305.
-
 The observer `badge_briefing` SHALL include presence markers and
 `knowledge_state` for all entities present in the Novel — the observer
 sees what the AI (playing both roles) knows for every character. Entity
@@ -7379,7 +7165,6 @@ presence markers (REQ-307) and knowledge scoped by attendance (REQ-308)
 are unfiltered under the observer badge, matching the GM-level visibility
 contract: the human watches the AI auto-play, so no entity's percepts are
 hidden.
-
 *Acceptance criterion:* Call `set_badge("observer")` on a populated
 Novel. Assert `badge_briefing` includes scene state, entity personality,
 and narrative threads with omniscient-role orientation directive. Assert
@@ -7399,7 +7184,6 @@ REQ-109; (c) a smoke-session transcript (5+ turns of cooperative play)
 demonstrates that the server's narrative surfaces support coherent story flow.
 The smoke-session transcript SHALL be embedded or linked in DECISIONS.md (6).
 A build missing this attestation is a handoff defect.
-
 *Acceptance criterion:* DECISIONS.md (6) contains a `narrative_coherence`
 section sub-headed `@section evidence` with the three attestation points and
 an embedded or linked smoke-session transcript.
@@ -7419,7 +7203,6 @@ rule is a spec defect. Archetypes classified as `[content source]` denote
 input sources that populate property groups — they are excluded from the
 coupling cross-product. `npm run validate` SHALL verify that every coupling
 row in §7.7.1a cites a valid pattern rule.
-
 *Acceptance criterion:* `npm run validate` reports no untraced coupling rows
 and no coupling row with an invalid or missing pattern rule reference.
 _Check:_ T-new-376.
@@ -7431,12 +7214,10 @@ property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0
 with zero coupling rows is a spec defect. A coupling row citing a
 mismatched pattern rule is a spec defect. `npm run validate` SHALL verify
 both conditions.
-
 Property groups classified as `[content source]` do not participate in
 coupling derivation — the properties they populate couple via their own
 archetype rules (§7.7.0). The coupling completeness register (§7.7.1b
 previous) IS REMOVED — it is replaced by this derivation contract.
-
 *Acceptance criterion:* `npm run validate` reports no pattern rules with
 zero coupling rows and no coupling rows with mismatched archetype
 assignments.
@@ -7452,7 +7233,6 @@ override individual Wisdom items via `deactivate_synthesis_item`. Ruleset
 Wisdom survives `revert_synthesis`. Wisdom items extracted from the ruleset
 but not yet implemented in the current build SHALL render as Navigational
 suggestions until the builder implements the Mechanical coupling.
-
 *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom
 carries voice_examples, goals, and personality patterns without manual GM
 activation. A countdown created from Wisdom pacing patterns advances
@@ -7470,7 +7250,6 @@ cannot detect this gap. The metric threshold is 100%: all 17 property groups
 classified. Missing archetype assignments SHALL be resolved by re-reading §7.7.0
 definitions and reassigning archetypes per the coupling pattern rules that govern
 each group's behavioral nature.
-
 *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A
 group missing an archetype causes this metric to fail, directing the builder to
 re-read and re-classify before proceeding to Phase 2.
@@ -7487,7 +7266,6 @@ render as server behavior. The builder SHALL improve the rate by re-reading
 ruleset source sections where the text carries strong behavioral language
 (procedures, pacing directives, structural patterns), re-classifying items from
 Navigational to Mechanical where the coupling contract supports it.
-
 *Acceptance criterion:* At least 30% of extracted Wisdom items carry Mechanical
 coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational
 causes this metric to fail, directing the builder to re-classify.
@@ -7508,7 +7286,6 @@ before the holonovel package is published. New REQs added to the covered section
 during a spec revision require the builder to propose at least one new Holonovel
 Pattern Buffer sub-workflow exercising their contract; the proposal is a finding,
 not a blocker.
-
 *Acceptance criterion:* After a full Holonovel Pattern Buffer run, DECISIONS.md (6)
 contains a Holonovel sub-workflow-to-REQ mapping covering every REQ in the
 specified sections. Gaps detected by `npm run validate` are errors that block
@@ -7531,7 +7308,6 @@ Wisdom per REQ-371 (P5–P11), record the supplementary ruleset's slug and
 content hash in the Novel's metadata, and on Novel resume re-resolve
 supplementary rulesets (surfacing `[supplementary_gap]` in `spec_health` if a
 source file is missing or hash-mismatched).
-
 Import is Game Master only, editing-mode only (no badge active).
 Supplementary rulesets do not affect other Novels — tools and Wisdom are
 Novel-scoped. The server MAY cache extraction results across Novels that
@@ -7540,13 +7316,11 @@ tools and Wisdom from the supplementary ruleset in the current Novel; state
 derived from supplementary content (NPCs created from supplementary stat
 blocks, lore from supplementary Wisdom) persists — the tools that created
 them are no longer available.
-
 WHEN the builder's chosen stack cannot support dynamic tool registration,
 THE builder SHALL record a waiver in DECISIONS.md (5) citing the technical
 constraint, and supplementary ruleset import SHALL be limited to Ruleset
 Wisdom only — mechanics from supplementary sources require a full rebuild.
 The waiver SHALL re-evaluate on each builder version.
-
 *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")`
 in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`,
 `badge_briefing`, and `list_synthesis_items`. Assert Wisdom mechanically
@@ -7567,7 +7341,6 @@ annotate dynamically registered tools with their source supplementary
 ruleset slug. When a supplementary ruleset is removed (REQ-372), its tools
 SHALL be deregistered — `tools/list` and tool invocation SHALL behave as if
 the tools were never present.
-
 *Acceptance criterion:* After `import_supplementary`, `tools/list` includes
 new tools annotated with source slug. Tool invocation produces `[OK]` with
 response prefix, error taxonomy, and source quoting. After
@@ -7587,7 +7360,6 @@ world beyond immediate mechanical resolution — destruction of objects,
 illumination or extinguishing of light sources, creation or removal of
 obstacles, transformation of environments, revelation of information, or
 application of persistent conditions to entities.
-
 For each qualifying tool, the builder SHALL record coupling metadata: (a) the
 target archetype — Spatial, Entity-bearing, Temporal, or Knowledge-carrying,
 (b) the coupling nature — Mechanical for deterministic effects the ruleset
@@ -7595,12 +7367,10 @@ describes as automatic, Navigational for effects requiring GM interpretation,
 and (c) the triggering condition drawn from the ruleset text. This metadata
 populates the Mechanics property group per the Mechanical archetype
 (§7.7.0).
-
 Confidence labels apply per coupling entry: HIGH when the ruleset text
 unambiguously describes a world-affecting outcome, MEDIUM when the effect is
 implied but not explicit, LOW when the builder infers coupling from genre
 convention alone.
-
 *Acceptance criterion:* A build against D&D 5e SRD produces coupling
 metadata for Fireball (Spatial, destruction — HIGH), Darkness (Spatial,
 extinguishing — HIGH), Light (Spatial, illumination — HIGH), and Hold Person
@@ -7617,7 +7387,6 @@ entry per 50 indexed mechanical items, with a floor of 5 and a ceiling of 50;
 (c) at least 10% of mechanical couplings are Mechanical (automatic) rather
 than Navigational (advisory) — a build where every mechanical coupling
 requires GM confirmation is a findings.
-
 *Acceptance criterion:* A build against D&D 5e SRD (200+ indexed mechanical
 items) produces at least 4 mechanical coupling entries that meet the
 thresholds. At least one coupling is Mechanical (automatic), not
@@ -7641,7 +7410,6 @@ the registry surface. The mapping of prefix to ruleset slug SHALL be recorded in
 DECISIONS.md (1) during the Combine step and reported in `spec_health` under a
 `ruleset_prefix_map` field. A tool whose `ruleset` annotation does not match any
 known ruleset is a combine defect.
-
 *Acceptance criterion:* `tools/list` for a combined D&D + Starfinder server
 reports `dnd5e_roll_skill_check` with `ruleset: "dnd5e"`, and
 `starfinder_roll_skill_check` with `ruleset: "starfinder"`. `create_npc`
@@ -7661,7 +7429,6 @@ with a ruleset slug not present in the server's `ruleset_prefix_map` returns
 with exactly one ruleset MAY accept `create_novel` without the `ruleset`
 parameter, defaulting to that single ruleset — this preserves backward
 compatibility with single-ruleset servers built before multi-ruleset support.
-
 *Acceptance criterion:* `create_novel("greyhawk", ruleset="dnd5e")`
 succeeds and the Novel's `ruleset` field is `"dnd5e"`. Subsequent calls to
 `dnd5e_roll_skill_check` succeed against this Novel. `create_novel("absalom",
@@ -7688,7 +7455,6 @@ descriptions remain visible for discoverability. `resources/list` and
 draws from a ruleset model SHALL badge-filter and ruleset-filter their
 output. When no Novel is active, all tools are callable and no ruleset gating
 applies — the server operates with full cross-ruleset access.
-
 *Acceptance criterion:* With a D&D-bound Novel active, `starfinder_roll_skill_check`
 returns `[ERROR] [INVALID_INPUT]` naming the active Novel's ruleset as `dnd5e`.
 With no Novel active, the same call succeeds. `tools/list` includes all tools
@@ -7707,7 +7473,6 @@ their ruleset's catalogue. `roll_on_table` SHALL enumerate only the tables
 extracted from the active Novel's ruleset. `suggest_actions` SHALL return only
 tool suggestions from the active Novel's ruleset. `spec_health` SHALL report
 per-ruleset extraction metrics.
-
 *Acceptance criterion:* `dnd5e_search_rules("fireball")` under a D&D Novel
 returns D&D Fireball results with source anchors in the D&D ruleset.
 `starfinder_search_rules("fireball")` under a Starfinder Novel returns results
@@ -7728,7 +7493,6 @@ Player-badge calls SHALL filter per-ruleset sections: the Player sees only
 metrics for the active Novel's ruleset (if a Novel is active with a badge) or no
 per-ruleset sections (if no Novel is active). The `combined` summary section is
 visible to all badges.
-
 *Acceptance criterion:* A combined D&D + Starfinder server's `spec_health`
 includes `ruleset_health.dnd5e` and `ruleset_health.starfinder` with independent
 counts, plus a `combined` section with the prefix map. Under a Player badge with
@@ -7746,7 +7510,6 @@ model. Infrastructure tools and their state (scene, NPCs, world model, lore,
 countdowns) are unchanged — they operate on the activated Novel's data
 regardless of ruleset. Switching Novels SHALL be an audited mutation with the
 source and destination slugs and their rulesets recorded.
-
 *Acceptance criterion:* Switching from a D&D Novel (slug `greyhawk`) to a
 Starfinder Novel (slug `absalom-station`) changes the `badge_briefing` to use
 Starfinder terminology, makes `starfinder_roll_skill_check` callable, and
@@ -7764,7 +7527,6 @@ call with no Novel active SHALL return `[ERROR] [STATE_CONFLICT]` directing the
 caller to create or resume a Novel. The action-suggestion catalogue is drawn
 from the active Novel's ruleset model. Suggestions SHALL use the prefixed tool
 names for ruleset-derived tools.
-
 *Acceptance criterion:* `suggest_actions("attack the goblin")` under a D&D Novel
 returns `dnd5e_roll_weapon_attack` as a suggestion. The same intent under a
 Starfinder Novel returns `starfinder_roll_weapon_attack`. Neither returns the
@@ -7782,7 +7544,6 @@ entry's ruleset matches the active Novel's ruleset scope. A mismatch returns
 ruleset. `export_novel` SHALL include the Novel's `ruleset` field in the
 export manifest. A Novel exported from a combined server is importable into
 any conformant server that recognizes its ruleset slug.
-
 *Acceptance criterion:* Exporting a D&D Novel includes `ruleset: "dnd5e"` in
 the manifest. Importing a Starfinder Novel into a D&D + Mothership server
 rejects with valid rulesets enumerated. Importing a character from a
@@ -7802,12 +7563,13 @@ default. `codex_list` SHALL support a
 entries whose `ruleset` matches the Novel's ruleset or is `null`. A
 `codex_import` of a ruleset-specific entry (e.g., a D&D spell) into a Novel of
 a different ruleset returns `[ERROR] [STATE_CONFLICT]` naming both rulesets.
-
 *Acceptance criterion:* `codex_list(ruleset="dnd5e")` returns D&D-tagged entries
 plus untagged entries. `codex_list(ruleset="starfinder")` returns Starfinder-tagged
 entries plus untagged entries — no D&D entries. `codex_import` of a D&D spell
 codex entry into a Starfinder Novel is rejected.
 _Check:_ T-new-387.
+
+#### End of requirements
 
 ---
 
@@ -9010,36 +8772,29 @@ input-validation metric. The builder re-enters Phase 2 of the convergence
 loop (§6.5) for only the affected metric. A failure that maps to no metric
 is a novel defect class and re-enters Phase 2 with all four metrics in
 scope.
-
 An input-validation failure is recorded in DECISIONS.md (6) with the
 failing input value, the error category returned (or absent), and the
 expected error category per REQ-002.
-
 This metric covers Pattern Buffer sub-workflow S14 (Edge cases) and any other
 sub-workflow exercising REQ-001 (Response contract) or REQ-002 (Error
 taxonomy) through their input contracts. _Check:_ T163.
-
 A single S21 execution that exceeds 10 minutes of wall-clock time does not fail
 the sub-workflow but is recorded with the actual duration. Three consecutive S21 runs
 exceeding the budget trigger a scope re-evaluation recorded in DECISIONS.md (5).
-
 **Per-scenario budget.** Each sub-workflow must complete within 5 minutes of
 wall-clock time, except S13 (10 minutes), S21 (10 minutes), S25 (10 minutes), S22 (3
 minutes), and S26 (3 minutes). A sub-workflow exceeding its individual budget does not fail but
 is recorded with actual duration in DECISIONS.md (6). Three consecutive
 runs of the same sub-workflow exceeding its budget trigger a scope
 re-evaluation recorded in DECISIONS.md (5).
-
 **Global budget.** The full Pattern Buffer run of all sub-workflows must complete
 within 60 minutes of wall-clock time. A run exceeding the budget is
 recorded with actual duration and per-sub-workflow timings in
 DECISIONS.md (6). The operator may increase the budget for rulesets
 exceeding 2,000 indexed items (REQ-100 Huge tier).
-
 **Structured encoding.** For mechanical consumption the builder encodes each sub-workflow
 as a structured record (`scenario_id`, `objective`, `blocking`, `steps`). The prose
 descriptions above are canonical; the structured encoding is a lossless transcription.
-
 The structured encoding SHALL be accompanied by a single runnable test harness
 (`scripts/run_pattern_buffer.ts`) that reads the encoded sub-workflow records and executes
 each against the live MCP server. The harness SHALL: (a) start the server process,
@@ -9052,27 +8807,21 @@ spec-driven updates, or after code changes consume zero AI tokens. The harness o
 SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with
 failure details when applicable. The harness is recorded as a handoff artifact
 (§9 H13a).
-
 **Convergence integration.** The convergence handshake (see Timing block above)
 governs the Pattern Buffer ↔ Phase 2 feedback loop.
-
 **Improvement** is measured per iteration: fewer total assertion failures, or at
 least one blocking sub-workflow downgraded to non-blocking. Two stalled iterations is
 a stop; residual failures are logged in DECISIONS.md (5).
-
 **Regression assertions.** A bug discovered via Pattern Buffer failure and fixed via convergence
 gets at least one new regression assertion recorded in DECISIONS.md (6).
-
 **Assertion compression.** After spec-driven updates or five Pattern Buffer iterations, audit
 accumulated regression assertions for redundancy. Subsumed assertions are removed
 and logged in DECISIONS.md (6) with the subsuming citation.
-
 **Exit criteria.** The Pattern Buffer completes when all sub-workflows pass and all blocking
 failures are resolved. Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19,
 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are
 accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All
 failures are recorded with severity classification and diagnostic trail.
-
 A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be
 declared handoff-ready without explicit operator acknowledgment. The count of
 unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside
@@ -9089,7 +8838,6 @@ undetectable incorrect results in core play mechanics. A sub-workflow is
 non-blocking when it tests a property whose failure degrades experience but
 does not make the server unsafe — graceful-degradation edge cases, cosmetic
 output issues, or features documented as deferred in DECISIONS.md (5).
-
 The blocking classification of every sub-workflow is recorded in
 DECISIONS.md (6) with the safety property it protects and the REQ(s) it
 derives that classification from. When a new sub-workflow is added, the
@@ -9600,7 +9348,6 @@ builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate n
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
 initially `pending`, updated to `converged` when the discrepancy is resolved.
-
 *Acceptance criterion:* When Gate 2 fails on an init_combat turn-order mismatch,
 DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
 turn order, actual turn order, and a diff.
@@ -9611,7 +9358,6 @@ produce a traceable record in DECISIONS.md (5) containing: iteration number, the
 REQ or test ID addressed, the change made (summary), the re-test result, and the token
 cost. After convergence, DECISIONS.md (5) SHALL include a `convergence_summary`: total
 iterations, total token cost, REQ coverage, and final disposition.
-
 *Acceptance criterion:* A convergence loop requiring 3 iterations produces 3 audit trail
 entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
 _Check:_ T-new-301.
@@ -9621,7 +9367,6 @@ sub-workflows SHALL scope their verification to changed sections. Sub-workflows 
 verify unchanged sections only SHALL be skipped with a `[section unchanged — re-validating
 from previous build]` annotation. Cross-section sub-workflows SHALL run in full. Skipped
 sub-workflows carry the `[validated-by-prior-build]` disposition.
-
 *Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
 skips Pattern Buffer sub-workflows that verify unchanged sections and records the skip.
 _Check:_ T-new-303.
