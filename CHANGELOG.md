@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-11 — Full spec-server synchronization + fingerprint-scoped pipeline
+
+- The holonovel reference server gained 45 new tools covering the full
+  Novel-management surface: factions, secrets, relationships, vows,
+  checkpoints, notes, server notes, story journal, pause/resume context,
+  structured player choices, oracle rolls, entity/roster management,
+  novel rename/list/info/clone, toggle_action_patterns, and conditions.
+  The state model now carries all Novel-level fields (dm_context, notes,
+  story journal, factions, secrets, relationships, vows, checkpoints)
+  with full serialization/undo/redo support. (REQ-115, 168, 176-178,
+  184, 206, 232-236, 240-242, 246, 256-258, 285, 289, 291)
+- spec_health now reports live tool/prompt/resource counts, enrichment
+  health, audit chain integrity, and safety protocol status across both
+  servers. The spec hash is now computed at runtime from the embedded
+  specification file rather than hardcoded. (REQ-025, REQ-187)
+- The dnd5e server's world-model layer (rooms, things, exits, parser,
+  convert_source) is now documented as implemented in the traceability
+  table after the existing code was confirmed wired into the server
+  surface. (REQ-195-202)
+- Push-pipeline gains a fingerprint-based scoped-update step: each push
+  computes REQ-313 implementation fingerprints for both servers, then
+  compares against stored fingerprints to determine the rebuild scope.
+  Only changed components trigger code regeneration — a typo fix stays
+  fast, a spec change triggers a gap audit, a cold checkout runs the
+  full build. (REQ-313, REQ-314)
+
+
 ## 2026-08-11 — REQ body-length compliance (20 → 0 errors)
 
 - Split 20 REQ bodies that exceeded the 800-character SDD-strict limit

@@ -115,6 +115,17 @@ for server in "${SERVERS[@]}"; do
   fi
 done
 
+# ── 7a. Fingerprint and scoped spec-driven update ──
+
+echo -e "${GREEN}=== 7a. Fingerprint and scoped spec-driven update ===${NC}"
+for server in "${SERVERS[@]}"; do
+  npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
+  npx tsx scripts/update-server.ts --server "$server" \
+    --spec-hash "$SPEC_HASH" \
+    --scope-by-fingerprint \
+    || echo -e "${YELLOW}  WARNING: $server update script returned non-zero — check logs${NC}"
+done
+
 # ── 8. Typecheck both servers ──
 
 echo -e "${GREEN}=== 8. Typecheck both servers ===${NC}"
