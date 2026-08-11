@@ -105,12 +105,12 @@ loads your campaign (the Holonovel program) from your rulebooks. The Novel is th
 saved program file — create it, resume it, export and share it. No holograms. No 3D.
 Your books, rendered as tools and mechanics, running inside the room.
 
-**The play model (TTRPG).** Two badges, enforced server-side when the story is active.
+**The play model (TTRPG).** Four badges, enforced server-side when the story is active.
 The Novel is the container — a named, persistent save file holding the world model,
-entities, scenes, and all state. Entering a Novel (create or resume) starts in editing
-mode with no badge active (full access per REQ-031). Work on characters, load an
+entities, scenes, and all state. Entering a Novel (create or resume) starts in the
+Editor badge (full access per REQ-031). Work on characters, load an
 adventure, build the world, refine lore — the Novel is yours to shape before the story
-begins. When ready, activate a hat via `set_badge` (REQ-066): wearing the player or
+begins. When ready, activate a badge via `set_badge` (REQ-066): wearing the player or
 game_master badge means you are in the story. Badge gating (REQ-032) activates. Under the
 Player badge, the player acts through the ruleset's resolution mechanics — skill checks,
 attacks, spells, exploration actions. World-model navigation (parser commands like `go
@@ -119,11 +119,11 @@ not the world model, drives the story. Switch to the Game Master badge to correc
 or directly manage Novel state while staying in the story. Switch to the Observer badge
 (REQ-305) to spectate — the AI plays both Player and Game Master while you watch,
 intervening only for mechanical decisions at your configured autonomy level (REQ-306).
-End the story with `set_badge("none")` — return to editing mode with the Novel intact.
+End the story with `set_badge("none")` — return to the Editor badge with the Novel intact.
 End the Novel with `end_novel` — the save file is deleted. `set_badge` works without
 restart. One user per MCP connection (REQ-030) — no multiplayer. Holonovel targets
 solo play: one human operator, one AI counterpart. By default, the human wears the
-Player badge and the AI briefs as Game Master (REQ-304). The human may switch hats
+Player badge and the AI briefs as Game Master (REQ-304). The human may switch badges
 freely — the AI's narrative role follows as counterpart, or can be locked to a fixed
 role via `TTRPG_AI_ROLE`. One player may control multiple characters (REQ-074) with
 entity presence tracking (REQ-307) and knowledge gated by who was present for each
@@ -329,18 +329,18 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Badge        | Active badge — `player`, `game_master`, `observer`, or `none` (editing mode, full access). Wearing the player, game_master, or observer hat means you are in the story. REQ-031, REQ-066.         |
+| Badge        | Active badge — `player`, `game_master`, `observer`, or `none` (Editor, full access). Four badges: Player, Game Master, Observer, Editor. Wearing the player, game_master, or observer badge means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a badge is active and narration is happening. Starts with `set_badge("player")` or `set_badge("game_master")`. Ends with `set_badge("none")`. Multiple stories can occur within one Novel's lifetime. |
-| In the story | Badge is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_badge("none")` is stepping away from the table. |
-| Editing mode | No badge active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
+| In the story | Player or GM badge is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_badge("none")` switches to the Editor badge, stepping away from the table. |
+| Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, badge_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
-| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible in editing mode (no badge); badge-filtered by visibility field per REQ-321. |
+| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible under the Editor badge; badge-filtered by visibility field per REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               |               entities, NPCs, scene state, countdowns, lore, synthesis, adventure,            |
 |               | audit log, snapshots, and badge state for a single ruleset story. A Novel          |
-|               | can be edited without a badge active (editing mode). The story begins when a       |
+|               | can be edited under the Editor badge. The story begins when a       |
 |               | badge is activated and ends when the badge is removed — the Novel persists.          |
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
 |               | and rebuilds. Removed from disk by `end_novel`. Multiple Novels per server       |
@@ -358,7 +358,7 @@ guard, the gap is explicit.
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—badge-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
-| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
+| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (Editor). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active badge by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `badge_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
 | Observer          | Spectator mode (REQ-305). The human wears the Observer badge (`set_badge("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
@@ -506,9 +506,9 @@ _Check:_ T178.
 
 **REQ-002c — Badge-filtered error values.** Valid-value enumerations in
 `[NOT_FOUND]` and `[INVALID_INPUT]` errors exclude values the caller's current
-hat cannot access — a Player badge sees only player-accessible spell names in a
+badge cannot access — a Player badge sees only player-accessible spell names in a
 `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue.
-"Did you mean?" hints follow the same hat filter. A value that exists in the
+"Did you mean?" hints follow the same badge filter. A value that exists in the
 ruleset but is invisible to the caller's badge is treated as absent for
 enumeration purposes — it is neither enumerated nor hinted. This prevents
 side-channel disclosure of GM-only content through error message verbosity.
@@ -672,7 +672,7 @@ synthesis-supplied anti-slop items; synthesis items SHALL be tagged `[supplement
 with source URL and confidence. Without synthesis, the resource SHALL contain only the
 Appendix J synopsis.
 *Acceptance criterion:* `guidance://<badge>/anti-slop` returns Markdown containing every
-Appendix J pattern for the requested hat, each tagged `[anti-slop]` and badge-filtered;
+Appendix J pattern for the requested badge, each tagged `[anti-slop]` and badge-filtered;
 synthesis-sourced items carry `[supplementary]` with source URL.
 _Check:_ T223.
 
@@ -680,7 +680,7 @@ _Check:_ T223.
 deterministically: lowercase the text, strip punctuation, replace whitespace and
 hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens.
 Explicit IDs (`{#id}`) take precedence over derived anchors. Role-scoping markers
-(`*Keeper only*`, `*Player only*`, or the ruleset's discovered hat terms) SHALL be
+(`*Keeper only*`, `*Player only*`, or the ruleset's discovered badge terms) SHALL be
 stripped from the heading text before derivation. Duplicate derived anchors within
 a source file SHALL append `-1`, `-2`, etc. Duplicate explicit IDs across files
 SHALL be treated as an authoring defect. Re-indexing the same source SHALL
@@ -712,7 +712,7 @@ never takes action or makes decisions on behalf of the player. When the AI's
 narrative role is Player, it describes character intent; it never prescribes world
 facts or narrative outcomes without Game Master confirmation. These boundaries are
 delivered in the `badge_briefing` orientation content, determined by the AI's role
-per REQ-304. When the AI has no narrative role (null-badge), tool output follows the
+per REQ-304. When the AI has no narrative role (Editor-badge), tool output follows the
 active badge's boundary conventions.
 When a player's natural-language input carries both in-character and meta-intent
 simultaneously — e.g., "I examine the altar" (character action) + "what does my
@@ -819,7 +819,7 @@ _Check:_ T181.
 
 **REQ-153 — AGENTS.md troubleshooting.** Every build's AGENTS.md includes a
 `## Troubleshooting` section documenting at minimum four failure classes —
-config mismatch, corrupted state file, hat confusion, and missing
+config mismatch, corrupted state file, badge confusion, and missing
 environment variables — each with diagnostic steps recoverable by an
 operator without access to the builder. The section must reference
 verification commands that exercise the diagnosed failure mode where a
@@ -836,8 +836,12 @@ from a cold checkout; (b) a copy-paste `mcpServers` configuration entry
 with key names matching the build-time client target's documented schema
 (§6.2 B3); (c) the RNG continuity contract — whether deterministic replay
 is guaranteed by seed or session-dependent; (d) the badge model with
-tool-access implications; and (e) the state model describing what survives
-restart and what is connection-scoped.
+tool-access implications; (e) the state model describing what survives
+restart and what is connection-scoped; and (f) a license footer rendering
+the Appendix U content license table — one line per source listing source
+name, license identifier, and copyright holder, flowing into a single
+semicolon-separated paragraph prefixed with "Built from:" and terminated
+by the RSS link and last-updated date.
 *Acceptance criterion:* An operator copies the `mcpServers` block from
 README.md into their client config, launches the server, and the
 initialize handshake succeeds with `serverInfo.name` matching the config
@@ -1030,7 +1034,7 @@ excludes GM-tagged items.
 _Check:_ T26.
 
 **REQ-017 — Badge stories.** A MUST-covering set of intent prompts maps each badge's
-expected play activities to concrete tool/resource paths. Every hat's stories are
+expected play activities to concrete tool/resource paths. Every badge's stories are
 achievable from its visible registry.
 *Acceptance criterion:* Every tool visible to the Player badge is covered by at
 least one intent prompt in the Player badge stories set; every tool visible to GM
@@ -1530,7 +1534,7 @@ required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_he
 `help` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to
 the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters,
 dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and
-(3) a pointer to `badge_briefing` for hat-specific guidance. With a query, it
+(3) a pointer to `badge_briefing` for badge-specific guidance. With a query, it
 searches tool descriptions, prompt summaries, and guidance text for the most relevant
 matches and returns their names, descriptions, and example invocations from the tool-use
 playbook. Output is badge-filtered. When a Novel is active, tool listings and query results
@@ -1946,7 +1950,7 @@ _Check:_ T273.
 ### 5.5 Badges and Access
 
 **REQ-030 — Single-user connection.** Each MCP connection serves one active badge at a
-time — the hat most recently set via `set_badge` or `TTRPG_BADGE`. No concurrency,
+time — the badge most recently set via `set_badge` or `TTRPG_BADGE`. No concurrency,
 no multiplayer state sharing within a connection. The active badge and active entity
 are Novel-scoped: two connections to the same Novel share the same badge and entity
 state (REQ-031, REQ-074). Each connection may independently switch between Novels
@@ -1956,48 +1960,47 @@ and inherits the Novel's current badge and active entity; switching badges. On o
 connection is visible on the other.
 _Check:_ Appendix D.
 
-**REQ-031 — Badge activation.** By default, no badge is active — the server operates
-with full access, equivalent to Game Master privileges. All tools, resources, and prompts
-are accessible without restriction. Badge gating (REQ-032) takes effect only when a
-hat is explicitly activated via `set_badge` (REQ-066). Wearing a hat means you are
-in the story. The hat may be deactivated with `set_badge("none")` — the Novel
-persists in editing mode with full access. When no badge is active,
-all badge-filtered surfaces (`badge_briefing`, `prompts/list`, `resources/list`,
-`tools/list`, guidance) return full unfiltered content. The badge activation state
-persists with the Novel (REQ-055). `end_novel` deletes the Novel regardless of
-badge state.
-*Acceptance criterion:* On startup with no badge active, `tools/list` returns all
-tools unfiltered; after `set_badge("player")`, GM-only tools are excluded from
-`tools/list` and return `[FORBIDDEN]` on invocation; after `set_badge("none")`,
-full access is restored and the Novel persists.
+**REQ-031 — Badge activation.** On Novel creation or resume, the Editor badge is
+active by default — the server operates with full access. All tools, resources, and
+prompts are accessible without restriction. Badge gating (REQ-032) takes effect based
+on the active badge. Wearing the Player or Game Master badge means you are in the
+story. Editor and Observer badges are out of the story. Switching to the Editor badge
+with `set_badge("none")` restores full access; the Novel persists. Under the Editor
+badge, all badge-filtered surfaces (`badge_briefing`, `prompts/list`,
+`resources/list`, `tools/list`, guidance) return full unfiltered content. The badge
+activation state persists with the Novel (REQ-055). `end_novel` deletes the Novel
+regardless of badge state.
+*Acceptance criterion:* On Novel creation or resume with the Editor badge active,
+`tools/list` returns all tools unfiltered; after `set_badge("player")`, GM-only
+tools are excluded from `tools/list` and return `[FORBIDDEN]` on invocation; after
+`set_badge("none")`, full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
 **REQ-066 — set_badge tool.** The server provides a `set_badge` tool accepting
 `player`, `game_master`, `observer`, or `none`. Returns `[OK] Active badge: <badge>` on
-success — `"none"` returns `[OK] Active badge: none — Novel editing mode`,
+success — `"none"` returns `[OK] Active badge: Editor — full access`,
 `"observer"` returns `[OK] Active badge: observer — read-only spectator mode`. Returns
 `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
 badge-gated — it is always callable regardless of current badge. The badge switch
-takes effect immediately on the next tool call. `set_badge("none")` deactivates
-the badge and returns to editing mode with full access; the Novel persists
-untouched.
+takes effect immediately on the next tool call. `set_badge("none")` switches to the
+Editor badge with full access; the Novel persists untouched.
 *Acceptance criterion:* `set_badge("player")` returns `[OK] Active badge: player`
 and the next tool call is gated; `set_badge("observer")` returns
 `[OK] Active badge: observer — read-only spectator mode`; `set_badge("none")` returns
-`[OK] Active badge: none — Novel editing mode` and full access is restored;
+`[OK] Active badge: Editor — full access` and full access is restored;
 `set_badge(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
-**REQ-032 — Server-side gating.** When a badge is active, the server enforces hat
-access on every endpoint. Player tools, resources, and prompts are a strict subset of
+**REQ-032 — Server-side gating.** The server enforces access based on the active
+badge. Player tools, resources, and prompts are a strict subset of
 GM-visible ones. Observer tools are a read-only subset: state-query tools
 (`character_sheet`, `session_recap`, `help`, `scene://current`, `entities://`,
 etc.) are permitted; mutating tools (commands, generation, hybrid per REQ-015)
 return `[FORBIDDEN]` with the corrective action "Observer mode is read-only.
 Switch badges. With `set_badge` to interact." `tools/list` and related metadata surfaces
 are filtered. Guidance items are filtered. `spec_health` metrics are filtered.
-`[FORBIDDEN]` responses direct callers to use `set_badge` to switch badges. When no
-badge is active, no gating applies — all endpoints return full content and all tools
+`[FORBIDDEN]` responses direct callers to use `set_badge` to switch badges. Under
+the Editor badge, no gating applies — all endpoints return full content and all tools
 are callable.
 *Acceptance criterion:* Under the Player badge, `create_npc(...)` returns
 `[FORBIDDEN]`; switching to Game Master badge makes the same call succeed;
@@ -2038,7 +2041,7 @@ _Check:_ T147.
 the server guarantees that tools in these functional groups are callable:
 dice-resolution (rolls and checks), ruleset lookups, character sheet
 rendering, action suggestions, player signals, help, undo/redo of the Player
-hat's own mutations, and badge switching. The builder records the gate
+badge's own mutations, and badge switching. The builder records the gate
 classification for every tool in DECISIONS.md in a format that can be
 diffed against each badge's filtered `tools/list` output.
 *Acceptance criterion:* Under the Player badge, each Player-guaranteed group
@@ -2090,8 +2093,8 @@ _Check:_ T265.
 
 **REQ-304 — Counterpart AI role.** The AI's narrative role is the counterpart of the
 active badge by default: when the human wears `player`, the AI briefs as Game Master;
-when the human wears `game_master`, the AI briefs as Player; when no badge is active,
-the AI has no narrative role (null-badge briefing per REQ-136). The server accepts a
+when the human wears `game_master`, the AI briefs as Player; under the Editor badge,
+the AI has no narrative role (Editor-badge briefing per REQ-136). The server accepts a
 `TTRPG_AI_ROLE` environment variable with values `counterpart` (default),
 `game_master`, or `player`. When set to a fixed value, the AI's narrative role is
 locked — `game_master` forces GM-oriented briefing regardless of the human's badge,
@@ -2104,10 +2107,10 @@ orientation. The default `counterpart` preserves current behavior when the human
 wears the Player badge (AI briefs as GM) and enables human-GM + AI-Player
 configuration when the human wears the Game Master badge.
 *Acceptance criterion:* With `TTRPG_AI_ROLE=counterpart` and human wearing the
-Player badge, `badge_briefing` orientation content is GM-oriented. Same hat but
+Player badge, `badge_briefing` orientation content is GM-oriented. Same badge but
 `TTRPG_AI_ROLE=player` forces player-oriented orientation. Human wearing the GM badge
-with `counterpart` shows player-oriented orientation. Null-badge with any
-`TTRPG_AI_ROLE` shows null-badge briefing per REQ-136.
+with `counterpart` shows player-oriented orientation. Editor-badge with any
+`TTRPG_AI_ROLE` shows Editor-badge briefing per REQ-136.
 _Check:_ T-new-304.
 
 **REQ-305 — Observer mode.** `set_badge("observer")` activates spectator mode — the
@@ -2314,15 +2317,15 @@ byte offset regardless of whether the builder internally measures in tokens or
 bytes; the heuristic is recorded in DECISIONS.md.
 _Check:_ T222.
 
-**REQ-136 — Null-badge briefing.** When no badge is active (REQ-031),
+**REQ-136 — Editor-badge briefing.** Under the Editor badge (REQ-031),
 `badge_briefing` returns setup-oriented content: a list of available Novels
 (REQ-093), the current active Novel name if one exists, and a pointer to
 the `intro` prompt (REQ-063). No gated content is accessible — the briefing
-presents the same full-access view as all other null-badge surfaces but
+presents the same full-access view as all other Editor-badge surfaces but
 structured for initial orientation rather than ongoing play.
 *Acceptance criterion:* On startup with no Novel active, `badge_briefing`
 returns a setup-oriented message with the intro pointer and Novel-creation
-guidance; with a Novel active but no badge set (editing mode), the briefing
+guidance; with a Novel active under the Editor badge, the briefing
 includes the active Novel name, setup progress when incomplete, and
 guidance to continue Novel setup or start the story when ready.
 _Check:_ T150.
@@ -2447,7 +2450,7 @@ A hash chain broken at any point SHALL report a mismatch in `spec_health` and
 stderr; the server loads entries up to the break point. The audit log is part
 of the Novel and is removed with it by `end_novel`.
 Badge switches via `set_badge` (all values: `player`, `game_master`, `none`)
-SHALL produce audit entries recording the old hat, new hat, and timestamp.
+SHALL produce audit entries recording the old badge, new badge, and timestamp.
 Badge-switch entries carry the badge-switch designation as their tool-name
 field. They are recorded in the append-only audit log and included in
 `audit://novel` output, but they are not mutating state operations for
@@ -2882,7 +2885,7 @@ re-importing the same roster ID creates a fresh entity copy.
 _Check:_ T216.
 
 **REQ-177 — Roster entity removal.** The server SHALL provide a
-`remove_roster_character(roster_id)` tool (callable with no badge active or Game Master badge)
+`remove_roster_character(roster_id)` tool (callable with the Editor badge or Game Master badge)
 that removes a character from the roster. Removing a roster character does not affect any
 Novel that has already imported it — existing Novel entity copies survive independently.
 Player badge attempts return `[FORBIDDEN]`. When the roster ID does not exist, SHALL return
@@ -3716,7 +3719,7 @@ persists with the Novel. Setting `adventure_scene` to a heading not in the
 index returns `[NOT_FOUND]` with nearby scene names enumerated. Setting it
 to an empty string or null clears the waypoint. Changing the waypoint fires
 a scene transition hook (REQ-125). The field is Game Master only; the Player
-hat reads it passively via `badge_briefing`. When `adventure_scene` is set and
+badge reads it passively via `badge_briefing`. When `adventure_scene` is set and
 the adventure contains GM-only sections, the scene description SHALL be
 rendered regardless of badge — but the full scene prose (at the adventure
 resource) is badge-filtered per adventure section markers.
@@ -4107,7 +4110,7 @@ writes and backup rotation. Server notes survive `end_novel`,
 `spec_health` under a `server_notes` key (count). Server notes SHALL be
 retrievable at `server-notes://<key>` as a resource. Server notes SHALL NOT
 appear in `export_novel`, `clone_novel`, or checkpoint snapshots. WHEN the Player
-hat calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
+badge calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
 *Acceptance criterion:* `set_server_note("campaign-bible", "The old gods were
 banished to the outer dark")` stores the note; server restart preserves it;
 `end_novel` preserves it; `server-notes://campaign-bible` returns full content;
@@ -4168,12 +4171,12 @@ with corrective action directing the caller to omit `update_source`.
 filterable list of codex entries with id, kind, name, description, tags, and
 visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player
 badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
-In editing mode (no badge active), `codex_list` returns all entries unfiltered.
+Under the Editor badge, `codex_list` returns all entries unfiltered.
 `codex_info(id)` SHALL return the full record including the kind-specific data
 payload, badge-filtered by visibility. `codex_delete(id)` SHALL remove an entry with
 no confirmation gate — `undo` SHALL restore a deleted entry within the same
 connection. Mutating codex operations (`codex_set`, `codex_capture`, `codex_delete`)
-SHALL require no badge active (editing mode) or Game Master badge; Player badge
+SHALL require the Editor badge or Game Master badge; Player badge
 SHALL return `[FORBIDDEN]`. `codex_import` SHALL be badge-scoped: Player badge MAY
 import `shared`-visibility entries of kind `character`; the Game Master badge may
 import any entry regardless of visibility. Player badge import of any other kind
@@ -4193,7 +4196,7 @@ scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
 restart preserves entries; `end_novel` preserves them; `codex://blacksmith` returns
 full content; `codex_list("npc")` under Player badge returns only `shared` entries;
 `codex_list("npc")` under Game Master badge returns all entries; `codex_list("npc")`
-with no badge active returns all entries; Player badge `codex_set(...)` returns
+with the Editor badge returns all entries; Player badge `codex_set(...)` returns
 `[FORBIDDEN]`; Game Master badge `codex_import("blacksmith")` into an active Novel
 creates the NPC; Player badge `codex_import("fighter-01")` of a `shared`-visibility
 `character` entry imports the character; Player badge `codex_import("blacksmith")`
@@ -4448,7 +4451,7 @@ _Check:_ T108.
 **REQ-055b — Story-in-progress notice.** WHEN `resume_novel` restores a Novel
 with an active badge, THE server SHALL include a notice identifying the active
 badge so the operator knows they have resumed an active story rather than entered
-editing mode.
+the Editor badge.
 *Acceptance criterion:* Resume a Novel with Player badge active — the server
 responds with a notice identifying "Player badge active."
 _Check:_ T108.
@@ -5902,7 +5905,7 @@ restore from `.bak.2`; `end_novel` removes all backups.
 _Check:_ T276.
 
 **REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
-new_name, trim_audit_sessions?)` tool (callable with no badge active or Game Master
+new_name, trim_audit_sessions?)` tool (callable with the Editor badge or Game Master
 badge). The tool creates an independent copy of the source Novel as a new Novel at
 `.holonovel-state/novels/<new_slug>.json`. All property groups (NPC, Scene,
 Countdown, Lore, Synthesis, Adventure, Faction, Secret, Relationship, DM Context,
@@ -7296,7 +7299,7 @@ Wisdom per REQ-371 (P5–P11), record the supplementary ruleset's slug and
 content hash in the Novel's metadata, and on Novel resume re-resolve
 supplementary rulesets (surfacing `[supplementary_gap]` in `spec_health` if a
 source file is missing or hash-mismatched).
-Import is Game Master only, editing-mode only (no badge active).
+Import is Game Master only, under the Editor badge.
 Supplementary rulesets do not affect other Novels — tools and Wisdom are
 Novel-scoped. The server MAY cache extraction results across Novels that
 import the same supplementary source. `remove_supplementary` deactivates all
@@ -7997,7 +8000,10 @@ root with two sections: a **Ruleset Data** section identifying the source
 material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
 `package.json`). The dnd5e-holonovel server's `LICENSE.md` is the canonical
-template.
+template. The builder SHALL also read Appendix U and render each row into the
+README.md license footer. Format: "Built from: [Source] ([License], [Copyright])"
+— one source per line, semicolon-separated, flowing into a single paragraph
+terminated by the RSS link and last-updated date.
 
 ### 6.4.2 Combine step
 
@@ -9591,7 +9597,7 @@ switching. See §6.4 for the full creation contract.
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
-| `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). When `none`, the Novel starts in editing mode with no badge active. |
+| `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
@@ -9616,7 +9622,7 @@ State tiers:
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
 | Codex      | Typed content library (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) | Permanent — survives all Novels, rebuilds, and server restarts | Badge-filtered by visibility field (REQ-321) |
-| Novel      | Active story state and editing-mode state, bound ruleset (REQ-380; immutable after creation), pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Novel      | Active story state and Editor-badge state, bound ruleset (REQ-380; immutable after creation), pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
 **Novel properties.** Every Novel contains sixteen property groups, all
@@ -9783,11 +9789,11 @@ couplings cite REQ-236.
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
 | World Reactivity → Campaign Memory | P27 | World in Motion accepted changes produce campaign memory facts | The living world becomes recorded history — accepted World in Motion entries persist | — | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | P27 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Significant NPC events persist as campaign facts — memory survives the scene | — | Navigational | REQ-311, REQ-310 |
-| Codex → NPC | — | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | The codex populates the Holodeck — imported NPCs appear fully formed | GM-only (editing mode) | Mechanical | REQ-321, REQ-332 |
-| Codex → World | — | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | The codex builds the set — imported rooms and objects populate the world | GM-only (editing mode) | Mechanical | REQ-321 |
-| Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | The codex fills the library — imported lore entries populate the Novel's knowledge | GM-only (editing mode) | Mechanical | REQ-321 |
-| Codex → Faction | — | `codex_import` of kind `faction` creates a faction in the Novel | The codex deploys the cast — imported factions enter the Novel ready to act | GM-only (editing mode) | Mechanical | REQ-321 |
-| Codex → Countdown | — | `codex_import` of kind `countdown` creates a countdown in the Novel | The codex sets the timer — imported countdowns begin at their stored position | GM-only (editing mode) | Mechanical | REQ-321 |
+| Codex → NPC | — | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | The codex populates the Holodeck — imported NPCs appear fully formed | GM-only (Editor mode) | Mechanical | REQ-321, REQ-332 |
+| Codex → World | — | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | The codex builds the set — imported rooms and objects populate the world | GM-only (Editor mode) | Mechanical | REQ-321 |
+| Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | The codex fills the library — imported lore entries populate the Novel's knowledge | GM-only (Editor mode) | Mechanical | REQ-321 |
+| Codex → Faction | — | `codex_import` of kind `faction` creates a faction in the Novel | The codex deploys the cast — imported factions enter the Novel ready to act | GM-only (Editor mode) | Mechanical | REQ-321 |
+| Codex → Countdown | — | `codex_import` of kind `countdown` creates a countdown in the Novel | The codex sets the timer — imported countdowns begin at their stored position | GM-only (Editor mode) | Mechanical | REQ-321 |
 | Vows → Countdown | P12 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |
 | World → Scene | P13 | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Entering a new room is a story beat — parser movement triggers the scene-transition hook | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | P16 | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Remembered events become known facts — story journal entries promote to lore | — | Navigational | REQ-333 |
@@ -9806,7 +9812,7 @@ couplings cite REQ-236.
 | Countdown → Knowledge | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
 | Background → Lore | P2 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Your character's past matches the Holodeck's secrets — background text triggers lore entries | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350 |
-| Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | Player corrections persist across Novels — voice feedback captured to codex | GM-only (editing mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
+| Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | Player corrections persist across Novels — voice feedback captured to codex | GM-only (Editor mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
 | Secret → Countdown | P19 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Revealed secrets drive the clock — secret revelation advances matching countdowns | — | Navigational | REQ-355, REQ-234 |
 | Vow → Lore | P2 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Vows match the Holodeck's knowledge — vow keywords trigger relevant lore | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289 |
 | Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Recorded events signal faction consequences — journal entries drive faction advisories | — | Navigational | REQ-357, REQ-246, REQ-233 |
@@ -10132,7 +10138,7 @@ workflow evidence is embedded in DECISIONS.md, never stored as separate files.
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
   lives in the code, verification commands, and a `## Troubleshooting` section covering common
-  operator-reported failure modes (config mismatch, corrupted state, hat confusion,
+  operator-reported failure modes (config mismatch, corrupted state, badge confusion,
   missing environment variables).
 
 **Handoff verification workflow.** Before declaring done, run these verification steps in order.
@@ -10565,7 +10571,7 @@ DECISIONS.md for audit.
 (`synthesis://voice_examples`, `synthesis://briefing_order`,
 `synthesis://action_patterns`, `synthesis://adventure_advice`, `synthesis://narrative_voices`,
 `lore://templates`)
-and every hat guidance resource that draws from synthesis data
+and every badge guidance resource that draws from synthesis data
 (`guidance://<badge>/voice`, `guidance://<badge>/tone`) SHALL render from the Novel's
 live synthesis state — not from hardcoded text. When the synthesis array is
 non-empty, the resource output SHALL contain the synthesis items filtered by
@@ -10714,10 +10720,10 @@ bytes are a structural defect.
 gaps. Anchors are derived from heading text per REQ-194 (§7.1).
 
 **Role scoping.** A trailing italic heading marker of the form `*<name> only*` scopes the
-section to the GM badge. Match the marker case-insensitively against discovered hat
+section to the GM badge. Match the marker case-insensitively against discovered badge
 terms or their final word. The marker is stripped before anchor generation. A book-level
 `#` heading carrying the marker scopes every `##` section in that file as GM-only;
-individual sections may override. An ambiguous marker matching two or more discovered hat
+individual sections may override. An ambiguous marker matching two or more discovered badge
 terms defaults to shared (not badge-scoped).
 
 **Tables.** Take the column count from the widest row. Pad short rows with empty cells.
@@ -11169,7 +11175,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-058 | Tool-result fidelity      | 2026-08-02   |
 | REQ-059 | Parameter canon validation | 2026-08-07 |
 | REQ-030 | Single-user connection    | 2026-08-02   |
-| REQ-031 | Full access — no badge active | 2026-08-02   |
+| REQ-031 | Full access — the Editor badge | 2026-08-02   |
 | REQ-032 | Badge gating                | 2026-08-02   |
 | REQ-040 | Audit log                 | 2026-08-02   |
 | REQ-041 | State snapshotting        | 2026-08-02   |
@@ -11263,7 +11269,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-133 | Forbidden-call audit      | 2026-08-06   |
 | REQ-134 | Minimum Player tool surface | 2026-08-06   |
 | REQ-135 | Badge briefing size budget  | 2026-08-06   |
-| REQ-136 | Null-badge briefing         | 2026-08-06   |
+| REQ-136 | Editor-badge briefing         | 2026-08-06   |
 | REQ-137 | Gate classification auditability | 2026-08-06   |
 | REQ-138 | Prompt health reporting      | 2026-08-06   |
 | REQ-139 | Resource URI completeness reporting | 2026-08-06   |
@@ -11522,7 +11528,7 @@ diet.
 | T4    | Automated | Search returns the expected section in the top 3 results for exact, prefix, and substring queries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-012                                     |
 | T5    | Manual   | Entity lifecycle end to end: create, field mutation, and deletion where the ruleset defines it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-020                                     |
 | T8    | Automated | Every mutation and roll is audit-logged with all required fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-040                                     |
-| T9    | Automated | Startup: no badge active — editing mode, full access. `set_badge player`: Player badge active, in the story — GM tools blocked. `set_badge game_master`: GM badge active, in the story — full access restored. `set_badge none`: returns to editing mode, full access restored, Novel persists. Badge switches are audited; `set_badge` blocked during pending workflows (STATE_CONFLICT); undo stacks are hat-separate; Novel state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
+| T9    | Automated | Startup: Editor badge active — full access. `set_badge player`: Player badge active, in the story — GM tools blocked. `set_badge game_master`: GM badge active, in the story — full access restored. `set_badge none`: returns to the Editor badge, full access restored, Novel persists. Badge switches are audited; `set_badge` blocked during pending workflows (STATE_CONFLICT); undo stacks are badge-separate; Novel state survives restart; undo stack empty after restart                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-031, REQ-032, REQ-055, REQ-066         |
 | T10   | Automated | Undo restores prior state, including entity data; audit log stays append-only                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-041                                     |
 | T13   | Automated | Truncation at limit with `output://` pointer; payload badge filtering (REQ-032), session isolation, oldest-first eviction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-004, REQ-032                            |
 | T15   | Automated | `spec_health` reports confidence, convergence_summary, counts, coverage, defects, version; player filters GM-only items; game_master report unfiltered; expected values from Appendix B.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-025, REQ-010, REQ-011, REQ-015, REQ-032 |
@@ -11534,7 +11540,7 @@ diet.
 | T22   | Automated | Prompt registration: register a stub tool, restart — assert `prompts/get` output reflects it, each `prompts/get` returns exactly one user-role message, `prompts/list` carries a title on every prompt and a description on every argument, and the stub appears in all five prompts. Call all five prompts, then remove the stub and restart — assert absence from all.                                                                                                                                                                                                                                                                                                                                                         | REQ-023                                     |
 | T23   | Automated | Performance benchmark per REQ-100: cold start ≤ tier threshold; query latency (mean of 5 representative lookups, one per category) ≤ 1 second; measurement environment recorded in DECISIONS.md (4); `spec_health` reports most recent measurement. | REQ-100 |
 | T25   | Automated | Deletion drills on copies of the fixture, re-running discovery for each: **(i)** delete the Dice section — defect flagged, no roll tool appears, dependent tests waived with reasons logged in `DECISIONS.md`; **(ii)** delete the Confrontations section — defect flagged, no conflict tools appear, the conflict tools are waived under REQ-043's logged-reason clause, the Dangers section remains searchable                                                                                                                                                                                                                                                             | REQ-013, REQ-043                            |
-| T26   | Manual   | Guidance items cited, confidence-labeled, attributed; GM-scoped items hidden from player; inferred-attribution items visible to all; `badge_briefing` differs per badge; badge foundations present in `badge_briefing`; Player briefing excludes GM-tagged foundations; Player read of `guidance://<gm-hat>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
+| T26   | Manual   | Guidance items cited, confidence-labeled, attributed; GM-scoped items hidden from player; inferred-attribution items visible to all; `badge_briefing` differs per badge; badge foundations present in `badge_briefing`; Player briefing excludes GM-tagged foundations; Player read of `guidance://<gm-badge>` fails FORBIDDEN                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-016, REQ-023, REQ-032, REQ-062          |
 | T27   | Automated | RNG continuity across sessions and games under `TTRPG_SEED=7`; seed conflict warns and persists; seed stream position preserved during per-call override; witness values from Appendix B.4 (d6 and d20); default-seed-0 reproducibility when `TTRPG_SEED` is unset (two restarts without the env var produce identical event sequences for identical tool-call sequences)                                                                                                                                                                                                                                                                                                                                                                                                                                          | REQ-050, REQ-055                            |
 | T28   | Manual   | Badge stories: MUST-covering set maps intent prompts to expected tools/resources; GM-targeting stories fail FORBIDDEN; each badge's stories achievable from visible registry; grounding verified at Discovery checkpoint                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-017, REQ-023, REQ-032                   |
 | T29   | Automated | DECISIONS.md traceability table parses; every REQ in Appendix E appears exactly once; every cited test ID exists; waived tests cross-reference (5); every (5) waiver names defect and re-activation condition (REQ-013); re-run if (3) or (5) changes                                                                                                                                                                                                                                                                                                                                                                               | §9                                   |
@@ -11558,7 +11564,7 @@ diet.
 | T48   | Automated | Source quoting: lookup results, search results, and rule-derived tool responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim Markdown excerpt preserving original formatting; pure-state tools (undo, state queries, condition queries, audit reads) are exempt from the quote requirement                                                                                                                                                                                                                                                                                                                                                                       | REQ-061                                     |
 | T49   | Manual   | Connection introduction: invoke the `intro` prompt on a running server and assert the output is ≤ 300 words, opens with the publisher's tagline (or server-name identification when ruleset-free), includes a dynamic sourcebook listing drawn from the live index (or world-model-only notice when ruleset-free), and ends with four concrete next actions; verify the `help` tool and `badge_briefing` each include a pointer to the `intro` prompt. Assert no ruleset-revealing content is visible to any badge (the intro is unfiltered by design)                                                                                                                                                                                                                                                                                              | REQ-063, REQ-023, REQ-024                   |
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `badge_briefing` for each badge (switch via `set_badge`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of badge)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
-| T51   | Manual   | Badge behavioral boundaries: invoke a Player-badge session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-hat session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both badges and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
+| T51   | Manual   | Badge behavioral boundaries: invoke a Player-badge session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-badge session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both badges and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T-new-badge-boundary | Automated | Badge boundary directive: invoke `badge_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_badge(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset_drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec_drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel_drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
@@ -11618,7 +11624,7 @@ diet.
 | T105  | Automated | Spec repository URL: assert `spec_health` output contains `spec_repo_url` field matching the intake value from DECISIONS.md. Assert `intro` prompt includes the URL. Assert URL is present for both Game Master and Player badges. Modify the URL in DECISIONS.md, rebuild — assert new URL reflected in both surfaces.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-106                                     |
 | T106  | Automated | Version coordination: assert `spec_health` output contains `spec_version` field matching the version in DECISIONS.md §2 Pinned Versions. Assert `spec_version` is a CalVer date-stamp (YYYY.MM.DD format). Assert the version matches the root `package.json` version. Modify the spec version in DECISIONS.md without changing other state — assert `spec_health` reports the new version. Assert Player badge sees the field with no elevation of privilege. Upload a spec with the same version as the server — assert gap audit reports "current" and exits without mutation.                                                                                                                                                                                                                                                                                                                                                                                              | REQ-107, REQ-098                            |
 | T107  | Automated | Pattern Buffer traceability: after a full Pattern Buffer run, assert DECISIONS.md (6) contains a sub-workflow-to-REQ mapping covering every REQ in §5.5 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), and REQ-002 (Error taxonomy). Assert each covered REQ maps to at least one sub-workflow. Assert no sub-workflow maps to a REQ outside the covered sections. Add a stub REQ to §5.5 and rebuild via spec-driven update (REQ-098) — assert a gap finding is logged in DECISIONS.md (5).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-108                                     |
-| T108  | Automated | Badge precedence: activate GM badge in Novel A, set `TTRPG_BADGE=player`, resume Novel A — assert GM badge active (Novel persisted state wins). Create Novel B without activating hat, resume B with `TTRPG_BADGE=player` — assert player badge active (env var applied to Novel with no persisted badge). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted badge independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
+| T108  | Automated | Badge precedence: activate GM badge in Novel A, set `TTRPG_BADGE=player`, resume Novel A — assert GM badge active (Novel persisted state wins). Create Novel B without activating badge, resume B with `TTRPG_BADGE=player` — assert player badge active (env var applied to Novel with no persisted badge). `switch_novel(B)` → `switch_novel(A)` — assert each Novel restores its own persisted badge independently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | REQ-055                                     |
 | T109  | Automated | Badge briefing mandatory groups: create a Novel with entity, NPC, countdowns, lore entries, scene state, narrative directive, adventure content, and active combat state (init_combat). Invoke `badge_briefing` as GM — assert all 16 groups from REQ-109 present including combat state (round, turn order, current participant). Assert decision-critical groups (scene state, entities, combat state, triggered lore, active NPCs, active countdowns) precede the section boundary and supplementary groups follow. Invoke as Player — assert GM-only groups excluded and all player-visible groups present. End combat — assert combat group omitted. Remove entities — assert entity group omitted. Clear scene state — assert group shows empty-state marker.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-109, REQ-032                            |
 | T110  | Automated | Combat state lifecycle: create a Novel with 2 entities (equal initiative), 1 NPC, 1 danger. Call `init_combat` — assert turn order follows entity > NPC > danger then alphabetical by name. Assert `badge_briefing` (GM) includes combat state group (round, turn order, current participant). Advance combat through one full round — assert briefing reflects updated round and current participant. End combat — assert briefing omits combat group, `spec_health` reports total combat rounds incremented by rounds played. Switch to Player badge — assert combat state group visible (entity turn positions only). | REQ-043, REQ-093, REQ-109, REQ-032         |
 | T111  | Automated | RNG seed isolation: per-call seed override does not advance session PRNG position — after override, the next session-seeded draw matches the sequence the session would have produced without the override. Assert d20 witness values from Appendix B.4 column 2 reproduce exactly under the LCG formula. Assert `create_character(stat_method="roll_4d6", seed="42")` produces identical stat arrays on two separate server restarts and does not advance the session PRNG position.                                                                                                                                                                                                                                                                                                                                       | REQ-050                                     |
@@ -11690,7 +11696,7 @@ diet.
 | T147  | Automated | Forbidden-call audit: create a Novel, invoke a GM-only tool under the Player badge — assert `[FORBIDDEN]` audit entry recorded with badge `player`, tool name, arguments, `violation_type: "boundary"` field, and `[BOUNDARY_VIOLATION]` prefix on the output column. Invoke a Player-only tool under the GM badge — assert another `[FORBIDDEN]` audit entry with the same markers. Verify entries visible at `audit://novel` and chained with correct hashes (REQ-040). Verify state queries do not produce audit entries. | REQ-133, REQ-040 |
 | T148  | Automated | Minimum Player tool surface: set Player badge, invoke one tool from each Player-guaranteed group (dice-resolution, ruleset lookup, character_sheet, suggest_actions, player_signal, help, undo, set_badge) — assert all succeed. Invoke a GM-exclusive tool (create_npc, init_combat, set_scene_state, set_lore_entry) — assert each returns `[FORBIDDEN]`. Switch to Game Master — assert all tools succeed. Verify `tools/list` filtered by each badge matches the DECISIONS.md classification table. | REQ-134, REQ-032 |
 | T149  | Automated | Badge briefing size budget: configure a small `TTRPG_MAX_BRIEFING_TOKENS`, invoke `badge_briefing` with populated Novel — assert supplementary sections truncate before decision-critical sections at the same budget threshold; assert badge foundations and intro pointer are never truncated. Configure a very large budget — assert no truncation markers. Verify truncated sections are full (not partial) and each carries a retrieval pointer. | REQ-135, REQ-109 |
-| T150  | Automated | Null-badge briefing: restart with no Novel active, invoke `badge_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set hat, invoke `badge_briefing` — assert active Novel name and guidance to set up the Novel (editing mode). Verify no gated content appears in either case. Set hat to Player — assert full Player briefing (in the story mode, not setup mode). | REQ-136, REQ-031 |
+| T150  | Automated | Editor-badge briefing: restart with no Novel active, invoke `badge_briefing` — assert setup-oriented message with intro pointer and Novel-creation guidance. Create a Novel, do not set badge, invoke `badge_briefing` — assert active Novel name and guidance to set up the Novel under the Editor badge. Verify no gated content appears in either case. Set badge to Player — assert full Player briefing (in the story mode, not setup mode). | REQ-136, REQ-031 |
 | T151  | Automated | Gate classification auditability: build server, inspect DECISIONS.md gate-classification table — assert every registered tool appears in exactly one of {Player-only, GM-only, un-gated}. Assert `tools/list` filtered by Player badge contains exactly the tools classified as Player + un-gated. Assert `tools/list` filtered by GM badge contains exactly the tools classified as GM + un-gated. Assert `set_badge` is classified un-gated and appears in both lists. Assert no tool is classified as both Player-only and GM-only. | REQ-137, REQ-032 |
 | T152  | Automated | Prompt health reporting: invoke `spec_health` — assert every registered prompt appears in a `prompt_health` section with name, presence, length, budget, budget-compliance flag, and stale-references list. Rename a tool referenced in a prompt — assert the stale-references list for that prompt shows the old tool name. Restore the original name — assert the stale-references list clears. | REQ-138 |
 | T153  | Automated | Resource URI completeness: invoke `spec_health` — assert a `resource_uris` section lists every REQ-022 URI template with presence (present/absent), registration name, and MIME type. Register a new resource — assert its URI appears as `present` immediately. Remove a resource — assert the URI changes to `absent`. | REQ-139 |
@@ -11727,7 +11733,7 @@ diet.
 | T183  | Manual   | Structural integrity gate: provide a ruleset with a duplicate heading — assert G0 step 1 fails and discovery is blocked. Provide a ruleset missing horizontal-rule separators — assert G0 step 1 passes with the finding logged in DECISIONS.md (4). Assert the evidence record in DECISIONS.md (6) enumerates each blocking item with its pass/fail status. | REQ-148 |
 | T184  | Automated | MCP conformance gate: launch a server, run every Appendix D check. Assert `tools/list` returns unique names. Assert `tools/call` with a known-absent canonical lookup returns `result` with `isError: true` and `[ERROR] [NOT_FOUND]`, not a JSON-RPC `error`. Assert `resources/read` against `guidance://player` returns Markdown with source header. Assert `prompts/get` on `badge_briefing` returns one user-role message. Assert networking-disabled operation. Assert all checks pass and the evidence record enumerates each. | REQ-149 |
 | T185  | Automated | G2 coverage completeness: replay the Appendix B golden transcript. Assert the G2 evidence record enumerates all eight contracts and their coverage status. Assert every contract is exercised by at least one transcript interaction. Mask the `undo` interaction from the transcript — assert the evidence record marks REQ-041 as unexercised (coverage gap) without blocking. | REQ-150 |
-| T186  | Automated | AGENTS.md troubleshooting: parse AGENTS.md. Assert `## Troubleshooting` heading present. Assert each of the four failure classes (config mismatch, corrupted state file, hat confusion, missing environment variables) appears. Assert each failure class has at least one diagnostic step. | REQ-153 |
+| T186  | Automated | AGENTS.md troubleshooting: parse AGENTS.md. Assert `## Troubleshooting` heading present. Assert each of the four failure classes (config mismatch, corrupted state file, badge confusion, missing environment variables) appears. Assert each failure class has at least one diagnostic step. | REQ-153 |
 | T187  | Automated | README.md handoff content: parse README.md. Assert `mcpServers` JSON block present with `command`/`args`/`env` fields. Assert setup section lists prerequisites. Assert state model description mentions persistence boundary. Assert RNG section mentions seed/determinism. | REQ-154 |
 | T188  | Automated | H12 evidence format: parse DECISIONS.md (6). Assert H12 evidence entry present with non-empty command, exit_code, g2_result, and env_pins fields. | §9 |
 | T189  | Automated | H13 Pattern Buffer freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Pattern Buffer timestamp newer than most recent source file mtime. | §9 |
@@ -11817,7 +11823,7 @@ diet.
 | T296    | Automated | Verifier model criteria: execute independent verification with same-provider-same-architecture model — assert verifier records the finding but does not block. Execute with different-provider model — assert no finding. Assert verifier evidence record includes model identity fields. | REQ-276 |
 | T297    | Automated | Fixture evolution: modify the Tin Lanterns ruleset source such that Appendix B.3 golden transcript fails replay. Assert the fixture version bumps per the evolution contract. Assert the citing REQ is recorded in the fixture changelog comment. Assert transcript and witness values are updated. Assert a fixture with mismatched transcript and witness values is flagged as a spec defect by `npm run validate`. | REQ-277 |
 | T298    | Automated | Build-phase-map staleness: run `npm run assemble` — assert `spec/build-phase-map.md` content hash comment is updated. Modify one spec file — assert `npm run validate` reports a stale-hash warning with the file name. Compute the current hash and overwrite the stale one — assert warning clears on next validate run. | REQ-278 |
-| T-new-304 | Automated | Counterpart AI role: set `TTRPG_AI_ROLE=counterpart`. Call `set_badge("player")` — invoke `badge_briefing` and assert orientation content (foundations, anti-slop, tone) is GM-oriented. Call `set_badge("game_master")` — assert orientation content is Player-oriented. Call `set_badge("none")` — assert null-badge briefing per REQ-136. Set `TTRPG_AI_ROLE=game_master` — assert `badge_briefing` orientation is always GM-oriented regardless of active badge. Set `TTRPG_AI_ROLE=player` — assert orientation is always Player-oriented. | REQ-304 |
+| T-new-304 | Automated | Counterpart AI role: set `TTRPG_AI_ROLE=counterpart`. Call `set_badge("player")` — invoke `badge_briefing` and assert orientation content (foundations, anti-slop, tone) is GM-oriented. Call `set_badge("game_master")` — assert orientation content is Player-oriented. Call `set_badge("none")` — assert Editor-badge briefing per REQ-136. Set `TTRPG_AI_ROLE=game_master` — assert `badge_briefing` orientation is always GM-oriented regardless of active badge. Set `TTRPG_AI_ROLE=player` — assert orientation is always Player-oriented. | REQ-304 |
 | T-new-305 | Automated | Observer mode: call `set_badge("observer")` — assert returns `[OK] Active badge: observer — read-only spectator mode`. Call `set_scene_state("test")` — assert `[FORBIDDEN]` with corrective action citing `set_badge`. Call `help()` — assert succeeds. Call `badge_briefing` — assert orientation includes dual-role instruction. Call `character_sheet(entity_id)` — assert succeeds. Switch to player badge then back to observer — assert `[FORBIDDEN]` still applies for mutating tools. | REQ-305 |
 | T-new-306 | Automated | Adjustable autonomy: call `set_autonomy({level: "full", confirmation: "auto", safety: "safe", creativity: "standard"})` — assert `[OK]`. Invoke `badge_briefing` — assert autonomy state visible. Set `level=mechanical_prompt, confirmation=prompt` — assert AI auto-narrates exploration but pauses via `present_choices` for combat actions; human responds via `respond`. Set `safety=safe` — assert lethal damage reduces HP to 1 and applies incapacitation instead of death. Set `safety=hardcore` — assert death permanent, no warnings. Set `creativity=chaotic` — assert AI makes unexpected, dramatic choices. Assert Player badge `set_autonomy` returns `[FORBIDDEN]`. Assert autonomy persists across Novel restart. | REQ-306 |
 | T-new-307 | Automated | Entity presence: call `set_scene_state("Dark corridor", characters_present=["rogue_01"])` — assert `party://current` shows rogue present, wizard not present with `[not present]`. Call `set_party_presence(["wizard_01"], "Camp")` — assert scene description unchanged, wizard present. Call `set_party_presence([])` — assert all entities not present. Entity listing in `badge_briefing` — assert `[not present]` markers and `last_location` fields. `set_active_entity` to non-present entity — assert no error, `knowledge_state` renders "Entity not present" marker. | REQ-307 |
@@ -11863,7 +11869,7 @@ diet.
 | T-new-319 | Automated | Extended property contracts: create things with properties `convert_source("A silver ring is in the Entrance Chamber. It is wearable. A red mushroom is in the Entrance Chamber. It is edible. An iron lever is in the Entrance Chamber. It is climbable. A glass jar is a container. It is transparent. The inscription on the altar reads 'Beware the serpent.' The altar is in the Entrance Chamber. It is readable.")`. Assert ring is `wearable: true`. Assert mushroom is `edible: true`. Assert lever is `climbable: true`. Assert jar is `transparent: true`. Assert altar is `readable: true` with `read_text: 'Beware the serpent.'`. Assert `command("wear ring")` returns `[OK]`. Assert `command("eat mushroom")` returns `[OK]`. Assert `command("read altar")` returns the inscription text. Assert each property assertion is recognized by `convert_source`. Assert missing-property commands return `[RULE_VIOLATION]`. | REQ-318 |
 | T-new-320 | Automated | Extended parser commands: populate a world model with objects supporting all new standard-tier commands. Assert `command("wear hat")` succeeds for wearable thing in inventory. Assert `command("remove hat")` succeeds when worn. Assert `command("read scroll")` returns `read_text`. Assert `command("eat mushroom")` succeeds for edible in inventory. Assert `command("drink potion")` succeeds for drinkable in inventory. Assert `command("climb rope ladder")` resolves associated exit. Assert `command("enter tent")` succeeds for enterable. Assert `command("sit bench")` succeeds for supporter. Assert `command("stand")` succeeds. Assert `command("light torch")` succeeds for `lit` thing. Assert `command("extinguish torch")` succeeds. Assert `command("listen")` returns `[OK]`. Assert `command("smell")` returns `[OK]`. Assert `command("touch altar")` returns `[OK]`. Assert `command("again")` repeats last command. Assert `command("g")` is equivalent. Assert `command("help")` lists verbs grouped by tier. Assert `command("verbs")` reports per-tier counts. Assert all property-violation cases return `[RULE_VIOLATION]`. | REQ-319 |
 | T-new-321 | Automated | Narrative-intent verbs: populate a world model with an NPC. Assert `command("ask guard about crypt")` returns `[OK] You ask guard about crypt.` Assert `command("tell guard about amulet")` returns `[OK]`. Assert `command("give sword to guard")` transfers item from inventory and returns `[OK]`. Assert `command("show shield to guard")` does NOT transfer and returns `[OK]`. Assert `command("throw rock at statue")` moves rock from inventory to room and returns `[OK]`. Assert `command("give fixed_altar to guard")` returns `[RULE_VIOLATION]`. Assert `command("throw nonexistent at guard")` returns `[NOT_FOUND]`. Assert `command("ask nobody about crypt")` where nobody matches returns `[WARNING]`. | REQ-320 |
-| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored with default visibility `library`. Call `codex_set("npc", "Fighter", {...}, visibility="shared")` — assert `shared` visibility. Call `codex_list("npc")` under Player badge — assert only `shared` entries. Call `codex_list("npc")` under Game Master badge — assert all entries. Call `codex_list("npc")` with no badge active — assert all entries unfiltered. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entries survive. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` under Game Master badge into an active Novel — assert NPC created with stored fields. Call `codex_import("fighter")` under Player badge (character kind, shared visibility) — assert character imported via `import_character`. Call `codex_import("blacksmith")` under Player badge — assert `[FORBIDDEN]`. Call `codex_set(...)` under Player badge — assert `[FORBIDDEN]`. Call `codex_import("my-adventure")` with kind `adventure` into an active Novel — assert world-model, NPCs, factions, lore, and synthesis linkages populated. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Call `codex_capture("adventure")` from a Novel with adventure content — assert Codex entry created with `source: captured:<slug>`. Call `codex_capture("adventure")` from a Novel with no adventure content — assert `[STATE_CONFLICT]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
+| T-new-322 | Automated | Codex: call `codex_set("npc", "Blacksmith", {description: "Gruff, scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith", "village"])` — assert stored with default visibility `library`. Call `codex_set("npc", "Fighter", {...}, visibility="shared")` — assert `shared` visibility. Call `codex_list("npc")` under Player badge — assert only `shared` entries. Call `codex_list("npc")` under Game Master badge — assert all entries. Call `codex_list("npc")` with the Editor badge — assert all entries unfiltered. Call `codex_info("blacksmith")` — assert full record with data payload. Restart server — assert codex entries survive. Create and `end_novel` — assert codex entries persist. Call `codex_import("blacksmith")` under Game Master badge into an active Novel — assert NPC created with stored fields. Call `codex_import("fighter")` under Player badge (character kind, shared visibility) — assert character imported via `import_character`. Call `codex_import("blacksmith")` under Player badge — assert `[FORBIDDEN]`. Call `codex_set(...)` under Player badge — assert `[FORBIDDEN]`. Call `codex_import("my-adventure")` with kind `adventure` into an active Novel — assert world-model, NPCs, factions, lore, and synthesis linkages populated. Call `codex_capture("npc", "blacksmith")` from within a Novel — assert `source_novel` field populated. Call `codex_capture("adventure")` from a Novel with adventure content — assert Codex entry created with `source: captured:<slug>`. Call `codex_capture("adventure")` from a Novel with no adventure content — assert `[STATE_CONFLICT]`. Call `codex_import("blacksmith")` with no Novel active — assert `[STATE_CONFLICT]`. Call `spec_health` — assert `codex` key reports counts partitioned by kind. Call `codex_delete("blacksmith")` — assert removed. Call `undo` — assert entry restored. | REQ-321 |
 | T-new-323 | Automated | Adventure generation codex: call `generate_adventure("The goblin king demands tribute")` with active Novel — assert scaffold at `adventure://generated/<anchor>`. Call `generate_adventure("The dragon hoard", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: generated`. Call `codex_info("<slug>")` — assert full adventure data payload including title, premise, overview, hook, locations, npc_suggestions, encounter_seeds, genre_tags, sections. Restart server — assert Codex entry survives. Call `generate_adventure("The dragon hoard", target="codex")` again — assert entry replaced (same slug). | REQ-090 |
 | T-new-324 | Automated | Adventure loading codex: call `load_adventure("tomb-of-the-serpent-king")` with active Novel — assert world-model populated and NPCs created. Call `load_adventure("tomb-of-the-serpent-king", target="codex")` with no Novel active — assert `[OK]`. Call `codex_list("adventure")` — assert entry present with `source: loaded:tomb-of-the-serpent-king`. Call `codex_info("<slug>")` — assert full sections payload. Restart server — assert Codex entry survives. | REQ-079 |
 | T-new-325 | Automated | Vow-countdown coupling: call `set_vow("Find Crown", "Recover the lost Crown of Alara", parties=["pc_1"], difficulty="dangerous", scope="shared")` — assert `badge_briefing` narrative_threads includes countdown suggestion. Accept suggestion via decision workflow — assert 20-tick `mission`-type countdown created with name `vow:Find Crown`. Call `mark_milestone("Find Crown")` — assert both milestone counter and countdown advance by one tick. Advance countdown to fill — assert vow becomes eligible for `resolve_vow`. Call `resolve_vow("Find Crown", "Found it", "Kingdom restored")` — assert countdown removed. Call `set_vow("Other Vow", "A minor task", parties=["pc_1"], difficulty="troublesome", scope="gm")` — decline countdown suggestion — assert vow functions with milestones-only (current behavior). | REQ-322 |
@@ -11877,8 +11883,8 @@ diet.
 | T-new-333 | Automated | Knowledge-world coupling: create world model with rooms Entrance, Guard Room, Chapel. Call `resolve_intent("go north")` from Entrance to Guard Room as entity "rogue_01" — assert `knowledge_state` includes "Guard Room" under "Explored" with timestamp. Call `resolve_intent("go north")` from Guard Room to Chapel — assert Chapel added. Return to Guard Room — assert no duplicate. Call `set_scene_state("Camp", characters_present=["rogue_01"])` — assert GM declaration overrides exploration presence. `knowledge_state` retains all prior exploration entries. Call `resolve_intent("look")` in Guard Room — assert NPCs seen added to knowledge. | REQ-330 |
 | T-new-334 | Automated | Story journal-world coupling: create world model with room Library. Call `set_scene_state("The library", location="Library")` (scene-world coupled). Call `record_story("moment", "Found the hidden map behind the bookshelf")` — assert entry auto-populates `room_id: "library"` and `scene_anchor` includes "Library". Call `list_stories` — assert entry shows room name. Call `set_scene_state("The void", location="Nowhere")` (no match). Call `record_story("moment", "Drifted through nothingness")` — assert `room_id` absent. Call `session_recap` — assert "Library" in narrative_orientation for first entry, absent for second. | REQ-331 |
 | T-new-335 | Automated | Codex bootstrap: call `codex_set("adventure", "Dragon Hoard", {title: "The Dragon Hoard", premise: "A dragon demands tribute", sections: {}})` to create a Codex adventure entry. Call `create_novel("my-game", codex_adventure="dragon-hoard")` — assert Novel created, adventure scaffold imported (world-model populated, NPCs created, factions set, lore entries present, synthesis linkages active), `adventure_set: true` in metadata. Call `create_novel("broken", codex_adventure="nonexistent")` — assert `[NOT_FOUND]`. Call `create_novel("wrong-kind", codex_adventure="blacksmith")` where blacksmith is kind `npc` — assert `[NOT_FOUND]` (wrong kind). | REQ-088, REQ-321 |
-| T-new-336 | Automated | Story journal to lore promotion: call `record_story("revelation", "The old well leads to the undercity")` — assert entry at index 0. Call `promote_story_to_lore(0)` — assert lore entry `the-old-well-leads-to-the-undercity` created with `source: story_journal:0`. Call `list_stories()` — assert journal entry unchanged (non-destructive). Call `record_story("decision", "We chose to trust the vampire")` — assert at index 1. Call `promote_story_to_lore(1)` — assert `[RULE_VIOLATION]`. Call `promote_story_to_lore(0, key="well-undercity-link")` — assert `[STATE_CONFLICT]` (key already taken). Player hat — assert `[FORBIDDEN]`. | REQ-333 |
-| T-new-337 | Automated | Novel archiving: create a Novel with entities, NPCs, lore entries, and an active adventure. Call `archive_novel("my-novel")` — assert file moved to `.holonovel-state/archive/my-novel.json`. Call `list_novels()` — assert Novel absent. Call `list_novels(filter="archived")` — assert Novel present with archive timestamp and metadata. Call `resume_novel("my-novel")` — assert `[STATE_CONFLICT]`. Call `novel_info("my-novel")` — assert read-only metadata returned. Call `unarchive_novel("my-novel")` — assert file restored to `.holonovel-state/novels/my-novel.json`. Call `resume_novel("my-novel")` — assert full state intact. Call `archive_novel("my-novel")` while another connection has it active — assert `[STATE_CONFLICT]`. Player hat `archive_novel` — assert `[FORBIDDEN]`. `spec_health.archived_novels` — assert lists the archived slug. | REQ-334 |
+| T-new-336 | Automated | Story journal to lore promotion: call `record_story("revelation", "The old well leads to the undercity")` — assert entry at index 0. Call `promote_story_to_lore(0)` — assert lore entry `the-old-well-leads-to-the-undercity` created with `source: story_journal:0`. Call `list_stories()` — assert journal entry unchanged (non-destructive). Call `record_story("decision", "We chose to trust the vampire")` — assert at index 1. Call `promote_story_to_lore(1)` — assert `[RULE_VIOLATION]`. Call `promote_story_to_lore(0, key="well-undercity-link")` — assert `[STATE_CONFLICT]` (key already taken). Player badge — assert `[FORBIDDEN]`. | REQ-333 |
+| T-new-337 | Automated | Novel archiving: create a Novel with entities, NPCs, lore entries, and an active adventure. Call `archive_novel("my-novel")` — assert file moved to `.holonovel-state/archive/my-novel.json`. Call `list_novels()` — assert Novel absent. Call `list_novels(filter="archived")` — assert Novel present with archive timestamp and metadata. Call `resume_novel("my-novel")` — assert `[STATE_CONFLICT]`. Call `novel_info("my-novel")` — assert read-only metadata returned. Call `unarchive_novel("my-novel")` — assert file restored to `.holonovel-state/novels/my-novel.json`. Call `resume_novel("my-novel")` — assert full state intact. Call `archive_novel("my-novel")` while another connection has it active — assert `[STATE_CONFLICT]`. Player badge `archive_novel` — assert `[FORBIDDEN]`. `spec_health.archived_novels` — assert lists the archived slug. | REQ-334 |
 | T-new-338 | Automated | Batch codex import: call `codex_import(["blacksmith", "innkeeper"])` — assert both NPCs created, single audit entry recorded, one undo snapshot restores both. Call `codex_import(["existing-npc", "nonexistent"])` — assert `[NOT_FOUND]` for `nonexistent` at index 1; assert `existing-npc` was NOT created (atomic rollback). | REQ-321 |
 | T-new-339 | Automated | Bidirectional codex sync: call `codex_import("blacksmith")` into Novel — assert NPC with `codex_source` created. Set personality and voice_examples on the NPC via `set_personality` and `set_voice_examples`. Call `codex_capture("npc", "blacksmith", update_source=true)` — assert Codex entry "blacksmith" updated in-place (personality, voice_examples reflected), NOT a new entry. Call `codex_info("blacksmith")` — assert updated data payload. Call `codex_capture("npc", "guard-captain", update_source=true)` where guard-captain has no codex_source — assert `[STATE_CONFLICT]`. | REQ-321, REQ-332 |
 | T-new-340 | Automated | Codex provenance: call `codex_import("blacksmith")` into active Novel — assert NPC carries `codex_source: {id: "blacksmith", imported_at: <ISO>, codex_modified_at: <ISO>}`. Call `novel_info()` — assert `codex_sources` includes `{id: "blacksmith", kind: "npc"}`. Update blacksmith Codex entry via `codex_set` (change description). Call `spec_health` — assert `[codex_stale]` flag for blacksmith. Call `codex_import("blacksmith")` again — assert existing NPC updated (description changed, HP and conditions preserved), NOT duplicated. Call `clone_novel(...)` — assert cloned NPC retains `codex_source`. | REQ-332, REQ-258, REQ-097 |
@@ -13035,7 +13041,7 @@ formats._
 | `adventure`        | Active adventure slug and generated adventure content            |
 | `audit_log`        | Array of audit entries (timestamp, badge, tool, args, output)       |
 | `checkpoints`      | Array of checkpoint objects `{label, timestamp, state}` (REQ-241) |
-| `badge_state`        | Active badge and per-Novel hat preferences                          |
+| `badge_state`        | Active badge and per-Novel badge preferences                          |
 | `undo_snapshots`   | Array of snapshot objects (per-badge stacks)                        |
 
 The `manifest` object SHALL contain: `novel_format_version` (integer),
@@ -13117,6 +13123,27 @@ DECISIONS.md. Help category names are advisory — the GM may override them
 (REQ-067) — but the infrastructure classification is immutable.
 
 _Verify:_ T3, T5, T32, T33.
+
+---
+
+## Appendix U: Content Licenses
+
+This appendix is the single source of truth for third-party content licenses
+incorporated into Holonovel builds. The Build workflow SHALL render this table
+into the README.md license footer during handoff (§6.2 H11).
+
+| Source | Kind | License | Copyright |
+|--------|------|---------|-----------|
+| D&D 5e SRD v5.1 | Ruleset data | CC BY 4.0 + OGL 1.0a | Wizards of the Coast |
+| Graham Nelson's Inform | World model conventions | Artistic License 2.0 | Graham Nelson |
+| if-craft-corpus | Narrative frameworks | CC BY 4.0 | pvliesdonk |
+| dmcp | Narrative frameworks | MIT | Shawn Rushefsky |
+| lonelog | Narrative frameworks | CC BY-SA 4.0 | zeruhur |
+| BitD SRD | Narrative frameworks | CC BY 3.0 | John Harper |
+
+Adding a content source requires: (a) a row in this table, (b) a LICENSE file
+in the content's subdirectory, and (c) a `source_url` field in the enrichment
+manifest (§6.3). Removing a source removes the row.
 
 ---
 

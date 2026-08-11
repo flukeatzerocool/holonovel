@@ -264,7 +264,7 @@ DECISIONS.md for audit.
 (`synthesis://voice_examples`, `synthesis://briefing_order`,
 `synthesis://action_patterns`, `synthesis://adventure_advice`, `synthesis://narrative_voices`,
 `lore://templates`)
-and every hat guidance resource that draws from synthesis data
+and every badge guidance resource that draws from synthesis data
 (`guidance://<badge>/voice`, `guidance://<badge>/tone`) SHALL render from the Novel's
 live synthesis state — not from hardcoded text. When the synthesis array is
 non-empty, the resource output SHALL contain the synthesis items filtered by

@@ -111,15 +111,26 @@ export function extractBulletLists(text: string): { items: string[]; startLine: 
 export function splitCodeFences(text: string): string[] {
   const chunks: string[] = [];
   let inBlock = false;
+  let inComment = false;
   let current = "";
   for (const line of text.split("\n")) {
-    if (line.trim().startsWith("```")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("```")) {
       inBlock = !inBlock;
       current += line + "\n";
       if (!inBlock) {
         chunks.push(current);
         current = "";
       }
+      continue;
+    }
+    if (trimmed.startsWith("<!--")) {
+      inComment = true;
+      if (trimmed.endsWith("-->")) inComment = false;
+      continue;
+    }
+    if (inComment) {
+      if (trimmed.endsWith("-->")) inComment = false;
       continue;
     }
     if (!inBlock) {
@@ -140,10 +151,21 @@ export function proseOnly(text: string): string {
 export function proseLines(text: string): { line: number; content: string }[] {
   const lines: { line: number; content: string }[] = [];
   let inBlock = false;
+  let inComment = false;
   const raw = text.split("\n");
   for (let i = 0; i < raw.length; i++) {
-    if (raw[i].trim().startsWith("```")) {
+    const trimmed = raw[i].trim();
+    if (trimmed.startsWith("```")) {
       inBlock = !inBlock;
+      continue;
+    }
+    if (trimmed.startsWith("<!--")) {
+      inComment = true;
+      if (trimmed.endsWith("-->")) inComment = false;
+      continue;
+    }
+    if (inComment) {
+      if (trimmed.endsWith("-->")) inComment = false;
       continue;
     }
     if (!inBlock) {

@@ -118,9 +118,9 @@ _Check:_ T178.
 
 **REQ-002c — Badge-filtered error values.** Valid-value enumerations in
 `[NOT_FOUND]` and `[INVALID_INPUT]` errors exclude values the caller's current
-hat cannot access — a Player badge sees only player-accessible spell names in a
+badge cannot access — a Player badge sees only player-accessible spell names in a
 `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue.
-"Did you mean?" hints follow the same hat filter. A value that exists in the
+"Did you mean?" hints follow the same badge filter. A value that exists in the
 ruleset but is invisible to the caller's badge is treated as absent for
 enumeration purposes — it is neither enumerated nor hinted. This prevents
 side-channel disclosure of GM-only content through error message verbosity.
@@ -284,7 +284,7 @@ synthesis-supplied anti-slop items; synthesis items SHALL be tagged `[supplement
 with source URL and confidence. Without synthesis, the resource SHALL contain only the
 Appendix J synopsis.
 *Acceptance criterion:* `guidance://<badge>/anti-slop` returns Markdown containing every
-Appendix J pattern for the requested hat, each tagged `[anti-slop]` and badge-filtered;
+Appendix J pattern for the requested badge, each tagged `[anti-slop]` and badge-filtered;
 synthesis-sourced items carry `[supplementary]` with source URL.
 _Check:_ T223.
 
@@ -292,7 +292,7 @@ _Check:_ T223.
 deterministically: lowercase the text, strip punctuation, replace whitespace and
 hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens.
 Explicit IDs (`{#id}`) take precedence over derived anchors. Role-scoping markers
-(`*Keeper only*`, `*Player only*`, or the ruleset's discovered hat terms) SHALL be
+(`*Keeper only*`, `*Player only*`, or the ruleset's discovered badge terms) SHALL be
 stripped from the heading text before derivation. Duplicate derived anchors within
 a source file SHALL append `-1`, `-2`, etc. Duplicate explicit IDs across files
 SHALL be treated as an authoring defect. Re-indexing the same source SHALL
@@ -324,7 +324,7 @@ never takes action or makes decisions on behalf of the player. When the AI's
 narrative role is Player, it describes character intent; it never prescribes world
 facts or narrative outcomes without Game Master confirmation. These boundaries are
 delivered in the `badge_briefing` orientation content, determined by the AI's role
-per REQ-304. When the AI has no narrative role (null-badge), tool output follows the
+per REQ-304. When the AI has no narrative role (Editor-badge), tool output follows the
 active badge's boundary conventions.
 When a player's natural-language input carries both in-character and meta-intent
 simultaneously — e.g., "I examine the altar" (character action) + "what does my
@@ -431,7 +431,7 @@ _Check:_ T181.
 
 **REQ-153 — AGENTS.md troubleshooting.** Every build's AGENTS.md includes a
 `## Troubleshooting` section documenting at minimum four failure classes —
-config mismatch, corrupted state file, hat confusion, and missing
+config mismatch, corrupted state file, badge confusion, and missing
 environment variables — each with diagnostic steps recoverable by an
 operator without access to the builder. The section must reference
 verification commands that exercise the diagnosed failure mode where a
@@ -448,8 +448,12 @@ from a cold checkout; (b) a copy-paste `mcpServers` configuration entry
 with key names matching the build-time client target's documented schema
 (§6.2 B3); (c) the RNG continuity contract — whether deterministic replay
 is guaranteed by seed or session-dependent; (d) the badge model with
-tool-access implications; and (e) the state model describing what survives
-restart and what is connection-scoped.
+tool-access implications; (e) the state model describing what survives
+restart and what is connection-scoped; and (f) a license footer rendering
+the Appendix U content license table — one line per source listing source
+name, license identifier, and copyright holder, flowing into a single
+semicolon-separated paragraph prefixed with "Built from:" and terminated
+by the RSS link and last-updated date.
 *Acceptance criterion:* An operator copies the `mcpServers` block from
 README.md into their client config, launches the server, and the
 initialize handshake succeeds with `serverInfo.name` matching the config
@@ -642,7 +646,7 @@ excludes GM-tagged items.
 _Check:_ T26.
 
 **REQ-017 — Badge stories.** A MUST-covering set of intent prompts maps each badge's
-expected play activities to concrete tool/resource paths. Every hat's stories are
+expected play activities to concrete tool/resource paths. Every badge's stories are
 achievable from its visible registry.
 *Acceptance criterion:* Every tool visible to the Player badge is covered by at
 least one intent prompt in the Player badge stories set; every tool visible to GM
@@ -1142,7 +1146,7 @@ required utility tools alongside `search_rules`, `respond`, `undo`, and `spec_he
 `help` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to
 the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters,
 dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and
-(3) a pointer to `badge_briefing` for hat-specific guidance. With a query, it
+(3) a pointer to `badge_briefing` for badge-specific guidance. With a query, it
 searches tool descriptions, prompt summaries, and guidance text for the most relevant
 matches and returns their names, descriptions, and example invocations from the tool-use
 playbook. Output is badge-filtered. When a Novel is active, tool listings and query results
@@ -1558,7 +1562,7 @@ _Check:_ T273.
 ### 5.5 Badges and Access
 
 **REQ-030 — Single-user connection.** Each MCP connection serves one active badge at a
-time — the hat most recently set via `set_badge` or `TTRPG_BADGE`. No concurrency,
+time — the badge most recently set via `set_badge` or `TTRPG_BADGE`. No concurrency,
 no multiplayer state sharing within a connection. The active badge and active entity
 are Novel-scoped: two connections to the same Novel share the same badge and entity
 state (REQ-031, REQ-074). Each connection may independently switch between Novels
@@ -1568,48 +1572,47 @@ and inherits the Novel's current badge and active entity; switching badges. On o
 connection is visible on the other.
 _Check:_ Appendix D.
 
-**REQ-031 — Badge activation.** By default, no badge is active — the server operates
-with full access, equivalent to Game Master privileges. All tools, resources, and prompts
-are accessible without restriction. Badge gating (REQ-032) takes effect only when a
-hat is explicitly activated via `set_badge` (REQ-066). Wearing a hat means you are
-in the story. The hat may be deactivated with `set_badge("none")` — the Novel
-persists in editing mode with full access. When no badge is active,
-all badge-filtered surfaces (`badge_briefing`, `prompts/list`, `resources/list`,
-`tools/list`, guidance) return full unfiltered content. The badge activation state
-persists with the Novel (REQ-055). `end_novel` deletes the Novel regardless of
-badge state.
-*Acceptance criterion:* On startup with no badge active, `tools/list` returns all
-tools unfiltered; after `set_badge("player")`, GM-only tools are excluded from
-`tools/list` and return `[FORBIDDEN]` on invocation; after `set_badge("none")`,
-full access is restored and the Novel persists.
+**REQ-031 — Badge activation.** On Novel creation or resume, the Editor badge is
+active by default — the server operates with full access. All tools, resources, and
+prompts are accessible without restriction. Badge gating (REQ-032) takes effect based
+on the active badge. Wearing the Player or Game Master badge means you are in the
+story. Editor and Observer badges are out of the story. Switching to the Editor badge
+with `set_badge("none")` restores full access; the Novel persists. Under the Editor
+badge, all badge-filtered surfaces (`badge_briefing`, `prompts/list`,
+`resources/list`, `tools/list`, guidance) return full unfiltered content. The badge
+activation state persists with the Novel (REQ-055). `end_novel` deletes the Novel
+regardless of badge state.
+*Acceptance criterion:* On Novel creation or resume with the Editor badge active,
+`tools/list` returns all tools unfiltered; after `set_badge("player")`, GM-only
+tools are excluded from `tools/list` and return `[FORBIDDEN]` on invocation; after
+`set_badge("none")`, full access is restored and the Novel persists.
 _Check:_ T9, T150.
 
 **REQ-066 — set_badge tool.** The server provides a `set_badge` tool accepting
 `player`, `game_master`, `observer`, or `none`. Returns `[OK] Active badge: <badge>` on
-success — `"none"` returns `[OK] Active badge: none — Novel editing mode`,
+success — `"none"` returns `[OK] Active badge: Editor — full access`,
 `"observer"` returns `[OK] Active badge: observer — read-only spectator mode`. Returns
 `[STATE_CONFLICT]` if a pending workflow exists. The tool is NEVER
 badge-gated — it is always callable regardless of current badge. The badge switch
-takes effect immediately on the next tool call. `set_badge("none")` deactivates
-the badge and returns to editing mode with full access; the Novel persists
-untouched.
+takes effect immediately on the next tool call. `set_badge("none")` switches to the
+Editor badge with full access; the Novel persists untouched.
 *Acceptance criterion:* `set_badge("player")` returns `[OK] Active badge: player`
 and the next tool call is gated; `set_badge("observer")` returns
 `[OK] Active badge: observer — read-only spectator mode`; `set_badge("none")` returns
-`[OK] Active badge: none — Novel editing mode` and full access is restored;
+`[OK] Active badge: Editor — full access` and full access is restored;
 `set_badge(...)` during a pending workflow returns `[STATE_CONFLICT]`.
 _Check:_ T9.
 
-**REQ-032 — Server-side gating.** When a badge is active, the server enforces hat
-access on every endpoint. Player tools, resources, and prompts are a strict subset of
+**REQ-032 — Server-side gating.** The server enforces access based on the active
+badge. Player tools, resources, and prompts are a strict subset of
 GM-visible ones. Observer tools are a read-only subset: state-query tools
 (`character_sheet`, `session_recap`, `help`, `scene://current`, `entities://`,
 etc.) are permitted; mutating tools (commands, generation, hybrid per REQ-015)
 return `[FORBIDDEN]` with the corrective action "Observer mode is read-only.
 Switch badges. With `set_badge` to interact." `tools/list` and related metadata surfaces
 are filtered. Guidance items are filtered. `spec_health` metrics are filtered.
-`[FORBIDDEN]` responses direct callers to use `set_badge` to switch badges. When no
-badge is active, no gating applies — all endpoints return full content and all tools
+`[FORBIDDEN]` responses direct callers to use `set_badge` to switch badges. Under
+the Editor badge, no gating applies — all endpoints return full content and all tools
 are callable.
 *Acceptance criterion:* Under the Player badge, `create_npc(...)` returns
 `[FORBIDDEN]`; switching to Game Master badge makes the same call succeed;
@@ -1650,7 +1653,7 @@ _Check:_ T147.
 the server guarantees that tools in these functional groups are callable:
 dice-resolution (rolls and checks), ruleset lookups, character sheet
 rendering, action suggestions, player signals, help, undo/redo of the Player
-hat's own mutations, and badge switching. The builder records the gate
+badge's own mutations, and badge switching. The builder records the gate
 classification for every tool in DECISIONS.md in a format that can be
 diffed against each badge's filtered `tools/list` output.
 *Acceptance criterion:* Under the Player badge, each Player-guaranteed group
@@ -1702,8 +1705,8 @@ _Check:_ T265.
 
 **REQ-304 — Counterpart AI role.** The AI's narrative role is the counterpart of the
 active badge by default: when the human wears `player`, the AI briefs as Game Master;
-when the human wears `game_master`, the AI briefs as Player; when no badge is active,
-the AI has no narrative role (null-badge briefing per REQ-136). The server accepts a
+when the human wears `game_master`, the AI briefs as Player; under the Editor badge,
+the AI has no narrative role (Editor-badge briefing per REQ-136). The server accepts a
 `TTRPG_AI_ROLE` environment variable with values `counterpart` (default),
 `game_master`, or `player`. When set to a fixed value, the AI's narrative role is
 locked — `game_master` forces GM-oriented briefing regardless of the human's badge,
@@ -1716,10 +1719,10 @@ orientation. The default `counterpart` preserves current behavior when the human
 wears the Player badge (AI briefs as GM) and enables human-GM + AI-Player
 configuration when the human wears the Game Master badge.
 *Acceptance criterion:* With `TTRPG_AI_ROLE=counterpart` and human wearing the
-Player badge, `badge_briefing` orientation content is GM-oriented. Same hat but
+Player badge, `badge_briefing` orientation content is GM-oriented. Same badge but
 `TTRPG_AI_ROLE=player` forces player-oriented orientation. Human wearing the GM badge
-with `counterpart` shows player-oriented orientation. Null-badge with any
-`TTRPG_AI_ROLE` shows null-badge briefing per REQ-136.
+with `counterpart` shows player-oriented orientation. Editor-badge with any
+`TTRPG_AI_ROLE` shows Editor-badge briefing per REQ-136.
 _Check:_ T-new-304.
 
 **REQ-305 — Observer mode.** `set_badge("observer")` activates spectator mode — the
@@ -1926,15 +1929,15 @@ byte offset regardless of whether the builder internally measures in tokens or
 bytes; the heuristic is recorded in DECISIONS.md.
 _Check:_ T222.
 
-**REQ-136 — Null-badge briefing.** When no badge is active (REQ-031),
+**REQ-136 — Editor-badge briefing.** Under the Editor badge (REQ-031),
 `badge_briefing` returns setup-oriented content: a list of available Novels
 (REQ-093), the current active Novel name if one exists, and a pointer to
 the `intro` prompt (REQ-063). No gated content is accessible — the briefing
-presents the same full-access view as all other null-badge surfaces but
+presents the same full-access view as all other Editor-badge surfaces but
 structured for initial orientation rather than ongoing play.
 *Acceptance criterion:* On startup with no Novel active, `badge_briefing`
 returns a setup-oriented message with the intro pointer and Novel-creation
-guidance; with a Novel active but no badge set (editing mode), the briefing
+guidance; with a Novel active under the Editor badge, the briefing
 includes the active Novel name, setup progress when incomplete, and
 guidance to continue Novel setup or start the story when ready.
 _Check:_ T150.
@@ -2059,7 +2062,7 @@ A hash chain broken at any point SHALL report a mismatch in `spec_health` and
 stderr; the server loads entries up to the break point. The audit log is part
 of the Novel and is removed with it by `end_novel`.
 Badge switches via `set_badge` (all values: `player`, `game_master`, `none`)
-SHALL produce audit entries recording the old hat, new hat, and timestamp.
+SHALL produce audit entries recording the old badge, new badge, and timestamp.
 Badge-switch entries carry the badge-switch designation as their tool-name
 field. They are recorded in the append-only audit log and included in
 `audit://novel` output, but they are not mutating state operations for
@@ -2494,7 +2497,7 @@ re-importing the same roster ID creates a fresh entity copy.
 _Check:_ T216.
 
 **REQ-177 — Roster entity removal.** The server SHALL provide a
-`remove_roster_character(roster_id)` tool (callable with no badge active or Game Master badge)
+`remove_roster_character(roster_id)` tool (callable with the Editor badge or Game Master badge)
 that removes a character from the roster. Removing a roster character does not affect any
 Novel that has already imported it — existing Novel entity copies survive independently.
 Player badge attempts return `[FORBIDDEN]`. When the roster ID does not exist, SHALL return
@@ -3328,7 +3331,7 @@ persists with the Novel. Setting `adventure_scene` to a heading not in the
 index returns `[NOT_FOUND]` with nearby scene names enumerated. Setting it
 to an empty string or null clears the waypoint. Changing the waypoint fires
 a scene transition hook (REQ-125). The field is Game Master only; the Player
-hat reads it passively via `badge_briefing`. When `adventure_scene` is set and
+badge reads it passively via `badge_briefing`. When `adventure_scene` is set and
 the adventure contains GM-only sections, the scene description SHALL be
 rendered regardless of badge — but the full scene prose (at the adventure
 resource) is badge-filtered per adventure section markers.
@@ -3719,7 +3722,7 @@ writes and backup rotation. Server notes survive `end_novel`,
 `spec_health` under a `server_notes` key (count). Server notes SHALL be
 retrievable at `server-notes://<key>` as a resource. Server notes SHALL NOT
 appear in `export_novel`, `clone_novel`, or checkpoint snapshots. WHEN the Player
-hat calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
+badge calls any server note tool, THE system SHALL return `[FORBIDDEN]`.
 *Acceptance criterion:* `set_server_note("campaign-bible", "The old gods were
 banished to the outer dark")` stores the note; server restart preserves it;
 `end_novel` preserves it; `server-notes://campaign-bible` returns full content;
@@ -3780,12 +3783,12 @@ with corrective action directing the caller to omit `update_source`.
 filterable list of codex entries with id, kind, name, description, tags, and
 visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player
 badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
-In editing mode (no badge active), `codex_list` returns all entries unfiltered.
+Under the Editor badge, `codex_list` returns all entries unfiltered.
 `codex_info(id)` SHALL return the full record including the kind-specific data
 payload, badge-filtered by visibility. `codex_delete(id)` SHALL remove an entry with
 no confirmation gate — `undo` SHALL restore a deleted entry within the same
 connection. Mutating codex operations (`codex_set`, `codex_capture`, `codex_delete`)
-SHALL require no badge active (editing mode) or Game Master badge; Player badge
+SHALL require the Editor badge or Game Master badge; Player badge
 SHALL return `[FORBIDDEN]`. `codex_import` SHALL be badge-scoped: Player badge MAY
 import `shared`-visibility entries of kind `character`; the Game Master badge may
 import any entry regardless of visibility. Player badge import of any other kind
@@ -3805,7 +3808,7 @@ scarred", ac: 14, hp: 35}, "The village blacksmith", ["blacksmith",
 restart preserves entries; `end_novel` preserves them; `codex://blacksmith` returns
 full content; `codex_list("npc")` under Player badge returns only `shared` entries;
 `codex_list("npc")` under Game Master badge returns all entries; `codex_list("npc")`
-with no badge active returns all entries; Player badge `codex_set(...)` returns
+with the Editor badge returns all entries; Player badge `codex_set(...)` returns
 `[FORBIDDEN]`; Game Master badge `codex_import("blacksmith")` into an active Novel
 creates the NPC; Player badge `codex_import("fighter-01")` of a `shared`-visibility
 `character` entry imports the character; Player badge `codex_import("blacksmith")`
@@ -4060,7 +4063,7 @@ _Check:_ T108.
 **REQ-055b — Story-in-progress notice.** WHEN `resume_novel` restores a Novel
 with an active badge, THE server SHALL include a notice identifying the active
 badge so the operator knows they have resumed an active story rather than entered
-editing mode.
+the Editor badge.
 *Acceptance criterion:* Resume a Novel with Player badge active — the server
 responds with a notice identifying "Player badge active."
 _Check:_ T108.
@@ -5514,7 +5517,7 @@ restore from `.bak.2`; `end_novel` removes all backups.
 _Check:_ T276.
 
 **REQ-240 — Clone Novel.** The server SHALL provide a `clone_novel(source_slug,
-new_name, trim_audit_sessions?)` tool (callable with no badge active or Game Master
+new_name, trim_audit_sessions?)` tool (callable with the Editor badge or Game Master
 badge). The tool creates an independent copy of the source Novel as a new Novel at
 `.holonovel-state/novels/<new_slug>.json`. All property groups (NPC, Scene,
 Countdown, Lore, Synthesis, Adventure, Faction, Secret, Relationship, DM Context,
@@ -6908,7 +6911,7 @@ Wisdom per REQ-371 (P5–P11), record the supplementary ruleset's slug and
 content hash in the Novel's metadata, and on Novel resume re-resolve
 supplementary rulesets (surfacing `[supplementary_gap]` in `spec_health` if a
 source file is missing or hash-mismatched).
-Import is Game Master only, editing-mode only (no badge active).
+Import is Game Master only, under the Editor badge.
 Supplementary rulesets do not affect other Novels — tools and Wisdom are
 Novel-scoped. The server MAY cache extraction results across Novels that
 import the same supplementary source. `remove_supplementary` deactivates all
