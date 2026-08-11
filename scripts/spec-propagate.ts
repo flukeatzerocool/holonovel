@@ -6,6 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
 const SOURCE = join(root, "holonovel.md");
+// Must match push-pipeline.sh SERVERS
 const TARGETS = [
   join(root, "holonovel", "holonovel.md"),
   join(root, "dnd5e-holonovel", "holonovel.md"),

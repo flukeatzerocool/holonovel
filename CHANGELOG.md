@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-11 — Push pipeline hardening
+
+- The push pipeline now creates a `v{version}` git tag after each commit,
+  matching the pre-existing `push.ts` workflow.
+- Pipeline script invocations are consistent — every step uses `npm run`
+  rather than a mix of `npx tsx` and `npm run`.
+- The `--dry-run` description now accurately states that the full pipeline
+  executes (including spec assembly, file copies, and version bumps); only
+  git operations are skipped.
+- Added cross-reference comments between the pipeline server list and the
+  two TypeScript scripts (spec-delta, spec-propagate) that hardcode the
+  same servers.
+- Clarified a naming ambiguity in the staged-file pattern where
+  `holonovel/` (server directory) could be misread as `holonovel.md`.
+
 ## 2026-08-10 — Validate performance: 4x speedup for sdd-strict
 
 - Optimized `extractReqBodiesWithSentences` in parse-spec.ts: replaced O(N²)
