@@ -105,12 +105,12 @@ loads your campaign (the Holonovel program) from your rulebooks. The Novel is th
 saved program file — create it, resume it, export and share it. No holograms. No 3D.
 Your books, rendered as tools and mechanics, running inside the room.
 
-**The play model (TTRPG).** Two badges, enforced server-side when the story is active.
+**The play model (TTRPG).** Four badges, enforced server-side when the story is active.
 The Novel is the container — a named, persistent save file holding the world model,
-entities, scenes, and all state. Entering a Novel (create or resume) starts in editing
-mode with no badge active (full access per REQ-031). Work on characters, load an
+entities, scenes, and all state. Entering a Novel (create or resume) starts in the
+Editor badge (full access per REQ-031). Work on characters, load an
 adventure, build the world, refine lore — the Novel is yours to shape before the story
-begins. When ready, activate a hat via `set_badge` (REQ-066): wearing the player or
+begins. When ready, activate a badge via `set_badge` (REQ-066): wearing the player or
 game_master badge means you are in the story. Badge gating (REQ-032) activates. Under the
 Player badge, the player acts through the ruleset's resolution mechanics — skill checks,
 attacks, spells, exploration actions. World-model navigation (parser commands like `go
@@ -119,11 +119,11 @@ not the world model, drives the story. Switch to the Game Master badge to correc
 or directly manage Novel state while staying in the story. Switch to the Observer badge
 (REQ-305) to spectate — the AI plays both Player and Game Master while you watch,
 intervening only for mechanical decisions at your configured autonomy level (REQ-306).
-End the story with `set_badge("none")` — return to editing mode with the Novel intact.
+End the story with `set_badge("none")` — return to the Editor badge with the Novel intact.
 End the Novel with `end_novel` — the save file is deleted. `set_badge` works without
 restart. One user per MCP connection (REQ-030) — no multiplayer. Holonovel targets
 solo play: one human operator, one AI counterpart. By default, the human wears the
-Player badge and the AI briefs as Game Master (REQ-304). The human may switch hats
+Player badge and the AI briefs as Game Master (REQ-304). The human may switch badges
 freely — the AI's narrative role follows as counterpart, or can be locked to a fixed
 role via `TTRPG_AI_ROLE`. One player may control multiple characters (REQ-074) with
 entity presence tracking (REQ-307) and knowledge gated by who was present for each
@@ -329,18 +329,18 @@ guard, the gap is explicit.
 | Verifier       | A second, independent AI that re-runs the verification workflow suite (§10).                               |
 | Ruleset        | The TTRPG source material — Markdown, or converted to Markdown.                           |
 | Model          | The extracted semantic model of the ruleset (RULESET_MODEL.md).                           |
-| Badge        | Active badge — `player`, `game_master`, `observer`, or `none` (editing mode, full access). Wearing the player, game_master, or observer hat means you are in the story. REQ-031, REQ-066.         |
+| Badge        | Active badge — `player`, `game_master`, `observer`, or `none` (Editor, full access). Four badges: Player, Game Master, Observer, Editor. Wearing the player, game_master, or observer badge means you are in the story. REQ-031, REQ-066.         |
 | Story       | The active play session — a period during which a badge is active and narration is happening. Starts with `set_badge("player")` or `set_badge("game_master")`. Ends with `set_badge("none")`. Multiple stories can occur within one Novel's lifetime. |
-| In the story | Badge is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_badge("none")` is stepping away from the table. |
-| Editing mode | No badge active. Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The Novel can be worked on before a story begins. |
+| In the story | Player or GM badge is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_badge("none")` switches to the Editor badge, stepping away from the table. |
+| Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, badge_briefing, and export_novel. REQ-246. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
-| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible in editing mode (no badge); badge-filtered by visibility field per REQ-321. |
+| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible under the Editor badge; badge-filtered by visibility field per REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               |               entities, NPCs, scene state, countdowns, lore, synthesis, adventure,            |
 |               | audit log, snapshots, and badge state for a single ruleset story. A Novel          |
-|               | can be edited without a badge active (editing mode). The story begins when a       |
+|               | can be edited under the Editor badge. The story begins when a       |
 |               | badge is activated and ends when the badge is removed — the Novel persists.          |
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
 |               | and rebuilds. Removed from disk by `end_novel`. Multiple Novels per server       |
@@ -358,7 +358,7 @@ guard, the gap is explicit.
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
 | Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—badge-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
-| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (editing mode). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
+| Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (Editor). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active badge by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `badge_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
 | Observer          | Spectator mode (REQ-305). The human wears the Observer badge (`set_badge("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |

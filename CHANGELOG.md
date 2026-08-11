@@ -1,8 +1,29 @@
 # Changelog
 
-## 2026-08-10 — Threshold relaxation: 800 chars / 8 sentences / 8 SHALL
+## 2026-08-10 — README rewrite, badge model, license appendix
 
-- Raised validation thresholds from 500→800 chars, 5→8 sentences, 6→8 SHALL
+- Rewrote README.md against a comprehensive 10-dimension style guide: five
+  capability pillars replacing six architecture subsystems, all demo prompts
+  refreshed with fantasy TTRPG language, content-verified for valid MCP
+  commands, and a single unified license footer.
+- Migrated 30 occurrences of the colloquial "hat" to canonical "badge"
+  terminology across five spec files. The spec now uses "badge" consistently;
+  "hat" remains only in two literal parser commands for wearable clothing.
+- Adopted Editor as a badge: four badges (Player, Game Master, Observer, Editor)
+  replace the old "no badge" / "editing mode" model. Editor is the default
+  badge on Novel creation and resume. Updated REQ-031 (badge activation),
+  REQ-032 (server-side gating), REQ-066 (set_badge), REQ-136 (Editor-badge
+  briefing), the terminology table, and the play model.
+- Added Appendix U: Content Licenses — a single source of truth for all
+  third-party content licenses (D&D 5e SRD, Inform, if-craft-corpus, dmcp,
+  lonelog, BitD SRD). Updated REQ-154 (README handoff) with clause (f) for
+  license footer rendering. Updated assemble pipeline and build-phase map.
+- Updated README validator (scripts/validate-readme.ts) for new heading
+  structure, design comment scan window, and required keys. Updated prose
+  extraction (scripts/lib/parse-readme.ts) to skip HTML comments.
+- Replaced "two servers ship in this repo" with "D&D 5e ships today.
+  Starfinder tomorrow." Mothership references removed from all user-facing
+  content.
   clauses, and 10→12 for "almost certainly multi-contract" flag. Updated
   validate-shape.ts, validate.ts, and Appendix M to match.
 - Rationale: original limits were aspirational targets written before the

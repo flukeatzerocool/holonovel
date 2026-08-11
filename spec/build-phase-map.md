@@ -56,3 +56,4 @@ reduction in per-phase context.
 | 8  | 08-synthesis.md         | §11: Synthesis             |
 | 9  | appendices-reference.md  | # Appendices heading + A, D–S (reference material) |
 | 10 | appendices-fixtures.md   | B, C, N (golden, injection, complex fixtures) |
+| 11 | appendices-licenses.md   | Appendix U (content licenses)                 |

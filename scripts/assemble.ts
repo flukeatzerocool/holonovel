@@ -19,6 +19,7 @@ const CORE_FILES = [
 
 const APPENDIX_REF = "appendices-reference.md";
 const APPENDIX_FIX = "appendices-fixtures.md";
+const APPENDIX_LIC = "appendices-licenses.md";
 const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRSTUVWXY";
 
 function readFile(filePath: string): string {
@@ -68,13 +69,15 @@ function assemble(): { content: string; report: string[] } {
     report.push(`  ${file} (${text.split("\n").length} lines)`);
   }
 
-  // Appendices — interleaved from two source files
+  // Appendices — interleaved from three source files
   const { header: refHeader, blocks: refBlocks } = parseAppendices(readFile(APPENDIX_REF));
   report.push(`  ${APPENDIX_REF} (${refBlocks.size} appendices)`);
   const { blocks: fixBlocks } = parseAppendices(readFile(APPENDIX_FIX));
   report.push(`  ${APPENDIX_FIX} (${fixBlocks.size} appendices)`);
+  const { blocks: licBlocks } = parseAppendices(readFile(APPENDIX_LIC));
+  report.push(`  ${APPENDIX_LIC} (${licBlocks.size} appendices)`);
 
-  const allBlocks = new Map([...refBlocks, ...fixBlocks]);
+  const allBlocks = new Map([...refBlocks, ...fixBlocks, ...licBlocks]);
   const ordered: string[] = [];
   for (const letter of APPENDIX_ORDER) {
     const block = allBlocks.get(letter);

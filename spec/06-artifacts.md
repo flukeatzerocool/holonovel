@@ -28,7 +28,7 @@ workflow evidence is embedded in DECISIONS.md, never stored as separate files.
   copy-paste MCP client configuration entry verified against the build-time client target.
 - **AGENTS.md** — orientation for future AI maintainers: code map, where each requirement
   lives in the code, verification commands, and a `## Troubleshooting` section covering common
-  operator-reported failure modes (config mismatch, corrupted state, hat confusion,
+  operator-reported failure modes (config mismatch, corrupted state, badge confusion,
   missing environment variables).
 
 **Handoff verification workflow.** Before declaring done, run these verification steps in order.

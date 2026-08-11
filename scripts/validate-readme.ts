@@ -30,7 +30,7 @@ function checkDesignComment(text: string): Issue[] {
   const lines = text.split("\n");
   let commentStart = -1;
   let commentEnd = -1;
-  for (let i = 0; i < Math.min(lines.length, 60); i++) {
+  for (let i = 0; i < Math.min(lines.length, 200); i++) {
     if (lines[i].trim().startsWith("<!--")) commentStart = i;
     if (lines[i].trim().endsWith("-->") && commentStart !== -1) {
       commentEnd = i;
@@ -46,7 +46,7 @@ function checkDesignComment(text: string): Issue[] {
     return issues;
   }
   const commentBody = lines.slice(commentStart, commentEnd + 1).join("\n");
-  const requiredKeys = ["Voice:", "Demo:", "Structure:", "Audience split:"];
+  const requiredKeys = ["Product principle.", "Voice.", "Plain English", "Structure.", "Audience split."];
   for (const key of requiredKeys) {
     if (!commentBody.includes(key)) {
       issues.push({ error: true, msg: `README DESIGN comment missing '${key}' section` });
@@ -74,8 +74,9 @@ function checkHeadingOrder(text: string): Issue[] {
 
   const expected: { level: number; title: string }[] = [
     { level: 1, title: "Holonovel" },
-    { level: 2, title: "Try it now" },
-    { level: 2, title: "Holonovel MCP Server" },
+    { level: 2, title: "Table of contents" },
+    { level: 2, title: "Quick start" },
+    { level: 2, title: "What it does" },
     { level: 2, title: "How it compares" },
     { level: 2, title: "Contribute" },
   ];
