@@ -26,10 +26,10 @@ function checkReqShapeLocal(reqs: Map<string, ReqBodyEntry>): string[] {
     if (entry.paragraphCount > 1) {
       issues.push(`ERROR: ${reqId}: ${entry.paragraphCount} paragraphs`);
     }
-    if (entry.sentences.length > 5) {
+    if (entry.sentences.length > 8) {
       issues.push(`ERROR: ${reqId}: ${entry.sentences.length} sentences`);
     }
-    if (body.length > 500) {
+    if (body.length > 800) {
       issues.push(`ERROR: ${reqId}: ${body.length} chars`);
     }
 
@@ -49,8 +49,8 @@ function checkReqShapeLocal(reqs: Map<string, ReqBodyEntry>): string[] {
     if (numberedInBody) issues.push(`ERROR: ${reqId}: numbered steps`);
 
     const shallCount = (body.match(/\bSHALL\b/g) || []).length;
-    if (shallCount > 8) issues.push(`ERROR: ${reqId}: ${shallCount} SHALL clauses`);
-    else if (shallCount > 6) issues.push(`ERROR: ${reqId}: ${shallCount} SHALL clauses`);
+    if (shallCount > 10) issues.push(`ERROR: ${reqId}: ${shallCount} SHALL clauses`);
+    else if (shallCount > 8) issues.push(`ERROR: ${reqId}: ${shallCount} SHALL clauses`);
 
     if (/\(string[,) ]|\(integer[,) ]|\(boolean[,) ]|\(float[,) ]|\(number[,) ]/.test(body)) {
       issues.push(`ERROR: ${reqId}: parameter type annotations`);

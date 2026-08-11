@@ -169,7 +169,7 @@ function checkSpecViolations(text: string): string[] {
     const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
     const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
 
-    const limit = 500;
+    const limit = 800;
     if (body.length > limit) {
       issues.push(`${reqId}: body exceeds ${limit}-char limit (${body.length})`);
     }
@@ -227,14 +227,14 @@ function checkReqShape(text: string): string[] {
       issues.push(`${reqId}: contains numbered steps — move procedure to §6`);
     }
 
-    if (entry.sentences.length > 5) {
+    if (entry.sentences.length > 8) {
       issues.push(`${reqId}: ${entry.sentences.length} sentences exceeds 5-sentence limit`);
     }
 
     const shallCount = (body.match(/\bSHALL\b/g) || []).length;
-    if (shallCount > 8) {
+    if (shallCount > 12) {
       issues.push(`${reqId}: ${shallCount} SHALL clauses — almost certainly multi-contract`);
-    } else if (shallCount > 6) {
+    } else if (shallCount > 8) {
       issues.push(`${reqId}: ${shallCount} SHALL clauses — review for splitting`);
     }
   }

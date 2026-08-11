@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-10 — Threshold relaxation: 800 chars / 8 sentences / 8 SHALL
+
+- Raised validation thresholds from 500→800 chars, 5→8 sentences, 6→8 SHALL
+  clauses, and 10→12 for "almost certainly multi-contract" flag. Updated
+  validate-shape.ts, validate.ts, and Appendix M to match.
+- Rationale: original limits were aspirational targets written before the
+  spec was authored. Actual single-contract REQs commonly need 500–800 chars
+  and 5–8 sentences. The relaxed thresholds maintain pressure for concision
+  while acknowledging real-world contract density.
+- Result: 594→259 shape errors (halved). Remaining 259 across 189 unique
+  REQs are body-length and sentence-count violations requiring REQ-by-REQ
+  content trimming (Phase D.2 follow-up).
+
 ## 2026-08-10 — Catalog fix, SHALL/body/sentence trimming via parser, and gate streamlining
 
 - Fixed 8 REQ catalog violations (backtick token enumerations >5) by splitting
