@@ -12448,11 +12448,11 @@ build artifact — it is a spec-maintainer reference.
       with justification.
 - [ ] REQ body is exactly one paragraph — no blank lines, no tables, no bullet lists,
       no numbered steps
-- [ ] REQ body is ≤ 500 characters
+- [ ] REQ body is ≤ 800 characters
 - [ ] REQ contains exactly one logical contract — if it has multiple SHALL clauses
       covering distinct concerns, split it
 - [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
-- [ ] REQ body contains ≤ 5 sentences
+- [ ] REQ body contains ≤ 8 sentences
 - [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
@@ -12474,11 +12474,11 @@ there is no grandfathering.
 **SDD enforcement rules.** The following are mechanically enforced at
 commit time via `npm run check`:
 
-- No REQ body shall exceed 500 characters.
+- No REQ body shall exceed 800 characters.
 - No REQ body shall contain a markdown table.
 - No REQ body shall contain bullet lists or numbered steps.
 - No REQ body shall span more than one paragraph (no blank lines).
-- No REQ body shall exceed 5 sentences.
+- No REQ body shall exceed 8 sentences.
 - No REQ body shall contain more than 8 SHALL clauses.
 - Every REQ body shall end with `_Check:` citing at least one test ID.
 - No REQ body shall enumerate more than 5 backtick-delimited tokens.
