@@ -13,24 +13,43 @@ export function readSpec(specPath?: string): string {
   return fs.readFileSync(target, "utf-8");
 }
 
+const REQ_HEADER_RE = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
+
+function findReqBoundaries(text: string): { id: string; start: number; end: number }[] {
+  const boundaries: { id: string; start: number; end: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = REQ_HEADER_RE.exec(text)) !== null) {
+    boundaries.push({ id: match[1].match(/^(REQ-\d{3}[a-z]?)/)![1], start: match.index + match[0].length, end: -1 });
+  }
+  const terminatorRe = /\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/gm;
+  for (let i = 0; i < boundaries.length; i++) {
+    const slice = text.slice(boundaries[i].start);
+    terminatorRe.lastIndex = 0;
+    const tm = terminatorRe.exec(slice);
+    boundaries[i].end = tm ? boundaries[i].start + tm.index : text.length;
+  }
+  return boundaries;
+}
+
 export function extractReqBodies(text: string): Map<string, { id: string; body: string }> {
   const reqs = new Map<string, { id: string; body: string }>();
-  const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const reqId = match[1].match(/^(REQ-\d{3}[a-z]?)/)![1];
-    const bodyStart = match.index + match[0].length;
-    const rest = text.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
-    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
-    reqs.set(reqId, { id: reqId, body });
+  for (const b of findReqBoundaries(text)) {
+    reqs.set(b.id, { id: b.id, body: text.slice(b.start, b.end) });
   }
   return reqs;
 }
 
 export function splitSentences(text: string): string[] {
   const normalized = text.replace(/\n/g, " ");
-  const parts = normalized.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  const parts: string[] = [];
+  let lastIdx = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    if (".?!".includes(normalized[i]) && i + 2 < normalized.length && normalized[i + 1] === " " && /[A-Z]/.test(normalized[i + 2])) {
+      parts.push(normalized.slice(lastIdx, i + 1));
+      lastIdx = i + 2;
+    }
+  }
+  if (lastIdx < normalized.length) parts.push(normalized.slice(lastIdx));
   return parts.filter((s) => s.trim().length > 0);
 }
 
@@ -43,20 +62,14 @@ export interface ReqBodyEntry {
 
 export function extractReqBodiesWithSentences(text: string): Map<string, ReqBodyEntry> {
   const reqs = new Map<string, ReqBodyEntry>();
-  const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+.+?)\.\*\*/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const reqId = match[1].match(/^(REQ-\d{3}[a-z]?)/)![1];
-    const bodyStart = match.index + match[0].length;
-    const rest = text.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
-    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
+  for (const b of findReqBoundaries(text)) {
+    let body = text.slice(b.start, b.end);
     const hrIdx = body.indexOf('\n---\n');
-    const trimmedBody = hrIdx >= 0 ? body.slice(0, hrIdx).trimEnd() : body;
-    const paragraphCount = trimmedBody.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
-    const acIdx = trimmedBody.indexOf('*Acceptance criterion:*');
-    const normativeBody = acIdx >= 0 ? trimmedBody.slice(0, acIdx).trimEnd() : trimmedBody;
-    reqs.set(reqId, { id: reqId, body: normativeBody, sentences: splitSentences(normativeBody), paragraphCount });
+    if (hrIdx >= 0) body = body.slice(0, hrIdx).trimEnd();
+    const paragraphCount = body.split(/\n\n+/).filter((p) => p.trim().length > 0).length;
+    const acIdx = body.indexOf('*Acceptance criterion:*');
+    const normativeBody = acIdx >= 0 ? body.slice(0, acIdx).trimEnd() : body;
+    reqs.set(b.id, { id: b.id, body: normativeBody, sentences: splitSentences(normativeBody), paragraphCount });
   }
   return reqs;
 }
