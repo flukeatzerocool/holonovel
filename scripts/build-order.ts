@@ -11,15 +11,28 @@ const FINGERPRINT_PATH = join(root, ".holonovel-state", "build-order-fingerprint
 function hashDir(dir: string): string {
   if (!existsSync(dir)) return "";
   const h = createHash("sha256");
-  const entries = readdirSync(dir, { recursive: true }).sort();
-  for (const entry of entries) {
-    const p = join(dir, entry as string);
-    try {
-      if (statSync(p).isFile()) {
-        h.update(entry as string);
-        h.update(readFileSync(p));
-      }
-    } catch { /* skip unreadable */ }
+  try {
+    const files = execSync("git ls-files", { cwd: dir, encoding: "utf-8" }).trim().split("\n").filter(Boolean).sort();
+    for (const file of files) {
+      const p = join(dir, file);
+      try {
+        if (existsSync(p) && statSync(p).isFile()) {
+          h.update(file);
+          h.update(readFileSync(p));
+        }
+      } catch { /* skip unreadable */ }
+    }
+  } catch {
+    const entries = readdirSync(dir, { recursive: true }).sort();
+    for (const entry of entries) {
+      const p = join(dir, entry as string);
+      try {
+        if (statSync(p).isFile()) {
+          h.update(entry as string);
+          h.update(readFileSync(p));
+        }
+      } catch { /* skip unreadable */ }
+    }
   }
   return h.digest("hex");
 }
@@ -126,9 +139,8 @@ if (specChanged) {
 
 // Step 4: Source-propagate (depends on holonovel world/ + vendor/)
 // Running this modifies dnd5e src files, so dnd typecheck must follow
-let dndMustTypecheck = dndSrcChanged;
+const dndMustTypecheck = dndSrcChanged || worldChanged || vendorChanged;
 if (worldChanged || vendorChanged) {
-  dndMustTypecheck = true;
   steps.push({ label: "4. Propagate source to dnd5e-holonovel", fn: () => run("4. Propagate source to dnd5e-holonovel", "npx tsx scripts/source-propagate.ts") });
 } else {
   steps.push({ label: "4. Propagate source to dnd5e-holonovel", fn: () => skip("4. Propagate source to dnd5e-holonovel", "world/ + vendor unchanged") });
