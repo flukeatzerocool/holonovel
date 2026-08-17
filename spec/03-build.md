@@ -19,6 +19,8 @@ workflow-selection question first, then all questions relevant to the selected w
 questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
 runs use defaults from the tables below (defaults: `build` when offline, `build + synthesize` when network detected).
 
+Build intake questions are operator-facing build-process inputs recorded to DECISIONS.md (1) — they are not Novel property groups and do not participate in cross-property coupling (§7.7).
+
 The builder MUST NOT begin any workflow until the operator has answered Q0 and all
 questions for the selected workflows. Answers are recorded in DECISIONS.md (1). A
 build that begins without recorded answers fails the process-compliance
@@ -581,7 +583,7 @@ before any server code is written.
 | Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 17 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 19 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source

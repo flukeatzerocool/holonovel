@@ -137,7 +137,7 @@ State tiers:
 | Novel      | Active story state and Editor-badge state, bound ruleset (REQ-380; immutable after creation), pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains sixteen property groups, all
+**Novel properties.** Every Novel contains nineteen property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `end_novel`):
 
@@ -153,7 +153,9 @@ discarded by `end_novel`):
 | Faction | Entity-bearing, Temporal | read/write/create/delete (REQ-233) | read-only (GM-filtered) |
 | Secret | Knowledge-carrying | read/write/create/delete (REQ-234) | Game Master only; revealed per-entity |
 | Relationship | Relational | read/write/create/delete (REQ-236) | read-only (appears on character_sheet) |
+| Vow | Decision, Temporal | read/write/create/delete (REQ-289, REQ-322) | read-only (shared/party scope per REQ-289e) |
 | DM Context | Session | read/write (REQ-232) | Game Master only |
+| Pending Workflow | Decision | read (engine-maintained per REQ-042); `respond` drains | read-only (`respond` drains per REQ-235) |
 | Notes | Session | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
@@ -263,6 +265,7 @@ rules.
 | P47 | Session → Guidance | GM directives containing synthesis keywords map to synthesis module activation — "use voice patterns" activates voice_examples, "activate lore templates" activates lore_templates, "add flavor" sets TTRPG_SYNTHESIS_AUTO_TRIGGER to on_scene_change | Mechanical | The GM activates story flavor in plain English |
 | P48 | Relational → Entity-bearing | Relationship type flips (ally↔rival↔hostile) drive entity disposition shifts for both involved entities | Mechanical | Betrayal changes how the cast behaves — when two characters become rivals, their dispositions shift accordingly |
 | P49 | Guidance → Temporal | Guidance content with temporal urgency triggers suggests temporal-property creation in advisory surfaces | Navigational | The GM's notebook can drive the clock — what the operator records as urgent becomes a countdown suggestion |
+| P50 | Decision → Session | A pending workflow freezes undo, redo, and badge switching until drained or cancelled; cancellation restores the pre-workflow snapshot over all Novel property groups | Mechanical | The workflow holds the table — no mutation or role change while a decision is open |
 
 #### 7.7.1 Cross-property coupling
 
@@ -293,20 +296,16 @@ couplings cite REQ-236.
 | Faction → Countdown | P4 | `create_faction` auto-creates a `faction`-type countdown for the faction's primary goal | Purpose drives the clock — every faction carries its own temporal accountability | — | Mechanical | REQ-233 |
 | Secret → Relationship | P25 | When secret text overlaps with entity/NPC/faction names, a `suspicious` relationship is recommended | Secrets shared with two names imply connection — the Holodeck sees the overlap | — | Navigational | REQ-234 |
 | Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | Changed relationships become remembered facts — relationship state changes prompt lore | — | Navigational | REQ-236 |
-| Choice → Countdown | P12 | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick | Choices advance the clock — player decisions matching countdown scope tick the timer | — | Mechanical | REQ-235 |
-| Choice → Faction | P12 | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock | Player decisions drive faction momentum — choices matching faction goals advance the clock | — | Mechanical | REQ-235, REQ-233 |
+| Pending Workflow → Countdown | P12 | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick | Choices advance the clock — player decisions matching countdown scope tick the timer | — | Mechanical | REQ-235 |
+| Pending Workflow → Faction | P12 | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock | Player decisions drive faction momentum — choices matching faction goals advance the clock | — | Mechanical | REQ-235, REQ-233 |
+| Pending Workflow → Undo/Redo/Badge | P50 | A pending `[NEED_INPUT]` freezes undo, redo, and set_badge until drained or cancelled; `respond(cancel)` restores the pre-workflow snapshot over all Novel property groups | The workflow holds the table — no mutation or role change while a decision is open | All badges (blocking) | Mechanical | REQ-042, REQ-041, REQ-116, REQ-066 |
 | DM Context → State | P17 | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | The operator's notes follow the scene — pause context captures state for resumption | — | Navigational | REQ-232, REQ-233 |
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
 | World Reactivity → Campaign Memory | P27 | World in Motion accepted changes produce campaign memory facts | The living world becomes recorded history — accepted World in Motion entries persist | — | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | P27 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Significant NPC events persist as campaign facts — memory survives the scene | — | Navigational | REQ-311, REQ-310 |
-| Codex → NPC | — | `codex_import` of kind `npc` creates the NPC in the Novel with stored fields | The codex populates the Holodeck — imported NPCs appear fully formed | GM-only (Editor mode) | Mechanical | REQ-321, REQ-332 |
-| Codex → World | — | `codex_import` of kind `room` or `thing` creates world-model objects in the Novel | The codex builds the set — imported rooms and objects populate the world | GM-only (Editor mode) | Mechanical | REQ-321 |
-| Codex → Lore | — | `codex_import` of kind `lore_entry` creates a lore entry in the Novel | The codex fills the library — imported lore entries populate the Novel's knowledge | GM-only (Editor mode) | Mechanical | REQ-321 |
-| Codex → Faction | — | `codex_import` of kind `faction` creates a faction in the Novel | The codex deploys the cast — imported factions enter the Novel ready to act | GM-only (Editor mode) | Mechanical | REQ-321 |
-| Codex → Countdown | — | `codex_import` of kind `countdown` creates a countdown in the Novel | The codex sets the timer — imported countdowns begin at their stored position | GM-only (Editor mode) | Mechanical | REQ-321 |
-| Vows → Countdown | P12 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |
+| Vow → Countdown | P12 | `set_vow` offers a coupled countdown per difficulty tier; `mark_milestone` advances both; countdown fill enables `resolve_vow` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |
 | World → Scene | P13 | Parser movement (`go north`) into a new room triggers the scene transition hook (countdown advancement, lore matching) | Entering a new room is a story beat — parser movement triggers the scene-transition hook | GM-only (mutation); Player-visible (read) | Mechanical | REQ-125, REQ-198 |
 | Story Journal → Lore | P16 | `promote_story_to_lore` creates a lore entry from a `revelation` or `moment` journal entry | Remembered events become known facts — story journal entries promote to lore | — | Navigational | REQ-333 |
 | Notes → Lore | P17 | Notes tagged with lore keys surface alongside those lore entries in `badge_briefing` | Lore-tagged notes surface alongside their lore entries — annotations follow knowledge | Player-visible, badge-scoped | Navigational | REQ-242 |
@@ -324,7 +323,6 @@ couplings cite REQ-236.
 | Countdown → Knowledge | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
 | Background → Lore | P2 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Your character's past matches the Holodeck's secrets — background text triggers lore entries | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350 |
-| Voice Feedback → Codex | — | Player-corrected voice examples captured to Codex via `codex_capture("voice_profile", ...)`; `codex_import` restores corrections tagged `[codex-corrected]` | Player corrections persist across Novels — voice feedback captured to codex | GM-only (Editor mode capture/import) | Mechanical | REQ-344, REQ-347, REQ-321 |
 | Secret → Countdown | P19 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Revealed secrets drive the clock — secret revelation advances matching countdowns | — | Navigational | REQ-355, REQ-234 |
 | Vow → Lore | P2 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Vows match the Holodeck's knowledge — vow keywords trigger relevant lore | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289 |
 | Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Recorded events signal faction consequences — journal entries drive faction advisories | — | Navigational | REQ-357, REQ-246, REQ-233 |
@@ -369,7 +367,7 @@ define interaction categories; the table instantiates them as specific
 property-group pairs. The table is curated — not every combinatorially possible
 archetype-pair instantiation is a meaningful coupling.
 
-`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P49,
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P50,
 excluding content-source-excluded rules) has at least one coupling row in
 §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling
 row citing a pattern rule whose source or target archetypes do not match the
@@ -379,7 +377,12 @@ Content source groups (Adventure, Adventure Scene Waypoint, Adventure Index,
 Codex) are excluded — their populated property groups couple via their own
 archetype rules (§7.7.0). Session-scoped groups (DM Context, Notes, Server
 Notes) couple per their pattern rules (P17, P23, P32); pairs not covered by
-those rules produce no couplings.
+those rules produce no couplings. Input-validation workflows —
+character-creation step-by-step decisions (REQ-104, REQ-151, REQ-152),
+confirmation prompts (`end_novel` REQ-140, `restore_checkpoint` REQ-241,
+`compact_audit_log` REQ-239), and parser command disambiguation (§5.10) — are
+single-property input workflows, not cross-property couplings; they produce no
+coupling rows.
 
 The Observer badge (REQ-305) is read-only — the Observer sees all
 navigational couplings at GM visibility level and no mechanical couplings.
