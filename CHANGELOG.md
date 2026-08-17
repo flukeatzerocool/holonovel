@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-17 — Register ghost property groups and enforce archetype matching
+
+- Registered eleven previously unregistered coupling surfaces as first-class
+  Novel property groups in §7.7, expanding the property model from 19 to 30
+  groups: Story Beats (Scene-anchored), Pacing Signal (Temporal), Narrative
+  Directive (Session), Voice Feedback (Session), Voice Examples
+  (Entity-bearing), Background (Knowledge-carrying), NPC Memory
+  (Knowledge-carrying), World in Motion (Narrative-memory), Narrative Threads
+  (Narrative-memory), NPC Goal Pursuit (Entity-bearing), and Autonomous
+  Countdown (Temporal).
+- Canonicalized the coupling table's property-pair column to archetype names:
+  `World Model`/`World State` → `World`, `Entity/NPC` → `NPC`, `Knowledge` →
+  `Lore`, `Beat` → `Story Beats`, `NPC Goals` → `NPC`, `Faction Goals` →
+  `Faction`, `Faction Clock`/`Faction Autonomous` → `Autonomous Countdown`,
+  `Countdown Fire (absent)` → `Countdown`, `World Reactivity` → `World in
+  Motion`, `Synthesis Activation` → `Synthesis`, `Narrative` → `Narrative
+  Threads`, `Player Signal(pace)` → `Player Signal`. `DM Context → State` is
+  marked `[non-property]` as a snapshot workflow.
+- Extended the coupling pattern rules to P1–P54: added P51 (Decision →
+  Knowledge-carrying) for Vow → Lore, P52 (Scene-anchored → Narrative-memory)
+  for Story Beats → Narrative Threads, P53 (Temporal → Temporal) for Pacing
+  Signal → Autonomous Countdown, and P54 (Knowledge-carrying →
+  Knowledge-carrying) for Background → Lore and NPC Memory → Campaign Memory.
+  Corrected target archetypes on P23 (→ Narrative-memory), P46 (→
+  Narrative-memory), and P47 (→ Ruleset Wisdom), and re-pointed four rows that
+  cited mismatched rules (NPC → Countdown to P4, World in Motion → Campaign
+  Memory to P16, Pacing Signal → Narrative Threads to P31, and added a
+  Mechanics → Countdown row for P36).
+- `scripts/validate.ts` `checkCouplingCompleteness` now enforces
+  order-insensitive archetype-set matching between every coupling row and its
+  cited pattern rule, with a `[non-property]` exemption for snapshot and
+  tool-delegation rows. T-new-377/T-new-390 updated to the containment
+  semantics; T-new-376/381/395 reconciled to 30 groups and P1–P54.
+- Reconciled property counts and pattern-rule ranges across §7.7, REQ-369a,
+  REQ-370a, REQ-374a, §6.5 metric, and Appendix T descriptions: "nineteen" →
+  "thirty", "all 19" → "all 30", P1–P50 → P1–P54.
+- Synced the spec hash in `holonovel/DECISIONS.md` and propagated the assembled
+  spec to `holonovel/holonovel.md`.
+
 ## 2026-08-17 — Complete hat→badge migration in the holonovel server
 
 - Renamed the holonovel server's public "hat" identifiers to "badge": the

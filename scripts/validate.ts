@@ -843,6 +843,19 @@ function checkCouplingCompleteness(text: string): string[] {
   const issues: string[] = [];
   const VALID_ARCHETYPES = new Set(["Temporal", "Entity-bearing", "Scene-anchored", "Knowledge-carrying", "Narrative-memory", "Spatial", "Relational", "Decision", "Guidance", "Session", "Ruleset Wisdom", "Mechanical"]);
   const CONTENT_SOURCE_MARKER = "[content source]";
+  const NON_PROPERTY_MARKER = "[non-property]";
+  const ALIASES: Record<string, string[]> = {
+    Combat: ["Entity-bearing"],
+    Entity: ["Entity-bearing"],
+    Vehicle: ["Spatial"],
+    "Undo/Redo/Badge": ["Session"],
+    suggest_actions: ["Ruleset Wisdom"],
+    resolve_intent: ["Decision"],
+    "Pacing Window": ["Temporal"],
+    "NPC Autonomy": ["Entity-bearing"],
+    "Constraint Overrides": ["Decision"],
+    "Player Signal": ["Session"],
+  };
 
   const propsMatch = text.match(/\*\*Novel properties\.\*\*[\s\S]*?(?=\nDangers and non-entity)/);
   const propsText = propsMatch ? propsMatch[0] : "";
@@ -875,6 +888,14 @@ function checkCouplingCompleteness(text: string): string[] {
   }
   if (propGroups.length === 0) { issues.push("ERROR: No property groups found in §7.7 table"); return issues; }
 
+  const resolveArchetypes = (token: string): string[] | null => {
+    const t = token.trim();
+    const group = propGroups.find((g) => g.name === t);
+    if (group) return group.archetypes;
+    if (ALIASES[t]) return ALIASES[t];
+    return null;
+  };
+
   const couplingMatch = text.match(/##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Coupling curation)/);
   const couplingSection = couplingMatch ? couplingMatch[0] : "";
   const couplingPairs = new Set<string>();
@@ -905,6 +926,7 @@ function checkCouplingCompleteness(text: string): string[] {
   const patternMatch = text.match(/\*\*Coupling pattern rules\.\*\*[\s\S]*?(?=#### 7\.7\.1 Cross-property coupling)/);
   const patternSection = patternMatch ? patternMatch[0] : "";
   const patternRules = new Set<string>();
+  const patternRuleArchetypes = new Map<string, { src: string[]; tgt: string[]; srcText: string; tgtText: string }>();
   if (patternSection) {
     let inPatternTable = false;
     for (const line of patternSection.split("\n")) {
@@ -913,7 +935,17 @@ function checkCouplingCompleteness(text: string): string[] {
         const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
         if (cols.length >= 2) {
           const ruleName = cols[0];
-          if (!ruleName.startsWith("—") && ruleName.length > 0) patternRules.add(ruleName);
+          if (!ruleName.startsWith("—") && ruleName.length > 0) {
+            patternRules.add(ruleName);
+            const parts = cols[1].split(/[↔→]/).map((s) => s.trim());
+            if (parts.length >= 2) {
+              const srcText = parts[0];
+              const tgtText = parts[1];
+              const src = srcText.split("+").map((s) => s.trim()).filter(Boolean);
+              const tgt = tgtText.split("+").map((s) => s.trim()).filter(Boolean);
+              patternRuleArchetypes.set(ruleName, { src, tgt, srcText, tgtText });
+            }
+          }
         }
       }
       if (inPatternTable && !line.startsWith("|") && line.trim().length > 0) break;
@@ -930,6 +962,30 @@ function checkCouplingCompleteness(text: string): string[] {
   for (const rule of usedRules) {
     if (!patternRules.has(rule)) issues.push(`WARNING: Coupling rows cite undefined pattern rule ${rule}`);
   }
+
+  let mismatches = 0;
+  for (const row of couplingRows) {
+    if (!row.patternRule || row.patternRule === "—") continue;
+    const rule = patternRuleArchetypes.get(row.patternRule);
+    if (!rule) continue;
+    if (row.pair.includes(NON_PROPERTY_MARKER)) continue;
+    const parts = row.pair.split("→");
+    if (parts.length !== 2) continue;
+    const srcArch = resolveArchetypes(parts[0]);
+    const tgtArch = resolveArchetypes(parts[1]);
+    if (!srcArch || !tgtArch) {
+      issues.push(`WARNING: Coupling row "${row.pair}" has an unresolvable property token`);
+      continue;
+    }
+    const union = new Set([...srcArch, ...tgtArch]);
+    const srcOk = rule.src.every((a) => union.has(a));
+    const tgtOk = rule.tgt.some((a) => union.has(a));
+    if (!srcOk || !tgtOk) {
+      issues.push(`ERROR: Coupling row "${row.pair}" cites ${row.patternRule} (${rule.srcText} → ${rule.tgtText}) but property archetypes [${[...union].join(", ")}] do not match`);
+      mismatches++;
+    }
+  }
+  if (mismatches > 0) console.log(`  ${mismatches} coupling row(s) with mismatched archetype rule`);
 
   const populatedRules = patternRules.size - orphanedRules;
   console.log(`\nCoupling derivation: ${populatedRules}/${patternRules.size} pattern rules have ≥1 coupling row`);
