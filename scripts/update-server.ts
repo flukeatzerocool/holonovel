@@ -123,8 +123,17 @@ if (scopeByFingerprint && previous) {
   const delta = compareFingerprints(currentFingerprints, previous.fingerprints);
   console.log(`\nFingerprint delta: ${delta.changedCount} changed (${delta.changed.join(", ")}), ${delta.unchanged.length} unchanged (${delta.unchanged.join(", ")})`);
 
-  if (delta.changedCount === 0 && currentHash === previous.spec_hash) {
-    console.log("No changes detected — skipping update.");
+  if (delta.changedCount === 0) {
+    console.log(currentHash === previous.spec_hash
+      ? "No changes detected — skipping update."
+      : "Spec hash changed but no implementation fingerprints changed — nothing to rebuild.");
+    stored[server] = {
+      server,
+      spec_hash: currentHash,
+      fingerprints: currentFingerprints,
+      last_update: new Date().toISOString(),
+    };
+    saveStored(stored);
     process.exit(0);
   }
 
