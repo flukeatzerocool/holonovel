@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-17 — Fix scoped-update fingerprint scoping
+
+- `scripts/update-server.ts` no longer emits a nonsensical "0 components
+  changed — partial rebuild" when the spec hash advances but no
+  implementation fingerprints change. It now reports the condition plainly
+  and records the reconciled spec hash before exiting, so the stored
+  fingerprint no longer drifts from `DECISIONS.md`.
+
 ## 2026-08-17 — Register ghost property groups and enforce archetype matching
 
 - Registered eleven previously unregistered coupling surfaces as first-class
