@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-17 — Remove dnd5e-holonovel server
+
+- Deleted the `dnd5e-holonovel/` MCP server directory. The repo now ships
+  one server — `holonovel/`, the ruleset-free world-model base — which
+  becomes the reference implementation.
+- Spec: re-anchored the Technology stack reference (§4) from the
+  dnd5e-holonovel reference implementation to holonovel, and dropped the
+  dnd5e-holonovel LICENSE-template citation (§6.4) — the two-section
+  template is already specified inline.
+- Build pipeline: removed the dnd5e arm from `build-order.ts` (source
+  propagation, Ruleset Wisdom extraction, and dnd5e typecheck steps) and
+  collapsed `SERVERS` to `holonovel` across `push-pipeline.sh`,
+  `fingerprint.ts`, `check-traceability.ts`, `spec-delta.ts`, and
+  `spec-propagate.ts`. Deleted `scripts/source-propagate.ts` and its
+  package.json script. Dropped dnd5e blocks from `version-check.ts` and
+  `version-bump.ts`.
+- README: removed the dnd5e-holonovel quick-start subsection and the D&D 5e
+  SRD license attribution; repositioned D&D 5e and Starfinder as example
+  rulesets the spec can build rather than shipped servers.
+- Wiki: updated Home, Getting Started, FAQ, Spec Contributing, and the
+  Style Guide to center the holonovel server, with D&D 5e kept as an
+  example ruleset.
+
 ## 2026-08-11 — Ruleset Wisdom extraction in build-order, pipeline efficiency
 
 - Ruleset Wisdom extraction is now a fingerprint-scoped step in

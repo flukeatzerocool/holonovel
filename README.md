@@ -34,8 +34,8 @@ README DESIGN:
     itself or the Hero.
 
   Audience split.
-    §1 is for players who want a server now — two copy-paste quick-start
-    sequences (holonovel, dnd5e-holonovel). §2 describes capabilities
+    §1 is for players who want a server now — one copy-paste quick-start
+    sequence (holonovel). §2 describes capabilities
     to a player evaluating the tool. §3 is competitive landscape — one
     row per competitor category. §4 is for contributors.
 
@@ -44,8 +44,8 @@ README DESIGN:
     one prose paragraph (≤80 words). The paragraph defines "holonovel"
     as a Star Trek holodeck program. States what Holonovel builds (the
     server, the Holodeck), what a campaign becomes (the program, the
-    Novel), and what rulebooks become (the engine). Names D&D 5e as
-    today's ruleset and Starfinder as a future target. Closes with
+    Novel), and what rulebooks become (the engine). Names D&D 5e and
+    Starfinder as example rulesets the spec can build. Closes with
     "Your books. Your server. Your Holodeck."
 
   Table of contents.
@@ -55,15 +55,11 @@ README DESIGN:
     TOC-to-heading consistency.
 
   Quick start (§1).
-    Two h3 subsections — holonovel and dnd5e-holonovel. No introductory
-    prose under the h2. Each subsection: one descriptive sentence,
-    prerequisite (Node.js 20+, stated in holonovel only), shell code
-    block for install, and copy-paste JSON config block with `<path>`
-    placeholder. dnd5e-holonovel adds an approximate scale sentence with
-    `~`-prefixed numbers and a license line. Config blocks use `json`
-    language tag. Shell blocks use `sh`. No blockquotes, no tool names.
-    Node.js 20+ is stated exactly once — the dnd5e subsection inherits
-    the prerequisite.
+    One h3 subsection — holonovel. No introductory prose under the h2.
+    The subsection: one descriptive sentence, prerequisite (Node.js
+    20+), shell code block for install, and copy-paste JSON config block
+    with `<path>` placeholder. Config blocks use `json` language tag.
+    Shell blocks use `sh`. No blockquotes, no tool names.
 
   What it does (§2).
     One introductory h2 sentence (≤50 words), then five capability
@@ -122,8 +118,8 @@ README DESIGN:
     no heading.
 
   License footer.
-    Three attribution lines: MIT, sources (D&D SRD, Inform, four
-    narrative frameworks), Inform credit. RSS link. "Last updated:
+    Three attribution lines: MIT, sources (Inform, four narrative
+    frameworks), Inform credit. RSS link. "Last updated:
     YYYY-MM-DD." Date matches package.json version date. Update both or
     neither.
 
@@ -153,8 +149,8 @@ README DESIGN:
     descriptions.
 
   Future targets.
-    The Hero and §3 closing prose each name exactly one future ruleset
-    target. Starfinder. No Mothership appears anywhere in the document.
+    The Hero and §3 closing prose name D&D 5e and Starfinder as example
+    rulesets. No Mothership appears anywhere in the document.
 
   Non-goals.
     The README is not an API reference, a tool catalog, a spec document,
@@ -187,14 +183,13 @@ README DESIGN:
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
 step inside as a character and the rules govern. Holonovel builds the server (the
 Holodeck). Your campaign is the program (the Novel). Your rulebooks become the
-engine. D&D 5e ships today. Starfinder tomorrow. Your books. Your server. Your
-Holodeck.
+engine — D&D 5e, Starfinder, or the game on your shelf. Your books. Your server.
+Your Holodeck.
 
 ## Table of contents
 
 - [Quick start](#quick-start)
   - [holonovel](#holonovel)
-  - [dnd5e-holonovel](#dnd5e-holonovel)
 - [What it does](#what-it-does)
   - [Your rulebooks, running](#your-rulebooks-running)
   - [A world that's real](#a-world-thats-real)
@@ -233,31 +228,6 @@ Add to your MCP client:
   "enabled": true
 }
 ```
-
-### dnd5e-holonovel
-
-Holonovel with the D&D 5e SRD v5.1 preloaded. Ready to play. Skip the Build
-step. ~106 tools, ~1,021 indexed ruleset sections.
-
-```sh
-cd dnd5e-holonovel
-npm install
-npm run build
-```
-
-```json
-"dnd5e-holonovel": {
-  "type": "local",
-  "command": ["npx", "tsx", "src/index.ts"],
-  "cwd": "<path>/dnd5e-holonovel",
-  "environment": {
-    "TTRPG_NOVEL": "default"
-  },
-  "enabled": true
-}
-```
-
-SRD data: CC BY 4.0 + OGL 1.0a (Wizards of the Coast). Server code: MIT.
 
 ## What it does
 
@@ -389,7 +359,7 @@ The game evolves without losing what you've built.
 | Tool name | What you're used to | How Holonovel differs |
 |-----------|--------------------|-----------------------|
 | AI Dungeon | Freeform AI storyteller — invents rules, forgets consequences | Your rulebooks. Real dice. Real conditions. Not AI improv. |
-| First-generation MCP servers | Hand-built for one edition of one game. Rules lookup and nothing else. | Not locked to one system. D&D today. One spec reads any rulebook — no hand-coding, no waiting for someone to build your game. |
+| First-generation MCP servers | Hand-built for one edition of one game. Rules lookup and nothing else. | Not locked to one system. One spec reads any rulebook — D&D 5e, Starfinder, or whatever's on your shelf — no hand-coding, no waiting for someone to build your game. |
 | Raw ChatGPT / local LLM | Forgets conditions mid-combat, invents spells, drifts from the ruleset | The server remembers every rule you gave it. Deterministic dice. Conditions that don't vanish mid-fight. |
 | SillyTavern | LLM roleplay frontend — character cards, context prompts, WorldInfo. No rules engine. | Mechanics aren't prompts. They're code. Your rulebooks enforce the rules — not the AI's best guess. |
 | NovelAI | Subscription AI storyteller and image generator — no enforced game mechanics | No subscription. No walled garden. Everything runs on your machine. |
@@ -399,16 +369,16 @@ Every tool in this space asks you to pick. Rules engines serve one system and
 stop there. AI storytellers improvise mechanics as they go. SillyTavern gives
 you perfect prompt controls — and still trusts a context window to remember what
 "poisoned" means three rounds later. Holonovel doesn't pick. The server enforces
-every mechanic. The AI narrates. The Novel preserves everything. D&D 5e ships
-today. Starfinder tomorrow. One spec. Any game. Zero code. Your books. Your
-server. Your Holodeck.
+every mechanic. The AI narrates. The Novel preserves everything. D&D 5e,
+Starfinder, or your own rulebook. One spec. Any game. Zero code. Your books.
+Your server. Your Holodeck.
 
 ## Contribute
 
 ### Run a server
 
-Follow the [Quick start](#quick-start) above to get holonovel or
-dnd5e-holonovel running. Node.js 20+ required ([nodejs.org](https://nodejs.org)).
+Follow the [Quick start](#quick-start) above to get holonovel
+running. Node.js 20+ required ([nodejs.org](https://nodejs.org)).
 
 ### Improve the spec
 
@@ -427,8 +397,7 @@ npm install && npm run check   # lint + validate + assumption audit + ambiguity
 Edit files in `spec/`. Run `npm run assemble` before committing. Do not edit
 `holonovel.md` directly — it is generated from `spec/` source files.
 
-License: MIT. Built from: D&D 5e SRD (CC BY 4.0 + OGL 1.0a, Wizards of the
-Coast), Graham Nelson's Inform (Artistic License 2.0), if-craft-corpus
-(CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0), BitD SRD
-(CC BY 3.0, John Harper). [RSS](https://git.gay/flukeatzerocool/Holonovel).
-Last updated: 2026-08-09.
+License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
+if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
+BitD SRD (CC BY 3.0, John Harper).
+[RSS](https://git.gay/flukeatzerocool/Holonovel). Last updated: 2026-08-09.

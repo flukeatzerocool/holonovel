@@ -1,15 +1,9 @@
 #!/usr/bin/env zsh
-# push-pipeline.sh — assemble spec, sync servers, push.
+# push-pipeline.sh — assemble spec, sync server, push.
 #
-# Ruleset Wisdom (vendor content + ruleset-native) is extracted during
-# build-order as a fingerprint-scoped step. This script handles the mechanical
-# parts: build-order (spec assembly + checks + propagation + wisdom extraction +
-# typecheck + version sync) then hash update, fingerprint, commit, and push.
-#
-# Spec → holonovel → dnd5e propagation order is enforced by build-order
-# (scripts/build-order.ts). Source changes in holonovel/src/world/ or
-# holonovel/narrative_world_model/ trigger source-propagate which copies
-# the world-model layer and vendor content into dnd5e-holonovel.
+# This script handles the mechanical parts: build-order (spec assembly + checks
+# + propagation + typecheck + version sync) then hash update, fingerprint,
+# commit, and push.
 #
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes]
@@ -49,7 +43,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 # Canonical server list (update spec-delta.ts and spec-propagate.ts when changing)
-SERVERS=("dnd5e-holonovel" "holonovel")
+SERVERS=("holonovel")
 
 # ── Preflight: clean working tree ──
 
@@ -67,7 +61,7 @@ fi
 
 # ── 1. Build order (assemble, check, propagate, wisdom, typecheck, version) ──
 
-echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → wisdom → typecheck → version) ===${NC}"
+echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → typecheck → version) ===${NC}"
 npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 
 # ── 2. Cross-property coupling ──
@@ -135,7 +129,7 @@ for f in CHANGELOG.md README.md; do
 done
 # Stage only tracked modifications in server/script dirs (never untracked files)
 # "holonovel/" is the server directory, not holonovel.md (already staged above)
-git add -u scripts/ dnd5e-holonovel/ holonovel/
+git add -u scripts/ holonovel/
 
 if git diff --staged --quiet 2>/dev/null; then
   echo -e "${YELLOW}Nothing to commit.${NC}"
@@ -145,9 +139,9 @@ fi
 COMMIT_DATE=$(date +%Y-%m-%d)
 git commit -m "Push pipeline $COMMIT_DATE
 
-  Build-order: spec assembled, checked, propagated to servers, source
-  propagated holonovel→dnd5e, both servers typechecked, versions synced.
-  Spec-delta confirms sync. Stored spec hashes updated in DECISIONS.md."
+  Build-order: spec assembled, checked, propagated to server, server
+  typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
+  updated in DECISIONS.md."
 
 # ── 6a. Tag ──
 

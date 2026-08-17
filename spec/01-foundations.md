@@ -384,7 +384,7 @@ alter meaning are editorial and do not require a version bump.
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 
 **Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
-database, no external services. This is the prescribed stack; the dnd5e-holonovel reference
+database, no external services. This is the prescribed stack; the holonovel reference
 implementation uses it. Builders may select an alternative language, runtime, or
 transport if the resulting server passes every verification workflow and the full Pattern Buffer
 — the alternative choice must be recorded with justification in DECISIONS.md (2).

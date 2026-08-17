@@ -19,7 +19,7 @@ echo "$spec_result" | grep -vE "^\{|^\s|\}"
 if [ $spec_exit -ne 0 ]; then
     echo ""
     echo "BLOCKED: The spec (holonovel.md) has changed since the last server sync."
-    echo "The dnd5e server must be updated to match the current spec."
+    echo "The holonovel server must be updated to match the current spec."
     echo ""
     echo "To fix: run the push pipeline."
     echo "  ./scripts/push-pipeline.sh"

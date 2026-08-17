@@ -11,11 +11,11 @@ const SPEC_PATH = join(root, "holonovel.md");
 
 const server = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]
-  : "dnd5e-holonovel";
+  : "holonovel";
 
 // Must match push-pipeline.sh SERVERS
-if (server !== "dnd5e-holonovel" && server !== "holonovel") {
-  console.error("Usage: npm run spec-delta -- --server holonovel|dnd5e-holonovel");
+if (server !== "holonovel") {
+  console.error("Usage: npm run spec-delta -- --server holonovel");
   process.exit(1);
 }
 
