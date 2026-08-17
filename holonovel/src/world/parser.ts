@@ -7,7 +7,7 @@ export interface ParserContext {
   world: WorldModel;
   currentRoom: string | null;
   inventory: string[]; // thing lowercased names
-  hat: string | null;
+  badge: string | null;
 }
 
 export interface ParserResult {

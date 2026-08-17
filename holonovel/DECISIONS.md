@@ -150,8 +150,9 @@ Surface hash: 0f9d1b3f (tools: 17, resources: 4, prompts: 4).
 - Combat model: all participants auto-advance with [AUTO] marker (REQ-219).
 - Help categories: builder-assigned with world-model category for parser
   commands and world-model CRUD tools.
-- Resources: all REQ-022 URIs registered with hat filtering on world-model
+- Resources: all REQ-022 URIs registered with badge filtering on world-model
   resources. World-model-specific resources (room://, thing://, world://map,
   world://kinds) implemented per REQ-202.
-- Prompts: intro (world-model-only notice), hat_briefing (player/GM guidance
-  with triggered lore), session_zero, novel_setup.
+- Prompts: intro (world-model-only notice), badge_briefing (player/GM guidance
+  with triggered lore; observer mode adds a dual-role instruction), session_zero,
+  novel_setup.

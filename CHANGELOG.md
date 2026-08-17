@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-08-17 — Complete hat→badge migration in the holonovel server
+
+- Renamed the holonovel server's public "hat" identifiers to "badge": the
+  `set_hat` tool → `set_badge` (parameter `hat` → `badge`), the `hat_briefing`
+  prompt → `badge_briefing`, the `hat_scope` field → `badge_scope` across
+  lore/secret/note state, the `hat_boundary` spec_health key →
+  `badge_boundary`, the `novel.hat` state field → `novel.badge`, the
+  `{{hat.active}}` macro → `{{badge.active}}`, and the
+  `guidance://shared/hat-switch` resource → `guidance://shared/badge-switch`.
+- Folded observer support in: `set_badge` now accepts `observer` and `none`
+  (Editor). Observer mode is read-only — mutating tools return `[FORBIDDEN]`
+  with a corrective action citing `set_badge`; `badge_briefing` surfaces a
+  dual-role instruction under observer mode; `spec_health` reports
+  `active_badge`.
+- `set_badge` returns `[STATE_CONFLICT]` while a workflow decision is pending
+  (P50), and reports the Editor/observer badges with their canonical messages.
+- Backward-compatible state migration: existing Novels carrying `hat` /
+  `hat_scope` keys load without data loss — the loader accepts the old keys
+  indefinitely and writes `badge` / `badge_scope` going forward.
+
+## 2026-08-17 — Register Vow and Pending Workflow coupling groups
+
+- Registered two previously uncoupled question surfaces as first-class Novel
+  property groups in §7.7: `Vow` (Decision, Temporal) and `Pending Workflow`
+  (Decision). Relabeled the two `Choice →` coupling rows to
+  `Pending Workflow →` and normalized `Vows → Countdown` to `Vow → Countdown`.
+- Added coupling pattern rule P50 (Decision → Session) and its coupling row
+  `Pending Workflow → Undo/Redo/Badge`, capturing the pending-workflow freeze
+  of undo, redo, and badge switching (REQ-042, REQ-041, REQ-116, REQ-066).
+- Deleted six Codex coupling rows (Codex → NPC/World/Lore/Faction/Countdown and
+  Voice Feedback → Codex); Codex is now excluded by absence like other content
+  sources.
+- Added explicit exclusions for build intake questions (§6.2) and
+  input-validation workflows (character creation, confirmation prompts, parser
+  disambiguation) in §7.7.1b.
+- Reconciled property counts and pattern-rule ranges: "sixteen" → "nineteen"
+  property groups (§7.7), "all 17" → "all 19" (REQ-374a, T-new-381, T-new-395,
+  §6.5 metric), "all ten" checkpoint snapshot → "all property groups defined in
+  §7.7" (REQ-241a), the 12-group clone enumeration → "§7.7" (REQ-240), and
+  P1–P47/P1–P49 → P1–P50 across §1, REQ-369a/370a, §7.7.1b, and
+  T-new-376/377/390.
+
 ## 2026-08-17 — Complete badge_scope migration in spec
 
 - Corrected three stale `hat_scope` references — REQ-350 (body and

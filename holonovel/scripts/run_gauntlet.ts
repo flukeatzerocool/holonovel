@@ -187,12 +187,12 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i1" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms"); assertContains(r, "exits"); assertContains(r, "things");
       }},
       { label: "create_character", action: T("create_character", { name: "TestHero" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look)", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber"); assertContains(r, "rusty sword");
       }},
@@ -219,12 +219,12 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i2" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "populate 5-room chain", action: T("convert_source", { source: CHAIN_5 }), assert: (r) => {
         assertContains(r, "5 rooms");
       }},
       { label: "create_character", action: T("create_character", { name: "Navigator" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look at room 1", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Room 1") },
       { label: "go east to room 2", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 2") },
       { label: "go east to room 3", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 3") },
@@ -240,12 +240,12 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i3" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
       }},
       { label: "create_character", action: T("create_character", { name: "Collector" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
       { label: "take rusty sword", action: T("command", { command: "take rusty sword" }), assert: (r) => assertOK(r) },
       { label: "examine rusty sword in inventory", action: T("command", { command: "examine rusty sword" }), assert: (r) => assertContains(r, "old iron sword") },
@@ -267,7 +267,7 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i4" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "create_room", action: T("create_room", { name: "TestRoom", description: "A test room." }), assert: (r) => assertContains(r, "created") },
       { label: "create_thing", action: T("create_thing", { name: "TestSword", location: "TestRoom", kind: "thing" }), assert: (r) => assertContains(r, "created") },
       { label: "create_room2", action: T("create_room", { name: "TestRoom2", description: "Second room." }), assert: assertOK },
@@ -291,19 +291,19 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i5" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
         assertContains(r, "exits");
         assertContains(r, "things");
       }},
       { label: "create_character", action: T("create_character", { name: "FixtureHero" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look shows Entrance Chamber", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
         assertContains(r, "rusty sword");
       }},
-      { label: "set_hat GM for re-convert", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM for re-convert", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "convert_source again — STATE_CONFLICT", action: T("convert_source", { source: "The Crypt is a room. \"Dark.\"" }), assert: (r) => {
         assertStateConflict(r);
       }},
@@ -316,11 +316,11 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i6" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "create room", action: T("create_room", { name: "TestRoom", description: "Test room." }), assert: assertOK },
       { label: "create chest (container)", action: T("create_thing", { name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
       { label: "create_character", action: T("create_character", { name: "ChestOpener" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(open chest) — should open (new chests start unlocked)", action: T("command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "open") },
       { label: "command(close chest)", action: T("command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "close") },
       { label: "command(lock chest)", action: T("command", { command: "lock wooden chest" }), assert: (r) => assertContains(r, "lock") },
@@ -341,7 +341,7 @@ function buildScenarios(): GauntletScenario[] {
     blocking: false,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i7" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: assertOK },
       { label: "world://map", action: R("world://map"), assert: (r) => {
         assertContains(r, "Entrance Chamber");
@@ -359,7 +359,7 @@ function buildScenarios(): GauntletScenario[] {
       { label: "thing://rusty sword", action: R("thing://rusty%20sword"), assert: (r) => {
         assertContains(r, "rusty sword");
       }},
-      { label: "set_hat player — GM metadata hidden", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player — GM metadata hidden", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "world://map as player", action: R("world://map"), assert: (r) => {
         assertContains(r, "Entrance");
       }},
@@ -372,12 +372,12 @@ function buildScenarios(): GauntletScenario[] {
     blocking: false,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i8" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "populate 50-room chain", action: T("convert_source", { source: CHAIN_50 }), assert: (r) => {
         assertContains(r, "rooms");
       }},
       { label: "create_character", action: T("create_character", { name: "LongWalker" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       // Walk 10 steps east
       ...[2,3,4,5,6,7,8,9,10,11].map(n => ({
         label: `go east → room ${n}`,
@@ -394,18 +394,18 @@ function buildScenarios(): GauntletScenario[] {
     steps: [
       { label: "create_novel (empty world)", action: T("create_novel", { name: "gauntlet-i9" }), assert: assertOK },
       { label: "create_character", action: T("create_character", { name: "EmptyWalker" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look) — should fail", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "not been populated");
       }},
       { label: "command(go north) — should fail", action: T("command", { command: "go north" }), assert: (r) => {
         assertContains(r, "not been populated");
       }},
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "create_room on empty world", action: T("create_room", { name: "TestRoom", description: "A test room." }), assert: (r) => {
         assertContains(r, "created");
       }},
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look) — now works", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "TestRoom");
       }},
@@ -418,13 +418,13 @@ function buildScenarios(): GauntletScenario[] {
     blocking: true,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i10" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "load_adventure", action: T("load_adventure", { slug: "tomb-of-the-serpent-king" }), assert: (r) => {
         assertContains(r, "loaded");
         assertContains(r, "rooms");
       }},
       { label: "create_character", action: T("create_character", { name: "Adventurer" }), assert: assertOK },
-      { label: "set_hat player", action: T("set_hat", { hat: "player" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look) — adventure entrance", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
       }},
@@ -444,7 +444,7 @@ function buildScenarios(): GauntletScenario[] {
       const npcRef = { id: "" };
       return [
         { label: "create_novel", action: T("create_novel", { name: "gauntlet-i11" }), assert: assertOK },
-        { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+        { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
         { label: "create_npc", action: T("create_npc", { name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
           const match = r.match(/\((\w+)\)/);
           if (match) npcRef.id = match[1];
@@ -466,8 +466,8 @@ function buildScenarios(): GauntletScenario[] {
     blocking: false,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i12" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
-      { label: "set_lore_entry", action: T("set_lore_entry", { key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], hat_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "set_lore_entry", action: T("set_lore_entry", { key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], badge_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
       { label: "toggle_lore_entry (disable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
       { label: "toggle_lore_entry (re-enable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
       { label: "update_lore_entry", action: T("update_lore_entry", { key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
@@ -482,15 +482,15 @@ function buildScenarios(): GauntletScenario[] {
 
   const I13: GauntletScenario = {
     scenario_id: "I13",
-    objective: "Scene state and guidance — set_scene_state, scene_type, directive, hat_briefing, briefing_order",
+    objective: "Scene state and guidance — set_scene_state, scene_type, directive, badge_briefing, briefing_order",
     blocking: false,
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i13" }), assert: assertOK },
-      { label: "set_hat GM", action: T("set_hat", { hat: "game_master" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "set_scene_state full", action: T("set_scene_state", { description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively" }), assert: (r) => assertContains(r, "Scene set") },
       { label: "set_scene_type", action: T("set_scene_type", { type: "social" }), assert: assertOK },
       { label: "set_narrative_directive", action: T("set_narrative_directive", { directive: "Emphasize the noise and crowd density." }), assert: assertOK },
-      { label: "hat_briefing prompt — GM", action: P("hat_briefing", { hat: "game_master" }), assert: (r) => {
+      { label: "badge_briefing prompt — GM", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => {
         assertContains(r, "marketplace");
         assertContains(r, "GM State");
       }},
@@ -614,7 +614,7 @@ async function main() {
 
   // Surface hash
   const toolNames = [
-    "set_hat", "create_novel", "end_novel", "respond", "undo", "redo",
+    "set_badge", "create_novel", "end_novel", "respond", "undo", "redo",
     "command", "create_room", "delete_room", "create_thing", "delete_thing",
     "create_exit", "delete_exit", "convert_source",
     "create_character", "load_adventure", "session_recap",
@@ -626,7 +626,7 @@ async function main() {
   const resourceUris = [
     "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",
   ].sort();
-  const promptNames = ["intro", "hat_briefing", "session_zero", "novel_setup"].sort();
+  const promptNames = ["intro", "badge_briefing", "session_zero", "novel_setup"].sort();
   const surfaceHash = sha256(JSON.stringify({ tools: toolNames, resources: resourceUris, prompts: promptNames }));
 
   // Write structured encoding
