@@ -1,6 +1,25 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 858525af9b96fe780174482cc44a7e656d5bf013292ca9a64fe610410f9a8b2a
+**Spec hash:** f4c8b04573bd5ca79065e8da40f5874740f48f219ae6d289835bb768c445a4d5
+
+### Holonovel Spec Update — 2026-08-17
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (embedded holonovel.md) |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | typecheck 0 errors, validate:sdd 0 errors, build-order complete |
+
+Spec-only change: §7.7 Holodeck taxonomy expanded from 19 to 30 property groups (ghost
+property registration — Story Beats, Pacing Signal, Narrative Directive, Voice Feedback,
+Voice Examples, Background, NPC Memory, World in Motion, Narrative Threads, NPC Goal
+Pursuit, Autonomous Countdown). Coupling table canonicalized to archetype names; pattern
+rules extended to P1–P54 (P51 Decision→Knowledge-carrying, P52 Scene-anchored→
+Narrative-memory, P53 Temporal→Temporal, P54 Knowledge-carrying→Knowledge-carrying;
+P23/P46/P47 target archetypes corrected). `validate.ts` now enforces order-insensitive
+archetype matching with a `[non-property]` exemption for snapshot/tool-delegation rows.
+No server source change — coupling contracts are normative, not tool behavior.
 
 ### Holonovel Full Update — 2026-08-11
 
