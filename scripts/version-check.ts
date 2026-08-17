@@ -40,52 +40,6 @@ function checkFileContains(filePath: string, patterns: string[], label: string):
 
 let ok = true;
 
-// ── dnd5e-holonovel ──
-
-const dnd5ePkg = readJson(join(root, "dnd5e-holonovel", "package.json"));
-ok = check("dnd5e-holonovel/package.json", dnd5ePkg.version as string, rootVersion) && ok;
-
-const dnd5eDecisionsVersion = grepVersion(
-  join(root, "dnd5e-holonovel", "DECISIONS.md"),
-  /\*\*Spec version:\*\*\s*(.+)/m
-);
-ok = check("dnd5e-holonovel/DECISIONS.md", dnd5eDecisionsVersion, rootVersion) && ok;
-
-const dnd5eAgentsVersion = grepVersion(
-  join(root, "dnd5e-holonovel", "AGENTS.md"),
-  /^# AGENTS\.md.*\(v(.+)\)/m
-);
-ok = check("dnd5e-holonovel/AGENTS.md", dnd5eAgentsVersion, rootVersion) && ok;
-
-const dnd5eReadmeVersion = grepVersion(
-  join(root, "dnd5e-holonovel", "README.md"),
-  /Holonovel\]\([^)]+\)\s+v(.+)\./
-);
-ok = check("dnd5e-holonovel/README.md", dnd5eReadmeVersion, rootVersion) && ok;
-
-const dnd5eIndexVersion = grepVersion(
-  join(root, "dnd5e-holonovel", "src", "index.ts"),
-  /^\s+version: "(.+)"[,;]?$/m
-);
-ok = check("dnd5e-holonovel/src/index.ts", dnd5eIndexVersion, rootVersion) && ok;
-
-const dnd5eDecisionsSpecHash = grepVersion(
-  join(root, "dnd5e-holonovel", "DECISIONS.md"),
-  /\*\*Spec hash:\*\*\s*([a-f0-9]{64})/m
-);
-if (dnd5eDecisionsSpecHash) {
-  console.log(`  OK  dnd5e-holonovel/DECISIONS.md: spec hash present`);
-} else {
-  console.error(`  FAIL  dnd5e-holonovel/DECISIONS.md: missing spec hash field`);
-  ok = false;
-}
-
-ok = checkFileContains(
-  join(root, "dnd5e-holonovel", "src", "state.ts"),
-  ["SPEC_VERSION", "JSON.parse", "readFileSync", "package.json"],
-  "dnd5e-holonovel/src/state.ts: reads version dynamically"
-) && ok;
-
 // ── holonovel ──
 
 const holoPkg = readJson(join(root, "holonovel", "package.json"));

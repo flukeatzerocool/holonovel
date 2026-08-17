@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
-const SERVERS = ["dnd5e-holonovel", "holonovel"];
+const SERVERS = ["holonovel"];
 
 const serverArg = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]

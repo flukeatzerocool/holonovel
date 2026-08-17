@@ -4,8 +4,6 @@ __pycache__/
 *.pyc
 session-*.md
 opencode-raw-*.log
-dnd5e-holonovel/.holonovel-state/
-dnd5e-holonovel/.holonovel-oce-state/
 .holonovel-state/
 !.holonovel-state/wiki/
 !.holonovel-state/wiki/Home.md

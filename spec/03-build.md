@@ -433,8 +433,7 @@ ruleset-specific content on top of the infrastructure base.
 root with two sections: a **Ruleset Data** section identifying the source
 material and its license (drawn from Appendix I), and a **Server Code**
 section stating that `src/` and `scripts/` are MIT-licensed (see
-`package.json`). The dnd5e-holonovel server's `LICENSE.md` is the canonical
-template. The builder SHALL also read Appendix U and render each row into the
+`package.json`). The builder SHALL also read Appendix U and render each row into the
 README.md license footer. Format: "Built from: [Source] ([License], [Copyright])"
 — one source per line, semicolon-separated, flowing into a single paragraph
 terminated by the RSS link and last-updated date.

@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
 
 const root = join(import.meta.dirname, "..");
-const SERVERS = ["dnd5e-holonovel", "holonovel"];
+const SERVERS = ["holonovel"];
 
 function sha256(data: Buffer | string): string {
   return createHash("sha256").update(data).digest("hex");

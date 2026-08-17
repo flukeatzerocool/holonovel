@@ -31,38 +31,6 @@ function bumpPkgVersion(serverDir: string, label: string): boolean {
 
 let ok = true;
 
-// ── dnd5e-holonovel ──
-
-ok = bumpPkgVersion("dnd5e-holonovel", "dnd5e-holonovel/package.json") && ok;
-
-ok = replaceInFile(
-  join(root, "dnd5e-holonovel", "DECISIONS.md"),
-  /(\*\*Spec version:\*\*\s*).+/m,
-  `$1${version}`,
-  "dnd5e-holonovel/DECISIONS.md spec version"
-) && ok;
-
-ok = replaceInFile(
-  join(root, "dnd5e-holonovel", "AGENTS.md"),
-  /^(# AGENTS\.md — .+?\(v).+(\))/m,
-  `$1${version}$2`,
-  "dnd5e-holonovel/AGENTS.md header"
-) && ok;
-
-ok = replaceInFile(
-  join(root, "dnd5e-holonovel", "README.md"),
-  /(Holonovel\]\([^)]+\)\s+v).+(\.)/m,
-  `$1${version}$2`,
-  "dnd5e-holonovel/README.md"
-) && ok;
-
-ok = replaceInFile(
-  join(root, "dnd5e-holonovel", "src", "index.ts"),
-  /^(  version: ").+(",$)/m,
-  `$1${version}$2`,
-  "dnd5e-holonovel/src/index.ts McpServer version"
-) && ok;
-
 // ── holonovel ──
 
 ok = bumpPkgVersion("holonovel", "holonovel/package.json") && ok;

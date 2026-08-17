@@ -9,7 +9,6 @@ const SOURCE = join(root, "holonovel.md");
 // Must match push-pipeline.sh SERVERS
 const TARGETS = [
   join(root, "holonovel", "holonovel.md"),
-  join(root, "dnd5e-holonovel", "holonovel.md"),
 ];
 
 let ok = true;
@@ -30,5 +29,5 @@ if (!ok) {
   process.exit(1);
 }
 
-console.log("\nSpec propagated to both servers.");
+console.log("\nSpec propagated to server.");
 process.exit(0);
