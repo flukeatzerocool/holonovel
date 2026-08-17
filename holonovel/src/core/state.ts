@@ -1,4 +1,4 @@
-// State Manager — Novels, Roster, NPCs, World Model, Snapshots, Audit, Hat Gating, Persistence
+// State Manager — Novels, Roster, NPCs, World Model, Snapshots, Audit, Badge Gating, Persistence
 // REQ-040, REQ-041, REQ-043, REQ-055, REQ-065, REQ-073, REQ-074, REQ-075,
 // REQ-076, REQ-077, REQ-079, REQ-081, REQ-082, REQ-083, REQ-084,
 // REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-095, REQ-096,
@@ -37,7 +37,31 @@ function computeSourceHash(): string {
 
 // ── Types ──────────────────────────────────────────────────────────
 
-export type Hat = "player" | "game_master" | null;
+export type Badge = "player" | "game_master" | "observer" | "none";
+
+export function normalizeBadge(raw: unknown): Badge {
+  if (raw === "player" || raw === "game_master" || raw === "observer") return raw;
+  return "none"; // null, undefined, "none", and unknown values resolve to the Editor badge
+}
+
+export function migrateNovelData(data: any): any {
+  const out: any = { ...data };
+  out.badge = normalizeBadge(data.badge ?? data.hat);
+  if (data.lore) {
+    out.lore = Object.fromEntries(
+      Object.entries(data.lore).map(([k, v]: [string, any]) => [
+        k, { ...v, badge_scope: v.badge_scope ?? v.hat_scope ?? "game_master" },
+      ]),
+    );
+  }
+  if (data.secrets) {
+    out.secrets = data.secrets.map((s: any) => ({ ...s, badge_scope: s.badge_scope ?? s.hat_scope ?? "game_master" }));
+  }
+  if (data.notes) {
+    out.notes = data.notes.map((n: any) => ({ ...n, badge_scope: n.badge_scope ?? n.hat_scope ?? "game_master" }));
+  }
+  return out;
+}
 
 export interface NovelEntity {
   id: string;
@@ -66,7 +90,7 @@ export interface LoreEntry {
   key: string;
   content: string;
   triggers: string[];
-  hat_scope: "game_master" | "shared";
+  badge_scope: "game_master" | "shared";
   priority: number;
   sticky: number;
   sticky_remaining: number;
@@ -96,7 +120,7 @@ export interface CombatState {
 
 export interface AuditEntry {
   timestamp: string;
-  hat: Hat;
+  badge: Badge;
   tool: string;
   args: string;
   output_prefix: string;
@@ -127,7 +151,7 @@ export interface SecretState {
   key: string;
   content: string;
   triggers: string[];
-  hat_scope: "game_master" | "shared";
+  badge_scope: "game_master" | "shared";
   known_by: string[];
 }
 
@@ -170,7 +194,7 @@ export interface VowState {
 export interface NoteEntry {
   key: string;
   content: string;
-  hat_scope: "game_master" | "player" | "shared";
+  badge_scope: "game_master" | "player" | "shared";
 }
 
 export interface Checkpoint {
@@ -191,7 +215,7 @@ export const DIFFICULTY_TRACKS: Record<string, number> = {
 export interface NovelState {
   slug: string;
   name: string;
-  hat: Hat;
+  badge: Badge;
   entities: Map<string, NovelEntity>;
   active_entity_id: string | null;
   npcs: Map<string, NpcState>;
@@ -370,14 +394,20 @@ export class StateManager {
     return this.activeNovelId ? this.novels.get(this.activeNovelId) : undefined;
   }
 
-  // ── Hat Gating ────────────────────────────────────────────────
+  // ── Badge Gating ────────────────────────────────────────────────
 
-  requireGM(hat: Hat): void {
-    if (hat === "player") throw new Error("[FORBIDDEN] This tool is Game Master only. Use set_hat to switch.");
+  requireGM(badge: Badge): void {
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
+    if (badge === "player") throw new Error("[FORBIDDEN] This tool is Game Master only. Use set_badge to switch.");
   }
 
-  requirePlayer(hat: Hat): void {
-    if (hat === "game_master") throw new Error("[FORBIDDEN] This tool is Player only. Use set_hat to switch.");
+  requirePlayer(badge: Badge): void {
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
+    if (badge === "game_master") throw new Error("[FORBIDDEN] This tool is Player only. Use set_badge to switch.");
+  }
+
+  requireNotObserver(badge: Badge): void {
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
   }
 
   requireNovel(): NovelState {
@@ -420,7 +450,7 @@ export class StateManager {
     const novel: NovelState = {
       slug,
       name,
-      hat: null,
+      badge: "none",
       entities: new Map(),
       active_entity_id: null,
       npcs: new Map(),
@@ -439,8 +469,8 @@ export class StateManager {
       adventure_slug: null,
       generated_adventure: null,
       audit_log: [],
-      undo_stacks: { player: [], game_master: [], null: [] },
-      redo_stacks: { player: [], game_master: [], null: [] },
+      undo_stacks: { player: [], game_master: [], observer: [], none: [] },
+      redo_stacks: { player: [], game_master: [], observer: [], none: [] },
       briefing_order: [],
       action_patterns_enabled: false,
       session_zero_completed: false,
@@ -475,7 +505,7 @@ export class StateManager {
 
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
-    this.audit(novel, null, "create_novel", { name });
+    this.audit(novel, novel.badge, "create_novel", { name });
     this.saveNovel(novel);
     return novel;
   }
@@ -499,7 +529,7 @@ export class StateManager {
           const loaded = this.loadNovelFromData(bakData);
           this.novels.set(slug, loaded);
           this.activeNovelId = slug;
-          this.audit(loaded, null, "resume_novel", { slug, restored_from_backup: true });
+          this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: true });
           return loaded;
         }
         throw new Error(`[STATE_CONFLICT] Novel '${slug}' is corrupted (checksum mismatch).`);
@@ -509,15 +539,16 @@ export class StateManager {
     const novel = this.loadNovelFromData(data);
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
-    this.audit(novel, null, "resume_novel", { slug });
+    this.audit(novel, novel.badge, "resume_novel", { slug });
     return novel;
   }
 
   private loadNovelFromData(data: any): NovelState {
+    data = migrateNovelData(data);
     const novel: NovelState = {
       slug: data.slug,
       name: data.name,
-      hat: data.hat ?? null,
+      badge: data.badge,
       entities: new Map(Object.entries(data.entities ?? {}) as any),
       active_entity_id: data.active_entity_id ?? null,
       npcs: new Map(Object.entries(data.npcs ?? {}) as any),
@@ -536,8 +567,18 @@ export class StateManager {
       adventure_slug: data.adventure_slug ?? null,
       generated_adventure: data.generated_adventure ?? null,
       audit_log: data.audit_log ?? [],
-      undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
-      redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },
+      undo_stacks: {
+        player: data.undo_stacks?.player ?? [],
+        game_master: data.undo_stacks?.game_master ?? [],
+        observer: data.undo_stacks?.observer ?? [],
+        none: data.undo_stacks?.none ?? data.undo_stacks?.null ?? [],
+      },
+      redo_stacks: {
+        player: data.redo_stacks?.player ?? [],
+        game_master: data.redo_stacks?.game_master ?? [],
+        observer: data.redo_stacks?.observer ?? [],
+        none: data.redo_stacks?.none ?? data.redo_stacks?.null ?? [],
+      },
       briefing_order: data.briefing_order ?? [],
       action_patterns_enabled: data.action_patterns_enabled ?? false,
       session_zero_completed: data.session_zero_completed ?? false,
@@ -619,9 +660,9 @@ export class StateManager {
 
   // ── Snapshots, Undo, Redo ─────────────────────────────────────
 
-  snapshot(novel: NovelState, hat: Hat): void {
+  snapshot(novel: NovelState, badge: Badge): void {
     const clone = JSON.parse(JSON.stringify(novelToJSON(novel)));
-    const stackKey = hat ?? "null";
+    const stackKey = badge;
     novel.undo_stacks[stackKey].push(clone);
     if (novel.undo_stacks[stackKey].length > 10) {
       novel.undo_stacks[stackKey].shift();
@@ -629,8 +670,8 @@ export class StateManager {
     novel.redo_stacks[stackKey] = [];
   }
 
-  undo(novel: NovelState, hat: Hat): { data: any } | null {
-    const stackKey = hat ?? "null";
+  undo(novel: NovelState, badge: Badge): { data: any } | null {
+    const stackKey = badge;
     const stack = novel.undo_stacks[stackKey];
     if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to undo.");
 
@@ -652,7 +693,7 @@ export class StateManager {
     novel.combat = restored.combat;
     novel.countdowns = restored.countdowns;
     novel.lore = restored.lore;
-    novel.hat = restored.hat;
+    novel.badge = restored.badge;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
     novel.story_journal = restored.story_journal;
@@ -669,8 +710,8 @@ export class StateManager {
     return { data: restore };
   }
 
-  redo(novel: NovelState, hat: Hat): { data: any } | null {
-    const stackKey = hat ?? "null";
+  redo(novel: NovelState, badge: Badge): { data: any } | null {
+    const stackKey = badge;
     const stack = novel.redo_stacks[stackKey];
     if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to redo.");
 
@@ -692,7 +733,7 @@ export class StateManager {
     novel.combat = restored.combat;
     novel.countdowns = restored.countdowns;
     novel.lore = restored.lore;
-    novel.hat = restored.hat;
+    novel.badge = restored.badge;
     novel.player_signals = restored.player_signals;
     novel.briefing_assembly_count = restored.briefing_assembly_count;
     novel.story_journal = restored.story_journal;
@@ -711,11 +752,11 @@ export class StateManager {
 
   // ── Audit ─────────────────────────────────────────────────────
 
-  audit(novel: NovelState, hat: Hat, tool: string, args: any, output_prefix?: string): void {
+  audit(novel: NovelState, badge: Badge, tool: string, args: any, output_prefix?: string): void {
     const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
-      hat,
+      badge,
       tool,
       args: JSON.stringify(args),
       output_prefix: output_prefix ?? "",
@@ -724,13 +765,13 @@ export class StateManager {
     novel.audit_log.push(entry);
   }
 
-  auditForbidden(hat: Hat, tool: string, args: any): void {
+  auditForbidden(badge: Badge, tool: string, args: any): void {
     const novel = this.activeNovel;
     if (!novel) return;
     const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
     const entry: AuditEntry & { violation_type?: string } = {
       timestamp: new Date().toISOString(),
-      hat,
+      badge,
       tool,
       args: JSON.stringify(args),
       output_prefix: "[BOUNDARY_VIOLATION]",
@@ -808,7 +849,7 @@ export class StateManager {
       active: true,
     };
     novel.combat = combat;
-    this.audit(novel, novel.hat, "init_combat", { participants, dangers });
+    this.audit(novel, novel.badge, "init_combat", { participants, dangers });
     return combat;
   }
 
@@ -832,13 +873,13 @@ export class StateManager {
         if (cd.type === "round") {
           cd.ticks--;
           if (cd.ticks <= 0) {
-            this.audit(novel, novel.hat, "countdown_expired", { name: cd.name });
+            this.audit(novel, novel.badge, "countdown_expired", { name: cd.name });
           }
         }
       }
     }
 
-    this.audit(novel, novel.hat, "advance_combat", {
+    this.audit(novel, novel.badge, "advance_combat", {
       participant: currentName,
       round: combat.round,
       turn: combat.current_turn,
@@ -850,7 +891,7 @@ export class StateManager {
   endCombat(novel: NovelState, outcome: string): void {
     if (!novel.combat) throw new Error("[STATE_CONFLICT] No active combat.");
     novel.combat.active = false;
-    this.audit(novel, novel.hat, "end_combat", { outcome, rounds_played: novel.combat.round });
+    this.audit(novel, novel.badge, "end_combat", { outcome, rounds_played: novel.combat.round });
     novel.combat = null;
   }
 
@@ -872,7 +913,7 @@ export class StateManager {
     if (!combat.participants.includes(participantId)) {
       combat.participants.push(participantId);
     }
-    this.audit(novel, novel.hat, "add_combat_participant", { participant_id: participantId });
+    this.audit(novel, novel.badge, "add_combat_participant", { participant_id: participantId });
     return combat;
   }
 
@@ -885,7 +926,7 @@ export class StateManager {
     }
     if (combat.turn_order.length <= 1) {
       combat.active = false;
-      this.audit(novel, novel.hat, "end_combat", { outcome: "All participants removed.", rounds_played: combat.round });
+      this.audit(novel, novel.badge, "end_combat", { outcome: "All participants removed.", rounds_played: combat.round });
       novel.combat = null;
       return { combat: null, ended: true, outcome: "All participants removed." };
     }
@@ -900,14 +941,14 @@ export class StateManager {
       combat.current_turn--;
     }
     combat.participants = combat.participants.filter(p => p !== participantId);
-    this.audit(novel, novel.hat, "remove_combat_participant", { participant_id: participantId });
+    this.audit(novel, novel.badge, "remove_combat_participant", { participant_id: participantId });
     return { combat, ended: false };
   }
 
   combatReport(novel: NovelState): string {
     if (!novel.combat || !novel.combat.active) return "\nNone";
     const c = novel.combat;
-    const gm = novel.hat === "game_master";
+    const gm = novel.badge === "game_master";
     const turnOrder = c.turn_order.map((name, i) => {
       const marker = i === c.current_turn ? "← current" : "";
       const isEntity = novel.entities.has(name);
@@ -1043,7 +1084,7 @@ function novelToJSON(novel: NovelState): any {
   return {
     slug: novel.slug,
     name: novel.name,
-    hat: novel.hat,
+    badge: novel.badge,
     entities: Object.fromEntries(novel.entities),
     active_entity_id: novel.active_entity_id,
     npcs: Object.fromEntries(novel.npcs),
@@ -1092,10 +1133,11 @@ function novelToJSON(novel: NovelState): any {
 }
 
 function novelFromJSON(data: any): NovelState {
+  data = migrateNovelData(data);
   return {
     slug: data.slug,
     name: data.name,
-    hat: data.hat ?? null,
+    badge: data.badge,
     entities: new Map(Object.entries(data.entities ?? {})),
     active_entity_id: data.active_entity_id ?? null,
     npcs: new Map(Object.entries(data.npcs ?? {})),
@@ -1114,8 +1156,18 @@ function novelFromJSON(data: any): NovelState {
     adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
     audit_log: data.audit_log ?? [],
-    undo_stacks: { player: data.undo_stacks?.player ?? [], game_master: data.undo_stacks?.game_master ?? [], null: data.undo_stacks?.null ?? [] },
-    redo_stacks: { player: data.redo_stacks?.player ?? [], game_master: data.redo_stacks?.game_master ?? [], null: data.redo_stacks?.null ?? [] },
+    undo_stacks: {
+      player: data.undo_stacks?.player ?? [],
+      game_master: data.undo_stacks?.game_master ?? [],
+      observer: data.undo_stacks?.observer ?? [],
+      none: data.undo_stacks?.none ?? data.undo_stacks?.null ?? [],
+    },
+    redo_stacks: {
+      player: data.redo_stacks?.player ?? [],
+      game_master: data.redo_stacks?.game_master ?? [],
+      observer: data.redo_stacks?.observer ?? [],
+      none: data.redo_stacks?.none ?? data.redo_stacks?.null ?? [],
+    },
     briefing_order: data.briefing_order ?? [],
     action_patterns_enabled: data.action_patterns_enabled ?? false,
     session_zero_completed: data.session_zero_completed ?? false,

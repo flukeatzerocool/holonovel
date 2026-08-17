@@ -1,8 +1,8 @@
 export { expandMacros } from "./macros.js";
 export type { MacroContext } from "./macros.js";
-export { StateManager } from "./state.js";
+export { StateManager, normalizeBadge, migrateNovelData } from "./state.js";
 export type {
-  Hat,
+  Badge,
   NovelState,
   NovelEntity,
   NpcState,
@@ -13,9 +13,10 @@ export type {
 } from "./state.js";
 export {
   initServer,
-  getHat,
+  getBadge,
   requireGM,
   requirePlayer,
+  requireNotObserver,
   requireNovel,
   novelSnapshot,
   withForbiddenAudit,

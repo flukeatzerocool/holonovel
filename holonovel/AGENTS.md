@@ -16,13 +16,13 @@ src/parser.ts           Command dispatch: lexer, resolver against world-model
                         resolution (movement, property mutations).
         ↓
 src/state.ts            StateManager singleton: novels, roster, NPCs, scenes,
-                        countdowns, lore, enrichment, snapshots (per-hat
-                        undo/redo stacks), audit log, hat gating, workflows,
+                        countdowns, lore, enrichment, snapshots (per-badge
+                        undo/redo stacks), audit log, badge gating, workflows,
                         build fingerprint. Atomic persistence.
         ↓
 src/macros.ts           expandMacros — {{entity.name}}, {{scene.current}},
                         {{scene.type}}, {{countdown.<n>.remaining}},
-                        {{countdown.<n>.total}}, {{novel.slug}}, {{hat.active}},
+                        {{countdown.<n>.total}}, {{novel.slug}}, {{badge.active}},
                         {{party.size}}, {{world.room}}, {{world.room_count}},
                         {{world.thing_count}}.
         ↓
@@ -31,13 +31,13 @@ src/enrichment.ts       Enrichment manifest — 7 output modules populated
                         uses vendor as the sole enrichment source.
         ↓
 src/index.ts            McpServer: ~44 tools, ~22 resources, 5 prompts.
-                        Entry point for STDIO transport. Hat gating via
-                        requireGM()/requirePlayer(). Error taxonomy.
+                        Entry point for STDIO transport. Badge gating via
+                        requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
 ```
 
 ## Tool Surface (~44 tools)
 
-- **Hat & Workflow:** set_hat, respond, undo, redo, help
+- **Badges & Workflow:** set_badge, respond, undo, redo, help
 - **Characters:** create_character (ruleset-free), import_character, character_sheet, set_active_entity, set_personality, set_voice_examples, player_signal
 - **World Model:** command, create_room, delete_room, create_thing, delete_thing, create_exit, delete_exit, convert_source
 - **Lookups:** search_rules (empty), suggest_actions (context-only), spec_health
@@ -70,5 +70,5 @@ npm run start
 - **Roster:** Persistent character store at `.holonovel-state/roster.json`. Ruleset-free entities: name + personality fields only.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
-- **Snapshots:** Per-mutation snapshots per hat stack (undo/redo).
+- **Snapshots:** Per-mutation snapshots per badge stack (undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.

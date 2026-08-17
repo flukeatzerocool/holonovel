@@ -10,9 +10,9 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Hat, NovelState, LoreEntry, DIFFICULTY_TRACKS } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData } from "./core/state.js";
 import {
-  initServer, getHat, requireGM, requirePlayer, requireNovel, novelSnapshot,
+  initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
 } from "./core/server.js";
 import { DEFAULT_ENRICHMENT } from "./core/enrichment.js";
@@ -55,13 +55,13 @@ const server = new McpServer({
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
-// Hat gating and snapshot helpers provided by core/server.ts
+// Badge gating and snapshot helpers provided by core/server.ts
 
 initServer(state);
 
 function audit(tool: string, args: any, prefix?: string): void {
   const novel = state.activeNovel;
-  if (novel) state.audit(novel, getHat(), tool, args, prefix);
+  if (novel) state.audit(novel, getBadge(), tool, args, prefix);
 }
 
 function getActiveEntity() {
@@ -110,7 +110,7 @@ function buildMacroContext() {
     sceneType: novel?.scene_type?.join(", "),
     countdowns,
     novelSlug: novel?.slug,
-    hatActive: novel?.hat ?? undefined,
+    badgeActive: novel?.badge ?? undefined,
     partySize: novel ? novel.entities.size : undefined,
     currentRoom: entity?.current_room ?? undefined,
     worldRoomCount: novel ? novel.world.rooms.size : undefined,
@@ -125,7 +125,7 @@ function worldSnapshot(): void {
 // ── Help Categories ─────────────────────────────────────────────────
 
 const BUILDER_CATEGORIES: Record<string, string[]> = {
-  "Hat & Workflow": ["set_hat", "respond", "undo", "redo", "help"],
+  "Badge & Workflow": ["set_badge", "respond", "undo", "redo", "help"],
   "Characters": ["create_character", "import_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal", "remove_entity", "list_roster_characters", "remove_roster_character"],
   "World Model": ["command", "create_room", "delete_room", "create_thing", "delete_thing", "create_exit", "delete_exit", "convert_source"],
   "Lookups": ["search_rules", "suggest_actions", "spec_health"],
@@ -237,19 +237,29 @@ function formatNpcSheet(npc: any): string {
 
 // ── Tools ──────────────────────────────────────────────────────────
 
-// --- Hat & Workflow ---
+// --- Badge & Workflow ---
 
-server.registerTool("set_hat", {
-  title: "Set Active Hat",
-  description: "Switch active hat. Accepts 'player' or 'game_master'. Always callable.",
-  inputSchema: { hat: z.enum(["player", "game_master"]) },
-}, async ({ hat }) => {
+function badgeLabel(badge: Badge): string {
+  if (badge === "none") return "Editor";
+  return badge;
+}
+
+server.registerTool("set_badge", {
+  title: "Set Active Badge",
+  description: "Switch active badge: player, game_master, observer, or none (Editor). Always callable.",
+  inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]) },
+}, async ({ badge }) => {
   const novel = state.activeNovel;
   if (novel) {
-    novel.hat = hat;
+    if (novel.pending_workflow) {
+      return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before switching badges.");
+    }
+    novel.badge = badge;
     state.saveNovel(novel);
   }
-  return ok(`Active hat: ${hat}`);
+  if (badge === "none") return ok("Active badge: Editor — full access");
+  if (badge === "observer") return ok("Active badge: observer — read-only spectator mode");
+  return ok(`Active badge: ${badge}`);
 });
 
 server.registerTool("respond", {
@@ -257,6 +267,7 @@ server.registerTool("respond", {
   description: "Respond to a pending workflow decision.",
   inputSchema: { decision: z.string(), option: z.string() },
 }, async ({ decision, option }) => {
+  requireNotObserver();
   const novel = requireNovel();
   if (option === "cancel") {
     novel.pending_workflow = null;
@@ -282,8 +293,9 @@ server.registerTool("undo", {
   description: "Undo the most recent mutation. Restores previous snapshot.",
   inputSchema: {},
 }, async () => {
+  requireNotObserver();
   const novel = requireNovel();
-  state.undo(novel, getHat());
+  state.undo(novel, getBadge());
   return ok("Undo successful.");
 });
 
@@ -292,8 +304,9 @@ server.registerTool("redo", {
   description: "Redo the most recently undone mutation.",
   inputSchema: {},
 }, async () => {
+  requireNotObserver();
   const novel = requireNovel();
-  state.redo(novel, getHat());
+  state.redo(novel, getBadge());
   return ok("Redo successful.");
 });
 
@@ -302,15 +315,15 @@ server.registerTool("help", {
   description: "Show available commands and tools. Accepts optional query for focused search.",
   inputSchema: { query: z.string().optional() },
 }, async ({ query }: any) => {
-  const hat = getHat();
+  const badge = getBadge();
   const novel = state.activeNovel;
-  const isGM = hat === "game_master";
+  const isGM = badge === "game_master";
 
   if (query) {
     const q = query.toLowerCase();
     const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
     const toolNames = Object.keys(registeredTools).filter(t => {
-      if (t === "set_hat" || t === "respond" || t === "undo" || t === "redo") return true;
+      if (t === "set_badge" || t === "respond" || t === "undo" || t === "redo") return true;
       if (!isGM && isGMTool(t)) return false;
       return true;
     });
@@ -334,8 +347,8 @@ server.registerTool("help", {
     if (q.includes("intro") || q.includes("start") || q.includes("begin")) {
       matched.push({ name: "intro", description: "Connection introduction and getting started.", example: "Use the intro prompt", relevance: 3 });
     }
-    if (q.includes("brief") || q.includes("hat") || q.includes("state")) {
-      matched.push({ name: "hat_briefing", description: "Per-hat guidance, state, and tool recommendations.", example: "Use the hat_briefing prompt", relevance: 2 });
+    if (q.includes("brief") || q.includes("badge") || q.includes("state")) {
+      matched.push({ name: "badge_briefing", description: "Per-badge guidance, state, and tool recommendations.", example: "Use the badge_briefing prompt", relevance: 2 });
     }
 
     matched.sort((a, b) => b.relevance - a.relevance);
@@ -355,7 +368,7 @@ server.registerTool("help", {
       result += `**${cat}:** ${displayTools.join(", ")}\n`;
     }
   }
-  result += "\nUse the intro prompt to get started, or hat_briefing for current hat guidance.";
+  result += "\nUse the intro prompt to get started, or badge_briefing for current badge guidance.";
   // Add world-model hint if populated
   if (novel && novel.world.rooms.size > 0) {
     result += `\n\nWorld-model populated: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things. Try \`command("look")\`.`;
@@ -400,6 +413,7 @@ server.registerTool("create_character", {
     goals: z.string().optional(),
   },
 }, async ({ name, description, voice, background, goals }: any) => {
+  requireNotObserver();
   const personality = { description, voice, background, goals };
   const hasPersonality = description || voice || background || goals;
   const entity = state.createEntity(name, hasPersonality ? personality : undefined);
@@ -416,6 +430,7 @@ server.registerTool("import_character", {
   description: "Import a roster character into the active novel.",
   inputSchema: { roster_id: z.string() },
 }, async ({ roster_id }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   const rosterEntity = state.roster.get(roster_id);
   if (!rosterEntity) return err("NOT_FOUND", `Roster entity '${roster_id}' not found.`);
@@ -444,6 +459,7 @@ server.registerTool("set_active_entity", {
   description: "Set the currently active entity.",
   inputSchema: { entity_id: z.string(), pov: z.enum(["character", "omniscient"]).optional() },
 }, async ({ entity_id, pov }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
   novel.active_entity_id = entity_id;
@@ -463,6 +479,7 @@ server.registerTool("set_personality", {
     goals: z.string().optional(),
   },
 }, async ({ entity_id, description, voice, background, goals }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   let target = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
   if (!target) return err("NOT_FOUND", `Entity or NPC '${entity_id}' not found.`);
@@ -487,6 +504,7 @@ server.registerTool("set_voice_examples", {
     examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })),
   },
 }, async ({ entity_id, examples }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   let target = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
   if (!target) return err("NOT_FOUND", `Entity or NPC '${entity_id}' not found.`);
@@ -519,6 +537,7 @@ server.registerTool("command", {
   description: "Execute a natural-language parser command against the world model. Use for navigation (go, n/s/e/w), inspection (look, examine), object interaction (take, drop, open, close), inventory, and wait.",
   inputSchema: { command: z.string() },
 }, async ({ command }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   worldSnapshot();
   const entity = state.getActiveEntity();
@@ -535,7 +554,7 @@ server.registerTool("command", {
   }
 
   const inventory = entity?.inventory ?? [];
-  const ctx = { world: novel.world, currentRoom, inventory, hat: getHat() };
+  const ctx = { world: novel.world, currentRoom, inventory, badge: getBadge() };
   const result = dispatchCommand(command, ctx);
 
   // Apply side effects
@@ -1117,12 +1136,12 @@ server.registerTool("set_lore_entry", {
     key: z.string(),
     content: z.string(),
     triggers: z.array(z.string()).optional(),
-    hat_scope: z.enum(["game_master", "shared"]).optional(),
+    badge_scope: z.enum(["game_master", "shared"]).optional(),
     priority: z.number().optional(),
     sticky: z.number().optional(),
     group: z.string().optional(),
   },
-}, async ({ key, content, triggers, hat_scope, priority, sticky, group }: any) => {
+}, async ({ key, content, triggers, badge_scope, priority, sticky, group }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -1130,7 +1149,7 @@ server.registerTool("set_lore_entry", {
     key,
     content,
     triggers: triggers ?? [],
-    hat_scope: hat_scope ?? "game_master",
+    badge_scope: badge_scope ?? "game_master",
     priority: priority ?? 0,
     sticky: sticky ?? 0,
     sticky_remaining: sticky ?? 0,
@@ -1150,12 +1169,12 @@ server.registerTool("update_lore_entry", {
     key: z.string(),
     content: z.string().optional(),
     triggers: z.array(z.string()).optional(),
-    hat_scope: z.enum(["game_master", "shared"]).optional(),
+    badge_scope: z.enum(["game_master", "shared"]).optional(),
     priority: z.number().optional(),
     sticky: z.number().optional(),
     group: z.string().nullable().optional(),
   },
-}, async ({ key, content, triggers, hat_scope, priority, sticky, group }: any) => {
+}, async ({ key, content, triggers, badge_scope, priority, sticky, group }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -1163,7 +1182,7 @@ server.registerTool("update_lore_entry", {
   if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
   if (content !== undefined) entry.content = content;
   if (triggers !== undefined) entry.triggers = triggers;
-  if (hat_scope !== undefined) entry.hat_scope = hat_scope;
+  if (badge_scope !== undefined) entry.badge_scope = badge_scope;
   if (priority !== undefined) entry.priority = priority;
   if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
   if (group !== undefined) { if (group === null) delete entry.group; else entry.group = group; }
@@ -1246,7 +1265,7 @@ server.registerTool("export_lorebook", {
   }
   return raw(JSON.stringify(entries.map(e => ({
     key: e.key, content: e.content, triggers: e.triggers,
-    hat_scope: e.hat_scope, priority: e.priority, sticky: e.sticky,
+    badge_scope: e.badge_scope, priority: e.priority, sticky: e.sticky,
     enabled: e.enabled, group: e.group,
   })), null, 2));
 });
@@ -1272,7 +1291,7 @@ server.registerTool("import_lorebook", {
     for (const e of parsed) {
       novel.lore.set(e.key, {
         key: e.key, content: e.content, triggers: e.triggers ?? [],
-        hat_scope: e.hat_scope ?? "game_master", priority: e.priority ?? 0,
+        badge_scope: e.badge_scope ?? "game_master", priority: e.priority ?? 0,
         sticky: e.sticky ?? 0, sticky_remaining: e.sticky ?? 0,
         enabled: e.enabled ?? true, group: e.group,
       });
@@ -1376,12 +1395,12 @@ server.registerTool("remove_faction", {
 server.registerTool("set_secret", {
   title: "Set Secret",
   description: "Create a secret lore entry. GM-only; visible to entities after reveal_secret. Game Master only.",
-  inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), hat_scope: z.enum(["game_master", "shared"]).optional() },
-}, async ({ key, content, triggers, hat_scope }: any) => {
+  inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["game_master", "shared"]).optional() },
+}, async ({ key, content, triggers, badge_scope }: any) => {
   requireGM();
   const novel = requireNovel();
   if (novel.secrets.some(s => s.key === key)) return err("STATE_CONFLICT", `Secret '${key}' already exists.`);
-  novel.secrets.push({ key, content, triggers: triggers ?? [], hat_scope: hat_scope ?? "game_master", known_by: [] });
+  novel.secrets.push({ key, content, triggers: triggers ?? [], badge_scope: badge_scope ?? "game_master", known_by: [] });
   state.saveNovel(novel);
   return ok(`Secret '${key}' created.`);
 });
@@ -1573,17 +1592,18 @@ server.registerTool("list_stories", {
 
 server.registerTool("set_note", {
   title: "Set Note",
-  description: "Create or update a key-value note. Hat-scoped: game_master (default), player, or shared.",
-  inputSchema: { key: z.string(), content: z.string(), hat_scope: z.enum(["game_master", "player", "shared"]).optional() },
-}, async ({ key, content, hat_scope }: any) => {
+  description: "Create or update a key-value note. Badge-scoped: game_master (default), player, or shared.",
+  inputSchema: { key: z.string(), content: z.string(), badge_scope: z.enum(["game_master", "player", "shared"]).optional() },
+}, async ({ key, content, badge_scope }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   const existing = novel.notes.find(n => n.key === key);
-  const scope = hat_scope ?? (novel.hat === "game_master" ? "game_master" : "player");
+  const scope = badge_scope ?? (novel.badge === "game_master" ? "game_master" : "player");
   if (existing) {
     existing.content = content;
-    existing.hat_scope = scope;
+    existing.badge_scope = scope;
   } else {
-    novel.notes.push({ key, content, hat_scope: scope });
+    novel.notes.push({ key, content, badge_scope: scope });
   }
   state.saveNovel(novel);
   return ok(`Note '${key}' set.`);
@@ -1591,9 +1611,10 @@ server.registerTool("set_note", {
 
 server.registerTool("remove_note", {
   title: "Remove Note",
-  description: "Remove a note by key. Hat-scoped: caller's hat must own the scope.",
+  description: "Remove a note by key. Badge-scoped: caller's badge must own the scope.",
   inputSchema: { key: z.string() },
 }, async ({ key }: any) => {
+  requireNotObserver();
   const novel = requireNovel();
   const idx = novel.notes.findIndex(n => n.key === key);
   if (idx === -1) return err("NOT_FOUND", `Note '${key}' not found.`);
@@ -1604,13 +1625,13 @@ server.registerTool("remove_note", {
 
 server.registerTool("list_notes", {
   title: "List Notes",
-  description: "List all notes, hat-filtered.",
+  description: "List all notes, badge-filtered.",
   inputSchema: {},
 }, async () => {
   const novel = requireNovel();
-  const hat = novel.hat;
-  const filtered = hat === "game_master" ? novel.notes
-    : novel.notes.filter(n => n.hat_scope !== "game_master");
+  const badge = novel.badge;
+  const filtered = badge === "game_master" ? novel.notes
+    : novel.notes.filter(n => n.badge_scope !== "game_master");
   return raw(JSON.stringify(filtered, null, 2));
 });
 
@@ -1910,7 +1931,7 @@ server.registerTool("ask_oracle", {
 
 function novelToJSONState(novel: NovelState): any {
   return {
-    slug: novel.slug, name: novel.name, hat: novel.hat,
+    slug: novel.slug, name: novel.name, badge: novel.badge,
     entities: Object.fromEntries(novel.entities), active_entity_id: novel.active_entity_id,
     npcs: Object.fromEntries(novel.npcs),
     scene_description: novel.scene_description, scene_location: novel.scene_location,
@@ -1930,6 +1951,7 @@ function novelToJSONState(novel: NovelState): any {
 }
 
 function loadNovelFromStateData(data: any): NovelState {
+  data = migrateNovelData(data);
   const world = createEmptyWorldModel();
   if (data.world?.rooms) for (const [k, r] of Object.entries(data.world.rooms)) {
     world.rooms.set(k, { name: (r as any).name, description: (r as any).description ?? "", exits: new Map(Object.entries((r as any).exits || {})), doorRefs: new Map(Object.entries((r as any).doorRefs || {})), annotations: (r as any).annotations ?? {} });
@@ -1938,7 +1960,7 @@ function loadNovelFromStateData(data: any): NovelState {
     world.things.set(k, { name: (t as any).name, description: (t as any).description ?? "", kind: (t as any).kind ?? "thing", location: (t as any).location ?? null, locationType: (t as any).locationType ?? null, portable: (t as any).portable ?? true, openable: (t as any).openable ?? false, open: (t as any).open ?? false, lockable: (t as any).lockable ?? false, locked: (t as any).locked ?? false, lit: (t as any).lit ?? false, switchable: (t as any).switchable ?? false, switched_on: (t as any).switched_on ?? false, enterable: (t as any).enterable ?? false, vehiclePassengers: (t as any).vehiclePassengers ?? [], wearable: (t as any).wearable ?? false, worn_by: (t as any).worn_by ?? null, readable: (t as any).readable ?? false, read_text: (t as any).read_text ?? null, edible: (t as any).edible ?? false, drinkable: (t as any).drinkable ?? false, climbable: (t as any).climbable ?? false, transparent: (t as any).transparent ?? false, annotations: (t as any).annotations ?? {} });
   }
   return {
-    slug: data.slug, name: data.name, hat: data.hat ?? null,
+    slug: data.slug, name: data.name, badge: data.badge,
     entities: new Map(Object.entries(data.entities ?? {})),
     active_entity_id: data.active_entity_id ?? null,
     npcs: new Map(Object.entries(data.npcs ?? {})),
@@ -1953,8 +1975,8 @@ function loadNovelFromStateData(data: any): NovelState {
     player_signals: data.player_signals ?? {}, adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
     audit_log: data.audit_log ?? [],
-    undo_stacks: { player: [], game_master: [], null: [] },
-    redo_stacks: { player: [], game_master: [], null: [] },
+    undo_stacks: { player: [], game_master: [], observer: [], none: [] },
+    redo_stacks: { player: [], game_master: [], observer: [], none: [] },
     briefing_order: data.briefing_order ?? [],
     action_patterns_enabled: data.action_patterns_enabled ?? false,
     session_zero_completed: false, characters_present: false, adventure_set: false,
@@ -1982,7 +2004,7 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 server.registerTool("set_briefing_order", {
   title: "Set Briefing Order",
-  description: "Reorder sections of hat_briefing. Game Master only.",
+  description: "Reorder sections of badge_briefing. Game Master only.",
   inputSchema: { sections: z.array(z.string()) },
 }, async ({ sections }: any) => {
   requireGM();
@@ -1994,16 +2016,16 @@ server.registerTool("set_briefing_order", {
 
 server.registerTool("compress_audit", {
   title: "Compress Audit",
-  description: "Summarize recent audit entries. Callable by both hats.",
+  description: "Summarize recent audit entries. Callable by both badges.",
   inputSchema: { max_entries: z.number().optional() },
 }, async ({ max_entries }: any) => {
   const novel = requireNovel();
   const max = max_entries ?? 20;
   const recent = novel.audit_log.slice(-max);
-  const isGM = novel.hat === "game_master";
-  const filtered = isGM ? recent : recent.filter(e => e.hat !== "game_master");
+  const isGM = novel.badge === "game_master";
+  const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
   if (filtered.length === 0) return ok("No audit entries.");
-  const lines = filtered.map(e => `${e.timestamp.split("T")[1]?.substring(0, 8) || "?"} [${e.hat ?? "·"}] ${e.tool} → ${e.output_prefix || ""}`);
+  const lines = filtered.map(e => `${e.timestamp.split("T")[1]?.substring(0, 8) || "?"} [${e.badge ?? "·"}] ${e.tool} → ${e.output_prefix || ""}`);
   return raw(`## Audit (last ${filtered.length} entries)\n${lines.join("\n")}`);
 });
 
@@ -2101,6 +2123,7 @@ server.registerTool("create_novel", {
   description: "Create a named novel. Novel persists to disk.",
   inputSchema: { name: z.string() },
 }, async ({ name }: any) => {
+  requireNotObserver();
   const novel = state.createNovel(name);
   return ok(`Novel created: ${novel.slug} (novel://current)`);
 });
@@ -2125,9 +2148,10 @@ server.registerTool("switch_novel", {
 
 server.registerTool("end_novel", {
   title: "End Novel",
-  description: "End the current novel. Deactivates hat, removes save file.",
+  description: "End the current novel. Deactivates badge, removes save file.",
   inputSchema: {},
 }, async () => {
+  requireNotObserver();
   const novel = requireNovel();
   return needInput(`Decision: -end_novel-confirm
 Question: End Novel "${novel.name}"?
@@ -2165,7 +2189,7 @@ server.registerTool("export_novel", {
     slug: novel.slug, name: novel.name,
     scene: { description: novel.scene_description, location: novel.scene_location },
     world: { rooms: [...novel.world.rooms.values()].length, things: [...novel.world.things.values()].length },
-    lore: [...novel.lore.entries()].map(([k, v]) => ({ key: k, content: v.content, triggers: v.triggers, hat_scope: v.hat_scope })),
+    lore: [...novel.lore.entries()].map(([k, v]) => ({ key: k, content: v.content, triggers: v.triggers, badge_scope: v.badge_scope })),
   };
   return raw(JSON.stringify(data, null, 2));
 });
@@ -2281,13 +2305,14 @@ server.registerTool("spec_health", {
     novels_available: [...state.novels.keys()].length,
     server_notes: state.serverNotes.size,
     active_novel: novel?.slug ?? null,
+    active_badge: novel?.badge ?? null,
     entities, npcs, lore_entries: loreCount, countdowns,
     enrichment_active: state.enriched,
     enrichment_health: state.getEnrichmentHealth(),
     audit_chain: novel ? state.verifyAuditChain(novel) : null,
     safety_protocols: {
       state_loss: "novel-backup-rotation",
-      hat_boundary: "tool-level-gating",
+      badge_boundary: "tool-level-gating",
       data_corruption: "sha256-checksum",
       unrecoverable_crash: "atomic-save-plus-bak",
     },
@@ -2309,7 +2334,7 @@ server.registerTool("spec_health", {
 server.registerResource("novel-current", "novel://current", { title: "Active Novel" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "novel://current", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: "novel://current", text: JSON.stringify({ slug: novel.slug, name: novel.name, hat: novel.hat, entities: novel.entities.size }), mimeType: "application/json" }] };
+  return { contents: [{ uri: "novel://current", text: JSON.stringify({ slug: novel.slug, name: novel.name, badge: novel.badge, entities: novel.entities.size }), mimeType: "application/json" }] };
 });
 
 server.registerResource("novel-setup", "novel://setup", { title: "Novel Setup" }, async () => {
@@ -2433,8 +2458,8 @@ server.registerResource("guidance-gm-anti-slop", "guidance://game_master/anti-sl
   contents: [{ uri: "guidance://game_master/anti-slop", text: "Describe situations richly. Surface information. Do not take actions or make decisions for the player.", mimeType: "text/markdown" }],
 }));
 
-server.registerResource("guidance-hat-switch", "guidance://shared/hat-switch", { title: "Hat Switch Guidance" }, async () => ({
-  contents: [{ uri: "guidance://shared/hat-switch", text: "Use set_hat to switch between player and game_master hats. Player: describe actions. GM: describe situations.", mimeType: "text/markdown" }],
+server.registerResource("guidance-badge-switch", "guidance://shared/badge-switch", { title: "Badge Switch Guidance" }, async () => ({
+  contents: [{ uri: "guidance://shared/badge-switch", text: "Use set_badge to switch between player and game_master badges. Player: describe actions. GM: describe situations.", mimeType: "text/markdown" }],
 }));
 
 // World-model resources (REQ-202)
@@ -2448,7 +2473,7 @@ server.registerResource("room-single", new ResourceTemplate("room://{id}", { lis
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const room = novel.world.rooms.get(id.toLowerCase());
   if (!room) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  const isGM = novel.hat === "game_master";
+  const isGM = novel.badge === "game_master";
   let info = `## ${room.name}\n${room.description || "No description."}`;
   if (isGM) {
     info += `\n\n**Exits:** ${[...room.exits.entries()].map(([d, t]) => `${d} → ${t}`).join(", ") || "none"}`;
@@ -2469,7 +2494,7 @@ server.registerResource("thing-single", new ResourceTemplate("thing://{id}", { l
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const thing = novel.world.things.get(id.toLowerCase());
   if (!thing) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  const isGM = novel.hat === "game_master";
+  const isGM = novel.badge === "game_master";
   let info = `## ${thing.name}\n**Kind:** ${thing.kind}\n${thing.description || "No description."}`;
   if (isGM) {
     info += `\n\n**Location:** ${thing.location || "(held/inventory)"}`;
@@ -2510,44 +2535,44 @@ ${hasWorld
   ? `**World model populated:** ${worldRooms} rooms, ${novel!.world.things.size} things.
 
 ### Getting Started
-1. \`set_hat("player")\` — switch to player hat
+1. \`set_badge("player")\` — switch to player badge
 2. \`command("look")\` — describe the current room
 3. \`command("go north")\` — move through exits
 4. \`command("examine <thing>")\` — inspect objects`
   : `**No world model populated.**
 
 ### Getting Started
-1. \`set_hat("game_master")\` — switch to GM hat
+1. \`set_badge("game_master")\` — switch to GM badge
 2. \`create_novel({ name: "My World" })\` — create a new novel
 3. \`load_adventure({ slug: "<adventure>" })\` — load an adventure module
 4. \`convert_source({ source: "<world assertions>" })\` — parse room/thing declarations`}
 
-Use \`help\` to see all tools, or \`hat_briefing\` for current hat guidance.`,
+Use \`help\` to see all tools, or \`badge_briefing\` for current badge guidance.`,
       },
     }],
   };
 });
 
-server.prompt("hat_briefing", "Current Hat Briefing", async () => {
+server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   const novel = state.activeNovel;
   if (!novel) {
     return { messages: [{ role: "user", content: { type: "text" as const, text: "No active Novel. Create or resume one first." } }] };
   }
 
-  const hat = novel.hat ?? "unset";
+  const badge = novel.badge;
   const entity = state.getActiveEntity();
 
-  let briefing = `## Hat Briefing — ${hat.toUpperCase()}
+  let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
 ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}`;
 
-  if (entity && hat !== "game_master") {
+  if (entity && badge !== "game_master") {
     briefing += `\n**Active entity:** ${entity.name}`;
     if (entity.current_room) briefing += ` — ${entity.current_room}`;
     if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
   }
 
-  if (hat === "player") {
+  if (badge === "player") {
     briefing += `\n\n### Player Tools
 Use \`command("<action>")\` to interact with the world:
 - command("look") — describe the current room
@@ -2556,10 +2581,15 @@ Use \`command("<action>")\` to interact with the world:
 - command("examine thing") — look at something closely
 - command("inventory") — check what you're carrying
 - command("open door") — open an openable object`;
-  } else if (hat === "game_master") {
+  } else if (badge === "game_master" || badge === "observer") {
     briefing += `\n\n### GM State
 **World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
 **NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}`;
+
+    if (badge === "observer") {
+      briefing += `\n\n### Observer Mode
+You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel.`;
+    }
 
     // Triggered lore
     const sceneText = novel.scene_description.toLowerCase();
@@ -2596,7 +2626,7 @@ Before starting play:
 2. Create characters: \`create_character({ name: "Hero", description: "..." })\`
 3. Populate the world model with \`convert_source\` or \`load_adventure\`
 4. The GM sets the opening scene with \`set_scene_state\`
-5. Players use \`set_hat("player")\` and start with parser commands
+5. Players use \`set_badge("player")\` and start with parser commands
 
 ## Player Signals
 - \`player_signal({ signal: "pace", value: "faster/slower" })\`

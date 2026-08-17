@@ -8,7 +8,7 @@ export interface EnrichmentItem {
   source_url: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   tag?: string;
-  hat_scope: "player" | "game_master" | "shared";
+  badge_scope: "player" | "game_master" | "shared";
   category?: string;
 }
 
@@ -27,7 +27,7 @@ export interface NarrativeVoice {
   description: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   tag?: string;
-  hat_scope: "player" | "game_master" | "shared";
+  badge_scope: "player" | "game_master" | "shared";
 }
 
 export interface EnrichmentManifest {
@@ -55,7 +55,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/dmcp/README.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
     },
   ],
   briefing_order: {
@@ -70,7 +70,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/if-craft-corpus/README.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "worldbuilding",
     },
     {
@@ -78,7 +78,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/dmcp/README.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "faction_network",
     },
     {
@@ -86,7 +86,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "kind_hierarchy",
     },
     {
@@ -94,7 +94,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "device_world_design",
     },
     {
@@ -102,7 +102,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "vehicle_world_design",
     },
     {
@@ -110,7 +110,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "environmental_text",
     },
   ],
@@ -170,7 +170,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/lonelog/lonelog.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "session_notation",
     },
     {
@@ -178,7 +178,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/dmcp/README.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "session_management",
     },
     {
@@ -186,7 +186,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/narrative/bitd/progress-clocks.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "clock_design",
     },
     {
@@ -194,7 +194,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "parser_tiers",
     },
     {
@@ -202,7 +202,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "device_patterns",
     },
     {
@@ -210,7 +210,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "vehicle_patterns",
     },
     {
@@ -218,7 +218,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       source_url: "narrative_world_model/world/world-model-provider.md",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
       category: "extended_properties",
     },
   ],
@@ -229,28 +229,28 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
         source_url: "narrative_world_model/narrative/if-craft-corpus/README.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Design obstacles, not solutions. A progress clock tracks the obstacle ('Interior Patrols', 'The Tower') — never the method ('Sneak Past the Guards'). This preserves player agency over how they overcome each challenge.",
         source_url: "narrative_world_model/narrative/bitd/progress-clocks.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Interactive object design principles — every object in a room should do or tell something. A lever that does nothing, a book that says nothing, a locked door with no key — these are dead ends that teach the player not to investigate. The world-model property system makes object behavior explicit: a readable object carries a discoverable text, a switchable object changes state, an edible object is consumable. Design rooms where at least one object responds to each parser tier (core, standard, narrative) — this rewards thorough investigation.",
         source_url: "narrative_world_model/world/world-model-provider.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Compound puzzle design — combine object kinds to create multi-step interactions. A device in a locked container behind a climbable barrier that the player must read about in a readable inscription. The player learns the solution by reading, reaches the device by climbing, opens the container by unlocking, then switches the device. Each step uses a different parser tier. Design compound puzzles so the order matters — the inscription mentions the device's location, the climbable object is only accessible after unlocking, the container's key is in another room.",
         source_url: "narrative_world_model/world/world-model-provider.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
     ],
     scenario_starters: [
@@ -259,28 +259,28 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
         source_url: "narrative_world_model/narrative/bitd/progress-clocks.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Two racing clocks — the party's objective versus an environmental or antagonist clock. Both advance with consequences. If the party's clock fills first, they succeed at a cost. If the antagonist clock fills first, the situation escalates but the party has a new angle.",
         source_url: "narrative_world_model/narrative/bitd/progress-clocks.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Device-based mystery — a room with three devices and no explanation of what they control. Each device changes something in a different room. The player must explore, toggle, and observe to deduce the mapping. The solution is not a correct combination — it's understanding what each device does. The puzzle teaches the player how to read the world before the real challenge begins.",
         source_url: "narrative_world_model/world/world-model-provider.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
       {
         content: "Vehicle journey — a multi-room vehicle with an onboard crisis. The engine room floods, the passenger cabin loses pressure, the bridge loses navigation. Players move between interiors, each with its own challenge. Exits from the vehicle change as the crisis evolves — a damaged hatch becomes an escape route, a sealed bulkhead creates a new boundary. The vehicle is both location and antagonist.",
         source_url: "narrative_world_model/world/world-model-provider.md",
         confidence: "HIGH",
         tag: "vendor",
-        hat_scope: "game_master",
+        badge_scope: "game_master",
       },
     ],
     table_expansions: [],
@@ -294,7 +294,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       description: "Build tension through what is withheld rather than revealed. Use environmental detail as emotional register — oppressive silence, wrong shadows, sounds that shouldn't be there. The horror is in the anticipation, not the reveal. Players fill gaps with their own fears.",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
     },
     {
       name: "Fiction-First — Blades in the Dark",
@@ -304,7 +304,7 @@ export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
       description: "Clocks reflect the fictional situation — they show speed, they don't determine it. Start from what makes sense in the story, then choose the mechanic. Obstacles are named for what they are in the world, not how the players intend to overcome them. The fiction drives the mechanics, not the reverse.",
       confidence: "HIGH",
       tag: "vendor",
-      hat_scope: "game_master",
+      badge_scope: "game_master",
     },
   ],
 };

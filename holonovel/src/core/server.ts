@@ -1,9 +1,9 @@
 // Core server helpers — shared MCP boilerplate for all Holonovel servers
-// Provides hat gating helpers, error prefixing, and novel/snapshot utilities.
+// Provides badge gating helpers, error prefixing, and novel/snapshot utilities.
 
-import { StateManager, Hat, NovelState } from "./state.js";
+import { StateManager, Badge, NovelState } from "./state.js";
 
-export type ToolCtx = { hat: Hat };
+export type ToolCtx = { badge: Badge };
 export type ToolHandler = (
   args: any,
   ctx: ToolCtx,
@@ -15,16 +15,20 @@ export function initServer(state: StateManager): void {
   _state = state;
 }
 
-export function getHat(): Hat {
-  return _state.activeNovel?.hat ?? null;
+export function getBadge(): Badge {
+  return _state.activeNovel?.badge ?? "none";
 }
 
 export function requireGM(): void {
-  _state.requireGM(getHat());
+  _state.requireGM(getBadge());
 }
 
 export function requirePlayer(): void {
-  _state.requirePlayer(getHat());
+  _state.requirePlayer(getBadge());
+}
+
+export function requireNotObserver(): void {
+  _state.requireNotObserver(getBadge());
 }
 
 export function requireNovel(): NovelState {
@@ -33,7 +37,7 @@ export function requireNovel(): NovelState {
 
 export function novelSnapshot(): void {
   const novel = _state.activeNovel;
-  if (novel) _state.snapshot(novel, getHat());
+  if (novel) _state.snapshot(novel, getBadge());
 }
 
 export function withForbiddenAudit(
@@ -45,7 +49,7 @@ export function withForbiddenAudit(
       return await handler(args, ctx);
     } catch (e: any) {
       if (e.message?.startsWith("[FORBIDDEN]")) {
-        _state.auditForbidden(ctx.hat, toolName, args);
+        _state.auditForbidden(ctx.badge, toolName, args);
       }
       throw e;
     }

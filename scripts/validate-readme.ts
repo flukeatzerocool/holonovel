@@ -13,7 +13,7 @@ const toolNames = [
   "roll_skill_check", "roll_stat_check", "roll_weapon_attack", "roll_weapon_damage",
   "roll_wound", "search_rules", "session_recap", "set_active_entity",
   "set_briefing_order", "set_countdown", "set_lore_entry", "set_lore_group",
-  "set_narrative_directive", "set_hat", "set_personality",
+  "set_narrative_directive", "set_badge", "set_personality",
   "set_scene_state", "set_scene_type", "set_voice_examples",
   "spec_health", "suggest_actions", "suggest_lore", "toggle_lore_entry",
   "undo", "update_npc", "end_game",

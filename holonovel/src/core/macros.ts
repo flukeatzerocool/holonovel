@@ -10,7 +10,7 @@ export interface MacroContext {
   sceneType?: string;
   countdowns?: Record<string, { remaining: number; total: number; scope?: string; direction?: string }>;
   novelSlug?: string;
-  hatActive?: string;
+  badgeActive?: string;
   partySize?: number;
   currentRoom?: string;
   worldRoomCount?: number;
@@ -44,7 +44,7 @@ export function expandMacros(text: string, ctx: MacroContext): string {
     }
 
     if (parts[0] === "novel" && parts[1] === "slug" && ctx.novelSlug) return ctx.novelSlug;
-    if (parts[0] === "hat" && parts[1] === "active" && ctx.hatActive) return ctx.hatActive;
+    if (parts[0] === "badge" && parts[1] === "active" && ctx.badgeActive) return ctx.badgeActive;
     if (parts[0] === "party" && parts[1] === "size" && ctx.partySize !== undefined) return String(ctx.partySize);
     if (parts[0] === "world" && parts[1] === "room" && ctx.currentRoom) return ctx.currentRoom;
     if (parts[0] === "world" && parts[1] === "room_count" && ctx.worldRoomCount !== undefined) return String(ctx.worldRoomCount);
