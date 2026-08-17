@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-08-17 — Complete badge_scope migration in spec
+
+- Corrected three stale `hat_scope` references — REQ-350 (body and
+  acceptance criterion), T-new-356, and T-new-394 — to the canonical
+  `badge_scope`, finishing the hat→badge terminology migration in the
+  specification.
+
 ## 2026-08-17 — Remove dnd5e-holonovel server
 
 - Deleted the `dnd5e-holonovel/` MCP server directory. The repo now ships
