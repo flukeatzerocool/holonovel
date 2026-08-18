@@ -143,23 +143,27 @@ git commit -m "Push pipeline $COMMIT_DATE
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
 
-# ── 6a. Tag ──
+# ── 6a. Tag (only when the version is new) ──
 
 echo -e "${GREEN}=== 6a. Tag ===${NC}"
 VERSION=$(node -e "console.log(require('./package.json').version)")
 TAG="v$VERSION"
-if git tag -l "$TAG" | grep -q "^$TAG$"; then
-  echo -e "${YELLOW}  Tag $TAG exists — force-moving to HEAD${NC}"
-  git tag -f "$TAG"
+TAG_TO_PUSH=""
+if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
+  echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
 else
-  echo -e "${GREEN}  Tagging $TAG${NC}"
-  git tag "$TAG"
+  git tag -f "$TAG"
+  echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
+  TAG_TO_PUSH="$TAG"
 fi
 
 # ── 7. Push main ──
 
 echo -e "${GREEN}=== 7. Push main ===${NC}"
-git push origin main --tags || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+if [[ -n "$TAG_TO_PUSH" ]]; then
+  git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
+fi
 
 # ── 8. Push wiki ──
 
