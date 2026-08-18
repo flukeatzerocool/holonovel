@@ -1748,7 +1748,7 @@ _Check:_ T84.
 | ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
 | Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full 29-sub-workflow Pattern Buffer |
+| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. The operator may override the classification at
@@ -1768,6 +1768,9 @@ verification steps to skip: unchanged components reuse their prior verification
 output; only components with changed fingerprints run fresh verification. The
 fingerprint delta summary — which components changed, which remain unchanged, and
 the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
+An update is complete only when the implementation fingerprints advance to reflect
+the new revision; a Minor or Major revision SHALL NOT be recorded as applied ahead
+of its implementation (REQ-394).
 
 #### Gap audit method
 

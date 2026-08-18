@@ -11,6 +11,18 @@ echo "Running pre-push checks..."
 echo "  version sync..."
 npx tsx scripts/version-check.ts
 
+echo "  pending-update gate..."
+spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+delta_class=$(npx tsx scripts/spec-delta.ts --server holonovel --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash" --delta-class "$delta_class" --check >/dev/null 2>&1; then
+    echo ""
+    echo "BLOCKED: A spec update is pending — the implementation has not been updated to match the spec."
+    echo "To fix: run the push pipeline (or the opencode Update workflow first)."
+    echo "  ./scripts/push-pipeline.sh"
+    echo ""
+    exit 1
+fi
+
 echo "  spec/server sync..."
 spec_result=$(npx tsx scripts/spec-delta.ts 2>&1)
 spec_exit=$?
