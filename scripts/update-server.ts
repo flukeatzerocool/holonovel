@@ -16,17 +16,10 @@
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
 
 const root = join(import.meta.dirname, "..");
 const FINGERPRINT_FILE = ".holonovel-state/pipeline-fingerprints.json";
-
-interface Fingerprints {
-  source: string;
-  config: string;
-  lockfile: string;
-  extraction: string;
-  surfaces: string;
-}
 
 interface StoredRecord {
   server: string;
@@ -66,19 +59,7 @@ function saveStored(records: Record<string, StoredRecord>): void {
 }
 
 function loadCurrent(serverDir: string): Fingerprints {
-  const data = readFileSync(join(serverDir, "DECISIONS.md"), "utf-8");
-  const sourceMatch = data.match(/source=([a-f0-9]+)/);
-  const configMatch = data.match(/config=([a-f0-9]+)/);
-  const lockfileMatch = data.match(/lockfile=([a-f0-9]+)/);
-  const extractionMatch = data.match(/extraction=([a-f0-9]+|sentinel)/);
-  const surfacesMatch = data.match(/surfaces=([a-f0-9]+)/);
-  return {
-    source: sourceMatch?.[1] ?? "unknown",
-    config: configMatch?.[1] ?? "unknown",
-    lockfile: lockfileMatch?.[1] ?? "unknown",
-    extraction: extractionMatch?.[1] ?? "sentinel",
-    surfaces: surfacesMatch?.[1] ?? "unknown",
-  };
+  return computeFingerprints(serverDir);
 }
 
 function compareFingerprints(current: Fingerprints, stored: Fingerprints | undefined): {
@@ -119,13 +100,13 @@ if (storedHash && currentHash === storedHash) {
   process.exit(0);
 }
 
-// Load current fingerprints from DECISIONS.md
+// Compute current fingerprints from the live source tree (REQ-313)
 let currentFingerprints: Fingerprints;
 try {
   currentFingerprints = loadCurrent(serverDir);
   console.log(`\nCurrent fingerprints: source=${currentFingerprints.source.substring(0, 16)}... config=${currentFingerprints.config.substring(0, 16)}... lockfile=${currentFingerprints.lockfile.substring(0, 16)}... extraction=${currentFingerprints.extraction.substring(0, 16)}... surfaces=${currentFingerprints.surfaces.substring(0, 16)}...`);
 } catch {
-  console.error("ERROR: Could not read current fingerprints from DECISIONS.md");
+  console.error("ERROR: Could not compute current fingerprints from the source tree");
   process.exit(1);
 }
 
