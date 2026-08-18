@@ -2235,7 +2235,7 @@ server.registerTool("search_rules", {
   description: "Search the ruleset for matching terms. In ruleset-free mode, returns empty.",
   inputSchema: { query: z.string() },
 }, async ({ query }: any) => {
-  return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${query}".`);
+  return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
 });
 
 server.registerTool("suggest_actions", {
@@ -2289,6 +2289,7 @@ server.registerTool("spec_health", {
     spec_hash: state.buildFingerprint.specHash,
     source_hash: state.buildFingerprint.sourceHash,
     ruleset_hash: "ruleset-free",
+    ruleset_guidance: "No rulesets installed — run `build-ruleset <slug>=<path>` to add one (spec Appendix V).",
     build_timestamp: state.buildFingerprint.buildTimestamp,
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),

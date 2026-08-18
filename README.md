@@ -239,6 +239,14 @@ hydrate only when you open a campaign bound to that ruleset, so stacking many
 packages costs you nothing up front. Install, remove, and list packages from the
 server tools, or just move files and restart.
 
+To start a build, run the entry point — it records the intake and prints the
+workflow to follow (see the spec's Workflow Runbooks appendix for the full
+happy path):
+
+```
+npm run build-ruleset dnd5e=ruleset/dnd5e/
+```
+
 Your campaign data and installed packages live under `.holonovel-state/`, outside
 the server tree — updating holonovel never touches them.
 

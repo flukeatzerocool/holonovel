@@ -83,6 +83,10 @@ freshness window.
 The verification workflows are executable — follow them in order. Use the assembled
 `holonovel.md` or load spec files per `build-phase-map.md`.
 
+**If you are adding a ruleset:**
+Read Appendix V (Workflow Runbooks) first — it names the entry point and happy path
+for Convert, Build, Synthesize, and Update before their §6 details.
+
 **Reference material** (Appendices) is supplementary. Glance at Appendix E to learn the
 REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the
 rest on demand during build phases or verification.
@@ -3838,6 +3842,14 @@ A host update (§6.7) SHALL revalidate installed packages against the new host v
 
 **REQ-394 — Spec publication integrity.**
 A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until the implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged implementation fingerprints — and block publication with a pending-update notice; patch deltas are exempt. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
+
+### 5.18 Workflow Entry Points
+
+**REQ-395a — Ruleset-build entry point (Part a).**
+The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. *Acceptance criterion:* `build-ruleset swse=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage. _Check:_ T463.
+
+**REQ-395b — Workflow runbooks (Part b).**
+Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
 
 #### End of requirements
 
@@ -8395,6 +8407,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-392 | Tool-description budget | 2026-08-17 |
 | REQ-393 | Update preservation | 2026-08-17 |
 | REQ-394 | Spec publication integrity | 2026-08-17 |
+| REQ-395a | Ruleset-build entry point (Part a) | 2026-08-18 |
+| REQ-395b | Workflow runbooks (Part b) | 2026-08-18 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8477,6 +8491,8 @@ diet.
 | T51   | Manual   | Badge behavioral boundaries: invoke a Player-badge session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-badge session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both badges and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T461 | Automated | Badge boundary directive: invoke `badge_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_badge(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
 | T462 | Automated | Pending-update gate: advance a Minor or Major spec delta without advancing the implementation fingerprints — assert publication tooling blocks with a pending-update notice naming the server. Run the §6.7 update — assert fingerprints advance and publication succeeds. Assert a patch-class delta publishes without the notice. Assert an operator override recorded in DECISIONS.md lifts the block. | REQ-394 |
+| T463 | Automated | Build entry point: invoke `build-ruleset` with no arguments — assert it prints usage and the install directory and exits 0. Invoke with a `slug=path` pair pointing at a dir without Markdown — assert a named failure and nonzero exit. | REQ-395a |
+| T464 | Automated | Runbooks: assert Appendix V contains a runbook for each of Convert, Build, Synthesize, and Update, each naming an entry point, happy-path steps, and recovery steps; assert the reading guide (§0) references Appendix V. | REQ-395b |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
@@ -10117,6 +10133,132 @@ into the README.md license footer during handoff (§6.2 H11).
 Adding a content source requires: (a) a row in this table, (b) a LICENSE file
 in the content's subdirectory, and (c) a `source_url` field in the enrichment
 manifest (§6.3). Removing a source removes the row.
+
+---
+
+## Appendix V: Workflow Runbooks
+
+This appendix is the operator-facing companion to §6.1. Each of the four
+workflows has a runbook: the entry point that starts it, the happy path to
+completion, and the recovery path when a step fails. Read the runbook you need
+before the workflow's full §6 sections — they are the "how do I actually run
+this" index into the normative text.
+
+The entry points are also emitted by their commands: `build-ruleset` and
+`update-server` print a pointer to this appendix when invoked without valid
+arguments.
+
+### V.1 Add a ruleset (Build)
+
+**Entry point.** `npm run build-ruleset <slug>=<path>` (the B1 intake form), or
+invoke the Build workflow directly on the builder with a `slug=path` pair.
+
+**Happy path.**
+
+1. Run `build-ruleset swse=/abs/path/to/books` to confirm intake and record the
+   build in `DECISIONS.md`.
+2. Discovery (§6.3): identify the ruleset name, subsystems, and cover books in
+   the source; reject source that is incomplete or unrecoverable.
+3. Construction (§6.4): write the ruleset profile, maps, and tables.
+4. Package step (§6.4.2): emit the declarative package (REQ-389) to the install
+   directory.
+5. Verify (§6.5): run the convergence loop until no blocking findings remain.
+6. Bind a Novel to the slug (`bind_novel_ruleset`) and confirm the slug's tools
+   serve without re-parsing source Markdown.
+
+**Recovery.**
+
+- Intake rejects the path: point at a directory that exists and contains
+  Markdown; the entry point names the failure.
+- Discovery flags unrecoverable source: fix or supply the source, then re-run
+  Discovery — do not waive a subsystem (convergence finds gaps, it does not
+  waive them).
+- Package step fails the manifest hash check: re-emit the package and confirm
+  the manifest matches the indexed content before install.
+
+### V.2 Convert
+
+**Entry point.** The Convert workflow (§6.1), selected by the operator; the
+builder asks only Convert's questions and validates structure (Appendix G, H).
+
+**Happy path.**
+
+1. Name the PDF/HTML/web source and the target ruleset.
+2. Convert each source to Markdown, preserving structure and headings.
+3. Validate structure against Appendix G (source conversion) and Appendix H
+   (preparation checklist).
+4. Confirm the converted Markdown is Build-ready before handing off to the
+   Build workflow.
+
+**Recovery.**
+
+If a converter drops headings or tables, re-run with a validated converter
+(Appendix G.6 cross-verifies converters) rather than hand-editing the output.
+
+### V.3 Synthesize
+
+**Entry point.** The Synthesize workflow (§6.1), optional; feeds §11.1.
+
+**Happy path.**
+
+After a server builds cleanly, run Synthesize to add community play advice and
+structured synthesis (§11.1); keep it separate from the normative server so it
+can be re-run without touching verification.
+
+**Recovery.**
+
+Synthesis produces a contradiction with core rules: discard the synthesis, not
+the core — §11.1 material never overrides Discovered ruleset substance.
+
+### V.4 Update
+
+**Entry point.** `npm run update-server` (scripts/update-server.ts), or the
+Update workflow (§6.7) driven manually.
+
+**Happy path.**
+
+1. Read §6.7, then the CHANGELOG for the spec version delta.
+2. Run the gap audit against the §5 subsections the delta cites.
+3. Implement the changes, then re-verify all blocking Pattern Buffer
+   sub-workflows (§6.6).
+4. Recompute the implementation fingerprints (REQ-313) — publication is
+   blocked by REQ-394 until they advance.
+
+**Recovery.**
+
+The pending-update gate blocks publication with unchanged fingerprints: advance
+the fingerprints by completing the implementation, or record an operator
+override in `DECISIONS.md` when the update is deliberately scheduled.
+
+### V.5 Remove a ruleset
+
+**Entry point.** `remove_ruleset <slug>`.
+
+**Happy path.**
+
+1. Confirm no active Novel is bound to the slug (REQ-389c refuses otherwise).
+2. Remove the package; the host deregisters its tools and reports the change
+   in `spec_health`.
+
+**Recovery.**
+
+`remove_ruleset` returns `[ERROR] [STATE_CONFLICT]` because a Novel is bound:
+unbind or archive the Novel first, then retry.
+
+### V.6 Migrate a Novel to a ruleset
+
+**Entry point.** `bind_novel_ruleset <slug>` on an existing Novel.
+
+**Happy path.**
+
+1. Build and install the target ruleset (§6) if it is not already installed.
+2. Bind the Novel; it gains the slug's tools and the transition is audited.
+
+**Recovery.**
+
+The Novel is already bound to a different slug (`[ERROR] [STATE_CONFLICT]`):
+the binding is one-way per REQ-380c — decide which slug the Novel should keep
+before re-binding.
 
 ---
 

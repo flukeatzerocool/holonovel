@@ -19,9 +19,11 @@ spec/                    Source files — edit here, not holonovel.md directly
   ├── 05-verification.md §8 verification workflows
   ├── 06-artifacts.md    §9 artifacts and handoff
   ├── 07-independent.md  §10 independent verification
-  ├── 08-enrichment.md   §11 optional workflows
+  ├── 08-synthesis.md    §11 optional workflows (Synthesis)
   ├── appendices-reference.md  # Appendices heading + A, D–S (reference material)
   ├── appendices-fixtures.md   B, C, N (golden, injection, complex fixtures)
+  ├── appendices-licenses.md   U (content licenses)
+  ├── appendices-runbooks.md   V (workflow runbooks)
   └── build-phase-map.md Build-phase-to-file dependency table (per-phase loading)
 ```
 
