@@ -2,6 +2,30 @@
 
 **Spec hash:** 378db3dcb9a8284b8463a1ab312e60213e898938b4a59c3d78c5ad508b1f5b27
 
+### Holonovel Spec Update — 2026-08-18
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec (REQ-395a, REQ-395b), source (host discoverability), surfaces (search_rules, spec_health guidance) |
+| Reused | config, lockfile, extraction |
+| Verification | assemble 0 errors, check 0 errors, typecheck 0 errors |
+
+New REQ-395a/395b (§5.18 Workflow Entry Points) and Appendix V (Workflow Runbooks):
+the distribution exposes a single `build-ruleset <slug>=<path>` entry point and a
+runbook per §6.1 workflow (Add a ruleset, Convert, Synthesize, Update, Remove a
+ruleset, Migrate a Novel). `scripts/build-ruleset.ts` validates slug (§7.1a) and
+Markdown source path, records B1 intake to `.holonovel-state/build-intake.md`
+(server-side log, not the repo), and prints the Build workflow invocation for an
+opencode agent — mirroring `update-server.ts`, it does not recursively invoke
+opencode. The ruleset-free host now points builders at the entry point: `search_rules`
+and `spec_health` report "run `build-ruleset <slug>=<path>`" with a reference to
+Appendix V, instead of a bare world-model-only notice.
+
+Version bumped to 2026.08.18 (root + holonovel package.json, AGENTS header, DECISIONS
+spec version, index.ts McpServer version). The build-order fingerprint does not change
+the server source behavior beyond the discoverability message above.
+
 ### Holonovel Spec Update — 2026-08-17
 
 | Field | Value |
