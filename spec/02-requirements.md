@@ -3427,4 +3427,12 @@ A host update (§6.7) SHALL revalidate installed packages against the new host v
 **REQ-394 — Spec publication integrity.**
 A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until the implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged implementation fingerprints — and block publication with a pending-update notice; patch deltas are exempt. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
 
+### 5.18 Workflow Entry Points
+
+**REQ-395a — Ruleset-build entry point (Part a).**
+The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. *Acceptance criterion:* `build-ruleset swse=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage. _Check:_ T463.
+
+**REQ-395b — Workflow runbooks (Part b).**
+Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
+
 #### End of requirements

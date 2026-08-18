@@ -21,6 +21,7 @@ const CORE_FILES = [
 const APPENDIX_REF = "appendices-reference.md";
 const APPENDIX_FIX = "appendices-fixtures.md";
 const APPENDIX_LIC = "appendices-licenses.md";
+const APPENDIX_RUN = "appendices-runbooks.md";
 const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRSTUVWXY";
 
 function readFile(filePath: string): string {
@@ -77,8 +78,10 @@ function assemble(): { content: string; report: string[] } {
   report.push(`  ${APPENDIX_FIX} (${fixBlocks.size} appendices)`);
   const { blocks: licBlocks } = parseAppendices(readFile(APPENDIX_LIC));
   report.push(`  ${APPENDIX_LIC} (${licBlocks.size} appendices)`);
+  const { blocks: runBlocks } = parseAppendices(readFile(APPENDIX_RUN));
+  report.push(`  ${APPENDIX_RUN} (${runBlocks.size} appendices)`);
 
-  const allBlocks = new Map([...refBlocks, ...fixBlocks, ...licBlocks]);
+  const allBlocks = new Map([...refBlocks, ...fixBlocks, ...licBlocks, ...runBlocks]);
   const ordered: string[] = [];
   for (const letter of APPENDIX_ORDER) {
     const block = allBlocks.get(letter);

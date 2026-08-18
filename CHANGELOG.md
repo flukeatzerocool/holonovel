@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-18 — Workflow entry points and runbooks (REQ-395)
+
+- Added REQ-395a: the distribution exposes a single `build-ruleset` entry
+  point that accepts `slug=path` pairs (the B1 intake form) and emits a
+  declarative ruleset package into the install directory without modifying
+  the host; with no arguments it prints usage and the install directory.
+  Added REQ-395b: every §6.1 workflow (Convert, Build, Synthesize, Update)
+  has a runbook naming its entry point, happy path, and recovery path,
+  reachable from the reading guide and from the entry point's output.
+- Added `scripts/build-ruleset.ts` and the `npm run build-ruleset` script:
+  it validates each slug (§7.1a) and Markdown source path, records the B1
+  intake, and prints the Build workflow invocation for an opencode agent to
+  run — mirroring `update-server.ts`, it does not recursively invoke
+  opencode itself.
+- Added Appendix V (Workflow Runbooks) — a new `spec/appendices-runbooks.md`
+  with runbooks for Add a ruleset, Convert, Synthesize, Update, Remove a
+  ruleset, and Migrate a Novel — and wired it into `scripts/assemble.ts`.
+- The ruleset-free host now points builders at the entry point: `search_rules`
+  and `spec_health` report "run `build-ruleset <slug>=<path>`" instead of a
+  bare world-model-only notice.
+- README's "Install a ruleset" section names the `build-ruleset` entry point;
+  the AGENTS stale layer-map reference (`08-enrichment.md`) is corrected to
+  `08-synthesis.md` and the map now lists the licenses and runbooks appendix
+  files.
+
 ## 2026-08-17 — Spec publication integrity (REQ-394)
 
 - Added REQ-394: a Minor or Major spec delta SHALL NOT be propagated to a

@@ -21,6 +21,7 @@
     "check:fast": "npm run lint && (npm run validate:fast & npm run validate-readme & npm run check-traceability & wait)",
     "check:full": "npm run check && npm run detect-dupes",
     "assemble": "npx tsx scripts/assemble.ts",
+    "build-ruleset": "npx tsx scripts/build-ruleset.ts",
     "build-order": "npx tsx scripts/build-order.ts",
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",
     "version-bump": "npx tsx scripts/version-bump.ts",
