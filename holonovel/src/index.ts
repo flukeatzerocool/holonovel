@@ -26,6 +26,13 @@ import {
   RulesetManager, HOST_VERSION, rollDice, computeContentHash,
   RulesetToolSchema,
 } from "./rulesets.js";
+import {
+  ABILITY_NAMES, AbilityName, StatMethod, ClassLevel, CharacterBuildInput,
+  generateAbilityScores, getClassData,
+  computeDerivedStats, startingEquipmentFor, CREATION_STEPS, CreationWorkflowState,
+  creationStepPrompt, applySpeciesAdjustments,
+} from "./core/character-creation.js";
+import { createRng, sessionRoll } from "./core/rng.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -144,7 +151,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema) {
         try {
           const notation = String(args.dice ?? args.notation ?? "1d20");
           const label = args.skill ? `${args.skill} check` : (args.notation ?? args.dice ?? "1d20");
-          let r = rollDice(notation);
+          let r = rollDice(notation, args.seed);
           const extra = Number(args.modifier ?? 0);
           if (extra !== 0) {
             r = { total: r.total + extra, dice: r.dice, modifier: r.modifier + extra, notation: r.notation };
@@ -260,7 +267,7 @@ function worldSnapshot(): void {
 
 const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Badge & Workflow": ["set_badge", "respond", "undo", "redo", "help"],
-  "Characters": ["create_character", "import_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal", "remove_entity", "list_roster_characters", "remove_roster_character"],
+  "Characters": ["create_character", "import_character", "stage_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal", "remove_entity", "list_roster_characters", "remove_roster_character"],
   "World Model": ["command", "create_room", "delete_room", "create_thing", "delete_thing", "create_exit", "delete_exit", "convert_source"],
   "Lookups": ["search_rules", "suggest_actions", "spec_health"],
   "Combat (GM)": ["init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant"],
@@ -350,6 +357,9 @@ function fmtEntitySheet(entity: any): string {
   if (entity.current_room) {
     sheet += `**Location:** ${entity.current_room}\n`;
   }
+  if (entity.stats) {
+    sheet += `\n### Mechanical Stats\n${fmtStats(entity.stats)}\n`;
+  }
   if (p.description || p.voice || p.background || p.goals) {
     sheet += `\n### Personality\n`;
     if (p.description) sheet += `**Description:** ${p.description}\n`;
@@ -357,8 +367,35 @@ function fmtEntitySheet(entity: any): string {
     if (p.background) sheet += `**Background:** ${p.background}\n`;
     if (p.goals) sheet += `**Goals:** ${p.goals}\n`;
   }
-  sheet += `\n_World-model only — no mechanical stats._`;
+  if (!entity.stats) {
+    sheet += `\n_World-model only — no mechanical stats._`;
+  }
   return sheet;
+}
+
+function fmtStats(stats: any): string {
+  const lines: string[] = [];
+  if (stats.class) lines.push(`**Class:** ${stats.class}`);
+  if (stats.level != null) lines.push(`**Level:** ${stats.level}`);
+  if (stats.species) lines.push(`**Species:** ${stats.species}`);
+  if (stats.abilityScores) {
+    const ab = stats.abilityScores;
+    const mod = (s: number) => (Math.floor((s - 10) / 2) >= 0 ? `+${Math.floor((s - 10) / 2)}` : `${Math.floor((s - 10) / 2)}`);
+    lines.push(`**Abilities:** Str ${ab.Strength} (${mod(ab.Strength)}) · Dex ${ab.Dexterity} (${mod(ab.Dexterity)}) · Con ${ab.Constitution} (${mod(ab.Constitution)}) · Int ${ab.Intelligence} (${mod(ab.Intelligence)}) · Wis ${ab.Wisdom} (${mod(ab.Wisdom)}) · Cha ${ab.Charisma} (${mod(ab.Charisma)})`);
+  }
+  if (stats.defenses) {
+    lines.push(`**Defenses:** Reflex ${stats.defenses.reflex}, Fortitude ${stats.defenses.fortitude}, Will ${stats.defenses.will}`);
+  }
+  if (stats.hitPoints != null) lines.push(`**Hit Points:** ${stats.hitPoints}`);
+  if (stats.damageThreshold != null) lines.push(`**Damage Threshold:** ${stats.damageThreshold}`);
+  if (stats.bab != null) lines.push(`**Base Attack Bonus:** ${stats.bab >= 0 ? `+${stats.bab}` : stats.bab}`);
+  if (stats.speed != null) lines.push(`**Speed:** ${stats.speed} squares`);
+  if (stats.forcePoints != null) lines.push(`**Force Points:** ${stats.forcePoints}`);
+  if (stats.trainedSkills?.length) lines.push(`**Trained Skills:** ${stats.trainedSkills.join(", ")}`);
+  if (stats.feats?.length) lines.push(`**Feats:** ${stats.feats.join(", ")}`);
+  if (stats.talents?.length) lines.push(`**Talents:** ${stats.talents.join(", ")}`);
+  if (stats.equipment?.length) lines.push(`**Equipment:** ${stats.equipment.join(", ")}`);
+  return lines.join("\n");
 }
 
 function formatNpcSheet(npc: any): string {
@@ -418,6 +455,55 @@ server.registerTool("respond", {
     novel.pending_workflow = null;
     state.saveNovel(novel);
     return ok(`Choice '${option}' selected.`);
+  }
+  if (decision.toLowerCase().includes("character_creation")) {
+    const pw = novel.pending_workflow;
+    if (!pw || !("creation" in pw) || !pw.creation) return err("STATE_CONFLICT", "No character-creation workflow in progress.");
+    const wf = pw.creation;
+    const step = CREATION_STEPS[wf.stepIndex];
+    const ans = String(option).trim();
+    switch (step) {
+      case "name": wf.answers.name = ans; break;
+      case "species": wf.answers.species = ans; break;
+      case "classes": wf.answers.classLevels = parseClassLevels(ans); break;
+      case "ability_scores": {
+        wf.answers.statMethod = "planned";
+        wf.answers.abilityScores = parseAbilityScores(ans);
+        break;
+      }
+      case "skills": wf.answers.trainedSkills = ans.split(/[\s,]+/).filter(Boolean); break;
+      case "equipment": wf.answers.equipment = ans.split(/[\s,]+/).filter(Boolean); break;
+    }
+    wf.stepIndex++;
+    if (wf.stepIndex < CREATION_STEPS.length) {
+      novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: wf };
+      state.saveNovel(novel);
+      return needInput(creationStepPrompt(wf));
+    }
+    novel.pending_workflow = null;
+    const species = wf.answers.species ?? "Human";
+    const classLevels = wf.answers.classLevels ?? [];
+    const abilityScores = applySpeciesAdjustments(
+      wf.answers.abilityScores ?? parseAbilityScores("15 14 13 12 10 8"),
+      species,
+    );
+    const build = {
+      name: wf.answers.name ?? "Unnamed",
+      species,
+      classLevels,
+      abilityScores,
+      trainedSkills: wf.answers.trainedSkills ?? [],
+      feats: [],
+      talents: [],
+      statMethod: wf.answers.statMethod ?? "planned",
+    };
+    const stats = buildCharacterStats(build);
+    const entity = state.createEntity(build.name, undefined, stats);
+    state.addEntity(novel, entity);
+    state.saveNovel(novel);
+    return ok(`${fmtEntitySheet(entity)}
+
+Character '${build.name}' created as ${entity.id} with derived statistics.`);
   }
   return ok(`Responded to '${decision}' with '${option}'.`);
 });
@@ -534,30 +620,174 @@ server.registerTool("set_help_category", {
   return ok(`Tool '${tool_name}' assigned to category '${category.trim()}'.`);
 });
 
-// --- Characters (ruleset-free, REQ-219) ---
+// --- Characters (ruleset-free, REQ-219; ruleset-driven REQ-104/151/152/181) ---
+
+// Parse a class-levels spec like "Noble 5 / Jedi 2 / Crime Lord 2" or an
+// array of { className, levels } objects.
+function parseClassLevels(raw: string | any[]): ClassLevel[] {
+  if (Array.isArray(raw)) {
+    return raw.map((c) => {
+      const name = String(c?.class ?? c?.className ?? c?.name ?? "").trim();
+      const levels = Number(c?.levels ?? c?.level ?? 1) || 1;
+      return { className: name, levels };
+    }).filter((c) => c.className);
+  }
+  const out: ClassLevel[] = [];
+  const parts = String(raw).split("/");
+  for (const part of parts) {
+    const m = part.trim().match(/^(.+?)\s+(\d+)$/);
+    if (m) {
+      out.push({ className: m[1].trim(), levels: parseInt(m[2], 10) });
+    }
+  }
+  return out;
+}
+
+function parseAbilityScores(raw: string | number[]): Record<AbilityName, number> {
+  const values = typeof raw === "string"
+    ? String(raw).trim().split(/[\s,]+/).map(Number)
+    : Array.isArray(raw) ? raw.map(Number) : [];
+  const out = {} as Record<AbilityName, number>;
+  for (let i = 0; i < ABILITY_NAMES.length; i++) {
+    out[ABILITY_NAMES[i]] = Number.isFinite(values[i]) ? values[i] : 10;
+  }
+  return out;
+}
+
+// (applySpeciesAdjustments now lives in ./core/character-creation.js)
+
+function buildCharacterStats(build: CharacterBuildInput): Record<string, any> {
+  const derived = computeDerivedStats(build);
+  const equipment = build.equipment?.length ? build.equipment : startingEquipmentFor(build.classLevels);
+  const classLabel = build.classLevels.map((c) => `${c.className} ${c.levels}`).join(" / ");
+  return {
+    class: classLabel,
+    level: derived.level,
+    species: build.species,
+    abilityScores: build.abilityScores,
+    defenses: derived.defenses,
+    hitPoints: derived.hitPoints,
+    damageThreshold: derived.damageThreshold,
+    bab: derived.bab,
+    speed: derived.speed,
+    forcePoints: derived.forcePoints,
+    size: derived.size,
+    statMethod: build.statMethod,
+    trainedSkills: build.trainedSkills,
+    feats: build.feats,
+    talents: build.talents,
+    equipment,
+  };
+}
 
 server.registerTool("create_character", {
   title: "Create Character",
-  description: "Start character creation workflow. Ruleset-free: accepts name and optional personality fields only.",
+  description: "Create a character. Quick-create: pass name, species, classes, ability_scores, stat_method, skills, feats, talents. Step-by-step: call with no params to begin a guided [NEED_INPUT] workflow.",
   inputSchema: {
-    name: z.string(),
+    name: z.string().optional(),
     description: z.string().optional(),
     voice: z.string().optional(),
     background: z.string().optional(),
     goals: z.string().optional(),
+    species: z.string().optional(),
+    classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional(),
+    ability_scores: z.union([z.string(), z.array(z.number())]).optional(),
+    stat_method: z.enum(["roll_4d6", "planned", "standard"]).optional(),
+    seed: z.string().optional(),
+    skills: z.union([z.string(), z.array(z.string())]).optional(),
+    feats: z.union([z.string(), z.array(z.string())]).optional(),
+    talents: z.union([z.string(), z.array(z.string())]).optional(),
+    equipment: z.union([z.string(), z.array(z.string())]).optional(),
+    stage_to_roster: z.boolean().optional(),
   },
-}, async ({ name, description, voice, background, goals }: any) => {
+}, async ({ name, description, voice, background, goals, species, classes, ability_scores, stat_method, seed, skills, feats, talents, equipment, stage_to_roster }: any) => {
   requireNotObserver();
+  const novel = requireNovel();
+  if (!name) {
+    // Step-by-step mode: start a guided creation workflow.
+    if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+    const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, answers: {} };
+    novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: workflow };
+    state.saveNovel(novel);
+    return needInput(creationStepPrompt(workflow));
+  }
   const personality = { description, voice, background, goals };
   const hasPersonality = description || voice || background || goals;
-  const entity = state.createEntity(name, hasPersonality ? personality : undefined);
-  const novel = requireNovel();
+
+  // Quick-create mode: require species + classes.
+  if (!species || !classes) {
+    return err("INVALID_INPUT", "Quick-create requires 'species' and 'classes'. Omit 'name' to start step-by-step, or provide all creation fields.");
+  }
+  const classLevels = parseClassLevels(classes);
+  if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Noble 5 / Jedi 2 / Crime Lord 2'.");
+  for (const cl of classLevels) {
+    if (!getClassData(cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+  }
+
+  const method: StatMethod = stat_method ?? "planned";
+  const rawScores = ability_scores
+    ? parseAbilityScores(ability_scores)
+    : (() => {
+        const gen = generateAbilityScores(method, seed);
+        const out = {} as Record<AbilityName, number>;
+        for (let i = 0; i < ABILITY_NAMES.length; i++) out[ABILITY_NAMES[i]] = gen[i];
+        return out;
+      })();
+  const abilityScores = applySpeciesAdjustments(rawScores, species);
+
+  const toList = (v: any): string[] => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.map(String);
+    return String(v).split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
+  };
+
+  const build: CharacterBuildInput = {
+    name,
+    species,
+    classLevels,
+    abilityScores,
+    trainedSkills: toList(skills),
+    feats: toList(feats),
+    talents: toList(talents),
+    statMethod: method,
+    seed,
+    equipment: toList(equipment),
+  };
+  const stats = buildCharacterStats(build);
+
+  const entity = state.createEntity(name, hasPersonality ? personality : undefined, stats);
   state.addEntity(novel, entity);
+  if (stage_to_roster) state.addToRoster(entity);
   state.saveNovel(novel);
+
+  const inputs = [`name=${name}`, `species=${species}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
+  const derived = [
+    `level=${stats.level}`, `hp=${stats.hitPoints}`, `reflex=${stats.defenses.reflex}`,
+    `fortitude=${stats.defenses.fortitude}`, `will=${stats.defenses.will}`,
+    `threshold=${stats.damageThreshold}`, `bab=+${stats.bab}`, `speed=${stats.speed} squares`,
+    `force_points=${stats.forcePoints}`,
+  ];
   return ok(`${fmtEntitySheet(entity)}
 
-Character '${name}' created as ${entity.id}.`);
+Created (inputs): ${inputs.join(" · ")}
+Derived: ${derived.join(" · ")}
+${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}`);
 });
+
+server.registerTool("stage_character", {
+  title: "Stage Character to Roster",
+  description: "Stage an existing novel entity into the persistent roster for later import.",
+  inputSchema: { entity_id: z.string().optional() },
+}, async ({ entity_id }: any) => {
+  requireNotObserver();
+  const novel = requireNovel();
+  const entity = resolveEntity(entity_id);
+  if (!entity) return err("NOT_FOUND", "No entity to stage.");
+  const id = state.addToRoster(entity);
+  state.saveNovel(novel);
+  return ok(`Character '${entity.name}' staged to roster as ${id}.`);
+});
+
 
 server.registerTool("import_character", {
   title: "Import Character",
@@ -2047,13 +2277,13 @@ server.registerTool("ask_oracle", {
   title: "Ask Oracle",
   description: "Resolve uncertainty with a d100 roll. Likelihoods: certain (90%), likely (70%), even (50%), unlikely (30%), impossible (10%). Game Master only.",
   inputSchema: { question: z.string(), likelihood: z.enum(["certain", "likely", "even", "unlikely", "impossible"]), seed: z.string().optional() },
-}, async ({ question, likelihood }: any) => {
+}, async ({ question, likelihood, seed }: any) => {
   requireGM();
   requireNovel();
   const thresholds: Record<string, number> = { certain: 90, likely: 70, even: 50, unlikely: 30, impossible: 10 };
   const target = thresholds[likelihood] ?? 50;
-  // Simple non-seeded d100
-  const roll = Math.floor(Math.random() * 100) + 1;
+  // Seeded draw uses an isolated Rng (REQ-050b); otherwise the session PRNG.
+  const roll = seed ? createRng(seed).roll(100) : sessionRoll(100);
   const result = roll <= target ? "yes" : "no";
   let flavor = "";
   if (Math.abs(target - roll) <= 5) flavor = " (barely)";

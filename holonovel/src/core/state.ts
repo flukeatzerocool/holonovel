@@ -72,6 +72,9 @@ export interface NovelEntity {
   current_room: string | null;
   conditions: string[];
   condition_rounds: Record<string, number>;
+  // Ruleset-derived mechanical statistics (REQ-104/181). Populated by the
+  // ruleset-driven character creation workflow. Ruleset-free: opaque storage.
+  stats?: Record<string, any>;
 }
 
 export interface NpcState {
@@ -242,7 +245,10 @@ export interface NovelState {
   session_zero_completed: boolean;
   characters_present: boolean;
   adventure_set: boolean;
-  pending_workflow: { decision: string; snapshot: any } | null;
+  pending_workflow:
+    | { decision: string; snapshot: any }
+    | { decision: string; snapshot: any; creation?: import("./character-creation.js").CreationWorkflowState }
+    | null;
   connection_counter: number;
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
@@ -1040,6 +1046,7 @@ ${turnOrder}`;
         current_room: entity.current_room,
         conditions: entity.conditions,
         condition_rounds: entity.condition_rounds,
+        stats: entity.stats,
       };
     }
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(rosterData, null, 2), "utf-8");
@@ -1061,11 +1068,31 @@ ${turnOrder}`;
         current_room: e.current_room || null,
         conditions: e.conditions || [],
         condition_rounds: e.condition_rounds || {},
+        stats: e.stats,
       });
     }
   }
 
   // ── Server Notes (REQ-285) ─────────────────────────────────────
+
+  // Stage an entity into the roster (REQ-219 roster staging). Persists the
+  // roster. The entity keeps its stats, personality, and inventory baseline.
+  addToRoster(entity: NovelEntity): string {
+    const id = entity.id;
+    this.roster.set(id, {
+      id: entity.id,
+      name: entity.name,
+      personality: entity.personality,
+      voice_examples: entity.voice_examples,
+      inventory: entity.inventory || [],
+      current_room: entity.current_room || null,
+      conditions: entity.conditions || [],
+      condition_rounds: entity.condition_rounds || {},
+      stats: entity.stats,
+    });
+    this.saveRoster();
+    return id;
+  }
 
   loadServerNotes(): void {
     const filePath = path.join(this.stateDir, "server-notes.json");
@@ -1089,7 +1116,7 @@ ${turnOrder}`;
 
   // ── Entity Factory (ruleset-free, REQ-219) ────────────────────
 
-  createEntity(name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }): NovelEntity {
+  createEntity(name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }, stats?: Record<string, any>): NovelEntity {
     this.entityCounter++;
     const id = `character_${String(this.entityCounter).padStart(2, "0")}`;
     const entity: NovelEntity = {
@@ -1100,6 +1127,7 @@ ${turnOrder}`;
       current_room: null,
       conditions: [],
       condition_rounds: {},
+      stats,
     };
     return entity;
   }

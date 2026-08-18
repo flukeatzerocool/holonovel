@@ -9,6 +9,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { createRng } from "./core/rng.js";
 
 export const HOST_VERSION = "2026.08.18";
 
@@ -82,7 +83,8 @@ export function computeContentHash(
 }
 
 // NdM[+|-X] dice parser. Returns total, per-die results, and modifier.
-export function rollDice(notation: string): RollResult {
+// Accepts an optional seed for a deterministic isolated draw (REQ-050).
+export function rollDice(notation: string, seed?: string): RollResult {
   const m = String(notation).trim().match(/^(\d+)d(\d+)(?:([+-])(\d+))?$/i);
   if (!m) {
     throw new Error(`Invalid dice notation '${notation}'. Use NdM, e.g. 1d20, 3d6, 4d6+2.`);
@@ -93,8 +95,11 @@ export function rollDice(notation: string): RollResult {
     throw new Error(`Dice notation '${notation}' out of range.`);
   }
   const dice: number[] = [];
-  for (let i = 0; i < count; i++) {
-    dice.push(Math.floor(Math.random() * sides) + 1);
+  if (seed !== undefined) {
+    const rng = createRng(seed);
+    for (let i = 0; i < count; i++) dice.push(rng.roll(sides));
+  } else {
+    for (let i = 0; i < count; i++) dice.push(Math.floor(Math.random() * sides) + 1);
   }
   const sign = m[3] === "-" ? -1 : 1;
   const modifier = m[4] ? sign * parseInt(m[4], 10) : 0;

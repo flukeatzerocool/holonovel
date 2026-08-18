@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-18 — Ruleset-driven character creation (REQ-104/151/152/181)
+
+- Added `holonovel/src/core/rng.ts`: a deterministic 32-bit LCG PRNG
+  (Appendix B.4) seeded once from `TTRPG_SEED` (default 0), with isolated
+  per-call `createRng(seed)` draws that never advance the session position
+  (REQ-050/050b). `rollDice`, `ask_oracle`, and ruleset `roll` tools now
+  accept a `seed` for reproducible results.
+- Added `holonovel/src/core/character-creation.ts`: the full Star Wars Saga
+  Edition creation engine — core heroic classes (Noble, Scoundrel, Scout,
+  Soldier, Jedi), core-rulebook prestige classes, species traits with
+  ability adjustments, point-buy/standard-array/4d6-drop-lowest stat methods,
+  and computed derived statistics (HP, BAB, Reflex/Fortitude/Will defenses,
+  damage threshold, force points) with SWSE multiclassing rules.
+- Reworked `create_character` from ruleset-free (name + personality only) to
+  two modes: quick-create (pass species/classes/stats in one call) and
+  step-by-step guided `[NEED_INPUT]` creation covering name, species, class
+  levels, ability scores, skills, and equipment (REQ-151).
+- Added `stage_character` and `create_character(stage_to_roster=true)`:
+  entities can now be staged into the persistent roster with their
+  derived `stats`, closing the roster-add gap (REQ-219).
+- Entities now carry an optional `stats` field; `character_sheet` renders
+  derived mechanical statistics when present, otherwise retains the
+  "world-model only" note.
+- Documented the two-repo workflow (workspace = commit source, deployed =
+  pull-updated instance) in `holonovel/AGENTS.md` to prevent silent loss of
+  uncommitted edits to the deployed copy.
+
 ## 2026-08-18 — Fix undo/redo snapshot exponential growth (server)
 
 - Fixed `holonovel/src/core/state.ts` so undo/redo snapshots no longer embed
