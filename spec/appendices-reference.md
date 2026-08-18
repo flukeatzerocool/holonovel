@@ -1051,8 +1051,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-382a | Per-ruleset extraction isolation (Part a) | 2026-08-11 |
 | REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-08-11 |
 | REQ-382c | Per-ruleset extraction isolation (Part c) | 2026-08-11 |
-| REQ-383a | Combined server health (Part a) | 2026-08-11 |
-| REQ-383b | Combined server health (Part b) | 2026-08-11 |
+| REQ-383a | Host ruleset health (Part a) | 2026-08-11 |
+| REQ-383b | Host ruleset health (Part b) | 2026-08-11 |
 | REQ-384a | Cross-ruleset Novel switching (Part a) | 2026-08-11 |
 | REQ-384b | Cross-ruleset Novel switching (Part b) | 2026-08-11 |
 | REQ-384c | Cross-ruleset Novel switching (Part c) | 2026-08-11 |
@@ -1062,6 +1062,16 @@ date-stamps matching CHANGELOG entries.
 | REQ-386b | Cross-ruleset import rejection (Part b) | 2026-08-11 |
 | REQ-387a | Codex ruleset annotation (Part a) | 2026-08-11 |
 | REQ-387b | Codex ruleset annotation (Part b) | 2026-08-11 |
+| REQ-389a | Ruleset package format (Part a) | 2026-08-17 |
+| REQ-389b | Ruleset package format (Part b) | 2026-08-17 |
+| REQ-389c | Ruleset install surface (Part c) | 2026-08-17 |
+| REQ-390a | Lazy ruleset hydration (Part a) | 2026-08-17 |
+| REQ-390b | Lazy ruleset hydration (Part b) | 2026-08-17 |
+| REQ-391a | Scoped tool listing (Part a) | 2026-08-17 |
+| REQ-391b | On-demand schema delivery (Part b) | 2026-08-17 |
+| REQ-391c | Tool listing pagination (Part c) | 2026-08-17 |
+| REQ-392 | Tool-description budget | 2026-08-17 |
+| REQ-393 | Update preservation | 2026-08-17 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1520,7 +1530,7 @@ diet.
 | T-new-393 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T-new-394 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared". Call `set_scene_state("You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
 | T-new-395 | Automated | Archetype verification: parse §7.7 property groups, assert all 30 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
-| T-new-396 | Automated | Tool namespacing: build combined D&D + Starfinder server. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
+| T-new-396 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T-new-397 | Automated | Novel ruleset binding: call `create_novel("test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `novel_info`. Call `create_novel("test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T-new-398 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
 | T-new-399 | Automated | Extraction isolation: call `dnd5e_search_rules("fireball")` under D&D Novel — assert D&D-only results. Call `starfinder_search_rules("laser")` under Starfinder Novel — assert Starfinder-only results. Assert no cross-contamination in source anchors. | REQ-382 |
@@ -1529,8 +1539,18 @@ diet.
 | T-new-402 | Automated | suggest_actions scoping: call `suggest_actions("attack")` under D&D Novel — assert D&D-prefixed tool suggestions only. Same intent under Starfinder Novel — assert Starfinder-prefixed only. | REQ-385 |
 | T-new-403 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
 | T-new-404 | Automated | Codex ruleset annotation: assert `codex_list(ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `codex_list(ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `codex_import` of D&D spell codex entry into Starfinder Novel is rejected. Assert `codex_capture("npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `codex_list(ruleset="starfinder")`; assert `codex_import` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
-| T-new-405 | Automated | G8 isolation workflow: run all seven G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
+| T-new-405 | Automated | G8 isolation workflow: run all nine G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
 | T-new-406 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call spec_health — assert holodeck_config.behavioral_coupled ≥ 3, natural_language_paths includes pacing_window → "player_signal(pace, faster/slower)", npc_autonomy → "set_narrative_directive('NPCs act independently')", world_reactivity → "set_narrative_directive('the world reacts')". Assert uncoupled array contains any behavioral variables without coupling rows. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) absent from behavioral counts. Set TTRPG_WORLD_REACTIVITY to a value with no coupling row — assert variable appears in uncoupled. | REQ-388, REQ-069, REQ-081 |
+| T-new-407 | Automated | Binding migration: create a ruleset-free Novel, install a ruleset package, call `bind_novel_ruleset` — assert the Novel gains the slug's tools and the transition is audited. Assert `bind_novel_ruleset` on a Novel already bound to a different slug returns `[ERROR] [STATE_CONFLICT]`. Assert `resume_novel` restores the migrated binding. | REQ-380c |
+| T-new-408 | Automated | Package format integrity: build a package via the Package step, load it into a host — assert `search_rules`, lookups, and dice tools serve with no source-Markdown file access. Corrupt the package manifest's content hash — assert the host rejects the package by slug, reports expected/received hashes in `spec_health`, and continues serving other packages. | REQ-389 |
+| T-new-409 | Automated | Install surface: `install_ruleset` with a duplicate slug or incompatible host version fails naming the reason; `remove_ruleset` with a bound Novel active returns `[ERROR] [STATE_CONFLICT]`; `list_rulesets` distinguishes loaded from installed-but-idle packages. Assert all three are audited. | REQ-389c |
+| T-new-410 | Automated | Lazy hydration: start a host with three installed packages, activate a Novel bound to one — assert only that package's tools register and its index loads; the other two report `[ERROR] [STATE_CONFLICT]` on a direct ruleset tool call until their Novel is activated. | REQ-390 |
+| T-new-411 | Automated | Cold-start budget: with five installed packages of mixed size, assert cold start (process start to first tool response) meets the REQ-100 tier for the single largest package; assert `spec_health.rulesets_installed` is 5, `rulesets_hydrated` equals the number activated at first call, and aggregate index bytes is reported. | REQ-390b |
+| T-new-412 | Automated | Scoped tool listing: under a D&D-bound Novel, default `tools/list` returns infrastructure plus `dnd5e_*` only; `tools/list(scope=all)` returns all loaded packages' tools with `inapplicable` hints; with no Novel active the default listing forces no hydration. | REQ-391a, REQ-381b |
+| T-new-413 | Automated | Schema deferral: assert the on-demand schema surface returns a single tool's full schema and a single ruleset's tool set; assert default listing entries preserve name, category, and one-line purpose when abbreviated. | REQ-391b |
+| T-new-414 | Automated | Pagination: a host whose `tools/list(scope=all)` exceeds the size cap returns paginated pages; assert default scoped listing size is independent of installed package count. | REQ-391c |
+| T-new-415 | Automated | Description budget: assert every tool description fits the build-time budget recorded in DECISIONS.md; assert `spec_health.tools_list_bytes` is present and reflects the default listing. | REQ-392 |
+| T-new-416 | Automated | Update preservation: bump the host version, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package_incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
 
 ---
 
@@ -2323,7 +2343,9 @@ for forward reference:
 |------|-----------|
 | ruleset slug | REQ-379 |
 | tool prefix | REQ-379 |
-| combined build | §6.4.2 |
+| ruleset package | REQ-389 |
+| host server | REQ-390 |
+| install directory | REQ-390 |
 | ruleset scope | REQ-380 |
 | inapplicable hint | REQ-381 |
 | cross-ruleset isolation | §8 G8 |

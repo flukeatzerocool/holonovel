@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-17 — Host + declarative ruleset-package re-architecture
+
+- Inverted the multi-ruleset model: the base `holonovel` server is now a
+  ruleset-free host that loads declarative ruleset packages at startup, instead
+  of a build that merges rulesets into a single server via the Combine step.
+  Installing or removing a package never modifies the host; updating the host
+  never touches installed packages or user data.
+- Added §5.17 (REQ-389–392): the declarative ruleset package format
+  (prebuilt model, index, tool schemas as data, content hash, version
+  manifest), the `install_ruleset` / `remove_ruleset` / `list_rulesets`
+  surface, lazy hydration (defer index/tool loading until a Novel bound to the
+  slug is activated), scoped-by-default tool listing with on-demand schema
+  delivery and pagination, and a tool-description size budget.
+- Amended REQ-380 to add a single audited binding-migration path
+  (`bind_novel_ruleset`) from ruleset-free to an installed ruleset; amended
+  REQ-381/383/386/387 wording from "combined server" to host/package; reworked
+  §6.4.2 Combine step into the Package step, and §6.4.1 prerequisite so the host
+  is installed rather than re-forked per ruleset.
+- Reconciled §7.6 config (`TTRPG_RULESETS` now lists eagerly-hydrated slugs,
+  `TTRPG_RULESET_DIRS` points at the install directory under the preserved state
+  dir), §9 H7/H10/H16 and G8 (now nine steps, re-verified in the host), and the
+  Appendix E manifest and Appendix F test catalogue.
+
 ## 2026-08-17 — Fix push-pipeline tag handling
 
 - `scripts/push-pipeline.sh` no longer force-moves the version tag on every

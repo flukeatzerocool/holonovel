@@ -114,15 +114,15 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`)        |
+| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`). The ruleset install directory (`<DATA_DIR>/rulesets/`) and all user data live under it so base updates preserve them (REQ-390).        |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
-| `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the server loads. When set, the server SHALL validate that every slug in this list matches a ruleset in the build. In single-ruleset mode, this variable is absent — the server's sole ruleset is identified by its prefix. |
-| `TTRPG_RULESET_DIRS` | No      | JSON mapping of ruleset slugs to paths: `{"dnd5e":"ruleset/dnd5e/","starfinder":"ruleset/sf/"}`. Used by the build step, not at runtime. |
+| `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the host hydrates eagerly at startup (opting out of lazy hydration per REQ-390). When set, the server SHALL validate that every slug in this list matches an installed package. When absent, all packages hydrate lazily on first activation of a Novel bound to their slug. |
+| `TTRPG_RULESET_DIRS` | No      | Path to the ruleset install directory when it differs from `<TTRPG_DATA_DIR>/rulesets/`. The host scans this directory at startup and validates installed packages there (REQ-389, REQ-390). |
 
 ¹ Optional. Sets the initial active Novel on startup.
 

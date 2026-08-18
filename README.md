@@ -206,8 +206,9 @@ Your Holodeck.
 ### holonovel
 
 The base server — a world-model MCP with rooms, things, exits, parser commands,
-and narrative tools. Install it, then load any ruleset. The Build workflow reads
-your rulebooks and renders them as tools and mechanics. Node.js 20+ required.
+and narrative tools. Install it, then install any number of ruleset packages —
+each drops in alongside the base and never modifies it. The Build workflow reads
+your rulebooks and renders each as an installable package. Node.js 20+ required.
 
 ```sh
 cd holonovel
@@ -229,6 +230,18 @@ Add to your MCP client:
 }
 ```
 
+### Install a ruleset
+
+The Build workflow turns a rulebook into a declarative package. Drop the package
+into the install directory — `.holonovel-state/rulesets/<slug>/` by default — and
+the running server registers it. Packages load lazily: a ruleset's tools and index
+hydrate only when you open a campaign bound to that ruleset, so stacking many
+packages costs you nothing up front. Install, remove, and list packages from the
+server tools, or just move files and restart.
+
+Your campaign data and installed packages live under `.holonovel-state/`, outside
+the server tree — updating holonovel never touches them.
+
 ## What it does
 
 Holonovel is built on five capabilities. Together they deliver a complete
@@ -243,14 +256,15 @@ every reference traced.
 
 Build reads that Markdown and extracts every mechanic. Dice procedures, combat
 systems, spell catalogues, equipment tables, condition tracks — every structured
-element becomes a tool, resource, or prompt. Guidance prose becomes narrative
+element becomes a tool, resource, or prompt in a declarative ruleset package.
+Guidance prose becomes narrative
 material. The discovery engine samples the source, measures extraction
 confidence, and iterates until every mechanical section is accounted for. What
 can't be modeled stays searchable — nothing is fabricated to fill a gap.
 
 > "Take the Dungeon Master's Guide — every chapter, every table, every sidebar —
 > and make it a clean source file the server can build from."
-> "Build me a server from these ruleset files."
+> "Build me a ruleset package from these files."
 
 One spec. Any rulebook. Zero code.
 
