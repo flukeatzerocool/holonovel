@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-17 — Naming and terminology cleanup
+
+- Standardized the CRUD verb taxonomy: one verb per operation class, with
+  deletion renamed from `delete_*` to `remove_*` across the surface
+  (`delete_checkpoint` → `remove_checkpoint`, `delete_room`/`delete_thing`/
+  `delete_exit` → `remove_*`). §7.4 now documents the canonical verbs.
+- Aligned the error-taxonomy catalogue with runtime practice: `[SYSTEM]` and
+  `[REJECTED]` are now catalogued in Appendix O.2, and the parser
+  `[NOT_IMPLEMENTED]` category is corrected to `[UNIMPLEMENTED]`.
+- Made bracket tags/markers lowercase with hyphen separators (§7.3), renaming
+  `[session_boundary]`, `[restored_from_backup]`, and every other underscore
+  marker to their hyphen form, and lowercasing `[AUTO]` → `[auto]`.
+- Renamed the pause/resume context surface from `save_pause_context`/
+  `get_resume_context` to `set_pause_context`/`get_pause_context`, and
+  `check_knowledge` to `get_knowledge` for consistency with the read verb.
+- Replaced the D&D-leaning `dm_context` with the ruleset-agnostic `gm_context`
+  (state field, property group, and interchange scope). The Novel interchange
+  format accepts the legacy `"dm_context"` scope string as an alias for one
+  version.
+- Synchronized the derived test catalogue with its REQ bodies: synthesis and
+  vow tool names now match REQ-260/261 (synthesis) and REQ-289 (resolve/forsake),
+  and every provisional `T-new-*` test ID was renumbered into the tracked
+  `T301`–`T461` sequence.
+- Added clarifying terminology (§4 and Appendix S): AI narrator, engine,
+  Ruleset Wisdom (not the D&D ability), countdown vs clock, provenance tiers,
+  and the source attribution for adapted mechanics (vows/milestones from
+  Ironsworn, clocks from Blades in the Dark).
+- Consolidated the §7.6 configuration surface into a full registry and
+  documented the `TTRPG_*` prefix rationale.
+- Renamed verification gate references from the prose "G0 step 1/2" to the
+  canonical `G0a`/`G0b`, and marked `G1` as reserved.
+- Fixed broken prose (`tbadge` → "that includes") and the garbled observer-mode
+  corrective action; dropped the dead "Reserved" Appendix U/V stubs.
+- The assemble step now mirrors the assembled spec into the reference
+  implementation package so its runtime spec-hash fingerprint stays in sync.
+- Back-linked the 18 renumbered test IDs that were in the catalogue but never
+  cited, clearing the traceability warnings the `T-new-*` → `T301`–`T461`
+  renumbering had surfaced.
+
 ## 2026-08-17 — Host + declarative ruleset-package re-architecture
 
 - Inverted the multi-ruleset model: the base `holonovel` server is now a

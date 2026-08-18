@@ -191,7 +191,7 @@ The spec is designed around seven failure modes. Recognize them early.
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | F1   | The server invents rules instead of extracting them.                                              | Golden transcript replay (G2); no tool-result fabrication (REQ-058) |
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
-| F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0 step 2 (MCP conformance, REQ-001, Appendix D)                |
+| F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0b (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
@@ -218,9 +218,9 @@ guard, the gap is explicit.
 
 **F3 — MCP protocol errors.**
 
-- Wrong method names → G0 step 2 (Appendix D)
+- Wrong method names → G0b (Appendix D)
 - Malformed JSON → REQ-001, G2
-- Missing handshake fields → G0 step 2, Appendix D
+- Missing handshake fields → G0b, Appendix D
 - SDK schema errors → REQ-001 (-32602), T39a
 - URI template mismatch → G2, T16
 
@@ -369,11 +369,16 @@ do not alter meaning are editorial and do not require a version bump.
 | Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
-| Computer      | The system persona. The server answers to "Computer" — the Holodeck's voice. The canonical name for the MCP server in all user-facing surfaces. |
+| Computer      | The system persona. The server answers to "Computer" — the Holodeck's voice. The canonical name for the MCP server in all user-facing surfaces. The registered MCP server name is operator-chosen (B6), defaulting to `[game_name]-holonovel`. |
+| AI narrator    | The runtime AI persona that renders narrative prose against engine-validated state. Standing Rule 6: the narrator proposes intentions; the engine validates and executes. |
+| Engine         | The validated execution core that owns canonical state — dice resolution, badge gating, parameter canon, coupling effects, State/Observation/Badge properties. The "server" is the MCP process wrapping the engine; the "narrator" is the AI rendering prose against engine truth. |
+| Ruleset Wisdom | Build-time-extracted play guidance from the ruleset's own text (voice examples, action patterns, lore templates, pacing, encounter seeds). Not the D&D ability score — the name references the ruleset as the source of play wisdom. Tagged `[ruleset]` or `[vendor]` (REQ-225, REQ-371). |
+| Clock          | A display synonym for a countdown — faction clocks, vow-coupled countdowns, and narrative timers. The tool/state mechanism is named "countdown"; "clock" describes the same device in prose (REQ-073, REQ-233, REQ-322). |
+| Provenance tier | The source-of-truth classification of indexed or synthesized content: `[ruleset]` (Tier 1), `[vendor]` (Tier 2 — supplementary), `[supplementary]` (synthesis), `[player]` (player-authored), and `[novel]` (novel-derived). "Tier 1/2/3" is display shorthand for these tags. |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `convert_source`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `secondary` (default), `visible`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `suggest_actions`. Skipped in ruleset-free mode. |
-| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `delete_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—badge-scoped per REQ-242), resume state (`save_pause_context`, `get_resume_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
+| Novels            | The save-file layer. Lifecycle (`create_novel`, `resume_novel`, `end_novel`, `switch_novel`, `clone_novel`), exchange (`export_novel`, `import_novel`, `export_lorebook`, `import_lorebook`), checkpoints (`set_checkpoint`, `list_checkpoints`, `restore_checkpoint`, `remove_checkpoint`), notes (`set_note`, `remove_note`, `list_notes`—badge-scoped per REQ-242), resume state (`set_pause_context`, `get_pause_context`), and archive (`compact_audit_log`). Notes and server notes (REQ-285) are scoped per their respective REQs. |
 | Badges              | The identity and permission layer. `set_badge` switches between `player`, `game_master`, `observer`, and `none` (Editor). Badge gating (REQ-032) enforces tool access server-side — `observer` is read-only (spectator). The AI's narrative role is the counterpart of the active badge by default (REQ-304): human as Player → AI briefs as Game Master, human as Game Master → AI briefs as Player. Configurable via `TTRPG_AI_ROLE`. `badge_briefing` (REQ-109) composes orientation from the AI role and state surface from the active badge. Adjustable autonomy (REQ-306) controls how much the AI auto-plays. `set_briefing_order` (REQ-082) lets the GM reorder briefing sections. The cross-property coupling table (§7.7.1) documents badge-scope annotations for every coupling — each row identifies whether the coupling is GM-only, Player-visible, or Player-only. |
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active badge by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `badge_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
 | Observer          | Spectator mode (REQ-305). The human wears the Observer badge (`set_badge("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |

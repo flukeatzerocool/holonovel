@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const SPEC_DIR = path.join(ROOT, "spec");
 const OUT_FILE = path.join(ROOT, "holonovel.md");
+const REF_IMPL_OUT = path.join(ROOT, "holonovel", "holonovel.md");
 
 const CORE_FILES = [
   "01-foundations.md",
@@ -109,6 +110,13 @@ function main(): void {
 
   fs.writeFileSync(OUT_FILE, content, "utf-8");
   console.log(`\nWrote ${OUT_FILE}`);
+
+  // Mirror the assembled spec into the reference implementation package, which
+  // loads holonovel.md at runtime to compute its spec-hash fingerprint.
+  if (fs.existsSync(path.dirname(REF_IMPL_OUT))) {
+    fs.writeFileSync(REF_IMPL_OUT, content, "utf-8");
+    console.log(`Wrote ${REF_IMPL_OUT}`);
+  }
 }
 
 main();

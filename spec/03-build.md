@@ -186,7 +186,7 @@ The structural pass identifies heading count, table count, and broken links. The
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing
 verification workflow — per §8, verification workflows G2 and G3 are fixture workflows run once per builder implementation.
-WHEN B1 is `none`, G0 step 1 SHALL report a passing result with the finding "no ruleset — skipped" (per Standing Rule 9).
+WHEN B1 is `none`, G0a SHALL report a passing result with the finding "no ruleset — skipped" (per Standing Rule 9).
 
 **Viability pre-check.** After G0 but before chunked discovery, the builder
 counts mechanical sections — headings containing procedures, tables,
@@ -418,7 +418,7 @@ finding. The server is built in six steps, each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| 1     | MCP skeleton: initialize with badge gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0 step 2 (MCP conformance, Appendix D)         |
+| 1     | MCP skeleton: initialize with badge gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0b (MCP conformance, Appendix D)         |
 | 2     | Index: anchor tree, search, `search_rules` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
@@ -741,7 +741,7 @@ extraction (REQ-011) is authoritative.
 *Acceptance criterion:* Audit includes REQ-cited findings covering ≥3
 extraction categories and ≥2 archetype categories, with ≥1 finding or an
 enumerated zero-finding statement.
-_Check:_ T-new-299.
+_Check:_ T343, T430.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
 
@@ -866,7 +866,7 @@ cache key for Phase 2 metrics — the manifest provides pre-computed results.
 05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
-ruleset-facing verification workflows (§8: G0 step 2 and G4) have passed, the
+ruleset-facing verification workflows (§8: G0b and G4) have passed, the
 builder runs the Pattern Buffer. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
 independent of Pattern Buffer timing. The Pattern Buffer exercises the built server with
@@ -921,7 +921,7 @@ all sub-workflows.
 **Workflow completion.** The Build workflow is not complete until the Pattern Buffer
 exits with all Pattern Buffer sub-workflows passing or the builder records 2
 iterations without improvement (see Exit criteria below), and both
-ruleset-facing verification workflows (G0 step 2 and G4) pass. The Pattern Buffer
+ruleset-facing verification workflows (G0b and G4) pass. The Pattern Buffer
 gates both `production` and `quick-build` builds — any build that creates or modifies
 tools must pass the Pattern Buffer before marking complete. In `production` mode
 the build additionally requires the assumption audit (REQ-101), the audit steps
@@ -1033,12 +1033,12 @@ four items is incomplete and blocks handoff.
     undo/redo/set_badge blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
 23. **Narrative features sweep** — exercise all six DMCP narrative tools end to end:
-    `save_pause_context` / `get_resume_context` round-trip with auto-captured faction
+    `set_pause_context` / `get_pause_context` round-trip with auto-captured faction
     clocks, countdown positions, NPC dispositions, and entity relationships;
-    `end_novel` clears dm_context; `create_faction` with faction-type countdown,
+    `end_novel` clears gm_context; `create_faction` with faction-type countdown,
     `faction://` resource, `advance_countdown` coupling, scene transition advances
     faction clock, `remove_faction` removes clock; `set_secret` / `reveal_secret` /
-    `check_knowledge` cycle with character_sheet "Known Information" section;
+    `get_knowledge` cycle with character_sheet "Known Information" section;
     `present_choices` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
     audit tag, countdown and faction clock coupling on resolved id; `set_relationship`
     / `get_relationships` cycle, character_sheet shows "Relationships" section,
@@ -1050,7 +1050,7 @@ four items is incomplete and blocks handoff.
     decrements on `resume_novel`. All mutations appear in audit log and
     `session_recap`. (Blocking.)
 24. **Session segmentation and audit compaction** — two sessions with different
-    `TTRPG_SESSION_ID` values: assert two `[session_boundary]` markers in audit log
+    `TTRPG_SESSION_ID` values: assert two `[session-boundary]` markers in audit log
     with session IDs and timestamps; `session_recap(session_id="s1")` returns only s1
     entries; `session_recap(session_id="s2")` returns only s2 entries; `session_recap()`
     returns all entries; `spec_health` reports per-session metrics array. With
@@ -1062,9 +1062,9 @@ four items is incomplete and blocks handoff.
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
-    `[restored_from_backup]` audit entry; `end_novel` removes all backups.
+    `[restored-from-backup]` audit entry; `end_novel` removes all backups.
     `set_checkpoint("a")` → 5 mutations → `restore_checkpoint("a")` with `[NEED_INPUT]`
-    confirm → assert all 5 mutations reversed; `delete_checkpoint` removes entry;
+    confirm → assert all 5 mutations reversed; `remove_checkpoint` removes entry;
     `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
     and Novel switch; `export_novel(json, include_checkpoints=true)` includes
     checkpoints key; Player badge returns `[FORBIDDEN]`. `clone_novel("src", "dst")`
@@ -1123,7 +1123,7 @@ four items is incomplete and blocks handoff.
     `narrative_threads` includes countdown-pacing advisory without manual activation
     (P7 coupling). Call `remove_supplementary` — assert tools absent from
     `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
-    re-resolved. Move the fixture file — assert `[supplementary_gap]` in
+    re-resolved. Move the fixture file — assert `[supplementary-gap]` in
     `spec_health`, remaining content with `[partial]` marker. Player badge
     `import_supplementary` returns `[FORBIDDEN]`. (Blocking.)
 31. **Dynamic tool registration** — call `import_supplementary` with Appendix Z.
@@ -1250,11 +1250,11 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Session segmentation, audit compaction                      | S24 |
 | Backup rotation, checkpoints, clone novel                   | S25 |
 | Narrative POV (REQ-220, REQ-223)                            | S26 |
-| Enrichment lifecycle, status, toggles                       | S27 |
+| Enrichment lifecycle, status, toggles                       | S27 (T429) |
 | Briefing ordering, voice examples, session notation         | S28 |
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 | Supplementary ruleset import, dynamic tool registration      | S30, S31 |
-| Coupling cascade (P1+P13+P14+P2+P33 chain)                    | S32 |
+| Coupling cascade (P1+P13+P14+P2+P33 chain)                    | S32 (T427) |
 | Wisdom mechanical enactment (REQ-371, P6+P7+P10)              | S33 |
 
 This surface-driven selection applies to all incremental updates — full
@@ -1657,7 +1657,7 @@ are selected for changed surfaces.
 one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the world-model error contracts of REQ-367 (World-model property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a holonovel package version advance, the builder re-examines every sub-workflow mapped to it.
 
 **REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
-Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before the holonovel package is published. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T-new-387.
+Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before the holonovel package is published. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T431.
 
 ### Holonovel REQ Pattern Buffer coverage map
 
@@ -1705,7 +1705,7 @@ initially `pending`, updated to `converged` when the discrepancy is resolved.
 *Acceptance criterion:* When Gate 2 fails on an init_combat turn-order mismatch,
 DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
 turn order, actual turn order, and a diff.
-_Check:_ T-new-300.
+_Check:_ T344.
 
 **REQ-301 — Convergence loop audit trail.** Each iteration of the convergence loop SHALL
 produce a traceable record in DECISIONS.md (5) containing: iteration number, the specific
@@ -1714,7 +1714,7 @@ cost. After convergence, DECISIONS.md (5) SHALL include a `convergence_summary`:
 iterations, total token cost, REQ coverage, and final disposition.
 *Acceptance criterion:* A convergence loop requiring 3 iterations produces 3 audit trail
 entries with iteration numbers, REQ/test citations, change summaries, and re-test results.
-_Check:_ T-new-301.
+_Check:_ T345.
 
 **REQ-303 — Scoped re-verification.** WHEN extraction is incremental per REQ-302, Pattern Buffer
 sub-workflows SHALL scope their verification to changed sections. Sub-workflows that
@@ -1723,7 +1723,7 @@ from previous build]` annotation. Cross-section sub-workflows SHALL run in full.
 sub-workflows carry the `[validated-by-prior-build]` disposition.
 *Acceptance criterion:* An incremental rebuild where only the "Spells" section changed
 skips Pattern Buffer sub-workflows that verify unchanged sections and records the skip.
-_Check:_ T-new-303.
+_Check:_ T347.
 
 ### 6.7 Spec-driven updates
 
