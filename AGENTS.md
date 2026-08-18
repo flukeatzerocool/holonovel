@@ -152,16 +152,13 @@ ranges, hardcoded cross-section counts) are informational.
 
 ## Before committing spec changes
 
-When you change files in `spec/`, verify before committing:
+`npm run assemble && npm run check:fast` (above) covers REQ shape,
+violations, cross-references, and assumptions. Manually verify the
+remaining items before committing:
 
-- [ ] `npm run assemble && npm run check:fast` passes with 0 errors (warnings are informational)
-- [ ] No REQ body contains tables, bullet lists, numbered steps, or blank lines
-- [ ] No REQ body exceeds 800 characters or 5 sentences
-- [ ] No REQ body contains parameter types, Default: clauses, or enumerated
-      catalogs (>5 tokens)
-- [ ] All cross-section counts match their targets (e.g., §6.5 metric count
+- [ ] Cross-section counts match their targets (e.g., §6.5 metric count
       matches REQ-025 text)
-- [ ] Appendix ranges like "Appendices A–X" match actual appendix count
+- [ ] Appendix ranges like "Appendices A–X" match the actual appendix count
 - [ ] Renamed headings or appendices are followed by a spec-wide grep
       for stale references
 - [ ] Gate/workflow references use `GN` form (not "Gate N") outside §8
