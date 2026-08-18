@@ -12,9 +12,13 @@
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
 > verification workflows, 14 handoff verification steps,
-> and a golden-transcript replay. One server per ruleset; multiple rulesets may be
-> combined into one MCP server (tools carry ruleset prefixes; one ruleset per
-> Novel, siloed per §5.16). No network at runtime
+> and a golden-transcript replay. One base server — the ruleset-free `holonovel`
+> host — loads one or more declarative ruleset packages at startup (packages are
+> data, not code: extracted models, tool schemas, and indexes). Ruleset-derived
+> tools carry `<slug>_` prefixes (REQ-379); one ruleset binds per Novel
+> (REQ-380), siloed per §5.16. Installing or removing a package never modifies
+> the host; updating the host never touches installed packages or user data
+> (REQ-390, REQ-393). No network at runtime
 > (REQ-051). Badges control tool-access gating (REQ-032): `player`, `game_master`,
 > `observer`, or `none`, switchable via `set_badge` (REQ-066). The AI's narrative role is
 > the counterpart of the active badge by default — human as Player → AI as Game Master,
@@ -145,16 +149,21 @@ play with a real LLM. It must hand off four specified artifacts and nothing else
 It must survive an independent verification (§10): a second AI re-runs the verification
 workflows blind from a cold checkout, comparing its results against the builder's own.
 
-**Multi-ruleset mode.** When multiple rulesets are selected at intake (B1), the builder
-runs Discovery and Construction independently for each. Each ruleset produces its own
-RULESET_MODEL.md, confidence scores, and verification record. After all rulesets pass
-Construction and the Pattern Buffer, a Combine step (§6.4 Step 7) merges them into a
-single MCP server. Ruleset-derived tools carry a `<slug>_` prefix (REQ-379).
-Infrastructure tools (World, Narrative, Novels, Badges) carry no prefix and are shared
-across all rulesets. Each Novel is bound to exactly one ruleset at creation (REQ-380).
-The active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
-Cross-ruleset contamination is a build defect (F8). The operator may add or remove
-rulesets by rebuilding the combined server.
+**Ruleset package model.** A ruleset build (B1) runs Discovery and Construction once,
+then the Package step (§6.4.2) emits a declarative ruleset package — the extracted model,
+full-text search index, tool schemas with execution logic expressed as data, resources,
+prompts, a content hash, and a version manifest (REQ-389). The base `holonovel` host
+never changes when a package is installed. At startup the host scans the install
+directory, validates package integrity, and lazily hydrates tool/index state only when a
+Novel bound to that ruleset is first activated (REQ-390). Ruleset-derived tools carry a
+`<slug>_` prefix (REQ-379); infrastructure tools (World, Narrative, Novels, Badges)
+carry no prefix and are shared. Each Novel is bound to one ruleset (REQ-380), with a
+single audited migration path from ruleset-free to an installed ruleset (REQ-380c). The
+active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
+Cross-ruleset contamination is a defect (F8). Installing or removing a package is a
+server-scoped, audited operation (`install_ruleset` / `remove_ruleset` / `list_rulesets`);
+it never rebuilds the host. Updating the host revalidates installed packages without
+re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
 
 ---
 
@@ -253,7 +262,7 @@ guard, the gap is explicit.
 - Ruleset gating not enforced at call time → REQ-381, G8
 - Search index returns results from wrong ruleset → REQ-382
 - Infrastructure tool accepts ruleset-specific parameters → REQ-379 parameter contract
-- Combine step mis-prefixes a ruleset tool → G8 per-ruleset tool-name audit
+- Package load mis-prefixes or mis-annotates a ruleset tool → G8 per-ruleset tool-name audit
 
 ---
 
@@ -372,11 +381,14 @@ do not alter meaning are editorial and do not require a version bump.
 | Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `set_scene_state`. Non-present entities are marked `[not present]` in `badge_briefing` and the party resource. The GM controls presence with `set_party_presence`. |
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
 | Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
-| Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
+| Ruleset-free mode | The base host operating with no ruleset packages installed: no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
+| Host server       | The base `holonovel` server — ruleset-free by default, the sole MCP entry point. It loads declarative ruleset packages (REQ-389), never changes when a package is installed or removed, and updates without touching installed packages or user data (REQ-390). |
+| Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
+| Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
 | Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
 | Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
-| Combined build   | A build in which B1 specifies two or more ruleset paths. Each ruleset is discovered and constructed independently, then merged into one MCP server via the Combine step (§6.4 Step 7). The combined server's `serverInfo.name` is set by B13. |
-| Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable for the Novel's lifetime. |
+| Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `install_ruleset`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
+| Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 
 **Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single

@@ -12,9 +12,13 @@
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
 > verification workflows, 14 handoff verification steps,
-> and a golden-transcript replay. One server per ruleset; multiple rulesets may be
-> combined into one MCP server (tools carry ruleset prefixes; one ruleset per
-> Novel, siloed per §5.16). No network at runtime
+> and a golden-transcript replay. One base server — the ruleset-free `holonovel`
+> host — loads one or more declarative ruleset packages at startup (packages are
+> data, not code: extracted models, tool schemas, and indexes). Ruleset-derived
+> tools carry `<slug>_` prefixes (REQ-379); one ruleset binds per Novel
+> (REQ-380), siloed per §5.16. Installing or removing a package never modifies
+> the host; updating the host never touches installed packages or user data
+> (REQ-390, REQ-393). No network at runtime
 > (REQ-051). Badges control tool-access gating (REQ-032): `player`, `game_master`,
 > `observer`, or `none`, switchable via `set_badge` (REQ-066). The AI's narrative role is
 > the counterpart of the active badge by default — human as Player → AI as Game Master,
@@ -145,16 +149,21 @@ play with a real LLM. It must hand off four specified artifacts and nothing else
 It must survive an independent verification (§10): a second AI re-runs the verification
 workflows blind from a cold checkout, comparing its results against the builder's own.
 
-**Multi-ruleset mode.** When multiple rulesets are selected at intake (B1), the builder
-runs Discovery and Construction independently for each. Each ruleset produces its own
-RULESET_MODEL.md, confidence scores, and verification record. After all rulesets pass
-Construction and the Pattern Buffer, a Combine step (§6.4 Step 7) merges them into a
-single MCP server. Ruleset-derived tools carry a `<slug>_` prefix (REQ-379).
-Infrastructure tools (World, Narrative, Novels, Badges) carry no prefix and are shared
-across all rulesets. Each Novel is bound to exactly one ruleset at creation (REQ-380).
-The active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
-Cross-ruleset contamination is a build defect (F8). The operator may add or remove
-rulesets by rebuilding the combined server.
+**Ruleset package model.** A ruleset build (B1) runs Discovery and Construction once,
+then the Package step (§6.4.2) emits a declarative ruleset package — the extracted model,
+full-text search index, tool schemas with execution logic expressed as data, resources,
+prompts, a content hash, and a version manifest (REQ-389). The base `holonovel` host
+never changes when a package is installed. At startup the host scans the install
+directory, validates package integrity, and lazily hydrates tool/index state only when a
+Novel bound to that ruleset is first activated (REQ-390). Ruleset-derived tools carry a
+`<slug>_` prefix (REQ-379); infrastructure tools (World, Narrative, Novels, Badges)
+carry no prefix and are shared. Each Novel is bound to one ruleset (REQ-380), with a
+single audited migration path from ruleset-free to an installed ruleset (REQ-380c). The
+active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
+Cross-ruleset contamination is a defect (F8). Installing or removing a package is a
+server-scoped, audited operation (`install_ruleset` / `remove_ruleset` / `list_rulesets`);
+it never rebuilds the host. Updating the host revalidates installed packages without
+re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
 
 ---
 
@@ -253,7 +262,7 @@ guard, the gap is explicit.
 - Ruleset gating not enforced at call time → REQ-381, G8
 - Search index returns results from wrong ruleset → REQ-382
 - Infrastructure tool accepts ruleset-specific parameters → REQ-379 parameter contract
-- Combine step mis-prefixes a ruleset tool → G8 per-ruleset tool-name audit
+- Package load mis-prefixes or mis-annotates a ruleset tool → G8 per-ruleset tool-name audit
 
 ---
 
@@ -372,11 +381,14 @@ do not alter meaning are editorial and do not require a version bump.
 | Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `set_scene_state`. Non-present entities are marked `[not present]` in `badge_briefing` and the party resource. The GM controls presence with `set_party_presence`. |
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `reveal_secret`. |
 | Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
-| Ruleset-free mode | Build mode selected by B1="none": no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
+| Ruleset-free mode | The base host operating with no ruleset packages installed: no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
+| Host server       | The base `holonovel` server — ruleset-free by default, the sole MCP entry point. It loads declarative ruleset packages (REQ-389), never changes when a package is installed or removed, and updates without touching installed packages or user data (REQ-390). |
+| Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
+| Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
 | Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
 | Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
-| Combined build   | A build in which B1 specifies two or more ruleset paths. Each ruleset is discovered and constructed independently, then merged into one MCP server via the Combine step (§6.4 Step 7). The combined server's `serverInfo.name` is set by B13. |
-| Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable for the Novel's lifetime. |
+| Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `install_ruleset`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
+| Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 
 **Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single
@@ -417,6 +429,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.14 | Content Sources | 372–373 | 2 |
 | 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
 | 5.16    | Multi-Ruleset Build                  | 379–387                                             | 9     |
+| 5.17    | Ruleset Packages                     | 389–393                                             | 5     |
 
 ### 5.1 Output and Error Contracts
 
@@ -3729,26 +3742,26 @@ At least one coupling is Mechanical (automatic), not Navigational. A ruleset-fre
 `ruleset` annotation — the ruleset slug for ruleset-derived tools, or `null` for infrastructure tools. Ruleset-derived tools carry a `<slug>_` prefix in their registered name. Infrastructure tools — those in the World, Novels, Badges & Workflow, and Narrative REQ-020 categories — SHALL carry no prefix. The set of ruleset-derived tools is the union of tools classified during Discovery (§6.3) as Concepts-derived, Entities-derived, Actions-derived, Tables-derived, Resolution-derived, or Roles-derived.
 
 **REQ-379b — Tool namespacing (Part b).**
-Tool names that clash between two rulesets under the prefix scheme (e.g., both rulesets extract a tool named `roll_skill_check`) are resolved by the prefix — the tool names are distinct on the registry surface. The mapping of prefix to ruleset slug SHALL be recorded in DECISIONS.md (1) during the Combine step and reported in `spec_health` under a `ruleset_prefix_map` field.
+Tool names that clash between two rulesets under the prefix scheme (e.g., both rulesets extract a tool named `roll_skill_check`) are resolved by the prefix — the tool names are distinct on the registry surface. The mapping of prefix to ruleset slug SHALL be recorded in DECISIONS.md (1) during package construction (§6.4.2) and reported in `spec_health` under a `ruleset_prefix_map` field.
 
 **REQ-379c — Tool namespacing (Part c).**
-A tool whose `ruleset` annotation does not match any known ruleset is a combine defect. *Acceptance criterion:* `tools/list` for a combined D&D + Starfinder server reports `dnd5e_roll_skill_check` with `ruleset: "dnd5e"`, and `starfinder_roll_skill_check` with `ruleset: "starfinder"`. `create_npc` carries `ruleset: null`. `spec_health.ruleset_prefix_map` maps each prefix to its ruleset slug. _Check:_ T-new-396.
+A tool whose `ruleset` annotation does not match any known ruleset is a registration defect. *Acceptance criterion:* `tools/list` for a host with D&D and Starfinder packages loaded reports `dnd5e_roll_skill_check` with `ruleset: "dnd5e"`, and `starfinder_roll_skill_check` with `ruleset: "starfinder"`. `create_npc` carries `ruleset: null`. `spec_health.ruleset_prefix_map` maps each prefix to its ruleset slug. _Check:_ T-new-396.
 **REQ-380a — Novel ruleset binding (Part a).**
-`ruleset` parameter — a ruleset slug matching one of the prefixes in the server's `ruleset_prefix_map`. The Novel's `ruleset` field SHALL be immutable for the Novel's lifetime. `resume_novel` SHALL restore the bound ruleset from the Novel's persisted state. `clone_novel` SHALL preserve the source Novel's ruleset. `switch_novel` to a Novel bound to a different ruleset SHALL activate that Novel's ruleset scope — the ruleset-derived tool surface changes to match. `create_novel` with a ruleset slug not present in the server's `ruleset_prefix_map` returns `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
+`ruleset` parameter — a ruleset slug matching one of the prefixes in the server's `ruleset_prefix_map`. The Novel's `ruleset` field SHALL be immutable for the Novel's lifetime except the single audited migration path (REQ-380c). `resume_novel` SHALL restore the bound ruleset from the Novel's persisted state. `clone_novel` SHALL preserve the source Novel's ruleset. `switch_novel` to a Novel bound to a different ruleset SHALL activate that Novel's ruleset scope — the ruleset-derived tool surface changes to match. `create_novel` with a ruleset slug not present in the server's `ruleset_prefix_map` returns `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
 
 **REQ-380b — Novel ruleset binding (Part b).**
 A conformant server with exactly one ruleset MAY accept `create_novel` without the `ruleset` parameter, defaulting to that single ruleset — this preserves backward compatibility with single-ruleset servers built before multi-ruleset support. *Acceptance criterion:* `create_novel("greyhawk", ruleset="dnd5e")` succeeds and the Novel's `ruleset` field is `"dnd5e"`. Subsequent calls to `dnd5e_roll_skill_check` succeed against this Novel. `create_novel("absalom", ruleset="starfinder")` succeeds with `ruleset: "starfinder"`.
 
 **REQ-380c — Novel ruleset binding (Part c).**
-Calling `dnd5e_lookup_spell` against the Starfinder Novel returns an error per REQ-381. _Check:_ T-new-397.
+Calling `dnd5e_lookup_spell` against the Starfinder Novel returns an error per REQ-381. *Acceptance criterion:* A ruleset-free Novel (created with no `ruleset` field) binds to an installed slug via `bind_novel_ruleset` — a Game Master or Editor operation, audited and one-way — and gains that slug's tools. Binding SHALL refuse `[ERROR] [STATE_CONFLICT]` when the Novel already carries mechanics-derived state under a different or no ruleset. _Check:_ T-new-397, T-new-407.
 **REQ-381a — Ruleset-scoped tool gating (Part a).**
 is active, only tools whose `ruleset` annotation is `X` or `null` SHALL be callable. A call to a tool annotated with a different ruleset scope returns `[ERROR] [INVALID_INPUT]` with the corrective action stating the active Novel's ruleset and directing the caller to tools matching that ruleset. This gating is independent of badge gating (REQ-032) — both filters apply. A call that passes badge gating but fails ruleset gating returns `[ERROR] [INVALID_INPUT]` with the active Novel's ruleset named in the corrective action.
 
 **REQ-381b — Ruleset-scoped tool gating (Part b).**
-A call that fails both returns `[ERROR] [FORBIDDEN]` (badge gating takes precedence in the response taxonomy). Ruleset scope applies to every MCP surface: `tools/list` SHALL include all registered tools regardless of active Novel, but tools whose ruleset scope does not match the active Novel's scope SHALL be annotated with an `inapplicable` hint — their descriptions remain visible for discoverability. `resources/list` and `prompts/list` SHALL include all entries; resources and prompts whose content draws from a ruleset model SHALL badge-filter and ruleset-filter their output.
+A call that fails both returns `[ERROR] [FORBIDDEN]` (badge gating takes precedence in the response taxonomy). Ruleset scope applies to every MCP surface: `tools/list` SHALL, when invoked with `scope=all`, include all registered tools regardless of active Novel, with tools whose ruleset scope does not match the active Novel's scope annotated with an `inapplicable` hint — their descriptions remain visible for discoverability. The default scoped listing is governed by REQ-391. `resources/list` and `prompts/list` SHALL include all entries; resources and prompts whose content draws from a ruleset model SHALL badge-filter and ruleset-filter their output.
 
 **REQ-381c — Ruleset-scoped tool gating (Part c).**
-When no Novel is active, all tools are callable and no ruleset gating applies — the server operates with full cross-ruleset access. *Acceptance criterion:* With a D&D-bound Novel active, `starfinder_roll_skill_check` returns `[ERROR] [INVALID_INPUT]` naming the active Novel's ruleset as `dnd5e`. With no Novel active, the same call succeeds. `tools/list` includes all tools with `inapplicable` annotations on mismatched-ruleset tools. _Check:_ T-new-398.
+When no Novel is active, all tools are callable and no ruleset gating applies — the server operates with full cross-ruleset access. *Acceptance criterion:* With a D&D-bound Novel active, `starfinder_roll_skill_check` returns `[ERROR] [INVALID_INPUT]` naming the active Novel's ruleset as `dnd5e`. With no Novel active, the same call succeeds. `tools/list` with `scope=all` includes all tools with `inapplicable` annotations on mismatched-ruleset tools. _Check:_ T-new-398.
 **REQ-382a — Per-ruleset extraction isolation (Part a).**
 — search index, canonical lookup catalogues (spells, equipment, monsters, conditions, classes, abilities), generation tables, condition registry, constraint override catalog, and mechanical coupling metadata — SHALL be isolated from every other ruleset's model. A `search_rules` call under a D&D-bound Novel searches only the D&D index.
 
@@ -3757,11 +3770,11 @@ The same query under a Starfinder-bound Novel searches only the Starfinder index
 
 **REQ-382c — Per-ruleset extraction isolation (Part c).**
 The same tool called under the wrong Novel returns per REQ-381. `spec_health` reports `ruleset_dnd5e` and `ruleset_starfinder` sections with independent counts. _Check:_ T-new-399.
-**REQ-383a — Combined server health (Part a).**
+**REQ-383a — Host ruleset health (Part a).**
 metrics in a `ruleset_health` object keyed by ruleset slug. Each slug entry contains: confidence scores (overall and per-file), indexed counts (anchors, concepts, entity types, actions, tables, procedures, guidance items, synthesis items per module), MUST-action coverage, defect count, and verification workflow dispositions. A `combined` summary reports total tool count, total resource count, total prompt count, active Novel count, and the `ruleset_prefix_map`. The per-ruleset sections SHALL be absent when the build is not yet complete.
 
-**REQ-383b — Combined server health (Part b).**
-Player-badge calls SHALL filter per-ruleset sections: the Player sees only metrics for the active Novel's ruleset (if a Novel is active with a badge) or no per-ruleset sections (if no Novel is active). The `combined` summary section is visible to all badges. *Acceptance criterion:* A combined D&D + Starfinder server's `spec_health` includes `ruleset_health.dnd5e` and `ruleset_health.starfinder` with independent counts, plus a `combined` section with the prefix map. Under a Player badge with a D&D Novel active, only `ruleset_health.dnd5e` is visible. _Check:_ T-new-400.
+**REQ-383b — Host ruleset health (Part b).**
+Player-badge calls SHALL filter per-ruleset sections: the Player sees only metrics for the active Novel's ruleset (if a Novel is active with a badge) or no per-ruleset sections (if no Novel is active). The `combined` summary section is visible to all badges. *Acceptance criterion:* A host with D&D and Starfinder packages loaded reports `spec_health.ruleset_health.dnd5e` and `ruleset_health.starfinder` with independent counts, plus a `combined` section with the prefix map. Under a Player badge with a D&D Novel active, only `ruleset_health.dnd5e` is visible. _Check:_ T-new-400.
 **REQ-384a — Cross-ruleset Novel switching (Part a).**
 activate the target Novel's ruleset scope. The ruleset-derived tool surface — which lookup tools, which dice-resolution tools, which generation tables, which `search_rules` index, which `suggest_actions` suggestions, and which condition registry — SHALL change to match the activated Novel's ruleset. Switching between Novels of different rulesets SHALL NOT corrupt either Novel's state. The `badge_briefing` prompt SHALL recompose using the activated Novel's ruleset model.
 
@@ -3779,12 +3792,44 @@ Suggestions SHALL use the prefixed tool names for ruleset-derived tools. *Accept
 the imported Novel's `ruleset` field against the server's known ruleset slugs (from `ruleset_prefix_map`). An import whose ruleset does not match any known slug returns `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. The import succeeds when the ruleset is known — the imported Novel's ruleset is preserved as-is. `import_character(roster_id)` SHALL validate that the Roster entry's ruleset matches the active Novel's ruleset scope.
 
 **REQ-386b — Cross-ruleset import rejection (Part b).**
-A mismatch returns `[ERROR] [STATE_CONFLICT]` naming the entry's ruleset and the Novel's ruleset. `export_novel` SHALL include the Novel's `ruleset` field in the export manifest. A Novel exported from a combined server is importable into any conformant server that recognizes its ruleset slug. *Acceptance criterion:* Exporting a D&D Novel includes `ruleset: "dnd5e"` in the manifest. Importing a Starfinder Novel into a D&D + Mothership server rejects with valid rulesets enumerated. Importing a character from a Starfinder Roster entry into a D&D Novel rejects with both rulesets named. _Check:_ T-new-403.
+A mismatch returns `[ERROR] [STATE_CONFLICT]` naming the entry's ruleset and the Novel's ruleset. `export_novel` SHALL include the Novel's `ruleset` field in the export manifest. A Novel exported from one host is importable into any conformant host that recognizes its ruleset slug. *Acceptance criterion:* Exporting a D&D Novel includes `ruleset: "dnd5e"` in the manifest. Importing a Starfinder Novel into a D&D + Mothership host rejects with valid rulesets enumerated. Importing a character from a Starfinder Roster entry into a D&D Novel rejects with both rulesets named. _Check:_ T-new-403.
 **REQ-387a — Codex ruleset annotation (Part a).**
 `ruleset` field — the slug matching one entry in the server's `ruleset_prefix_map`, or `null` for ruleset-agnostic entries (rooms, scenes, generic NPCs without mechanical stats, lore entries). `codex_set` SHALL default the `ruleset` field to the active Novel's ruleset scope when one is active, or leave it `null` when no Novel is active (the caller MAY override). `codex_capture` SHALL default `ruleset` to the source Novel's ruleset scope, mirroring the `codex_set` default. `codex_list` SHALL support a `ruleset` filter parameter — when provided, returns only entries whose `ruleset` matches or is `null`. `codex_import` into a Novel SHALL show only entries whose `ruleset` matches the Novel's ruleset or is `null`.
 
 **REQ-387b — Codex ruleset annotation (Part b).**
 A `codex_import` of a ruleset-specific entry (e.g., a D&D spell) into a Novel of a different ruleset returns `[ERROR] [STATE_CONFLICT]` naming both rulesets. *Acceptance criterion:* `codex_list(ruleset="dnd5e")` returns D&D-tagged entries plus untagged entries. `codex_list(ruleset="starfinder")` returns Starfinder-tagged entries plus untagged entries — no D&D entries. `codex_import` of a D&D spell codex entry into a Starfinder Novel is rejected. _Check:_ T-new-387.
+
+### 5.17 Ruleset Packages
+
+**REQ-389a — Ruleset package format (Part a).**
+A ruleset package is a self-contained declarative artifact produced by the Package step (§6.4.2). It SHALL contain the extracted model, the full-text search index, tool schemas with execution logic expressed as data, resource and prompt definitions, a content hash, and a version manifest naming the host version it was built against. The host SHALL load a package without reading or re-parsing ruleset Markdown source, using only the prebuilt index and model the package ships.
+
+**REQ-389b — Ruleset package format (Part b).**
+A package whose declared content hash does not match its contents SHALL be rejected at load with its slug and the expected and received hashes reported; the host SHALL surface the rejection in `spec_health` and continue serving other packages. *Acceptance criterion:* A package built via the Package step loads once and serves `search_rules`, lookups, and dice tools with no source-Markdown access; a package with a corrupted manifest is rejected by slug without affecting loaded packages. _Check:_ T-new-408.
+
+**REQ-389c — Ruleset install surface (Part c).**
+`install_ruleset` SHALL validate slug uniqueness and host-version compatibility before activation; `remove_ruleset` SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel is bound to its slug. `list_rulesets` SHALL report each installed package with installed-versus-loaded state. All three are Game Master or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible host version fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `list_rulesets` distinguishes loaded from installed-but-idle packages. _Check:_ T-new-409.
+
+**REQ-390a — Lazy ruleset hydration (Part a).**
+On startup the host SHALL scan the install directory, validate package integrity and version compatibility, and record installed-package metadata. Search-index loading, tool registration, and model hydration for an installed package SHALL be deferred until a Novel bound to that ruleset is first activated. A tool call for an installed-but-not-yet-hydrated ruleset SHALL return `[ERROR] [STATE_CONFLICT]` directing first activation of a Novel bound to that slug.
+
+**REQ-390b — Lazy ruleset hydration (Part b).**
+Cold start — process start to first tool response — SHALL meet the REQ-100 tier for the single largest installed package regardless of the total installed set; aggregate installed size SHALL NOT add startup time. `spec_health` SHALL report `rulesets_installed`, `rulesets_hydrated`, and aggregate installed index bytes. *Acceptance criterion:* A host with five installed packages starts within the single-largest-package tier, hydrates only the active Novel's package, and reports one hydrated and four idle packages in `spec_health`. _Check:_ T-new-410, T-new-411.
+
+**REQ-391a — Scoped tool listing (Part a).**
+`tools/list` SHALL, absent a filter, return only the active Novel's ruleset tools plus infrastructure tools. A `scope=all` parameter SHALL return the full listing per REQ-381b. With no Novel active, the default listing SHALL return infrastructure tools plus installed-ruleset metadata, and SHALL NOT force hydration of inactive packages. *Acceptance criterion:* Under a D&D-bound Novel, the default `tools/list` returns infrastructure plus `dnd5e_*` tools only; `tools/list(scope=all)` returns every loaded package's tools with `inapplicable` hints. _Check:_ T-new-412.
+
+**REQ-391b — On-demand schema delivery (Part b).**
+A mechanism SHALL exist for a client to retrieve an individual tool's full schema or a single ruleset's tool set on demand, distinct from the default listing. Default listing entries MAY carry abbreviated descriptions when full schemas are retrievable on demand; the abbreviated form SHALL preserve each tool's name, category, and one-line purpose. _Check:_ T-new-413.
+
+**REQ-391c — Tool listing pagination (Part c).**
+`tools/list` responses exceeding a configurable size SHALL return in paginated form per the MCP protocol. Client discovery cost under the default scoped listing SHALL NOT grow with the number of installed packages. *Acceptance criterion:* A host with a full listing exceeding the size cap paginates `tools/list(scope=all)`; the default scoped listing size is independent of installed package count. _Check:_ T-new-414.
+
+**REQ-392 — Tool-description budget.**
+Every registered tool's `description` SHALL fit a build-time size budget recorded in DECISIONS.md; it SHALL state the tool's one-line purpose and ruleset scope and SHALL NOT duplicate parameter guidance already carried by the schema. `spec_health` SHALL report `tools_list_bytes` — the aggregate byte size of the default `tools/list` response. *Acceptance criterion:* Tool descriptions fit the recorded budget; `spec_health.tools_list_bytes` is present and reflects the current default listing. _Check:_ T-new-415.
+
+**REQ-393 — Update preservation.**
+A host update (§6.7) SHALL revalidate installed packages against the new host version without re-building or re-extracting them. A package whose version manifest names an incompatible host version SHALL be reported in `spec_health` and held inactive (surfacing a `[package_incompatible]` flag) rather than silently dropped. Installed packages and all Novel, roster, codex, server-note, and world-model data SHALL survive a host update unchanged. *Acceptance criterion:* After a host version bump, a still-compatible package stays loaded and retains its indexed data; an incompatible package is flagged and held inactive; all user data survives byte-for-byte. _Check:_ T-new-416.
 
 #### End of requirements
 
@@ -3864,7 +3909,7 @@ two tiers: Required first, then Advanced.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| B1  | Ruleset(s) to build              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
+| B1  | Ruleset(s) to package              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
 | B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` for single ruleset; `holonovel-multi` for multiple |
@@ -3899,8 +3944,10 @@ contains no `.md` files SHALL be recorded as a finding in DECISIONS.md (1) — t
 operator may correct it or remove that ruleset from the build. The builder SHALL
 record the slug-to-path mapping in DECISIONS.md (1). Ruleset-free mode (B1=`none`)
 and single-ruleset mode (B1 has exactly one `slug=path` pair) are unchanged — the
-builder proceeds with the existing pipeline. Multi-ruleset mode triggers the Combine
-step after all rulesets complete Construction and the Pattern Buffer.
+builder proceeds with the existing pipeline. Multi-ruleset mode emits one declarative
+package per ruleset via the Package step (§6.4.2) after each ruleset completes
+Construction and the Pattern Buffer; the host loads any number of packages, so
+multi-ruleset builds no longer merge into a single server.
 
 B13 defaults to all rulesets in B1. B15 allows per-ruleset `production` or
 `quick-build` overrides — when not specified, each ruleset inherits the global B9
@@ -4053,11 +4100,13 @@ _Check:_ T172.
 installs the `holonovel` npm package at the version specified by B10. The holonovel
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder adds `holonovel` as a dependency of the TTRPG server. No
+points. The `holonovel` package IS the host server that loads ruleset packages; the
+builder produces declarative packages (REQ-389) that the host consumes, rather than a
+separate server per ruleset. No
 chunked reading or provider-documentation indexing occurs during TTRPG builds — the
-holonovel package is a build-time dependency, not a per-build extraction target. The
+holonovel package is a build-time and runtime dependency, not a per-build extraction target. The
 world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
-`none` (ruleset-free mode), the holonovel package IS the server — the builder installs it,
+`none` (ruleset-free mode), the holonovel package IS the server with no packages installed — the builder installs it,
 verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
@@ -4212,7 +4261,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
 | 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
-| 7     | Combine: merge N builds into one MCP server (multi-ruleset only; skipped for single-ruleset and ruleset-free) | G8 pass, per-ruleset G2 replay in combined server |
+| 7     | Package: emit a declarative ruleset package (model, index, tool schemas, resources, prompts, hash, version manifest) per ruleset (REQ-389) | G8 pass, per-ruleset G2 replay after package load in the host |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
@@ -4232,62 +4281,52 @@ README.md license footer. Format: "Built from: [Source] ([License], [Copyright])
 — one source per line, semicolon-separated, flowing into a single paragraph
 terminated by the RSS link and last-updated date.
 
-### 6.4.2 Combine step
+### 6.4.2 Package step
 
-*Prepare:* Load files from `build-phase-map.md` Combine row: 03-build.md §6.4.2,
-02-requirements.md §5.16.
+*Prepare:* Load files from `build-phase-map.md` Package row: 03-build.md §6.4.2,
+02-requirements.md §5.16, §5.17.
 
-The Combine step merges N independently-verified ruleset builds into a single
-MCP server. Each ruleset build SHALL have passed Steps 1–6, the Pattern Buffer,
-and verification workflows G2–G5 before Combine begins. The step is skipped for
-single-ruleset and ruleset-free builds. The step SHALL operate in this order:
+The Package step emits a declarative ruleset package (REQ-389) per ruleset. Each
+ruleset build SHALL have passed Steps 1–6, the Pattern Buffer, and verification
+workflows G2–G5 before packaging begins. The step SHALL operate in this order:
 
-1. **Scaffold.** Initialize a new MCP server using the `holonovel` package
-   (version from B10) as the base — same scaffold as Step 1, but with a
-   combined server name from B6 (B13 when B6 is `holonovel-multi`).
+1. **Assemble the artifact.** Serialize the extracted model, the full-text search
+   index, every ruleset-derived tool schema with execution logic expressed as data,
+   rule sources, and prompt definitions into the package. Each package carries a
+   content hash and a version manifest naming the host version it was built against
+   (REQ-389).
 
-2. **Register infrastructure.** Register all infrastructure tools (REQ-020
-   World, Novels, Badges, Narrative categories) exactly once from the
-   holonovel scaffold. These tools carry `ruleset: null` annotations.
+2. **Register per-ruleset surfaces.** For each ruleset, assign the `<slug>_` prefix
+   to every ruleset-derived tool and annotate it with the ruleset slug (REQ-379).
+   Infrastructure tools (REQ-020 World, Novels, Badges, Narrative categories) are
+   provided by the host and SHALL NOT be duplicated in a package. Per-ruleset
+   resources (`ruleset://`, `monsters://`, `spells://`, `equipment://`,
+   `classes://`, `adventure://`) SHALL be namespaced as `<slug>://<path>` — each
+   package's resource tree is a separate URI namespace.
 
-3. **Register per-ruleset tools.** For each ruleset build, register every
-   ruleset-derived tool with the `<slug>_` prefix. Each tool carries its
-   `ruleset` annotation set to the ruleset slug. Tool parameter schemas are
-   preserved verbatim from the per-ruleset build — prefixing is a name change
-   only.
+3. **Record the prefix map.** Record the prefix-to-slug mapping in DECISIONS.md (1),
+   reported at runtime in `spec_health` under `ruleset_prefix_map` (REQ-379).
 
-4. **Register resources.** Infrastructure resources (`spec://build`,
-   `world://kinds`, `world://map`, `entities://`, `scenes://`, `roster://`,
-   `output://`, `audit://`, `guidance://`) are registered once from the
-   scaffold. Per-ruleset resources (`ruleset://`, `monsters://`, `spells://`,
-   `equipment://`, `classes://`, `adventure://`) SHALL be namespaced as
-   `<slug>://<path>` — each ruleset's resource tree is a separate URI
-   namespace.
+4. **Verify isolation.** The builder SHALL audit each package's tool set for: (a)
+   every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
+   no infrastructure tool is duplicated into the package; (c) no two tools within the
+   package share a registered name after prefixing; (d) the `ruleset_prefix_map`
+   matches the B1 slug-to-path mapping. A violation is a
+   packaging defect that SHALL be resolved before handoff.
 
-5. **Register prompts.** Infrastructure prompts (`intro`, `session_zero`,
-   `novel_setup`, `badge_briefing`, `run_workflow`) are registered once.
-   Their content composition is ruleset-aware — each prompt reads from the
-   active Novel's ruleset model at invocation time.
+5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden
+   transcript) against the ruleset's fixture in the host, and run the Pattern Buffer
+   sub-workflows S2–S9, S13–S14, S16, S18, S21, and S24–S27 against the loaded package
+   — these are ruleset-specific and must re-verify. Run sub-workflows S1, S10–S12,
+   S15, S17, S19–S20, and S22–S23 once — these are infrastructure and ruleset-agnostic.
 
-6. **Verify isolation.** The builder SHALL audit the combined server's
-   `tools/list` for: (a) every ruleset-derived tool carries a `ruleset`
-   annotation matching one of the B1 slugs; (b) no infrastructure tool
-   carries a prefix; (c) no two tools share the same registered name; (d) the
-   `ruleset_prefix_map` matches the B1 slug-to-path mapping. A violation is a
-   combine defect that SHALL be resolved before verification.
+6. **Run G8.** Execute the cross-ruleset isolation verification workflow (§8 G8)
+   against the host with the package(s) loaded. A G8 failure SHALL block the build.
 
-7. **Re-verify per ruleset.** Run G2 (golden transcript) against each
-   ruleset's fixture in the combined server. Run the Pattern Buffer
-   sub-workflows S2–S9, S13–S14, S16, S18, S21, and S24–S27 against each
-   ruleset in the combined server — these are ruleset-specific and must
-   re-verify. Run sub-workflows S1, S10–S12, S15, S17, S19–S20, and
-   S22–S23 once — these are infrastructure and ruleset-agnostic.
-
-8. **Run G8.** Execute the cross-ruleset isolation verification workflow
-   (§8 G8). A G8 failure SHALL block the build.
-
-After Combine, verify that `spec_health` reports per-ruleset metrics and
-`ruleset_prefix_map`.
+Unlike a merged server, packaging NEVER modifies the host: the base `holonovel`
+server is installed unchanged, and packages are dropped into the install directory
+(§7.6) for lazy hydration per REQ-390. After packaging, verify that the loaded host
+reports per-ruleset metrics and `ruleset_prefix_map` via `spec_health`.
 
 ### 6.4.1 Prompt composition
 
@@ -5760,15 +5799,15 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`)        |
+| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`). The ruleset install directory (`<DATA_DIR>/rulesets/`) and all user data live under it so base updates preserve them (REQ-390).        |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
-| `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the server loads. When set, the server SHALL validate that every slug in this list matches a ruleset in the build. In single-ruleset mode, this variable is absent — the server's sole ruleset is identified by its prefix. |
-| `TTRPG_RULESET_DIRS` | No      | JSON mapping of ruleset slugs to paths: `{"dnd5e":"ruleset/dnd5e/","starfinder":"ruleset/sf/"}`. Used by the build step, not at runtime. |
+| `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the host hydrates eagerly at startup (opting out of lazy hydration per REQ-390). When set, the server SHALL validate that every slug in this list matches an installed package. When absent, all packages hydrate lazily on first activation of a Novel bound to their slug. |
+| `TTRPG_RULESET_DIRS` | No      | Path to the ruleset install directory when it differs from `<TTRPG_DATA_DIR>/rulesets/`. The host scans this directory at startup and validates installed packages there (REQ-389, REQ-390). |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -6237,8 +6276,8 @@ Each persona archetype exercises at least one Pattern Buffer sub-workflow:
 | Rules Lawyer         | S8                   | Ambiguous alias → `[AMBIGUOUS]` with enumeration  |
 | Forgetful Player ×2  | S22, S24             | Workflow staleness, session-boundary recovery     |
 
-**Verification workflow G8 — Cross-ruleset isolation.** Run after the Combine
-step on a server built with at least two rulesets. The workflow SHALL verify:
+**Verification workflow G8 — Cross-ruleset isolation.** Run after the Package
+step on a host with at least two ruleset packages loaded. The workflow SHALL verify:
 
 1. **Tool isolation.** With a Novel bound to ruleset A active, call a
    ruleset-derived tool from ruleset B. Assert `[ERROR] [INVALID_INPUT]`
@@ -6256,7 +6295,7 @@ step on a server built with at least two rulesets. The workflow SHALL verify:
    rulesets under the same name returns the ruleset-A entry in A's Novel and
    the ruleset-B entry in B's Novel.
 
-4. **Import rejection.** Export a ruleset-A Novel. Build a new combined server
+4. **Import rejection.** Export a ruleset-A Novel. Build a new host
    that does not include ruleset A. Attempt to `import_novel` — assert
    `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
 
@@ -6279,12 +6318,18 @@ step on a server built with at least two rulesets. The workflow SHALL verify:
    Call `codex_import` of that entry into a ruleset-B Novel — assert
    `[ERROR] [STATE_CONFLICT]` naming both rulesets.
 
-G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
-build. G8 is a ruleset-facing workflow — each combined server must pass it
-once per combination of rulesets.
+9. **Load-time namespacing audit.** After each `install_ruleset`, assert every
+   tool registered from the package carries the correct `<slug>_` prefix and
+   `ruleset` annotation; assert no infrastructure tool was re-registered; assert
+   `remove_ruleset` deregisters all of the package's tools and prompts while no
+   bound Novel is active.
 
-*Acceptance criterion:* A combined D&D + Starfinder server passes all seven
-G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
+G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
+build. G8 is a ruleset-facing workflow — each host must pass it
+once per ruleset present in the package set.
+
+*Acceptance criterion:* A host with D&D and Starfinder packages loaded passes
+all nine G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
 _Check:_ T-new-404.
 
 ---
@@ -6333,22 +6378,22 @@ have a recorded result in DECISIONS.md.
 
 | Step | Covers   | Procedure                                              | Pass criterion                                                                                                       |
 | ----- | -------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| H1    | T36      | Compare DECISIONS.md (1) intake answers against combined build       | For multi-ruleset builds, compare the slug-to-path mapping against the combined server's `ruleset_prefix_map` and each `<slug>_RULESET_MODEL.md`. Single-ruleset behavior unchanged. Per Standing Rule 9, ruleset-free builds pass with the recorded "ruleset-free — no source" entry in DECISIONS.md (1). |
+| H1    | T36      | Compare DECISIONS.md (1) intake answers against package set       | For multi-ruleset builds, compare the slug-to-path mapping against the host's `ruleset_prefix_map` and each `<slug>_RULESET_MODEL.md`. Single-ruleset behavior unchanged. Per Standing Rule 9, ruleset-free builds pass with the recorded "ruleset-free — no source" entry in DECISIONS.md (1). |
 | H2    | T29      | Parse traceability table, cross-reference REQs/tests   | Every REQ in Appendix E appears exactly once in (3); every test ID cited in (3) exists in Appendix F.                 |
 | H3    | T36, F4  | Scan non-fixture, non-waiver source code for literals  | No canonical class, species, hit-dice, equipment, spell, or ruleset-derived table is embedded outside waivers.        |
 | H4    | T35, F4  | Run `tools/list` on target ruleset                     | Fixture-only tool names are not registered when serving a non-fixture ruleset.                                        |
 | H5    | T33, F4  | Run `tools/list`                                       | No tool named `roll_attack` or equivalent generic combat resolver is exposed when the ruleset defines attack procedures. |
 | H6    | T29, T36 | Parse DECISIONS.md (3) and (5)                         | Every waived test cites a (5) waiver; every mechanics-deviation waiver names the source file and table it replaces.    |
-| H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing; canonical lookups use the loaded index or model. |
+| H7    | T41      | Instrument server, run a canonical lookup              | No tool handler reads ruleset Markdown files after startup indexing or package load; canonical lookups use the loaded package's index or model. |
 | H8    | T43      | Start a workflow, verify no auto-completion            | A workflow that raises `[NEED_INPUT]` does not complete without a `respond` call; no option is pre-selected.           |
 | H9    | T44      | Player-badge request for GM-only content         | Returns `[ERROR] [FORBIDDEN]` or stripped response directing to `set_badge`; no hidden content exposed.           |
-| H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. For multi-ruleset builds, H10 is assessed per ruleset — each ruleset's confidence must independently meet its tier threshold. Additionally, verify that DECISIONS.md (4) contains cold-start time and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports the most recent measurement. A missing performance record is a handoff defect.                |
+| H10   | T45      | Run `spec_health`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. For multi-package builds, H10 is assessed per package — each package's confidence must independently meet its tier threshold. Additionally, verify that DECISIONS.md (4) contains cold-start time (process start to first tool response), per-package first-activation latency, and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports `rulesets_installed`, `rulesets_hydrated`, and the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
-| H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. In multi-ruleset builds, H12 replays each ruleset's golden transcript in the combined server. |
+| H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. In multi-package builds, H12 replays each ruleset's golden transcript against the host with the package loaded. |
 | H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Pattern Buffer was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
 | H14   | T190   | Four-artifact diet                                                    | Handoff directory contains exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md; no other regular files. Automated test scripts in `scripts/` and `.holonovel-state/` directory are exempt. In multi-ruleset builds, per-ruleset `<slug>_RULESET_MODEL.md` files are expected in addition to the four core artifacts. |
-| H15   | T-new-396 | Run `tools/list` on combined server          | Every ruleset-derived tool carries correct prefix and `ruleset` annotation. Infrastructure tools carry `null`. No two tools share the same name. `ruleset_prefix_map` covers all B1 slugs. |
-| H16   | T-new-397 | Create Novel per ruleset, verify binding     | Each Novel's `ruleset` field matches the creation parameter; immutable after creation; `create_novel` rejects unknown slugs. |
+| H15   | T-new-396 | Run `tools/list` on host with packages loaded          | Every ruleset-derived tool carries correct prefix and `ruleset` annotation. Infrastructure tools carry `null`. No two tools share the same name. `ruleset_prefix_map` covers all B1 slugs. |
+| H16   | T-new-397 | Create Novel per ruleset, verify binding     | Each Novel's `ruleset` field matches the creation parameter; immutable except the audited migration path (REQ-380c); `create_novel` rejects unknown slugs. |
 | H17   | T-new-398 | Cross-ruleset tool call rejection            | A ruleset-A tool called against a ruleset-B Novel returns `[ERROR] [INVALID_INPUT]` naming the active ruleset. Infrastructure tools succeed under any Novel. |
 | H18   | T-new-399 | Per-ruleset search and lookup isolation      | `search_rules` and canonical lookups under each Novel return only that ruleset's results. |
 
@@ -8281,8 +8326,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-382a | Per-ruleset extraction isolation (Part a) | 2026-08-11 |
 | REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-08-11 |
 | REQ-382c | Per-ruleset extraction isolation (Part c) | 2026-08-11 |
-| REQ-383a | Combined server health (Part a) | 2026-08-11 |
-| REQ-383b | Combined server health (Part b) | 2026-08-11 |
+| REQ-383a | Host ruleset health (Part a) | 2026-08-11 |
+| REQ-383b | Host ruleset health (Part b) | 2026-08-11 |
 | REQ-384a | Cross-ruleset Novel switching (Part a) | 2026-08-11 |
 | REQ-384b | Cross-ruleset Novel switching (Part b) | 2026-08-11 |
 | REQ-384c | Cross-ruleset Novel switching (Part c) | 2026-08-11 |
@@ -8292,6 +8337,16 @@ date-stamps matching CHANGELOG entries.
 | REQ-386b | Cross-ruleset import rejection (Part b) | 2026-08-11 |
 | REQ-387a | Codex ruleset annotation (Part a) | 2026-08-11 |
 | REQ-387b | Codex ruleset annotation (Part b) | 2026-08-11 |
+| REQ-389a | Ruleset package format (Part a) | 2026-08-17 |
+| REQ-389b | Ruleset package format (Part b) | 2026-08-17 |
+| REQ-389c | Ruleset install surface (Part c) | 2026-08-17 |
+| REQ-390a | Lazy ruleset hydration (Part a) | 2026-08-17 |
+| REQ-390b | Lazy ruleset hydration (Part b) | 2026-08-17 |
+| REQ-391a | Scoped tool listing (Part a) | 2026-08-17 |
+| REQ-391b | On-demand schema delivery (Part b) | 2026-08-17 |
+| REQ-391c | Tool listing pagination (Part c) | 2026-08-17 |
+| REQ-392 | Tool-description budget | 2026-08-17 |
+| REQ-393 | Update preservation | 2026-08-17 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8750,7 +8805,7 @@ diet.
 | T-new-393 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T-new-394 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared". Call `set_scene_state("You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
 | T-new-395 | Automated | Archetype verification: parse §7.7 property groups, assert all 30 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
-| T-new-396 | Automated | Tool namespacing: build combined D&D + Starfinder server. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
+| T-new-396 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T-new-397 | Automated | Novel ruleset binding: call `create_novel("test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `novel_info`. Call `create_novel("test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T-new-398 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
 | T-new-399 | Automated | Extraction isolation: call `dnd5e_search_rules("fireball")` under D&D Novel — assert D&D-only results. Call `starfinder_search_rules("laser")` under Starfinder Novel — assert Starfinder-only results. Assert no cross-contamination in source anchors. | REQ-382 |
@@ -8759,8 +8814,18 @@ diet.
 | T-new-402 | Automated | suggest_actions scoping: call `suggest_actions("attack")` under D&D Novel — assert D&D-prefixed tool suggestions only. Same intent under Starfinder Novel — assert Starfinder-prefixed only. | REQ-385 |
 | T-new-403 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
 | T-new-404 | Automated | Codex ruleset annotation: assert `codex_list(ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `codex_list(ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `codex_import` of D&D spell codex entry into Starfinder Novel is rejected. Assert `codex_capture("npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `codex_list(ruleset="starfinder")`; assert `codex_import` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
-| T-new-405 | Automated | G8 isolation workflow: run all seven G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
+| T-new-405 | Automated | G8 isolation workflow: run all nine G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
 | T-new-406 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call spec_health — assert holodeck_config.behavioral_coupled ≥ 3, natural_language_paths includes pacing_window → "player_signal(pace, faster/slower)", npc_autonomy → "set_narrative_directive('NPCs act independently')", world_reactivity → "set_narrative_directive('the world reacts')". Assert uncoupled array contains any behavioral variables without coupling rows. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) absent from behavioral counts. Set TTRPG_WORLD_REACTIVITY to a value with no coupling row — assert variable appears in uncoupled. | REQ-388, REQ-069, REQ-081 |
+| T-new-407 | Automated | Binding migration: create a ruleset-free Novel, install a ruleset package, call `bind_novel_ruleset` — assert the Novel gains the slug's tools and the transition is audited. Assert `bind_novel_ruleset` on a Novel already bound to a different slug returns `[ERROR] [STATE_CONFLICT]`. Assert `resume_novel` restores the migrated binding. | REQ-380c |
+| T-new-408 | Automated | Package format integrity: build a package via the Package step, load it into a host — assert `search_rules`, lookups, and dice tools serve with no source-Markdown file access. Corrupt the package manifest's content hash — assert the host rejects the package by slug, reports expected/received hashes in `spec_health`, and continues serving other packages. | REQ-389 |
+| T-new-409 | Automated | Install surface: `install_ruleset` with a duplicate slug or incompatible host version fails naming the reason; `remove_ruleset` with a bound Novel active returns `[ERROR] [STATE_CONFLICT]`; `list_rulesets` distinguishes loaded from installed-but-idle packages. Assert all three are audited. | REQ-389c |
+| T-new-410 | Automated | Lazy hydration: start a host with three installed packages, activate a Novel bound to one — assert only that package's tools register and its index loads; the other two report `[ERROR] [STATE_CONFLICT]` on a direct ruleset tool call until their Novel is activated. | REQ-390 |
+| T-new-411 | Automated | Cold-start budget: with five installed packages of mixed size, assert cold start (process start to first tool response) meets the REQ-100 tier for the single largest package; assert `spec_health.rulesets_installed` is 5, `rulesets_hydrated` equals the number activated at first call, and aggregate index bytes is reported. | REQ-390b |
+| T-new-412 | Automated | Scoped tool listing: under a D&D-bound Novel, default `tools/list` returns infrastructure plus `dnd5e_*` only; `tools/list(scope=all)` returns all loaded packages' tools with `inapplicable` hints; with no Novel active the default listing forces no hydration. | REQ-391a, REQ-381b |
+| T-new-413 | Automated | Schema deferral: assert the on-demand schema surface returns a single tool's full schema and a single ruleset's tool set; assert default listing entries preserve name, category, and one-line purpose when abbreviated. | REQ-391b |
+| T-new-414 | Automated | Pagination: a host whose `tools/list(scope=all)` exceeds the size cap returns paginated pages; assert default scoped listing size is independent of installed package count. | REQ-391c |
+| T-new-415 | Automated | Description budget: assert every tool description fits the build-time budget recorded in DECISIONS.md; assert `spec_health.tools_list_bytes` is present and reflects the default listing. | REQ-392 |
+| T-new-416 | Automated | Update preservation: bump the host version, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package_incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
 
 ---
 
@@ -9923,7 +9988,9 @@ for forward reference:
 |------|-----------|
 | ruleset slug | REQ-379 |
 | tool prefix | REQ-379 |
-| combined build | §6.4.2 |
+| ruleset package | REQ-389 |
+| host server | REQ-390 |
+| install directory | REQ-390 |
 | ruleset scope | REQ-380 |
 | inapplicable hint | REQ-381 |
 | cross-ruleset isolation | §8 G8 |

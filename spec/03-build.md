@@ -72,7 +72,7 @@ two tiers: Required first, then Advanced.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
-| B1  | Ruleset(s) to build              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
+| B1  | Ruleset(s) to package              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
 | B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` for single ruleset; `holonovel-multi` for multiple |
@@ -107,8 +107,10 @@ contains no `.md` files SHALL be recorded as a finding in DECISIONS.md (1) — t
 operator may correct it or remove that ruleset from the build. The builder SHALL
 record the slug-to-path mapping in DECISIONS.md (1). Ruleset-free mode (B1=`none`)
 and single-ruleset mode (B1 has exactly one `slug=path` pair) are unchanged — the
-builder proceeds with the existing pipeline. Multi-ruleset mode triggers the Combine
-step after all rulesets complete Construction and the Pattern Buffer.
+builder proceeds with the existing pipeline. Multi-ruleset mode emits one declarative
+package per ruleset via the Package step (§6.4.2) after each ruleset completes
+Construction and the Pattern Buffer; the host loads any number of packages, so
+multi-ruleset builds no longer merge into a single server.
 
 B13 defaults to all rulesets in B1. B15 allows per-ruleset `production` or
 `quick-build` overrides — when not specified, each ruleset inherits the global B9
@@ -261,11 +263,13 @@ _Check:_ T172.
 installs the `holonovel` npm package at the version specified by B10. The holonovel
 package provides the world-model layer pre-built — kind hierarchy, property contracts,
 parser command catalog, and declarative assertion syntax — as `core` and `world` entry
-points. The builder adds `holonovel` as a dependency of the TTRPG server. No
+points. The `holonovel` package IS the host server that loads ruleset packages; the
+builder produces declarative packages (REQ-389) that the host consumes, rather than a
+separate server per ruleset. No
 chunked reading or provider-documentation indexing occurs during TTRPG builds — the
-holonovel package is a build-time dependency, not a per-build extraction target. The
+holonovel package is a build-time and runtime dependency, not a per-build extraction target. The
 world-model layer is surfaced at the `world://kinds` resource (REQ-202). When B1 is
-`none` (ruleset-free mode), the holonovel package IS the server — the builder installs it,
+`none` (ruleset-free mode), the holonovel package IS the server with no packages installed — the builder installs it,
 verifies it starts, and no further extraction occurs.
 
 **Extraction categories.** For each chunk, the builder extracts and records:
@@ -420,7 +424,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
 | 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
-| 7     | Combine: merge N builds into one MCP server (multi-ruleset only; skipped for single-ruleset and ruleset-free) | G8 pass, per-ruleset G2 replay in combined server |
+| 7     | Package: emit a declarative ruleset package (model, index, tool schemas, resources, prompts, hash, version manifest) per ruleset (REQ-389) | G8 pass, per-ruleset G2 replay after package load in the host |
 
 The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
 Both formats are Build baselines.
@@ -440,62 +444,52 @@ README.md license footer. Format: "Built from: [Source] ([License], [Copyright])
 — one source per line, semicolon-separated, flowing into a single paragraph
 terminated by the RSS link and last-updated date.
 
-### 6.4.2 Combine step
+### 6.4.2 Package step
 
-*Prepare:* Load files from `build-phase-map.md` Combine row: 03-build.md §6.4.2,
-02-requirements.md §5.16.
+*Prepare:* Load files from `build-phase-map.md` Package row: 03-build.md §6.4.2,
+02-requirements.md §5.16, §5.17.
 
-The Combine step merges N independently-verified ruleset builds into a single
-MCP server. Each ruleset build SHALL have passed Steps 1–6, the Pattern Buffer,
-and verification workflows G2–G5 before Combine begins. The step is skipped for
-single-ruleset and ruleset-free builds. The step SHALL operate in this order:
+The Package step emits a declarative ruleset package (REQ-389) per ruleset. Each
+ruleset build SHALL have passed Steps 1–6, the Pattern Buffer, and verification
+workflows G2–G5 before packaging begins. The step SHALL operate in this order:
 
-1. **Scaffold.** Initialize a new MCP server using the `holonovel` package
-   (version from B10) as the base — same scaffold as Step 1, but with a
-   combined server name from B6 (B13 when B6 is `holonovel-multi`).
+1. **Assemble the artifact.** Serialize the extracted model, the full-text search
+   index, every ruleset-derived tool schema with execution logic expressed as data,
+   rule sources, and prompt definitions into the package. Each package carries a
+   content hash and a version manifest naming the host version it was built against
+   (REQ-389).
 
-2. **Register infrastructure.** Register all infrastructure tools (REQ-020
-   World, Novels, Badges, Narrative categories) exactly once from the
-   holonovel scaffold. These tools carry `ruleset: null` annotations.
+2. **Register per-ruleset surfaces.** For each ruleset, assign the `<slug>_` prefix
+   to every ruleset-derived tool and annotate it with the ruleset slug (REQ-379).
+   Infrastructure tools (REQ-020 World, Novels, Badges, Narrative categories) are
+   provided by the host and SHALL NOT be duplicated in a package. Per-ruleset
+   resources (`ruleset://`, `monsters://`, `spells://`, `equipment://`,
+   `classes://`, `adventure://`) SHALL be namespaced as `<slug>://<path>` — each
+   package's resource tree is a separate URI namespace.
 
-3. **Register per-ruleset tools.** For each ruleset build, register every
-   ruleset-derived tool with the `<slug>_` prefix. Each tool carries its
-   `ruleset` annotation set to the ruleset slug. Tool parameter schemas are
-   preserved verbatim from the per-ruleset build — prefixing is a name change
-   only.
+3. **Record the prefix map.** Record the prefix-to-slug mapping in DECISIONS.md (1),
+   reported at runtime in `spec_health` under `ruleset_prefix_map` (REQ-379).
 
-4. **Register resources.** Infrastructure resources (`spec://build`,
-   `world://kinds`, `world://map`, `entities://`, `scenes://`, `roster://`,
-   `output://`, `audit://`, `guidance://`) are registered once from the
-   scaffold. Per-ruleset resources (`ruleset://`, `monsters://`, `spells://`,
-   `equipment://`, `classes://`, `adventure://`) SHALL be namespaced as
-   `<slug>://<path>` — each ruleset's resource tree is a separate URI
-   namespace.
+4. **Verify isolation.** The builder SHALL audit each package's tool set for: (a)
+   every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
+   no infrastructure tool is duplicated into the package; (c) no two tools within the
+   package share a registered name after prefixing; (d) the `ruleset_prefix_map`
+   matches the B1 slug-to-path mapping. A violation is a
+   packaging defect that SHALL be resolved before handoff.
 
-5. **Register prompts.** Infrastructure prompts (`intro`, `session_zero`,
-   `novel_setup`, `badge_briefing`, `run_workflow`) are registered once.
-   Their content composition is ruleset-aware — each prompt reads from the
-   active Novel's ruleset model at invocation time.
+5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden
+   transcript) against the ruleset's fixture in the host, and run the Pattern Buffer
+   sub-workflows S2–S9, S13–S14, S16, S18, S21, and S24–S27 against the loaded package
+   — these are ruleset-specific and must re-verify. Run sub-workflows S1, S10–S12,
+   S15, S17, S19–S20, and S22–S23 once — these are infrastructure and ruleset-agnostic.
 
-6. **Verify isolation.** The builder SHALL audit the combined server's
-   `tools/list` for: (a) every ruleset-derived tool carries a `ruleset`
-   annotation matching one of the B1 slugs; (b) no infrastructure tool
-   carries a prefix; (c) no two tools share the same registered name; (d) the
-   `ruleset_prefix_map` matches the B1 slug-to-path mapping. A violation is a
-   combine defect that SHALL be resolved before verification.
+6. **Run G8.** Execute the cross-ruleset isolation verification workflow (§8 G8)
+   against the host with the package(s) loaded. A G8 failure SHALL block the build.
 
-7. **Re-verify per ruleset.** Run G2 (golden transcript) against each
-   ruleset's fixture in the combined server. Run the Pattern Buffer
-   sub-workflows S2–S9, S13–S14, S16, S18, S21, and S24–S27 against each
-   ruleset in the combined server — these are ruleset-specific and must
-   re-verify. Run sub-workflows S1, S10–S12, S15, S17, S19–S20, and
-   S22–S23 once — these are infrastructure and ruleset-agnostic.
-
-8. **Run G8.** Execute the cross-ruleset isolation verification workflow
-   (§8 G8). A G8 failure SHALL block the build.
-
-After Combine, verify that `spec_health` reports per-ruleset metrics and
-`ruleset_prefix_map`.
+Unlike a merged server, packaging NEVER modifies the host: the base `holonovel`
+server is installed unchanged, and packages are dropped into the install directory
+(§7.6) for lazy hydration per REQ-390. After packaging, verify that the loaded host
+reports per-ruleset metrics and `ruleset_prefix_map` via `spec_health`.
 
 ### 6.4.1 Prompt composition
 

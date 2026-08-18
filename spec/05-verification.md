@@ -156,8 +156,8 @@ Each persona archetype exercises at least one Pattern Buffer sub-workflow:
 | Rules Lawyer         | S8                   | Ambiguous alias → `[AMBIGUOUS]` with enumeration  |
 | Forgetful Player ×2  | S22, S24             | Workflow staleness, session-boundary recovery     |
 
-**Verification workflow G8 — Cross-ruleset isolation.** Run after the Combine
-step on a server built with at least two rulesets. The workflow SHALL verify:
+**Verification workflow G8 — Cross-ruleset isolation.** Run after the Package
+step on a host with at least two ruleset packages loaded. The workflow SHALL verify:
 
 1. **Tool isolation.** With a Novel bound to ruleset A active, call a
    ruleset-derived tool from ruleset B. Assert `[ERROR] [INVALID_INPUT]`
@@ -175,7 +175,7 @@ step on a server built with at least two rulesets. The workflow SHALL verify:
    rulesets under the same name returns the ruleset-A entry in A's Novel and
    the ruleset-B entry in B's Novel.
 
-4. **Import rejection.** Export a ruleset-A Novel. Build a new combined server
+4. **Import rejection.** Export a ruleset-A Novel. Build a new host
    that does not include ruleset A. Attempt to `import_novel` — assert
    `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
 
@@ -198,11 +198,17 @@ step on a server built with at least two rulesets. The workflow SHALL verify:
    Call `codex_import` of that entry into a ruleset-B Novel — assert
    `[ERROR] [STATE_CONFLICT]` naming both rulesets.
 
-G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
-build. G8 is a ruleset-facing workflow — each combined server must pass it
-once per combination of rulesets.
+9. **Load-time namespacing audit.** After each `install_ruleset`, assert every
+   tool registered from the package carries the correct `<slug>_` prefix and
+   `ruleset` annotation; assert no infrastructure tool was re-registered; assert
+   `remove_ruleset` deregisters all of the package's tools and prompts while no
+   bound Novel is active.
 
-*Acceptance criterion:* A combined D&D + Starfinder server passes all seven
-G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
+G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
+build. G8 is a ruleset-facing workflow — each host must pass it
+once per ruleset present in the package set.
+
+*Acceptance criterion:* A host with D&D and Starfinder packages loaded passes
+all nine G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
 _Check:_ T-new-404.
 
