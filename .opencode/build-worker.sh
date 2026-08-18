@@ -27,14 +27,12 @@ After implementing:
 
     echo "=== $(date): $TASK ==="
 
-    if [ -z "$BUILD_SESSION" ]; then
-      opencode run --agent build --title "Build Queue" "$PROMPT"
-      BUILD_SESSION=$(opencode session list --format json --max-count 1 | jq -r '.[0].id')
-    else
-      opencode run --session "$BUILD_SESSION" "$PROMPT"
-    fi
+    opencode run --agent build --auto --title "Build Queue" "$PROMPT"
 
     if [ $? -eq 0 ]; then
+      # Guarantee package integrity: recompute the swse content_hash from the
+      # five content files (idempotent — no-op if the agent's hash was correct).
+      node .opencode/recompute-ruleset-hash.mjs swse 2>&1 || echo "WARN: hash recompute failed"
       sed -i '1d' "$QUEUE"
       echo "=== Done ==="
     else
