@@ -3430,9 +3430,12 @@ A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or d
 ### 5.18 Workflow Entry Points
 
 **REQ-395a — Ruleset-build entry point (Part a).**
-The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. *Acceptance criterion:* `build-ruleset swse=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage. _Check:_ T463.
+The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset swse=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage; no untracked build tooling is left in the tracked tree. _Check:_ T463.
 
 **REQ-395b — Workflow runbooks (Part b).**
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
+
+**REQ-396 — Deploy preservation.**
+Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or equivalent deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data (Novels, roster, codex, server notes, and world-model data) unchanged, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory. *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy step whose git operations would touch the install or user-data directory is rejected before any file is deleted or reverted. _Check:_ T465.
 
 #### End of requirements

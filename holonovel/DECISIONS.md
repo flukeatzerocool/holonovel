@@ -1,27 +1,27 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 51a4bd9035d64f20ab6dd97e2266cbcc0a668c40ce5e91a292c7de7775e9d56e
+**Spec hash:** e62d7ada484360326ac8d428a65c544fb3be5c2a4db13dc570c037baac1bfc29
 
-### Holonovel Spec Update — 2026-08-18
+### Holonovel Spec Update — 2026-08-18 (deploy preservation)
 
 | Field | Value |
 |-------|-------|
-| Delta class | major |
-| Changed | spec (REQ-395a, REQ-395b), source (host discoverability), surfaces (search_rules, spec_health guidance) |
+| Delta class | minor |
+| Changed | spec (new REQ-396 Deploy preservation; REQ-395a amended) |
 | Reused | config, lockfile, extraction |
 | Implementation fingerprints | source=e10d669aefd0b8378c0553ceb91382304a6e66f87903b12063e0ae67079dfa8f, config=20900e1f3ffc7bbb4f0ea91f71376cdd8517dc8da4548b7a93f1372d1b1ef19e3e879302d199d17e072264fe5713278ee3e80e37c2923bd494ac82081bc7e534, lockfile=760a5537e004cc4e843ea26e7d15fa0c1c7dc3b987e4f38b07fd25c332657886, extraction=sentinel, surfaces=77e6b8c5e21924bbf708908194393bc948007fe9a01195d267fa3a3f0a648f2d |
 | Verification | assemble 0 errors, check 0 errors, typecheck 0 errors |
 
-New REQ-395a/395b (§5.18 Workflow Entry Points) and Appendix V (Workflow Runbooks):
-the distribution exposes a single `build-ruleset <slug>=<path>` entry point and a
-runbook per §6.1 workflow (Add a ruleset, Convert, Synthesize, Update, Remove a
-ruleset, Migrate a Novel). `scripts/build-ruleset.ts` validates slug (§7.1a) and
-Markdown source path, records B1 intake to `.holonovel-state/build-intake.md`
-(server-side log, not the repo), and prints the Build workflow invocation for an
-opencode agent — mirroring `update-server.ts`, it does not recursively invoke
-opencode. The ruleset-free host now points builders at the entry point: `search_rules`
-and `spec_health` report "run `build-ruleset <slug>=<path>`" with a reference to
-Appendix V, instead of a bare world-model-only notice.
+New REQ-396 (§5.18 Deploy preservation): any mechanism that updates a deployed
+host instance — a git pull, clean, checkout, or equivalent — SHALL preserve the
+install directory, all installed packages, and all user-generated data (Novels,
+roster, codex, server notes, world model) byte-for-byte, and SHALL NOT run
+destructive git operations that delete or revert the install or user-data
+directory. Closes the gap left by REQ-393 (which framed preservation only around
+the §6.7 version-bump update, not a deployed-clone pull/clean). REQ-395a is
+amended so `build-ruleset` package output lands only in the install directory and
+build tooling inside the git-tracked tree is committed rather than left untracked.
+No state-model or tool-surface change; source and surfaces unused.
 
 Version bumped to 2026.08.18 (root + holonovel package.json, AGENTS header, DECISIONS
 spec version, index.ts McpServer version). The build-order fingerprint does not change
