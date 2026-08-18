@@ -18,7 +18,7 @@ import { join } from "node:path";
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
-const decisionsFile = join(root, "DECISIONS.md");
+const decisionsFile = join(dataDir, "build-intake.md");
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 
@@ -66,7 +66,7 @@ function recordIntake(intakes: Intake[]): void {
   const stamp = new Date().toISOString();
   const pairs = intakes.map((i) => `${i.slug}=${i.path}`).join(" ");
   const entry = `\n## B1 intake (build-ruleset) — ${stamp}\n\n- B1: ${pairs}\n`;
-  mkdirSync(root, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
   if (existsSync(decisionsFile)) {
     writeFileSync(decisionsFile, entry, { flag: "a" });
   } else {
@@ -112,6 +112,7 @@ console.log("Build workflow (§6.1, §6.2) must now be run by an opencode agent.
 console.log(`Invoking: opencode run --agent build "Perform Build workflow on ${intakes.map((i) => i.slug).join(", ")}. B1 intake: ${intakes.map((i) => `${i.slug}=${i.path}`).join(" ")}. Follow Appendix V (Workflow Runbooks) V.1 happy path."`);
 
 // The AI maintainer (opencode run) cannot be invoked from within opencode
-// (recursive invocation would deadlock). Intake is recorded in DECISIONS.md;
+// (recursive invocation would deadlock). Intake is recorded in
+// .holonovel-state/build-intake.md (server-side decision log, not the repo);
 // a human or CI with opencode access must run the printed command.
 process.exit(0);
