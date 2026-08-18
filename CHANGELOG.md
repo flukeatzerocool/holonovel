@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-17 — Add narrative-prose readability standard (grade 12)
+
+- Added a Flesch-Kincaid grade-12 readability standard for narrative prose —
+  the "How to read this specification" block plus the prose of §1 through §4 —
+  enforced as a proofreading warning. The numbered Standing Rules of §4, the
+  §5 requirement bodies, and the reference appendices are exempt.
+- Documented the standard in Appendix M, including the human-judgment rule: a
+  flag is a pointer, not a verdict — the author reads the flagged paragraph and
+  rewrites only what is genuinely hard to follow.
+- `scripts/lib/parse-spec.ts` gained `extractNarrativeProse`, which isolates
+  narrative paragraphs while skipping headings, tables, lists, code fences,
+  blockquotes, and horizontal rules. `scripts/validate.ts` gained a
+  `proseReadability` proofreading category and a shared Flesch-Kincaid helper.
+- Rewrote eleven §1–§4 and reading-guide paragraphs to read at grade 12 or
+  below, preserving all cross-references.
+
 ## 2026-08-17 — Fix scoped-update fingerprint scoping
 
 - `scripts/update-server.ts` no longer emits a nonsensical "0 components

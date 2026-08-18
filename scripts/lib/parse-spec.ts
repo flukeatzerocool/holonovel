@@ -73,6 +73,55 @@ export function extractReqBodiesWithSentences(text: string): Map<string, ReqBody
   return reqs;
 }
 
+export interface ProseParagraph {
+  section: string;
+  paragraph: string;
+  line: number;
+}
+
+export function extractNarrativeProse(text: string): ProseParagraph[] {
+  const startIdx = text.indexOf("### How to read this specification");
+  const endIdx = text.indexOf("## 5. Requirements");
+  if (startIdx < 0 || endIdx < 0 || endIdx <= startIdx) return [];
+  const startLine = text.slice(0, startIdx).split("\n").length;
+  const lines = text.slice(startIdx, endIdx).split("\n");
+
+  const paragraphs: ProseParagraph[] = [];
+  let section = "How to read this specification";
+  let buf: string[] = [];
+  let bufLine = 0;
+  let inFence = false;
+
+  const flush = () => {
+    const p = buf.join(" ").replace(/\s+/g, " ").trim();
+    if (p.length === 0) return;
+    paragraphs.push({ section, paragraph: p, line: bufLine });
+    buf = [];
+  };
+
+  lines.forEach((raw, i) => {
+    const t = raw.trim();
+    if (inFence) {
+      if (t.startsWith("```")) inFence = false;
+      return;
+    }
+    if (t.startsWith("```")) { flush(); inFence = true; return; }
+    if (/^\s/.test(raw)) { flush(); return; }
+    if (/^#{1,6}\s+/.test(t)) { flush(); section = t.replace(/^#+\s*/, "").trim(); return; }
+    if (t === "") { flush(); return; }
+    if (t.startsWith("|")) { flush(); return; }
+    if (t.startsWith(">")) { flush(); return; }
+    if (/^-{3,}\s*$/.test(t)) { flush(); return; }
+    if (/^\d{1,2}\.\s+/.test(t)) { flush(); return; }
+    if (/^[-*]\s+/.test(t)) { flush(); return; }
+    if (/^\*\*.+\*\*\s*$/.test(t)) { flush(); return; }
+    if (buf.length === 0) bufLine = startLine + i;
+    buf.push(t);
+  });
+  flush();
+  return paragraphs;
+}
+
 export interface TerminologyEntry {
   term: string;
   canonical: string;

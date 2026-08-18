@@ -2043,7 +2043,16 @@ annotations, Default: clauses, body-length violations, enumerated catalogs,
 lifecycle repetition, multi-paragraph REQs, embedded tables, bullet lists,
 numbered steps, and sentence-count violations all surface as errors before commit.
 The proofreading checks (passive voice, modal drift, double negatives, sentence length,
-condition stacking, pronoun ambiguity, term drift, readability) surface as warnings.
+condition stacking, pronoun ambiguity, term drift, REQ-body readability, narrative
+prose readability) surface as warnings.
+
+**Prose readability standard.** The narrative prose — the "How to read this
+specification" block plus the prose of §1 through §4 — SHALL read at a Flesch-Kincaid
+grade level of 12 or below. The check is a warning, not a gate: a paragraph flagged above
+grade 12 does not block a commit. A flag is a *pointer*, not a verdict — the author reads
+the flagged paragraph and rewrites it only if it is genuinely hard to follow. Length and
+domain vocabulary alone are not defects; the numbered Standing Rules of §4, the §5
+requirement bodies, and the reference appendices are exempt from this standard.
 
 **REQ anatomy.** One paragraph stating a single verifiable contract — the
 *what*. Ends in `_Check:` with test citations. Contains no parameter types,
