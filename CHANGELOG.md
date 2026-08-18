@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-18 — Deploy preservation (REQ-396)
+
+- Added REQ-396: any mechanism that updates a deployed host instance (git
+  pull, clean, checkout, or equivalent) SHALL preserve the install directory,
+  all installed packages, and all user-generated data (Novels, roster, codex,
+  server notes, world model) byte-for-byte, and SHALL NOT run destructive git
+  operations that delete or revert the install or user-data directory.
+- Amended REQ-395a: `build-ruleset` package output SHALL land only in the
+  install directory, and any build tooling or intermediate artifacts inside
+  the git-tracked tree SHALL be committed (never left untracked) or placed
+  outside the tree, so a deploy that cleans untracked files never destroys
+  them.
+- Added T465 (deploy preservation) and the REQ-396 registry row.
+
 ## 2026-08-18 — Workflow entry points and runbooks (REQ-395)
 
 - Added REQ-395a: the distribution exposes a single `build-ruleset` entry
