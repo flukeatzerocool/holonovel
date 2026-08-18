@@ -42,6 +42,15 @@ const specHash = process.argv.includes("--spec-hash")
   ? process.argv[process.argv.indexOf("--spec-hash") + 1]
   : null;
 const scopeByFingerprint = process.argv.includes("--scope-by-fingerprint");
+const checkOnly = process.argv.includes("--check");
+const allowPending = process.argv.includes("--allow-pending");
+const deltaClassArg = process.argv.includes("--delta-class")
+  ? process.argv[process.argv.indexOf("--delta-class") + 1]
+  : null;
+const deltaClass: "patch" | "minor" | "major" =
+  deltaClassArg === "patch" || deltaClassArg === "minor" || deltaClassArg === "major"
+    ? deltaClassArg
+    : "major";
 
 function loadStored(): Record<string, StoredRecord> {
   const path = join(root, FINGERPRINT_FILE);
@@ -88,13 +97,14 @@ function compareFingerprints(current: Fingerprints, stored: Fingerprints | undef
 }
 
 if (!server) {
-  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint]");
+  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint] [--delta-class patch|minor|major] [--check] [--allow-pending]");
   process.exit(1);
 }
 
-const serverDir = join(root, server);
+const serverName = server;
+const serverDir = join(root, serverName);
 const stored = loadStored();
-const previous = stored[server];
+const previous = stored[serverName];
 
 // Compare spec hashes
 const currentHash = specHash ?? readFileSync(join(root, "holonovel.md"), "utf-8").match(/SHA-256: ([a-f0-9]+)/)?.[1] ?? "unknown";
@@ -119,23 +129,40 @@ try {
   process.exit(1);
 }
 
-if (scopeByFingerprint && previous) {
+function reconcile(spec_hash: string, fingerprints: Fingerprints): void {
+  stored[serverName] = { server: serverName, spec_hash, fingerprints, last_update: new Date().toISOString() };
+  saveStored(stored);
+}
+
+if ((scopeByFingerprint || checkOnly) && previous) {
   const delta = compareFingerprints(currentFingerprints, previous.fingerprints);
   console.log(`\nFingerprint delta: ${delta.changedCount} changed (${delta.changed.join(", ")}), ${delta.unchanged.length} unchanged (${delta.unchanged.join(", ")})`);
 
-  if (delta.changedCount === 0) {
-    console.log(currentHash === previous.spec_hash
-      ? "No changes detected — skipping update."
-      : "Spec hash changed but no implementation fingerprints changed — nothing to rebuild.");
-    stored[server] = {
-      server,
-      spec_hash: currentHash,
-      fingerprints: currentFingerprints,
-      last_update: new Date().toISOString(),
-    };
-    saveStored(stored);
+  // Pending update: spec advanced, implementation fingerprints unchanged, and
+  // the delta is not wording-only. This is the silent-stale publication case
+  // that REQ-394 forbids — block publication until the §6.7 update runs.
+  const pendingUpdate =
+    delta.changedCount === 0 && deltaClass !== "patch";
+
+  if (pendingUpdate) {
+    console.log(`\nPENDING UPDATE: spec ${deltaClass} delta but no implementation fingerprints changed.`);
+    console.log(`Invoking: opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)} (${deltaClass} delta)."`);
+    if (checkOnly || !allowPending) {
+      process.exit(1);
+    }
+    console.log(`  (overridden with --allow-pending — recording reconciled hash without performing the update.)`);
+    reconcile(currentHash, currentFingerprints);
     process.exit(0);
   }
+
+  if (delta.changedCount === 0) {
+    console.log("Spec hash changed (patch-class) with no implementation fingerprints changed — nothing to rebuild.");
+    if (checkOnly) { console.log("  (check mode — no write)"); process.exit(0); }
+    reconcile(currentHash, currentFingerprints);
+    process.exit(0);
+  }
+
+  if (checkOnly) { process.exit(0); }
 
   if (delta.changedCount > 2) {
     console.log(`>2 components changed — full Build workflow required.`);
@@ -148,18 +175,18 @@ if (scopeByFingerprint && previous) {
     console.log(`Invoking: opencode run --agent build "Perform partial Update on ${server}. Changed: ${delta.changed.join(", ")}. Implement only changed surfaces and their dependents."`);
   }
 } else {
+  if (checkOnly) {
+    console.log(`\nNo stored fingerprints — cannot determine pending-update status.`);
+    process.exit(1);
+  }
   console.log(`\nFull update required (no stored fingerprints or unscoped mode).`);
   console.log(`Invoking: opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${storedHash?.substring(0, 16) ?? "none"} to ${currentHash.substring(0, 16)}."`);
 }
 
-// Save current fingerprints
-stored[server] = {
-  server,
-  spec_hash: currentHash,
-  fingerprints: currentFingerprints,
-  last_update: new Date().toISOString(),
-};
-saveStored(stored);
+// Save current fingerprints (normal mode only — --check never writes)
+if (!checkOnly) {
+  reconcile(currentHash, currentFingerprints);
+}
 
 // The AI maintainer (opencode run) cannot be invoked from within opencode
 // (recursive invocation would deadlock). This script records the decision
@@ -171,3 +198,4 @@ saveStored(stored);
 // execSync(updateCommand, { stdio: "inherit", cwd: root });
 // ```
 console.log("\nFingerprints saved. Next: run opencode to perform the actual update.");
+process.exit(0);

@@ -3424,4 +3424,7 @@ Every registered tool's `description` SHALL fit a build-time size budget recorde
 **REQ-393 — Update preservation.**
 A host update (§6.7) SHALL revalidate installed packages against the new host version without re-building or re-extracting them. A package whose version manifest names an incompatible host version SHALL be reported in `spec_health` and held inactive (surfacing a `[package-incompatible]` flag) rather than silently dropped. Installed packages and all Novel, roster, codex, server-note, and world-model data SHALL survive a host update unchanged. *Acceptance criterion:* After a host version bump, a still-compatible package stays loaded and retains its indexed data; an incompatible package is flagged and held inactive; all user data survives byte-for-byte. _Check:_ T460.
 
+**REQ-394 — Spec publication integrity.**
+A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until the implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged implementation fingerprints — and block publication with a pending-update notice; patch deltas are exempt. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
+
 #### End of requirements

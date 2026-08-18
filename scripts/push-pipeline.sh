@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # push-pipeline.sh — assemble spec, sync server, push.
 #
 # This script handles the mechanical parts: build-order (spec assembly + checks
@@ -6,9 +6,10 @@
 # commit, and push.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
+#   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -17,22 +18,25 @@ set -euo pipefail
 
 DRY_RUN=false
 SKIP_CONFIRM=false
+ALLOW_PENDING=false
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --yes|-y) SKIP_CONFIRM=true ;;
+    --allow-pending) ALLOW_PENDING=true ;;
     --help|-h)
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes]"
+      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]"
       echo ""
-      echo "  --dry-run   Full pipeline including file writes — skip git commit, push, deploy."
-      echo "  --yes (-y)  Skip confirmation prompt before push/deploy."
-      echo "  --help (-h) Show this message."
+      echo "  --dry-run        Full pipeline including file writes — skip git commit, push, deploy."
+      echo "  --yes (-y)       Skip confirmation prompt before push/deploy."
+      echo "  --allow-pending  Override the pending-update block (REQ-394)."
+      echo "  --help (-h)      Show this message."
       exit 0
       ;;
     *)
       echo "Unknown flag: $arg"
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes]"
+      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]"
       exit 1
       ;;
   esac
@@ -69,18 +73,33 @@ npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"
 npm run refresh-properties
 
-# ── 3. Spec-delta report ──
+# ── 3. Spec-delta report (serial — capture classification) ──
 
 echo -e "${GREEN}=== 3. Spec-delta report ===${NC}"
-for server in "${SERVERS[@]}"; do
-  npm run spec-delta -- --server "$server" --report-only &
-done
-wait
-
-# ── 4. Update stored spec hashes in DECISIONS.md ──
-
-echo -e "${GREEN}=== 4. Update stored spec hashes in DECISIONS.md ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+
+# ── 4. Fingerprint and scoped spec-driven update (pending-update gate) ──
+
+echo -e "${GREEN}=== 4. Fingerprint and scoped spec-driven update ===${NC}"
+for server in "${SERVERS[@]}"; do
+  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+  echo "  $server: delta class = $DELTA_CLASS"
+  npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
+  EXTRA_ARGS=("--delta-class" "$DELTA_CLASS")
+  if $ALLOW_PENDING; then EXTRA_ARGS+=(--allow-pending); fi
+  if ! npx tsx scripts/update-server.ts --server "$server" \
+       --spec-hash "$SPEC_HASH" \
+       --scope-by-fingerprint "${EXTRA_ARGS[@]}"; then
+    echo -e "${RED}Pending update for $server — implementation has not been updated to match the spec.${NC}"
+    echo -e "${YELLOW}Run the printed 'opencode run' command, then re-run this pipeline.${NC}"
+    echo -e "${YELLOW}To override (operator escape hatch per REQ-394), re-run with --allow-pending.${NC}"
+    exit 1
+  fi
+done
+
+# ── 5. Update stored spec hashes in DECISIONS.md ──
+
+echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
@@ -89,18 +108,6 @@ for server in "${SERVERS[@]}"; do
     echo -e "${YELLOW}  WARNING: $server/DECISIONS.md missing '**Spec hash:**' line${NC}"
   fi
 done
-
-# ── 5. Fingerprint and scoped spec-driven update ──
-
-echo -e "${GREEN}=== 5. Fingerprint and scoped spec-driven update ===${NC}"
-for server in "${SERVERS[@]}"; do
-  (npx tsx scripts/fingerprint.ts --server "$server" > /dev/null && \
-   npx tsx scripts/update-server.ts --server "$server" \
-     --spec-hash "$SPEC_HASH" \
-     --scope-by-fingerprint) || \
-   echo -e "${YELLOW}  WARNING: $server update script returned non-zero — check logs${NC}" &
-done
-wait
 
 # ── Dry-run exit ──
 
@@ -113,7 +120,7 @@ fi
 
 if ! $SKIP_CONFIRM; then
   echo ""
-  read "confirm?Commit, push, and deploy? (y/N) "
+  read -r -p "Commit, push, and deploy? (y/N) " confirm
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "Aborted."
     exit 0
@@ -127,42 +134,46 @@ git add holonovel.md spec/ scripts/cross-property-couple.ts package.json
 for f in CHANGELOG.md README.md; do
   [[ -f "$f" ]] && git add "$f"
 done
-# Stage only tracked modifications in server/script dirs (never untracked files)
-# "holonovel/" is the server directory, not holonovel.md (already staged above)
-git add -u scripts/ holonovel/
+# Stage server/script dirs (gitignore already excludes node_modules/ and
+# .holonovel-state/). "holonovel/" is the server directory, not holonovel.md
+# (already staged above).
+git add scripts/ holonovel/
 
+HAS_COMMIT=true
 if git diff --staged --quiet 2>/dev/null; then
-  echo -e "${YELLOW}Nothing to commit.${NC}"
-  exit 0
+  echo -e "${YELLOW}Nothing to commit — skipping commit/tag/push, continuing with wiki and deploy.${NC}"
+  HAS_COMMIT=false
 fi
 
-COMMIT_DATE=$(date +%Y-%m-%d)
-git commit -m "Push pipeline $COMMIT_DATE
+if $HAS_COMMIT; then
+  COMMIT_DATE=$(date +%Y-%m-%d)
+  git commit -m "Push pipeline $COMMIT_DATE
 
   Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
 
-# ── 6a. Tag (only when the version is new) ──
+  # ── 6a. Tag (only when the version is new) ──
 
-echo -e "${GREEN}=== 6a. Tag ===${NC}"
-VERSION=$(node -e "console.log(require('./package.json').version)")
-TAG="v$VERSION"
-TAG_TO_PUSH=""
-if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
-  echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
-else
-  git tag -f "$TAG"
-  echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
-  TAG_TO_PUSH="$TAG"
-fi
+  echo -e "${GREEN}=== 6a. Tag ===${NC}"
+  VERSION=$(node -e "console.log(require('./package.json').version)")
+  TAG="v$VERSION"
+  TAG_TO_PUSH=""
+  if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
+    echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
+  else
+    git tag -f "$TAG"
+    echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
+    TAG_TO_PUSH="$TAG"
+  fi
 
-# ── 7. Push main ──
+  # ── 7. Push main ──
 
-echo -e "${GREEN}=== 7. Push main ===${NC}"
-git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
-if [[ -n "$TAG_TO_PUSH" ]]; then
-  git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
+  echo -e "${GREEN}=== 7. Push main ===${NC}"
+  git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+  if [[ -n "$TAG_TO_PUSH" ]]; then
+    git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
+  fi
 fi
 
 # ── 8. Push wiki ──

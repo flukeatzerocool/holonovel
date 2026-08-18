@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-17 — Spec publication integrity (REQ-394)
+
+- Added REQ-394: a Minor or Major spec delta SHALL NOT be propagated to a
+  repository or deployed server, or recorded as applied, until the
+  implementation fingerprints (REQ-313) advance to reflect the update.
+  Publication tooling must detect a pending update — a non-patch delta with
+  unchanged implementation fingerprints — and block publication with a
+  pending-update notice; patch deltas are exempt and an operator override
+  recorded in DECISIONS.md may lift the block when the update is scheduled.
+- `scripts/update-server.ts` gained `--delta-class`, `--check`, and
+  `--allow-pending`: it now exits non-zero on a pending update (spec advanced,
+  fingerprints unchanged, non-patch delta) instead of silently recording the
+  reconciled spec hash, and `--check` reports the gate without writing state.
+- `scripts/push-pipeline.sh` now runs the fingerprint/update step before the
+  DECISIONS.md spec-hash write and aborts the pipeline on a pending update;
+  added `--allow-pending`; converted to `bash` with a `read -r -p` prompt;
+  stages `scripts/` and `holonovel/` wholesale (`git add`, not `git add -u`);
+  and continues to the wiki push + deploy even when the main repo has nothing
+  to commit.
+- `.githooks/pre-push` gained a pending-update gate (update-server `--check`)
+  ahead of the spec/server sync check, as a backstop for direct commits.
+- §6.7 cross-links the update-completion contract to REQ-394 and clarifies the
+  Major-class Pattern Buffer scope (29-sub-workflow ruleset-facing subset vs.
+  full 33 sub-workflows), resolving the sub-workflow count drift.
+- Appendix E/F: manifest row REQ-394 and test T462.
+
 ## 2026-08-17 — Naming and terminology cleanup
 
 - Standardized the CRUD verb taxonomy: one verb per operation class, with
