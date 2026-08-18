@@ -49,10 +49,10 @@
 
 Read this specification in layers — not front to back.
 
-This specification is maintained as 10 source files under `spec/`, assembled into
-this document via `npm run assemble`. For per-phase loading during an AI build,
-the builder consults `build-phase-map.md` to load only the files needed for the
-current phase — reducing per-phase context by ~73% vs. loading the full specification.
+This specification is maintained as 10 source files under `spec/`. `npm run assemble`
+joins them into this document. During an AI build, the builder reads
+`build-phase-map.md` to load only the files the current phase needs. This cuts
+per-phase context by about 73% versus loading the full specification.
 
 **If you are a builder implementing a server for the first time:**
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
@@ -66,24 +66,22 @@ then the §5 subsections cited by the gap audit. The `build-phase-map.md` identi
 which files to load for the gap audit.
 
 **If you are a spec maintainer:**
-Start with Appendix M (REQ Authoring Conventions), §4 Standing Rules 7–8 (the
-contracts-over-implementations and red-team disciplines), then the CHANGELOG for
+Start with Appendix M (REQ Authoring Conventions). Then read §4 Standing Rules 7–8 —
+the contracts-over-implementations and red-team disciplines. Then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing.
-Cached domain research at `.holonovel-state/knowledge-base/` provides cross-session
-efficiency — web findings, spec summaries, and implementation analysis with
-defined freshness windows.
+Cached domain research at `.holonovel-state/knowledge-base/` saves time across
+sessions. It holds web findings, spec summaries, and code analysis, each with a
+freshness window.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
 The verification workflows are executable — follow them in order. Use the assembled
 `holonovel.md` or load spec files per `build-phase-map.md`.
 
-**Reference material** (Appendices) is supplementary. Glance at Appendix E
-(Requirements Manifest) to orient yourself in the REQ namespace, Appendix F (Derived
-Test Catalogue) to understand test coverage, and Appendix S (Builder Glossary) for
-domain terminology. The remaining appendices are consulted on demand during specific
-build phases or verification workflows.
+**Reference material** (Appendices) is supplementary. Glance at Appendix E to learn the
+REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the
+rest on demand during build phases or verification.
 
 ---
 
@@ -133,29 +131,28 @@ entity presence tracking (REQ-307) and knowledge gated by who was present for ea
 scene (REQ-308).
 
 **The play model (ruleset-free).** When no TTRPG ruleset is present, the server provides
-freeform narrative roleplay. The primary interaction is through the GM's narrative tools:
-`set_scene_state` to describe a scene, `create_npc` to introduce characters,
-`present_choices` to offer structured decisions, and `set_lore_entry`
-to build the world as you play. Player tools (`set_personality`, `player_signal`,
-`character_sheet`) let the player describe their character and communicate
-preferences. Parser navigation (`go north`) is available when an adventure
-module populates rooms — it is never required to be in the story. Adventures are starting-state
-Novels: factions, NPCs, scenes, and lore pre-populated for the GM to run.
+freeform narrative roleplay. The GM's narrative tools are the main way to play. Use
+`set_scene_state` to describe a scene. Use `create_npc` to introduce characters. Use
+`present_choices` to offer decisions. Use `set_lore_entry` to build the world as you play.
+Player tools describe character and preferences: `set_personality`, `player_signal`, and
+`character_sheet`. Parser navigation (`go north`) is available when an adventure adds
+rooms. It is never required to be in the story. Adventures are starting-state Novels:
+factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
-**Definition of done.** The server must: (1) pass all verification workflows (§8), (2)
+**Definition of done.** The server must pass every verification workflow (§8). It must
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
-play with a real LLM, (3) hand off four specified artifacts and nothing else (§9), and (4)
-survive an independent verification (§10) where a second AI re-runs the verification workflows blind from a
-cold checkout, comparing its results against the builder's own.
+play with a real LLM. It must hand off four specified artifacts and nothing else (§9).
+It must survive an independent verification (§10): a second AI re-runs the verification
+workflows blind from a cold checkout, comparing its results against the builder's own.
 
 **Multi-ruleset mode.** When multiple rulesets are selected at intake (B1), the builder
-runs Discovery and Construction independently for each ruleset — each producing its own
+runs Discovery and Construction independently for each. Each ruleset produces its own
 RULESET_MODEL.md, confidence scores, and verification record. After all rulesets pass
 Construction and the Pattern Buffer, a Combine step (§6.4 Step 7) merges them into a
 single MCP server. Ruleset-derived tools carry a `<slug>_` prefix (REQ-379).
 Infrastructure tools (World, Narrative, Novels, Badges) carry no prefix and are shared
-across all rulesets. Each Novel is bound to exactly one ruleset at creation (REQ-380); the
-active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
+across all rulesets. Each Novel is bound to exactly one ruleset at creation (REQ-380).
+The active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
 Cross-ruleset contamination is a build defect (F8). The operator may add or remove
 rulesets by rebuilding the combined server.
 
@@ -163,17 +160,17 @@ rulesets by rebuilding the combined server.
 
 ## 2. Requirements at a Glance
 
-The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest)
-— requirements covering output contracts, error taxonomy, roll transparency, badges
-and security, extraction and confidence, tools and resources, Novel state and
-persistence, guidance, determinism, input safety, durability, and infrastructure — World (the world-model layer:
-rooms, things, exits, properties, parser commands, hybrid source conversion), Novels
-(the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
-archive), and Narrative (narrative infrastructure: scenes, NPCs, factions, countdowns,
-lore, story journal, player choices, and all other REQ-020 base tools).
-Each is one paragraph in §5. The manifest is the packing list for the
-DECISIONS.md traceability table and is mechanically verified by
-`scripts/validate.ts`.
+The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-manifest).
+The manifest covers output contracts, error taxonomy, and roll transparency. It covers
+badges and security, extraction and confidence, and tools and resources. It covers Novel
+state and persistence, guidance, and determinism. It covers input safety, durability, and
+infrastructure. Three groups divide these concerns. World is the world-model layer:
+rooms, things, exits, properties, parser commands, and hybrid source conversion. Novels
+is the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
+archive. Narrative is the narrative layer: scenes, NPCs, factions, countdowns, and lore.
+It also holds the story journal, player choices, and all other REQ-020 base tools. Each
+requirement is one paragraph in §5. The manifest is the packing list for the DECISIONS.md
+traceability table. `scripts/validate.ts` verifies it mechanically.
 
 ---
 
@@ -262,17 +259,16 @@ guard, the gap is explicit.
 
 ## 4. Standing Rules and Terminology
 
-**Constitution.** These rules constitute the project's immutable constitutional
-foundation — they apply to every feature, every build, and every spec revision
-regardless of ruleset or target platform. A substantive change to any standing
-rule requires a spec version bump and CHANGELOG entry. The builder SHALL treat
-these rules as non-negotiable constraints that override any conflicting
-instruction in §5–§11. Changes to terminology or clarity wording that do not
-alter meaning are editorial and do not require a version bump.
+**Constitution.** These rules are the project's immutable foundation. They apply to
+every feature, every build, and every spec revision, regardless of ruleset or target
+platform. A substantive change to any standing rule requires a spec version bump and a
+CHANGELOG entry. The builder SHALL treat these rules as non-negotiable. They override
+any conflicting instruction in §5–§11. Changes to terminology or clarity wording that
+do not alter meaning are editorial and do not require a version bump.
 
 **Standing rules.**
 
-1. The server is stateless across invocations; all build-level state is in-process and
+1. The server keeps no state between calls. All build-level state is in-process and
    rebuilt from scratch on startup. Novel state persists to disk (REQ-092).
 2. Randomness is deterministic and seedable (REQ-050).
 3. No network access at runtime (REQ-051).
@@ -383,15 +379,15 @@ alter meaning are editorial and do not require a version bump.
 | Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable for the Novel's lifetime. |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 
-**Technology stack.** TypeScript on Node.js 20+, stdio transport. Single process, no
-database, no external services. This is the prescribed stack; the holonovel reference
-implementation uses it. Builders may select an alternative language, runtime, or
-transport if the resulting server passes every verification workflow and the full Pattern Buffer
-— the alternative choice must be recorded with justification in DECISIONS.md (2).
+**Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single
+process, with no database and no external services. This is the prescribed stack. The
+holonovel reference implementation uses it. Builders may pick another language, runtime,
+or transport. The result must still pass every verification workflow and the full
+Pattern Buffer. Record the alternative choice with justification in DECISIONS.md (2).
 _Check:_ T92.
 
-**Distribution.** The builder must provide at minimum one of: a Docker container, a
-single-binary build (via Bun build, pkg, or equivalent), or an `npx`-runnable
-package. The goal is that an operator can run the server without installing a language
-toolchain beyond the MCP client's runtime.
+**Distribution.** The builder must provide at least one of: a Docker container, a
+single-binary build (via Bun build, pkg, or equivalent), or an `npx`-runnable package.
+The goal is that an operator can run the server without a language toolchain beyond the
+MCP client's runtime.
 

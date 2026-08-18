@@ -6,6 +6,8 @@ import {
   readSpec,
   extractReqBodiesWithSentences,
   extractTerminology,
+  extractNarrativeProse,
+  splitSentences,
   type ReqBodyEntry,
 } from "./lib/parse-spec.js";
 
@@ -388,10 +390,17 @@ interface ProofreadingIssues {
   pronoun: string[];
   termDrift: string[];
   readability: string[];
+  proseReadability: string[];
 }
 
 function emptyIssues(): ProofreadingIssues {
-  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [] };
+  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [], proseReadability: [] };
+}
+
+function fleschKincaidGrade(words: string[], sentences: string[]): number {
+  if (words.length === 0 || sentences.length === 0) return 0;
+  const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
+  return 0.39 * (words.length / sentences.length) + 11.8 * (syllables / words.length) - 15.59;
 }
 
 function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, terms: { term: string; canonical: string }[]): ProofreadingIssues {
@@ -515,10 +524,18 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
 
     // Readability (Flesch-Kincaid)
     if (words.length > 0) {
-      const syllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
-      const grade = 0.39 * (words.length / sentences.length) + 11.8 * (syllables / words.length) - 15.59;
+      const grade = fleschKincaidGrade(words, sentences);
       if (grade > 15) issues.readability.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 15`);
     }
+  }
+
+  // ── Narrative prose readability (text-level) ──
+  for (const p of extractNarrativeProse(text)) {
+    const words = p.paragraph.split(/\s+/).filter((w) => w.length > 0);
+    const sentences = splitSentences(p.paragraph);
+    if (words.length === 0 || sentences.length === 0) continue;
+    const grade = fleschKincaidGrade(words, sentences);
+    if (grade > 12) issues.proseReadability.push(`${p.section} (line ${p.line}): Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 12`);
   }
 
   return issues;
@@ -1120,6 +1137,7 @@ function main(): void {
     [proof.pronoun, "PASS: No ambiguous pronoun references", "WARNING"],
     [proof.termDrift, "PASS: Term usage consistent with Terminology table", "WARNING"],
     [proof.readability, "PASS: Readability within grade threshold", "WARNING"],
+    [proof.proseReadability, "PASS: Narrative prose within grade-12 threshold", "WARNING"],
   ];
   for (const [iss, passMsg, level] of proofCats) {
     if (iss.length > 0) {
