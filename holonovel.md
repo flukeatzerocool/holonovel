@@ -10222,7 +10222,12 @@ Update workflow (§6.7) driven manually.
 3. Implement the changes, then re-verify all blocking Pattern Buffer
    sub-workflows (§6.6).
 4. Recompute the implementation fingerprints (REQ-313) — publication is
-   blocked by REQ-394 until they advance.
+   blocked by REQ-394 until they advance. Implementation fingerprints are
+   computed from the live server source tree (REQ-313d), never read from the
+   historical fingerprint lines recorded in earlier `DECISIONS.md` entries.
+5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
+   surfaces, and verification — before pushing. The push pipeline syncs only
+   the `Spec hash` line; it does not write the narrative entry.
 
 **Recovery.**
 

@@ -152,6 +152,13 @@ Also available separately:
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
 
+`scripts/push-pipeline.sh` syncs only the `**Spec hash:**` line in
+`holonovel/DECISIONS.md`. The human-readable `### Holonovel Spec Update — <date>`
+narrative entry (delta class, changed surfaces, verification) must be added
+manually before a spec-changing push — see Appendix V.4. The pipeline warns
+(does not block) when the hash changed with no dated entry; REQ-394's gate is
+the hard block.
+
 ## Before committing spec changes
 
 `npm run assemble && npm run check:fast` (above) covers REQ shape,

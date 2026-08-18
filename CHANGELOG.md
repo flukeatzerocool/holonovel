@@ -28,6 +28,15 @@
   hash: `build-ruleset` B1 intake now records to `.holonovel-state/build-intake.md`
   (server-side decision log) instead of a stray untracked root `DECISIONS.md`,
   and `holonovel/DECISIONS.md` is synced to the assembled specification.
+- Fixed `update-server.ts` computing "current" implementation fingerprints by
+  grepping the first `source=`/`config=` line from `DECISIONS.md` — which walked
+  back to the oldest historical record. Fingerprints are now computed live from
+  the server source tree via a shared `scripts/lib/fingerprints.ts`, aligning
+  the REQ-394 pending-update gate with the normative current-vs-stored
+  comparison (REQ-313d). The stale local baseline was re-recorded with live
+  hashes. Appendix V.4 now documents the pipeline's hash-only sync and the
+  live-fingerprint computation, and `push-pipeline.sh` warns when a spec-hash
+  change lacks a dated `DECISIONS.md` Spec Update entry.
 
 ## 2026-08-17 — Spec publication integrity (REQ-394)
 

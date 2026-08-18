@@ -9,6 +9,7 @@
 | Delta class | major |
 | Changed | spec (REQ-395a, REQ-395b), source (host discoverability), surfaces (search_rules, spec_health guidance) |
 | Reused | config, lockfile, extraction |
+| Implementation fingerprints | source=e10d669aefd0b8378c0553ceb91382304a6e66f87903b12063e0ae67079dfa8f, config=20900e1f3ffc7bbb4f0ea91f71376cdd8517dc8da4548b7a93f1372d1b1ef19e3e879302d199d17e072264fe5713278ee3e80e37c2923bd494ac82081bc7e534, lockfile=760a5537e004cc4e843ea26e7d15fa0c1c7dc3b987e4f38b07fd25c332657886, extraction=sentinel, surfaces=77e6b8c5e21924bbf708908194393bc948007fe9a01195d267fa3a3f0a648f2d |
 | Verification | assemble 0 errors, check 0 errors, typecheck 0 errors |
 
 New REQ-395a/395b (§5.18 Workflow Entry Points) and Appendix V (Workflow Runbooks):
@@ -25,6 +26,14 @@ Appendix V, instead of a bare world-model-only notice.
 Version bumped to 2026.08.18 (root + holonovel package.json, AGENTS header, DECISIONS
 spec version, index.ts McpServer version). The build-order fingerprint does not change
 the server source behavior beyond the discoverability message above.
+
+Patch — fingerprint baseline correction and V.4 wording: `update-server.ts` was reading
+"current" implementation fingerprints by grepping the first `source=`/`config=` line in
+this file, walking back to a stale historical record; it now computes them live from the
+server source tree via `scripts/lib/fingerprints.ts` (REQ-313d), and the stale local
+baseline was re-recorded. Appendix V.4 documents the pipeline's hash-only sync and the
+live-fingerprint computation; `push-pipeline.sh` warns when a spec-hash change lacks a
+dated Spec Update entry.
 
 ### Holonovel Spec Update — 2026-08-17
 

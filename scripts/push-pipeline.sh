@@ -5,6 +5,11 @@
 # + propagation + typecheck + version sync) then hash update, fingerprint,
 # commit, and push.
 #
+# NOTE: step 5 syncs only the "**Spec hash:**" line in DECISIONS.md. The
+# human-readable "### Holonovel Spec Update — <date>" narrative entry (delta
+# class, changed surfaces, verification) must be added manually before a
+# spec-changing push — see Appendix V.4. Step 5b warns when it is missing.
+#
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
@@ -102,8 +107,20 @@ done
 echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
+    OLD_HASH=$(grep -oP '\*\*Spec hash:\*\*\s*\K[a-f0-9]+' "$server/DECISIONS.md" | head -1)
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
     echo "  Updated spec hash in $server/DECISIONS.md → $SPEC_HASH"
+    # ── 5b. Traceability guard: warn if the spec hash changed but no dated
+    #         Spec Update entry exists for today. (REQ-394 enforces the hard
+    #         block; this closes the narrative-record gap.)
+    if [[ -n "$OLD_HASH" && "$OLD_HASH" != "$SPEC_HASH" ]]; then
+      STAMP=$(date +%Y-%m-%d)
+      if ! grep -q "### Holonovel Spec Update — $STAMP" "$server/DECISIONS.md" 2>/dev/null; then
+        echo -e "${YELLOW}  WARNING: spec hash changed but no '### Holonovel Spec Update — $STAMP'${NC}"
+        echo -e "${YELLOW}           entry in $server/DECISIONS.md. Add the narrative entry (delta${NC}"
+        echo -e "${YELLOW}           class, changed surfaces, verification) per Appendix V.4.${NC}"
+      fi
+    fi
   else
     echo -e "${YELLOW}  WARNING: $server/DECISIONS.md missing '**Spec hash:**' line${NC}"
   fi
