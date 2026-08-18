@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-17 — Fix push-pipeline tag handling
+
+- `scripts/push-pipeline.sh` no longer force-moves the version tag on every
+  push. The tag is now created only when the version is new (no matching remote
+  tag), pinned at the commit that introduced the version, and pushed separately
+  from `main`. A same-version push leaves the tag untouched and no longer fails
+  with a rejected `--tags` update.
+
 ## 2026-08-17 — Add narrative-prose readability standard (grade 12)
 
 - Added a Flesch-Kincaid grade-12 readability standard for narrative prose —
