@@ -40,6 +40,10 @@ are `entity://<id>`. Both are stable across sessions.
 | Error | `[ERROR] [<CATEGORY>] <explanation>` + `Corrective action: <action>` | REQ-002 |
 | Macro | `{{<path>}}` → live state value; nonexistent → literal; no expansion in audit log | REQ-085 |
 
+Bracket tags and markers (`[tag]`) are lowercase with hyphen word separators
+(e.g., `[session-boundary]`, `[pending-fire]`). Uppercase is reserved for the
+five status prefixes and the eight error categories in this table.
+
 Roll output example:
 
 ```
@@ -92,7 +96,9 @@ DECISIONS.md.
 | Convention | Rule | Source |
 |-----------|------|--------|
 | Naming | `snake_case`, ruleset terminology, one verb per category — every tool in a related operation set shares the same verb prefix (e.g., all dice-resolution tools use `roll_`, all state-setting tools use `set_`). When the ruleset uses an abbreviated term (e.g., "save" for "saving throw"), the tool name SHALL use the ruleset's most common form of that term. Display titles are human-readable expansions. | REQ-020, REQ-024 |
+| Verbs | One verb per operation class: `create_` for entity creation, `set_` for state upsert, `update_` for partial mutation, `add_`/`remove_` for collection membership, `list_`/`get_` for reads. Deletion uses `remove_` exclusively — never `delete_`. | REQ-020 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
+| Prompt naming | Prompt names are immutable contracts; style (bare-noun vs verb) is not enforced. Narrative prompts (`intro`, `session_zero`, `novel_setup`) are plain-English per Standing Rule 10; operational prompts (`badge_briefing`, `run_workflow`) follow their own REQ contracts. | REQ-020, Standing Rule 10 |
 | Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
 ### 7.5 Decisions and workflows
@@ -123,8 +129,37 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 | `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the host hydrates eagerly at startup (opting out of lazy hydration per REQ-390). When set, the server SHALL validate that every slug in this list matches an installed package. When absent, all packages hydrate lazily on first activation of a Novel bound to their slug. |
 | `TTRPG_RULESET_DIRS` | No      | Path to the ruleset install directory when it differs from `<TTRPG_DATA_DIR>/rulesets/`. The host scans this directory at startup and validates installed packages there (REQ-389, REQ-390). |
+| `TTRPG_MAX_ENTITIES` | No      | Maximum playable entities per Novel (unbounded if absent) |
+| `TTRPG_MAX_ROSTER_ENTITIES` | No | Maximum roster baselines per server (unbounded if absent) |
+| `TTRPG_MAX_COUNTDOWNS` | No      | Maximum countdowns per Novel (unbounded if absent) |
+| `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
+| `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (unbounded if absent) |
+| `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
+| `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `player_signal` voice corrections accepted per session |
+| `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output |
+| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `compact_audit_log` archives older entries |
+| `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
+| `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
+| `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
+| `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `export_novel` output |
+| `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`) |
+| `TTRPG_CONFIDENCE_FLOOR` | No | Minimum extraction confidence that does not block import (supplementary rulesets) |
+| `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Behavioral. |
+| `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
+| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
+| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
+| `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
+| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-urgency threshold above which NPCs suggest countdown advancement. Behavioral. |
+| `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
+| `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
+| `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral. |
+| `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 
 ¹ Optional. Sets the initial active Novel on startup.
+
+All configuration is namespaced with the `TTRPG_` prefix to avoid collision with MCP
+client environment variables. The prefix is product-agnostic and does not constrain
+the ruleset or adventure content served.
 
 ### 7.7 State model
 
@@ -134,7 +169,7 @@ State tiers:
 | ---------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------- |
 | Roster     | Character baselines (immutable), each owned by a player (narrative fields mutable per REQ-077) | Permanent — survives all Novels, rebuilds, and server restarts | Player (own entities) / Game Master (all)                    |
 | Codex      | Typed content library (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) | Permanent — survives all Novels, rebuilds, and server restarts | Badge-filtered by visibility field (REQ-321) |
-| Novel      | Active story state and Editor-badge state, bound ruleset (REQ-380; immutable after creation), pending workflow, dm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
+| Novel      | Active story state and Editor-badge state, bound ruleset (REQ-380; immutable after creation), pending workflow, gm_context (pause/resume narrative context), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; removed by `end_novel` | Multiple Novels per server; one active per Session |
 | Session    | Active badge, active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
 **Novel properties.** Every Novel contains thirty property groups, all
@@ -154,7 +189,7 @@ discarded by `end_novel`):
 | Secret | Knowledge-carrying | read/write/create/delete (REQ-234) | Game Master only; revealed per-entity |
 | Relationship | Relational | read/write/create/delete (REQ-236) | read-only (appears on character_sheet) |
 | Vow | Decision, Temporal | read/write/create/delete (REQ-289, REQ-322) | read-only (shared/party scope per REQ-289e) |
-| DM Context | Session | read/write (REQ-232) | Game Master only |
+| GM Context | Session | read/write (REQ-232) | Game Master only |
 | Pending Workflow | Decision | read (engine-maintained per REQ-042); `respond` drains | read-only (`respond` drains per REQ-235) |
 | Notes | Session | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
@@ -217,7 +252,7 @@ the couplings already exist through the populated properties' own archetypes.
 | Relational | Links entities through typed connections | Relationships |
 | Decision | Presents structured player choices | Choices, Vows, Pending Workflow |
 | Guidance | Advisory content, never mechanical | Server notes, Anti-slop, Narrative tone |
-| Session | Scoped to the operator's presence | DM Context, Notes, Badge state, Player signals |
+| Session | Scoped to the operator's presence | GM Context, Notes, Badge state, Player signals |
 | Ruleset Wisdom | Ruleset-extracted behavioral content — the seven output modules (voice_examples, briefing_order, lore_templates, action_patterns, supplementary_guidance, adventure_advice, narrative_voices) produced during Discovery from the ruleset's own text per REQ-225. Persists as build output; not subject to synthesis reversion. Rendered as first-class server behavior, not advisory guidance — where the ruleset describes genre conventions, the server enacts them. | Synthesis (all 7 output modules) |
 | Mechanical | Ruleset-extracted resolution mechanics with Holodeck coupling effects. Defined during Discovery from extraction categories 1–6. Couples with other archetypes per P34–P37 — the ruleset's own text determines which mechanics affect which Holodeck surfaces. Where the ruleset describes a spell that destroys objects, the Holodeck registers the coupling; where the ruleset describes genre pacing, Wisdom drives the clock. Same Holodeck, different ruleset = different coupling map. | Mechanics (populated during Discovery per REQ-377) |
 
@@ -315,7 +350,7 @@ couplings cite REQ-236.
 | Pending Workflow → Countdown | P12 | `present_choices` with resolved `id` matching a countdown `scope` advances that countdown by one tick | Choices advance the clock — player decisions matching countdown scope tick the timer | — | Mechanical | REQ-235 |
 | Pending Workflow → Faction | P12 | `present_choices` with resolved `id` matching a faction goal keyword advances that faction's clock | Player decisions drive faction momentum — choices matching faction goals advance the clock | — | Mechanical | REQ-235, REQ-233 |
 | Pending Workflow → Undo/Redo/Badge | P50 | A pending `[NEED_INPUT]` freezes undo, redo, and set_badge until drained or cancelled; `respond(cancel)` restores the pre-workflow snapshot over all Novel property groups | The workflow holds the table — no mutation or role change while a decision is open | All badges (blocking) | Mechanical | REQ-042, REQ-041, REQ-116, REQ-066 |
-| DM Context → State [non-property] | P17 | `save_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | The operator's notes follow the scene — pause context captures state for resumption | — | Navigational | REQ-232, REQ-233 |
+| GM Context → State [non-property] | P17 | `set_pause_context` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | The operator's notes follow the scene — pause context captures state for resumption | — | Navigational | REQ-232, REQ-233 |
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
@@ -338,7 +373,7 @@ couplings cite REQ-236.
 | Countdown → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | What happens becomes what's remembered — absent-player countdown fire produces discovered consequences | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
 | Countdown → Lore | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
-| Background → Lore | P54 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background_relevant]` | Your character's past matches the Holodeck's secrets — background text triggers lore entries | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350 |
+| Background → Lore | P54 | An entity's `background` string is tokenized and matched against lore entry triggers; matching `shared`-scope entries surface in `knowledge_state` tagged `[background-relevant]` | Your character's past matches the Holodeck's secrets — background text triggers lore entries | Player-visible (read own-entity background matches) | Navigational | REQ-345, REQ-350 |
 | Secret → Countdown | P19 | `reveal_secret` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Revealed secrets drive the clock — secret revelation advances matching countdowns | — | Navigational | REQ-355, REQ-234 |
 | Vow → Lore | P51 | Vow name/description keyword-matched against lore triggers; matching lore surfaced as `[vow-relevant]` in `narrative_threads` | Vows match the Holodeck's knowledge — vow keywords trigger relevant lore | GM-only (advice); Player-visible (shared-scope vows, narrative_threads per REQ-281) | Navigational | REQ-356, REQ-289 |
 | Story Journal → Faction | P33 | `consequence` and `moment` entries referencing faction goal entities produce faction-clock-advancement advisory in `narrative_threads` | Recorded events signal faction consequences — journal entries drive faction advisories | — | Navigational | REQ-357, REQ-246, REQ-233 |
@@ -395,7 +430,7 @@ coupling-row coverage.
 
 Content source groups (Adventure, Adventure Scene Waypoint, Adventure Index,
 Codex) are excluded — their populated property groups couple via their own
-archetype rules (§7.7.0). Session-scoped groups (DM Context, Notes, Server
+archetype rules (§7.7.0). Session-scoped groups (GM Context, Notes, Server
 Notes) couple per their pattern rules (P17, P23, P32); pairs not covered by
 those rules produce no couplings. Input-validation workflows —
 character-creation step-by-step decisions (REQ-104, REQ-151, REQ-152),

@@ -36,7 +36,7 @@ specifies. You do not consult the builder, prior build artifacts, or any cached 
 Phase 1 — blind re-execution, in order:
 1. Set up from a cold start, following only `README.md` and `AGENTS.md`; log every gap or
    ambiguity — each gap is a finding.
-2. Execute verification workflows G0 step 2 through G4; record one evidence entry per workflow in the
+2. Execute verification workflows G0b through G4; record one evidence entry per workflow in the
     Section 8 format, with your own environment pins. Execute the simulated combat session
     as defined in §6.6 (S4 — Simulated combat session); record the transcript in the
     Section 8 evidence format with your own

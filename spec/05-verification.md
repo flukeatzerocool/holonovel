@@ -23,7 +23,8 @@ or **ruleset-facing** (each ruleset must pass them independently).
 
 In prose, verification workflows are referred to by their canonical `GN` form
 (G0, G2, etc.), established in this table. The legacy "Gate N" form is
-deprecated outside this section.
+deprecated outside this section. `G1` is reserved (a retired golden-transcript
+gate) — the sequence runs G0a, G0b, G2, G3, …
 
 **Verification workflow G0a — Structural integrity.** Verify the ruleset Markdown (or converted
 source) passes the Appendix H checklist: well-formed, all headings unique, tables
@@ -210,5 +211,5 @@ once per ruleset present in the package set.
 
 *Acceptance criterion:* A host with D&D and Starfinder packages loaded passes
 all nine G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
-_Check:_ T-new-404.
+_Check:_ T448, T449.
 

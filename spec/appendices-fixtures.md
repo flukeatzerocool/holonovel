@@ -379,7 +379,7 @@ Heavy, and Huge (≥100 indexed items).
 ### N.1 Fixture files
 
 Each file is provided via `TTRPG_RULESET` as comma-separated paths. G2 (N fixture)
-uses all three; the structural pass (G0 step 1) runs against every file.
+uses all three; the structural pass (G0a) runs against every file.
 
 #### `captain_proton_rules.md`
 
