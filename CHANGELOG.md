@@ -24,6 +24,10 @@
   the AGENTS stale layer-map reference (`08-enrichment.md`) is corrected to
   `08-synthesis.md` and the map now lists the licenses and runbooks appendix
   files.
+- Version bumped to 2026.08.18 and the server reconciled to the new spec
+  hash: `build-ruleset` B1 intake now records to `.holonovel-state/build-intake.md`
+  (server-side decision log) instead of a stray untracked root `DECISIONS.md`,
+  and `holonovel/DECISIONS.md` is synced to the assembled specification.
 
 ## 2026-08-17 — Spec publication integrity (REQ-394)
 
