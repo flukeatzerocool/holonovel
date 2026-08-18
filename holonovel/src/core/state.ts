@@ -679,7 +679,7 @@ export class StateManager {
   // ── Snapshots, Undo, Redo ─────────────────────────────────────
 
   snapshot(novel: NovelState, badge: Badge): void {
-    const clone = JSON.parse(JSON.stringify(novelToJSON(novel)));
+    const clone = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     const stackKey = badge;
     novel.undo_stacks[stackKey].push(clone);
     if (novel.undo_stacks[stackKey].length > 10) {
@@ -693,7 +693,7 @@ export class StateManager {
     const stack = novel.undo_stacks[stackKey];
     if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to undo.");
 
-    const current = JSON.parse(JSON.stringify(novelToJSON(novel)));
+    const current = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     novel.redo_stacks[stackKey].push(current);
 
     const restore = stack.pop()!;
@@ -733,7 +733,7 @@ export class StateManager {
     const stack = novel.redo_stacks[stackKey];
     if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to redo.");
 
-    const current = JSON.parse(JSON.stringify(novelToJSON(novel)));
+    const current = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     novel.undo_stacks[stackKey].push(current);
 
     const restore = stack.pop()!;
@@ -994,6 +994,23 @@ ${turnOrder}`;
 
     novel.metadata.modified = new Date().toISOString();
 
+    // Defensive guard: the undo/redo stacks are internal bookkeeping. If they
+    // have grown pathologically (e.g. a snapshot regression embedded prior
+    // stacks), trim them rather than let an unbounded save brick all writes.
+    const SANE_STACK_BYTES = 16 * 1024 * 1024; // 16 MiB per badge
+    for (const key of Object.keys(novel.undo_stacks)) {
+      const stack = novel.undo_stacks[key];
+      while (stack.length > 0 && estimateJsonBytes(stack) > SANE_STACK_BYTES) {
+        stack.shift();
+      }
+    }
+    for (const key of Object.keys(novel.redo_stacks)) {
+      const stack = novel.redo_stacks[key];
+      while (stack.length > 0 && estimateJsonBytes(stack) > SANE_STACK_BYTES) {
+        stack.shift();
+      }
+    }
+
     const json = JSON.stringify(novelToJSON(novel));
     const payload: any = JSON.parse(json);
     payload._checksum = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
@@ -1149,6 +1166,26 @@ function novelToJSON(novel: NovelState): any {
     world: worldToJSON(novel.world),
     metadata: novel.metadata,
   };
+}
+
+// Snapshot-clone serialization: identical to novelToJSON but omits the
+// undo/redo stacks. Stacks are internal bookkeeping; embedding them in a
+// snapshot would recursively capture every prior snapshot, causing
+// exponential growth (see snapshot/undo/redo).
+function novelToSnapshotJSON(novel: NovelState): any {
+  const base = novelToJSON(novel);
+  delete base.undo_stacks;
+  delete base.redo_stacks;
+  return base;
+}
+
+// Cheap size estimate for the undo/redo stack health guard in saveNovel.
+function estimateJsonBytes(value: unknown): number {
+  try {
+    return JSON.stringify(value).length;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
 }
 
 function novelFromJSON(data: any): NovelState {

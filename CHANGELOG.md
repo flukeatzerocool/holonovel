@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-18 — Fix undo/redo snapshot exponential growth (server)
+
+- Fixed `holonovel/src/core/state.ts` so undo/redo snapshots no longer embed
+  the undo/redo stacks: `snapshot()`, `undo()`, and `redo()` now clone the
+  novel via `novelToSnapshotJSON()`, which omits the stacks. Previously each
+  snapshot captured every prior snapshot, causing exponential state growth
+  that eventually exceeded Node's max string length and threw
+  "Invalid string length" on every mutation, bricking all writes.
+- Added a defensive guard in `saveNovel()` that trims any pathologically large
+  undo/redo stack before serialization, so a snapshot regression cannot again
+  take down the write path.
+
 ## 2026-08-18 — Deploy preservation (REQ-396)
 
 - Added REQ-396: any mechanism that updates a deployed host instance (git
@@ -51,6 +63,18 @@
   hashes. Appendix V.4 now documents the pipeline's hash-only sync and the
   live-fingerprint computation, and `push-pipeline.sh` warns when a spec-hash
   change lacks a dated `DECISIONS.md` Spec Update entry.
+
+## 2026-08-18 — Fix undo/redo snapshot exponential growth (server)
+
+- Fixed `holonovel/src/core/state.ts` so undo/redo snapshots no longer embed
+  the undo/redo stacks: `snapshot()`, `undo()`, and `redo()` now clone the
+  novel via `novelToSnapshotJSON()`, which omits the stacks. Previously each
+  snapshot captured every prior snapshot, causing exponential state growth
+  that eventually exceeded Node's max string length and threw
+  "Invalid string length" on every mutation, bricking all writes.
+- Added a defensive guard in `saveNovel()` that trims any pathologically large
+  undo/redo stack before serialization, so a snapshot regression cannot again
+  take down the write path.
 
 ## 2026-08-17 — Spec publication integrity (REQ-394)
 
