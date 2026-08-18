@@ -215,6 +215,7 @@ export const DIFFICULTY_TRACKS: Record<string, number> = {
 export interface NovelState {
   slug: string;
   name: string;
+  ruleset: string | null;
   badge: Badge;
   entities: Map<string, NovelEntity>;
   active_entity_id: string | null;
@@ -443,13 +444,14 @@ export class StateManager {
 
   // ── Novel Lifecycle ───────────────────────────────────────────
 
-  createNovel(name: string): NovelState {
+  createNovel(name: string, ruleset: string | null = null): NovelState {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     if (this.novels.has(slug)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' already exists.`);
 
     const novel: NovelState = {
       slug,
       name,
+      ruleset: ruleset ?? null,
       badge: "none",
       entities: new Map(),
       active_entity_id: null,
@@ -505,7 +507,22 @@ export class StateManager {
 
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
-    this.audit(novel, novel.badge, "create_novel", { name });
+    this.audit(novel, novel.badge, "create_novel", { name, ruleset: ruleset ?? null });
+    this.saveNovel(novel);
+    return novel;
+  }
+
+  // Bind a ruleset-free Novel to an installed ruleset slug (REQ-380c). One-way:
+  // refuse when the Novel already carries a ruleset (a different slug or any
+  // existing binding). Audited and persisted.
+  bindNovelRuleset(slug: string): NovelState {
+    const novel = this.activeNovel;
+    if (!novel) throw new Error(`[STATE_CONFLICT] No active Novel to bind.`);
+    if (novel.ruleset) {
+      throw new Error(`[STATE_CONFLICT] Novel '${novel.slug}' is already bound to ruleset '${novel.ruleset}'. Binding is one-way.`);
+    }
+    novel.ruleset = slug;
+    this.audit(novel, novel.badge, "bind_novel_ruleset", { slug });
     this.saveNovel(novel);
     return novel;
   }
@@ -548,6 +565,7 @@ export class StateManager {
     const novel: NovelState = {
       slug: data.slug,
       name: data.name,
+      ruleset: data.ruleset ?? null,
       badge: data.badge,
       entities: new Map(Object.entries(data.entities ?? {}) as any),
       active_entity_id: data.active_entity_id ?? null,
@@ -1084,6 +1102,7 @@ function novelToJSON(novel: NovelState): any {
   return {
     slug: novel.slug,
     name: novel.name,
+    ruleset: novel.ruleset,
     badge: novel.badge,
     entities: Object.fromEntries(novel.entities),
     active_entity_id: novel.active_entity_id,
@@ -1137,6 +1156,7 @@ function novelFromJSON(data: any): NovelState {
   return {
     slug: data.slug,
     name: data.name,
+    ruleset: data.ruleset ?? null,
     badge: data.badge,
     entities: new Map(Object.entries(data.entities ?? {})),
     active_entity_id: data.active_entity_id ?? null,

@@ -22,6 +22,10 @@ import {
   BASE_PARSER_COMMANDS, oppositeDirection,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult } from "./world/parser.js";
+import {
+  RulesetManager, HOST_VERSION, rollDice, computeContentHash,
+  RulesetToolSchema,
+} from "./rulesets.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -38,6 +42,8 @@ function computeSpecHash(): string {
 }
 
 const SPEC_HASH = computeSpecHash();
+
+const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rulesets");
 
 // ── State ──────────────────────────────────────────────────────────
 
@@ -58,6 +64,134 @@ const server = new McpServer({
 // Badge gating and snapshot helpers provided by core/server.ts
 
 initServer(state);
+
+// ── Ruleset packages (REQ-389, REQ-390, REQ-379) ───────────────────
+
+const rulesets = new RulesetManager(RULESET_DIR, HOST_VERSION);
+const scanErrors = rulesets.scan();
+const eagerSlugs = (process.env.TTRPG_RULESETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+for (const slug of eagerSlugs) {
+  if (rulesets.isInstalled(slug)) {
+    try { rulesets.hydrate(slug); } catch { /* hydration failures surfaced at call time */ }
+  }
+}
+
+// Convert a JSON-Schema-style inputSchema (as shipped by a package's tools.json)
+// into a Zod raw shape registerTool accepts (REQ-389 — schemas-as-data).
+function jsonSchemaToZod(schema: any): any {
+  if (!schema || typeof schema !== "object") return z.any();
+  const t = schema.type;
+  if (t === "string") {
+    if (Array.isArray(schema.enum)) return z.enum(schema.enum as any);
+    return z.string();
+  }
+  if (t === "number" || t === "integer") return z.number();
+  if (t === "boolean") return z.boolean();
+  if (t === "array") return z.array(jsonSchemaToZod(schema.items ?? {}));
+  if (t === "object") {
+    const shape: Record<string, any> = {};
+    for (const [k, v] of Object.entries(schema.properties ?? {})) {
+      shape[k] = jsonSchemaToZod(v);
+    }
+    const required: string[] = Array.isArray(schema.required) ? schema.required : [];
+    for (const k of required) {
+      if (!(k in shape)) continue;
+      if (shape[k] && typeof shape[k] === "object" && shape[k]._def?.typeName === "ZodOptional") {
+        shape[k] = shape[k].unwrap();
+      }
+    }
+    return z.object(shape);
+  }
+  if (schema.anyOf) {
+    const nonNull = schema.anyOf.filter((s: any) => s?.type !== "null");
+    if (nonNull.length === 1) return jsonSchemaToZod(nonNull[0]).optional();
+    return z.any();
+  }
+  return z.any();
+}
+
+// Generic ruleset tool handlers. Tools are expressed as data (REQ-389); the
+// host dispatches on the tool's `kind` so a package's tools serve without the
+// host re-parsing source Markdown.
+function gatedRulesetTool(slug: string, schema: RulesetToolSchema) {
+  return async (args: any) => {
+    if (!rulesets.isInstalled(slug)) {
+      return err("STATE_CONFLICT", `Ruleset '${slug}' is not installed.`);
+    }
+    if (!rulesets.isHydrated(slug)) {
+      return err("STATE_CONFLICT", `Ruleset '${slug}' is installed but not activated. Open a campaign bound to '${slug}', or set TTRPG_RULESETS=${slug} for eager hydration.`);
+    }
+    const pkg = rulesets.hydrate(slug);
+    switch (schema.kind) {
+      case "lookup": {
+        const collection = schema.collection ?? "concepts";
+        const key = String(args.key ?? args.name ?? "").toLowerCase();
+        const coll = (pkg.model[collection] ?? {}) as Record<string, any>;
+        if (coll && key in coll) {
+          return raw(JSON.stringify(coll[key], null, 2));
+        }
+        const hits = rulesets.search(slug, key || args.key || "", 5);
+        if (hits.length === 0) return err("NOT_FOUND", `No '${args.key}' found in ${collection}.`);
+        return raw(JSON.stringify(hits, null, 2));
+      }
+      case "search": {
+        const q = String(args.query ?? "");
+        const hits = rulesets.search(slug, q, args.max_results ?? 10);
+        if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${q}'.`);
+        return raw(JSON.stringify(hits, null, 2));
+      }
+      case "roll": {
+        try {
+          const notation = String(args.dice ?? args.notation ?? "1d20");
+          const label = args.skill ? `${args.skill} check` : (args.notation ?? args.dice ?? "1d20");
+          let r = rollDice(notation);
+          const extra = Number(args.modifier ?? 0);
+          if (extra !== 0) {
+            r = { total: r.total + extra, dice: r.dice, modifier: r.modifier + extra, notation: r.notation };
+          }
+          const parts = [`${label} (${r.notation}${extra !== 0 ? ` ${extra > 0 ? "+" : "-"} ${Math.abs(extra)}` : ""})`];
+          parts.push(`**${r.total}**`);
+          if (r.dice.length > 1) parts.push(`(${r.dice.join(" + ")})`);
+          return ok(parts.join(" → "));
+        } catch (e: any) {
+          return err("INVALID_INPUT", e.message);
+        }
+      }
+      case "table": {
+        const collection = schema.collection ?? "tables";
+        const tables = (pkg.model[collection] ?? {}) as Record<string, any>;
+        const name = String(args.table ?? args.name ?? "");
+        const table = name ? tables[name] ?? tables[name.toLowerCase()] : undefined;
+        if (!table) return err("NOT_FOUND", `No table '${name}' found.`);
+        if (Array.isArray(table)) {
+          const row = table[Math.floor(Math.random() * table.length)];
+          return raw(JSON.stringify(row, null, 2));
+        }
+        return raw(JSON.stringify(table, null, 2));
+      }
+      case "info":
+        return raw(String(schema.description ?? ""));
+      default:
+        return err("UNIMPLEMENTED", `Ruleset tool kind '${(schema as any).kind}' is not supported by this host.`);
+    }
+  };
+}
+
+// Register ruleset-prefixed tools for every installed package (REQ-379).
+for (const slug of rulesets.installedSlugs()) {
+  for (const schema of rulesets.toolSchemas(slug)) {
+    const toolName = `${slug}_${schema.name}`;
+    try {
+      server.registerTool(toolName, {
+        title: schema.title ?? schema.name,
+        description: `${schema.description ?? ""} (ruleset: ${slug})`,
+        inputSchema: jsonSchemaToZod(schema.inputSchema),
+      }, gatedRulesetTool(slug, schema));
+    } catch (e: any) {
+      // Tool name already registered or schema unrecoverable — skip.
+    }
+  }
+}
 
 function audit(tool: string, args: any, prefix?: string): void {
   const novel = state.activeNovel;
@@ -1812,7 +1946,7 @@ server.registerTool("novel_info", {
   const novel = slug ? state.novels.get(slug) : state.activeNovel;
   if (!novel) return err("NOT_FOUND", `Novel '${slug || "none"}' not found.`);
   return raw(JSON.stringify({
-    slug: novel.slug, name: novel.name, description: novel.description, genre: novel.genre,
+    slug: novel.slug, name: novel.name, ruleset: novel.ruleset, description: novel.description, genre: novel.genre,
     entities: novel.entities.size, npcs: novel.npcs.size, lore: novel.lore.size,
     world_rooms: novel.world.rooms.size, world_things: novel.world.things.size,
     factions: novel.factions.length, vows: novel.vows.length,
@@ -1931,7 +2065,7 @@ server.registerTool("ask_oracle", {
 
 function novelToJSONState(novel: NovelState): any {
   return {
-    slug: novel.slug, name: novel.name, badge: novel.badge,
+    slug: novel.slug, name: novel.name, ruleset: novel.ruleset, badge: novel.badge,
     entities: Object.fromEntries(novel.entities), active_entity_id: novel.active_entity_id,
     npcs: Object.fromEntries(novel.npcs),
     scene_description: novel.scene_description, scene_location: novel.scene_location,
@@ -1960,7 +2094,7 @@ function loadNovelFromStateData(data: any): NovelState {
     world.things.set(k, { name: (t as any).name, description: (t as any).description ?? "", kind: (t as any).kind ?? "thing", location: (t as any).location ?? null, locationType: (t as any).locationType ?? null, portable: (t as any).portable ?? true, openable: (t as any).openable ?? false, open: (t as any).open ?? false, lockable: (t as any).lockable ?? false, locked: (t as any).locked ?? false, lit: (t as any).lit ?? false, switchable: (t as any).switchable ?? false, switched_on: (t as any).switched_on ?? false, enterable: (t as any).enterable ?? false, vehiclePassengers: (t as any).vehiclePassengers ?? [], wearable: (t as any).wearable ?? false, worn_by: (t as any).worn_by ?? null, readable: (t as any).readable ?? false, read_text: (t as any).read_text ?? null, edible: (t as any).edible ?? false, drinkable: (t as any).drinkable ?? false, climbable: (t as any).climbable ?? false, transparent: (t as any).transparent ?? false, annotations: (t as any).annotations ?? {} });
   }
   return {
-    slug: data.slug, name: data.name, badge: data.badge,
+    slug: data.slug, name: data.name, ruleset: data.ruleset ?? null, badge: data.badge,
     entities: new Map(Object.entries(data.entities ?? {})),
     active_entity_id: data.active_entity_id ?? null,
     npcs: new Map(Object.entries(data.npcs ?? {})),
@@ -2121,11 +2255,15 @@ server.registerTool("session_recap", {
 server.registerTool("create_novel", {
   title: "Create Novel",
   description: "Create a named novel. Novel persists to disk.",
-  inputSchema: { name: z.string() },
-}, async ({ name }: any) => {
+  inputSchema: { name: z.string(), ruleset: z.string().optional() },
+}, async ({ name, ruleset }: any) => {
   requireNotObserver();
-  const novel = state.createNovel(name);
-  return ok(`Novel created: ${novel.slug} (novel://current)`);
+  if (ruleset && !rulesets.isInstalled(ruleset)) {
+    return err("INVALID_INPUT", `Ruleset '${ruleset}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
+  }
+  const novel = state.createNovel(name, ruleset ?? null);
+  if (ruleset) { try { rulesets.hydrate(ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); } }
+  return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}`);
 });
 
 server.registerTool("resume_novel", {
@@ -2134,6 +2272,12 @@ server.registerTool("resume_novel", {
   inputSchema: { slug: z.string() },
 }, async ({ slug }: any) => {
   const novel = state.resumeNovel(slug);
+  if (novel.ruleset) {
+    if (!rulesets.isInstalled(novel.ruleset)) {
+      return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+    }
+    try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
+  }
   return ok(`Novel resumed: ${novel.name} (${novel.slug})`);
 });
 
@@ -2143,6 +2287,12 @@ server.registerTool("switch_novel", {
   inputSchema: { slug: z.string() },
 }, async ({ slug }: any) => {
   const novel = state.switchNovel(slug);
+  if (novel.ruleset) {
+    if (!rulesets.isInstalled(novel.ruleset)) {
+      return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+    }
+    try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
+  }
   return ok(`Switched to novel: ${novel.name} (${novel.slug})`);
 });
 
@@ -2232,10 +2382,100 @@ server.registerTool("revert_enrichment", {
 
 server.registerTool("search_rules", {
   title: "Search Rules",
-  description: "Search the ruleset for matching terms. In ruleset-free mode, returns empty.",
-  inputSchema: { query: z.string() },
-}, async ({ query }: any) => {
+  description: "Search the active ruleset's index for matching terms. Empty when no ruleset is bound.",
+  inputSchema: { query: z.string(), max_results: z.number().optional() },
+}, async ({ query, max_results }: any) => {
+  const novel = state.activeNovel;
+  const slug = novel?.ruleset ?? null;
+  if (slug && rulesets.isInstalled(slug)) {
+    const hits = rulesets.search(slug, String(query), max_results ?? 10);
+    if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${query}'.`);
+    return raw(JSON.stringify(hits, null, 2));
+  }
+  if (rulesets.installedSlugs().length > 0) {
+    return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via bind_novel_ruleset, or create a Novel with create_novel(ruleset: "...").`);
+  }
   return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
+});
+
+server.registerTool("install_ruleset", {
+  title: "Install Ruleset",
+  description: "Install a ruleset package from a files bundle. Game Master or Editor only.",
+  inputSchema: {
+    slug: z.string(),
+    manifest: z.any(),
+    index: z.any().optional(),
+    model: z.any().optional(),
+    tools: z.any().optional(),
+    resources: z.any().optional(),
+    prompts: z.any().optional(),
+  },
+}, async (args: any) => {
+  requireGM();
+  try {
+    const pkg = rulesets.installPackage(args.slug, {
+      manifest: args.manifest,
+      index: args.index ?? [],
+      model: args.model ?? {},
+      tools: args.tools ?? [],
+      resources: args.resources ?? [],
+      prompts: args.prompts ?? [],
+    });
+    return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
+  } catch (e: any) {
+    return err("STATE_CONFLICT", e.message);
+  }
+});
+
+server.registerTool("remove_ruleset", {
+  title: "Remove Ruleset",
+  description: "Remove an installed ruleset package. Game Master or Editor only.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }: any) => {
+  requireGM();
+  const novel = state.activeNovel;
+  if (novel && novel.ruleset === slug) {
+    return err("STATE_CONFLICT", `Cannot remove ruleset '${slug}' while Novel '${novel.slug}' is bound to it.`);
+  }
+  try {
+    rulesets.removePackage(slug);
+    return ok(`Ruleset '${slug}' removed.`);
+  } catch (e: any) {
+    return err("STATE_CONFLICT", e.message);
+  }
+});
+
+server.registerTool("list_rulesets", {
+  title: "List Rulesets",
+  description: "List installed ruleset packages with loaded-versus-installed state.",
+  inputSchema: {},
+}, async () => {
+  const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
+    slug: pkg.slug,
+    name: pkg.manifest.name,
+    host_version: pkg.manifest.host_version,
+    built_at: pkg.manifest.built_at,
+    state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
+  }));
+  return raw(JSON.stringify(list, null, 2));
+});
+
+server.registerTool("bind_novel_ruleset", {
+  title: "Bind Novel Ruleset",
+  description: "Bind the active ruleset-free Novel to an installed ruleset. Game Master or Editor only; one-way and audited.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }: any) => {
+  requireGM();
+  if (!rulesets.isInstalled(slug)) {
+    return err("INVALID_INPUT", `Ruleset '${slug}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
+  }
+  try {
+    const novel = state.bindNovelRuleset(slug);
+    rulesets.hydrate(slug);
+    return ok(`Novel '${novel.slug}' bound to ruleset '${slug}'.`);
+  } catch (e: any) {
+    return err("STATE_CONFLICT", e.message);
+  }
 });
 
 server.registerTool("suggest_actions", {
@@ -2288,15 +2528,22 @@ server.registerTool("spec_health", {
     spec_version: state.buildFingerprint.specVersion,
     spec_hash: state.buildFingerprint.specHash,
     source_hash: state.buildFingerprint.sourceHash,
-    ruleset_hash: "ruleset-free",
-    ruleset_guidance: "No rulesets installed — run `build-ruleset <slug>=<path>` to add one (spec Appendix V).",
+    ruleset_hash: rulesets.installedSlugs().length > 0 ? rulesets.installedSlugs().join(",") : "ruleset-free",
+    ruleset_guidance: rulesets.installedSlugs().length > 0
+      ? `Installed: ${rulesets.installedSlugs().join(", ")}.`
+      : "No rulesets installed — run `build-ruleset <slug>=<path>` to add one (spec Appendix V).",
+    active_ruleset: novel?.ruleset ?? null,
+    rulesets_installed: rulesets.installedSlugs().length,
+    rulesets_hydrated: rulesets.installedSlugs().filter((s) => rulesets.isHydrated(s)).length,
+    ruleset_prefix_map: rulesets.prefixMap(),
     build_timestamp: state.buildFingerprint.buildTimestamp,
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
     confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
     indexed_counts: {
-      anchors: 0, concepts: 0, entity_types: 0, actions: 0,
+      anchors: rulesets.installedSlugs().reduce((n, s) => n + (rulesets.hydrate(s)?.index.length ?? 0), 0),
+      concepts: 0, entity_types: 0, actions: 0,
       tables: 0, procedures: 0, guidance_items: 0,
     },
     must_action_coverage: "100% (infrastructure only)",
