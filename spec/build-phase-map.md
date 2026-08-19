@@ -47,7 +47,7 @@ reduction in per-phase context.
 | #  | File                     | Contents                            |
 |----|--------------------------|-------------------------------------|
 | 1  | 01-foundations.md        | §0–§4: reading guide, mission, failure modes, standing rules |
-| 2  | 02-requirements.md       | §5: all REQs, 15 subsections        |
+| 2  | 02-requirements.md       | §5: all REQs, 18 subsections        |
 | 3  | 03-build.md              | §6: build process                   |
 | 4  | 04-runtime.md            | §7: runtime conventions             |
 | 5  | 05-verification.md       | §8: verification workflows          |

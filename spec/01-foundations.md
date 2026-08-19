@@ -66,8 +66,9 @@ phase demands it. Skip the appendices until G0a.
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
-then the §5 subsections cited by the gap audit. The `build-phase-map.md` identifies
-which files to load for the gap audit.
+then the §5 subsections cited by the gap audit. Confirm which deployed server tree
+the Update workflow will evaluate (REQ-398) before the gap audit. The
+`build-phase-map.md` identifies which files to load for the gap audit.
 
 **If you are a spec maintainer:**
 Start with Appendix M (REQ Authoring Conventions). Then read §4 Standing Rules 7–8 —
@@ -76,7 +77,10 @@ recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing.
 Cached domain research at `.holonovel-state/knowledge-base/` saves time across
 sessions. It holds web findings, spec summaries, and code analysis, each with a
-freshness window.
+freshness window. The knowledge-base cache SHALL live outside the user-data
+directory (`TTRPG_DATA_DIR`) and outside the git work tree, in an
+operator-discardable location; the spec names only the separation contract, not
+the path.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
@@ -394,6 +398,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Host server       | The base `holonovel` server — ruleset-free by default, the sole MCP entry point. It loads declarative ruleset packages (REQ-389), never changes when a package is installed or removed, and updates without touching installed packages or user data (REQ-390). |
 | Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
 | Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
+| Deployment        | The git-managed specification repository (source of truth, edited by maintainers) versus the separately deployed host server tree (built from it, hosting runtime state). Spec changes reach the deployed server only via the Update workflow (§6.7) and the fingerprint gate (REQ-394); user data and installed packages live outside the spec repository (REQ-396, REQ-397, REQ-398). |
 | Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
 | Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
 | Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `install_ruleset`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |

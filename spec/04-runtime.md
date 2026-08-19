@@ -120,7 +120,7 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`). The ruleset install directory (`<DATA_DIR>/rulesets/`) and all user data live under it so base updates preserve them (REQ-390).        |
+| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. The build-time knowledge-base cache SHALL be a separate directory, never under this data directory. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |

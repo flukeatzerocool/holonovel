@@ -66,8 +66,9 @@ phase demands it. Skip the appendices until G0a.
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
-then the §5 subsections cited by the gap audit. The `build-phase-map.md` identifies
-which files to load for the gap audit.
+then the §5 subsections cited by the gap audit. Confirm which deployed server tree
+the Update workflow will evaluate (REQ-398) before the gap audit. The
+`build-phase-map.md` identifies which files to load for the gap audit.
 
 **If you are a spec maintainer:**
 Start with Appendix M (REQ Authoring Conventions). Then read §4 Standing Rules 7–8 —
@@ -76,7 +77,10 @@ recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing.
 Cached domain research at `.holonovel-state/knowledge-base/` saves time across
 sessions. It holds web findings, spec summaries, and code analysis, each with a
-freshness window.
+freshness window. The knowledge-base cache SHALL live outside the user-data
+directory (`TTRPG_DATA_DIR`) and outside the git work tree, in an
+operator-discardable location; the spec names only the separation contract, not
+the path.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
@@ -394,6 +398,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Host server       | The base `holonovel` server — ruleset-free by default, the sole MCP entry point. It loads declarative ruleset packages (REQ-389), never changes when a package is installed or removed, and updates without touching installed packages or user data (REQ-390). |
 | Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
 | Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
+| Deployment        | The git-managed specification repository (source of truth, edited by maintainers) versus the separately deployed host server tree (built from it, hosting runtime state). Spec changes reach the deployed server only via the Update workflow (§6.7) and the fingerprint gate (REQ-394); user data and installed packages live outside the spec repository (REQ-396, REQ-397, REQ-398). |
 | Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
 | Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
 | Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `install_ruleset`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
@@ -439,6 +444,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
 | 5.16    | Multi-Ruleset Build                  | 379–387                                             | 9     |
 | 5.17    | Ruleset Packages                     | 389–393                                             | 5     |
+| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  | 5     |
 
 ### 5.1 Output and Error Contracts
 
@@ -3852,7 +3858,13 @@ The distribution SHALL expose a single, documented entry point — `build-rulese
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
 
 **REQ-396 — Deploy preservation.**
-Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or equivalent deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data (Novels, roster, codex, server notes, and world-model data) unchanged, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory. *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy step whose git operations would touch the install or user-data directory is rejected before any file is deleted or reverted. _Check:_ T465.
+Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or equivalent deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data (Novels, roster, codex, server notes, and world-model data) unchanged, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory (REQ-397). *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy whose git operations would touch the install or user-data directory is rejected before any file is deleted. _Check:_ T465.
+
+**REQ-397 — Untracked state location.**
+Server-generated persistent state — Novels, roster, codex, server notes, world-model data, and the ruleset install directory — SHALL be stored such that no ordinary git operation on the host's working tree (pull, checkout, clean, reset) can delete or revert it. The default state location SHALL resolve outside the git work tree when the server runs inside one; when it cannot, the server SHALL surface a `[state-in-tree]` warning in `spec_health` and on stderr. User data SHALL NOT be required to be committed to version control to survive restarts or rebuilds. *Acceptance criterion:* A server started inside a git work tree, then subjected to `git clean -fdx` and a hard reset, retains every Novel, roster, codex, server-note, and installed package unchanged. _Check:_ T466.
+
+**REQ-398 — Deploy-model scope.**
+The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checkout into the server's directory. _Check:_ T467.
 
 #### End of requirements
 
@@ -3934,7 +3946,7 @@ two tiers: Required first, then Advanced.
 | --- | ---------------------------- | -------------------------------- | ------------------- |
 | B1  | Ruleset(s) to package              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
-| B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
+| B4  | Where should the server save its data? | Folder path              | OS-standard out-of-tree default per §7.6; never inside the git work tree |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` for single ruleset; `holonovel-multi` for multiple |
 | B13 | Which rulesets to include? | Derived from B1 when multiple rulesets are specified | all rulesets in B1 |
 
@@ -3948,7 +3960,7 @@ defaults without further prompting.
 | B2  | Ruleset identifier (name, edition) | String                      | derived from source |
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
+| B8  | Where is the Holonovel spec repository? | URL                    | `origin` remote of the current repo, else the community-maintained default |
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
@@ -5591,6 +5603,8 @@ _Check:_ T347.
 03-build.md §6.7 plus files changed per git diff. Before reading spec sections
 for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
 spec summaries and implementation analysis — use fresh entries to reduce re-reading.
+The knowledge-base cache SHALL live outside the user-data directory (`TTRPG_DATA_DIR`)
+and outside the git work tree, in an operator-discardable location.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match spec changes, the operator SHALL audit gaps, produce a disposition plan,
@@ -5631,6 +5645,14 @@ the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
 An update is complete only when the implementation fingerprints advance to reflect
 the new revision; a Minor or Major revision SHALL NOT be recorded as applied ahead
 of its implementation (REQ-394).
+
+The implementation fingerprints are computed against the live, deployed server
+source tree — never against the spec repository's own working tree or historical
+DECISIONS.md entries. When the spec repository and the deployed server live in
+different directories or repositories, the Update workflow SHALL establish which
+deployed server the gate evaluates, record that location in DECISIONS.md, and
+recompute fingerprints against it. A spec-repo-only change not reflected in the
+deployed server's fingerprints is a pending update (REQ-394), not an applied one.
 
 #### Gap audit method
 
@@ -5831,7 +5853,7 @@ switching. See §6.4 for the full creation contract.
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory (default `.holonovel-state`). The ruleset install directory (`<DATA_DIR>/rulesets/`) and all user data live under it so base updates preserve them (REQ-390).        |
+| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. The build-time knowledge-base cache SHALL be a separate directory, never under this data directory. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
@@ -8413,6 +8435,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-395a | Ruleset-build entry point (Part a) | 2026-08-18 |
 | REQ-395b | Workflow runbooks (Part b) | 2026-08-18 |
 | REQ-396 | Deploy preservation | 2026-08-18 |
+| REQ-397 | Untracked state location | 2026-08-19 |
+| REQ-398 | Deploy-model scope | 2026-08-19 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8494,10 +8518,12 @@ diet.
 | T50   | Automated | Intro pointer consistency: invoke `help()` with no query on the running server and assert the output directs callers to the `intro` prompt; invoke `badge_briefing` for each badge (switch via `set_badge`: player, game_master) and assert each includes the intro pointer; invoke the `intro` prompt itself and assert it returns the full overview (same content regardless of badge)                                                                                                                                                                                                                                                                                                                     | REQ-063, REQ-023, REQ-032                   |
 | T51   | Manual   | Badge behavioral boundaries: invoke a Player-badge session and assert the server does not prescribe world facts or narrative outcomes without Game Master confirmation; assert the server negotiates environmental details when the player asks whether elements exist. Invoke a Game-Master-badge session and assert the server describes situations and surfaces essential information without taking action or making decisions on behalf of the player. Sample output from both badges and verify the "describe richly, prescribe never" contract holds across tool responses. | REQ-064                                     |
 | T461 | Automated | Badge boundary directive: invoke `badge_briefing` as Player — assert the boundary directive sentence ("You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call `set_badge(\"none\")`.") appears after foundations and before anti-slop guidance. Invoke as Game Master — assert the same directive appears identically. Configure a small briefing budget — assert the directive is never truncated. | REQ-064, REQ-135 |
-| T462 | Automated | Pending-update gate: advance a Minor or Major spec delta without advancing the implementation fingerprints — assert publication tooling blocks with a pending-update notice naming the server. Run the §6.7 update — assert fingerprints advance and publication succeeds. Assert a patch-class delta publishes without the notice. Assert an operator override recorded in DECISIONS.md lifts the block. | REQ-394 |
+| T462 | Automated | Pending-update gate: advance a Minor or Major spec delta without advancing the implementation fingerprints — assert publication tooling blocks with a pending-update notice naming the server. Run the §6.7 update — assert fingerprints advance and publication succeeds. Assert a patch-class delta publishes without the notice. Assert an operator override recorded in DECISIONS.md lifts the block. Assert that when the spec repository and the deployed server are separate directories, the gate evaluates the deployed server tree, not the spec repo's own tree. | REQ-394 |
 | T463 | Automated | Build entry point: invoke `build-ruleset` with no arguments — assert it prints usage and the install directory and exits 0. Invoke with a `slug=path` pair pointing at a dir without Markdown — assert a named failure and nonzero exit. | REQ-395a |
 | T464 | Automated | Runbooks: assert Appendix V contains a runbook for each of Convert, Build, Synthesize, and Update, each naming an entry point, happy-path steps, and recovery steps; assert the reading guide (§0) references Appendix V. | REQ-395b |
-| T465 | Automated | Deploy preservation: install a package, create a Novel and a codex entry, and record byte-for-byte hashes of the install directory and the user-data directory. Run a deploy step (git pull plus a clean of untracked files) — assert the install directory, installed package, and every Novel, roster, codex, server-note, and world-model entry are byte-for-byte identical afterward. Assert a deploy step whose git operations would delete or revert the install or user-data directory is rejected before any file is removed. | REQ-396 |
+| T465 | Automated | Deploy preservation: install a package, create a Novel and a codex entry, and record byte-for-byte hashes of the install directory and the user-data directory. Run a deploy step (git pull plus a clean of untracked files) — assert the install directory, installed package, and every Novel, roster, codex, server-note, and world-model entry are byte-for-byte identical afterward. Assert a deploy step whose git operations would delete or revert the install or user-data directory is rejected before any file is removed. Assert the default data directory does not resolve inside a git work tree. | REQ-396 |
+| T466 | Automated | In-tree state guard: start a server inside a git work tree, create a Novel and a codex entry, then run `git clean -fdx` and `git reset --hard` — assert the Novel, codex, roster, server notes, and installed packages are byte-for-byte identical afterward. Assert a server that must place state in-tree reports `[state-in-tree]` in `spec_health` and on stderr at startup, and that the warning does not block startup. | REQ-397 |
+| T467 | Automated | Two-repo propagation: advance a Minor spec delta in the specification repository without advancing the deployed server's fingerprints — assert publication tooling blocks with a pending-update notice. Run the §6.7 Update against the deployed server — assert fingerprints advance and publication succeeds. | REQ-398 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
@@ -10233,6 +10259,9 @@ Update workflow (§6.7) driven manually.
 5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
    surfaces, and verification — before pushing. The push pipeline syncs only
    the `Spec hash` line; it does not write the narrative entry.
+6. Record the deployed server location the gate evaluated, if it differs from
+   the current working directory — the pending-update gate (REQ-394) reads
+   fingerprints from the live server tree, not the spec repo.
 
 **Recovery.**
 
