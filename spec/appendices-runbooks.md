@@ -90,6 +90,9 @@ Update workflow (§6.7) driven manually.
 5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
    surfaces, and verification — before pushing. The push pipeline syncs only
    the `Spec hash` line; it does not write the narrative entry.
+6. Record the deployed server location the gate evaluated, if it differs from
+   the current working directory — the pending-update gate (REQ-394) reads
+   fingerprints from the live server tree, not the spec repo.
 
 **Recovery.**
 

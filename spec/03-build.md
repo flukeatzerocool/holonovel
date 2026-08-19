@@ -74,7 +74,7 @@ two tiers: Required first, then Advanced.
 | --- | ---------------------------- | -------------------------------- | ------------------- |
 | B1  | Ruleset(s) to package              | One or more `slug=path` pairs separated by spaces (e.g., `dnd5e=ruleset/dnd5e/ starfinder=ruleset/sf/`), or `none` | —                   |
 | B3  | Which AI client will you use? | Claude Desktop / Opencode CLI / other | Opencode CLI      |
-| B4  | Where should the server save its data? | Folder path              | `.holonovel-state`  |
+| B4  | Where should the server save its data? | Folder path              | OS-standard out-of-tree default per §7.6; never inside the git work tree |
 | B6  | What should the server be called? | Name                          | `[game_name]-holonovel` for single ruleset; `holonovel-multi` for multiple |
 | B13 | Which rulesets to include? | Derived from B1 when multiple rulesets are specified | all rulesets in B1 |
 
@@ -88,7 +88,7 @@ defaults without further prompting.
 | B2  | Ruleset identifier (name, edition) | String                      | derived from source |
 | B5  | Where is your AI client's settings file? | File path               | auto-detect from B3 |
 | B7  | Connect MCP client to server after build? | yes / no                | yes                 |
-| B8  | Where is the Holonovel spec repository? | URL                    | <https://git.gay/flukeatzerocool/Holonovel> |
+| B8  | Where is the Holonovel spec repository? | URL                    | `origin` remote of the current repo, else the community-maintained default |
 | B9  | Build mode                   | production / quick-build           | production          |
 | B10 | Which version of holonovel to use as world-model base? | npm version or `latest` | `latest` |
 | B11 | Embed adventure module content in Novel exports? | yes / no                     | no                  |
@@ -1731,6 +1731,8 @@ _Check:_ T347.
 03-build.md §6.7 plus files changed per git diff. Before reading spec sections
 for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
 spec summaries and implementation analysis — use fresh entries to reduce re-reading.
+The knowledge-base cache SHALL live outside the user-data directory (`TTRPG_DATA_DIR`)
+and outside the git work tree, in an operator-discardable location.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match spec changes, the operator SHALL audit gaps, produce a disposition plan,
@@ -1771,6 +1773,14 @@ the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
 An update is complete only when the implementation fingerprints advance to reflect
 the new revision; a Minor or Major revision SHALL NOT be recorded as applied ahead
 of its implementation (REQ-394).
+
+The implementation fingerprints are computed against the live, deployed server
+source tree — never against the spec repository's own working tree or historical
+DECISIONS.md entries. When the spec repository and the deployed server live in
+different directories or repositories, the Update workflow SHALL establish which
+deployed server the gate evaluates, record that location in DECISIONS.md, and
+recompute fingerprints against it. A spec-repo-only change not reflected in the
+deployed server's fingerprints is a pending update (REQ-394), not an applied one.
 
 #### Gap audit method
 

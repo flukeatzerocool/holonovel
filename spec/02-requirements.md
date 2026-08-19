@@ -23,6 +23,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
 | 5.16    | Multi-Ruleset Build                  | 379–387                                             | 9     |
 | 5.17    | Ruleset Packages                     | 389–393                                             | 5     |
+| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  | 5     |
 
 ### 5.1 Output and Error Contracts
 
@@ -3436,6 +3437,12 @@ The distribution SHALL expose a single, documented entry point — `build-rulese
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
 
 **REQ-396 — Deploy preservation.**
-Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or equivalent deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data (Novels, roster, codex, server notes, and world-model data) unchanged, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory. *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy step whose git operations would touch the install or user-data directory is rejected before any file is deleted or reverted. _Check:_ T465.
+Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or equivalent deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data (Novels, roster, codex, server notes, and world-model data) unchanged, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory (REQ-397). *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy whose git operations would touch the install or user-data directory is rejected before any file is deleted. _Check:_ T465.
+
+**REQ-397 — Untracked state location.**
+Server-generated persistent state — Novels, roster, codex, server notes, world-model data, and the ruleset install directory — SHALL be stored such that no ordinary git operation on the host's working tree (pull, checkout, clean, reset) can delete or revert it. The default state location SHALL resolve outside the git work tree when the server runs inside one; when it cannot, the server SHALL surface a `[state-in-tree]` warning in `spec_health` and on stderr. User data SHALL NOT be required to be committed to version control to survive restarts or rebuilds. *Acceptance criterion:* A server started inside a git work tree, then subjected to `git clean -fdx` and a hard reset, retains every Novel, roster, codex, server-note, and installed package unchanged. _Check:_ T466.
+
+**REQ-398 — Deploy-model scope.**
+The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checkout into the server's directory. _Check:_ T467.
 
 #### End of requirements

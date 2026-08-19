@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-19 — Deployment model: spec repo vs. deployed server
+
+- The server's default state directory now resolves to the operating
+  system's user-data location (not the repo root) when running inside a
+  git work tree, so a `git clean` or checkout can no longer delete
+  Novels, roster, codex, or installed ruleset packages. The build-time
+  knowledge-base cache is split into its own discardable directory.
+  (REQ-397)
+- Clarified that a spec repository and the deployed host server are
+  distinct surfaces: spec changes reach a deployed server only through
+  the Update workflow and fingerprint gate, never a bare file copy.
+  (REQ-398)
+- The Build intake's spec-repository default now resolves from the
+  current repo's `origin` remote instead of a hardcoded personal URL,
+  and the §6.7 Update workflow records which deployed server tree the
+  fingerprint gate evaluates.
+
+
 ## 2026-08-18 — Ruleset-driven character creation (REQ-104/151/152/181)
 
 - Added `holonovel/src/core/rng.ts`: a deterministic 32-bit LCG PRNG
