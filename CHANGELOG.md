@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-19 — Drop the §5 REQ Count column
+
+- Removed the manually-maintained `Count` column from the §5 navigation
+  table. Subsection REQ counts are now reported by `npm run validate`
+  directly, eliminating the drifting-count warnings that accumulated on
+  every check. The Appendix M bloat indicator now references the
+  validator-computed count instead of the table.
+
 ## 2026-08-19 — Deployment model: spec repo vs. deployed server
 
 - The server's default state directory now resolves to the operating

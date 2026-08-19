@@ -2123,11 +2123,11 @@ procedural content to the appropriate section (§6 for build processes,
 (a) no existing REQ already covers this concern; (b) the convergence loop
 would not catch the deviation without a new REQ; (c) the concern could not
 be covered by extending an existing REQ rather than proliferating new REQ IDs.
-The REQ-per-section count in the §5 table of contents serves as a bloat
-indicator — a §5 subsection exceeding 40 REQs SHALL trigger a maintainer
-review for consolidation. This check is mechanical (`npm run validate` reports
-section REQ counts) and informational — a flagged section may be justified by
-its domain complexity.
+The validator-computed per-section REQ count (reported by `npm run validate`)
+serves as a bloat indicator — a §5 subsection exceeding 40 REQs SHALL trigger a
+maintainer review for consolidation. This check is mechanical (`npm run
+validate` reports section REQ counts) and informational — a flagged section may
+be justified by its domain complexity.
 
 **What belongs elsewhere:**
 
