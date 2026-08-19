@@ -425,26 +425,26 @@ _The normative core. Each requirement is exactly one paragraph — no blank line
 no tables, no bullet lists, no numbered steps. Ends in `_Check:` with test citations.
 Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
-| §       | Title                               | REQs                                                | Count |
-|---------|-------------------------------------|-----------------------------------------------------|-------|
-| 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 | 24    |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 | 29    |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 | 32    |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       | 13    |
-| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 | 26    |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 | 79    |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           | 14    |
-| 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 | 39    |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           | 21    |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        | 22    |
-| 5.11    | Ruleset-Free Build Mode               | 218–219                                             | 2     |
-| 5.12 | Narrative Architecture | 335–366 | 31 |
-| 5.13 | Holodeck | 369–371, 374–376 | 6 |
-| 5.14 | Content Sources | 372–373 | 2 |
-| 5.15    | Mechanical Coupling                  | 377–378                                             | 2     |
-| 5.16    | Multi-Ruleset Build                  | 379–387                                             | 9     |
-| 5.17    | Ruleset Packages                     | 389–393                                             | 5     |
-| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  | 5     |
+| §       | Title                               | REQs                                                |
+|---------|-------------------------------------|-----------------------------------------------------|
+| 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
+| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 |
+| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
+| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 |
+| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           |
+| 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 |
+| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
+| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
+| 5.11    | Ruleset-Free Build Mode               | 218–219                                             |
+| 5.12 | Narrative Architecture | 335–366 |
+| 5.13 | Holodeck | 369–371, 374–376 |
+| 5.14 | Content Sources | 372–373 |
+| 5.15    | Mechanical Coupling                  | 377–378                                             |
+| 5.16    | Multi-Ruleset Build                  | 379–387                                             |
+| 5.17    | Ruleset Packages                     | 389–393                                             |
+| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  |
 
 ### 5.1 Output and Error Contracts
 
@@ -9482,11 +9482,11 @@ procedural content to the appropriate section (§6 for build processes,
 (a) no existing REQ already covers this concern; (b) the convergence loop
 would not catch the deviation without a new REQ; (c) the concern could not
 be covered by extending an existing REQ rather than proliferating new REQ IDs.
-The REQ-per-section count in the §5 table of contents serves as a bloat
-indicator — a §5 subsection exceeding 40 REQs SHALL trigger a maintainer
-review for consolidation. This check is mechanical (`npm run validate` reports
-section REQ counts) and informational — a flagged section may be justified by
-its domain complexity.
+The validator-computed per-section REQ count (reported by `npm run validate`)
+serves as a bloat indicator — a §5 subsection exceeding 40 REQs SHALL trigger a
+maintainer review for consolidation. This check is mechanical (`npm run
+validate` reports section REQ counts) and informational — a flagged section may
+be justified by its domain complexity.
 
 **What belongs elsewhere:**
 
