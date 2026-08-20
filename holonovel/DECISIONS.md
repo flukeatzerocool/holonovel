@@ -2,6 +2,30 @@
 
 **Spec hash:** 275b493c11a88775dea416ad68b22cbd33282a10dc133d0f31cebadd1a707c00
 
+### Holonovel Spec Update — 2026-08-20 (spec/server hash sync)
+
+| Field | Value |
+|-------|-------|
+| Delta class | none (hash-only sync) |
+| Changed | spec (holonovel.md reassembled; stored hash drifted) |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | assemble 0 errors, check 0 errors, typecheck 0 errors |
+
+Hash-only sync: the root `holonovel.md` had been reassembled to hash
+`275b49…` during earlier pre-commit assemble passes, but `DECISIONS.md` still
+stored `d1d114…`, leaving the pre-push spec/server sync gate red. This entry
+records the reconciliation of the stored hash to the current spec content. No
+spec semantic change accompanies this bump.
+
+### Holonovel Server Change — 2026-08-20 (jsonSchemaToZod required-array fix)
+
+`jsonSchemaToZod` in `src/index.ts` marked every object property required,
+ignoring the JSON Schema `required` array. Properties not listed in `required`
+are now emitted as ZodOptional. Fixes ruleset tool calls that omit optional
+arguments (e.g. `max_results` on `search_rules` tools), which previously
+rejected with `expected number, received undefined`. No spec change; behavior
+fix only, verified by typecheck and a Zod parse smoke test.
+
 ### Holonovel Spec Update — 2026-08-18 (deploy preservation)
 
 | Field | Value |
