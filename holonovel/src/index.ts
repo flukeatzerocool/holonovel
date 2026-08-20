@@ -97,15 +97,19 @@ function jsonSchemaToZod(schema: any): any {
   if (t === "array") return z.array(jsonSchemaToZod(schema.items ?? {}));
   if (t === "object") {
     const shape: Record<string, any> = {};
+    const requiredSet = new Set<string>(
+      Array.isArray(schema.required) ? schema.required : []
+    );
     for (const [k, v] of Object.entries(schema.properties ?? {})) {
-      shape[k] = jsonSchemaToZod(v);
-    }
-    const required: string[] = Array.isArray(schema.required) ? schema.required : [];
-    for (const k of required) {
-      if (!(k in shape)) continue;
-      if (shape[k] && typeof shape[k] === "object" && shape[k]._def?.typeName === "ZodOptional") {
-        shape[k] = shape[k].unwrap();
+      let zs = jsonSchemaToZod(v);
+      if (requiredSet.has(k)) {
+        if (zs && typeof zs === "object" && zs._def?.typeName === "ZodOptional") {
+          zs = zs.unwrap();
+        }
+      } else if (!zs || typeof zs !== "object" || zs._def?.typeName !== "ZodOptional") {
+        zs = zs.optional();
       }
+      shape[k] = zs;
     }
     return z.object(shape);
   }
