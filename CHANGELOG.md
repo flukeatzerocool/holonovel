@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-21 — Ruleset-driven character creation
+
+- Character creation is now ruleset-driven. The server no longer hard-codes a
+  specific ruleset's species, classes, stat tables, or derived-stat formulas.
+  Character-creation rules live in the bound ruleset package's model under a
+  reserved `character_creation` block (REQ-399a); derived statistics are
+  computed by a safe expression evaluator over ruleset-declared formulas
+  (REQ-399b); and a ruleset-free — or character-data-less — Novel degrades to
+  profile-only creation with no mechanical stats (REQ-219, REQ-399c).
+- Refactored `src/core/character-creation.ts` into a data-driven engine with a
+  formula evaluator (no `eval`), and rewired `create_character`, the step-by-step
+  `respond` workflow, and `character_sheet` rendering to consume the bound
+  ruleset's character data. The `character_sheet` now renders derived statistics
+  generically under the ruleset's declared labels, falling back to legacy stored
+  stats for pre-refactor entities. New unit tests cover the evaluator, stat
+  generation, species adjustment, and derived computation.
+- Fixed spec defects in the character-creation cluster: REQ-219b was an empty
+  REQ block; REQ-219a1 and REQ-152a opened with orphaned fragments; REQ-181a
+  enumerated a D&D/SWSE-shaped stat vocabulary (now ruleset-agnostic); REQ-104c
+  used `race` where the tool uses `species`; and §7.5 pointed at a nonexistent
+  "§6.4 creation contract". Added T468 and the REQ-399 manifest row.
+- Removed SWSE personal-deployment build tooling from `.opencode/` (the Python
+  extractor and the Node hash-recompute script and its build-worker step) and
+  scrubbed the `swse` example slug from REQ-395a and Appendix V. The repo is now
+  free of Python/JavaScript source; only TypeScript, Markdown, and shell remain.
+
 ## 2026-08-19 — Drop the §5 REQ Count column
 
 - Removed the manually-maintained `Count` column from the §5 navigation

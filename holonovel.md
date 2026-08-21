@@ -1260,28 +1260,37 @@ a staleness counter for open pending workflows, incremented on each new connecti
 **REQ-193b — Pending workflow staleness detection (Part b).**
 See also REQ-224. *Acceptance criterion:* Start a character creation workflow, restart the server (connection 1), connect twice more (connections 2, 3) — on the third connection, `spec_health` includes `pending_workflow_warning`. _Check:_ spec_health output assertion.
 **REQ-104a — Character creation workflow (Part a).**
-step-by-step (called without parameters) and quick-create (called with all required creation parameters). Step-by-step produces sequential `[NEED_INPUT]` decisions covering every mandatory creation step the ruleset defines; quick-create creates the character in a single call. Both modes produce a complete entity with every ruleset-defined derived statistic and no ruleset-defined starting field zeroed out.
+`create_character` offers step-by-step (called without parameters) and quick-create (called with every creation parameter the ruleset's model marks required). Step-by-step produces sequential `[NEED_INPUT]` decisions covering every mandatory creation step the ruleset defines; quick-create creates the character in a single call. Both modes produce a complete entity with every ruleset-defined derived statistic and no ruleset-defined starting field zeroed out.
 
 **REQ-104b — Character creation workflow (Part b).**
-In step-by-step mode, when the ruleset defines ability scores as a mandatory step, the builder SHALL present each ability score for player assignment — the player chooses which rolled or array value maps to which ability. The builder SHALL NOT auto-assign ability scores without a `[NEED_INPUT]` decision presenting the assignment as a choice. In quick-create mode, the builder MAY auto-assign using a documented heuristic recorded in RULESET_MODEL.md. When `stat_method` is `roll_4d6`, `create_character` accepts an optional `seed` parameter.
+In step-by-step mode, when the ruleset defines ability scores as a mandatory step, the builder SHALL present each ability score for player assignment — the player chooses which rolled or array value maps to which ability. The builder SHALL NOT auto-assign ability scores without a `[NEED_INPUT]` decision presenting the assignment as a choice. In quick-create mode, the builder MAY auto-assign using a documented heuristic recorded in RULESET_MODEL.md. When the ruleset's stat generation uses a rolled method, `create_character` SHALL accept an optional seed parameter per REQ-050.
 
 **REQ-104c — Character creation workflow (Part c).**
-The seed applies an isolated draw (REQ-050) — stat generation does not advance the session PRNG position. Creation without an active Novel returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot. *Acceptance criterion:* `create_character()` without parameters starts step-by-step mode; `create_character(name="X", race="Y", ...)` creates in one call; both modes require an active Novel or return `[STATE_CONFLICT]`. _Check:_ T32; T47; T103; G2.
+The seed applies an isolated draw (REQ-050) — stat generation does not advance the session PRNG position. Creation without an active Novel returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot. *Acceptance criterion:* `create_character()` without parameters starts step-by-step mode; `create_character(name="X", species="Y", ...)` creates in one call; both modes require an active Novel or return `[STATE_CONFLICT]`. _Check:_ T32; T47; T103; G2.
 **REQ-181a — Character creation output surface (Part a).**
-return, in its final `[OK]` or `[NEED_INPUT]` completion response, every ruleset-defined derived statistic: the entity's name, race, class, level, ability scores with computed modifiers, hit points (current and maximum), armor class, speed, and all proficiencies (saves, skills, armor, weapons, tools). When the ruleset defines additional derived fields (initiative, passive scores, spellcasting ability, known languages), those SHALL also appear.
+`create_character` SHALL return, in its final `[OK]` or `[NEED_INPUT]` completion response, the character's identity fields and every derived statistic the ruleset defines, each presented under the label the ruleset declares. *Acceptance criterion:* A `create_character` quick-mode call returns the ruleset's derived statistics with their declared labels — not a bare confirmation; a step-by-step creation's final response includes all derived statistics computed so far. _Check:_ T47.
 
 **REQ-181b — Character creation output surface (Part b).**
-The output SHALL distinguish inputs (player-provided values) from derived statistics (computed from inputs and ruleset tables). *Acceptance criterion:* A `create_character` quick-mode call returning `[OK]` includes ability scores with per-score modifiers, HP, AC, speed, and the full proficiency list — not just a confirmation message. A step-by-step creation's final `[NEED_INPUT]` response includes all derived statistics computed so far. _Check:_ T47.
+The output SHALL distinguish inputs (player-provided values) from derived statistics (computed from inputs and ruleset tables). *Acceptance criterion:* A `create_character` quick-mode call returning `[OK]` includes the ruleset's derived statistics alongside the player's inputs — not just a confirmation message. A step-by-step creation's final `[NEED_INPUT]` response includes all derived statistics computed so far. _Check:_ T47.
 **REQ-151a — Creation step enumeration (Part a).**
 mandatory creation step the ruleset defines in RULESET_MODEL.md under `character_creation.steps`, in the order the ruleset prescribes. In step-by-step mode, each step that requires a player choice SHALL produce one `[NEED_INPUT]` decision — no step produces more than one decision, and no decision covers more than one step.
 
 **REQ-151b — Creation step enumeration (Part b).**
 Steps the server resolves without player input (derived statistics, HP calculation, proficiency assignment) SHALL NOT produce `[NEED_INPUT]` decisions but SHALL be reported in the creation result alongside player-chosen values. *Acceptance criterion:* RULESET_MODEL.md enumerates every mandatory step; `create_character()` without params produces exactly one `[NEED_INPUT]` per choice step, never bundling steps. _Check:_ T32.
 **REQ-152a — Starting equipment assignment (Part a).**
-equipment per class, background, or similar creation choice, the builder SHALL assign that equipment to the created entity. The entity's state representation SHALL include an `equipment` field listing each assigned item by name, quantity, and ruleset source. If the ruleset presents equipment choices (e.g., "choose weapon A or weapon B"), the builder SHALL present each choice as a `[NEED_INPUT]` decision in step-by-step mode. In quick mode, the builder SHALL select the first listed option and record the selection in the creation result.
+When the ruleset defines starting equipment per class, background, or similar creation choice, the builder SHALL assign that equipment to the created entity. The entity's state representation SHALL include an `equipment` field listing each assigned item by name, quantity, and ruleset source. If the ruleset presents equipment choices (e.g., "choose weapon A or weapon B"), the builder SHALL present each choice as a `[NEED_INPUT]` decision in step-by-step mode. In quick mode, the builder SHALL select the first listed option and record the selection in the creation result.
 
 **REQ-152b — Starting equipment assignment (Part b).**
 When the ruleset defines no starting equipment, the `equipment` field SHALL be absent — the builder SHALL NOT fabricate equipment. *Acceptance criterion:* A character created under D&D 5e SRD carries class and background starting equipment by name. _Check:_ T32, G2. *Out of scope:* branching narrative trees, puzzle-solving workflows, and decision workflows that span multiple Novels or connections.
+**REQ-399a — Character-creation package data (Part a).**
+When the ruleset defines character creation, the builder SHALL extract the ruleset's character-creation rules — playable character types, classes and advancement paths, ability-generation methods, derived-statistic definitions, and starting equipment — into the ruleset model and the package. The model SHALL record the mandatory creation step enumeration under `character_creation.steps` in the order the ruleset prescribes (REQ-151a). Extraction SHALL be cross-consistent with the model's other categories per REQ-209. *Acceptance criterion:* A ruleset build that defines character creation yields a package whose model carries the ruleset's character-creation rules and whose step enumeration matches the step-by-step decisions the host produces. _Check:_ T468.
+
+**REQ-399b — Character-creation computation (Part b).**
+Derived statistics are computed by the host from ruleset-declared formulas evaluated against the character's player-provided inputs and the ruleset's extracted tables; the host SHALL NOT hard-code a ruleset's formula. A formula that fails to evaluate SHALL surface a named creation error rather than a silent default. *Acceptance criterion:* A character created under a ruleset declaring a formula-based statistic returns that statistic computed from the declared formula; a formula referencing an undefined input produces a named error. _Check:_ T468.
+
+**REQ-399c — Character creation without package data (Part c).**
+A Novel bound to a ruleset whose package carries no character-creation rules SHALL follow the ruleset-free creation contract (REQ-219): `create_character` produces a profile with no mechanical statistics. Requesting mechanical statistics in that state SHALL return a named error directing the caller to bind a ruleset whose package defines character creation. *Acceptance criterion:* `create_character` on a Novel bound to a character-data-less package yields a profile-only entity; requesting classes yields a named error naming the missing data. _Check:_ T260, T468.
+
 **REQ-140 — End-Novel confirmation dispatch.** WHEN the `respond` handler
 receives a decision matching the `end_novel` confirmation, THE system SHALL
 execute the Novel disposal sequence per REQ-088 and record the disposal in the
@@ -3428,11 +3437,12 @@ The world-model layer (§5.10) SHALL be populated from the provider documentatio
 **REQ-218c — Ruleset-free build (Part c).**
 Mechanical couplings (Mechanics→World, Mechanics→NPC, and Ruleset Wisdom couplings) SHALL be inert — no ruleset means no mechanical resolution to drive coupling effects. Verification workflow G0b and G2 SHALL use the Appendix W fixture in place of Appendix B or N. Handoff verification steps H1 and H10 SHALL be skipped for ruleset-free builds — there is no source edition/title to compare and no extraction confidence to measure. _Check:_ T259.
 **REQ-219a1 — Ruleset-free entity creation (Part a) (Part a1).**
-classes, species, or equipment THE `create_character` tool SHALL accept a name and optional personality fields per REQ-077 (description, voice, background, goals). The tool SHALL produce a roster entry with no mechanical fields — only name and narrative fields. The `character_sheet` rendering for a ruleset-free entity SHALL display the entity's name and populated personality fields; no stat block is rendered. Import into a Novel follows the standard import contract (REQ-055). The roster entry is a permanent baseline; its narrative fields are mutable per REQ-077.
+When the ruleset defines no classes, species, or equipment, THE `create_character` tool SHALL accept a name and optional personality fields per REQ-077 (description, voice, background, goals). The tool SHALL produce a roster entry with no mechanical fields — only name and narrative fields. The `character_sheet` rendering for a ruleset-free entity SHALL display the entity's name and populated personality fields; no stat block is rendered. Import into a Novel follows the standard import contract (REQ-055). The roster entry is a permanent baseline; its narrative fields are mutable per REQ-077.
 
 **REQ-219a2 — Ruleset-free entity creation (Part a) (Part a2).**
 The entity is valid as a combat participant in `init_combat` — it receives a turn in the order and auto-advances with an `[auto]` marker without mechanical effects (dangers and entities have no hit points, no damage, and no death state). `suggest_actions` SHALL include the entity's name and narrative fields in context but SHALL return no mechanical action suggestions. _Check:_ T260.
 **REQ-219b — Ruleset-free entity creation (Part b).**
+Ruleset-free and character-data-less creation share the profile-only contract (REQ-219a1, REQ-399c): a character carries no mechanical statistics, and any request for them returns a named error naming the missing condition. _Check:_ T260.
 
 ---
 
@@ -3852,7 +3862,7 @@ A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or d
 ### 5.18 Workflow Entry Points
 
 **REQ-395a — Ruleset-build entry point (Part a).**
-The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset swse=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage; no untracked build tooling is left in the tracked tree. _Check:_ T463.
+The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset example=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage; no untracked build tooling is left in the tracked tree. _Check:_ T463.
 
 **REQ-395b — Workflow runbooks (Part b).**
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
@@ -4184,6 +4194,15 @@ _Check:_ T173.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
 
+**Character-creation extraction.** When the ruleset defines character creation, the
+builder SHALL extract the character-creation rules into the model: playable character
+types and species, classes and advancement paths, ability-generation methods with their
+parameters, derived-statistic definitions as formulas, and starting equipment. The
+mandatory step enumeration is recorded under `character_creation.steps` per REQ-151a.
+When the ruleset defines no character creation, the builder records the absence and the
+model carries no character-creation data. Extraction follows the cross-format
+consistency rule (REQ-209) and category order above.
+
 **Ruleset Wisdom extraction.** After the seven extraction categories are complete,
 the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
@@ -4329,7 +4348,13 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    index, every ruleset-derived tool schema with execution logic expressed as data,
    rule sources, and prompt definitions into the package. Each package carries a
    content hash and a version manifest naming the host version it was built against
-   (REQ-389).
+   (REQ-389). When the model carries character-creation rules, the package SHALL
+   include them (REQ-399). Derived-statistic formulas use a self-contained expression
+   grammar over the model's value vocabulary: numeric literals, the arithmetic
+   operators, parentheses, `floor`, `ceil`, `min`, and `max`, and named inputs drawn
+   from the extracted model (ability values and modifiers, character level, class
+   bonuses, and species traits). A formula referencing an input the package does not
+   define is a build defect.
 
 2. **Register per-ruleset surfaces.** For each ruleset, assign the `<slug>_` prefix
    to every ruleset-derived tool and annotate it with the ruleset slug (REQ-379).
@@ -5841,7 +5866,7 @@ REQ-104). Each decision presents a `[NEED_INPUT]` with a question, kebab-cased o
 list (≤25 entries from the ruleset index, "cancel" always last). The `decision` value
 passed to `respond` is the exact question text. `respond` drains one decision; `cancel`
 restores the pre-workflow snapshot. Pending workflows block undo, redo, and badge
-switching. See §6.4 for the full creation contract.
+switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-151, REQ-152, and REQ-181 for the creation workflow.
 
 ### 7.6 Configuration surface
 
@@ -8437,6 +8462,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-396 | Deploy preservation | 2026-08-18 |
 | REQ-397 | Untracked state location | 2026-08-19 |
 | REQ-398 | Deploy-model scope | 2026-08-19 |
+| REQ-399a | Character-creation package data (Part a) | 2026-08-21 |
+| REQ-399b | Character-creation computation (Part b) | 2026-08-21 |
+| REQ-399c | Character creation without package data (Part c) | 2026-08-21 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8524,6 +8552,7 @@ diet.
 | T465 | Automated | Deploy preservation: install a package, create a Novel and a codex entry, and record byte-for-byte hashes of the install directory and the user-data directory. Run a deploy step (git pull plus a clean of untracked files) — assert the install directory, installed package, and every Novel, roster, codex, server-note, and world-model entry are byte-for-byte identical afterward. Assert a deploy step whose git operations would delete or revert the install or user-data directory is rejected before any file is removed. Assert the default data directory does not resolve inside a git work tree. | REQ-396 |
 | T466 | Automated | In-tree state guard: start a server inside a git work tree, create a Novel and a codex entry, then run `git clean -fdx` and `git reset --hard` — assert the Novel, codex, roster, server notes, and installed packages are byte-for-byte identical afterward. Assert a server that must place state in-tree reports `[state-in-tree]` in `spec_health` and on stderr at startup, and that the warning does not block startup. | REQ-397 |
 | T467 | Automated | Two-repo propagation: advance a Minor spec delta in the specification repository without advancing the deployed server's fingerprints — assert publication tooling blocks with a pending-update notice. Run the §6.7 Update against the deployed server — assert fingerprints advance and publication succeeds. | REQ-398 |
+| T468 | Automated | Ruleset-driven character creation: install a fixture ruleset that declares character-creation rules — species, classes, a formula-based derived statistic, starting equipment, and a step enumeration. Bind a Novel to it — assert `create_character` quick-mode returns the ruleset's derived statistic computed from its declared formula with the declared label, and assigned starting equipment with name, quantity, and source. Assert step-by-step mode produces exactly one `[NEED_INPUT]` per declared choice step in the declared order. On a Novel bound to a package with no character-creation rules — assert profile-only behavior with no stat block and a named error when classes are requested. Assert a derived-statistic formula referencing an undefined input yields a named creation error. | REQ-104, REQ-151, REQ-152, REQ-181, REQ-219, REQ-399 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
@@ -10186,7 +10215,7 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 
 **Happy path.**
 
-1. Run `build-ruleset swse=/abs/path/to/books` to confirm intake and record the
+1. Run `build-ruleset example=/abs/path/to/books` to confirm intake and record the
    build in `DECISIONS.md`.
 2. Discovery (§6.3): identify the ruleset name, subsystems, and cover books in
    the source; reject source that is incomplete or unrecoverable.

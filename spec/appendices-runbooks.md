@@ -17,7 +17,7 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 
 **Happy path.**
 
-1. Run `build-ruleset swse=/abs/path/to/books` to confirm intake and record the
+1. Run `build-ruleset example=/abs/path/to/books` to confirm intake and record the
    build in `DECISIONS.md`.
 2. Discovery (§6.3): identify the ruleset name, subsystems, and cover books in
    the source; reject source that is incomplete or unrecoverable.

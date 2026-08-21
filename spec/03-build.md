@@ -312,6 +312,15 @@ _Check:_ T173.
 - **ruleset_model.json** — machine-readable model consumed by verification and server
   code.
 
+**Character-creation extraction.** When the ruleset defines character creation, the
+builder SHALL extract the character-creation rules into the model: playable character
+types and species, classes and advancement paths, ability-generation methods with their
+parameters, derived-statistic definitions as formulas, and starting equipment. The
+mandatory step enumeration is recorded under `character_creation.steps` per REQ-151a.
+When the ruleset defines no character creation, the builder records the absence and the
+model carries no character-creation data. Extraction follows the cross-format
+consistency rule (REQ-209) and category order above.
+
 **Ruleset Wisdom extraction.** After the seven extraction categories are complete,
 the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
@@ -457,7 +466,13 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    index, every ruleset-derived tool schema with execution logic expressed as data,
    rule sources, and prompt definitions into the package. Each package carries a
    content hash and a version manifest naming the host version it was built against
-   (REQ-389).
+   (REQ-389). When the model carries character-creation rules, the package SHALL
+   include them (REQ-399). Derived-statistic formulas use a self-contained expression
+   grammar over the model's value vocabulary: numeric literals, the arithmetic
+   operators, parentheses, `floor`, `ceil`, `min`, and `max`, and named inputs drawn
+   from the extracted model (ability values and modifiers, character level, class
+   bonuses, and species traits). A formula referencing an input the package does not
+   define is a build defect.
 
 2. **Register per-ruleset surfaces.** For each ruleset, assign the `<slug>_` prefix
    to every ruleset-derived tool and annotate it with the ruleset slug (REQ-379).
