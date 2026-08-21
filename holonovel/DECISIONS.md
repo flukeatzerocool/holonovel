@@ -2,6 +2,29 @@
 
 **Spec hash:** 253001d9abab490ed8de0ff3ddf4f100a1748615ccb4da1b1becd4389e47a455
 
+### Holonovel Spec Update — 2026-08-21 (state persistence guardrails)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec (§5.19 added REQ-400–407; §7.6 `TTRPG_STATE_GATE`/`TTRPG_AUTO_RECORD` env vars; §1 terminology `State ledger`/`State drift`) + registration (Appendix A REQ rows, Appendix N tests T469–T476) |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors, typecheck 0 errors |
+
+Spec-level guardrails that force persistence during GM sessions so AI GM
+narration is not lost to free-text. The GM briefing gains a same-turn
+persistence directive (REQ-400) and a `state_ledger` token reporting the last
+state-mutation timestamp and per-group counts (REQ-401). The server now detects
+narration-without-commit and surfaces `[session-no-mutations]` (REQ-402) and
+`[state-drift]` (REQ-403) markers, gated by a new `TTRPG_STATE_GATE` setting
+(`off`/`warn`/`block`, default `warn`), and flags `[uncommitted-roll]` when a
+significant roll is not followed by a commit (REQ-404). Scene transitions and
+combat-round resolutions auto-record a `moment` story-journal entry via a
+per-Novel `auto_record` flag defaulting `true` (REQ-405). Backup restores
+report `[state-regression]` with entry/timestamp gaps (REQ-406), and the GM's
+scene-typed tool list always includes and never truncates the core persist
+tools (REQ-407).
+
 ### Holonovel Spec Update — 2026-08-21 (spec conformancy reconciliation)
 
 | Field | Value |
