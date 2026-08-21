@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** b80968bf8195a47deb274b8984efa27bd993d753c98f54c4c733355079a8af8d
+**Spec hash:** 253001d9abab490ed8de0ff3ddf4f100a1748615ccb4da1b1becd4389e47a455
 
 ### Holonovel Spec Update — 2026-08-21 (spec conformancy reconciliation)
 
