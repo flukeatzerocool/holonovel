@@ -1,7 +1,13 @@
 // Enrichment Manifest — Tier 1 vendor + ruleset-native enrichment
 // REQ-080: additive only, never modifies mechanics
 // REQ-225: Tier 1 enrichment — vendor content processed at build time
-// REQ-227: Tier 1 (ruleset-native + vendor, never removed by revert_enrichment)
+// REQ-227: Tier 1 (ruleset-native + vendor, never removed by revert_synthesis)
+
+import * as fs from "fs";
+
+const SPEC_VERSION: string = JSON.parse(
+  fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
+).version;
 
 export interface EnrichmentItem {
   content: string;
@@ -48,7 +54,7 @@ export interface EnrichmentManifest {
 
 export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
   collected_at: new Date().toISOString(),
-  spec_version: "2026.08.09",
+  spec_version: SPEC_VERSION,
   voice_examples: [
     {
       content: "NPC voice design framework — define pitch, speed, tone, accent, and quirks for each named NPC. Use descriptive voice tags ('raspy baritone', 'clipped military cadence') rather than acting instructions. Voice descriptions should suggest character history: a hoarse whisper implies decades of secrets, a booming laugh implies untested confidence.",

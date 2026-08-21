@@ -166,7 +166,7 @@ export interface Relationship {
   description?: string;
 }
 
-export interface DMContext {
+export interface GMContext {
   current_scene?: string;
   immediate_situation?: string;
   pending_player_action?: string;
@@ -178,6 +178,22 @@ export interface DMContext {
   saved_at?: string;
   story_context?: string[];
   active_vows?: { name: string; difficulty: string; milestone_count: number }[];
+  faction_clocks?: { name: string; clock: number; clock_max: number; status: string }[];
+  countdown_positions?: { name: string; ticks: number; total: number }[];
+  npc_dispositions?: { name: string; disposition?: string; location?: string }[];
+  relationships?: Relationship[];
+}
+
+export interface CodexEntry {
+  id: string;
+  kind: string;
+  visibility: "library" | "shared" | "private";
+  name: string;
+  content: Record<string, any>;
+  description?: string;
+  tags?: string[];
+  imported_at: string;
+  codex_modified_at: string;
 }
 
 export interface VowState {
@@ -244,6 +260,7 @@ export interface NovelState {
   action_patterns_enabled: boolean;
   session_zero_completed: boolean;
   characters_present: boolean;
+  characters_present_ids: string[];
   adventure_set: boolean;
   pending_workflow:
     | { decision: string; snapshot: any }
@@ -257,7 +274,10 @@ export interface NovelState {
   factions: FactionState[];
   secrets: SecretState[];
   relationships: Relationship[];
-  dm_context: DMContext;
+  gm_context: GMContext;
+  constraint_overrides: { type: string; name?: string; source?: string; prerequisites?: string[]; slots_remaining?: number; match_all?: boolean }[];
+  synthesis_activated: Record<string, number>;
+  synthesis_module_enabled: Record<string, boolean>;
   notes: NoteEntry[];
   vows: VowState[];
   checkpoints: Checkpoint[];
@@ -374,6 +394,7 @@ export class StateManager {
   enrichmentManifest: any = null;
   maxLoreTokens: number | null = null;
   serverNotes: Map<string, string> = new Map();
+  codex: Map<string, CodexEntry> = new Map();
 
   private npcCounter = 0;
   private entityCounter = 0;
@@ -382,6 +403,7 @@ export class StateManager {
   constructor(stateDir: string) {
     this.stateDir = stateDir;
     this.loadServerNotes();
+    this.loadCodex();
     this.buildFingerprint = {
       specVersion: SPEC_VERSION,
       specRepoUrl: "https://github.com/anomalyco/Holonovel",
@@ -404,22 +426,22 @@ export class StateManager {
   // ── Badge Gating ────────────────────────────────────────────────
 
   requireGM(badge: Badge): void {
-    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
-    if (badge === "player") throw new Error("[FORBIDDEN] This tool is Game Master only. Use set_badge to switch.");
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Corrective action: switch badges with set_badge to interact.");
+    if (badge === "player") throw new Error("[FORBIDDEN] This tool is Game Master only. Corrective action: use set_badge to switch.");
   }
 
   requirePlayer(badge: Badge): void {
-    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
-    if (badge === "game_master") throw new Error("[FORBIDDEN] This tool is Player only. Use set_badge to switch.");
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Corrective action: switch badges with set_badge to interact.");
+    if (badge === "game_master") throw new Error("[FORBIDDEN] This tool is Player only. Corrective action: use set_badge to switch.");
   }
 
   requireNotObserver(badge: Badge): void {
-    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Switch badges. With set_badge to interact.");
+    if (badge === "observer") throw new Error("[FORBIDDEN] Observer mode is read-only. Corrective action: switch badges with set_badge to interact.");
   }
 
   requireNovel(): NovelState {
     const novel = this.activeNovel;
-    if (!novel) throw new Error("[STATE_CONFLICT] No active Novel. Create or resume one first.");
+    if (!novel) throw new Error("[STATE_CONFLICT] No active Novel. Corrective action: create_novel or resume_novel first.");
     return novel;
   }
 
@@ -434,9 +456,9 @@ export class StateManager {
   resolveEntity(entityId?: string): NovelEntity {
     const novel = this.requireNovel();
     const id = entityId ?? novel.active_entity_id;
-    if (!id) throw new Error("[INVALID_INPUT] No entity_id provided and no active entity set.");
+    if (!id) throw new Error("[INVALID_INPUT] No entity_id provided and no active entity set. Corrective action: pass entity_id or call set_active_entity first.");
     const entity = novel.entities.get(id);
-    if (!entity) throw new Error(`[NOT_FOUND] Entity '${id}' not found.`);
+    if (!entity) throw new Error(`[NOT_FOUND] Entity '${id}' not found. Corrective action: list_novels or list_roster_characters to see available ids.`);
     return entity;
   }
 
@@ -483,6 +505,7 @@ export class StateManager {
       action_patterns_enabled: false,
       session_zero_completed: false,
       characters_present: false,
+      characters_present_ids: [],
       adventure_set: false,
       pending_workflow: null,
       connection_counter: 0,
@@ -493,7 +516,10 @@ export class StateManager {
       factions: [],
       secrets: [],
       relationships: [],
-      dm_context: {},
+      gm_context: {},
+      constraint_overrides: [],
+      synthesis_activated: {},
+      synthesis_module_enabled: {},
       notes: [],
       vows: [],
       checkpoints: [],
@@ -607,6 +633,7 @@ export class StateManager {
       action_patterns_enabled: data.action_patterns_enabled ?? false,
       session_zero_completed: data.session_zero_completed ?? false,
       characters_present: data.characters_present ?? false,
+      characters_present_ids: data.characters_present_ids ?? [],
       adventure_set: data.adventure_set ?? false,
       pending_workflow: data.pending_workflow ?? null,
       connection_counter: data.connection_counter ?? 0,
@@ -617,7 +644,10 @@ export class StateManager {
       factions: data.factions ?? [],
       secrets: data.secrets ?? [],
       relationships: data.relationships ?? [],
-      dm_context: data.dm_context ?? {},
+      gm_context: data.gm_context ?? {},
+      constraint_overrides: data.constraint_overrides ?? [],
+      synthesis_activated: data.synthesis_activated ?? {},
+      synthesis_module_enabled: data.synthesis_module_enabled ?? {},
       notes: data.notes ?? [],
       vows: data.vows ?? [],
       checkpoints: data.checkpoints ?? [],
@@ -724,7 +754,7 @@ export class StateManager {
     novel.factions = restored.factions;
     novel.secrets = restored.secrets;
     novel.relationships = restored.relationships;
-    novel.dm_context = restored.dm_context;
+    novel.gm_context = restored.gm_context;
     novel.notes = restored.notes;
     novel.vows = restored.vows;
     novel.checkpoints = restored.checkpoints;
@@ -764,7 +794,7 @@ export class StateManager {
     novel.factions = restored.factions;
     novel.secrets = restored.secrets;
     novel.relationships = restored.relationships;
-    novel.dm_context = restored.dm_context;
+    novel.gm_context = restored.gm_context;
     novel.notes = restored.notes;
     novel.vows = restored.vows;
     novel.checkpoints = restored.checkpoints;
@@ -829,7 +859,7 @@ export class StateManager {
       activated_count: 0,
       fingerprint: null,
     };
-    const staleDays = parseInt(process.env.TTRPG_ENRICH_STALE_DAYS ?? "90", 10);
+    const staleDays = parseInt(process.env.TTRPG_SYNTHESIS_STALE_DAYS ?? "90", 10);
     const cutoff = Date.now() - staleDays * 86400_000;
     let staleCount = 0;
     let activatedCount = 0;
@@ -1114,6 +1144,26 @@ ${turnOrder}`;
     );
   }
 
+  loadCodex(): void {
+    const filePath = path.join(this.stateDir, "codex.json");
+    if (!fs.existsSync(filePath)) return;
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      for (const [id, entry] of Object.entries(data)) {
+        this.codex.set(id, entry as CodexEntry);
+      }
+    } catch { /* ignore corrupt */ }
+  }
+
+  saveCodex(): void {
+    fs.mkdirSync(this.stateDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(this.stateDir, "codex.json"),
+      JSON.stringify(Object.fromEntries(this.codex), null, 2),
+      "utf-8",
+    );
+  }
+
   // ── Entity Factory (ruleset-free, REQ-219) ────────────────────
 
   createEntity(name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }, stats?: Record<string, any>): NovelEntity {
@@ -1173,6 +1223,7 @@ function novelToJSON(novel: NovelState): any {
     action_patterns_enabled: novel.action_patterns_enabled,
     session_zero_completed: novel.session_zero_completed,
     characters_present: novel.characters_present,
+    characters_present_ids: novel.characters_present_ids,
     adventure_set: novel.adventure_set,
     pending_workflow: novel.pending_workflow,
     connection_counter: novel.connection_counter,
@@ -1183,7 +1234,10 @@ function novelToJSON(novel: NovelState): any {
     factions: novel.factions,
     secrets: novel.secrets,
     relationships: novel.relationships,
-    dm_context: novel.dm_context,
+    gm_context: novel.gm_context,
+    constraint_overrides: novel.constraint_overrides,
+    synthesis_activated: novel.synthesis_activated,
+    synthesis_module_enabled: novel.synthesis_module_enabled,
     notes: novel.notes,
     vows: novel.vows,
     checkpoints: novel.checkpoints,
@@ -1257,6 +1311,7 @@ function novelFromJSON(data: any): NovelState {
     action_patterns_enabled: data.action_patterns_enabled ?? false,
     session_zero_completed: data.session_zero_completed ?? false,
     characters_present: data.characters_present ?? false,
+    characters_present_ids: data.characters_present_ids ?? [],
     adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: data.connection_counter ?? 0,
@@ -1267,7 +1322,10 @@ function novelFromJSON(data: any): NovelState {
     factions: data.factions ?? [],
     secrets: data.secrets ?? [],
     relationships: data.relationships ?? [],
-    dm_context: data.dm_context ?? {},
+    gm_context: data.gm_context ?? {},
+    constraint_overrides: data.constraint_overrides ?? [],
+    synthesis_activated: data.synthesis_activated ?? {},
+    synthesis_module_enabled: data.synthesis_module_enabled ?? {},
     notes: data.notes ?? [],
     vows: data.vows ?? [],
     checkpoints: data.checkpoints ?? [],
