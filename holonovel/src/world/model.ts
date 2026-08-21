@@ -223,6 +223,57 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       continue;
     }
 
+    // Multi-direction door form: "<Name> is <dir> of <RoomA> and <dir2> of <RoomB>."
+    const doorMatch = text.match(/^(.+?) is (\w+) of (.+?) and (\w+) of (.+?)\.$/i);
+    if (doorMatch) {
+      const doorName = doorMatch[1].trim();
+      const dirA = doorMatch[2].toLowerCase();
+      const roomA = doorMatch[3].trim();
+      const dirB = doorMatch[4].toLowerCase();
+      const roomB = doorMatch[5].trim();
+      if (isDirection(dirA) && isDirection(dirB)) {
+        let rA = world.rooms.get(roomA.toLowerCase());
+        if (!rA) { rA = { name: roomA, description: "", exits: new Map(), doorRefs: new Map(), annotations: {} }; world.rooms.set(roomA.toLowerCase(), rA); }
+        let rB = world.rooms.get(roomB.toLowerCase());
+        if (!rB) { rB = { name: roomB, description: "", exits: new Map(), doorRefs: new Map(), annotations: {} }; world.rooms.set(roomB.toLowerCase(), rB); }
+        rA.exits.set(dirA as Direction, roomB);
+        rB.exits.set(dirB as Direction, roomA);
+        rA.doorRefs.set(dirA as Direction, doorName);
+        rB.doorRefs.set(dirB as Direction, doorName);
+        const door: WorldThing = {
+          name: doorName,
+          description: "",
+          kind: "door",
+          location: roomA,
+          locationType: "room",
+          portable: false,
+          openable: true,
+          open: false,
+          lockable: true,
+          locked: true,
+          lit: false,
+          switchable: false,
+          switched_on: false,
+          enterable: false,
+          vehiclePassengers: [],
+          wearable: false,
+          worn_by: null,
+          readable: false,
+          read_text: null,
+          edible: false,
+          drinkable: false,
+          climbable: false,
+          transparent: false,
+          annotations: {},
+          doorConnects: { roomA, roomB },
+        };
+        world.things.set(doorName.toLowerCase(), door);
+        currentThing = doorName;
+        currentRoom = null;
+        continue;
+      }
+    }
+
     // Exit declaration: "<Direction> of <Room> is <Target>."
     const exitMatch = text.match(/^(\w+) of (.+?) is (.+?)\.$/i);
     if (exitMatch) {

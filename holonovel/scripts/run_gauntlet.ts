@@ -276,7 +276,7 @@ function buildScenarios(): GauntletScenario[] {
         assertContains(r, "TestRoom"); assertContains(r, "TestRoom2");
       }},
       { label: "room://testroom resource", action: R("room://testroom"), assert: (r) => assertContains(r, "TestRoom") },
-      { label: "delete_room", action: T("delete_room", { name: "TestRoom" }), assert: (r) => assertContains(r, "deleted") },
+      { label: "remove_room", action: T("remove_room", { name: "TestRoom" }), assert: (r) => assertContains(r, "removed") },
       { label: "world://map — room gone", action: R("world://map"), assert: (r) => assertNotContains(r, "TestRoom →") },
       { label: "undo", action: T("undo", {}), assert: assertOK },
       { label: "world://map — room restored", action: R("world://map"), assert: (r) => {
@@ -615,8 +615,8 @@ async function main() {
   // Surface hash
   const toolNames = [
     "set_badge", "create_novel", "end_novel", "respond", "undo", "redo",
-    "command", "create_room", "delete_room", "create_thing", "delete_thing",
-    "create_exit", "delete_exit", "convert_source",
+    "command", "create_room", "remove_room", "create_thing", "remove_thing",
+    "create_exit", "remove_exit", "convert_source",
     "create_character", "load_adventure", "session_recap",
     "create_npc", "update_npc", "remove_npc", "set_personality", "set_voice_examples",
     "set_lore_entry", "toggle_lore_entry", "update_lore_entry", "remove_lore_entry",

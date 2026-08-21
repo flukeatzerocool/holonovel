@@ -270,8 +270,20 @@ function handleTake(target: string, ctx: ParserContext): ParserResult {
     return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated.", correctiveAction: "Use an adventure module or CRUD tools to populate the world model." };
   }
 
+  // REQ-200: things are reachable from the room directly, from an open
+  // container in the room, or from a supporter in the room.
   const roomThings = getRoomThings(ctx.currentRoom, ctx);
-  const matches = resolveThingName(target, roomThings, ctx.inventory);
+  const reachable: WorldThing[] = [...roomThings];
+  for (const [, thing] of ctx.world.things) {
+    if (!thing.location) continue;
+    const parentName = thing.location;
+    const parent = ctx.world.things.get(parentName.toLowerCase());
+    if (!parent) continue;
+    if (parent.location?.toLowerCase() !== ctx.currentRoom.toLowerCase()) continue;
+    if (thing.locationType === "supporter") reachable.push(thing);
+    else if (thing.locationType === "container" && parent.openable && parent.open) reachable.push(thing);
+  }
+  const matches = resolveThingName(target, reachable, ctx.inventory);
   if (matches.length === 0) {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   }

@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-08-21 — Spec conformancy reconciliation
+
+- Reconcile the ruleset-free reference host to the canonical tool/resource/prompt
+  surface. Tool renames per §7.4 canonical verbs: `delete_room`/`delete_thing`/
+  `delete_exit` → `remove_*`, `delete_checkpoint` → `remove_checkpoint`,
+  `check_knowledge` → `get_knowledge`, `save_pause_context`/`get_resume_context`
+  → `set_pause_context`/`get_pause_context`, `compress_audit` →
+  `compact_audit_log`, `revert_enrichment` → `revert_synthesis`, and the
+  `dm_context` state field → `gm_context`.
+- Add `resolve_intent` (REQ-323) with ruleset-conditional parser gating: on
+  ruleset-bound Novels the parser `command` is Game Master only, while
+  ruleset-free Novels keep the parser as the primary Player surface (REQ-309).
+- Register the missing REQ-022 resource URIs (`entities://`, `party://current`,
+  `graph://novel`, `spec://build`, `output://`, `notes://`, `server-notes://`,
+  `codex://`, `faction://`, `factions://`, `secrets://active`, `synthesis://`,
+  `roster://<id>`, `constraints://active`, `lore://templates`,
+  `guidance://<badge>/foundations`) plus the `run_workflow` prompt.
+- Add `set_party_presence`, `roll_on_table`, the codex surface
+  (`codex_set`/`codex_list`), and the synthesis surface (`synthesize`,
+  `list_synthesis_items`, `activate/deactivate_synthesis_item`,
+  `toggle_synthesis_module`).
+- Correct the response/error contract: every error carries a `Corrective action:`
+  line and `[NOT_FOUND]`/`[INVALID_INPUT]` enumerate valid values; `spec_health`
+  now reports `resource_uris`, `prompt_health`, `synthesis_status`, and
+  `online/degraded/offline/unverified` safety statuses with Player-badge filtering.
+- World-model fixes: `create_thing` container/supporter containment, `take`/`drop`
+  reachability across supporters and open containers, and the multi-direction
+  door form in `convert_source`.
+- Behavioral fixes: `ask_oracle` exceptional-doubles markers, note badge-scoping
+  with `[FORBIDDEN]` rules and previews, `set_pause_context` auto-capture,
+  interchange-format `export_novel`/`import_novel`, `create_novel` `genre`, and
+  deterministic session-PRNG draws for all unseeded rolls.
+- Config/version hygiene: `TTRPG_ENRICH_STALE_DAYS` → `TTRPG_SYNTHESIS_STALE_DAYS`,
+  `enrichment.ts` reads `spec_version` from `package.json`, and the lockfile is
+  resynced to 2026.08.18.
+- Spec amendments: REQ-309b/h scope the GM-only parser gate to ruleset-bound
+  Novels with a ruleset-free carve-out; §7.7 and REQ-042f treat the active badge
+  (and active entity) as Novel-tier rather than Session-tier.
+
 ## 2026-08-21 — Ruleset-driven character creation
 
 - Character creation is now ruleset-driven. The server no longer hard-codes a

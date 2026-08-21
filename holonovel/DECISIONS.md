@@ -1,6 +1,33 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 5fb2c513f7933826a1226550ed14b085fffe00fb6f1bc3625fbb32796a370fe4
+**Spec hash:** b80968bf8195a47deb274b8984efa27bd993d753c98f54c4c733355079a8af8d
+
+### Holonovel Spec Update — 2026-08-21 (spec conformancy reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec (REQ-309b/h ruleset-free parser carve-out; §7.7 badge as Novel-tier; REQ-042f active entity Novel-scoped) + full server surface reconciliation (tool renames, resolve_intent, resource/prompt/tool completeness, response/error contract, spec_health, world-model containment, oracle/notes/pause/interchange/determinism fixes) |
+| Reused | source partially, config, lockfile resync |
+| Implementation fingerprints | source=8da599615303feb6570370be995e848900820df06a12f703e08885d9077ca483, config=20900e1f3ffc7bbb4f0ea91f71376cdd8517dc8da4548b7a93f1372d1b1ef19e3e879302d199d17e072264fe5713278ee3e80e37c2923bd494ac82081bc7e534, lockfile=6d0a2fbbbdb213687da3fbd8e184e58e060e6f8b30a3b135cdb45bf93ee4b951, extraction=sentinel, surfaces=b919dca088dbee49a66ff58358c6924e8bb8baea519661fac6b04e73bcad957b |
+| Verification | assemble 0 errors, check:fast 0 errors, typecheck 0 errors, gauntlet 13/13 |
+
+The ruleset-free host was reconciled to the canonical surface. Tool renames
+(`delete_*`→`remove_*`, `check_knowledge`→`get_knowledge`, `save_pause_context`/
+`get_resume_context`→`set_pause_context`/`get_pause_context`, `compress_audit`→
+`compact_audit_log`, `revert_enrichment`→`revert_synthesis`, `dm_context`→
+`gm_context`) align with §7.4 canonical verbs. Added `resolve_intent` (REQ-323)
+with ruleset-conditional parser gating (REQ-309: the parser stays a Player
+surface in ruleset-free mode, GM-only on ruleset-bound Novels), the missing
+REQ-022 resource URIs, `run_workflow` prompt, `set_party_presence`,
+`roll_on_table`, the codex surface, and the synthesis surface. Error responses
+now carry `Corrective action:` and enumeration hints; `spec_health` reports
+resource/prompt/synthesis/safety statuses; world-model containment and the
+multi-direction door form were implemented; oracle markers, note badge-scoping,
+pause auto-capture, interchange-format export/import, and determinism (session
+PRNG for all draws) were corrected. Spec amendments: REQ-309 scope the
+GM-only parser gate to ruleset-bound Novels (ruleset-free carve-out); §7.7 and
+REQ-042f treat the active badge (and active entity) as Novel-tier.
 
 ### Holonovel Spec Update — 2026-08-21 (ruleset-driven character creation)
 

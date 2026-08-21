@@ -51,7 +51,7 @@ function symbolExistsInIndex(serverDir: string, symbol: string): { exists: boole
     character_sheet: /registerTool\(["']character_sheet["']/,
     generate_adventure: /registerTool\(["']generate_adventure["']/,
     generate_encounter: /registerTool\(["']generate_encounter["']/,
-    compact_audit_log: /registerTool\(["']compress_audit["']/,
+    compact_audit_log: /registerTool\(["']compact_audit_log["']/,
     rename_novel: /registerTool\(["']rename_novel["']/,
   };
 

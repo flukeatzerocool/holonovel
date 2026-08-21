@@ -3,7 +3,7 @@ import { readReadme, extractHeadings, extractLinks, extractBlockquotes, extractB
 
 const toolNames = [
   "advance_combat", "advance_countdown", "apply_condition", "character_sheet",
-  "compress_audit", "create_character", "create_novel", "create_npc",
+  "compact_audit_log", "create_character", "create_novel", "create_npc",
   "end_combat", "end_novel", "export_lorebook", "generate_adventure",
   "generate_encounter", "help", "import_character", "import_lorebook",
   "init_combat", "load_adventure", "lookup_class", "lookup_equipment",

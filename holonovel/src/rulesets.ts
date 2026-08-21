@@ -9,7 +9,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import { createRng } from "./core/rng.js";
+import { createRng, sessionRoll } from "./core/rng.js";
 
 export const HOST_VERSION = "2026.08.18";
 
@@ -99,7 +99,7 @@ export function rollDice(notation: string, seed?: string): RollResult {
     const rng = createRng(seed);
     for (let i = 0; i < count; i++) dice.push(rng.roll(sides));
   } else {
-    for (let i = 0; i < count; i++) dice.push(Math.floor(Math.random() * sides) + 1);
+    for (let i = 0; i < count; i++) dice.push(sessionRoll(sides));
   }
   const sign = m[3] === "-" ? -1 : 1;
   const modifier = m[4] ? sign * parseInt(m[4], 10) : 0;
