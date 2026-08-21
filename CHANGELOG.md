@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-21 — State persistence guardrails
+
+- The Game Master's briefing now carries a persistence directive — commit
+  what you narrate, in the same turn — so a session's narrative is always
+  written to state instead of living only in free-text. (REQ-400)
+- Added a `state_ledger` briefing token that shows the GM what has actually
+  been persisted: last state-mutation timestamp and per-group mutation
+  counts for the session. (REQ-401)
+- The server now detects when a GM narrates without committing, surfacing
+  `[session-no-mutations]` and `[state-drift]` markers in `spec_health` and
+  `session_recap`, and flags significant rolls that were never followed by
+  a state write as `[uncommitted-roll]`. A new `TTRPG_STATE_GATE` setting
+  (`off`/`warn`/`block`, default `warn`) controls how forcefully the server
+  responds to drift. (REQ-402, REQ-403, REQ-404)
+- Scene transitions and combat round resolutions now auto-record a story
+  journal `moment` so the narrative trail is never empty even if the GM
+  forgets `record_story`; a per-Novel `auto_record` flag (default `true`)
+  opts out. (REQ-405)
+- Recovering a Novel from a backup now reports `[state-regression]` with the
+  entry-count and timestamp gap, so silently lost content is operator-visible.
+  (REQ-406)
+- The GM's scene-typed tool list always includes the core state-persistence
+  tools and never truncates them, keeping the persist path visible to small
+  models. (REQ-407)
+
 ## 2026-08-21 — Spec conformancy reconciliation
 
 - Reconcile the ruleset-free reference host to the canonical tool/resource/prompt

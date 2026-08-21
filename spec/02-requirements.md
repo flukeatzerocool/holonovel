@@ -3455,4 +3455,67 @@ Server-generated persistent state — Novels, roster, codex, server notes, world
 **REQ-398 — Deploy-model scope.**
 The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checkout into the server's directory. _Check:_ T467.
 
+### 5.19 State Persistence Guardrails
+
+**REQ-400 — State-Persistence Directive.** When the AI's narrative role is
+Game Master, `badge_briefing` orientation SHALL include a persistence
+directive instructing the GM to commit state for every narratable change —
+scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
+be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
+REQ-073) in the same turn they are narrated. The directive SHALL render in the
+never-truncated tier (REQ-135). _Check:_ T469.
+
+**REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
+`state_ledger` decision-critical section token (REQ-082, REQ-185) under the
+Game Master badge listing the timestamp of the last state mutation, per-group
+mutation counts for the current session, and any active drift markers
+(REQ-402, REQ-403). The token SHALL be never-truncated per REQ-135. _Check:_
+T470.
+
+**REQ-402 — Session no-mutation detection.** When a session boundary
+(REQ-237) closes a window containing zero mutating audit-log entries, the
+server SHALL surface a `[session-no-mutations]` marker in `spec_health` and
+`session_recap` naming the session that recorded no state writes. The marker is
+observational and SHALL NOT block play. _Check:_ T471.
+
+**REQ-403a — State-drift detection (Part a).**
+The server SHALL detect state drift — a `gm_context.saved_at` timestamp newer
+than the last audit-log mutation, indicating the GM narrated without
+committing — and SHALL surface it as a `[state-drift]` marker in `spec_health`,
+`session_recap`, and the `state_ledger` token.
+
+**REQ-403b — State-drift detection (Part b).**
+A `TTRPG_STATE_GATE` setting — `off` (default), `warn`, or `block` — read at
+startup, SHALL control the gate: `off` renders drift markers observationally,
+`warn` appends a prominent warning naming the uncommitted beats and the tools
+to fix them at session close (`set_pause_context`, `session_recap`), and
+`block` returns `[STATE_CONFLICT]` from `set_pause_context`, `end_novel`, and
+`switch_novel` while drift is active. Commit tools SHALL remain callable in
+every mode. _Check:_ T472.
+
+**REQ-404 — Roll-to-commit coupling.** A significant roll (REQ-174) implying
+a mechanical consequence SHALL be followed by a state-committing mutation in
+the same turn; `session_recap` SHALL flag a `[uncommitted-roll]` marker naming
+the roll and the suggested commit tool when no such mutation follows. The
+marker is observational. _Check:_ T473.
+
+**REQ-405 — Auto-moment on transitions.** Every scene transition (REQ-125)
+and combat-round resolution SHALL append a `moment` entry to the story journal
+(REQ-246) carrying the scene anchor, location, and timestamp, unless the
+transition sets `skip_transition_hook`. A Novel-scoped `auto_record` flag,
+default `true`, SHALL enable this behavior; the GM MAY set it `false` to
+restore manual-only recording. _Check:_ T474.
+
+**REQ-406 — Backup-restore regression visibility.** When a Novel loads from a
+backup (REQ-092), `spec_health` SHALL report a `[state-regression]` marker
+carrying the audit-entry-count gap and the timestamp gap between the restored
+state and the corruption event, so recovered content loss is operator-visible.
+_Check:_ T475.
+
+**REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
+tool section in `badge_briefing` (REQ-087) SHALL always include the core
+state-persistence tools — the scene, story-journal, countdown, note,
+personality, NPC, and vow tools defined in §5 — regardless of scene type, and
+those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
+
 #### End of requirements

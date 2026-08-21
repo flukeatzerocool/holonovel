@@ -152,6 +152,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-urgency threshold above which NPCs suggest countdown advancement. Behavioral. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
+| `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral. |
+| `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 
