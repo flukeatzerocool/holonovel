@@ -28,8 +28,9 @@ import {
 } from "./rulesets.js";
 import {
   ABILITY_NAMES, AbilityName, StatMethod, ClassLevel, CharacterBuildInput,
-  generateAbilityScores, getClassData,
-  computeDerivedStats, startingEquipmentFor, CREATION_STEPS, CreationWorkflowState,
+  CharacterRules, EquipmentItem,
+  generateAbilityScores, getClassData, abilityNames,
+  computeDerived, startingEquipmentFor, creationSteps, CreationWorkflowState,
   creationStepPrompt, applySpeciesAdjustments,
 } from "./core/character-creation.js";
 import { createRng, sessionRoll } from "./core/rng.js";
@@ -385,20 +386,34 @@ function fmtStats(stats: any): string {
   if (stats.abilityScores) {
     const ab = stats.abilityScores;
     const mod = (s: number) => (Math.floor((s - 10) / 2) >= 0 ? `+${Math.floor((s - 10) / 2)}` : `${Math.floor((s - 10) / 2)}`);
-    lines.push(`**Abilities:** Str ${ab.Strength} (${mod(ab.Strength)}) · Dex ${ab.Dexterity} (${mod(ab.Dexterity)}) · Con ${ab.Constitution} (${mod(ab.Constitution)}) · Int ${ab.Intelligence} (${mod(ab.Intelligence)}) · Wis ${ab.Wisdom} (${mod(ab.Wisdom)}) · Cha ${ab.Charisma} (${mod(ab.Charisma)})`);
+    const entries = Object.keys(ab).map((k) => `${k} ${ab[k]} (${mod(ab[k])})`);
+    lines.push(`**Abilities:** ${entries.join(" · ")}`);
   }
-  if (stats.defenses) {
-    lines.push(`**Defenses:** Reflex ${stats.defenses.reflex}, Fortitude ${stats.defenses.fortitude}, Will ${stats.defenses.will}`);
+  // Ruleset-declared derived statistics, rendered generically under their
+  // declared labels (REQ-181a). Falls back to legacy field names when a
+  // pre-refactor entity carries legacy hard-coded stats.
+  const derivedLabels: Record<string, string> = (stats._derived_labels?.labels as Record<string, string>) ?? {};
+  const derivedOrder: string[] = (stats._derived_labels?.order as string[]) ?? [];
+  const rendered = new Set<string>();
+  for (const key of derivedOrder) {
+    const label = derivedLabels[key] ?? key;
+    if (stats[label] == null) continue;
+    rendered.add(label);
+    lines.push(`**${label}:** ${stats[label]}`);
   }
-  if (stats.hitPoints != null) lines.push(`**Hit Points:** ${stats.hitPoints}`);
-  if (stats.damageThreshold != null) lines.push(`**Damage Threshold:** ${stats.damageThreshold}`);
-  if (stats.bab != null) lines.push(`**Base Attack Bonus:** ${stats.bab >= 0 ? `+${stats.bab}` : stats.bab}`);
-  if (stats.speed != null) lines.push(`**Speed:** ${stats.speed} squares`);
-  if (stats.forcePoints != null) lines.push(`**Force Points:** ${stats.forcePoints}`);
+  for (const [k, v] of Object.entries(stats)) {
+    if (k.startsWith("_") || ["class", "level", "species", "abilityScores", "statMethod", "trainedSkills", "feats", "talents", "equipment"].includes(k)) continue;
+    if (typeof v !== "number") continue;
+    if (rendered.has(k)) continue;
+    lines.push(`**${k}:** ${v}`);
+  }
   if (stats.trainedSkills?.length) lines.push(`**Trained Skills:** ${stats.trainedSkills.join(", ")}`);
   if (stats.feats?.length) lines.push(`**Feats:** ${stats.feats.join(", ")}`);
   if (stats.talents?.length) lines.push(`**Talents:** ${stats.talents.join(", ")}`);
-  if (stats.equipment?.length) lines.push(`**Equipment:** ${stats.equipment.join(", ")}`);
+  if (stats.equipment?.length) {
+    const eq = stats.equipment.map((e: any) => (typeof e === "string" ? e : `${e.name}${e.quantity && e.quantity !== 1 ? ` ×${e.quantity}` : ""}`)).join(", ");
+    lines.push(`**Equipment:** ${eq}`);
+  }
   return lines.join("\n");
 }
 
@@ -464,7 +479,8 @@ server.registerTool("respond", {
     const pw = novel.pending_workflow;
     if (!pw || !("creation" in pw) || !pw.creation) return err("STATE_CONFLICT", "No character-creation workflow in progress.");
     const wf = pw.creation;
-    const step = CREATION_STEPS[wf.stepIndex];
+    const steps = creationSteps(wf.rules ?? undefined);
+    const step = steps[wf.stepIndex] ?? "name";
     const ans = String(option).trim();
     switch (step) {
       case "name": wf.answers.name = ans; break;
@@ -472,26 +488,43 @@ server.registerTool("respond", {
       case "classes": wf.answers.classLevels = parseClassLevels(ans); break;
       case "ability_scores": {
         wf.answers.statMethod = "planned";
-        wf.answers.abilityScores = parseAbilityScores(ans);
+        wf.answers.abilityScores = parseAbilityScores(ans, wf.rules ?? undefined);
         break;
       }
       case "skills": wf.answers.trainedSkills = ans.split(/[\s,]+/).filter(Boolean); break;
       case "equipment": wf.answers.equipment = ans.split(/[\s,]+/).filter(Boolean); break;
     }
     wf.stepIndex++;
-    if (wf.stepIndex < CREATION_STEPS.length) {
+    if (wf.stepIndex < steps.length) {
       novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: wf };
       state.saveNovel(novel);
       return needInput(creationStepPrompt(wf));
     }
     novel.pending_workflow = null;
-    const species = wf.answers.species ?? "Human";
+    const rules = wf.rules;
+    if (!rules) {
+      // Ruleset-free workflow completed — profile-only entity.
+      const name = wf.answers.name ?? "Unnamed";
+      const species = wf.answers.species;
+      const entity = state.createEntity(name, undefined, species ? { species } : undefined);
+      state.addEntity(novel, entity);
+      state.saveNovel(novel);
+      return ok(`${fmtEntitySheet(entity)}
+
+Character '${name}' created as ${entity.id} (profile-only — no mechanical stats).`);
+    }
+    const species = wf.answers.species ?? Object.values(rules.species ?? {})[0]?.name ?? "";
     const classLevels = wf.answers.classLevels ?? [];
+    for (const cl of classLevels) {
+      if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+    }
+    const defaultScores = rules.default_ability_scores?.map(String).join(" ") ?? "15 14 13 12 10 8";
     const abilityScores = applySpeciesAdjustments(
-      wf.answers.abilityScores ?? parseAbilityScores("15 14 13 12 10 8"),
+      wf.answers.abilityScores ?? parseAbilityScores(defaultScores as any, rules),
       species,
+      rules,
     );
-    const build = {
+    const build: CharacterBuildInput = {
       name: wf.answers.name ?? "Unnamed",
       species,
       classLevels,
@@ -501,7 +534,7 @@ server.registerTool("respond", {
       talents: [],
       statMethod: wf.answers.statMethod ?? "planned",
     };
-    const stats = buildCharacterStats(build);
+    const stats = buildCharacterStats(build, rules);
     const entity = state.createEntity(build.name, undefined, stats);
     state.addEntity(novel, entity);
     state.saveNovel(novel);
@@ -647,41 +680,53 @@ function parseClassLevels(raw: string | any[]): ClassLevel[] {
   return out;
 }
 
-function parseAbilityScores(raw: string | number[]): Record<AbilityName, number> {
+function parseAbilityScores(raw: string | number[], rules?: CharacterRules): Record<string, number> {
+  const names = abilityNames(rules);
   const values = typeof raw === "string"
     ? String(raw).trim().split(/[\s,]+/).map(Number)
     : Array.isArray(raw) ? raw.map(Number) : [];
-  const out = {} as Record<AbilityName, number>;
-  for (let i = 0; i < ABILITY_NAMES.length; i++) {
-    out[ABILITY_NAMES[i]] = Number.isFinite(values[i]) ? values[i] : 10;
+  const out: Record<string, number> = {};
+  for (let i = 0; i < names.length; i++) {
+    out[names[i]] = Number.isFinite(values[i]) ? values[i] : 10;
   }
   return out;
 }
 
-// (applySpeciesAdjustments now lives in ./core/character-creation.js)
+// Resolve the active Novel's character-creation rules, or null if the Novel is
+// ruleset-free or the bound package carries no character-creation data
+// (REQ-219, REQ-399c).
+function getCharacterRules(novel: NovelState | null): CharacterRules | null {
+  if (!novel?.ruleset) return null;
+  try {
+    const model = rulesets.hydrate(novel.ruleset).model;
+    const rules = (model as any)?.character_creation;
+    return rules && typeof rules === "object" ? (rules as CharacterRules) : null;
+  } catch {
+    return null;
+  }
+}
 
-function buildCharacterStats(build: CharacterBuildInput): Record<string, any> {
-  const derived = computeDerivedStats(build);
-  const equipment = build.equipment?.length ? build.equipment : startingEquipmentFor(build.classLevels);
+function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules): Record<string, any> {
+  const derived = computeDerived(build, rules);
   const classLabel = build.classLevels.map((c) => `${c.className} ${c.levels}`).join(" / ");
-  return {
+  const equipment: EquipmentItem[] = build.equipment?.length
+    ? build.equipment.map((n) => ({ name: n, quantity: 1 }))
+    : startingEquipmentFor(build.classLevels, rules);
+  const stats: Record<string, any> = {
     class: classLabel,
-    level: derived.level,
     species: build.species,
     abilityScores: build.abilityScores,
-    defenses: derived.defenses,
-    hitPoints: derived.hitPoints,
-    damageThreshold: derived.damageThreshold,
-    bab: derived.bab,
-    speed: derived.speed,
-    forcePoints: derived.forcePoints,
-    size: derived.size,
+    level: derived.values.level ?? undefined,
     statMethod: build.statMethod,
     trainedSkills: build.trainedSkills,
     feats: build.feats,
     talents: build.talents,
     equipment,
   };
+  // Spread ruleset-declared derived statistics under their keys.
+  for (const key of derived.order) stats[derived.labels[key] ?? key] = derived.values[key];
+  stats._derived_labels = { order: derived.order, labels: derived.labels, sections: derived.sections };
+  return stats;
 }
 
 server.registerTool("create_character", {
@@ -696,7 +741,7 @@ server.registerTool("create_character", {
     species: z.string().optional(),
     classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional(),
     ability_scores: z.union([z.string(), z.array(z.number())]).optional(),
-    stat_method: z.enum(["roll_4d6", "planned", "standard"]).optional(),
+    stat_method: z.string().optional(),
     seed: z.string().optional(),
     skills: z.union([z.string(), z.array(z.string())]).optional(),
     feats: z.union([z.string(), z.array(z.string())]).optional(),
@@ -707,37 +752,58 @@ server.registerTool("create_character", {
 }, async ({ name, description, voice, background, goals, species, classes, ability_scores, stat_method, seed, skills, feats, talents, equipment, stage_to_roster }: any) => {
   requireNotObserver();
   const novel = requireNovel();
+  const rules = getCharacterRules(novel);
+  const personality = { description, voice, background, goals };
+  const hasPersonality = description || voice || background || goals;
+
   if (!name) {
     // Step-by-step mode: start a guided creation workflow.
     if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
-    const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, answers: {} };
+    const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, rules, answers: {} };
     novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: workflow };
     state.saveNovel(novel);
     return needInput(creationStepPrompt(workflow));
   }
-  const personality = { description, voice, background, goals };
-  const hasPersonality = description || voice || background || goals;
+
+  // Ruleset-free (or character-data-less) profile-only path (REQ-219a1, REQ-399c).
+  if (!rules) {
+    if (classes || ability_scores || stat_method) {
+      return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
+    }
+    const profileStats = species && !hasPersonality ? { species } : undefined;
+    const entity = state.createEntity(name, hasPersonality ? personality : undefined, profileStats);
+    state.addEntity(novel, entity);
+    if (stage_to_roster) state.addToRoster(entity);
+    state.saveNovel(novel);
+    return ok(`${fmtEntitySheet(entity)}
+
+Character '${name}' created (profile-only — no mechanical stats).${stage_to_roster ? ` Staged to roster as ${entity.id}.` : ` Entity id ${entity.id}.`}`);
+  }
 
   // Quick-create mode: require species + classes.
   if (!species || !classes) {
     return err("INVALID_INPUT", "Quick-create requires 'species' and 'classes'. Omit 'name' to start step-by-step, or provide all creation fields.");
   }
   const classLevels = parseClassLevels(classes);
-  if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Noble 5 / Jedi 2 / Crime Lord 2'.");
+  if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Class 5 / Other 2'.");
   for (const cl of classLevels) {
-    if (!getClassData(cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+    if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
   }
+  const speciesName = species;
+  const speciesData = rules.species?.[speciesName.trim().toLowerCase()];
+  if (rules.species && !speciesData) return err("INVALID_INPUT", `Unknown species '${speciesName}'.`);
 
-  const method: StatMethod = stat_method ?? "planned";
+  const method: StatMethod = stat_method ?? Object.keys(rules.stat_methods ?? {})[0] ?? "planned";
   const rawScores = ability_scores
-    ? parseAbilityScores(ability_scores)
+    ? parseAbilityScores(ability_scores, rules)
     : (() => {
-        const gen = generateAbilityScores(method, seed);
-        const out = {} as Record<AbilityName, number>;
-        for (let i = 0; i < ABILITY_NAMES.length; i++) out[ABILITY_NAMES[i]] = gen[i];
+        const gen = generateAbilityScores(method, rules, seed);
+        const names = abilityNames(rules);
+        const out: Record<string, number> = {};
+        for (let i = 0; i < names.length; i++) out[names[i]] = gen[i] ?? 10;
         return out;
       })();
-  const abilityScores = applySpeciesAdjustments(rawScores, species);
+  const abilityScores = applySpeciesAdjustments(rawScores, speciesName, rules);
 
   const toList = (v: any): string[] => {
     if (!v) return [];
@@ -747,7 +813,7 @@ server.registerTool("create_character", {
 
   const build: CharacterBuildInput = {
     name,
-    species,
+    species: speciesName,
     classLevels,
     abilityScores,
     trainedSkills: toList(skills),
@@ -757,20 +823,17 @@ server.registerTool("create_character", {
     seed,
     equipment: toList(equipment),
   };
-  const stats = buildCharacterStats(build);
+  const stats = buildCharacterStats(build, rules);
 
   const entity = state.createEntity(name, hasPersonality ? personality : undefined, stats);
   state.addEntity(novel, entity);
   if (stage_to_roster) state.addToRoster(entity);
   state.saveNovel(novel);
 
-  const inputs = [`name=${name}`, `species=${species}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
-  const derived = [
-    `level=${stats.level}`, `hp=${stats.hitPoints}`, `reflex=${stats.defenses.reflex}`,
-    `fortitude=${stats.defenses.fortitude}`, `will=${stats.defenses.will}`,
-    `threshold=${stats.damageThreshold}`, `bab=+${stats.bab}`, `speed=${stats.speed} squares`,
-    `force_points=${stats.forcePoints}`,
-  ];
+  const inputs = [`name=${name}`, `species=${speciesName}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
+  const derived = Object.entries(stats)
+    .filter(([k, v]) => k !== "class" && k !== "species" && k !== "abilityScores" && k !== "statMethod" && k !== "trainedSkills" && k !== "feats" && k !== "talents" && k !== "equipment" && k !== "level" && !k.startsWith("_") && typeof v === "number")
+    .map(([k, v]) => `${k}=${v}`);
   return ok(`${fmtEntitySheet(entity)}
 
 Created (inputs): ${inputs.join(" · ")}

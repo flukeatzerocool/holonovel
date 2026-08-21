@@ -97,5 +97,5 @@ This server ships in one repo but runs in two locations:
 3. After committing in the workspace, the deployment pipeline (push-pipeline)
    propagates the change to the deployed instance. Do not hand-copy source
    files between the two repos.
-4. Ruleset packages (e.g. `swse`) live only in the deployed instance's
+4. Ruleset packages (e.g. `dnd5e`) live only in the deployed instance's
    install directory — keep them out of the workspace git tree (REQ-395a).

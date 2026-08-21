@@ -30,9 +30,6 @@ After implementing:
     opencode run --agent build --auto --title "Build Queue" "$PROMPT"
 
     if [ $? -eq 0 ]; then
-      # Guarantee package integrity: recompute the swse content_hash from the
-      # five content files (idempotent — no-op if the agent's hash was correct).
-      node .opencode/recompute-ruleset-hash.mjs swse 2>&1 || echo "WARN: hash recompute failed"
       sed -i '1d' "$QUEUE"
       echo "=== Done ==="
     else

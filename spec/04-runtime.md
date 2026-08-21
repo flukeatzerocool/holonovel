@@ -108,7 +108,7 @@ REQ-104). Each decision presents a `[NEED_INPUT]` with a question, kebab-cased o
 list (≤25 entries from the ruleset index, "cancel" always last). The `decision` value
 passed to `respond` is the exact question text. `respond` drains one decision; `cancel`
 restores the pre-workflow snapshot. Pending workflows block undo, redo, and badge
-switching. See §6.4 for the full creation contract.
+switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-151, REQ-152, and REQ-181 for the creation workflow.
 
 ### 7.6 Configuration surface
 

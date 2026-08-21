@@ -1,6 +1,24 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 275b493c11a88775dea416ad68b22cbd33282a10dc133d0f31cebadd1a707c00
+**Spec hash:** 5fb2c513f7933826a1226550ed14b085fffe00fb6f1bc3625fbb32796a370fe4
+
+### Holonovel Spec Update — 2026-08-21 (ruleset-driven character creation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | Minor |
+| Changed | REQ-104a/b/c, REQ-151b, REQ-152a, REQ-181a/b, REQ-219a1/b (character-creation workflow/output); added REQ-399a/b/c (character-creation package data, computation contract, no-data fallback); §6.3/§6.4.2 (character data extraction), §7.5 (creation-contract reference); scrubbed the `swse` example slug from REQ-395a/Appendix V |
+| Reused | source, config, lockfile, extraction categories, surfaces |
+| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors, typecheck 0 errors, gauntlet 13/13, character-creation unit tests 10/10 |
+
+Character-creation is now ruleset-driven: the server no longer hard-codes a
+specific ruleset's character tables. Character-creation rules (species, classes,
+stat methods, formula-based derived statistics, starting equipment) live in the
+bound ruleset package's model under `character_creation` (REQ-399a), derived
+statistics are computed by a safe expression evaluator over ruleset-declared
+formulas (REQ-399b), and a ruleset-free (or character-data-less) Novel degrades
+to profile-only creation (REQ-219, REQ-399c). The legacy hard-coded engine was
+removed from `src/core/character-creation.ts`.
 
 ### Holonovel Spec Update — 2026-08-20 (spec/server hash sync)
 
