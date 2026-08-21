@@ -358,6 +358,8 @@ do not alter meaning are editorial and do not require a version bump.
 | In the story | Player or GM badge is active. Player or GM is making decisions, narration is flowing. While in the story, confine actions and responses to the current Novel — `set_badge("none")` switches to the Editor badge, stepping away from the table. |
 | Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in session_recap, badge_briefing, and export_novel. REQ-246. |
+| State ledger    | The `state_ledger` briefing token — reports the last state-mutation timestamp and per-group mutation counts for the session, so the GM sees at a glance what has been persisted. REQ-401. |
+| State drift     | The condition where the GM has narrated (via pause context or prose) advances beyond what has been committed through state tools. Surfaced as a `[state-drift]` marker and gated by `TTRPG_STATE_GATE`. REQ-403. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
 | Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible under the Editor badge; badge-filtered by visibility field per REQ-321. |
@@ -3876,6 +3878,69 @@ Server-generated persistent state — Novels, roster, codex, server notes, world
 **REQ-398 — Deploy-model scope.**
 The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checkout into the server's directory. _Check:_ T467.
 
+### 5.19 State Persistence Guardrails
+
+**REQ-400 — State-Persistence Directive.** When the AI's narrative role is
+Game Master, `badge_briefing` orientation SHALL include a persistence
+directive instructing the GM to commit state for every narratable change —
+scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
+be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
+REQ-073) in the same turn they are narrated. The directive SHALL render in the
+never-truncated tier (REQ-135). _Check:_ T469.
+
+**REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
+`state_ledger` decision-critical section token (REQ-082, REQ-185) under the
+Game Master badge listing the timestamp of the last state mutation, per-group
+mutation counts for the current session, and any active drift markers
+(REQ-402, REQ-403). The token SHALL be never-truncated per REQ-135. _Check:_
+T470.
+
+**REQ-402 — Session no-mutation detection.** When a session boundary
+(REQ-237) closes a window containing zero mutating audit-log entries, the
+server SHALL surface a `[session-no-mutations]` marker in `spec_health` and
+`session_recap` naming the session that recorded no state writes. The marker is
+observational and SHALL NOT block play. _Check:_ T471.
+
+**REQ-403a — State-drift detection (Part a).**
+The server SHALL detect state drift — a `gm_context.saved_at` timestamp newer
+than the last audit-log mutation, indicating the GM narrated without
+committing — and SHALL surface it as a `[state-drift]` marker in `spec_health`,
+`session_recap`, and the `state_ledger` token.
+
+**REQ-403b — State-drift detection (Part b).**
+A `TTRPG_STATE_GATE` setting — `off` (default), `warn`, or `block` — read at
+startup, SHALL control the gate: `off` renders drift markers observationally,
+`warn` appends a prominent warning naming the uncommitted beats and the tools
+to fix them at session close (`set_pause_context`, `session_recap`), and
+`block` returns `[STATE_CONFLICT]` from `set_pause_context`, `end_novel`, and
+`switch_novel` while drift is active. Commit tools SHALL remain callable in
+every mode. _Check:_ T472.
+
+**REQ-404 — Roll-to-commit coupling.** A significant roll (REQ-174) implying
+a mechanical consequence SHALL be followed by a state-committing mutation in
+the same turn; `session_recap` SHALL flag a `[uncommitted-roll]` marker naming
+the roll and the suggested commit tool when no such mutation follows. The
+marker is observational. _Check:_ T473.
+
+**REQ-405 — Auto-moment on transitions.** Every scene transition (REQ-125)
+and combat-round resolution SHALL append a `moment` entry to the story journal
+(REQ-246) carrying the scene anchor, location, and timestamp, unless the
+transition sets `skip_transition_hook`. A Novel-scoped `auto_record` flag,
+default `true`, SHALL enable this behavior; the GM MAY set it `false` to
+restore manual-only recording. _Check:_ T474.
+
+**REQ-406 — Backup-restore regression visibility.** When a Novel loads from a
+backup (REQ-092), `spec_health` SHALL report a `[state-regression]` marker
+carrying the audit-entry-count gap and the timestamp gap between the restored
+state and the corruption event, so recovered content loss is operator-visible.
+_Check:_ T475.
+
+**REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
+tool section in `badge_briefing` (REQ-087) SHALL always include the core
+state-persistence tools — the scene, story-journal, countdown, note,
+personality, NPC, and vow tools defined in §5 — regardless of scene type, and
+those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
+
 #### End of requirements
 
 ---
@@ -5910,6 +5975,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-urgency threshold above which NPCs suggest countdown advancement. Behavioral. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
+| `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral. |
+| `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 
@@ -8465,6 +8532,15 @@ date-stamps matching CHANGELOG entries.
 | REQ-399a | Character-creation package data (Part a) | 2026-08-21 |
 | REQ-399b | Character-creation computation (Part b) | 2026-08-21 |
 | REQ-399c | Character creation without package data (Part c) | 2026-08-21 |
+| REQ-400 | State-Persistence Directive | 2026-08-21 |
+| REQ-401 | State ledger briefing token | 2026-08-21 |
+| REQ-402 | Session no-mutation detection | 2026-08-21 |
+| REQ-403a | State-drift detection (Part a) | 2026-08-21 |
+| REQ-403b | State-drift detection (Part b) | 2026-08-21 |
+| REQ-404 | Roll-to-commit coupling | 2026-08-21 |
+| REQ-405 | Auto-moment on transitions | 2026-08-21 |
+| REQ-406 | Backup-restore regression visibility | 2026-08-21 |
+| REQ-407 | Persist-tools never truncated | 2026-08-21 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8553,6 +8629,14 @@ diet.
 | T466 | Automated | In-tree state guard: start a server inside a git work tree, create a Novel and a codex entry, then run `git clean -fdx` and `git reset --hard` — assert the Novel, codex, roster, server notes, and installed packages are byte-for-byte identical afterward. Assert a server that must place state in-tree reports `[state-in-tree]` in `spec_health` and on stderr at startup, and that the warning does not block startup. | REQ-397 |
 | T467 | Automated | Two-repo propagation: advance a Minor spec delta in the specification repository without advancing the deployed server's fingerprints — assert publication tooling blocks with a pending-update notice. Run the §6.7 Update against the deployed server — assert fingerprints advance and publication succeeds. | REQ-398 |
 | T468 | Automated | Ruleset-driven character creation: install a fixture ruleset that declares character-creation rules — species, classes, a formula-based derived statistic, starting equipment, and a step enumeration. Bind a Novel to it — assert `create_character` quick-mode returns the ruleset's derived statistic computed from its declared formula with the declared label, and assigned starting equipment with name, quantity, and source. Assert step-by-step mode produces exactly one `[NEED_INPUT]` per declared choice step in the declared order. On a Novel bound to a package with no character-creation rules — assert profile-only behavior with no stat block and a named error when classes are requested. Assert a derived-statistic formula referencing an undefined input yields a named creation error. | REQ-104, REQ-151, REQ-152, REQ-181, REQ-219, REQ-399 |
+| T469 | Automated | State-Persistence Directive: invoke `badge_briefing` as GM — assert the orientation layer includes the persistence directive ("persist what you narrate") naming the state tools, and that it renders after the badge boundary directive and before anti-slop guidance. Configure a small briefing budget — assert the persistence directive is never truncated. | REQ-400, REQ-135 |
+| T470 | Automated | State ledger token: create a Novel, perform scene and story mutations, invoke `badge_briefing` as GM — assert a `state_ledger` token renders the last state-mutation timestamp, per-group mutation counts for the session, and any active drift markers. Assert the token is never truncated under a small budget and is absent from the Player briefing. | REQ-401, REQ-135 |
+| T471 | Automated | Session no-mutation: open a session (new `TTRPG_SESSION_ID`), make zero mutating calls, close the session — assert `spec_health` and `session_recap` surface a `[session-no-mutations]` marker naming the session; assert no tool is blocked by the marker. | REQ-402, REQ-237 |
+| T472 | Automated | State-drift gate: set `gm_context` via `set_pause_context` with no intervening state mutation — assert `[state-drift]` appears in `spec_health`, `session_recap`, and the `state_ledger` token. With `TTRPG_STATE_GATE=warn`, assert session-close surfaces append a warning naming the uncommitted beats. With `TTRPG_STATE_GATE=block`, assert `set_pause_context`, `end_novel`, and `switch_novel` return `[STATE_CONFLICT]` while drift is active, and that a commit call clears the gate. With `TTRPG_STATE_GATE=off`, assert no blocking. | REQ-403 |
+| T473 | Automated | Roll-to-commit: perform a significant roll without a following state mutation — assert `session_recap` flags `[uncommitted-roll]` naming the roll and suggested commit tool. Perform a significant roll followed by a state mutation — assert no flag. | REQ-404, REQ-174 |
+| T474 | Automated | Auto-moment: with `auto_record` defaulting true, call `set_scene_state("The vault")` — assert a `moment` story journal entry is appended with scene anchor and timestamp. Call with `skip_transition_hook=true` — assert no auto-moment. Set the Novel `auto_record` false — assert `set_scene_state` appends no moment. | REQ-405, REQ-246, REQ-125 |
+| T475 | Automated | Regression visibility: corrupt a Novel primary file, restart — assert backup restore succeeds and `spec_health` reports `[state-regression]` with an audit-entry-count and timestamp gap versus the corruption event. | REQ-406, REQ-092 |
+| T476 | Automated | Persist-tools never-truncated: set scene type to social, invoke `badge_briefing` as GM — assert the scene-typed tool section includes the core state-persistence tools (scene, story journal, countdown, note, personality, NPC, and vow) regardless of scene type, and that a small budget never truncates them. | REQ-407, REQ-087, REQ-135 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
