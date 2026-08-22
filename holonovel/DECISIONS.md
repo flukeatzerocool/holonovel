@@ -1,6 +1,28 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 9d458fa3511f7e4e20e40a285fd9725e3b896030e6cfc4442655f54a7aa08d93
+**Spec hash:** c4d9e13e5a312f9459c3ee612f68e478faa0873382c5b295a73cb2e4ca8a54bc
+
+### Holonovel Spec Update — 2026-08-22 (token-efficiency contracts)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only (REQ-413 action-discriminator tool surface; REQ-414 schema-surface economy; REQ-415 summary-first tool catalog; REQ-416 config default inheritance; REQ-417 non-blocking startup probes; §5.3/§5.7 index rows, Appendix E REQ-413–417, Appendix F T486–T490, §6.6 coverage-map REQ-416/417 rows) |
+| Reused | config, lockfile, extraction |
+| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors |
+
+**Token-efficiency contract codification.** Added five normative contracts
+backing the efficiency work already shipped: an action-discriminator tool
+surface (one entry tool with an `action` discriminator per domain, sub-REQ per
+action) so operationally distinct but domain-related tools do not proliferate
+(REQ-413); schema-surface economy, preferring compact example-bearing inputs
+over nested structural descriptions without weakening server-side validation
+(REQ-414); a summary-first tool catalog derived from the live registry so
+`tools/list` pays for full definitions only on demand while REQ-025c count
+derivation holds (REQ-415); config default inheritance with a §7.6-tiered
+defaults section (REQ-416); and non-blocking startup probes so slow health
+checks do not delay call readiness (REQ-417). These mirror the Infobroker
+consolidation discipline and the Pydantic/New-Stack schema-economy findings.
 
 ### Holonovel Spec Update — 2026-08-22 (market-aligned play defaults)
 
