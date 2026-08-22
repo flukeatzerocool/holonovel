@@ -173,6 +173,12 @@ server-scoped, audited operation (`install_ruleset` / `remove_ruleset` / `list_r
 it never rebuilds the host. Updating the host revalidates installed packages without
 re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
 
+**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and
+client-side subagent segmentation are out of contract for this specification: mechanical
+resolution remains expressible as discrete inspectable tool calls whose intermediate results
+a badge-appropriate caller may observe. Builders and verifiers treat such techniques as
+out-of-scope, not as missing coverage.
+
 ---
 
 ## 2. Requirements at a Glance
@@ -931,6 +937,15 @@ only by category enum; the per-tool justification list in DECISIONS.md matches t
 live `tools/list` registry.
 _Check:_ T3, T35.
 
+**REQ-408 — Tool parameter ceiling.**
+No advertised tool SHALL expose more parameters than a ceiling recorded at build time in
+DECISIONS.md; inputs beyond the ceiling move to a refinement or retrieval call rather than
+inflating a single definition. The ceiling applies to infrastructure and ruleset-derived
+tools alike, and the per-tool parameter count SHALL be recoverable from `spec_health`.
+*Acceptance criterion:* No advertised tool exceeds the recorded ceiling; a tool whose
+operation needs more inputs splits into a compact entry call plus a refinement path;
+`spec_health` exposes each tool's parameter count. _Check:_ T477.
+
 **REQ-022a — Resources (Part a).**
 The server provides resources covering ruleset content
 (with badge filtering), entities at collection and individual URIs, the audit
@@ -976,6 +991,17 @@ Also reported: prompt health (each registered prompt's presence, length relative
 
 **REQ-025c — spec_health (Part c).**
 The Player badge sees only player-filtered metrics. Build-phase-dependent sections (convergence summary, gap audit) are absent when the build is not yet complete. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154.
+
+**REQ-411 — Stable-metadata caching.**
+Rendered content that does not change between calls — tool schemas, prompt scaffolding, and
+taxonomy vocabularies — SHALL be cached and served on repeat without recomputation, so a
+session pays the render cost once. A cached entry SHALL invalidate when its source
+registration changes, preserving the live-registration dynamism of REQ-023b and REQ-025; the
+cache SHALL never alter tool output or badge filtering. `spec_health` SHALL report cache
+coverage.
+*Acceptance criterion:* A repeated read of stable metadata returns the cached entry without
+recomputation; mutating a registration invalidates the cache and the next read reflects it;
+outputs are identical cached or not; `spec_health` reports coverage. _Check:_ T480.
 **REQ-160a — Synthesis health reporting (Part a).**
 synthesis status with these minimum fields: (a) `synthesis_active` — boolean indicating whether synthesis state exists; (b) `module_counts` — per-module item count for each of the seven output modules (§11.1); (c) `stale_count` — number of inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`; (d) `activated_count` — number of synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159); (e) `fingerprint` — the synthesis fingerprint used for idempotence detection (ruleset content hash + intake answers).
 
@@ -2451,6 +2477,17 @@ If fewer than five lookup categories exist, the builder measures all available c
 
 **REQ-100d — Performance benchmark (Part d).**
 For servers where `spec_health` reports no `search_index` field, the builder counts extracted items in RULESET_MODEL.md and records the count and method in DECISIONS.md (4). *Acceptance criterion (added):* The five lookup calls are one per registered lookup category; DECISIONS.md (4) records which categories were measured and their individual latencies. _Check:_ T87.
+
+**REQ-410 — Token footprint in performance record.**
+The performance record of REQ-100 SHALL additionally capture the token footprint: the
+aggregate byte size of the default tool listing (REQ-392) and the prompt-budget consumption
+(REQ-118) under the measured tier, so token efficiency is a recorded, gated attribute rather
+than an aspiration. Measurements SHALL sit in DECISIONS.md (4) beside cold-start and latency
+figures and be reported by `spec_health` as the most recent measurement; a missing footprint
+record is a handoff defect.
+*Acceptance criterion:* DECISIONS.md (4) records listing bytes and prompt-budget consumption
+alongside latency; `spec_health` reports them; a build without the record fails handoff.
+_Check:_ T479.
 **REQ-253a — Tool-output verbosity control (Part a).**
 a `terse` mode that returns the minimum mechanical content needed to resolve the rules question — no narrative framing, no extended context, no auxiliary information. The `terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time, range, duration, and damage/effect die — omitting verbal/somatic/material components and full spell description; for `search_rules`, the most relevant sentence or paragraph only — omitting surrounding context; for combat advance, the participant name, action taken (or `[auto]`), and resulting state changes — omitting full roll transparency.
 
@@ -2459,6 +2496,17 @@ The default mode is `verbose` (full output, current behavior). `terse` mode is s
 
 **REQ-253c — Tool-output verbosity control (Part c).**
 The mode is session-scoped — discarded on connection close. *Acceptance criterion:* `lookup_spell("fireball", terse=true)` returns the spell name, level, and damage die without the full spell description. `search_rules("grapple", terse=true)` returns the most relevant sentence only. `advance_combat` under `detail=terse` returns participant name + `[auto]` + resulting HP/condition changes without full roll breakdown. _Check:_ T313.
+
+**REQ-409 — Response-lean enumeration reads.**
+Collection and listing tools SHALL return summary entries by default and expose a detail
+request path for full entries, so a caller enumerating a set pays for full records only on
+demand. The lean default applies to enumeration tools only — it SHALL NOT reduce the
+verbose full-entry contract of REQ-060 for lookups, rolls, or single-entry reads. A detail
+request SHALL require no intervening state mutation, and `spec_health` SHALL report the
+active enumeration verbosity.
+*Acceptance criterion:* A collection read returns summary entries by default; requesting
+detail returns full entries; a lookup under the default still returns the full REQ-060
+entry; `spec_health` reports the enumeration mode. _Check:_ T478.
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
 change. The server trusts nothing client-supplied.
@@ -5986,6 +6034,10 @@ All configuration is namespaced with the `TTRPG_` prefix to avoid collision with
 client environment variables. The prefix is product-agnostic and does not constrain
 the ruleset or adventure content served.
 
+For operator readability the configuration surface is grouped into three tiers — storage
+and paths, mechanical limits, and behavioral tuning (REQ-388) — and `spec_health` renders
+the same grouping. This is a documentation contract, not a requirement.
+
 ### 7.7 State model
 
 State tiers:
@@ -8541,6 +8593,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-405 | Auto-moment on transitions | 2026-08-21 |
 | REQ-406 | Backup-restore regression visibility | 2026-08-21 |
 | REQ-407 | Persist-tools never truncated | 2026-08-21 |
+| REQ-408 | Tool parameter ceiling | 2026-08-21 |
+| REQ-409 | Response-lean enumeration reads | 2026-08-21 |
+| REQ-410 | Token footprint in performance record | 2026-08-21 |
+| REQ-411 | Stable-metadata caching | 2026-08-21 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8637,6 +8693,10 @@ diet.
 | T474 | Automated | Auto-moment: with `auto_record` defaulting true, call `set_scene_state("The vault")` — assert a `moment` story journal entry is appended with scene anchor and timestamp. Call with `skip_transition_hook=true` — assert no auto-moment. Set the Novel `auto_record` false — assert `set_scene_state` appends no moment. | REQ-405, REQ-246, REQ-125 |
 | T475 | Automated | Regression visibility: corrupt a Novel primary file, restart — assert backup restore succeeds and `spec_health` reports `[state-regression]` with an audit-entry-count and timestamp gap versus the corruption event. | REQ-406, REQ-092 |
 | T476 | Automated | Persist-tools never-truncated: set scene type to social, invoke `badge_briefing` as GM — assert the scene-typed tool section includes the core state-persistence tools (scene, story journal, countdown, note, personality, NPC, and vow) regardless of scene type, and that a small budget never truncates them. | REQ-407, REQ-087, REQ-135 |
+| T477 | Automated | Parameter ceiling: build a server and record the parameter ceiling in DECISIONS.md — assert no `tools/list` schema exceeds the ceiling; assert `spec_health` exposes per-tool parameter counts; assert a tool whose operation needs more inputs splits into a compact entry call plus a refinement path rather than inflating one schema. | REQ-408 |
+| T478 | Automated | Response-lean enumeration: call a collection tool (e.g., `list_npcs`) — assert summary entries by default; request detail — assert full entries returned with no intervening state mutation. Call a lookup (e.g., `lookup_spell`) under the default — assert the full REQ-060 entry, not a summary. Assert `spec_health` reports the active enumeration verbosity. | REQ-409, REQ-060, REQ-253 |
+| T479 | Automated | Token footprint: after a Standard-tier build, assert DECISIONS.md (4) records the aggregate default-listing byte size (REQ-392) and prompt-budget consumption (REQ-118) alongside cold-start and latency figures; assert `spec_health` reports the same values as the most recent measurement; assert a build missing the footprint record fails the H10 handoff gate. | REQ-410, REQ-100, REQ-392, REQ-118 |
+| T480 | Automated | Stable-metadata caching: read a tool schema or prompt scaffold twice — assert the second read returns the cached entry (no recompute); mutate a registration — assert the cache invalidates and the next read reflects it; assert outputs are identical cached or not and `spec_health` reports cache coverage. | REQ-411, REQ-023b, REQ-025 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |

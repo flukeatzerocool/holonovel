@@ -508,6 +508,15 @@ only by category enum; the per-tool justification list in DECISIONS.md matches t
 live `tools/list` registry.
 _Check:_ T3, T35.
 
+**REQ-408 — Tool parameter ceiling.**
+No advertised tool SHALL expose more parameters than a ceiling recorded at build time in
+DECISIONS.md; inputs beyond the ceiling move to a refinement or retrieval call rather than
+inflating a single definition. The ceiling applies to infrastructure and ruleset-derived
+tools alike, and the per-tool parameter count SHALL be recoverable from `spec_health`.
+*Acceptance criterion:* No advertised tool exceeds the recorded ceiling; a tool whose
+operation needs more inputs splits into a compact entry call plus a refinement path;
+`spec_health` exposes each tool's parameter count. _Check:_ T477.
+
 **REQ-022a — Resources (Part a).**
 The server provides resources covering ruleset content
 (with badge filtering), entities at collection and individual URIs, the audit
@@ -553,6 +562,17 @@ Also reported: prompt health (each registered prompt's presence, length relative
 
 **REQ-025c — spec_health (Part c).**
 The Player badge sees only player-filtered metrics. Build-phase-dependent sections (convergence summary, gap audit) are absent when the build is not yet complete. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154.
+
+**REQ-411 — Stable-metadata caching.**
+Rendered content that does not change between calls — tool schemas, prompt scaffolding, and
+taxonomy vocabularies — SHALL be cached and served on repeat without recomputation, so a
+session pays the render cost once. A cached entry SHALL invalidate when its source
+registration changes, preserving the live-registration dynamism of REQ-023b and REQ-025; the
+cache SHALL never alter tool output or badge filtering. `spec_health` SHALL report cache
+coverage.
+*Acceptance criterion:* A repeated read of stable metadata returns the cached entry without
+recomputation; mutating a registration invalidates the cache and the next read reflects it;
+outputs are identical cached or not; `spec_health` reports coverage. _Check:_ T480.
 **REQ-160a — Synthesis health reporting (Part a).**
 synthesis status with these minimum fields: (a) `synthesis_active` — boolean indicating whether synthesis state exists; (b) `module_counts` — per-module item count for each of the seven output modules (§11.1); (c) `stale_count` — number of inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`; (d) `activated_count` — number of synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159); (e) `fingerprint` — the synthesis fingerprint used for idempotence detection (ruleset content hash + intake answers).
 
@@ -2028,6 +2048,17 @@ If fewer than five lookup categories exist, the builder measures all available c
 
 **REQ-100d — Performance benchmark (Part d).**
 For servers where `spec_health` reports no `search_index` field, the builder counts extracted items in RULESET_MODEL.md and records the count and method in DECISIONS.md (4). *Acceptance criterion (added):* The five lookup calls are one per registered lookup category; DECISIONS.md (4) records which categories were measured and their individual latencies. _Check:_ T87.
+
+**REQ-410 — Token footprint in performance record.**
+The performance record of REQ-100 SHALL additionally capture the token footprint: the
+aggregate byte size of the default tool listing (REQ-392) and the prompt-budget consumption
+(REQ-118) under the measured tier, so token efficiency is a recorded, gated attribute rather
+than an aspiration. Measurements SHALL sit in DECISIONS.md (4) beside cold-start and latency
+figures and be reported by `spec_health` as the most recent measurement; a missing footprint
+record is a handoff defect.
+*Acceptance criterion:* DECISIONS.md (4) records listing bytes and prompt-budget consumption
+alongside latency; `spec_health` reports them; a build without the record fails handoff.
+_Check:_ T479.
 **REQ-253a — Tool-output verbosity control (Part a).**
 a `terse` mode that returns the minimum mechanical content needed to resolve the rules question — no narrative framing, no extended context, no auxiliary information. The `terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time, range, duration, and damage/effect die — omitting verbal/somatic/material components and full spell description; for `search_rules`, the most relevant sentence or paragraph only — omitting surrounding context; for combat advance, the participant name, action taken (or `[auto]`), and resulting state changes — omitting full roll transparency.
 
@@ -2036,6 +2067,17 @@ The default mode is `verbose` (full output, current behavior). `terse` mode is s
 
 **REQ-253c — Tool-output verbosity control (Part c).**
 The mode is session-scoped — discarded on connection close. *Acceptance criterion:* `lookup_spell("fireball", terse=true)` returns the spell name, level, and damage die without the full spell description. `search_rules("grapple", terse=true)` returns the most relevant sentence only. `advance_combat` under `detail=terse` returns participant name + `[auto]` + resulting HP/condition changes without full roll breakdown. _Check:_ T313.
+
+**REQ-409 — Response-lean enumeration reads.**
+Collection and listing tools SHALL return summary entries by default and expose a detail
+request path for full entries, so a caller enumerating a set pays for full records only on
+demand. The lean default applies to enumeration tools only — it SHALL NOT reduce the
+verbose full-entry contract of REQ-060 for lookups, rolls, or single-entry reads. A detail
+request SHALL require no intervening state mutation, and `spec_health` SHALL report the
+active enumeration verbosity.
+*Acceptance criterion:* A collection read returns summary entries by default; requesting
+detail returns full entries; a lookup under the default still returns the full REQ-060
+entry; `spec_health` reports the enumeration mode. _Check:_ T478.
 **REQ-054 — Input safety.** All tool inputs are validated server-side. Adversarial
 free-text is stored and echoed verbatim as inert data in all surfaces, with no behavior
 change. The server trusts nothing client-supplied.

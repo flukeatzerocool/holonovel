@@ -2,6 +2,27 @@
 
 **Spec hash:** 253001d9abab490ed8de0ff3ddf4f100a1748615ccb4da1b1becd4389e47a455
 
+### Holonovel Spec Update — 2026-08-21 (MCP performance and token efficiency)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (§5.3 added REQ-408 tool parameter ceiling, §5.6 added REQ-411 stable-metadata caching, §5.5 added REQ-410 token footprint; REQ-409 response-lean enumeration reads after REQ-253c; §7.6 config tier grouping; §1 executed-in-context boundary) + registration (Appendix E REQ-408–411 rows, Appendix F tests T477–T480) |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | assemble 0 errors, check:fast 0 errors, typecheck 0 errors |
+
+Spec-level performance and token-efficiency contracts drawn from current MCP
+optimization practice (progressive disclosure, response shaping, schema and
+parameter ceilings, semantic caching). A per-tool parameter ceiling pushes
+overflow into a refinement path (REQ-408). Collection reads default to summary
+entries with a detail-on-demand path, leaving full verbose lookups untouched
+(REQ-409). The performance record now gates token footprint — listing bytes and
+prompt-budget consumption — alongside latency (REQ-410). Stable rendered content
+is cached and invalidated on registration change (REQ-411). The config surface is
+documented in three operator-facing tiers, and an executed-in-context boundary
+records that programmatic tool calling, code-mode execution, and client-side
+subagents are out of contract.
+
 ### Holonovel Spec Update — 2026-08-21 (state persistence guardrails)
 
 | Field | Value |
