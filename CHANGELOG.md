@@ -1,6 +1,24 @@
 # Changelog
 
-## 2026-08-22 — Spec integrity repair
+## 2026-08-22 — Verification toolchain hardening
+
+- The spec gate now flags three defect classes that previously slipped
+  through silently: REQ IDs with 4-digit or bare-digit suffixes (`REQ-0731`),
+  empty REQ bodies, and REQ bodies that begin with a lowercase letter (the
+  truncated-lead signature left by the sub-REQ splitter). Each is an error
+  under `--sdd-strict`.
+- Fixed the sub-REQ splitter's four root-cause bugs — the bare-digit naming
+  fallback now picks the next free letter, empty chunks are dropped before
+  naming, lead clauses are never left mid-sentence, and `(Part …)` markers are
+  no longer doubled. The splitter now runs the same integrity checks as the
+  gate and refuses to write any output that would fail them.
+- Repaired four additional truncated bodies in the build section (§6) that the
+  earlier reconstruction missed because it was scoped to §5. (REQ-141a,
+  REQ-142a, REQ-208a, REQ-376a)
+- Appendix M's enforcement list and the `validate --sdd-strict` description now
+  name the three new checks alongside the existing SDD rules.
+
+
 
 - Restored Appendix Z (supplementary ruleset fixture), which the assembler
   was silently dropping because its canonical appendix order omitted the

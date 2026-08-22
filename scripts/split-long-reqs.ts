@@ -10,6 +10,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  checkReqIdGrammar,
+  checkEmptyReqBodies,
+  checkTruncatedReqBodies,
+} from "./lib/req-checks.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SPEC_FILES = [
@@ -62,18 +67,23 @@ function splitFile(filePath: string): number {
     const base = numMatch ? numMatch[1] : baseId;
     const hasSuffix = base !== baseId;
 
+    // Re-splitting a sub-REQ (e.g. REQ-073a) continues with a counter digit
+    // after its existing letter: REQ-073a1, REQ-073a2 (never bare digits).
     if (hasSuffix) {
       return Array.from({ length: numSuffixes }, (_, i) => `${baseId}${i + 1}`);
     }
 
-    const collision = Array.from({ length: numSuffixes }, (_, i) =>
-      String.fromCharCode(97 + i)
-    ).some((s) => existingIds.has(`${base}${s}`));
-
-    if (collision) {
-      return Array.from({ length: numSuffixes }, (_, i) => `${base}${i + 1}`);
+    // Base REQ: assign the next numSuffixes free letters (a, b, c, …),
+    // skipping any letter already taken, so we never fall back to bare digits.
+    const names: string[] = [];
+    let letter = 97;
+    while (names.length < numSuffixes) {
+      const candidate = `${base}${String.fromCharCode(letter)}`;
+      letter++;
+      if (!existingIds.has(candidate)) names.push(candidate);
+      if (letter > 122) break;
     }
-    return Array.from({ length: numSuffixes }, (_, i) => `${base}${String.fromCharCode(97 + i)}`);
+    return names;
   }
 
   // Phase 4: For each block, split if body > 800 chars
@@ -144,8 +154,20 @@ function splitFile(filePath: string): number {
   }
 
   // Backup and write
+  const output = lines.join("\n");
+  const violations = [
+    ...checkReqIdGrammar(output),
+    ...checkEmptyReqBodies(output),
+    ...checkTruncatedReqBodies(output),
+  ];
+  if (violations.length > 0) {
+    console.error(`\nABORT: split of ${path.basename(filePath)} would produce invalid REQ output:`);
+    for (const v of violations) console.error(`  - ${v}`);
+    console.error("No changes written.");
+    process.exit(1);
+  }
   fs.copyFileSync(filePath, backupPath);
-  fs.writeFileSync(filePath, lines.join("\n"), "utf-8");
+  fs.writeFileSync(filePath, output, "utf-8");
   return splits;
 }
 
@@ -221,14 +243,23 @@ function forceSplit(text: string, maxLen: number): string[] {
 }
 
 function buildReplacement(names: string[], title: string, chunks: string[]): string[] {
+  // Drop empty chunks before deriving names so a zero-length body can never
+  // be emitted as a sub-REQ.
+  const effective = chunks.map((c, i) => ({ c, i })).filter(({ c }) => c.trim().length > 0);
   const result: string[] = [];
-  for (let i = 0; i < chunks.length; i++) {
-    const suffix = names[i].replace(/^REQ-\d{3}/, "");
-    result.push(`**${names[i]} — ${title} (Part ${suffix}).**`);
-    for (const line of chunks[i].split("\n")) {
+  for (let k = 0; k < effective.length; k++) {
+    const { c } = effective[k];
+    const suffix = names[k].replace(/^REQ-\d{3}/, "");
+    // Never double-append the part marker when the source title already
+    // carries one from a prior split.
+    const baseTitle = /\s*\(Part .+?\)\s*$/.test(title)
+      ? title.replace(/\s*\(Part .+?\)\s*$/, "")
+      : title;
+    result.push(`**${names[k]} — ${baseTitle} (Part ${suffix}).**`);
+    for (const line of c.split("\n")) {
       result.push(line);
     }
-    if (i < chunks.length - 1) result.push(""); // blank line between sub-REQs
+    if (k < effective.length - 1) result.push("");
   }
   return result;
 }
