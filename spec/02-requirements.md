@@ -8,11 +8,11 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323 |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411 |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
-| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306 |
+| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269           |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 409–410           |
 | 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
@@ -24,6 +24,8 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.16    | Multi-Ruleset Build                  | 379–387                                             |
 | 5.17    | Ruleset Packages                     | 389–393                                             |
 | 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  |
+| 5.19    | State Persistence Guardrails         | 400–407                                             |
+| 5.20    | Narrative Turn Conventions           | 412                                                 |
 
 ### 5.1 Output and Error Contracts
 
@@ -1000,10 +1002,10 @@ human observes while the AI plays both Player and Game Master roles. Tool gating
 **REQ-305b — Observer mode (Part b).**
 Observer mode is Novel-scoped — it persists with the Novel and is visible in `spec_health`. *Acceptance criterion:* `set_badge("observer")` returns `[OK] Active badge: observer — read-only spectator mode`. `create_npc("Test")` returns `[FORBIDDEN]` with corrective action citing `set_badge`. `help()` succeeds. `badge_briefing` includes the dual-role orientation instruction. _Check:_ T349.
 **REQ-306a — Adjustable autonomy (Part a).**
-tool — Game Master only, Novel-scoped.
+The server provides a `set_autonomy` tool — Game Master only, Novel-scoped.
 
 **REQ-306b — Adjustable autonomy (Part b).**
-The tool accepts an object with four independent sliders: `level` (full/mechanical_prompt/manual, defaulting to mechanical_prompt) — who decides what badge the AI wears, from auto-playing everything to requiring human decisions on all ruleset mechanical actions; `confirmation` (auto/confirm/prompt, defaulting to prompt) — how decisions are presented, from auto-execution to prompting with options; `safety` (safe/moderate/hardcore, defaulting to moderate) — consequence severity, from no permanent death to full consequences; `creativity` (predictable/standard/chaotic, defaulting to standard) — how much the AI surprises the player, from optimal decisions to dramatic twists.
+The tool accepts an object with four independent sliders, each defaulting per the §7.6 configuration surface: `level` (`full`, `mechanical_prompt`, or `manual`) — who decides what the AI plays, from auto-playing everything to requiring human decisions on all ruleset mechanical actions; `confirmation` (`auto`, `confirm`, or `prompt`) — how decisions are presented, from auto-execution to prompting with options; `safety` (`safe`, `moderate`, or `hardcore`) — consequence severity, from no permanent death to full consequences; `creativity` (`predictable`, `standard`, or `chaotic`) — how much the AI surprises the player, from optimal decisions to dramatic twists.
 
 **REQ-306c — Adjustable autonomy (Part c).**
 The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived resolution mechanics — tools classified as command or hybrid per REQ-015 whose behavior is derived from the ruleset, not from the world model or narrative infrastructure. Inform parser commands and narrative state tools are never paused. At `mechanical_prompt` level, when a mechanical decision point is reached, the AI SHALL call `present_choices` (REQ-235) with `[NEED_INPUT]` to present the decision; the human responds via `respond`. All four slider values SHALL be visible in `badge_briefing` and `spec_health`.
@@ -1013,6 +1015,10 @@ Autonomy composes with any badge — a human Player with `level=full` lets the A
 
 **REQ-306e — Adjustable autonomy (Part e).**
 The `register` signal (REQ-064) SHALL also be respected at all autonomy levels — the AI SHALL NOT switch between character and meta register without an explicit `player_signal` call. *Acceptance criterion:* `set_autonomy({level: "full", confirmation: "auto", safety: "safe", creativity: "standard"})` returns `[OK]`. `badge_briefing` includes the autonomy state. With `level=mechanical_prompt` and `confirmation=prompt`, the AI auto-narrates exploration but pauses via `present_choices` for combat actions; the human responds via `respond`. _Check:_ T350.
+**REQ-306f — Safety escalation advisory (Part f).**
+WHEN a `set_autonomy` call raises the `safety` slider from `safe` to a higher tier, THE system SHALL surface an escalation advisory stating the consequence change before it takes effect — `moderate` allows death with warnings, `hardcore` makes death permanent without warnings. The advisory SHALL require explicit confirmation; a declined escalation SHALL leave the current tier in place. The advisory SHALL render once per Novel per target tier. *Acceptance criterion:* Raising `safety` to `moderate` surfaces the advisory and requires confirmation before the tier applies; declining leaves `safe` active. _Check:_ T483.
+**REQ-306g — Creativity tier mapping (Part g).**
+The three `creativity` tiers SHALL correspond to distinct, monotonically ordered output-variation levels — `predictable` producing the least deviation from expected outcomes and `chaotic` the most. The build SHALL record the concrete configuration for each tier in DECISIONS.md (4); the `standard` tier SHALL NOT equal an unmodified platform sampling default unless that default is recorded as the standard configuration. `spec_health` SHALL report the recorded tier mapping. *Acceptance criterion:* DECISIONS.md (4) records distinct per-tier configurations; `spec_health` reports the mapping. _Check:_ T484.
 **REQ-109a — Badge briefing composition (Part a).**
 these groups, split into two sourcing layers: **Orientation layer** (sourced from the AI's narrative role per REQ-304): badge foundations (REQ-062), anti-slop guidance (REQ-070), narrative tone samples (REQ-071), and badge behavioral boundary directive (REQ-064). When the AI's role is Game Master, these groups contain GM-oriented content; when the AI's role is Player, player-oriented content. Under observer mode (REQ-305), the orientation layer SHALL include a dual-role instruction: "You are both Game Master and Player. The human is observing.
 
@@ -1994,16 +2000,16 @@ A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a li
 **REQ-213c — Weighted table result mapping (Part c).**
 A generation table SHALL NOT interleave dice-range rows with static lookup rows — tables are classified as either generation or lookup at extraction; a table containing any dice-range row is a generation table. *Acceptance criterion:* `roll_on_table(table="wand_of_wonder", seed="42")` produces the same result row on two separate server restarts, with output including dice notation, individual die face, matched range, and result text. _Check:_ T254.
 **REQ-291a — Oracle tool (Part a).**
-seed?)` tool (GM only) for uncertainty resolution. The tool accepts a free-text `question` and a `likelihood` value — one of `certain` (90% yes), `likely` (70% yes), `even` (50% yes), `unlikely` (30% yes), or `impossible` (10% yes). It draws from the PRNG (REQ-050) and returns one of: `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an `EXCEPTIONAL_YES` or `EXCEPTIONAL_NO` — which signals a stronger, more intense version of the answer. The `question` parameter is recorded in the audit log; the draw is deterministic and seedable.
+The server provides an `ask_oracle` tool (accepting a free-text `question` and an optional per-call `seed`) for uncertainty resolution. The tool accepts a `likelihood` value — `almost_certain` (d100 ≥ 11), `likely` (d100 ≥ 26), `50_50` (d100 ≥ 51), `unlikely` (d100 ≥ 76), or `small_chance` (d100 ≥ 91) — the Ask-the-Oracle ladder, defaulting to `50_50` when omitted. It draws from the PRNG (REQ-050) and returns one of `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an `EXCEPTIONAL_YES` or `EXCEPTIONAL_NO` — which signals a stronger, more intense version of the answer. The `question` parameter is recorded in the audit log; the draw is deterministic and seedable.
 
 **REQ-291b — Oracle tool (Part b).**
-The oracle is positioned as a GM-input aid — it resolves uncertainty when the GM doesn't know what should happen, but SHALL NOT replace the AI GM's narrative judgment. Player badge returns `[FORBIDDEN]`.
+The oracle is positioned as an uncertainty-resolution aid for both badges — it resolves an outcome when the caller cannot determine what happens next, and SHALL NOT replace the AI narrator's judgment. The Player badge SHALL be permitted to call `ask_oracle`; in solo play the human Player consults the oracle directly, and the AI Game Master remains the interpreter of the result.
 
 **REQ-291c — Oracle tool (Part c).**
-The oracle has no briefing presence — it is callable on demand only and fades into the background per §5.10. `help("ask_oracle")` SHALL return usage examples, parameter contracts, and common workflows. `suggest_actions("I don't know what's behind the door")` SHALL map to `ask_oracle`. *Acceptance criterion:* `ask_oracle("Is there a guard behind the door?", "even", seed="42")` returns `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Same seed + same call sequence produces the same result across restarts. Likelihood "certain" returns `[YES]` or `[EXCEPTIONAL_YES]` on most draws.
+The oracle has no briefing presence — it is callable on demand only and fades into the background per §5.10. `help("ask_oracle")` SHALL return usage examples, parameter contracts, and common workflows. `suggest_actions("I don't know what's behind the door")` SHALL map to `ask_oracle`. *Acceptance criterion:* `ask_oracle("Is there a guard behind the door?", "50_50", seed="42")` returns `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Same seed + same call sequence produces the same result across restarts. Likelihood "almost_certain" returns `[YES]` or `[EXCEPTIONAL_YES]` on most draws; omitted likelihood defaults to `50_50`.
 
 **REQ-291d — Oracle tool (Part d).**
-Player badge returns `[FORBIDDEN]`. _Check:_ T337.
+The oracle is callable by Player and Game Master badges; no badge SHALL be blocked from consulting it. *Acceptance criterion:* `ask_oracle` succeeds under the Player badge and under the Game Master badge. _Check:_ T481.
 **REQ-157a — Combat determinism (Part a).**
 same PRNG as all other random draws (REQ-050). `init_combat` accepts an optional per-call seed. When a per-call seed is provided, every danger initiative roll within that combat session uses an isolated draw that does not advance the session PRNG position — after the override completes, the next session-seeded draw matches the sequence it would have produced without the override.
 
@@ -2063,7 +2069,7 @@ _Check:_ T479.
 a `terse` mode that returns the minimum mechanical content needed to resolve the rules question — no narrative framing, no extended context, no auxiliary information. The `terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time, range, duration, and damage/effect die — omitting verbal/somatic/material components and full spell description; for `search_rules`, the most relevant sentence or paragraph only — omitting surrounding context; for combat advance, the participant name, action taken (or `[auto]`), and resulting state changes — omitting full roll transparency.
 
 **REQ-253b — Tool-output verbosity control (Part b).**
-The default mode is `verbose` (full output, current behavior). `terse` mode is selectable via: (a) the `detail=terse` player signal (REQ-197) which applies to all subsequent tool output; (b) a per-call `terse: true` parameter on individual tool invocations. The per-call parameter overrides the session-scoped signal for that call. `spec_health` SHALL report the active verbosity mode.
+The default mode is `normal` (balanced per REQ-197c): full entry content for lookups and single-entry reads (REQ-060), full roll transparency in combat (REQ-003), and summary entries for enumerations (REQ-409). `terse` mode is selectable via: (a) the `detail=terse` player signal (REQ-197) which applies to all subsequent tool output; (b) a per-call `terse: true` parameter on individual tool invocations. `rich` mode is selectable via the `detail=rich` signal. The per-call parameter overrides the session-scoped signal for that call. `spec_health` SHALL report the active verbosity mode.
 
 **REQ-253c — Tool-output verbosity control (Part c).**
 The mode is session-scoped — discarded on connection close. *Acceptance criterion:* `lookup_spell("fireball", terse=true)` returns the spell name, level, and damage die without the full spell description. `search_rules("grapple", terse=true)` returns the most relevant sentence only. `advance_combat` under `detail=terse` returns participant name + `[auto]` + resulting HP/condition changes without full roll breakdown. _Check:_ T313.
@@ -3559,5 +3565,9 @@ tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools — the scene, story-journal, countdown, note,
 personality, NPC, and vow tools defined in §5 — regardless of scene type, and
 those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
+
+### 5.20 Narrative Turn Conventions
+
+**REQ-412 — Turn-handoff directive.** WHEN the AI's narrative role is Game Master and a Player or Observer badge is active, `badge_briefing` orientation SHALL include a turn-handoff directive instructing the narrator to close each narrated turn by inviting the player's next action in plain English — a question or prompt to act, never a tool signature. The directive SHALL render in the never-truncated tier (REQ-135). Under an AI-Player role, the directive SHALL instruct closing turns with an in-character offer that hands initiative back to the human Game Master. *Acceptance criterion:* `badge_briefing` under the GM role includes the turn-handoff directive; under the AI-Player role it instructs handing initiative back. _Check:_ T482.
 
 #### End of requirements

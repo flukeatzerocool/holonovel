@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-22 — Market-aligned play defaults
+
+- Defaulted the autonomy `safety` slider to `safe` and added a confirmed
+  escalation advisory when the GM raises it toward permanent-death tiers,
+  matching the Holodeck's safety-on-by-default posture. (REQ-306b, REQ-306f)
+- The `ask_oracle` tool is now callable by the Player badge in addition to the
+  Game Master, so solo play consults the oracle without a badge switch; its
+  likelihood ladder adopts the canonical Ironsworn Ask-the-Oracle bands and
+  defaults to `50_50` when omitted. (REQ-291a–d, REQ-291)
+- Documented the three creativity tiers as distinct, ordered output-variation
+  levels recorded at build time, so `standard` can no longer silently equal an
+  unmodified platform sampling default. (REQ-306g)
+- Added a turn-handoff directive to `badge_briefing` — the GM-role narrator
+  closes each turn by inviting the player's next action in plain English, the
+  cross-medium norm from Zork to play-by-post. (REQ-412, §5.20)
+- Defaulted tool-output verbosity to balanced `normal` output, reconciling the
+  prior `verbose`/`terse`/`rich`/`summary` vocabulary drift. (REQ-253b)
+- Documented sensible defaults for the mechanical-limit caps (NPCs 500, lore
+  500, countdowns 100, story entries 1000, entities 50, roster 100) and gave
+  `TTRPG_CONFIDENCE_FLOOR` an explicit 70% default distinct from the 80%
+  Standard-tier gate. (§7.6)
+- Added a `TTRPG_AUTONOMY` launch preset seeding new-Novel autonomy defaults in
+  one line, with a `set_narrative_directive` coupling for plain-English control.
+  (REQ-306, §7.6, §7.7.1a P45)
+- Repaired the §5 index table (missing §5.19, plus REQ-408–411 rows) and added
+  the missing REQ-409/410 Pattern Buffer coverage-map rows.
+
 ## 2026-08-21 — MCP performance and token efficiency
 
 - The server now caps how many parameters any single tool can expose, pushing
