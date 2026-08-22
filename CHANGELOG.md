@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-22 — Token-efficiency contracts (REQ-413–417)
+
+- Codified the action-discriminator tool surface: operations sharing a domain
+  but not an input/output contract expose one entry tool with an action
+  discriminator, each action documented as a sub-REQ, rather than sibling
+  tools. (REQ-413)
+- Added schema-surface economy: advertised input schemas prefer the compact
+  example-bearing form over nested structural descriptions, with strict
+  server-side validation unchanged and the nested-form count reported by
+  `spec_health`. (REQ-414)
+- Added a summary-first tool catalog: `tools/list` returns lean summaries by
+  default with a detail path, derived from the live registry so REQ-025c
+  count derivation still holds. (REQ-415)
+- Added config default inheritance: a defaults section supplies values
+  inherited by entries that do not override them, rendered by `spec_health`
+  and grouped by the §7.6 operator tiers. (REQ-416)
+- Added non-blocking startup probes: slow health/status probes complete in
+  the background without delaying call readiness. (REQ-417)
+
 ## 2026-08-22 — Market-aligned play defaults
 
 - Defaulted the autonomy `safety` slider to `safe` and added a confirmed

@@ -1384,6 +1384,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-100 | S13, S21 | Performance benchmark |
 | REQ-409 | S13, S21 | Response-lean enumeration reads |
 | REQ-410 | S13, S21 | Token footprint in performance record |
+| REQ-416 | S13, S21 | Config default inheritance |
+| REQ-417 | S13, S21 | Non-blocking startup probes |
 | REQ-157 | S4 | Combat determinism |
 | REQ-002 | S1, S14e, S14f, S22 | Error taxonomy |
 | REQ-002a | S9 | Extended error category semantics |

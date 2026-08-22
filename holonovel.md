@@ -437,11 +437,11 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411 |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411, 413–415 |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
 | 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 409–410           |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 409–410, 416–417  |
 | 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
@@ -947,6 +947,39 @@ tools alike, and the per-tool parameter count SHALL be recoverable from `spec_he
 *Acceptance criterion:* No advertised tool exceeds the recorded ceiling; a tool whose
 operation needs more inputs splits into a compact entry call plus a refinement path;
 `spec_health` exposes each tool's parameter count. _Check:_ T477.
+
+**REQ-413 — Action-discriminator tool surface.**
+When the builder determines that a group of operations shares a domain but not a common
+input or output contract, the operations SHALL be exposed as one entry tool carrying an
+action discriminator rather than as sibling tools, and each action SHALL be documented as
+its own sub-REQ. The discriminator SHALL name actions in the ruleset's own terms, and the
+parameters and contract of each action SHALL be recoverable from `spec_health`.
+Consolidation SHALL NOT alter any action's output contract.
+*Acceptance criterion:* a domain with distinct operations exposes one entry tool whose
+discriminator enumerates them; each action is documented as a sub-REQ; `spec_health`
+exposes per-action contracts. _Check:_ T486.
+
+**REQ-414 — Schema-surface economy.**
+A tool's advertised input schema SHALL prefer the most compact form that carries the same
+information and preserves strict server-side validation, substituting example values for
+nested structural descriptions wherever the builder determines the compact form is
+equivalent. The advertised form SHALL be self-explanatory to a caller without external
+documentation and SHALL NOT weaken the input-validation contract of REQ-054. `spec_health`
+SHALL report the count of advertised inputs using nested structural form, and an input that
+could have been advertised compactly but is not SHALL be recorded in DECISIONS.md.
+*Acceptance criterion:* inputs expressible compactly are advertised so with examples;
+validation is unchanged; `spec_health` reports the nested-form count. _Check:_ T487.
+
+**REQ-415 — Summary-first tool catalog.**
+Enumeration of the tool catalog SHALL return summary entries by default and expose full
+schema and description on a detail request, so a caller pays for full tool definitions
+only on demand. The summary view SHALL be derived from the live registry at call time and
+SHALL NOT be a separately maintained list, preserving the count derivation of REQ-025c. A
+detail request SHALL require no intervening state mutation, and `spec_health` SHALL report
+the active catalog verbosity.
+*Acceptance criterion:* `tools/list` returns summaries by default; a detail request returns
+full definitions; counts still match the live registry; `spec_health` reports the
+verbosity. _Check:_ T488.
 
 **REQ-022a — Resources (Part a).**
 The server provides resources covering ruleset content
@@ -2494,6 +2527,27 @@ record is a handoff defect.
 *Acceptance criterion:* DECISIONS.md (4) records listing bytes and prompt-budget consumption
 alongside latency; `spec_health` reports them; a build without the record fails handoff.
 _Check:_ T479.
+
+**REQ-416 — Config default inheritance.**
+Configuration SHALL support a defaults section whose values are inherited by any entry
+that does not override them, so a shared value is declared once rather than repeated per
+entry. A value absent from both an entry and the defaults section SHALL resolve to the
+documented built-in. The defaults section SHALL be rendered in `spec_health` and grouped
+according to the operator-facing tiers of §7.6. Inheritance SHALL NOT alter the behavior
+of an entry that declares its own value.
+*Acceptance criterion:* a value declared in the defaults section is inherited by entries
+that omit it; an entry with its own value is unaffected; `spec_health` renders the
+defaults grouped by tier. _Check:_ T489.
+
+**REQ-417 — Non-blocking startup probes.**
+Server startup SHALL NOT be delayed awaiting slow health or status probes; the server
+SHALL accept calls once its state is initialized, with any slow probe completing in the
+background. A probe that has not finished SHALL be reported as pending in `spec_health`,
+distinct from a completed result, and a background probe SHALL NOT block or reorder tool
+calls.
+*Acceptance criterion:* a server with a slow probe is callable before the probe
+completes; `spec_health` reports the probe pending then completed; tool calls proceed
+normally during the probe. _Check:_ T490.
 **REQ-253a — Tool-output verbosity control (Part a).**
 a `terse` mode that returns the minimum mechanical content needed to resolve the rules question — no narrative framing, no extended context, no auxiliary information. The `terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time, range, duration, and damage/effect die — omitting verbal/somatic/material components and full spell description; for `search_rules`, the most relevant sentence or paragraph only — omitting surrounding context; for combat advance, the participant name, action taken (or `[auto]`), and resulting state changes — omitting full roll transparency.
 
@@ -5389,6 +5443,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-100 | S13, S21 | Performance benchmark |
 | REQ-409 | S13, S21 | Response-lean enumeration reads |
 | REQ-410 | S13, S21 | Token footprint in performance record |
+| REQ-416 | S13, S21 | Config default inheritance |
+| REQ-417 | S13, S21 | Non-blocking startup probes |
 | REQ-157 | S4 | Combat determinism |
 | REQ-002 | S1, S14e, S14f, S22 | Error taxonomy |
 | REQ-002a | S9 | Extended error category semantics |
@@ -8614,6 +8670,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-410 | Token footprint in performance record | 2026-08-21 |
 | REQ-411 | Stable-metadata caching | 2026-08-21 |
 | REQ-412 | Turn-handoff directive | 2026-08-22 |
+| REQ-413 | Action-discriminator tool surface | 2026-08-22 |
+| REQ-414 | Schema-surface economy | 2026-08-22 |
+| REQ-415 | Summary-first tool catalog | 2026-08-22 |
+| REQ-416 | Config default inheritance | 2026-08-22 |
+| REQ-417 | Non-blocking startup probes | 2026-08-22 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8719,6 +8780,11 @@ diet.
 | T483 | Automated | Safety escalation advisory: call `set_autonomy({safety: "moderate"})` from a Novel currently at `safety=safe` — assert the escalation advisory surfaces and requires confirmation before the tier applies. Declining — assert `safe` remains active. Confirming via `respond` — assert `moderate` applies. Assert re-raising to the same tier in the same Novel does not re-surface the advisory. | REQ-306 |
 | T484 | Automated | Creativity tier mapping: build a server — assert DECISIONS.md (4) records distinct configurations for the `predictable`, `standard`, and `chaotic` tiers. Assert `spec_health` reports the tier mapping. Assert the `standard` tier configuration is not identified as an unmodified platform sampling default unless recorded as such. | REQ-306 |
 | T485 | Automated | Autonomy launch preset: start a server with `TTRPG_AUTONOMY=mechanical_prompt,prompt,safe,standard` — assert a newly created Novel defaults its autonomy sliders to those values before any `set_autonomy` call. Call `set_autonomy({safety: "hardcore"})` — assert the per-Novel override applies and persists across restart. Start without `TTRPG_AUTONOMY` — assert sliders default to `mechanical_prompt`, `prompt`, `safe`, `standard`. | REQ-306 |
+| T486 | Automated | Action-discriminator tool surface: build a server whose ruleset defines a domain with distinct operations (e.g., three related but distinct retrieval contracts) — assert `tools/list` exposes one entry tool with an action discriminator whose values enumerate them, rather than sibling tools; assert each action is documented as a sub-REQ; assert `spec_health` exposes per-action parameters and contracts; assert consolidating does not change any action's output. | REQ-413 |
+| T487 | Automated | Schema-surface economy: build a server — assert an advertised input expressible as a compact example-bearing form is exposed so rather than as a nested structural description; assert server-side validation is unchanged (an invalid value still returns `[ERROR] [INVALID_INPUT]`); assert `spec_health` reports the nested-structural-input count; assert an input advertised nested when a compact form was equivalent is recorded in DECISIONS.md as a justified deviation. | REQ-414, REQ-054 |
+| T488 | Automated | Summary-first tool catalog: invoke `tools/list` — assert summary entries (name, purpose, parameter-ceiling flag) by default; request detail — assert full schema and description returned with no intervening state mutation; assert the summary is derived from the live registry so counts still match REQ-025c; assert `spec_health` reports the active catalog verbosity. | REQ-415, REQ-025c, REQ-408, REQ-024b |
+| T489 | Automated | Config default inheritance: set a shared value in the defaults section — assert an entry omitting it inherits the value; assert an entry declaring its own value is unaffected; assert a value absent from both resolves to the documented built-in; assert `spec_health` renders the defaults grouped by §7.6 tier. | REQ-416 |
+| T490 | Automated | Non-blocking startup probes: start a server with a slow health probe configured — assert the server accepts tool calls before the probe completes; assert `spec_health` reports the probe pending then completed; assert tool calls proceed normally and are not reordered during the probe. | REQ-417 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |

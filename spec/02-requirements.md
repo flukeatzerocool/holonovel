@@ -8,11 +8,11 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
 | 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411 |
+| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411, 413–415 |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
 | 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
 | 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 076a, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 409–410           |
+| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 409–410, 416–417  |
 | 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–245, 260–266, 328, 333 |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
 | 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
@@ -518,6 +518,39 @@ tools alike, and the per-tool parameter count SHALL be recoverable from `spec_he
 *Acceptance criterion:* No advertised tool exceeds the recorded ceiling; a tool whose
 operation needs more inputs splits into a compact entry call plus a refinement path;
 `spec_health` exposes each tool's parameter count. _Check:_ T477.
+
+**REQ-413 — Action-discriminator tool surface.**
+When the builder determines that a group of operations shares a domain but not a common
+input or output contract, the operations SHALL be exposed as one entry tool carrying an
+action discriminator rather than as sibling tools, and each action SHALL be documented as
+its own sub-REQ. The discriminator SHALL name actions in the ruleset's own terms, and the
+parameters and contract of each action SHALL be recoverable from `spec_health`.
+Consolidation SHALL NOT alter any action's output contract.
+*Acceptance criterion:* a domain with distinct operations exposes one entry tool whose
+discriminator enumerates them; each action is documented as a sub-REQ; `spec_health`
+exposes per-action contracts. _Check:_ T486.
+
+**REQ-414 — Schema-surface economy.**
+A tool's advertised input schema SHALL prefer the most compact form that carries the same
+information and preserves strict server-side validation, substituting example values for
+nested structural descriptions wherever the builder determines the compact form is
+equivalent. The advertised form SHALL be self-explanatory to a caller without external
+documentation and SHALL NOT weaken the input-validation contract of REQ-054. `spec_health`
+SHALL report the count of advertised inputs using nested structural form, and an input that
+could have been advertised compactly but is not SHALL be recorded in DECISIONS.md.
+*Acceptance criterion:* inputs expressible compactly are advertised so with examples;
+validation is unchanged; `spec_health` reports the nested-form count. _Check:_ T487.
+
+**REQ-415 — Summary-first tool catalog.**
+Enumeration of the tool catalog SHALL return summary entries by default and expose full
+schema and description on a detail request, so a caller pays for full tool definitions
+only on demand. The summary view SHALL be derived from the live registry at call time and
+SHALL NOT be a separately maintained list, preserving the count derivation of REQ-025c. A
+detail request SHALL require no intervening state mutation, and `spec_health` SHALL report
+the active catalog verbosity.
+*Acceptance criterion:* `tools/list` returns summaries by default; a detail request returns
+full definitions; counts still match the live registry; `spec_health` reports the
+verbosity. _Check:_ T488.
 
 **REQ-022a — Resources (Part a).**
 The server provides resources covering ruleset content
@@ -2065,6 +2098,27 @@ record is a handoff defect.
 *Acceptance criterion:* DECISIONS.md (4) records listing bytes and prompt-budget consumption
 alongside latency; `spec_health` reports them; a build without the record fails handoff.
 _Check:_ T479.
+
+**REQ-416 — Config default inheritance.**
+Configuration SHALL support a defaults section whose values are inherited by any entry
+that does not override them, so a shared value is declared once rather than repeated per
+entry. A value absent from both an entry and the defaults section SHALL resolve to the
+documented built-in. The defaults section SHALL be rendered in `spec_health` and grouped
+according to the operator-facing tiers of §7.6. Inheritance SHALL NOT alter the behavior
+of an entry that declares its own value.
+*Acceptance criterion:* a value declared in the defaults section is inherited by entries
+that omit it; an entry with its own value is unaffected; `spec_health` renders the
+defaults grouped by tier. _Check:_ T489.
+
+**REQ-417 — Non-blocking startup probes.**
+Server startup SHALL NOT be delayed awaiting slow health or status probes; the server
+SHALL accept calls once its state is initialized, with any slow probe completing in the
+background. A probe that has not finished SHALL be reported as pending in `spec_health`,
+distinct from a completed result, and a background probe SHALL NOT block or reorder tool
+calls.
+*Acceptance criterion:* a server with a slow probe is callable before the probe
+completes; `spec_health` reports the probe pending then completed; tool calls proceed
+normally during the probe. _Check:_ T490.
 **REQ-253a — Tool-output verbosity control (Part a).**
 a `terse` mode that returns the minimum mechanical content needed to resolve the rules question — no narrative framing, no extended context, no auxiliary information. The `terse` mode SHALL return: for `lookup_spell`, the spell name, level, casting time, range, duration, and damage/effect die — omitting verbal/somatic/material components and full spell description; for `search_rules`, the most relevant sentence or paragraph only — omitting surrounding context; for combat advance, the participant name, action taken (or `[auto]`), and resulting state changes — omitting full roll transparency.
 
