@@ -1,5 +1,4 @@
-// Shared REQ integrity checks. Consumed by validate.ts (spec gate) and
-// split-long-reqs.ts (pre-write self-check) so both enforce the same rules.
+// Shared REQ integrity checks. Consumed by validate.ts (spec gate).
 
 const REQ_TOKEN_RE = /\bREQ-(\d{3,}[a-z0-9]*)\b/g;
 const VALID_ID_RE = /^REQ-\d{3}(?:[a-z]\d*)?$/;

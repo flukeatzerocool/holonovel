@@ -33,18 +33,14 @@ README.md               Project orientation; see HTML comment at top for
                           README design conventions
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
-package.json            Task runner (lint, validate, audit-assumptions,
-                          scan-ambiguity, typecheck)
+package.json            Task runner (lint, validate, typecheck)
 .markdownlint.json      Lint rules (120-char prose, ATX headings)
 tsconfig.json           TypeScript configuration
 scripts/validate.ts     Cross-reference checker with --traceability flag
                           (REQ citations, test IDs, TOC sync, heading separators,
                           block shape, traceability matrix, coverage completeness,
-                          phase-map consistency)
-scripts/audit-assumptions.ts  Structural assumption auditor (citations,
-                          magic numbers, absolute language, thresholds)
-scripts/scan-ambiguity.ts     Ambiguity scanner (hedging, vague qualifiers,
-                          indefinite language in REQ bodies)
+                          phase-map consistency; ambiguity and assumption audits
+                          merged here)
 scripts/fmea.ts               REQ-level failure mode and effects skeleton
 scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
 scripts/spec-health-trends.ts Spec health metrics over revisions

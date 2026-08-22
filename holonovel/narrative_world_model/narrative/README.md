@@ -11,6 +11,9 @@ open-source licensed and freely incorporable.
 | Blades in the Dark SRD | CC-BY 3.0 | progress-clocks.md, LICENSE | Clock design, tension management |
 | Lonelog | CC BY-SA 4.0 | lonelog.md, LICENSE | Session notation |
 | IF Craft Corpus | CC-BY 4.0 | (59 documents) | Narrative structure, character voice, worldbuilding |
+| Ironsworn: Starforged SRD | CC-BY 4.0 | INDEX.md | Vows, oracle moves, solo narrative structure, quest framing |
+| Sly Flourish Lazy GM | CC-BY 4.0 | INDEX.md | Session prep shortcuts, NPC design, scene pacing, encounter templates |
+| The Alexandrian | CC-BY 4.0 | INDEX.md | Node-based adventure design, Three Clue Rule, faction intrigue |
 
 ## Updating
 
@@ -28,3 +31,6 @@ To update a source:
 - Lonelog: <https://lonelog.org> — CC BY-SA 4.0
 - IF Craft Corpus: <https://pvliesdonk.github.io/if-craft-corpus/> — CC-BY 4.0
   (install via `pip install ifcraftcorpus` or use `ifcraftcorpus-mcp` MCP server)
+- Ironsworn: Starforged SRD: <https://ironswornrpg.com> — CC-BY 4.0
+- Sly Flourish Lazy GM: <https://slyflourish.com/lazy_gm_resource_document.html> — CC-BY 4.0
+- The Alexandrian: <https://thealexandrian.net> — CC-BY 4.0
