@@ -173,6 +173,12 @@ server-scoped, audited operation (`install_ruleset` / `remove_ruleset` / `list_r
 it never rebuilds the host. Updating the host revalidates installed packages without
 re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
 
+**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and
+client-side subagent segmentation are out of contract for this specification: mechanical
+resolution remains expressible as discrete inspectable tool calls whose intermediate results
+a badge-appropriate caller may observe. Builders and verifiers treat such techniques as
+out-of-scope, not as missing coverage.
+
 ---
 
 ## 2. Requirements at a Glance

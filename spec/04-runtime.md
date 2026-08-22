@@ -163,6 +163,10 @@ All configuration is namespaced with the `TTRPG_` prefix to avoid collision with
 client environment variables. The prefix is product-agnostic and does not constrain
 the ruleset or adventure content served.
 
+For operator readability the configuration surface is grouped into three tiers — storage
+and paths, mechanical limits, and behavioral tuning (REQ-388) — and `spec_health` renders
+the same grouping. This is a documentation contract, not a requirement.
+
 ### 7.7 State model
 
 State tiers:

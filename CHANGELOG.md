@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-21 — MCP performance and token efficiency
+
+- The server now caps how many parameters any single tool can expose, pushing
+  overflow into a refinement path so a sprawling tool surface doesn't inflate
+  individual schemas. (REQ-408)
+- Collection and listing tools return summary entries by default with a
+  detail-on-demand path, cutting response bloat on enumeration reads while
+  keeping full verbose lookups untouched. (REQ-409)
+- The performance record now also captures token footprint — default tool-listing
+  bytes and prompt-budget consumption — so efficiency is a measured, gated
+  attribute alongside latency, not an aspiration. (REQ-410)
+- Frequently-rendered stable content (tool schemas, prompt scaffolding) is
+  cached and invalidated on registration change, so a session pays the render
+  cost once. (REQ-411)
+- The configuration surface is documented in three operator-facing tiers
+  (storage, mechanical limits, behavioral tuning) for easier discovery.
+- Recorded an executed-in-context boundary: programmatic tool calling,
+  code-mode execution, and client-side subagents are out of contract for this
+  specification.
+
 ## 2026-08-21 — State persistence guardrails
 
 - The Game Master's briefing now carries a persistence directive — commit
