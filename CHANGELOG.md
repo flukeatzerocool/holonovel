@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-22 — Removed dead and stale code
+
+- Migrated the three orphaned vendor bundles (`ironsworn-srd`, `lazy-gm`,
+  `alexandrian`) from the unreferenced repository-root `narrative_world_model/`
+  tree into the canonical `holonovel/narrative_world_model/narrative/` location
+  (§11.4), and generated the pre-verified `MANIFEST.md` the spec requires there
+  (real hash/item/confidence data for the migrated INDEX bundles; `(build-time)`
+  placeholders for the raw legacy vendor docs).
+- Deleted the root `narrative_world_model/` tree, the stale
+  `holonovel/docs_md` symlink alias (→ `narrative_world_model/`), and the
+  leftover `dnd5e-holonovel/` directory (runtime junk from the removed server).
+- Removed the orphaned `scripts/split-long-reqs.ts` build tool and the stale
+  `scripts/research-protocol*.md` gitignore entries.
+- Corrected AGENTS.md layer-map references to `audit-assumptions.ts` and
+  `scan-ambiguity.ts`, which were merged into `validate.ts`.
+
 ## 2026-08-22 — Removed the knowledge-base research cache
 
 - Removed all references to the build-time research cache
