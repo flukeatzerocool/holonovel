@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-22 — Phase-map consistency guard
+
+- `validate.ts` now cross-checks every `*Prepare:*` directive in §6 against
+  the `build-phase-map.md` phase table (adding a `phase-map consistency` pass):
+  each directive must resolve a single phase row, and every file it lists must
+  appear in that row's load set. A stale or ambiguous phase-loading hint is a
+  context-integrity defect (F2), now caught mechanically at the gate.
+- Disambiguated the §6.6 `*Prepare:*` directive to name the `Ruleset Pattern
+  Buffer` row explicitly — the phase map carries two rows sharing the "Pattern
+  Buffer" label, so the previous reference was ambiguous.
+- Added a "Guidance boundaries" rule to Appendix M: the spec prescribes
+  builder method only where a named failure mode (§3) would otherwise fire or
+  where the convergence loop and verification workflows cannot verify the
+  outcome, clarifying how Standing Rule 7 and the prescriptive appendices
+  (G, D) and §6.3/§6.2 coexist.
+
 ## 2026-08-22 — Verification toolchain hardening
 
 - The spec gate now flags three defect classes that previously slipped

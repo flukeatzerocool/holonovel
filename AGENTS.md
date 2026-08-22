@@ -39,7 +39,8 @@ package.json            Task runner (lint, validate, audit-assumptions,
 tsconfig.json           TypeScript configuration
 scripts/validate.ts     Cross-reference checker with --traceability flag
                           (REQ citations, test IDs, TOC sync, heading separators,
-                          block shape, traceability matrix, coverage completeness)
+                          block shape, traceability matrix, coverage completeness,
+                          phase-map consistency)
 scripts/audit-assumptions.ts  Structural assumption auditor (citations,
                           magic numbers, absolute language, thresholds)
 scripts/scan-ambiguity.ts     Ambiguity scanner (hedging, vague qualifiers,
