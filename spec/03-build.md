@@ -1721,7 +1721,7 @@ builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate n
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
 initially `pending`, updated to `converged` when the discrepancy is resolved.
-*Acceptance criterion:* When Gate 2 fails on an init_combat turn-order mismatch,
+*Acceptance criterion:* When G2 fails on an init_combat turn-order mismatch,
 DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
 turn order, actual turn order, and a diff.
 _Check:_ T344.

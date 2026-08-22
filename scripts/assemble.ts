@@ -22,7 +22,7 @@ const APPENDIX_REF = "appendices-reference.md";
 const APPENDIX_FIX = "appendices-fixtures.md";
 const APPENDIX_LIC = "appendices-licenses.md";
 const APPENDIX_RUN = "appendices-runbooks.md";
-const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRSTUVWXY";
+const APPENDIX_ORDER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function readFile(filePath: string): string {
   const fp = path.join(SPEC_DIR, filePath);

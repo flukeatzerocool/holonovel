@@ -134,7 +134,7 @@ See also [Delver Advancement](advancement.md#xp).
 ```
 
 The fixture set also includes `tin_lanterns_gear.md` (Section B.5) for cross-file
-extraction tests; Gate 2 uses only this file. Both files are provided via
+extraction tests; G2 uses only this file. Both files are provided via
 `TTRPG_RULESET` as comma-separated paths.
 
 ### B.2 Expected model excerpt
@@ -179,7 +179,7 @@ A correct extraction of the fixture includes at least:
 Session badge: delver. Die values below are **prescriptive**: they are the reference
 randomizer's output under the transcript's per-call seeds (REQ-050; witness values in
 B.4). Replay asserts fields, prefixes, gating decisions, and die values — not exact
-wording (Gate 2).
+wording (G2).
 
 ```
 → create_delver { "name": "Moss" }
@@ -278,7 +278,7 @@ Ruleset version: matches intake snapshot
 ### B.4 RNG witness values
 
 The reference randomizer (REQ-050) must reproduce these sequences exactly; verify this
-table before running Gate 2. Draw consumption and seeding are as defined in REQ-050.
+table before running G2. Draw consumption and seeding are as defined in REQ-050.
 
 The witness table below is the normative contract; any deterministic PRNG that
 reproduces these witness sequences exactly is conformant. For reference, the values
@@ -293,7 +293,7 @@ were generated using a 32-bit linear congruential generator:
 
 ### B.5 Cross-file fixture (`tin_lanterns_gear.md`)
 
-Gate 2's single-file fixture exercises most extraction paths but not cross-file dedup or
+G2's single-file fixture exercises most extraction paths but not cross-file dedup or
 inline mechanical fields within table cells. This supplemental file, combined with the
 main fixture, validates both.
 
@@ -321,7 +321,7 @@ Knacks table — the dedup logic must collapse it into a cross-reference to the 
 
 Run `roll_on_table` for "gear" with a fixed seed and assert the result returns a valid row
 from the gear table with its mechanical fields rendered. The RNG is already verified by
-Gate 2's B.4 preflight; no additional witness values are needed.
+G2's B.4 preflight; no additional witness values are needed.
 
 This supplement is exercised by derived test T46.
 

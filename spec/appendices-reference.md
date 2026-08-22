@@ -396,6 +396,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-072d | Session recap (Part d) | 2026-08-11 |
 | REQ-072e | Session recap (Part e) | 2026-08-11 |
 | REQ-072f | Session recap (Part f) | 2026-08-11 |
+| REQ-072g | Session recap format (Part g) | 2026-08-11 |
 | REQ-279a | Narrative orientation (Part a) | 2026-08-11 |
 | REQ-279b | Narrative orientation (Part b) | 2026-08-11 |
 | REQ-279c | Narrative orientation (Part c) | 2026-08-11 |
@@ -403,9 +404,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-174b | Significant-roll criterion for recap (Part b) | 2026-08-11 |
 | REQ-175a | Confrontation summary derivation (Part a) | 2026-08-11 |
 | REQ-175b | Confrontation summary derivation (Part b) | 2026-08-11 |
-| REQ-0731 | Countdowns (Part 1) | 2026-08-11 |
-| REQ-0732 | Countdowns (Part 2) | 2026-08-11 |
-| REQ-0733 | Countdowns (Part 3) | 2026-08-11 |
+| REQ-073c1 | Countdowns (Part c1) | 2026-08-11 |
+| REQ-073c2 | Countdowns (Part c2) | 2026-08-11 |
+| REQ-073c3 | Countdowns (Part c3) | 2026-08-11 |
 | REQ-329a | Countdown-world coupling (Part a) | 2026-08-11 |
 | REQ-329b | Countdown-world coupling (Part b) | 2026-08-11 |
 | REQ-289a | Vow tracking (Part a) | 2026-08-11 |
@@ -442,13 +443,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-123 | Builder-defined NPC stat fields | 2026-08-11 |
 | REQ-124a | NPC damage resolution (Part a) | 2026-08-11 |
 | REQ-124b | NPC damage resolution (Part b) | 2026-08-11 |
-| REQ-0761 | Scene-state ledger (Part 1) | 2026-08-11 |
-| REQ-0762 | Scene-state ledger (Part 2) | 2026-08-11 |
-| REQ-0763 | Scene-state ledger (Part 3) | 2026-08-11 |
-| REQ-0764 | Scene-state ledger (Part 4) | 2026-08-11 |
-| REQ-0765 | Scene-state ledger (Part 5) | 2026-08-11 |
-| REQ-0766 | Scene-state ledger (Part 6) | 2026-08-11 |
-| REQ-0767 | Scene-state ledger (Part 7) | 2026-08-11 |
+| REQ-076b1 | Scene-state ledger (Part b1) | 2026-08-11 |
+| REQ-076b2 | Scene-state ledger (Part b2) | 2026-08-11 |
+| REQ-076b3 | Scene-state ledger (Part b3) | 2026-08-11 |
+| REQ-076b4 | Scene-state ledger (Part b4) | 2026-08-11 |
+| REQ-076b5 | Scene-state ledger (Part b5) | 2026-08-11 |
+| REQ-076b6 | Scene-state ledger (Part b6) | 2026-08-11 |
+| REQ-076b7 | Scene-state ledger (Part b7) | 2026-08-11 |
 | REQ-076a1 | Structured scene fields (Part a1) | 2026-08-11 |
 | REQ-076a2 | Structured scene fields (Part a2) | 2026-08-11 |
 | REQ-252a | Narrative fast-forward (Part a) | 2026-08-11 |
@@ -566,9 +567,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-232b | Pause/resume context (Part b) | 2026-08-11 |
 | REQ-232c | Pause/resume context (Part c) | 2026-08-11 |
 | REQ-232d | Pause/resume context (Part d) | 2026-08-11 |
-| REQ-2331 | Factions (Part 1) | 2026-08-11 |
-| REQ-2332 | Factions (Part 2) | 2026-08-11 |
-| REQ-2333 | Factions (Part 3) | 2026-08-11 |
+| REQ-233b1 | Factions (Part b1) | 2026-08-11 |
+| REQ-233b2 | Factions (Part b2) | 2026-08-11 |
+| REQ-233b3 | Factions (Part b3) | 2026-08-11 |
 | REQ-233a1 | World reactivity (Part a1) | 2026-08-11 |
 | REQ-233a2 | World reactivity (Part a2) | 2026-08-11 |
 | REQ-233a3 | World reactivity (Part a3) | 2026-08-11 |
@@ -578,10 +579,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-237a | Session segmentation (Part a) | 2026-08-11 |
 | REQ-237b1 | Session segmentation (Part b1) | 2026-08-11 |
 | REQ-237b2 | Session segmentation (Part b2) | 2026-08-11 |
-| REQ-073a1 | Clock types (Part a) (Part a1) | 2026-08-11 |
-| REQ-073a2 | Clock types (Part a) (Part a2) | 2026-08-11 |
-| REQ-073b1 | Clock types (Part b) (Part b1) | 2026-08-11 |
-| REQ-073b2 | Clock types (Part b) (Part b2) | 2026-08-11 |
+| REQ-073a1 | Clock types (Part a1) | 2026-08-11 |
+| REQ-073a2 | Clock types (Part a2) | 2026-08-11 |
 | REQ-239a | Audit log compaction (Part a) | 2026-08-11 |
 | REQ-239b | Audit log compaction (Part b) | 2026-08-11 |
 | REQ-239c | Audit log compaction (Part c) | 2026-08-11 |
@@ -647,13 +646,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-055 | Durability | 2026-08-11 |
 | REQ-055a | Badge precedence on resume | 2026-08-11 |
 | REQ-055b | Story-in-progress notice | 2026-08-11 |
-| REQ-3121 | Pre-narration validation gate (Part 1) | 2026-08-11 |
-| REQ-3122 | Pre-narration validation gate (Part 2) | 2026-08-11 |
+| REQ-312d1 | Pre-narration validation gate (Part d1) | 2026-08-11 |
+| REQ-312d2 | Pre-narration validation gate (Part d2) | 2026-08-11 |
 | REQ-312a | Bounds conformance | 2026-08-11 |
 | REQ-312b | Permission conformance | 2026-08-11 |
 | REQ-312c | State conformance | 2026-08-11 |
-| REQ-2461 | Story journal (Part 1) | 2026-08-11 |
-| REQ-2462 | Story journal (Part 2) | 2026-08-11 |
+| REQ-246b1 | Story journal (Part b1) | 2026-08-11 |
+| REQ-246b2 | Story journal (Part b2) | 2026-08-11 |
 | REQ-246a | Story journal surfacing | 2026-08-11 |
 | REQ-331a | Story journal-world coupling (Part a) | 2026-08-11 |
 | REQ-331b | Story journal-world coupling (Part b) | 2026-08-11 |
@@ -699,10 +698,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-328b | Lore-world coupling (Part b) | 2026-08-11 |
 | REQ-158a | Independent verification obligation (Part a) | 2026-08-11 |
 | REQ-158b | Independent verification obligation (Part b) | 2026-08-11 |
-| REQ-0841 | Action suggestions (Part 1) | 2026-08-11 |
-| REQ-0842 | Action suggestions (Part 2) | 2026-08-11 |
-| REQ-0843 | Action suggestions (Part 3) | 2026-08-11 |
-| REQ-0844 | Action suggestions (Part 4) | 2026-08-11 |
+| REQ-084b1 | Action suggestions (Part b1) | 2026-08-11 |
+| REQ-084b2 | Action suggestions (Part b2) | 2026-08-11 |
+| REQ-084b3 | Action suggestions (Part b3) | 2026-08-11 |
+| REQ-084b4 | Action suggestions (Part b4) | 2026-08-11 |
 | REQ-084a1 | Proactive action surfacing (Part a1) | 2026-08-11 |
 | REQ-084a2 | Proactive action surfacing (Part a2) | 2026-08-11 |
 | REQ-084a3 | Proactive action surfacing (Part a3) | 2026-08-11 |
@@ -929,8 +928,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-218a | Ruleset-free build (Part a) | 2026-08-11 |
 | REQ-218b | Ruleset-free build (Part b) | 2026-08-11 |
 | REQ-218c | Ruleset-free build (Part c) | 2026-08-11 |
-| REQ-219a1 | Ruleset-free entity creation (Part a) (Part a1) | 2026-08-11 |
-| REQ-219a2 | Ruleset-free entity creation (Part a) (Part a2) | 2026-08-11 |
+| REQ-219a1 | Ruleset-free entity creation (Part a1) | 2026-08-11 |
+| REQ-219a2 | Ruleset-free entity creation (Part a2) | 2026-08-11 |
 | REQ-219b | Ruleset-free entity creation (Part b) | 2026-08-11 |
 | REQ-335a | Scene beat taxonomy (Part a) | 2026-08-11 |
 | REQ-335b | Scene beat taxonomy (Part b) | 2026-08-11 |
@@ -1010,8 +1009,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-366b | Observer narrative surface (Part b) | 2026-08-11 |
 | REQ-366c | Observer narrative surface (Part c) | 2026-08-11 |
 | REQ-366d | Observer narrative surface (Part d) | 2026-08-11 |
-| REQ-346a1 | Narrative coherence attestation (Part a) (Part a1) | 2026-08-11 |
-| REQ-346a2 | Narrative coherence attestation (Part a) (Part a2) | 2026-08-11 |
+| REQ-346a1 | Narrative coherence attestation (Part a1) | 2026-08-11 |
+| REQ-346a2 | Narrative coherence attestation (Part a2) | 2026-08-11 |
 | REQ-346b | Narrative coherence attestation (Part b) | 2026-08-11 |
 | REQ-369a | Holodeck archetype taxonomy (Part a) | 2026-08-11 |
 | REQ-369b | Holodeck archetype taxonomy (Part b) | 2026-08-11 |
@@ -1023,17 +1022,17 @@ date-stamps matching CHANGELOG entries.
 | REQ-374b | Archetype coverage (Part b) | 2026-08-11 |
 | REQ-375a | Wisdom mechanical coupling rate (Part a) | 2026-08-11 |
 | REQ-375b | Wisdom mechanical coupling rate (Part b) | 2026-08-11 |
-| REQ-376a1 | Holonovel Pattern Buffer traceability (Part a) (Part a1) | 2026-08-11 |
-| REQ-376a2 | Holonovel Pattern Buffer traceability (Part a) (Part a2) | 2026-08-11 |
-| REQ-376a3 | Holonovel Pattern Buffer traceability (Part a) (Part a3) | 2026-08-11 |
+| REQ-376a1 | Holonovel Pattern Buffer traceability (Part a1) | 2026-08-11 |
+| REQ-376a2 | Holonovel Pattern Buffer traceability (Part a2) | 2026-08-11 |
+| REQ-376a3 | Holonovel Pattern Buffer traceability (Part a3) | 2026-08-11 |
 | REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-372a | Supplementary ruleset import (Part a) | 2026-08-11 |
 | REQ-372b | Supplementary ruleset import (Part b) | 2026-08-11 |
 | REQ-372c | Supplementary ruleset import (Part c) | 2026-08-11 |
 | REQ-372d | Supplementary ruleset import (Part d) | 2026-08-11 |
 | REQ-372e | Supplementary ruleset import (Part e) | 2026-08-11 |
-| REQ-373a1 | Dynamic tool registration (Part a) (Part a1) | 2026-08-11 |
-| REQ-373a2 | Dynamic tool registration (Part a) (Part a2) | 2026-08-11 |
+| REQ-373a1 | Dynamic tool registration (Part a1) | 2026-08-11 |
+| REQ-373a2 | Dynamic tool registration (Part a2) | 2026-08-11 |
 | REQ-373b | Dynamic tool registration (Part b) | 2026-08-11 |
 | REQ-377a | Mechanical coupling extraction (Part a) | 2026-08-11 |
 | REQ-377b | Mechanical coupling extraction (Part b) | 2026-08-11 |
@@ -1499,7 +1498,7 @@ diet.
 | T341 | Automated | Knowledge-graph resource: create a Novel with entities, NPCs, lore entries, and an adventure. Call `graph://novel` — assert nodes for entities, NPCs, and lore entries with edges for relationships (disposition, location, adventure linkage). Assert `graph://novel?format=json` returns structured data. Assert empty Novel returns graph with only the novel root node. | REQ-296 |
 | T342 | Automated | Dynamic lore: call `set_lore_entry("tavern_secret", "The barkeep is a retired assassin", triggers=["tavern", "barkeep"])`. Assert `badge_briefing` includes lore item when scene description matches triggers. Call `toggle_lore_entry("tavern_secret")` to disable — assert item absent from briefing. Call `toggle_lore_entry("tavern_secret")` to enable — assert item returns. Call `remove_lore_entry("tavern_secret")` — assert item removed. | REQ-083 |
 | T343 | Automated | Adjusted thresholds: build with a ruleset whose indexed-item count exceeds 200. Assert the confidence threshold is lowered per REQ-098 and DECISIONS.md records the adjusted threshold with justification. Assert ruleset under 200 indexed items uses the standard threshold. Assert adjusted thresholds survive convergence re-verification. | REQ-299 |
-| T344 | Automated | Structured failure diagnostics: induce a Gate 2 failure on init_combat turn-order mismatch. Assert DECISIONS.md (5) contains a diagnostic record with gate name, failing test ID, REQ citation, expected turn order, actual turn order, and a diff. Assert resolution field transitions from pending to converged on fix. | REQ-300 |
+| T344 | Automated | Structured failure diagnostics: induce a G2 failure on init_combat turn-order mismatch. Assert DECISIONS.md (5) contains a diagnostic record with gate name, failing test ID, REQ citation, expected turn order, actual turn order, and a diff. Assert resolution field transitions from pending to converged on fix. | REQ-300 |
 | T345 | Automated | Convergence loop audit trail: run convergence with ≥2 iterations. Assert DECISIONS.md (5) contains traceable records per iteration: iteration number, REQ/test addressed, change summary, re-test result, and token cost. Assert convergence_summary includes total iterations, final disposition per REQ, and aggregate token cost. | REQ-301 |
 | T346 | Automated | Per-section content hashing: build with a ruleset containing 10 sections. After initial build, change one section's content. Assert the delta detection identifies the single changed section. Assert only the changed section re-runs extraction. Assert `spec_health.section_hashes` includes per-section hashes. Assert unchanged sections produce "[section unchanged — re-validating from previous build]" annotations. | REQ-302 |
 | T347 | Automated | Scoped re-verification: perform an incremental extraction where 2 of 5 sections changed. Assert Pattern Buffer sub-workflows for unchanged sections are skipped with annotations. Assert cross-section sub-workflows run in full. Assert final Pattern Buffer summary distinguishes "skipped (unchanged)" from "passed" sub-workflows. | REQ-303 |
