@@ -117,23 +117,24 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
 | `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
+| `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `set_autonomy` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per §7.7.1a P45. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
 | `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. The build-time knowledge-base cache SHALL be a separate directory, never under this data directory. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
-| `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (unbounded if absent)          |
-| `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (unbounded if absent)  |
+| `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
+| `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 | `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the host hydrates eagerly at startup (opting out of lazy hydration per REQ-390). When set, the server SHALL validate that every slug in this list matches an installed package. When absent, all packages hydrate lazily on first activation of a Novel bound to their slug. |
 | `TTRPG_RULESET_DIRS` | No      | Path to the ruleset install directory when it differs from `<TTRPG_DATA_DIR>/rulesets/`. The host scans this directory at startup and validates installed packages there (REQ-389, REQ-390). |
-| `TTRPG_MAX_ENTITIES` | No      | Maximum playable entities per Novel (unbounded if absent) |
-| `TTRPG_MAX_ROSTER_ENTITIES` | No | Maximum roster baselines per server (unbounded if absent) |
-| `TTRPG_MAX_COUNTDOWNS` | No      | Maximum countdowns per Novel (unbounded if absent) |
+| `TTRPG_MAX_ENTITIES` | No      | Maximum playable entities per Novel (default 50) |
+| `TTRPG_MAX_ROSTER_ENTITIES` | No | Maximum roster baselines per server (default 100) |
+| `TTRPG_MAX_COUNTDOWNS` | No      | Maximum countdowns per Novel (default 100) |
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
-| `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (unbounded if absent) |
+| `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `player_signal` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output |
@@ -143,7 +144,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `export_novel` output |
 | `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`) |
-| `TTRPG_CONFIDENCE_FLOOR` | No | Minimum extraction confidence that does not block import (supplementary rulesets) |
+| `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Behavioral. |
 | `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
@@ -404,6 +405,7 @@ couplings cite REQ-236.
 | Player Signal → Pacing Window | P43 | `player_signal("pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | The operator controls the story's rhythm — player pacing signals adjust the window | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → Autonomy `[non-property]` | P45 | Directive autonomy keywords also map to `set_autonomy` sliders — "play it safe" sets `safety=safe`, "hardcore mode" sets `safety=hardcore` — text evaluated at resolution time | The operator tunes the AI's grip in plain English | GM-only | Mechanical | REQ-081, REQ-306 |
 | Narrative Directive → World in Motion | P46 | Directive text containing reactivity keywords ("the world reacts", "living world", "active factions") enables TTRPG_WORLD_REACTIVITY; disabling keywords disable it | The world comes alive on command — directive reactivity keywords enable world reactivity | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → Synthesis | P47 | Directive text containing synthesis keywords ("use voice patterns", "activate lore templates", "use action patterns", "add flavor") maps to the corresponding synthesis module or auto-trigger activation | The GM activates story flavor in plain English — directive keywords map to synthesis modules | GM-only | Mechanical | REQ-081, REQ-260 |
 | Server Notes → Narrative Threads | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | Server notes advise; they don't act — narrative-tagged notes surface in briefing | — | Navigational | REQ-365, REQ-285 |
