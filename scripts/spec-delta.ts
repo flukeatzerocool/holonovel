@@ -3,6 +3,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
+import { extractH2Headings } from "./lib/parse-spec";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -145,13 +146,13 @@ if (!report.in_sync) {
   const currentSpec = readFileSync(SPEC_PATH, "utf-8");
 
   const currentReqs = [...currentSpec.matchAll(/\*\*REQ-([0-9]+[a-z0-9]*)/g)].map(m => m[1]);
-  const currentSections = [...currentSpec.matchAll(/^##\s+(.+)/gm)].map(m => m[1].split(" ")[0]);
+  const currentSections = extractH2Headings(currentSpec).map(h => h.split(" ")[0]);
 
   const storedSpec = lastPublishedSpec();
 
   if (storedSpec) {
     const storedReqs = [...storedSpec.matchAll(/\*\*REQ-([0-9]+[a-z0-9]*)/g)].map(m => m[1]);
-    const storedSections = [...storedSpec.matchAll(/^##\s+(.+)/gm)].map(m => m[1].split(" ")[0]);
+    const storedSections = extractH2Headings(storedSpec).map(h => h.split(" ")[0]);
 
     report.requirements_changed.added = currentReqs.filter(r => !storedReqs.includes(r));
     report.requirements_changed.removed = storedReqs.filter(r => !currentReqs.includes(r));

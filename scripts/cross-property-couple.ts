@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractH2Headings } from "./lib/parse-spec";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -40,7 +41,7 @@ function extractProperties(): SpecProperties {
     ? `${appendixLetters[0]}–${appendixLetters[appendixLetters.length - 1]}`
     : "none";
 
-  const allH2s = [...spec.matchAll(/^## ([^#].+)/gm)].map((m) => m[1]);
+  const allH2s = extractH2Headings(spec);
   const mainSections = allH2s.filter((h) =>
     !h.startsWith("Appendix ") && !h.startsWith("Contents")
   );

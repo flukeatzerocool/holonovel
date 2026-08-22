@@ -63,6 +63,13 @@ const holoIndexVersion = grepVersion(
 );
 ok = check("holonovel/src/index.ts", holoIndexVersion, rootVersion) && ok;
 
+const holoLock = readJson(join(root, "holonovel", "package-lock.json"));
+const holoLockVersion = holoLock.version as string | undefined;
+const holoLockPkgVersion =
+  (holoLock.packages as Record<string, { version?: string }> | undefined)?.[""]?.version;
+ok = check("holonovel/package-lock.json (root)", holoLockVersion ?? null, rootVersion) && ok;
+ok = check("holonovel/package-lock.json (packages[\"\"])", holoLockPkgVersion ?? null, rootVersion) && ok;
+
 ok = checkFileContains(
   join(root, "holonovel", "src", "core", "state.ts"),
   ["SPEC_VERSION", "JSON.parse", "readFileSync", "package.json"],
