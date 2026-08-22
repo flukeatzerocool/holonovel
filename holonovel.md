@@ -1104,7 +1104,7 @@ and identical for both badges.
 _Check:_ T105.
 
 **REQ-107a — Version coordination (Part a).**
-The server carries its build-time specification version in the build fingerprint, surfaced through `spec_health` under a `spec_version` field. The version is a CalVer date-stamp (YYYY.MM.DD) matching the CHANGELOG entry date at which the specification was last substantively changed. The builder records the spec version in DECISIONS.md §2 Pinned Versions at intake and sets the server's `package.json` version to the same value. The two SHALL agree; a mismatch is a build-time defect that blocks handoff.
+The server carries its build-time specification version in the build fingerprint, surfaced through `spec_health` under a `spec_version` field. The version is a CalVer date-stamp (YYYY.MM.DD) matching the CHANGELOG entry date at which the specification was last substantively changed. The builder records the spec version in DECISIONS.md §2 Pinned Versions at intake and sets the server's `package.json` version to the same value. The two SHALL agree; a mismatch is a build-time defect that blocks handoff. Publication tooling SHALL verify the version equals the date of the latest substantive CHANGELOG entry before push; a stale version blocks publication. _Check:_ T493.
 
 **REQ-107b — Version coordination (Part b).**
 During a spec-driven update (REQ-098), the builder compares the current spec version against the server's recorded version: when the spec version has advanced, the gap audit proceeds; when unchanged, the builder reports the server is current and exits without mutation. The version string is informational — it does not gate runtime behavior beyond reporting. *Acceptance criterion:* `spec_health.spec_version` is a CalVer date-stamp matching DECISIONS.md §2 Pinned Versions; the server's `package.json` version matches both; a gap audit against the same version exits "current" without mutation. _Check:_ T106.
@@ -3959,7 +3959,10 @@ Every registered tool's `description` SHALL fit a build-time size budget recorde
 A host update (§6.7) SHALL revalidate installed packages against the new host version without re-building or re-extracting them. A package whose version manifest names an incompatible host version SHALL be reported in `spec_health` and held inactive (surfacing a `[package-incompatible]` flag) rather than silently dropped. Installed packages and all Novel, roster, codex, server-note, and world-model data SHALL survive a host update unchanged. *Acceptance criterion:* After a host version bump, a still-compatible package stays loaded and retains its indexed data; an incompatible package is flagged and held inactive; all user data survives byte-for-byte. _Check:_ T460.
 
 **REQ-394 — Spec publication integrity.**
-A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until the implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged implementation fingerprints — and block publication with a pending-update notice; patch deltas are exempt. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
+A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged fingerprints — and block publication with a pending-update notice; patch deltas are exempt. The gate SHALL classify a delta against the last-published spec hash, never a hand-edited value. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
+
+**REQ-419 — Editorial delta classification.**
+Publication tooling SHALL detect REQ-body modifications and SHALL NOT classify a delta as patch when any REQ body changed. Such a delta SHALL classify as Editorial only when a disposition recording the repaired REQ set is recorded in DECISIONS.md; otherwise it SHALL classify as Minor (§6.7). A delta recorded Editorial whose REQ scope actually changed is a classification error that blocks publication (REQ-394). *Acceptance criterion:* A body-modified delta without an Editorial record classifies Minor; with one, Editorial and no fingerprint advance. _Check:_ T492.
 
 ### 5.18 Workflow Entry Points
 
@@ -3976,7 +3979,10 @@ Any mechanism that updates a deployed host instance — a git pull, clean, check
 Server-generated persistent state — Novels, roster, codex, server notes, world-model data, and the ruleset install directory — SHALL be stored such that no ordinary git operation on the host's working tree (pull, checkout, clean, reset) can delete or revert it. The default state location SHALL resolve outside the git work tree when the server runs inside one; when it cannot, the server SHALL surface a `[state-in-tree]` warning in `spec_health` and on stderr. User data SHALL NOT be required to be committed to version control to survive restarts or rebuilds. *Acceptance criterion:* A server started inside a git work tree, then subjected to `git clean -fdx` and a hard reset, retains every Novel, roster, codex, server-note, and installed package unchanged. _Check:_ T466.
 
 **REQ-398 — Deploy-model scope.**
-The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checkout into the server's directory. _Check:_ T467.
+The deployment model is a git-managed specification repository that produces a separately deployed host server with its own working tree. Build, Update, and verification workflows SHALL treat the specification repository and the deployed server as distinct surfaces: spec changes propagate to a deployed server only through the Update workflow (§6.7) and the fingerprint gate (REQ-394), never by a bare file copy or checking spec content directly into the server's directory. _Check:_ T467.
+
+**REQ-418 — Deployment verification.**
+Publication tooling SHALL, after updating a deployed instance, verify the deployed spec hash equals the published spec hash and the deployed implementation fingerprints (REQ-313) match the published fingerprints. A pull that fails, conflicts, or leaves the deployed tree at a prior revision SHALL surface a deploy-failed notice naming the server, and the deployment SHALL NOT be reported complete until verification passes. When the canonical implementation source lives inside the specification repository, verification SHALL run against the deployed clone after the pull. *Acceptance criterion:* A deploy that cannot fast-forward ends with a deploy-failed notice and no completion marker; a successful deploy reports matching spec hash and fingerprints. _Check:_ T491.
 
 ### 5.19 State Persistence Guardrails
 
@@ -5812,15 +5818,18 @@ _Check:_ T84.
 
 #### Delta classes
 
-| Class   | Trigger                                                       | Verification workflow                                                  |
-| ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
+| Class    | Trigger                                                       | Verification workflow                                                  |
+| -------- | ------------------------------------------------------------- | --------------------------------------------------------- |
+| Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
+| Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
+| Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
+| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
 
 The builder classifies the delta during gap audit. A major spec version increment
-always triggers the Major class. The operator may override the classification at
-intake (U2).
+always triggers the Major class. An Editorial disposition records the repaired
+REQ set in DECISIONS.md; a delta recorded Editorial whose REQ scope actually
+changed is a classification error that blocks publication (REQ-394, REQ-419).
+The operator may override the classification at intake (U2).
 
 #### Implementation fingerprint comparison
 
@@ -5845,8 +5854,12 @@ source tree — never against the spec repository's own working tree or historic
 DECISIONS.md entries. When the spec repository and the deployed server live in
 different directories or repositories, the Update workflow SHALL establish which
 deployed server the gate evaluates, record that location in DECISIONS.md, and
-recompute fingerprints against it. A spec-repo-only change not reflected in the
-deployed server's fingerprints is a pending update (REQ-394), not an applied one.
+recompute fingerprints against it. When the canonical implementation source lives
+inside the specification repository and a deployed clone is produced from it, the
+gate SHALL evaluate the canonical tree at the revision being published and
+verification SHALL run against the deployed clone after the pull (REQ-418). A
+spec-repo-only change not reflected in the deployed server's fingerprints is a
+pending update (REQ-394), not an applied one.
 
 #### Gap audit method
 
@@ -8662,6 +8675,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-415 | Summary-first tool catalog | 2026-08-22 |
 | REQ-416 | Config default inheritance | 2026-08-22 |
 | REQ-417 | Non-blocking startup probes | 2026-08-22 |
+| REQ-418 | Deployment verification | 2026-08-22 |
+| REQ-419 | Editorial delta classification | 2026-08-22 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -8772,6 +8787,9 @@ diet.
 | T488 | Automated | Summary-first tool catalog: invoke `tools/list` — assert summary entries (name, purpose, parameter-ceiling flag) by default; request detail — assert full schema and description returned with no intervening state mutation; assert the summary is derived from the live registry so counts still match REQ-025c; assert `spec_health` reports the active catalog verbosity. | REQ-415, REQ-025c, REQ-408, REQ-024b |
 | T489 | Automated | Config default inheritance: set a shared value in the defaults section — assert an entry omitting it inherits the value; assert an entry declaring its own value is unaffected; assert a value absent from both resolves to the documented built-in; assert `spec_health` renders the defaults grouped by §7.6 tier. | REQ-416 |
 | T490 | Automated | Non-blocking startup probes: start a server with a slow health probe configured — assert the server accepts tool calls before the probe completes; assert `spec_health` reports the probe pending then completed; assert tool calls proceed normally and are not reordered during the probe. | REQ-417 |
+| T491 | Automated | Deployment verification: deploy a revision — assert the pipeline verifies the deployed spec hash equals the published hash and deployed fingerprints match. Simulate a non-fast-forward pull — assert a deploy-failed notice names the server and no completion marker is emitted. In a mono-repo topology — assert verification runs against the deployed clone after the pull. | REQ-418 |
+| T492 | Automated | Editorial classification: modify a REQ body with no scope change — assert publication tooling blocks as pending until an Editorial disposition recording the repaired REQ set is present in DECISIONS.md; record it — assert the delta publishes as Editorial with no fingerprint advance and G0 only; record an Editorial disposition on a body change that altered REQ scope — assert publication blocks. | REQ-394 |
+| T493 | Automated | Version currency: with a package.json version older than the latest dated CHANGELOG substantive entry — assert publication is blocked; after bumping to the matching CalVer — assert publication proceeds. | REQ-107a |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
@@ -10521,10 +10539,14 @@ Update workflow (§6.7) driven manually.
    historical fingerprint lines recorded in earlier `DECISIONS.md` entries.
 5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
    surfaces, and verification — before pushing. The push pipeline syncs only
-   the `Spec hash` line; it does not write the narrative entry.
+   the `Spec hash` line; it does not write the narrative entry. An Editorial
+   delta additionally records the repaired REQ set in the entry.
 6. Record the deployed server location the gate evaluated, if it differs from
    the current working directory — the pending-update gate (REQ-394) reads
    fingerprints from the live server tree, not the spec repo.
+7. After the deploy pull, verify the deployed spec hash equals the published
+   hash and the deployed fingerprints match (REQ-418). A deploy that cannot
+   fast-forward fails with a deploy-failed notice, not a success marker.
 
 **Recovery.**
 

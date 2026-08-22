@@ -54,6 +54,23 @@ NC='\033[0m'
 # Canonical server list (update spec-delta.ts and spec-propagate.ts when changing)
 SERVERS=("holonovel")
 
+# Snapshot the gitignored state files the pipeline may mutate, so --dry-run
+# can restore them (tracked files are reverted via `git checkout -- .`).
+STATE_SNAPSHOT="$(mktemp -d)"
+snapshot_state() {
+  for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
+    if [[ -f "$f" ]]; then cp "$f" "$STATE_SNAPSHOT/$(basename "$f")"; fi
+  done
+}
+restore_state() {
+  git checkout -- . 2>/dev/null || true
+  for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
+    local b="$(basename "$f")"
+    if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
+  done
+  rm -rf "$STATE_SNAPSHOT"
+}
+
 # ── Preflight: clean working tree ──
 
 if ! git diff --exit-code --quiet 2>/dev/null; then
@@ -67,6 +84,8 @@ if ! git diff --cached --exit-code --quiet 2>/dev/null; then
   git status --short
   exit 1
 fi
+
+if $DRY_RUN; then snapshot_state; fi
 
 # ── 1. Build order (assemble, check, propagate, wisdom, typecheck, version) ──
 
@@ -130,6 +149,8 @@ done
 
 if $DRY_RUN; then
   echo -e "${YELLOW}[DRY RUN] All checks passed. Would commit and push.${NC}"
+  echo -e "${YELLOW}[DRY RUN] Restoring working tree state.${NC}"
+  restore_state
   exit 0
 fi
 
@@ -151,10 +172,10 @@ git add holonovel.md spec/ scripts/cross-property-couple.ts package.json
 for f in CHANGELOG.md README.md; do
   [[ -f "$f" ]] && git add "$f"
 done
-# Stage server/script dirs (gitignore already excludes node_modules/ and
-# .holonovel-state/). "holonovel/" is the server directory, not holonovel.md
+# Stage server/script dirs and CI config (gitignore already excludes node_modules/
+# and .holonovel-state/). "holonovel/" is the server directory, not holonovel.md
 # (already staged above).
-git add scripts/ holonovel/
+git add scripts/ holonovel/ .github/
 
 HAS_COMMIT=true
 if git diff --staged --quiet 2>/dev/null; then
@@ -215,7 +236,11 @@ echo -e "${GREEN}=== 9. Deploy to MCP target ===${NC}"
 DEPLOY_DIR="$HOME/Holonovel-deployed"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
   DEPLOY_PREV=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
-  git -C "$DEPLOY_DIR" pull --ff-only origin main || echo -e "${YELLOW}  Deploy pull skipped (non-ff or conflict).${NC}"
+  if ! git -C "$DEPLOY_DIR" pull --ff-only origin main; then
+    echo -e "${RED}Deploy FAILED — pull could not fast-forward (non-ff or conflict).${NC}"
+    echo -e "${RED}REQ-418: deployment is not complete; leaving deployed copy at $DEPLOY_PREV.${NC}"
+    exit 1
+  fi
   DEPLOY_NEW=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
   if [[ "$DEPLOY_PREV" != "$DEPLOY_NEW" ]]; then
     echo "  Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
@@ -230,6 +255,20 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
   fi
 else
   echo -e "${YELLOW}  Deploy directory not found at $DEPLOY_DIR, skipping.${NC}"
+fi
+
+# ── 9b. Verify the deployed tree (REQ-418) ──
+
+echo -e "${GREEN}=== 9b. Verify deployed tree (REQ-418) ===${NC}"
+if [[ -d "$DEPLOY_DIR/.git" ]]; then
+  for server in "${SERVERS[@]}"; do
+    if ! npx tsx scripts/update-server.ts --server "$server" --server-dir "$DEPLOY_DIR/$server" --spec-hash "$SPEC_HASH" --verify-deployed; then
+      echo -e "${RED}Deploy verification FAILED for $server — deployed tree does not match the published spec.${NC}"
+      exit 1
+    fi
+  done
+else
+  echo -e "${YELLOW}  Deploy directory not found; skipping verification.${NC}"
 fi
 
 echo -e "${GREEN}Done.${NC}"

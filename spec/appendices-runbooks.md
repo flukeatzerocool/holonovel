@@ -89,10 +89,14 @@ Update workflow (§6.7) driven manually.
    historical fingerprint lines recorded in earlier `DECISIONS.md` entries.
 5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
    surfaces, and verification — before pushing. The push pipeline syncs only
-   the `Spec hash` line; it does not write the narrative entry.
+   the `Spec hash` line; it does not write the narrative entry. An Editorial
+   delta additionally records the repaired REQ set in the entry.
 6. Record the deployed server location the gate evaluated, if it differs from
    the current working directory — the pending-update gate (REQ-394) reads
    fingerprints from the live server tree, not the spec repo.
+7. After the deploy pull, verify the deployed spec hash equals the published
+   hash and the deployed fingerprints match (REQ-418). A deploy that cannot
+   fast-forward fails with a deploy-failed notice, not a success marker.
 
 **Recovery.**
 
