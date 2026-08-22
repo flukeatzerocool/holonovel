@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-22 — Fix pre-push spec/server sync check
+
+- The pre-push "spec/server sync" gate was reading `spec-delta.ts`'s exit
+  code, which now (per REQ-394) compares the spec against the *last-published*
+  baseline on `origin/main`. That made the gate unsatisfiable before the first
+  push of new work, blocking every spec-changing push. The check now verifies
+  propagation directly — the assembled `holonovel.md` must equal the embedded
+  server copy `holonovel/holonovel.md` — which is the correct "server synced"
+  condition. The REQ-394 pending-update gate (unchanged) still enforces
+  fingerprint advancement.
+
 ## 2026-08-22 — Borrowed-mechanics provenance and world-model de-hard-coding
 
 - Documented the base server's borrowed mechanics (Ironsworn vows and Ask-the-Oracle

@@ -24,16 +24,15 @@ if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash
 fi
 
 echo "  spec/server sync..."
-spec_result=$(npx tsx scripts/spec-delta.ts 2>&1)
-spec_exit=$?
-echo "$spec_result" | grep -vE "^\{|^\s|\}"
+root_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+embedded_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel/holonovel.md')).digest('hex'))")
 
-if [ $spec_exit -ne 0 ]; then
+if [ "$root_spec_hash" != "$embedded_spec_hash" ]; then
     echo ""
-    echo "BLOCKED: The spec (holonovel.md) has changed since the last server sync."
-    echo "The holonovel server must be updated to match the current spec."
+    echo "BLOCKED: The assembled spec (holonovel.md) does not match the embedded server copy"
+    echo "(holonovel/holonovel.md). The spec has not been propagated to the server."
     echo ""
-    echo "To fix: run the push pipeline."
+    echo "To fix: run the push pipeline (propagate step)."
     echo "  ./scripts/push-pipeline.sh"
     echo ""
     exit 1
