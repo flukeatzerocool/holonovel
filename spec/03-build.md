@@ -1761,15 +1761,18 @@ _Check:_ T84.
 
 #### Delta classes
 
-| Class   | Trigger                                                       | Verification workflow                                                  |
-| ------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch   | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
-| Minor   | REQ bodies changed, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major   | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
+| Class    | Trigger                                                       | Verification workflow                                                  |
+| -------- | ------------------------------------------------------------- | --------------------------------------------------------- |
+| Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
+| Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
+| Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
+| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
 
 The builder classifies the delta during gap audit. A major spec version increment
-always triggers the Major class. The operator may override the classification at
-intake (U2).
+always triggers the Major class. An Editorial disposition records the repaired
+REQ set in DECISIONS.md; a delta recorded Editorial whose REQ scope actually
+changed is a classification error that blocks publication (REQ-394, REQ-419).
+The operator may override the classification at intake (U2).
 
 #### Implementation fingerprint comparison
 
@@ -1794,8 +1797,12 @@ source tree — never against the spec repository's own working tree or historic
 DECISIONS.md entries. When the spec repository and the deployed server live in
 different directories or repositories, the Update workflow SHALL establish which
 deployed server the gate evaluates, record that location in DECISIONS.md, and
-recompute fingerprints against it. A spec-repo-only change not reflected in the
-deployed server's fingerprints is a pending update (REQ-394), not an applied one.
+recompute fingerprints against it. When the canonical implementation source lives
+inside the specification repository and a deployed clone is produced from it, the
+gate SHALL evaluate the canonical tree at the revision being published and
+verification SHALL run against the deployed clone after the pull (REQ-418). A
+spec-repo-only change not reflected in the deployed server's fingerprints is a
+pending update (REQ-394), not an applied one.
 
 #### Gap audit method
 

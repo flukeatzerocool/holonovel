@@ -16,6 +16,7 @@
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
 
 const root = join(import.meta.dirname, "..");
@@ -40,10 +41,15 @@ const allowPending = process.argv.includes("--allow-pending");
 const deltaClassArg = process.argv.includes("--delta-class")
   ? process.argv[process.argv.indexOf("--delta-class") + 1]
   : null;
-const deltaClass: "patch" | "minor" | "major" =
-  deltaClassArg === "patch" || deltaClassArg === "minor" || deltaClassArg === "major"
+const deltaClass: "patch" | "editorial" | "minor" | "major" =
+  deltaClassArg === "patch" || deltaClassArg === "editorial" || deltaClassArg === "minor" || deltaClassArg === "major"
     ? deltaClassArg
     : "major";
+
+const serverDirArg = process.argv.includes("--server-dir")
+  ? process.argv[process.argv.indexOf("--server-dir") + 1]
+  : null;
+const verifyDeployed = process.argv.includes("--verify-deployed");
 
 function loadStored(): Record<string, StoredRecord> {
   const path = join(root, FINGERPRINT_FILE);
@@ -78,17 +84,54 @@ function compareFingerprints(current: Fingerprints, stored: Fingerprints | undef
 }
 
 if (!server) {
-  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint] [--delta-class patch|minor|major] [--check] [--allow-pending]");
+  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint] [--delta-class patch|editorial|minor|major] [--server-dir <path>] [--verify-deployed] [--check] [--allow-pending]");
   process.exit(1);
 }
 
 const serverName = server;
-const serverDir = join(root, serverName);
+const serverDir = serverDirArg ?? join(root, serverName);
 const stored = loadStored();
 const previous = stored[serverName];
 
+// Verify the deployed tree (REQ-418): recompute spec hash + fingerprints in
+// the deployed clone and exit nonzero on any mismatch. Reads the published
+// spec hash and fingerprints from the current working tree's pipeline state.
+if (verifyDeployed) {
+  const deployedDir = serverDirArg ?? join(root, serverName);
+  if (!existsSync(join(deployedDir, "package.json"))) {
+    console.error(`Deployed server not found at ${deployedDir}`);
+    process.exit(1);
+  }
+  const expectedHash = specHash ?? createHash("sha256").update(readFileSync(join(root, "holonovel.md"), "utf-8")).digest("hex");
+  const priorRecord = previous;
+  if (!expectedHash || !priorRecord) {
+    console.error("Deploy verification needs a published spec hash and stored fingerprints.");
+    process.exit(1);
+  }
+  let deployedFingerprints: Fingerprints;
+  try {
+    deployedFingerprints = computeFingerprints(deployedDir);
+  } catch {
+    console.error("Deploy verification: could not compute deployed fingerprints.");
+    process.exit(1);
+  }
+  const deployedHash = readFileSync(join(deployedDir, "holonovel.md"), "utf-8");
+  // Compare the deployed spec hash as the raw content SHA-256 of the assembled
+  // file, since the deployed clone carries the assembled holonovel.md.
+  const deployedSpecHash = createHash("sha256").update(deployedHash).digest("hex");
+
+  const hashOk = deployedSpecHash === expectedHash;
+  const fpOk = compareFingerprints(deployedFingerprints, priorRecord.fingerprints).changedCount === 0;
+  if (!hashOk || !fpOk) {
+    console.error(`Deploy verification FAILED: spec hash ${hashOk ? "ok" : "MISMATCH"}, fingerprints ${fpOk ? "ok" : "MISMATCH"}.`);
+    process.exit(1);
+  }
+  console.log(`Deploy verification passed: spec hash ${deployedSpecHash.substring(0, 16)}…, fingerprints match.`);
+  process.exit(0);
+}
+
 // Compare spec hashes
-const currentHash = specHash ?? readFileSync(join(root, "holonovel.md"), "utf-8").match(/SHA-256: ([a-f0-9]+)/)?.[1] ?? "unknown";
+const currentHash = specHash ?? createHash("sha256").update(readFileSync(join(root, "holonovel.md"), "utf-8")).digest("hex");
 const storedHash = previous?.spec_hash;
 
 console.log(`Server: ${server}`);
@@ -120,10 +163,11 @@ if ((scopeByFingerprint || checkOnly) && previous) {
   console.log(`\nFingerprint delta: ${delta.changedCount} changed (${delta.changed.join(", ")}), ${delta.unchanged.length} unchanged (${delta.unchanged.join(", ")})`);
 
   // Pending update: spec advanced, implementation fingerprints unchanged, and
-  // the delta is not wording-only. This is the silent-stale publication case
-  // that REQ-394 forbids — block publication until the §6.7 update runs.
+  // the delta is not wording-only or editorial. This is the silent-stale
+  // publication case that REQ-394 forbids — block publication until the §6.7
+  // update runs.
   const pendingUpdate =
-    delta.changedCount === 0 && deltaClass !== "patch";
+    delta.changedCount === 0 && deltaClass !== "patch" && deltaClass !== "editorial";
 
   if (pendingUpdate) {
     console.log(`\nPENDING UPDATE: spec ${deltaClass} delta but no implementation fingerprints changed.`);

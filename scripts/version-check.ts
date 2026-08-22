@@ -69,6 +69,21 @@ ok = checkFileContains(
   "holonovel/src/core/state.ts: reads version dynamically"
 ) && ok;
 
+// ── REQ-107a: version currency vs CHANGELOG ──
+
+const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf-8");
+const dated = [...changelog.matchAll(/^##\s+(\d{4})-(\d{2})-(\d{2})\b/gm)]
+  .map(m => `${m[1]}.${m[2]}.${m[3]}`)
+  .sort()
+  .pop();
+if (dated && rootVersion < dated) {
+  console.error(`  FAIL  version currency: root version ${rootVersion} predates the latest substantive CHANGELOG entry (${dated}).`);
+  console.error(`        REQ-107a requires the CalVer to match the last substantive change date; bump to ${dated} first.`);
+  ok = false;
+} else if (dated) {
+  console.log(`  OK   version currency: ${rootVersion} >= latest CHANGELOG entry ${dated}`);
+}
+
 if (!ok) {
   console.error("\nVersion sync FAILED. Update all version references to match root package.json.");
   console.error("Root package.json version:", rootVersion);

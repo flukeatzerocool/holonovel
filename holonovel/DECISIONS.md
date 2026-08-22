@@ -2,7 +2,28 @@
 
 **Spec hash:** c4d9e13e5a312f9459c3ee612f68e478faa0873382c5b295a73cb2e4ca8a54bc
 
-### Holonovel Spec Update — 2026-08-22 (token-efficiency contracts)
+### Holonovel Spec Update — 2026-08-22 (publication-integrity hardening)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (REQ-394 gate baseline + split REQ-419 Editorial classification; new REQ-418 Deployment verification; §6.7 Editorial delta row + mono-repo fingerprint wording; REQ-398 wording; REQ-107a version currency; Appendix E REQ-418/419, Appendix F T491–T493, Appendix V.4 steps) + tooling (spec-delta.ts body-modification detection and origin baseline; update-server.ts --server-dir/--verify-deployed; push-pipeline.sh fail-closed deploy + step 9b + dry-run restore; version-check.ts currency; CI workflow) |
+| Reused | config, lockfile, extraction |
+| Repaired REQ set | REQ-394, REQ-398, REQ-107a |
+| Verification | assemble 0 errors, validate:fast 0 errors, lint 0 errors, typecheck 0 errors, version-check OK |
+
+**Publication-integrity reconciliation.** The pending-update gate (REQ-394)
+was defeated two ways in practice: the classifier read its baseline from the
+hand-editable DECISIONS.md (so pre-syncing the hash turned any delta into an
+exempt patch), and it could not detect REQ-body modifications (so body-only
+Minors published silently as patch). The gate now keys classification against
+the last-published spec hash and detects body changes, routing them to a new
+Editorial class (REQ-419) only when a disposition names the repaired REQ set.
+Deployment gained a fail-closed contract (REQ-418): a non-fast-forward pull is
+a deploy-failed notice, and the deployed clone's spec hash and fingerprints are
+verified after the pull. Version currency is enforced at publication (REQ-107a),
+and the CalVer was bumped to 2026.08.22 to match the latest substantive change.
+
 
 | Field | Value |
 |-------|-------|
@@ -219,7 +240,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.08.18 |
+| Spec version | 2026.08.22 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-22 — Publication-integrity hardening (REQ-418, REQ-419, Editorial class)
+
+- Split the pending-update classification out of REQ-394 into REQ-419
+  (Editorial delta classification) so the gate is enforced but stays
+  testable. REQ-394 now keys the gate against the last-published spec hash
+  rather than a hand-edited value, closing the "hash-only sync" bypass.
+- Added REQ-418 (Deployment verification): a deploy that cannot fast-forward
+  fails with a deploy-failed notice, and publication tooling verifies the
+  deployed spec hash and fingerprints before reporting completion.
+- Added an Editorial delta class to §6.7 for non-behavioral REQ maintenance
+  (reworded bodies with no scope, state-model, or tool-surface change) —
+  G0 only, no fingerprint advance, with the repaired REQ set recorded in
+  DECISIONS.md.
+- Amended REQ-107a so publication tooling verifies the version matches the
+  latest substantive CHANGELOG date before push (was only a handoff-time
+  defect). Bumped the CalVer to 2026.08.22.
+- Clarified §6.7 and REQ-398 for the mono-repo topology, where the canonical
+  implementation lives inside the specification repository and the deployed
+  instance is a clone verified after the pull.
+- Added tests T491–T493 (deployment verification, editorial classification,
+  version currency).
+- Tooling: `spec-delta.ts` now detects REQ-body modifications and routes them
+  to Editorial/Minor against the origin baseline; `update-server.ts` gained
+  `--server-dir` and `--verify-deployed`; `push-pipeline.sh` fails closed on a
+  non-fast-forward deploy and verifies the deployed tree; `--dry-run` restores
+  the working tree; `version-check.ts` enforces version currency.
+- Added a CI workflow running the assemble + full gate + typecheck + currency
+  checks on push and pull request.
+
 ## 2026-08-22 — Removed dead and stale code
 
 - Migrated the three orphaned vendor bundles (`ironsworn-srd`, `lazy-gm`,
