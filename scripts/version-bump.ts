@@ -56,6 +56,21 @@ ok = replaceInFile(
   "holonovel/src/index.ts McpServer version"
 ) && ok;
 
+// Sync the lockfile's embedded version fields (root and packages[""] entry)
+// so the REQ-313 lockfile fingerprint stays consistent with package.json.
+const lockPath = join(root, "holonovel", "package-lock.json");
+const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
+if (lock.version !== version || (lock.packages && lock.packages[""] && lock.packages[""].version !== version)) {
+  lock.version = version;
+  if (lock.packages && lock.packages[""] && "version" in lock.packages[""]) {
+    lock.packages[""].version = version;
+  }
+  writeFileSync(lockPath, JSON.stringify(lock, null, 2) + "\n");
+  console.log(`  OK   holonovel/package-lock.json: → ${version}`);
+} else {
+  console.log(`  OK   holonovel/package-lock.json: already ${version}`);
+}
+
 if (!ok) {
   console.error("\nVersion bump FAILED.");
   process.exit(1);

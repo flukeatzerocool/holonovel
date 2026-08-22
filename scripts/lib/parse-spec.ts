@@ -38,6 +38,19 @@ export function extractReqBodies(text: string): Map<string, { id: string; body: 
   return reqs;
 }
 
+export function extractH2Headings(text: string): string[] {
+  const headings: string[] = [];
+  let inFence = false;
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("```")) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const m = line.match(/^##\s+(.+)/);
+    if (m) headings.push(m[1]);
+  }
+  return headings;
+}
+
 export function splitSentences(text: string): string[] {
   const normalized = text.replace(/\n/g, " ");
   const parts: string[] = [];

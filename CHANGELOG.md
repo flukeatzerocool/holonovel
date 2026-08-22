@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-22 — Sync lockfile version and fenced-heading extraction
+
+- The version bump to 2026.08.22 updated `package.json` but left the dependency
+  lockfile's embedded version field stale, silently drifting the REQ-313
+  lockfile fingerprint and failing deploy verification. `version-bump.ts` now
+  syncs `holonovel/package-lock.json`, and `version-check.ts` asserts both
+  lockfile version fields match the root version, catching the drift pre-push.
+- `spec-delta.ts` and `cross-property-couple.ts` counted `##` headings inside
+  fenced fixture blocks (Appendix B/N/Z ruleset samples) as spec sections,
+  which could misclassify a delta as Major and inflated the body-section count.
+  They now use a fence-aware heading reader shared from `parse-spec.ts`, so
+  `sections_changed` and `main_section_count` report only real spec sections.
+
 ## 2026-08-22 — Fix pre-push spec/server sync check
 
 - The pre-push "spec/server sync" gate was reading `spec-delta.ts`'s exit
