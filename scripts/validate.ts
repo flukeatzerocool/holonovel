@@ -10,6 +10,11 @@ import {
   splitSentences,
   type ReqBodyEntry,
 } from "./lib/parse-spec.js";
+import {
+  checkReqIdGrammar,
+  checkEmptyReqBodies,
+  checkTruncatedReqBodies,
+} from "./lib/req-checks.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SPEC = path.resolve(__dirname, "..", "holonovel.md");
@@ -1057,6 +1062,18 @@ function main(): void {
   } else console.log("PASS: All TOC entries resolve to headings");
 
   console.log("\n=== REQ BLOCK INTEGRITY ===\n");
+  const grammarIssues = checkReqIdGrammar(text);
+  if (grammarIssues.length > 0) { for (const issue of grammarIssues) console.log(`ERROR: ${issue}`); errors += grammarIssues.length; }
+  else console.log("PASS: All REQ IDs conform to REQ-NNN / REQ-NNNl / REQ-NNNlN grammar");
+
+  const emptyBodyIssues = checkEmptyReqBodies(text);
+  if (emptyBodyIssues.length > 0) { for (const issue of emptyBodyIssues) console.log(`ERROR: ${issue}`); errors += emptyBodyIssues.length; }
+  else console.log("PASS: No REQ blocks with empty bodies");
+
+  const truncBodyIssues = checkTruncatedReqBodies(text);
+  if (truncBodyIssues.length > 0) { for (const issue of truncBodyIssues) console.log(`ERROR: ${issue}`); errors += truncBodyIssues.length; }
+  else console.log("PASS: No REQ bodies begin with a lowercase letter (truncated lead)");
+
   const blockIssues = checkReqBlocks(text);
   if (blockIssues.length > 0) { for (const issue of blockIssues) console.log(`ERROR: ${issue}`); errors += blockIssues.length; }
   else console.log("PASS: All requirement blocks follow canonical shape");

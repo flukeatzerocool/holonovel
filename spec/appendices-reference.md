@@ -2159,6 +2159,10 @@ commit time via `npm run check`:
 - No REQ body shall contain more than 8 SHALL clauses.
 - Every REQ body shall end with `_Check:` citing at least one test ID.
 - No REQ body shall enumerate more than 5 backtick-delimited tokens.
+- No REQ ID shall exceed three base digits or use a bare-digit suffix — sub-REQ
+  IDs are `REQ-NNN`, `REQ-NNNl`, or `REQ-NNNlN` (letter-first, optional counter).
+- No REQ body shall be empty.
+- No REQ body shall begin with a lowercase letter (a truncated-lead signature).
 
 These rules are not advisory. A REQ violating any rule is a spec defect
 that blocks the assemble gate. The author SHALL split the REQ or move

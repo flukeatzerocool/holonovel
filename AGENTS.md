@@ -113,12 +113,13 @@ Push to origin: `git push origin main`.
   paragraph, no tables/bullets/steps, 500-char limit, 5-sentence limit), spec
   violations (parameter types, Default: clauses, enumerated catalogs), ambiguity
   (hedging, vague qualifiers), cross-references (dead citations, orphan REQs),
-  assumptions (magic numbers, absolute language, untiered thresholds), and
-  proofreading quality (passive voice, modal drift, cross-ref format, sentence
-  length, double negatives, term drift, condition stacking, pronoun ambiguity,
-  readability grade, empty sections). All run in a single pass. Shape violations
-  and spec violations are ERRORS under --sdd-strict; proofreading checks are
-  WARNINGS.
+  assumptions (magic numbers, absolute language, untiered thresholds), REQ ID
+  grammar (no 4-digit or bare-digit suffixes), empty REQ bodies, truncated
+  bodies (lowercase-start signature), and proofreading quality (passive voice,
+  modal drift, cross-ref format, sentence length, double negatives, term drift,
+  condition stacking, pronoun ambiguity, readability grade, empty sections).
+  All run in a single pass. Shape violations and spec violations are ERRORS
+  under --sdd-strict; proofreading checks are WARNINGS.
 
 ## Gates
 
