@@ -11,6 +11,11 @@
 | Reused | source, config, lockfile, extraction, surfaces |
 | Verification | assemble 0 errors, check:fast 0 errors, typecheck 0 errors |
 
+**Performance record (REQ-410).** Parameter ceiling `8` (REQ-408). Token footprint
+is reported live via `spec_health.token_footprint` (`tools_list_bytes`,
+`prompt_scaffold_bytes`) and `spec_health.tools_list_bytes`, alongside
+`cache_coverage` (REQ-411) and per-tool `tool_parameter_counts`.
+
 Spec-level performance and token-efficiency contracts drawn from current MCP
 optimization practice (progressive disclosure, response shaping, schema and
 parameter ceilings, semantic caching). A per-tool parameter ceiling pushes

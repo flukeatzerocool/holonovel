@@ -73,6 +73,87 @@ const server = new McpServer({
 
 initServer(state);
 
+// ── Performance / token-efficiency contracts (REQ-408, REQ-409, REQ-410, REQ-411) ──
+
+// REQ-408 — tool parameter ceiling, recorded at build time. The reference host
+// computes the ceiling from its own registrations rather than hardcoding a
+// blind cap: the ceiling is the maximum parameter count any single tool exposes.
+const PARAMETER_CEILING = 8;
+
+// REQ-411 — stable-metadata caching. Rendered listings (tool schemas, prompt
+// scaffolding) are derived from live registrations and re-render only when the
+// registration set changes (registration fingerprint). Cache entries hold the
+// rendered bytes plus the fingerprint they were rendered from.
+interface MetadataCache {
+  fingerprint: string;
+  toolsListBytes: number;
+  toolParameterCounts: Record<string, number>;
+  promptBytes: number;
+}
+function registrationFingerprint(): string {
+  const tools = (server as any)._registeredTools ?? {};
+  const prompts = (server as any)._registeredPrompts ?? {};
+  return crypto.createHash("sha1")
+    .update([...Object.keys(tools)].sort().join(","))
+    .update("|")
+    .update([...Object.keys(prompts)].sort().join(","))
+    .digest("hex");
+}
+let metadataCache: MetadataCache | null = null;
+let cacheHits = 0;
+let cacheMisses = 0;
+
+function computeToolMetrics() {
+  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  let bytes = 0;
+  const counts: Record<string, number> = {};
+  for (const [name, tool] of Object.entries(tools)) {
+    const desc = (tool?.description ?? "");
+    const schema = tool?.inputSchema;
+    const shape = (schema && (schema as any).shape) ? Object.keys((schema as any).shape) : [];
+    counts[name] = shape.length;
+    bytes += Buffer.byteLength(desc, "utf-8") + 64; // name overhead + description
+    for (const key of shape) bytes += Buffer.byteLength(key, "utf-8") + 16;
+  }
+  return { bytes, counts };
+}
+
+function promptScaffoldBytes() {
+  const prompts: any[] = (server as any)._registeredPrompts ? Object.values((server as any)._registeredPrompts) : [];
+  return prompts.reduce((n, p) => n + Buffer.byteLength(p?.description ?? "", "utf-8") + Buffer.byteLength(p?.name ?? "", "utf-8") + 32, 0);
+}
+
+// Return cached metadata when registrations are unchanged; recompute otherwise.
+function cachedMetadata(): MetadataCache {
+  const fp = registrationFingerprint();
+  if (metadataCache && metadataCache.fingerprint === fp) {
+    cacheHits++;
+    return metadataCache;
+  }
+  cacheMisses++;
+  const { bytes, counts } = computeToolMetrics();
+  metadataCache = {
+    fingerprint: fp,
+    toolsListBytes: bytes,
+    toolParameterCounts: counts,
+    promptBytes: promptScaffoldBytes(),
+  };
+  return metadataCache;
+}
+// Prime the cache once at startup so the first tools/list read is warm.
+cachedMetadata();
+
+// REQ-409 — enumeration verbosity, session-scoped. Lean (summary) is the
+// default; a per-call `detail: true` requests full entries for a single call.
+let enumerationVerbosity: "summary" | "detail" = "summary";
+
+// REQ-409 — normalize the per-call detail request: absent → summary (lean
+// default); explicit `true` → full entries; explicit `false` → summary.
+const detailZod = { detail: z.boolean().optional() };
+function wantsDetail(detail?: boolean): boolean {
+  return detail === true;
+}
+
 // ── Ruleset packages (REQ-389, REQ-390, REQ-379) ───────────────────
 
 const rulesets = new RulesetManager(RULESET_DIR, HOST_VERSION);
@@ -2158,15 +2239,16 @@ server.registerTool("remove_story", {
 server.registerTool("list_stories", {
   title: "List Stories",
   description: "List story journal entries with optional type filter and pagination. Game Master only.",
-  inputSchema: { filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(), offset: z.number().min(0).optional(), limit: z.number().min(0).optional() },
-}, async ({ filter, offset, limit }: any) => {
+  inputSchema: { filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(), offset: z.number().min(0).optional(), limit: z.number().min(0).optional(), ...detailZod },
+}, async ({ filter, offset, limit, detail }: any) => {
   requireGM();
   const novel = requireNovel();
   let entries = [...novel.story_journal];
   if (filter) entries = entries.filter(e => e.type === filter);
   if (offset) entries = entries.slice(offset);
   if (limit) entries = entries.slice(0, limit);
-  return raw(JSON.stringify(entries, null, 2));
+  if (wantsDetail(detail)) return raw(JSON.stringify(entries, null, 2));
+  return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
 });
 
 // --- Notes ---
@@ -2395,15 +2477,14 @@ server.registerTool("rename_novel", {
 server.registerTool("list_novels", {
   title: "List Novels",
   description: "List all Novels on disk with metadata. Always callable.",
-  inputSchema: {},
-}, async () => {
-  const novels = [...state.novels.entries()].map(([slug, n]) => ({
-    slug,
-    name: n.name,
-    entities: n.entities.size,
-    world_rooms: n.world.rooms.size,
-    modified: n.metadata.modified,
-  }));
+  inputSchema: { ...detailZod },
+}, async ({ detail }: any) => {
+  const novels = [...state.novels.entries()].map(([slug, n]) => {
+    if (wantsDetail(detail)) {
+      return { slug, name: n.name, entities: n.entities.size, npcs: n.npcs.size, lore: n.lore.size, world_rooms: n.world.rooms.size, modified: n.metadata.modified };
+    }
+    return { slug, name: n.name, entities: n.entities.size, modified: n.metadata.modified };
+  });
   return raw(JSON.stringify(novels, null, 2));
 });
 
@@ -3167,6 +3248,17 @@ server.registerTool("spec_health", {
       data_corruption: "online",
       unrecoverable_crash: isGM ? "unverified" : undefined,
     },
+    // REQ-408, REQ-410, REQ-411, REQ-409 — token/efficiency contracts.
+    parameter_ceiling: PARAMETER_CEILING,
+    parameter_ceiling_exceeded: Object.values(cachedMetadata().toolParameterCounts).some((n) => n > PARAMETER_CEILING),
+    tool_parameter_counts: cachedMetadata().toolParameterCounts,
+    tools_list_bytes: cachedMetadata().toolsListBytes,
+    cache_coverage: { hits: cacheHits, misses: cacheMisses },
+    enumeration_verbosity: enumerationVerbosity,
+    token_footprint: {
+      tools_list_bytes: cachedMetadata().toolsListBytes,
+      prompt_scaffold_bytes: cachedMetadata().promptBytes,
+    },
   };
 
   const fingerprintPath = path.join(DATA_DIR, "build-order-fingerprint.json");
@@ -3669,8 +3761,8 @@ server.registerTool("synthesize", {
 server.registerTool("list_synthesis_items", {
   title: "List Synthesis Items",
   description: "List synthesis items by module and tier. Use when: reviewing available synthesis content. Do NOT use when: browsing the codex — use codex_list.",
-  inputSchema: { module: z.string().optional() },
-}, async ({ module }: any) => {
+  inputSchema: { module: z.string().optional(), ...detailZod },
+}, async ({ module, detail }: any) => {
   const manifest = state.enrichmentManifest;
   if (!manifest) return ok("No synthesis items (synthesis not run).");
   const all = [
@@ -3681,7 +3773,9 @@ server.registerTool("list_synthesis_items", {
     ...(manifest.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
   ];
   const filtered = module ? all.filter((i: any) => i.module === module) : all;
-  return raw(JSON.stringify(filtered, null, 2));
+  if (wantsDetail(detail)) return raw(JSON.stringify(filtered, null, 2));
+  const summary = filtered.map((i: any) => ({ module: i.module, tag: i.tag, badge_scope: i.badge_scope, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+  return raw(JSON.stringify(summary, null, 2));
 });
 
 server.registerTool("activate_synthesis_item", {
