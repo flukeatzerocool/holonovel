@@ -75,12 +75,6 @@ Start with Appendix M (REQ Authoring Conventions). Then read §4 Standing Rules 
 the contracts-over-implementations and red-team disciplines. Then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing.
-Cached domain research at `.holonovel-state/knowledge-base/` saves time across
-sessions. It holds web findings, spec summaries, and code analysis, each with a
-freshness window. The knowledge-base cache SHALL live outside the user-data
-directory (`TTRPG_DATA_DIR`) and outside the git work tree, in an
-operator-discardable location; the spec names only the separation contract, not
-the path.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.
@@ -5804,11 +5798,7 @@ _Check:_ T347.
 ### 6.7 Spec-driven updates
 
 *Prepare:* Load files from `build-phase-map.md` Spec-driven update row:
-03-build.md §6.7 plus files changed per git diff. Before reading spec sections
-for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
-spec summaries and implementation analysis — use fresh entries to reduce re-reading.
-The knowledge-base cache SHALL live outside the user-data directory (`TTRPG_DATA_DIR`)
-and outside the git work tree, in an operator-discardable location.
+03-build.md §6.7 plus files changed per git diff.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match spec changes, the operator SHALL audit gaps, produce a disposition plan,
@@ -6058,7 +6048,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. The build-time knowledge-base cache SHALL be a separate directory, never under this data directory. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
+| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | HTTP port, optional                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |

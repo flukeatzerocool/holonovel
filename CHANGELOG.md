@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-22 — Removed the knowledge-base research cache
+
+- Removed all references to the build-time research cache
+  (`.holonovel-state/knowledge-base/`): the reading-guide paragraph in §0,
+  the §6.7 gap-audit `*Prepare:*` hint, the `TTRPG_DATA_DIR` env-var separation
+  clause, the root `AGENTS.md` Knowledge Base section and standing rule, and the
+  stale `scripts/kb-update-protocol.md` gitignore entry. Domain research is now
+  handled outside the specification by the operator's own tooling.
+
 ## 2026-08-22 — Phase-map consistency guard
 
 - `validate.ts` now cross-checks every `*Prepare:*` directive in §6 against
