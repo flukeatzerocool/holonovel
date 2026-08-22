@@ -75,12 +75,6 @@ Start with Appendix M (REQ Authoring Conventions). Then read §4 Standing Rules 
 the contracts-over-implementations and red-team disciplines. Then the CHANGELOG for
 recent revision patterns. Source files live in `spec/`. Run `npm run assemble`
 before committing.
-Cached domain research at `.holonovel-state/knowledge-base/` saves time across
-sessions. It holds web findings, spec summaries, and code analysis, each with a
-freshness window. The knowledge-base cache SHALL live outside the user-data
-directory (`TTRPG_DATA_DIR`) and outside the git work tree, in an
-operator-discardable location; the spec names only the separation contract, not
-the path.
 
 **If you are verifying a build:**
 §8 (Verification Workflows) and §9 (Artifacts and Handoff) are your entry points.

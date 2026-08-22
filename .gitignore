@@ -13,7 +13,6 @@ opencode-raw-*.log
 plans/
 scripts/research-protocol.md
 scripts/research-protocol-slim.md
-scripts/kb-update-protocol.md
 
 # Build queue
 .opencode/build-queue.txt

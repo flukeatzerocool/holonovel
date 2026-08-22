@@ -1747,11 +1747,7 @@ _Check:_ T347.
 ### 6.7 Spec-driven updates
 
 *Prepare:* Load files from `build-phase-map.md` Spec-driven update row:
-03-build.md §6.7 plus files changed per git diff. Before reading spec sections
-for the gap audit, check `.holonovel-state/knowledge-base/INDEX.md` for cached
-spec summaries and implementation analysis — use fresh entries to reduce re-reading.
-The knowledge-base cache SHALL live outside the user-data directory (`TTRPG_DATA_DIR`)
-and outside the git work tree, in an operator-discardable location.
+03-build.md §6.7 plus files changed per git diff.
 
 **REQ-098 — Spec-driven update workflow.** When an existing MCP server is updated
 to match spec changes, the operator SHALL audit gaps, produce a disposition plan,
