@@ -227,6 +227,46 @@ export interface ConditionState {
   condition_rounds: Record<string, number>;
 }
 
+export interface AutonomyState {
+  level: "full" | "mechanical_prompt" | "manual";
+  confirmation: "auto" | "confirm" | "prompt";
+  safety: "safe" | "moderate" | "hardcore";
+  creativity: "predictable" | "standard" | "chaotic";
+  confirmed_safety_tiers: string[];
+}
+
+export const DEFAULT_AUTONOMY: AutonomyState = {
+  level: "mechanical_prompt",
+  confirmation: "prompt",
+  safety: "safe",
+  creativity: "standard",
+  confirmed_safety_tiers: ["safe"],
+};
+
+export function normalizeAutonomy(raw: unknown): AutonomyState {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const level = ["full", "mechanical_prompt", "manual"].includes(r.level as string) ? r.level as AutonomyState["level"] : DEFAULT_AUTONOMY.level;
+  const confirmation = ["auto", "confirm", "prompt"].includes(r.confirmation as string) ? r.confirmation as AutonomyState["confirmation"] : DEFAULT_AUTONOMY.confirmation;
+  const safety = ["safe", "moderate", "hardcore"].includes(r.safety as string) ? r.safety as AutonomyState["safety"] : DEFAULT_AUTONOMY.safety;
+  const creativity = ["predictable", "standard", "chaotic"].includes(r.creativity as string) ? r.creativity as AutonomyState["creativity"] : DEFAULT_AUTONOMY.creativity;
+  const confirmed = Array.isArray(r.confirmed_safety_tiers) ? r.confirmed_safety_tiers as string[] : [safety];
+  return { level, confirmation, safety, creativity, confirmed_safety_tiers: confirmed };
+}
+
+// REQ-306 / §7.6 — TTRPG_AUTONOMY launch preset seeds new-Novel defaults as a
+// comma-separated `level,confirmation,safety,creativity` list.
+export function autonomyDefaultsFromEnv(): AutonomyState {
+  const raw = process.env.TTRPG_AUTONOMY;
+  if (!raw) return { ...DEFAULT_AUTONOMY, confirmed_safety_tiers: ["safe"] };
+  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const seeded: Partial<AutonomyState> = {};
+  if (parts[0]) seeded.level = parts[0] as AutonomyState["level"];
+  if (parts[1]) seeded.confirmation = parts[1] as AutonomyState["confirmation"];
+  if (parts[2]) seeded.safety = parts[2] as AutonomyState["safety"];
+  if (parts[3]) seeded.creativity = parts[3] as AutonomyState["creativity"];
+  return normalizeAutonomy({ ...DEFAULT_AUTONOMY, ...seeded });
+}
+
 export const DIFFICULTY_TRACKS: Record<string, number> = {
   troublesome: 12, dangerous: 8, formidable: 4, extreme: 2, epic: 1,
 };
@@ -269,6 +309,7 @@ export interface NovelState {
   connection_counter: number;
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
+  autonomy: AutonomyState;
   help_category_overrides: Record<string, string>;
   story_journal: StoryEntry[];
   factions: FactionState[];
@@ -511,6 +552,7 @@ export class StateManager {
       connection_counter: 0,
       pending_staleness_counter: 0,
       pov_mode: "character",
+      autonomy: autonomyDefaultsFromEnv(),
       help_category_overrides: {},
       story_journal: [],
       factions: [],
@@ -639,6 +681,7 @@ export class StateManager {
       connection_counter: data.connection_counter ?? 0,
       pending_staleness_counter: data.pending_staleness_counter ?? 0,
       pov_mode: data.pov_mode ?? "character",
+      autonomy: normalizeAutonomy(data.autonomy),
       help_category_overrides: data.help_category_overrides ?? {},
       story_journal: data.story_journal ?? [],
       factions: data.factions ?? [],
@@ -1229,6 +1272,7 @@ function novelToJSON(novel: NovelState): any {
     connection_counter: novel.connection_counter,
     pending_staleness_counter: novel.pending_staleness_counter,
     pov_mode: novel.pov_mode,
+    autonomy: novel.autonomy,
     help_category_overrides: novel.help_category_overrides,
     story_journal: novel.story_journal,
     factions: novel.factions,
@@ -1317,6 +1361,7 @@ function novelFromJSON(data: any): NovelState {
     connection_counter: data.connection_counter ?? 0,
     pending_staleness_counter: data.pending_staleness_counter ?? 0,
     pov_mode: data.pov_mode ?? "character",
+    autonomy: normalizeAutonomy(data.autonomy),
     help_category_overrides: data.help_category_overrides ?? {},
     story_journal: data.story_journal ?? [],
     factions: data.factions ?? [],

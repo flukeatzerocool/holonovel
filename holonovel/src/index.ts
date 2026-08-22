@@ -10,7 +10,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy } from "./core/state.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -386,7 +386,9 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Server Notes (GM)": ["set_server_note", "remove_server_note", "list_server_notes"],
   "Pause/Resume (GM)": ["set_pause_context", "get_pause_context"],
   "Checkpoints (GM)": ["set_checkpoint", "list_checkpoints", "restore_checkpoint", "remove_checkpoint"],
-  "Guidance (GM)": ["set_briefing_order", "compact_audit_log", "load_adventure", "generate_adventure", "generate_encounter", "set_help_category", "toggle_action_patterns", "present_choices", "ask_oracle"],
+  "Guidance (GM)": ["set_briefing_order", "compact_audit_log", "load_adventure", "generate_adventure", "generate_encounter", "set_help_category", "toggle_action_patterns", "present_choices"],
+  "Autonomy (GM)": ["set_autonomy"],
+  "Oracle": ["ask_oracle"],
   "Session": ["session_recap"],
   "Novel Lifecycle": ["create_novel", "resume_novel", "switch_novel", "end_novel", "export_novel", "import_novel", "rename_novel", "list_novels", "novel_info", "clone_novel"],
   "Synthesis (GM)": ["revert_synthesis"],
@@ -411,7 +413,8 @@ const GMToolsSet = new Set([
   "set_server_note", "remove_server_note", "list_server_notes",
   "set_pause_context", "get_pause_context",
   "record_story", "update_story", "remove_story", "list_stories",
-  "present_choices", "ask_oracle", "toggle_action_patterns",
+  "present_choices", "toggle_action_patterns",
+  "set_autonomy",
   "rename_novel", "list_novels", "novel_info", "clone_novel",
   "remove_entity", "remove_roster_character", "list_roster_characters",
 ]);
@@ -570,6 +573,24 @@ server.registerTool("respond", {
     novel.pending_workflow = null;
     state.saveNovel(novel);
     return ok(`Choice '${option}' selected.`);
+  }
+  if (decision.toLowerCase().startsWith("safety_escalation:")) {
+    const target = decision.slice("safety_escalation:".length);
+    const auto = novel.autonomy;
+    if (option.toLowerCase() === "decline" || option.toLowerCase() === "cancel") {
+      novel.pending_workflow = null;
+      state.saveNovel(novel);
+      return ok(`Safety escalation declined — tier remains ${auto.safety}.`);
+    }
+    if (option.toLowerCase() !== "confirm") {
+      return err("INVALID_INPUT", "Respond 'confirm' to raise the safety tier, or 'decline' to keep the current tier.");
+    }
+    auto.safety = target as "safe" | "moderate" | "hardcore";
+    if (!auto.confirmed_safety_tiers.includes(target)) auto.confirmed_safety_tiers.push(target);
+    novel.pending_workflow = null;
+    state.saveNovel(novel);
+    audit("set_autonomy", { safety: target, confirmed: true });
+    return ok(`Safety tier raised to '${target}'.`);
   }
   if (decision.toLowerCase().includes("character_creation")) {
     const pw = novel.pending_workflow;
@@ -1057,6 +1078,46 @@ server.registerTool("player_signal", {
   state.saveNovel(novel);
   audit("player_signal", { signal, value });
   return ok(`Signal recorded: ${signal} → ${value}`);
+});
+
+// ── Autonomy (REQ-306) ────────────────────────────────────────────
+
+server.registerTool("set_autonomy", {
+  title: "Adjustable Autonomy",
+  description: "Set the AI autonomy sliders for the active Novel. level: full/mechanical_prompt/manual; confirmation: auto/confirm/prompt; safety: safe/moderate/hardcore; creativity: predictable/standard/chaotic. Game Master only.",
+  inputSchema: {
+    level: z.enum(["full", "mechanical_prompt", "manual"]).optional(),
+    confirmation: z.enum(["auto", "confirm", "prompt"]).optional(),
+    safety: z.enum(["safe", "moderate", "hardcore"]).optional(),
+    creativity: z.enum(["predictable", "standard", "chaotic"]).optional(),
+  },
+}, async ({ level, confirmation, safety, creativity }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const auto = novel.autonomy;
+
+  // REQ-306f — escalating safety above `safe` requires confirmation, once per
+  // Novel per target tier.
+  if (safety && safety !== "safe" && safety !== auto.safety && !auto.confirmed_safety_tiers.includes(safety)) {
+    novel.pending_workflow = { decision: `safety_escalation:${safety}`, snapshot: null };
+    state.saveNovel(novel);
+    const severity = safety === "hardcore"
+      ? "warning: disengaging safety protocols permits permanent character death with no warnings"
+      : "caution: raising safety to 'moderate' permits character death with warnings";
+    return needInput(`Safety escalation advisory — ${severity}. Respond with 'confirm' to raise the safety tier, or 'decline' to leave the current tier (${auto.safety}).`);
+  }
+
+  if (level) auto.level = level;
+  if (confirmation) auto.confirmation = confirmation;
+  if (creativity) auto.creativity = creativity;
+  if (safety) {
+    auto.safety = safety;
+    if (!auto.confirmed_safety_tiers.includes(safety)) auto.confirmed_safety_tiers.push(safety);
+  }
+  state.saveNovel(novel);
+  audit("set_autonomy", { level, confirmation, safety, creativity });
+  const a = novel.autonomy;
+  return ok(`Autonomy set — level: ${a.level}, confirmation: ${a.confirmation}, safety: ${a.safety}, creativity: ${a.creativity}`);
 });
 
 // --- World-Model Tools ---
@@ -2595,25 +2656,29 @@ server.registerTool("present_choices", {
 
 server.registerTool("ask_oracle", {
   title: "Ask Oracle",
-  description: "Resolve uncertainty with a d100 roll. Likelihoods: certain (90%), likely (70%), even (50%), unlikely (30%), impossible (10%). Game Master only.",
-  inputSchema: { question: z.string(), likelihood: z.enum(["certain", "likely", "even", "unlikely", "impossible"]), seed: z.string().optional() },
+  description: "Resolve uncertainty with a d100 roll against the Ask-the-Oracle ladder: almost_certain (≥11), likely (≥26), 50_50 (≥51), unlikely (≥76), small_chance (≥91). Defaults to 50_50 when likelihood is omitted. Callable by Player and Game Master.",
+  inputSchema: { question: z.string(), likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional(), seed: z.string().optional() },
 }, async ({ question, likelihood, seed }: any) => {
-  requireGM();
+  requireNotObserver();
   requireNovel();
-  const thresholds: Record<string, number> = { certain: 90, likely: 70, even: 50, unlikely: 30, impossible: 10 };
-  const target = thresholds[likelihood] ?? 50;
+  // Ask-the-Oracle ladder (REQ-291): each tier is a d100 target the roll must
+  // meet or exceed for a YES. Omitted likelihood defaults to 50_50.
+  const thresholds: Record<string, number> = { almost_certain: 11, likely: 26, "50_50": 51, unlikely: 76, small_chance: 91 };
+  const band = likelihood ?? "50_50";
+  const target = thresholds[band] ?? 51;
   // Seeded draw uses an isolated Rng (REQ-050b); otherwise the session PRNG.
   const roll = seed ? createRng(seed).roll(100) : sessionRoll(100);
-  const yes = roll <= target;
+  const yes = roll >= target;
   // Doubles on the d100 (11, 22, …, 99) produce an exceptional result (REQ-291).
   const isDoubles = roll % 11 === 0;
   const marker = isDoubles
     ? (yes ? "[EXCEPTIONAL_YES]" : "[EXCEPTIONAL_NO]")
     : (yes ? "[YES]" : "[NO]");
+  audit("ask_oracle", { question, likelihood: band, seed });
   let flavor = "";
   if (!isDoubles && Math.abs(target - roll) <= 5) flavor = " (barely)";
   else if (!isDoubles && Math.abs(target - roll) >= 30) flavor = " (decisively)";
-  return ok(`Question: "${question}"\nLikelihood: ${likelihood} (${target}%)\nRoll: ${roll}/100 → ${marker}${flavor}`);
+  return ok(`Question: "${question}"\nLikelihood: ${band} (roll ≥ ${target})\nRoll: ${roll}/100 → ${marker}${flavor}`);
 });
 
 // ── Serialization helpers (used by checkpoint/export) ──────────────
@@ -2633,6 +2698,7 @@ function novelToJSONState(novel: NovelState): any {
     relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
     constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_module_enabled: novel.synthesis_module_enabled,
     characters_present_ids: novel.characters_present_ids,
+    autonomy: novel.autonomy,
     vows: novel.vows, checkpoints: novel.checkpoints, description: novel.description,
     genre: novel.genre, adventure_index: novel.adventure_index,
     adventure_scene_waypoint: novel.adventure_scene_waypoint,
@@ -2680,6 +2746,7 @@ function loadNovelFromStateData(data: any): NovelState {
     checkpoints: data.checkpoints ?? [], description: data.description ?? "",
     constraint_overrides: data.constraint_overrides ?? [],
     synthesis_activated: data.synthesis_activated ?? {}, synthesis_module_enabled: data.synthesis_module_enabled ?? {},
+    autonomy: normalizeAutonomy(data.autonomy),
     genre: data.genre ?? "", adventure_index: data.adventure_index ?? null,
     adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
     world, metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "" },
@@ -3231,6 +3298,13 @@ server.registerTool("spec_health", {
     constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
     active_novel: novel?.slug ?? null,
     active_badge: novel?.badge ?? null,
+    autonomy: isGM ? (novel?.autonomy ?? null) : undefined,
+    creativity_mapping: {
+      predictable: "least surprise — stick to expected outcomes",
+      standard: "balanced variation — the default",
+      chaotic: "most surprise — dramatic twists",
+      reported: true,
+    },
     entities, npcs, lore_entries: loreCount, countdowns,
     synthesis_active,
     synthesis_status: { modules: synthesisCounts, last_run: state.enrichmentManifest?.collected_at ?? null },
@@ -3879,6 +3953,18 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}`;
     briefing += `\n**Active entity:** ${entity.name}`;
     if (entity.current_room) briefing += ` — ${entity.current_room}`;
     if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
+  }
+
+  // REQ-412 — turn-handoff directive. When the AI narrates as Game Master
+  // (human wears Player/Observer), close each turn by inviting the player's
+  // next action. When the AI inhabits a Player role (human GM), hand initiative
+  // back to the human Game Master instead.
+  if (badge === "player" || badge === "observer") {
+    briefing += `\n\n### Turn handoff
+Close each narrated turn by inviting the player's next action — ask what they do, where they look, or what they say next. Never end a turn with a tool signature or a parameter list; use a plain-English question or prompt to act.`;
+  } else if (badge === "game_master") {
+    briefing += `\n\n### Turn handoff
+You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
   }
 
   if (badge === "player") {
