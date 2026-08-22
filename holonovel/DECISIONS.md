@@ -2,6 +2,26 @@
 
 **Spec hash:** c4d9e13e5a312f9459c3ee612f68e478faa0873382c5b295a73cb2e4ca8a54bc
 
+### Holonovel Spec Update — 2026-08-22 (provenance, licensing, and toolchain consolidation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec (Appendix P borrowed-mechanics provenance; Appendix U content-license reconciliation; REQ-413–417 token-efficiency contracts, REQ-418 deployment verification, REQ-419 Editorial classification; §5 sub-REQ renumbering and split; §6 phase-map consistency guard; knowledge-base cache removal; world-model provider-documentation wording) + tooling (assemble.ts, spec-delta.ts, update-server.ts, push-pipeline.sh, validate.ts/req-checks.ts, version-check.ts; removed split-long-reqs.ts) + implementation (version bump only) |
+| Reused | lockfile, extraction |
+| Verification | assemble 0 errors, check 0 errors (lint + validate:sdd + validate-readme), typecheck 0 errors, version-check OK, check-traceability clean |
+
+**Consolidation reconciliation.** Nine unpublished commits advanced the spec
+without a reconciled hash line, leaving the publication gate with three
+divergent hashes (published `9d458fa3…`, stored `c4d9e13e…`, current
+`7b14491b…`). This entry reconciles them to the current `7b14491b…`. The delta
+is Major in classification — new REQ bodies and tool-surface renumbering — but
+the implementation changed only by version bump: the `source`/`config`/`surfaces`
+fingerprint deltas are the 2026.08.22 CalVer in `src/index.ts` and `package.json`,
+not substantive server behavior. No state-model or tool-surface edit accompanied
+the spec advance, so no full Pattern Buffer re-run was required beyond the
+tooling set recorded above.
+
 ### Holonovel Spec Update — 2026-08-22 (publication-integrity hardening)
 
 | Field | Value |
