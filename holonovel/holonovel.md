@@ -1162,7 +1162,7 @@ An empty mapping restores builder defaults. *Acceptance criterion:* `help()` ret
 The server provides an `intro` prompt, listed first in `prompts/list`. It takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `help` tool and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `suggest_actions` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
 
 **REQ-063b — Connection introduction (Part b).**
-When `TTRPG_NOVEL` is unset at startup and one or more Novels exist on disk, the `intro` prompt SHALL present them as a browsable library: each Novel's name, description preview (first sentence or first 120 characters), session count, last-played date, and synthesis status (Tier 1 activated item count, Tier 2 item count). The prompt ends with: "You have N Novels.
+When `TTRPG_NOVEL` is unset at startup and one or more Novels exist on disk, the `intro` prompt SHALL present them as a browsable library: each Novel's name, description preview (first sentence or first `TTRPG_NOVEL_PREVIEW_CHARS` characters, default 120), session count, last-played date, and synthesis status (Tier 1 activated item count, Tier 2 item count). The prompt ends with: "You have N Novels.
 
 **REQ-063c — Connection introduction (Part c).**
 Which would you like to resume, or create a new one?" When no Novels exist, the prompt directs the user to `create_novel` with a plain-English description of what a Novel is. *Acceptance criterion:* `intro` prompt is ≤300 words, opens with the publisher tagline (or a generic server-name identification when the server is ruleset-free), includes a dynamic sourcebook listing from the live index (or a message indicating the server is world-model-only when the server is ruleset-free), and ends with four concrete next actions. _Check:_ T49, T50, T259.
@@ -2657,7 +2657,7 @@ Player badge returns `[FORBIDDEN]`. *Acceptance criterion:* `record_story("revel
 THE server SHALL maintain an engine-recorded campaign memory — a per-entity fact store derived automatically from state-changing tool calls, surviving process restart and full rebuild. Facts are recorded by the engine, not the AI, and SHALL be stored in the Novel JSON per REQ-092. The campaign memory tracks per-NPC facts (combat participation, scene presence, relationship changes, personality updates), per-thread facts (faction clock advances, narrative countdowns, orphaned decisions, active vows), and per-location facts (notable events and NPC presence at locations).
 
 **REQ-310b — Campaign Memory (Part b).**
-WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory facts under a `## Campaign Memory` section. This section is a decision-critical group (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships to present entities, (c) active thread facts involving present entities, (d) location facts for the current scene, (e) recency (most recent first). The section SHALL render at most 10 facts, ordered by priority.
+WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory facts under a `## Campaign Memory` section. This section is a decision-critical group (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships to present entities, (c) active thread facts involving present entities, (d) location facts for the current scene, (e) recency (most recent first). The section SHALL render at most `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` facts (default 10), ordered by priority.
 
 **REQ-310c — Campaign Memory (Part c).**
 Campaign memory facts SHALL NOT introduce new mutating tools — they are a surfacing layer over existing state. `spec_health` SHALL report `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total. `export_novel` SHALL include `campaign_memory` in its payload. Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be presence-scoped: a fact is visible to the Player badge only when the active entity was present in the scene where the fact was recorded as determined by `characters_present` (REQ-307). The Game Master badge sees all facts (current behavior).
@@ -2775,7 +2775,7 @@ Unactivated synthesis patterns remain reference-only and do not influence tool o
 IN addition to reactive intent-to-tool mapping, THE server SHALL surface an Available Actions section in `badge_briefing` (REQ-109) — a decision-critical group after combat state and before lore. This section lists mechanically legal actions the active entity can take given the current scene state, entity capabilities, and ruleset.
 
 **REQ-084a2 — Proactive action surfacing (Part a2).**
-Actions SHALL be filtered by scene type (combat, social, or exploration), capability gating (only actions whose mechanical prerequisites are met), count gating (at most 8 actions prioritized by scene-type relevance), and badge filtering (Player badge sees only Player or un-gated actions per REQ-137). `suggest_actions` (REQ-084) remains the canonical intent-to-tool mapping; the proactive surface is a discovery aide, not a replacement. `badge_briefing` SHALL include an `available_actions` section token following the existing token contract (REQ-082, REQ-185). *Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists weapon attack, spell, and condition-clearance actions, filtered to the active entity's capabilities.
+Actions SHALL be filtered by scene type (combat, social, or exploration), capability gating (only actions whose mechanical prerequisites are met), count gating (at most `TTRPG_MAX_AVAILABLE_ACTIONS` actions, default 8, prioritized by scene-type relevance), and badge filtering (Player badge sees only Player or un-gated actions per REQ-137). `suggest_actions` (REQ-084) remains the canonical intent-to-tool mapping; the proactive surface is a discovery aide, not a replacement. `badge_briefing` SHALL include an `available_actions` section token following the existing token contract (REQ-082, REQ-185). *Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists weapon attack, spell, and condition-clearance actions, filtered to the active entity's capabilities.
 
 **REQ-084a3 — Proactive action surfacing (Part a3).**
 A wizard with no 3rd-level slots does not see "Cast Fireball." An entity in a social scene sees persuasion and deception actions instead of combat actions. `suggest_actions` continues to return reactive suggestions independently of the proactive listing. _Check:_ T359.
@@ -2967,7 +2967,7 @@ The Player badge sees scene transitions in `scene://history`; GM-only mechanics 
 The Game Master may manage hidden information with per-entity visibility. `set_secret(key, content, triggers?, badge_scope?)` creates a secret lore entry visible only to the Game Master badge. `reveal_secret(key, entity_id)` makes a secret known to a specific entity — the entity's `character_sheet` SHALL include the secret text in a "Known Information" section. `get_knowledge(entity_id, key?)` returns what secrets an entity knows; without `key`, returns all known secrets. Secrets are functionally lore entries with a knowledge-visibility layer — they follow the same persistence, grouping, and export contracts as lore (REQ-083, REQ-094).
 
 **REQ-234b — Secrets and knowledge (Part b).**
-Resource: `secrets://active` — GM-filtered, lists all secrets and their known-by status. *Coupling:* When a secret implicates another entity or faction (detected by name overlap between the secret text and registered entity/NPC/faction names), a `suspicious` relationship (REQ-236) SHALL be recommended between the knowledge-holder and the implicated entity.
+Resource: `secrets://active` — GM-filtered, lists all secrets and their known-by status. *Coupling:* When a secret implicates another entity or faction (detected by name overlap between the secret text and registered entity/NPC/faction names — where "name overlap" means an exact case-insensitive match between a registered name and a token in the secret text, with no fuzzy or semantic matching), a `suspicious` relationship (REQ-236) SHALL be recommended between the knowledge-holder and the implicated entity.
 
 **REQ-234c — Secrets and knowledge (Part c).**
 The recommendation SHALL be surfaced in `badge_briefing` for the Game Master badge only. `reveal_secret(key, target_id)` SHALL accept faction identifiers as `target_id` alongside entity identifiers. `get_knowledge(faction_id, key?)` SHALL accept faction identifiers alongside entity identifiers and SHALL return secrets known to the faction. Faction-known secrets SHALL surface at `faction://<id>` for the GM badge.
@@ -3421,7 +3421,8 @@ in both directions. Property mutations (open, close, lock, unlock) SHALL
 be snapshot-able and audit-logged. _Check:_ T242.
 
 **REQ-200 — Kind mechanical contracts.** The world-model layer SHALL define
-mechanical contracts for the kinds extracted from the provider documentation:
+mechanical contracts for the kinds provided by the `holonovel` package (B10) and
+surfaced at the `world://kinds` registry:
 containers (open/closed, contents blocked when closed), supporters (surface things
 visible and reachable, supporter fixed by default), doors (connect two rooms,
 open/closed, closed blocks passage), persons (visible, examinable in rooms),
@@ -3440,7 +3441,7 @@ but SHALL NOT block recognized assertions.
 _Check:_ T244.
 
 **REQ-202a — World-model resources (Part a).**
-URIs for the world-model tier: `room://<id>` (room name, description, visible things, exits), `thing://<id>` (thing name, description, location, properties), `world://map` (all rooms with exit connections — a navigable graph), `world://kinds` (kind hierarchy, property contracts, and parser command catalog from the indexed provider documentation).
+URIs for the world-model tier: `room://<id>` (room name, description, visible things, exits), `thing://<id>` (thing name, description, location, properties), `world://map` (all rooms with exit connections — a navigable graph), `world://kinds` (kind hierarchy, property contracts, and parser command catalog from the `holonovel` package (B10)).
 
 **REQ-202b — World-model resources (Part b).**
 All world-model resources SHALL be badge-filtered: the Player badge sees only descriptions and visible state; sees only descriptions and visible state; the Game Master badge sees metadata including property values and containment chains. `world://map` SHALL return a list of room names with directional exits formatted as a navigable adjacency list. _Check:_ T245.
@@ -3534,7 +3535,11 @@ Create countdown with `world_effect.target="nonexistent"` and fire — assert `[
 WHEN the Build workflow is selected with B1 set to `none` THE builder SHALL operate in ruleset-free mode. THE builder SHALL NOT perform chunked reading, extraction, or mechanical modeling of ruleset content. THE server SHALL register every REQ-020 infrastructure tool category (World, Novels, Narrative, Badges & Workflow), every REQ-022 resource URI, and every REQ-023 prompt. Ruleset-dependent tools — canonical lookups, dice-resolution tools, and any tool whose registry depends on extracted mechanics — SHALL be waived under REQ-013 or registered with empty domains that return content-absent responses.
 
 **REQ-218b — Ruleset-free build (Part b).**
-The world-model layer (§5.10) SHALL be populated from the provider documentation indexed at the B10 intake path. `search_rules` SHALL return an empty result set with a clear message indicating no ruleset is indexed. `roll_on_table` SHALL return the content-absent message per REQ-214. Navigational couplings (§7.7.1) SHALL be active — World→Scene, Scene→Lore, Scene→Countdown, and other Advisory/Navigational nature rows function in ruleset-free mode.
+The world-model layer (§5.10) SHALL be populated from the kind hierarchy, property
+contracts, and parser command catalog provided pre-built by the `holonovel`
+package at B10 and surfaced at the `world://kinds` registry (REQ-200, REQ-202a).
+`search_rules` SHALL return an empty result set with a clear message indicating no
+ruleset is indexed. `roll_on_table` SHALL return the content-absent message per REQ-214. Navigational couplings (§7.7.1) SHALL be active — World→Scene, Scene→Lore, Scene→Countdown, and other Advisory/Navigational nature rows function in ruleset-free mode.
 
 **REQ-218c — Ruleset-free build (Part c).**
 Mechanical couplings (Mechanics→World, Mechanics→NPC, and Ruleset Wisdom couplings) SHALL be inert — no ruleset means no mechanical resolution to drive coupling effects. Verification workflow G0b and G2 SHALL use the Appendix W fixture in place of Appendix B or N. Handoff verification steps H1 and H10 SHALL be skipped for ruleset-free builds — there is no source edition/title to compare and no extraction confidence to measure. _Check:_ T259.
@@ -3562,7 +3567,7 @@ the machinery that transforms state management into story emergence.
 The server SHALL support scene beat annotation alongside scene type (REQ-087). Valid beat values are: `setup`, `escalation`, `turning_point`, `climax`, `resolution`, and `denouement`. Beats SHALL be set via `set_scene_state` as an optional `beat` parameter and via `set_scene_type` as a `beat` parameter. The current beat SHALL surface in `badge_briefing` as a sub-element of the scene state section, immediately after the scene type tag, in the form `Beat: <beat>`.
 
 **REQ-335b — Scene beat taxonomy (Part b).**
-A scene without an explicit beat SHALL carry the default `mid_scene`. `session_recap` SHALL include beat transitions alongside scene transitions in the `scene_transitions` array as `beat_before` and `beat_after` pairs. A scene transition that retains the same beat SHALL NOT record a beat transition. The beat taxonomy is descriptive — the GM may set any beat at any time; the server does not enforce beat progression sequences.
+A scene without an explicit beat SHALL carry the default `mid_scene`. `session_recap` SHALL include beat transitions alongside scene transitions in the `scene_transitions` array as `beat_before` and `beat_after` pairs. A scene transition that retains the same beat SHALL NOT record a beat transition. The beat taxonomy is a fixed vocabulary — the six values in REQ-335a are the only valid beats, and the server SHALL reject unrecognized values with `[INVALID_INPUT]`; the GM may set any *valid* beat at any time and the server does not enforce beat progression sequences.
 
 **REQ-335c — Scene beat taxonomy (Part c).**
 Scene beat SHALL influence countdown advancement rate per REQ-353. *Acceptance criterion:* `set_scene_state("The hall darkens", beat="escalation")` surfaces `Beat: escalation` after the scene type tag in `badge_briefing`. `session_recap` includes `beat_transitions` showing `{from: "mid_scene", to: "escalation", timestamp: <ISO>}`. Setting the same beat on consecutive `set_scene_state` calls produces no beat transition entry. _Check:_ T385.
@@ -3594,7 +3599,7 @@ Create faction with clock and NPC with goal. Perform 4 tool calls without scene 
 `badge_briefing` (REQ-281) SHALL include a `story_beats` line showing the sequence of completed beats within the current Novel in chronological order, gated by badge scope: `shared` beats visible to both badges; `game_master` beats visible to GM only. The sequence SHALL list beat names with the scene description preview (first sentence) that produced them, e.g., `setup (\"The hall is quiet...\") -> escalation (\"The torches flicker...\")`. An empty sequence SHALL render `[No beats completed.]`.
 
 **REQ-337b — Narrative arc visibility (Part b).**
-The sequence SHALL NOT exceed the most recent 10 completed beats. *Acceptance criterion:* After three `set_scene_state` calls with beats `setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat sequence. After 12 beat transitions, only the most recent 10 appear. An empty sequence renders the empty-state marker. _Check:_ T387.
+The sequence SHALL NOT exceed the most recent `TTRPG_STORY_BEAT_WINDOW` completed beats (default 10). *Acceptance criterion:* After three `set_scene_state` calls with beats `setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat sequence. After 12 beat transitions, only the most recent 10 appear. An empty sequence renders the empty-state marker. _Check:_ T387.
 **REQ-352a — Codex adventure beat sequences (Part a).**
 `adventure` (REQ-321) MAY carry an optional `suggested_beats` field — an array of `{beat, scene_preview}` pairs where `beat` is a valid beat value per REQ-335 and `scene_preview` is a one-sentence scene descriptor. When a Novel is created via `create_novel(codex_adventure=...)` (REQ-088) or an adventure is imported via `codex_import` (REQ-321) into an active Novel, and the adventure entry carries `suggested_beats`, the sequence SHALL pre-populate the `story_beats` briefing surface (REQ-337) with `[adventure-scaffold]` annotation.
 
@@ -3733,7 +3738,7 @@ WHEN a lore entry is created or updated via `set_lore_entry` or `update_lore_ent
 **REQ-360b — Lore-countdown coupling (Part b).**
 This is a navigational coupling — the server suggests; the GM decides. *Acceptance criterion:* Call `set_lore_entry("impending-raid", "The goblins are marching — they will be here by nightfall.", triggers=["raid", "imminent"])` — assert `badge_briefing` `narrative_threads` includes a countdown-creation advisory referencing "impending-raid" and the "imminent" trigger. Call `set_lore_entry("forest-lore", "The woods are old and deep.", triggers=["forest"])` — assert no advisory (no urgency keywords). Create countdown with matching name — assert advisory suppressed. _Check:_ T411.
 **REQ-361a — NPC-vow coupling (Part a).**
-(REQ-077) AND the GM calls `badge_briefing`, THE `narrative_threads` section (REQ-281) SHALL include a vow-creation suggestion for each goal-carrying NPC whose goal text exceeds 20 characters and does not already match an active vow's `description`. The suggestion SHALL carry the NPC name, the goal text, and a prompt for the GM to create a corresponding vow via `set_vow` (REQ-289). This is a navigational coupling — the server suggests; the GM decides.
+(REQ-077) AND the GM calls `badge_briefing`, THE `narrative_threads` section (REQ-281) SHALL include a vow-creation suggestion for each goal-carrying NPC whose goal text length is at or above `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` (default 20) and does not already match an active vow's `description`. The suggestion SHALL carry the NPC name, the goal text, and a prompt for the GM to create a corresponding vow via `set_vow` (REQ-289). This is a navigational coupling — the server suggests; the GM decides.
 
 **REQ-361b — NPC-vow coupling (Part b).**
 An NPC whose goal text already appears in an active vow's `description` SHALL NOT produce a suggestion. *Acceptance criterion:* Create NPC "Blacksmith" with `goals="Forge the legendary blade Starfang"`. Invoke `badge_briefing` — assert `narrative_threads` includes vow-creation suggestion naming the Blacksmith and their goal. Call `set_vow("Forge Starfang", "Forge the legendary blade Starfang", ...)` with at least one party member — assert suggestion no longer appears. NPC with short goal ("smith stuff") — assert no suggestion. _Check:_ T412.
@@ -3783,7 +3788,7 @@ A build missing this attestation is a handoff defect. *Acceptance criterion:* DE
 ### 5.13 Holodeck
 
 **REQ-369a — Holodeck archetype taxonomy (Part a).**
-(§7.7) SHALL be assigned one or more archetypes — Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, or Ruleset Wisdom — as defined in §7.7.0. Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling pattern rules (P1–P54, §7.7.0). A coupling that does not trace to a pattern rule is a spec defect.
+(§7.7) SHALL be assigned one or more archetypes — Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, or Mechanical — as defined in §7.7.0. Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling pattern rules (P1–P54, §7.7.0). A coupling that does not trace to a pattern rule is a spec defect.
 
 **REQ-369b — Holodeck archetype taxonomy (Part b).**
 Archetypes classified as `[content source]` denote input sources that populate property groups — they are excluded from the coupling cross-product. `npm run validate` SHALL verify that every coupling row in §7.7.1a cites a valid pattern rule. *Acceptance criterion:* `npm run validate` reports no untraced coupling rows and no coupling row with an invalid or missing pattern rule reference. _Check:_ T420, T436, T437, T438.
@@ -3798,7 +3803,7 @@ Ruleset Wisdom — the seven synthesis output modules extracted during Discovery
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items extracted from the ruleset but not yet implemented in the current build SHALL render as Navigational suggestions until the builder implements the Mechanical coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom). A property group without an archetype produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). A property group without an archetype produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -5625,8 +5630,8 @@ are selected for changed surfaces.
 7. **World-model resources** — call `room://<id>`, `thing://<id>`,
    `world://map`, `world://kinds`. Assert room and thing content matches state.
    Assert map shows correct adjacency. Assert kinds resource lists the kind
-   hierarchy, property contracts, and parser command catalog from the indexed
-   provider documentation. Swap to Player badge — assert GM-only metadata
+   hierarchy, property contracts, and parser command catalog provided by the
+   holonovel package (B10). Swap to Player badge — assert GM-only metadata
    excluded from all four resources.
 
 8. **Large-map navigation** — populate 50+ room world model. Navigate from one
@@ -6090,7 +6095,12 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
-| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-urgency threshold above which NPCs suggest countdown advancement. Behavioral. |
+| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
+| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
+| `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral. |
+| `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral. |
+| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral. |
+| `TTRPG_NOVEL_PREVIEW_CHARS` | No | Character budget for the Novel-library name/preview in the `intro` prompt (default 120; REQ-063b). Behavioral. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
 | `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral. |
@@ -6207,6 +6217,12 @@ the couplings already exist through the populated properties' own archetypes.
 "how." Every row in the coupling table (§7.7.1) traces to one or more of these
 rules.
 
+**Keyword matching.** Where a coupling triggers on a trigger keyword or trigger
+list (Scene → Lore P2, Background → Lore P54, Vow → Lore P51, and the REQ-083,
+REQ-345, REQ-350, REQ-356 surfaces), "match" means a case-insensitive, whole-word
+substring match at a token boundary in the target text — never partial-word,
+fuzzy, or semantic matching.
+
 | Rule | Source archetype → Target archetype | Behavior | Nature | Holodeck model |
 |------|-------------------------------------|----------|--------|----------------|
 | P1 | Temporal → Scene-anchored | Temporal properties advance one tick per scene transition | Mechanical | The clock runs while the scene plays |
@@ -6215,9 +6231,9 @@ rules.
 | P4 | Entity-bearing → Temporal | Entity goals auto-create coupled temporal progress tracks | Mechanical | Purpose drives the clock |
 | P5 | Ruleset Wisdom → Knowledge-carrying | Wisdom lore templates mechanically activate on trigger match — the world renders what the ruleset says it knows | Mechanical | The program populates the world's knowledge |
 | P6 | Ruleset Wisdom → Entity-bearing | NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality patterns — no manual activation required | Mechanical | Characters render with genre-appropriate behavior |
-| P7 | Ruleset Wisdom → Temporal | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | Mechanical | Threats escalate on the program's schedule |
-| P8 | Ruleset Wisdom → Scene-anchored | Scene beats and type tags follow ruleset-described dramatic structure; briefing order modules render the ruleset's own narrative architecture | Mechanical + Navigational | The program structures the story |
-| P9 | Ruleset Wisdom → Relational | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | Mechanical | The cast relates as the genre dictates |
+| P7 | Ruleset Wisdom → Temporal | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per the dramatic rhythm extracted during Discovery (REQ-225) | Mechanical | Threats escalate on the program's schedule |
+| P8 | Ruleset Wisdom → Scene-anchored | Scene beats and type tags follow the dramatic structure extracted during Discovery (REQ-225); briefing order modules render the ruleset's own narrative architecture | Mechanical + Navigational | The program structures the story |
+| P9 | Ruleset Wisdom → Relational | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match the relationship dynamics extracted during Discovery (REQ-225) | Mechanical | The cast relates as the genre dictates |
 | P10 | Ruleset Wisdom → Decision | Wisdom action patterns and constraint overrides feed `suggest_actions` and the constraint catalog — the computer's reference library | Navigational | The computer consults its library |
 | P11 | Ruleset Wisdom → Spatial | Spatial properties serve as synthesis source for Wisdom adventure hooks and scene templates from room layouts | Navigational | The room design suggests the story |
 | P12 | Decision → Temporal | Decision resolution matching temporal scope advances that temporal | Mechanical | Choices advance the clock |
@@ -6249,7 +6265,7 @@ rules.
 | P38 | Scene-anchored → Spatial | Scene state `location` field resolves against Spatial room names; scene description derives from Spatial state when location matches | Mechanical | The scene describes the room |
 | P39 | Temporal → Scene-anchored | Temporal property fire updates Scene-anchored properties sharing scope — a countdown that floods a room updates the scene description | Mechanical | The clock changes the scene |
 | P40 | Knowledge-carrying → Scene-anchored | Knowledge-carrying properties active in the current scene surface in Scene-anchored descriptions — lore about a haunted chapel colors the scene | Navigational | What you know colors what you see |
-| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — combat scenes make NPCs hostile, social scenes make them talkative, exploration scenes make them curious | Navigational | The scene shapes the cast |
+| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — active combat state makes NPCs hostile, social scenes shift them toward friendly, exploration scenes shift them toward neutral | Navigational | The scene shapes the cast |
 | P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 | P43 | Session → Temporal | Player pacing signals adjust the pacing window — a signal value requesting faster pacing reduces the window threshold; slower pacing increases it | Mechanical | The operator controls the story's rhythm |
 | P44 | Session → Temporal | GM narrative directives containing pacing keywords adjust the pacing window threshold — directives requesting faster pacing reduce it, slower pacing increase it | Mechanical | The GM sets the story's tempo |
@@ -6274,6 +6290,20 @@ instantiates an archetype pattern rule from §7.7.0.
 countdown-related couplings (rows with a countdown property in either column)
 cite REQ-073. All lore-related couplings cite REQ-083. All relationship-related
 couplings cite REQ-236.
+
+*Advisory output shape.* A coupling that produces an "advisory in
+`narrative_threads`" SHALL render a self-contained suggestion entry in that
+section's suggestion surface (REQ-281): the relevant property name(s), a
+one-line rationale, and the prompt for the GM to act or ignore. Advisory
+couplings are Navigational — they never mutate state; the GM decides. A row
+whose advisory is deferred to build is annotated `[unverified]` and recorded
+as a convergence finding, never silently dropped.
+
+*Illustrative examples.* Coupling cells that name a specific spell or mechanic
+(e.g. "Fireball", "Hold Person", "Detect Magic") do so as illustrative examples
+of the coupling contract only — they are not normative content and do not
+constrain any ruleset. The normative rule is that coupling effects are derived
+from the bound ruleset's own text during Discovery (REQ-377).
 
 ##### 7.7.1a Active couplings
 
@@ -6329,19 +6359,19 @@ couplings cite REQ-236.
 | Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | Entering a vehicle is a story moment — vehicle entry/exit records journal entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
 | World → Synthesis | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | The room design suggests the story — spatial state seeds Wisdom templates | — | Navigational | §11 |
 | Synthesis → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | The computer consults its library — Wisdom overrides feed constraint catalog | — | Navigational | REQ-354 |
-| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | Threats escalate on the program's schedule — Wisdom mechanically seeds countdowns | — | Mechanical | REQ-371 |
-| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | The cast relates as the genre dictates — Wisdom establishes relationship patterns | — | Mechanical | REQ-371 |
+| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per the dramatic rhythm extracted during Discovery (REQ-225) | Threats escalate on the program's schedule — Wisdom mechanically seeds countdowns | — | Mechanical | REQ-371, REQ-225 |
+| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match the relationship dynamics extracted during Discovery (REQ-225) | The cast relates as the genre dictates — Wisdom establishes relationship patterns | — | Mechanical | REQ-371, REQ-225 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Betrayal signals the clock — relationship flip advances matching countdowns | — | Navigational | REQ-359 |
 | Lore → Countdown | P19 | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Urgent knowledge demands a countdown — temporal urgency triggers suggest countdown creation | — | Navigational | REQ-360 |
-| NPC → Vow | P20 | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Purpose suggests a quest — goal-carrying NPCs prompt vow creation | — | Navigational | REQ-361, REQ-077, REQ-289 |
+| NPC → Vow | P20 | Goal-carrying NPCs with goal text at or above `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Purpose suggests a quest — goal-carrying NPCs prompt vow creation | — | Navigational | REQ-361, REQ-077, REQ-289 |
 | Faction → Vow | P20 | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | Faction purpose suggests quests — faction goals intersecting known entities prompt vows | — | Navigational | REQ-362, REQ-233, REQ-289 |
 | Secret → World | P21 | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | Secrets are anchored to places — world-target secrets link to Holodeck rooms | — | Navigational | REQ-363, REQ-234, REQ-195 |
 | Faction → World | P22 | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | Faction turf defines presence — territorial factions surface when scene matches | — | Navigational | REQ-364, REQ-233, REQ-195 |
 | Countdown → Scene | P39 | Countdown fire with scene scope updates the current scene description — countdown `world_effect` type `"scene"` mutates the scene state | The clock changes the scene — countdown fire updates scene description | — | Mechanical | REQ-369 |
 | Lore → Scene | P40 | Active lore entries with current-scene triggers surface the lore content in the scene description tagged `[lore-relevant]` | What you know colors what you see — active lore surfaces in scene description | GM-only (GM surface), Player-visible (shared-scope lore) | Navigational | REQ-369 |
-| Scene → NPC | P41 | Scene type set to `combat` shifts NPC disposition toward hostile; `social` toward neutral/friendly; `exploration` toward curious — advisory surfaced in `narrative_threads` | The scene shapes the cast — scene type drives NPC disposition advisories | — | Navigational | REQ-369, REQ-075 |
+| Scene → NPC | P41 | Active combat state (REQ-043) shifts NPC disposition toward hostile; `social` scene type shifts toward friendly; `exploration` scene type shifts toward neutral — advisory surfaced in `narrative_threads` | The scene shapes the cast — scene type drives NPC disposition advisories | — | Navigational | REQ-369, REQ-043, REQ-075 |
 | NPC → Scene | P42 | NPC presence in the current scene surfaces in `characters_present` field — NPCs whose `location` matches the active room auto-register | Characters define the scene — NPC presence registers in characters_present | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369, REQ-075 |
-| NPC → Countdown | P4 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal urgency exceeds `TTRPG_NPC_URGENCY_THRESHOLD` | NPC urgency drives the clock — goal-carrying NPCs suggest countdown advancement | — | Navigational | REQ-369, REQ-077 |
+| NPC → Countdown | P4 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal-text length is at or above `TTRPG_NPC_URGENCY_THRESHOLD` | NPC urgency drives the clock — goal-carrying NPCs suggest countdown advancement | — | Navigational | REQ-369, REQ-077 |
 | Player Signal → Pacing Window | P43 | `player_signal("pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | The operator controls the story's rhythm — player pacing signals adjust the window | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
@@ -6354,8 +6384,8 @@ couplings cite REQ-236.
 | Faction → World in Motion | P30 | Faction goal milestones surface alongside NPC goal pursuits in `badge_briefing` World in Motion — GM may accept (advances faction clock), defer, or dismiss | Faction purpose drives the story — faction goals surface alongside NPC goals | — | Narrative | REQ-338, REQ-339, REQ-233a |
 | Autonomous Countdown → Story Journal | P31 | Faction clock fire produces `[faction-event]` story journal `consequence` entries surfaced in `session_recap` and `badge_briefing` narrative context | Faction momentum becomes story memory — clock fire records journal entries | — | Navigational | REQ-338, REQ-246 |
 | Story Journal → NPC | P33 | `consequence` or `moment` entries referencing an NPC by name flag that NPC for goal-pursuit suggestion in next World in Motion cycle — past events prompt current NPC behavior | Past events remind NPCs of unfinished business — journal entries prompt NPC goal pursuit | — | Navigational | REQ-246, REQ-339 |
-| Story Beats → NPC | P41 | Beat transitions drive NPC disposition advisories — `climax` beat shifts combat-ready NPCs toward hostile, `denouement` shifts all NPCs toward reflective/neutral — surfaced in `narrative_threads` | The dramatic structure shapes the cast — beat transitions drive NPC disposition advisories | — | Navigational | REQ-335, REQ-353, REQ-075 |
-| Scene → Faction | P41 | Scene type and atmosphere surface faction-relevant advisories in `narrative_threads` — combat scenes highlight aggressive faction goals, social scenes highlight faction alliances and negotiations | Factions loom larger when the scene matches — scene type highlights relevant faction activity | — | Navigational | REQ-233, REQ-087 |
+| Story Beats → NPC | P41 | Beat transitions drive NPC disposition advisories — `climax` beat shifts combat-ready NPCs toward hostile, `denouement` shifts all NPCs toward neutral — surfaced in `narrative_threads` | The dramatic structure shapes the cast — beat transitions drive NPC disposition advisories | — | Navigational | REQ-335, REQ-353, REQ-075 |
+| Scene → Faction | P41 | Scene type and atmosphere surface faction-relevant advisories in `narrative_threads` — active combat state (REQ-043) highlights aggressive faction goals, social scenes highlight faction alliances and negotiations | Factions loom larger when the scene matches — scene type highlights relevant faction activity | — | Navigational | REQ-233, REQ-043, REQ-087 |
 | Server Notes → Countdown | P49 | Server notes with temporal urgency keywords ("imminent", "within hours", "by dawn") suggest countdown creation in `narrative_threads` when scene scope matches or note is unscoped | The GM's notebook can drive the clock — temporal urgency notes suggest countdowns | — | Navigational | REQ-365, REQ-285, REQ-073 |
 
 ##### 7.7.1b Coupling curation
@@ -7194,8 +7224,8 @@ the repository.
 | Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
 | Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
 | The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
-| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM Agenda (3 items), GM Principles (12), GM Moves (12) as normative rules; player-facing moves triggered from fiction; front/danger system |
-| Fate SRD (Evil Badge Productions) | CC-BY 3.0 | Player role definition and collaboration ethos ("make everyone at the table look awesome"); GM scene pacing, drama vs. realism, aspect-driven narrative structure; scenario building |
+| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM Agenda (3 items), GM Principles (12), GM Moves (12) retained as normative rules; player-facing moves triggered from fiction; front/danger system |
+| Fate SRD (Evil Hat Productions) | CC-BY 3.0 | Player role definition and collaboration ethos ("make everyone at the table look awesome"); GM scene pacing, drama vs. realism, aspect-driven narrative structure; scenario building |
 | Ironsworn SRD (Shawn Tomkin) | CC-BY 4.0 | Player principles, solo play chapter, guided/co-op play modes, oracle moves; dark fantasy solo conventions distinct from Starforged |
 
 **When vendor content runs.** Vendor processing SHALL run at build time for
@@ -9060,7 +9090,7 @@ diet.
 | T305 | Automated | Adventure synthesis linkage: call `load_adventure` on an adventure with synthesis data. Assert adventure-linked enrichment items appear in `list_synthesis_items` tagged with the adventure slug. Assert `end_novel` removes adventure-linked items. Assert `revert_synthesis` does not remove adventure-linked items. | REQ-229 |
 | T306 | Automated | Enrichment status dashboard: call `resources/read` on `synthesis://status` — assert per-module table with ruleset, community, and novel columns and per-tier counts. Assert `spec_health` reports synthesis_status with per-module activated/total counts. Assert dashboard is accessible under both badges. | REQ-230 |
 | T307 | Automated | Per-module enrichment toggle: call `toggle_enrichment_module("voice_examples", false)` — assert voice_example items absent from `badge_briefing`. Call `toggle_enrichment_module("voice_examples", true)` — assert items restored. Assert toggle of unknown module returns `[NOT_FOUND]`. Assert toggle is Novel-scoped and persists across restarts. | REQ-231 |
-| T309 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the B10 provider doc hash. | REQ-244 |
+| T309 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the holonovel package version (B10). | REQ-244 |
 | T310 | Automated | Pre-computed enrichment manifest: build holonovel/ with a provider doc containing synthesis data. Assert `holonovel/build/enrichment.json` is populated with `[ruleset]` items per module. Assert manifest includes items with source anchors, confidence, and module tags. Assert ruleset-free build produces empty `enrichment.json`. | REQ-245 |
 | T328 | Automated | Narrative orientation: call `session_recap` after a session with scene changes. Assert `narrative_orientation` section includes recent plot beats, unresolved threads, and party state. Call `end_novel` then `create_novel` — assert `session_recap` returns empty orientation. Assert orientation references lore entries that fired during the session. | REQ-279 |
 | T329 | Automated | Source-anchor citation: call `lookup_spell("fireball")` — assert output includes source anchor (section/file reference). Call `lookup_monster("goblin")` — assert source anchor present. Assert `lookup_equipment` output includes source anchor. Assert ruleset-free mode does not include source anchors in lookup responses. | REQ-280 |
@@ -10388,17 +10418,32 @@ ruleset's meanings. Where a ruleset uses its own name for a concept Holonovel
 already models, the builder SHALL use the ruleset's term for extracted tool
 names (REQ-020) but SHALL annotate the mapping in RULESET_MODEL.md.
 
-**Borrowed-mechanics attribution.** The following mechanics are genericized
-narratives adapted from published roleplaying traditions, not rule imports:
+**Borrowed-mechanics attribution.** The following mechanics are adapted from
+published roleplaying and interactive-fiction systems and retained in the base
+server with their originating tuning verbatim. They are licensed content, not
+silent imports — each entry below names its source, and Appendix U records the
+license.
 
 - **Vows**, **milestones**, and difficulty ranks (`troublesome`, `dangerous`,
-  `formidable`, `extreme`, `epic`) — adapted from Ironsworn's vow-progress loop.
-- **Clocks** (progress/faction clocks) — adapted from Blades in the Dark's
-  clock system; surfaced in Holonovel as countdowns.
+  `formidable`, `extreme`, `epic`) with milestone tracks of 10/20/30/40/50 —
+  retained from Ironsworn's vow-progress loop (REQ-289, REQ-322).
+- **Ask-the-Oracle ladder** — the `almost_certain`/`likely`/`50_50`/`unlikely`/
+  `small_chance` likelihood bands with their d100 thresholds (11/26/51/76/91)
+  and the doubles-to-exceptional rule — retained from Ironsworn's oracle move
+  (REQ-291).
+- **Clocks** (progress/faction clocks) — retained from Blades in the Dark's
+  clock system; surfaced in Holonovel as countdowns (REQ-073, REQ-233,
+  REQ-338).
+- **World-model conventions** — the parser verb vocabulary, the thing/
+  container/supporter/door/device/vehicle/person/backdrop/region kind hierarchy,
+  and the declarative assertion syntax — retained from Graham Nelson's Inform
+  and the interactive-fiction tradition (REQ-195, REQ-200, REQ-283).
 - **Danger** and scene framing — common across many tabletop systems.
 
-The builder treats these as first-class Holonovel mechanics (REQ-289, REQ-073,
-REQ-233); they are not contingent on any published ruleset and are never waived.
+The builder treats these as first-class Holonovel mechanics; they are not
+contingent on any *bound* ruleset and are never waived. Their tuning values
+(ranks, thresholds, milestone counts) are fixed base-server infrastructure, not
+ruleset-derived content.
 
 ---
 
@@ -10441,6 +10486,12 @@ into the README.md license footer during handoff (§6.2 H11).
 | dmcp | Narrative frameworks | MIT | Shawn Rushefsky |
 | lonelog | Narrative frameworks | CC BY-SA 4.0 | zeruhur |
 | BitD SRD | Narrative frameworks | CC BY 3.0 | John Harper |
+| Ironsworn: Starforged SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
+| Sly Flourish Lazy GM Resource Document | Narrative frameworks | CC BY 4.0 | Mike Shea |
+| The Alexandrian | Narrative frameworks | CC BY 4.0 | Justin Alexander |
+| Dungeon World SRD | Narrative frameworks | CC BY 3.0 | Sage LaTorra, Adam Koebel |
+| Fate SRD | Narrative frameworks | CC BY 3.0 | Evil Hat Productions |
+| Ironsworn SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
 
 Adding a content source requires: (a) a row in this table, (b) a LICENSE file
 in the content's subdirectory, and (c) a `source_url` field in the enrichment
