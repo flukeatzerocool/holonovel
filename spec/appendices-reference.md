@@ -1486,7 +1486,7 @@ diet.
 | T305 | Automated | Adventure synthesis linkage: call `load_adventure` on an adventure with synthesis data. Assert adventure-linked enrichment items appear in `list_synthesis_items` tagged with the adventure slug. Assert `end_novel` removes adventure-linked items. Assert `revert_synthesis` does not remove adventure-linked items. | REQ-229 |
 | T306 | Automated | Enrichment status dashboard: call `resources/read` on `synthesis://status` — assert per-module table with ruleset, community, and novel columns and per-tier counts. Assert `spec_health` reports synthesis_status with per-module activated/total counts. Assert dashboard is accessible under both badges. | REQ-230 |
 | T307 | Automated | Per-module enrichment toggle: call `toggle_enrichment_module("voice_examples", false)` — assert voice_example items absent from `badge_briefing`. Call `toggle_enrichment_module("voice_examples", true)` — assert items restored. Assert toggle of unknown module returns `[NOT_FOUND]`. Assert toggle is Novel-scoped and persists across restarts. | REQ-231 |
-| T309 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the B10 provider doc hash. | REQ-244 |
+| T309 | Automated | Convergence cache key: build with the same ruleset twice. On the second build, assert the cache-key match triggers "cached — skipping Discovery" with the date of the prior build. Assert DECISIONS.md records the cache hit. Change one section of the ruleset — assert cache miss triggers full Discovery. Assert the cache key is computed from the ruleset content hash plus the holonovel package version (B10). | REQ-244 |
 | T310 | Automated | Pre-computed enrichment manifest: build holonovel/ with a provider doc containing synthesis data. Assert `holonovel/build/enrichment.json` is populated with `[ruleset]` items per module. Assert manifest includes items with source anchors, confidence, and module tags. Assert ruleset-free build produces empty `enrichment.json`. | REQ-245 |
 | T328 | Automated | Narrative orientation: call `session_recap` after a session with scene changes. Assert `narrative_orientation` section includes recent plot beats, unresolved threads, and party state. Call `end_novel` then `create_novel` — assert `session_recap` returns empty orientation. Assert orientation references lore entries that fired during the session. | REQ-279 |
 | T329 | Automated | Source-anchor citation: call `lookup_spell("fireball")` — assert output includes source anchor (section/file reference). Call `lookup_monster("goblin")` — assert source anchor present. Assert `lookup_equipment` output includes source anchor. Assert ruleset-free mode does not include source anchors in lookup responses. | REQ-280 |
@@ -2444,17 +2444,32 @@ ruleset's meanings. Where a ruleset uses its own name for a concept Holonovel
 already models, the builder SHALL use the ruleset's term for extracted tool
 names (REQ-020) but SHALL annotate the mapping in RULESET_MODEL.md.
 
-**Borrowed-mechanics attribution.** The following mechanics are genericized
-narratives adapted from published roleplaying traditions, not rule imports:
+**Borrowed-mechanics attribution.** The following mechanics are adapted from
+published roleplaying and interactive-fiction systems and retained in the base
+server with their originating tuning verbatim. They are licensed content, not
+silent imports — each entry below names its source, and Appendix U records the
+license.
 
 - **Vows**, **milestones**, and difficulty ranks (`troublesome`, `dangerous`,
-  `formidable`, `extreme`, `epic`) — adapted from Ironsworn's vow-progress loop.
-- **Clocks** (progress/faction clocks) — adapted from Blades in the Dark's
-  clock system; surfaced in Holonovel as countdowns.
+  `formidable`, `extreme`, `epic`) with milestone tracks of 10/20/30/40/50 —
+  retained from Ironsworn's vow-progress loop (REQ-289, REQ-322).
+- **Ask-the-Oracle ladder** — the `almost_certain`/`likely`/`50_50`/`unlikely`/
+  `small_chance` likelihood bands with their d100 thresholds (11/26/51/76/91)
+  and the doubles-to-exceptional rule — retained from Ironsworn's oracle move
+  (REQ-291).
+- **Clocks** (progress/faction clocks) — retained from Blades in the Dark's
+  clock system; surfaced in Holonovel as countdowns (REQ-073, REQ-233,
+  REQ-338).
+- **World-model conventions** — the parser verb vocabulary, the thing/
+  container/supporter/door/device/vehicle/person/backdrop/region kind hierarchy,
+  and the declarative assertion syntax — retained from Graham Nelson's Inform
+  and the interactive-fiction tradition (REQ-195, REQ-200, REQ-283).
 - **Danger** and scene framing — common across many tabletop systems.
 
-The builder treats these as first-class Holonovel mechanics (REQ-289, REQ-073,
-REQ-233); they are not contingent on any published ruleset and are never waived.
+The builder treats these as first-class Holonovel mechanics; they are not
+contingent on any *bound* ruleset and are never waived. Their tuning values
+(ranks, thresholds, milestone counts) are fixed base-server infrastructure, not
+ruleset-derived content.
 
 ---
 

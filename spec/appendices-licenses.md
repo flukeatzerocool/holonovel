@@ -12,6 +12,12 @@ into the README.md license footer during handoff (§6.2 H11).
 | dmcp | Narrative frameworks | MIT | Shawn Rushefsky |
 | lonelog | Narrative frameworks | CC BY-SA 4.0 | zeruhur |
 | BitD SRD | Narrative frameworks | CC BY 3.0 | John Harper |
+| Ironsworn: Starforged SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
+| Sly Flourish Lazy GM Resource Document | Narrative frameworks | CC BY 4.0 | Mike Shea |
+| The Alexandrian | Narrative frameworks | CC BY 4.0 | Justin Alexander |
+| Dungeon World SRD | Narrative frameworks | CC BY 3.0 | Sage LaTorra, Adam Koebel |
+| Fate SRD | Narrative frameworks | CC BY 3.0 | Evil Hat Productions |
+| Ironsworn SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
 
 Adding a content source requires: (a) a row in this table, (b) a LICENSE file
 in the content's subdirectory, and (c) a `source_url` field in the enrichment

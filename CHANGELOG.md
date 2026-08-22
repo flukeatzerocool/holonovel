@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-22 — Borrowed-mechanics provenance and world-model de-hard-coding
+
+- Documented the base server's borrowed mechanics (Ironsworn vows and Ask-the-Oracle
+  ladder, Blades-in-the-Dark clocks, Inform world-model conventions) as adapted-and-retained
+  content with verbatim tuning, not genericized narratives — Appendix P now names each source
+  and its retained values, and replaced the inaccurate "not rule imports" claim.
+- Reconciled the content-license table with the vendor bundle list: Appendix U now licenses all
+  ten vendor sources (Ironsworn, Fate, Dungeon World, Sly Flourish, The Alexandrian, and
+  Ironsworn: Starforged were previously missing), so the ruleset-free README footer no longer
+  omits six of its licensed sources. Dungeon World's GM Agenda/Principles/Moves stay "as
+  normative rules," now properly licensed.
+- Resolved the "provider documentation" contradiction: the world-model vocabulary is provided
+  pre-built by the holonovel package (B10) and surfaced at the `world://kinds` registry, not
+  indexed from an undefined provider source — REQ-200/202a/218b, §6.3, and T309 now agree.
+- Flagged five hard-coded magic numbers for configuration: vow-suggestion goal length, proactive
+  action count, story-beat window, campaign-memory fact count, and Novel-preview length each
+  moved to a `TTRPG_` variable with the prior value as default. The NPC urgency threshold is now
+  a verifiable goal-text-length operand.
+- Defined previously-vague coupling semantics: trigger-keyword matching (case-insensitive
+  whole-word substring), secret "name overlap" (exact token match), and the advisory output
+  shape for `narrative_threads` suggestions. Wisdom couplings now cite Discovery extraction
+  (REQ-225) instead of "ruleset-described" deferrals.
+- Fixed the combat-as-scene-type contradiction: P41 dispositions now key off active combat state
+  (REQ-043) rather than `combat` as a scene type, and shifted the disposition vocabulary to the
+  canonical hostile/suspicious/neutral/friendly scale. Scene beats are now a fixed six-value
+  vocabulary with `[INVALID_INPUT]` on unrecognized values.
+- Reconciled the Holodeck archetype enumeration: REQ-369a and REQ-374a now include the Mechanical
+  archetype, matching the twelve-archetype set in §7.7.0.
+
 ## 2026-08-22 — Publication-integrity hardening (REQ-418, REQ-419, Editorial class)
 
 - Split the pending-update classification out of REQ-394 into REQ-419

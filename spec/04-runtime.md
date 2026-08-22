@@ -150,7 +150,12 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
-| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-urgency threshold above which NPCs suggest countdown advancement. Behavioral. |
+| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
+| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
+| `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral. |
+| `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral. |
+| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral. |
+| `TTRPG_NOVEL_PREVIEW_CHARS` | No | Character budget for the Novel-library name/preview in the `intro` prompt (default 120; REQ-063b). Behavioral. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
 | `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral. |
@@ -267,6 +272,12 @@ the couplings already exist through the populated properties' own archetypes.
 "how." Every row in the coupling table (§7.7.1) traces to one or more of these
 rules.
 
+**Keyword matching.** Where a coupling triggers on a trigger keyword or trigger
+list (Scene → Lore P2, Background → Lore P54, Vow → Lore P51, and the REQ-083,
+REQ-345, REQ-350, REQ-356 surfaces), "match" means a case-insensitive, whole-word
+substring match at a token boundary in the target text — never partial-word,
+fuzzy, or semantic matching.
+
 | Rule | Source archetype → Target archetype | Behavior | Nature | Holodeck model |
 |------|-------------------------------------|----------|--------|----------------|
 | P1 | Temporal → Scene-anchored | Temporal properties advance one tick per scene transition | Mechanical | The clock runs while the scene plays |
@@ -275,9 +286,9 @@ rules.
 | P4 | Entity-bearing → Temporal | Entity goals auto-create coupled temporal progress tracks | Mechanical | Purpose drives the clock |
 | P5 | Ruleset Wisdom → Knowledge-carrying | Wisdom lore templates mechanically activate on trigger match — the world renders what the ruleset says it knows | Mechanical | The program populates the world's knowledge |
 | P6 | Ruleset Wisdom → Entity-bearing | NPCs created while Wisdom is active render with ruleset-derived voice, goals, and personality patterns — no manual activation required | Mechanical | Characters render with genre-appropriate behavior |
-| P7 | Ruleset Wisdom → Temporal | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | Mechanical | Threats escalate on the program's schedule |
-| P8 | Ruleset Wisdom → Scene-anchored | Scene beats and type tags follow ruleset-described dramatic structure; briefing order modules render the ruleset's own narrative architecture | Mechanical + Navigational | The program structures the story |
-| P9 | Ruleset Wisdom → Relational | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | Mechanical | The cast relates as the genre dictates |
+| P7 | Ruleset Wisdom → Temporal | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per the dramatic rhythm extracted during Discovery (REQ-225) | Mechanical | Threats escalate on the program's schedule |
+| P8 | Ruleset Wisdom → Scene-anchored | Scene beats and type tags follow the dramatic structure extracted during Discovery (REQ-225); briefing order modules render the ruleset's own narrative architecture | Mechanical + Navigational | The program structures the story |
+| P9 | Ruleset Wisdom → Relational | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match the relationship dynamics extracted during Discovery (REQ-225) | Mechanical | The cast relates as the genre dictates |
 | P10 | Ruleset Wisdom → Decision | Wisdom action patterns and constraint overrides feed `suggest_actions` and the constraint catalog — the computer's reference library | Navigational | The computer consults its library |
 | P11 | Ruleset Wisdom → Spatial | Spatial properties serve as synthesis source for Wisdom adventure hooks and scene templates from room layouts | Navigational | The room design suggests the story |
 | P12 | Decision → Temporal | Decision resolution matching temporal scope advances that temporal | Mechanical | Choices advance the clock |
@@ -309,7 +320,7 @@ rules.
 | P38 | Scene-anchored → Spatial | Scene state `location` field resolves against Spatial room names; scene description derives from Spatial state when location matches | Mechanical | The scene describes the room |
 | P39 | Temporal → Scene-anchored | Temporal property fire updates Scene-anchored properties sharing scope — a countdown that floods a room updates the scene description | Mechanical | The clock changes the scene |
 | P40 | Knowledge-carrying → Scene-anchored | Knowledge-carrying properties active in the current scene surface in Scene-anchored descriptions — lore about a haunted chapel colors the scene | Navigational | What you know colors what you see |
-| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — combat scenes make NPCs hostile, social scenes make them talkative, exploration scenes make them curious | Navigational | The scene shapes the cast |
+| P41 | Scene-anchored → Entity-bearing | Scene type and atmosphere influence Entity-bearing disposition for entities in scene scope — active combat state makes NPCs hostile, social scenes shift them toward friendly, exploration scenes shift them toward neutral | Navigational | The scene shapes the cast |
 | P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 | P43 | Session → Temporal | Player pacing signals adjust the pacing window — a signal value requesting faster pacing reduces the window threshold; slower pacing increases it | Mechanical | The operator controls the story's rhythm |
 | P44 | Session → Temporal | GM narrative directives containing pacing keywords adjust the pacing window threshold — directives requesting faster pacing reduce it, slower pacing increase it | Mechanical | The GM sets the story's tempo |
@@ -334,6 +345,20 @@ instantiates an archetype pattern rule from §7.7.0.
 countdown-related couplings (rows with a countdown property in either column)
 cite REQ-073. All lore-related couplings cite REQ-083. All relationship-related
 couplings cite REQ-236.
+
+*Advisory output shape.* A coupling that produces an "advisory in
+`narrative_threads`" SHALL render a self-contained suggestion entry in that
+section's suggestion surface (REQ-281): the relevant property name(s), a
+one-line rationale, and the prompt for the GM to act or ignore. Advisory
+couplings are Navigational — they never mutate state; the GM decides. A row
+whose advisory is deferred to build is annotated `[unverified]` and recorded
+as a convergence finding, never silently dropped.
+
+*Illustrative examples.* Coupling cells that name a specific spell or mechanic
+(e.g. "Fireball", "Hold Person", "Detect Magic") do so as illustrative examples
+of the coupling contract only — they are not normative content and do not
+constrain any ruleset. The normative rule is that coupling effects are derived
+from the bound ruleset's own text during Discovery (REQ-377).
 
 ##### 7.7.1a Active couplings
 
@@ -389,19 +414,19 @@ couplings cite REQ-236.
 | Vehicle → Scene | P13 | Vehicle entry/exit records story journal moment entries | Entering a vehicle is a story moment — vehicle entry/exit records journal entries | GM-only (write); Player-visible (read) | Navigational | REQ-317 |
 | World → Synthesis | P11 | World-model rooms and things as synthesis source for adventure_advice and lore_templates | The room design suggests the story — spatial state seeds Wisdom templates | — | Navigational | §11 |
 | Synthesis → Constraint Overrides | P10 | `constraint_override` component_type items feed override design patterns | The computer consults its library — Wisdom overrides feed constraint catalog | — | Navigational | REQ-354 |
-| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per ruleset-described dramatic rhythm | Threats escalate on the program's schedule — Wisdom mechanically seeds countdowns | — | Mechanical | REQ-371 |
-| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match ruleset-described dynamics | The cast relates as the genre dictates — Wisdom establishes relationship patterns | — | Mechanical | REQ-371 |
+| Synthesis → Countdown | P7 | Wisdom pacing and encounter patterns mechanically seed countdowns and advance them per the dramatic rhythm extracted during Discovery (REQ-225) | Threats escalate on the program's schedule — Wisdom mechanically seeds countdowns | — | Mechanical | REQ-371, REQ-225 |
+| Synthesis → Relationship | P9 | Wisdom relationship patterns mechanically establish relationships between NPCs sharing scene presence when personality fields match the relationship dynamics extracted during Discovery (REQ-225) | The cast relates as the genre dictates — Wisdom establishes relationship patterns | — | Mechanical | REQ-371, REQ-225 |
 | Relationship → Countdown | P18 | Relationship flip from `ally` to `rival`/`hostile` with matching countdown `scope` produces countdown-advancement advisory in `narrative_threads` | Betrayal signals the clock — relationship flip advances matching countdowns | — | Navigational | REQ-359 |
 | Lore → Countdown | P19 | Lore entries with temporal urgency triggers suggest countdown creation in `narrative_threads` | Urgent knowledge demands a countdown — temporal urgency triggers suggest countdown creation | — | Navigational | REQ-360 |
-| NPC → Vow | P20 | Goal-carrying NPCs with goal text >20 chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Purpose suggests a quest — goal-carrying NPCs prompt vow creation | — | Navigational | REQ-361, REQ-077, REQ-289 |
+| NPC → Vow | P20 | Goal-carrying NPCs with goal text at or above `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` chars and no matching active vow produce vow-creation suggestion in `narrative_threads` | Purpose suggests a quest — goal-carrying NPCs prompt vow creation | — | Navigational | REQ-361, REQ-077, REQ-289 |
 | Faction → Vow | P20 | Faction goals intersecting known entities/locations from lore or story journal produce vow-creation suggestion in `narrative_threads` | Faction purpose suggests quests — faction goals intersecting known entities prompt vows | — | Navigational | REQ-362, REQ-233, REQ-289 |
 | Secret → World | P21 | Secrets with `world_target` room ID match triggers against room description; surfaced as `[world-linked]` in `narrative_threads` | Secrets are anchored to places — world-target secrets link to Holodeck rooms | — | Navigational | REQ-363, REQ-234, REQ-195 |
 | Faction → World | P22 | Factions with `territory` room IDs surface tagged `[territorial]` in `narrative_threads` when scene location matches | Faction turf defines presence — territorial factions surface when scene matches | — | Navigational | REQ-364, REQ-233, REQ-195 |
 | Countdown → Scene | P39 | Countdown fire with scene scope updates the current scene description — countdown `world_effect` type `"scene"` mutates the scene state | The clock changes the scene — countdown fire updates scene description | — | Mechanical | REQ-369 |
 | Lore → Scene | P40 | Active lore entries with current-scene triggers surface the lore content in the scene description tagged `[lore-relevant]` | What you know colors what you see — active lore surfaces in scene description | GM-only (GM surface), Player-visible (shared-scope lore) | Navigational | REQ-369 |
-| Scene → NPC | P41 | Scene type set to `combat` shifts NPC disposition toward hostile; `social` toward neutral/friendly; `exploration` toward curious — advisory surfaced in `narrative_threads` | The scene shapes the cast — scene type drives NPC disposition advisories | — | Navigational | REQ-369, REQ-075 |
+| Scene → NPC | P41 | Active combat state (REQ-043) shifts NPC disposition toward hostile; `social` scene type shifts toward friendly; `exploration` scene type shifts toward neutral — advisory surfaced in `narrative_threads` | The scene shapes the cast — scene type drives NPC disposition advisories | — | Navigational | REQ-369, REQ-043, REQ-075 |
 | NPC → Scene | P42 | NPC presence in the current scene surfaces in `characters_present` field — NPCs whose `location` matches the active room auto-register | Characters define the scene — NPC presence registers in characters_present | GM-only (mutation); Player-visible (read) | Mechanical | REQ-369, REQ-075 |
-| NPC → Countdown | P4 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal urgency exceeds `TTRPG_NPC_URGENCY_THRESHOLD` | NPC urgency drives the clock — goal-carrying NPCs suggest countdown advancement | — | Navigational | REQ-369, REQ-077 |
+| NPC → Countdown | P4 | Goal-carrying NPCs in the current scene produce countdown-advancement advisory in `narrative_threads` when their goal-text length is at or above `TTRPG_NPC_URGENCY_THRESHOLD` | NPC urgency drives the clock — goal-carrying NPCs suggest countdown advancement | — | Navigational | REQ-369, REQ-077 |
 | Player Signal → Pacing Window | P43 | `player_signal("pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | The operator controls the story's rhythm — player pacing signals adjust the window | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
@@ -414,8 +439,8 @@ couplings cite REQ-236.
 | Faction → World in Motion | P30 | Faction goal milestones surface alongside NPC goal pursuits in `badge_briefing` World in Motion — GM may accept (advances faction clock), defer, or dismiss | Faction purpose drives the story — faction goals surface alongside NPC goals | — | Narrative | REQ-338, REQ-339, REQ-233a |
 | Autonomous Countdown → Story Journal | P31 | Faction clock fire produces `[faction-event]` story journal `consequence` entries surfaced in `session_recap` and `badge_briefing` narrative context | Faction momentum becomes story memory — clock fire records journal entries | — | Navigational | REQ-338, REQ-246 |
 | Story Journal → NPC | P33 | `consequence` or `moment` entries referencing an NPC by name flag that NPC for goal-pursuit suggestion in next World in Motion cycle — past events prompt current NPC behavior | Past events remind NPCs of unfinished business — journal entries prompt NPC goal pursuit | — | Navigational | REQ-246, REQ-339 |
-| Story Beats → NPC | P41 | Beat transitions drive NPC disposition advisories — `climax` beat shifts combat-ready NPCs toward hostile, `denouement` shifts all NPCs toward reflective/neutral — surfaced in `narrative_threads` | The dramatic structure shapes the cast — beat transitions drive NPC disposition advisories | — | Navigational | REQ-335, REQ-353, REQ-075 |
-| Scene → Faction | P41 | Scene type and atmosphere surface faction-relevant advisories in `narrative_threads` — combat scenes highlight aggressive faction goals, social scenes highlight faction alliances and negotiations | Factions loom larger when the scene matches — scene type highlights relevant faction activity | — | Navigational | REQ-233, REQ-087 |
+| Story Beats → NPC | P41 | Beat transitions drive NPC disposition advisories — `climax` beat shifts combat-ready NPCs toward hostile, `denouement` shifts all NPCs toward neutral — surfaced in `narrative_threads` | The dramatic structure shapes the cast — beat transitions drive NPC disposition advisories | — | Navigational | REQ-335, REQ-353, REQ-075 |
+| Scene → Faction | P41 | Scene type and atmosphere surface faction-relevant advisories in `narrative_threads` — active combat state (REQ-043) highlights aggressive faction goals, social scenes highlight faction alliances and negotiations | Factions loom larger when the scene matches — scene type highlights relevant faction activity | — | Navigational | REQ-233, REQ-043, REQ-087 |
 | Server Notes → Countdown | P49 | Server notes with temporal urgency keywords ("imminent", "within hours", "by dawn") suggest countdown creation in `narrative_threads` when scene scope matches or note is unscoped | The GM's notebook can drive the clock — temporal urgency notes suggest countdowns | — | Navigational | REQ-365, REQ-285, REQ-073 |
 
 ##### 7.7.1b Coupling curation

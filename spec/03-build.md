@@ -1568,8 +1568,8 @@ are selected for changed surfaces.
 7. **World-model resources** — call `room://<id>`, `thing://<id>`,
    `world://map`, `world://kinds`. Assert room and thing content matches state.
    Assert map shows correct adjacency. Assert kinds resource lists the kind
-   hierarchy, property contracts, and parser command catalog from the indexed
-   provider documentation. Swap to Player badge — assert GM-only metadata
+   hierarchy, property contracts, and parser command catalog provided by the
+   holonovel package (B10). Swap to Player badge — assert GM-only metadata
    excluded from all four resources.
 
 8. **Large-map navigation** — populate 50+ room world model. Navigate from one
