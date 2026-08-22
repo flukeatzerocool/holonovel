@@ -877,7 +877,7 @@ cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
 ### 6.6 The Pattern Buffer
 
-*Prepare:* Load files from `build-phase-map.md` Pattern Buffer row: 03-build.md §6.6,
+*Prepare:* Load files from `build-phase-map.md` Ruleset Pattern Buffer row: 03-build.md §6.6,
 05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the

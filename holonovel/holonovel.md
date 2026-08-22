@@ -4934,7 +4934,7 @@ cache key for Phase 2 metrics — the manifest provides pre-computed results.
 
 ### 6.6 The Pattern Buffer
 
-*Prepare:* Load files from `build-phase-map.md` Pattern Buffer row: 03-build.md §6.6,
+*Prepare:* Load files from `build-phase-map.md` Ruleset Pattern Buffer row: 03-build.md §6.6,
 05-verification.md, 06-artifacts.md.
 
 **Timing.** After Phase 2 of the convergence loop (§6.5) has converged and the
@@ -9770,6 +9770,17 @@ be justified by its domain complexity.
 **The "trust the loop" test.** If a deviation from a requirement would be caught by
 G2, G4, G5, the convergence loop, or a Pattern Buffer sub-workflow, do not specify the mechanism
 in the REQ — specify the outcome. The REQ ends at the contract boundary.
+
+**Guidance boundaries.** Standing Rule 7 withholds implementation method from
+requirements. The same boundary governs builder guidance. The spec prescribes builder
+method — converter capability profiles (Appendix G), MCP conformance checklists
+(Appendix D), chunked reading (§6.3), intake question sets (§6.2) — only where a
+named failure mode (§3) would otherwise fire or where the convergence loop (§6.5)
+and verification workflows (§8) cannot verify the outcome. Where the loop verifies
+the outcome, builder guidance SHALL NOT be added; the section ends at the contract
+boundary. This rule tells a maintainer where new builder guidance belongs — prescribe
+against a named failure mode or an unverifiable outcome, otherwise leave method to
+the builder.
 
 **EARS notation.** REQ authors are encouraged — but not required — to structure
 requirement bodies using the Easy Approach to Requirements Syntax (EARS). EARS

@@ -1002,6 +1002,61 @@ function checkCouplingCompleteness(text: string): string[] {
   return issues;
 }
 
+// ─── Prepare:* ↔ build-phase-map consistency ───────────────────────────────
+
+function checkPreparePhaseMap(): string[] {
+  const issues: string[] = [];
+  const repo = path.resolve(__dirname, "..");
+  const buildMd = path.join(repo, "spec", "03-build.md");
+  const mapMd = path.join(repo, "spec", "build-phase-map.md");
+  if (!fs.existsSync(buildMd) || !fs.existsSync(mapMd)) {
+    return [`phase-map consistency: one of spec/03-build.md, spec/build-phase-map.md not found`];
+  }
+
+  const normalize = (s: string) => s.replace(/\s*\(§[\d.]*\)\s*$/, "").trim();
+
+  // Parse build-phase-map.md rows: label -> Files-to-load cell.
+  const mapRows = new Map<string, string>();
+  let inMapTable = false;
+  for (const line of fs.readFileSync(mapMd, "utf8").split("\n")) {
+    if (line.includes("| Build Phase") || line.includes("| Build phase")) { inMapTable = true; continue; }
+    if (inMapTable) {
+      if (line.trim().startsWith("|------") || line.trim().startsWith("| -------")) continue;
+      const cells = line.split("|").map((c) => c.trim()).filter((c) => c.length > 0);
+      if (cells.length >= 2) mapRows.set(normalize(cells[0]), cells[1]);
+      else if (line.trim() && !line.trim().startsWith("|")) break;
+    }
+  }
+
+  // Parse *Prepare:* directives in 03-build.md.
+  const prepareRe = /\*Prepare:\*\s*Load files from `build-phase-map\.md`\s+(.+?)\s+row:\s*(.*)$/;
+  let found = 0;
+  for (const line of fs.readFileSync(buildMd, "utf8").split("\n")) {
+    const m = line.match(prepareRe);
+    if (!m) continue;
+    found++;
+    const rowLabel = normalize(m[1]);
+    const filesPart = m[2].trim().replace(/\s*\.$/, "");
+    const rowFiles = mapRows.get(rowLabel);
+    if (rowFiles === undefined) {
+      issues.push(`Prepare directive references unknown phase-map row "${rowLabel}"`);
+      continue;
+    }
+    // Each file token listed must appear in the referenced row's files cell.
+    const listed = filesPart.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+    for (const tok of listed) {
+      if (!rowFiles.includes(tok)) {
+        issues.push(`Prepare directive (${rowLabel}) lists "${tok}" not present in phase-map row`);
+      }
+    }
+  }
+
+  if (found === 0) {
+    issues.push("No *Prepare:* directives found in spec/03-build.md");
+  }
+  return issues;
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────
 
 function main(): void {
@@ -1168,6 +1223,13 @@ function main(): void {
   if (countIssues.length > 0) { for (const issue of countIssues) console.log(`WARNING: ${issue}`); warnings += countIssues.length; }
 
   reportSectionCounts(text);
+
+  const phaseMapIssues = checkPreparePhaseMap();
+  console.log("\n=== PHASE-MAP CONSISTENCY ===\n");
+  if (phaseMapIssues.length > 0) {
+    for (const issue of phaseMapIssues) console.log(`ERROR: ${issue}`);
+    errors += phaseMapIssues.length;
+  } else { console.log("PASS: All *Prepare:* directives resolve to build-phase-map rows"); }
 
   if (traceability) {
     generateTraceability(text, reqIndex);
