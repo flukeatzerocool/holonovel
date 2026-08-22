@@ -303,7 +303,7 @@ Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent
 
 ## 2026-08-08 — Rebuild (Gauntlet verified)
 
-- Build from provider documentation (`docs_md/world-model-provider.md`): kind hierarchy (thing,
+- Build from provider documentation (`narrative_world_model/world/world-model-provider.md`): kind hierarchy (thing,
   container, supporter, door, person, backdrop, region), property contracts, parser command
   catalog, and declarative assertion syntax indexed and surfaced at `world://kinds`.
 - Server version: 2026.08.07. Specification version: 2026.08.08.
@@ -352,7 +352,7 @@ Surface hash: 0f9d1b3f (tools: 17, resources: 4, prompts: 4).
 ## 2026-08-07 — Initial implementation
 
 - Created ruleset-free Inform MCP server in `inform/` directory alongside
-  the dnd5e server and `docs_md/world-model-provider.md`.
+  the dnd5e server and `narrative_world_model/world/world-model-provider.md`.
 - Implements REQ-218 (ruleset-free build), REQ-219 (ruleset-free entity creation),
   REQ-195–202 (world-model tier, parser commands, CRUD, properties, kinds,
   convert_source, resources), REQ-222 (base parser vocabulary).
