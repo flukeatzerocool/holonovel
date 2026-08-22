@@ -2,7 +2,28 @@
 
 **Spec hash:** 4e4291a91a2c0a615ac1c920e9951604ff92b2dff3bf21eb144df0be911f0dd8
 
-### Holonovel Spec Update — 2026-08-21 (MCP performance and token efficiency)
+### Holonovel Spec Update — 2026-08-22 (market-aligned play defaults)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec (REQ-291 oracle Ironsworn ladder + Player access + 50_50 default; REQ-306b safety default safe; REQ-306f safety escalation advisory; REQ-306g creativity tier mapping; REQ-412 turn-handoff directive in new §5.20; REQ-253b verbosity default normal; §7.6 cap/confidence defaults and TTRPG_AUTONOMY preset; §7.7.1a P45 autonomy coupling; §5 index repair; Appendix E REQ-306f/g/412, Appendix F T481–T485; §6.6 coverage-map REQ-409/410 rows) + implementation (`set_autonomy` tool with escalation advisory; `ask_oracle` Ironsworn ladder and un-gated; `badge_briefing` turn-handoff directives; `spec_health.autonomy` and `creativity_mapping`; `TTRPG_AUTONOMY` launch preset; `autonomy` field in NovelState) |
+| Reused | config, lockfile, extraction |
+| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors, typecheck 0 errors, stdio boot smoke |
+
+**Play-defaults reconciliation.** Defaulted the autonomy `safety` slider to `safe`
+with a confirmed escalation advisory when the GM raises it toward permanent-death
+tiers, matching the Holodeck's safety-on-by-default posture and the AI-Dungeon
+safe-default norm (REQ-306b, REQ-306f). The oracle now uses the canonical
+Ironsworn Ask-the-Oracle ladder (`almost_certain` ≥11, `likely` ≥26, `50_50` ≥51,
+`unlikely` ≥76, `small_chance` ≥91), defaults to `50_50` when the likelihood is
+omitted, and is callable by the Player badge so solo play consults the oracle
+without a badge switch (REQ-291a–d). A turn-handoff directive closes each GM-role
+turn by inviting the player's next action in plain English — the cross-medium
+norm from Zork to play-by-post (REQ-412). Tool-output verbosity now defaults to
+balanced `normal` output (REQ-253b). The three creativity tiers are documented as
+distinct ordered variation levels recorded at build time (REQ-306g).
+
 
 | Field | Value |
 |-------|-------|
