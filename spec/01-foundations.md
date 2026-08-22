@@ -53,7 +53,7 @@
 
 Read this specification in layers — not front to back.
 
-This specification is maintained as 10 source files under `spec/`. `npm run assemble`
+This specification is maintained as 13 source files under `spec/`. `npm run assemble`
 joins them into this document. During an AI build, the builder reads
 `build-phase-map.md` to load only the files the current phase needs. This cuts
 per-phase context by about 73% versus loading the full specification.
@@ -199,7 +199,7 @@ traceability table. `scripts/validate.ts` verifies it mechanically.
 
 ## 3. How This Build Fails
 
-The spec is designed around seven failure modes. Recognize them early.
+The spec is designed around eight failure modes. Recognize them early.
 
 | Mode | Symptom                                                                                          | Primary mitigation                                                 |
 | ---- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |

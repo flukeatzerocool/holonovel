@@ -1,6 +1,25 @@
 # Changelog
 
-## 2026-08-22 — Token-efficiency contracts (REQ-413–417)
+## 2026-08-22 — Spec integrity repair
+
+- Restored Appendix Z (supplementary ruleset fixture), which the assembler
+  was silently dropping because its canonical appendix order omitted the
+  letter Z — `import_supplementary` and `import_dynamic_tools` verification
+  now reference a fixture that is actually assembled. (REQ-372, REQ-373)
+- Repaired 214 requirement bodies whose opening clause was dropped by the
+  2026-08-11 sub-REQ splitter, leaving them starting mid-sentence. The
+  missing lead-ins were reconstructed verbatim from the pre-split revision.
+- Re-homed a malformed `REQ-072 session format` block that was stranded
+  inside the clock-types family as the proper `REQ-072g`, and removed two
+  mis-titled `REQ-073b1`/`REQ-073b2` orphans that duplicated it.
+- Renumbered 21 sub-REQs that carried bare-digit suffixes (`REQ-0731`) into
+  the lettered form (`REQ-073c1`) required by the sub-REQ convention.
+- Stripped doubled `(Part a) (Part a1)` labels from 11 sub-REQ titles.
+- Corrected stale counts and prose: 13 source files (was 10), eight failure
+  modes (was seven), 20 §5 subsections (was 18), and the appendix letter
+  ranges in the build-phase map.
+- Normalized seven "Gate 2" references to the canonical `G2` form.
+
 
 - Codified the action-discriminator tool surface: operations sharing a domain
   but not an input/output contract expose one entry tool with an action
