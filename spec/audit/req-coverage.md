@@ -163,8 +163,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
 | REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |
 | REQ-184 | Anti-slop resource rendering (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
-| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T300 | — |
-| REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T225 | — |
+| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T300 | — |
+| REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T225 | — |
 | REQ-187 | Spec content hash computation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-190 | Respond drain result | 5.4 Decision workflows | C | T138 | — |
 | REQ-191 | Option display-label pairs | 5.4 Decision workflows | C | T32 | — |
@@ -173,7 +173,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-194 | Anchor derivation (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T236 | — |
 | REQ-195 | World-model state tier (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T238, T414, T415 | — |
 | REQ-196 | Parser command dispatch (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T239, T261, T313 | — |
-| REQ-197 | Room description generation (Part a) (4 sub-parts) | 5.10 World-Model Layer | A | T240 | — |
+| REQ-197 | Room description generation (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T240 | — |
 | REQ-198 | World-model CRUD | 5.10 World-Model Layer | C | T241, T261 | — |
 | REQ-199 | Property state tracking | 5.10 World-Model Layer | C | T242, T261 | — |
 | REQ-200 | Kind mechanical contracts | 5.10 World-Model Layer | C | T243 | — |
@@ -256,8 +256,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-280 | Source-anchor citation (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T329 | — |
 | REQ-281 | Narrative-threads section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T330 | — |
 | REQ-282 | NPC voice directive (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T332 | — |
-| REQ-283 | Verb coverage tiers (Part a) (3 sub-parts) | 5.10 World-Model Layer | A | — | — |
-| REQ-284 | Implicit action hints (Part a) (5 sub-parts) | 5.10 World-Model Layer | A | — | — |
+| REQ-283 | Verb coverage tiers (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T333 | — |
+| REQ-284 | Implicit action hints (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T354 | — |
 | REQ-285 | Server notes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T334, T416 | — |
 | REQ-286 | Knowledge-state section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T399 | — |
 | REQ-289 | Vow tracking (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T407, T412, T413 | — |
@@ -291,10 +291,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-321 | Codex (Part a) (16 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T397, T402, S17 | — |
 | REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T369 | — |
 | REQ-323 | resolve_intent tool (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
-| REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | — | — |
-| REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | B | — | — |
+| REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | T371 | — |
+| REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T372 | — |
 | REQ-326 | Scene-world coupling (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T373 | — |
-| REQ-327 | NPC-world coupling (Part a) (3 sub-parts) | 5.10 World-Model Layer | A | T374 | — |
+| REQ-327 | NPC-world coupling (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T374 | — |
 | REQ-328 | Lore-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T375 | — |
 | REQ-329 | Countdown-world coupling (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T376 | — |
 | REQ-330 | Knowledge-world coupling (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T377 | — |
@@ -334,8 +334,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-364 | Faction-world coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T415 | implemented |
 | REQ-365 | Server notes narrative coupling (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T416 | implemented |
 | REQ-366 | Observer narrative surface (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T417 | implemented |
-| REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | A | — | — |
-| REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | A | — | — |
+| REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T418 | — |
+| REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T419 | — |
 | REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
 | REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
 | REQ-371 | Ruleset Wisdom as rendered reality (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |

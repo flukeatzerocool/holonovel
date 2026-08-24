@@ -93,7 +93,9 @@ export interface NpcState {
   name: string;
   description?: string;
   disposition?: string;
-  location?: string;
+location?: string;
+  // REQ-327 — NPC-world coupling: room id when location matches a room.
+  room_id?: string;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
   conditions: string[];
@@ -140,6 +142,8 @@ export interface Countdown {
   // on_thing_take(<id>), on_door_open(<ref>)). Any trigger match advances one
   // tick; triggers supplement (never replace) normal advancement.
   triggers?: string[];
+  // REQ-368 — countdown-world effect coupling: applied when the countdown fires.
+  world_effect?: { type: "describe" | "property" | "exit"; target: string; direction?: string; destination?: string; property?: string; value?: string };
 }
 
 export interface CombatState {

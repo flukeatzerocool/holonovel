@@ -855,6 +855,96 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 10: §5.10 World-model couplings ──
+  await test("T240/REQ-197 + T333/REQ-283: description modes and verb coverage", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const b = await call(p, "command", { command: "brief" });
+    assertContains(b, "[OK]", "REQ-197 brief mode");
+    const v = await call(p, "command", { command: "verbs" });
+    assertContains(v, "Verb coverage", "REQ-283 verb tiers");
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (typeof h.parser_verb_coverage?.core !== "number") throw new Error("REQ-283 parser_verb_coverage");
+    if (h.description_mode !== "brief") throw new Error("REQ-197 description_mode");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T370/REQ-326 + T371/REQ-327: scene-world and NPC-world coupling", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_room", { name: "Throne Room", description: "golden" });
+    await call(p, "create_npc", { name: "Blacksmith", location: "Throne Room" });
+    await call(p, "set_scene_state", { description: "The throne room", location: "Throne Room" });
+    const cur = await proto(p, "resources/read", { uri: "scene://current" });
+    assertContains(cur, "Throne Room", "REQ-326 scene-world coupling room match");
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    const upd = await call(p, "update_npc", { npc_id: id, location: "Inn" });
+    assertContains(upd, "[OK]", "REQ-327 update_npc location");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T419/REQ-368: countdown world_effect fires and applies", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_room", { name: "cellar", description: "dry" });
+    await call(p, "set_countdown", { name: "flood", ticks: 1, type: "narrative", world_effect: { type: "describe", target: "cellar", value: "Knee-deep water" } });
+    await call(p, "advance_countdown", { name: "flood" });
+    const cur = await proto(p, "resources/read", { uri: "scene://current" });
+    void cur;
+    const room = await proto(p, "resources/read", { uri: "room://cellar" });
+    assertContains(room, "Knee-deep water", "REQ-368 world_effect applied");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T372/REQ-325: constraint override catalog", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const c = await proto(p, "resources/read", { uri: "constraints://active" });
+    assertContains(c, "[", "REQ-325 constraints resource");
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (!("constraint_override_counts" in h)) throw new Error("REQ-325 constraint_override_counts");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T354/REQ-284: implicit action hints on locked open", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10e" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "W" });
+    await call(p, "create_room", { name: "Hall", description: "h" });
+    await call(p, "create_thing", { name: "chest", description: "a chest", openable: true, lockable: true, locked: true, fixed: true, location: "Hall" });
+    const noKey = await call(p, "command", { command: "open chest" });
+    assertContains(noKey, "locked", "REQ-284 locked message");
+    await call(p, "create_thing", { name: "iron key", description: "k", location: "Hall" });
+    const hint = await call(p, "command", { command: "open chest" });
+    assertContains(hint, "Hint: You need the iron key", "REQ-284 reachable key hint");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T418/REQ-367: property propagation across containment", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w10f" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "W2" });
+    await call(p, "create_room", { name: "Dark", description: "d" });
+    await call(p, "create_thing", { name: "glass jar", description: "j", openable: true, fixed: true, transparent: true, location: "Dark" });
+    await call(p, "create_thing", { name: "lantern", description: "l", lit: true, switched_on: true, location: "glass jar", location_type: "container" });
+    const look = await call(p, "command", { command: "look" });
+    assertContains(look, "glowing lantern", "REQ-367 transparent container propagation");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

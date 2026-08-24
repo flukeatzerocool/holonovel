@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-24 — Wave 10: §5.10 World-model couplings (8 REQs → C)
+
+- REQ-197 description modes: `command("brief"/"verbose"/"normal")` +
+  `description_mode` in spec_health.
+- REQ-283 verb coverage tiers: `command("verbs")` + `parser_verb_coverage` in
+  spec_health (core/standard/extended).
+- REQ-284 implicit action hints: reachable-key hint on locked open
+  (`Hint: You need the <key> (<location>) first.`), absent when no key.
+- REQ-325 constraint override catalog: `constraints://active` resource +
+  `constraint_override_counts` in spec_health (T372 mapping).
+- REQ-326 scene-world coupling citation + test (scene://current room match).
+- REQ-327 NPC-world coupling: `room_id` on create_npc/update_npc when location
+  matches a room; look lists present NPCs.
+- REQ-367 property propagation across containment: lit/dark device reporting
+  through transparent containers, opaque-boundary hiding.
+- REQ-368 countdown-world effect coupling: `world_effect` (describe/property/
+  exit) applied on fire with `[WARNING] target missing` handling.
+- `create_thing` extended property params (lit/switched_on/transparent/readable/
+  wearable/edible/drinkable/enterable/climbable/locked).
+- `test-output-contracts.ts` grows to 164 assertions (T240/T333/T354/T369/T370/
+  T371/T372/T418/T419). Buckets now A 10 / B 4 / C 262 / E 105.
+
 ## 2026-08-24 — Wave 9: §5.8 Synthesis subsystem (18 REQs → C)
 
 - REQ-261 player synthesis: `player_synthesize`/`player_remove_synthesis`/

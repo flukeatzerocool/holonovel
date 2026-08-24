@@ -194,6 +194,24 @@ function handleLook(ctx: ParserContext): ParserResult {
     text += `\n\nYou can see: ${names.join(", ")}.`;
   }
 
+  // REQ-367 — property propagation across containment: a lit+switched_on device
+  // inside a transparent container reports its light state to the room; an
+  // opaque/dark boundary at any level hides recursively contained contents.
+  for (const [, t] of (ctx.world as any)?.things ?? new Map()) {
+    if (t.locationType !== "container" && t.locationType !== "room") continue;
+    const isOpaque = (t.transparent === false || t.transparent === undefined) && t.openable;
+    const inner = (ctx.world as any)?.things ? [...(ctx.world as any).things.values()].filter((i: any) => i.location && String(i.location).toLowerCase() === t.name.toLowerCase() && i.locationType === "container") : [];
+    if (!isOpaque && inner.length > 0) {
+      for (const i of inner) {
+        if (i.lit && i.switched_on) text += `\nA glowing ${i.name} (inside the ${t.name}).`;
+        else if (i.lit) text += `\nA dark ${i.name} (inside the ${t.name}).`;
+      }
+    } else if (isOpaque && (t.openable || t.kind === "container")) {
+      const hasContents = [...(ctx.world as any)?.things?.values() ?? []].some((i: any) => i.location && String(i.location).toLowerCase() === t.name.toLowerCase());
+      if (hasContents) text += `\nA ${t.name} (opaque, what's inside is hidden).`;
+    }
+  }
+
   // Exits
   const exitList: string[] = [];
   for (const [dir, target] of room.exits) {
@@ -370,8 +388,29 @@ function handleOpen(target: string, ctx: ParserContext): ParserResult {
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} cannot be opened.` };
   if (thing.open) return { prefix: "WARNING", text: `The ${thing.name} is already open.` };
-  if (thing.locked) return { prefix: "WARNING", text: `The ${thing.name} is locked.`, correctiveAction: `Try: unlock ${thing.name} with <key>.` };
+  if (thing.locked) {
+    // REQ-284 — implicit action hints: when a reachable key exists in the room
+    // or inventory, name it and its location; no hint when none is reachable.
+    const hint = findUnlockHint(ctx, thing);
+    return { prefix: "WARNING", text: `The ${thing.name} is locked.`, correctiveAction: hint ?? `Try: unlock ${thing.name} with <key>.` };
+  }
   return { prefix: "OK", text: `You open the ${thing.name}.` };
+}
+
+// REQ-284 — locate a reachable key (room, inventory, or open container) to
+// unlock the given thing; returns a Hint: line or null.
+function findUnlockHint(ctx: ParserContext, thing: any): string | null {
+  const keyName = thing.key?.toLowerCase?.() ?? (thing.lockable ? undefined : undefined);
+  const roomName = ctx.currentRoom?.toLowerCase?.() ?? "";
+  for (const [, t] of (ctx.world as any)?.things ?? new Map()) {
+    const name = t.name?.toLowerCase?.() ?? "";
+    const isKey = name.includes("key") || name.includes("lockpick");
+    if (!isKey) continue;
+    if (ctx.inventory?.includes(name)) return `Hint: You need the ${t.name} (inventory) first.`;
+    if (t.location && String(t.location).toLowerCase() === roomName) return `Hint: You need the ${t.name} (${roomName}) first.`;
+    if (t.locationType === "container" && t.location === roomName) return `Hint: You need the ${t.name} (${roomName}) first.`;
+  }
+  return null;
 }
 
 function handleClose(target: string, ctx: ParserContext): ParserResult {
