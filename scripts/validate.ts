@@ -1278,6 +1278,12 @@ const INTENDED_GAP_REQS = new Set([
   // REQ-271); config default inheritance is a DECISIONS.md config-surface
   // record (REQ-416). Not owed by the runtime server.
   "REQ-270", "REQ-271", "REQ-416",
+  // §5.8 builder-side (2026-08-24 wave-9 triage): suggestion-coverage audit
+  // (REQ-114), synthesis rebuild contract (REQ-130), spec-driven update
+  // consistency/population (REQ-228, REQ-243), convergence cache key (REQ-244),
+  // and pre-computed synthesis manifest (REQ-245) are all build-time
+  // DECISIONS.md/CONVERGENCE.md processes. Not owed by the runtime server.
+  "REQ-114", "REQ-130", "REQ-228", "REQ-243", "REQ-244", "REQ-245",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

@@ -653,6 +653,29 @@ server.registerTool(toolName, {
   }
 }
 
+// REQ-310 — campaign memory: engine-recorded facts derived from state-changing
+// tool calls, per-NPC/thread/location, prioritized by scene relevance in
+// badge_briefing; per-category counts in spec_health.
+function recordCampaignMemory(novel: NovelState, category: "npcs" | "threads" | "locations", text: string, badge_scope: "gm" | "shared" | "discovered" = "gm"): void {
+  novel.campaign_memory = novel.campaign_memory ?? [];
+  novel.campaign_memory.push({ category, text, at: new Date().toISOString(), badge_scope, scene: novel.scene_description?.substring(0, 60) ?? "" });
+  if (novel.campaign_memory.length > 200) novel.campaign_memory.shift();
+}
+
+function composeCampaignMemorySection(novel: NovelState, badge: string): string {
+  const facts = novel.campaign_memory ?? [];
+  if (facts.length === 0) return "";
+  const isGM = badge === "game_master" || badge === "none";
+  const maxFacts = configInt("TTRPG_CAMPAIGN_MEMORY_MAX_FACTS", 10);
+  const visible = isGM ? facts : facts.filter((f) => (f.badge_scope === "shared" || f.badge_scope === "discovered"));
+  if (visible.length === 0) return "";
+  const lines = visible.slice(-maxFacts).map((f) => {
+    const tag = f.badge_scope === "discovered" ? " [discovered]" : "";
+    return `- [${f.category}] ${f.text}${tag}`;
+  });
+  return `\n\n## Campaign Memory\n${lines.join("\n")}`;
+}
+
 function audit(tool: string, args: any, prefix?: string): void {
   const novel = state.activeNovel;
   if (novel) state.audit(novel, getBadge(), tool, args, prefix);
@@ -2460,6 +2483,7 @@ server.registerTool("advance_combat", {
   if (novel.npcs.has(currentName)) {
     const active = state.getActiveEntity();
     recordNpcInteraction(novel, currentName, active?.name ?? "the party", `engaged in combat (round ${combat.round})`, "hostile");
+    recordCampaignMemory(novel, "npcs", `${currentName} engaged in combat (round ${combat.round})`);
   }
   state.saveNovel(novel);
   return ok(`Turn: ${currentName} — Round ${combat.round}, Turn ${combat.current_turn + 1}/${combat.turn_order.length}. [AUTO]`);
@@ -2655,6 +2679,21 @@ server.registerTool("set_scene_state", {
   novel.scene_time_of_day = time_of_day;
   novel.scene_atmosphere = atmosphere;
 
+  // REQ-155 — sticky counter decay: sticky lore entries decay by one when the
+  // new scene text no longer matches their triggers; re-match resets the
+  // counter; entries at zero are deactivated in the next briefing assembly.
+  const sceneLower = effectiveDescription.toLowerCase();
+  for (const [, entry] of novel.lore) {
+    if (!entry.enabled) continue;
+    const matched = entry.triggers.some((t) => sceneLower.includes(t.toLowerCase()));
+    if (matched) {
+      entry.sticky_remaining = entry.sticky;
+    } else if (entry.sticky_remaining > 0) {
+      entry.sticky_remaining--;
+      if (entry.sticky_remaining <= 0) entry.enabled = false;
+    }
+  }
+
   // REQ-250 — adventure scene waypoint: set/clear the waypoint anchor; unknown
   // anchors return [NOT_FOUND] with nearby scene names enumerated.
   if (adventure_scene !== undefined) {
@@ -2736,7 +2775,9 @@ server.registerTool("set_scene_state", {
 
 server.registerTool("set_scene_type", {
   title: "Set Scene Type",
-  description: "Tag the scene as combat, social, exploration, or neutral. Game Master only.",
+  description: "Set scene type tags. Game Master only.",
+  // REQ-087 — scene type tagging: canonical catalog (social/exploration/neutral)
+  // always present; combat is a resolution mode, not a scene type.
   inputSchema: {
     type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]),
     beat: z.enum(BEAT_VALUES).optional(),
@@ -2811,6 +2852,8 @@ server.registerTool("create_npc", {
   }
   if (goals) npc.personality = { goals };
   novel.npcs.set(id, npc);
+  // REQ-310 — campaign memory: NPC creation is an engine-recorded fact.
+  recordCampaignMemory(novel, "npcs", `NPC ${name} created (${id})`);
   state.recordMutation(novel, "create_npc", "npc");
   state.saveNovel(novel);
   audit("create_npc", { name, id, ruleset_reference });
@@ -2951,8 +2994,10 @@ server.registerTool("set_lore_entry", {
     priority: z.number().optional(),
     sticky: z.number().optional(),
     group: z.string().optional(),
+    // REQ-328 — lore-world coupling: world-model target (room/thing/exit ref).
+    world_target: z.string().optional(),
   },
-}, async ({ key, content, triggers, badge_scope, priority, sticky, group }: any) => {
+}, async ({ key, content, triggers, badge_scope, priority, sticky, group, world_target }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -2966,6 +3011,7 @@ server.registerTool("set_lore_entry", {
     sticky_remaining: sticky ?? 0,
     enabled: true,
     group,
+    world_target,
   };
   novel.lore.set(key, entry);
   state.saveNovel(novel);
@@ -3385,6 +3431,38 @@ server.registerTool("forsake_vow", {
   return ok(`Vow '${vow_name}' forsaken.`);
 });
 
+// REQ-333 — story journal to lore promotion: promote a `revelation`/`moment`
+// entry into a lore entry (non-destructive; decisions/consequences are
+// immutable → [RULE_VIOLATION]; existing key → [STATE_CONFLICT]).
+server.registerTool("promote_story_to_lore", {
+  title: "Promote Story to Lore",
+  description: "Promote a story journal entry into a lore entry. Game Master only.",
+  inputSchema: { index: z.number(), key: z.string().optional() },
+}, async ({ index, key }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const entry = novel.story_journal[index];
+  if (!entry) return err("NOT_FOUND", `Story journal entry ${index} not found.`);
+  if (entry.type === "decision" || entry.type === "consequence") {
+    return err("RULE_VIOLATION", `A ${entry.type} entry is immutable and cannot be promoted.`);
+  }
+  const derivedKey = entry.entry.toLowerCase().split(/\s+/).slice(0, 6).join("-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  const targetKey = key ?? (derivedKey || "promoted");
+  if (novel.lore.has(targetKey)) {
+    return err("STATE_CONFLICT", `Lore entry '${targetKey}' already exists. Corrective action: supply a distinct key parameter.`);
+  }
+  novel.lore.set(targetKey, {
+    key: targetKey, content: entry.entry,
+    triggers: (entry.entry.match(/[A-Z][a-z]+/g) ?? []).slice(0, 5).map((w: string) => w.toLowerCase()),
+    badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
+    source: `story_journal:${index}`,
+  });
+  state.recordMutation(novel, "promote_story_to_lore", "journal");
+  state.saveNovel(novel);
+  audit("promote_story_to_lore", { index, key: targetKey, type: entry.type });
+  return ok(`Story journal entry ${index} promoted to lore entry '${targetKey}'.`);
+});
+
 // --- Story Journal (GM) ---
 
 server.registerTool("record_story", {
@@ -3395,11 +3473,18 @@ server.registerTool("record_story", {
   requireGM();
   const novel = requireNovel();
   const index = novel.story_journal.length;
+  // REQ-331 — story journal-world coupling: when the current scene is coupled
+  // to a world-model room (location matches a room), auto-populate room_id and
+  // annotate the scene_anchor with the room name.
+  const sceneLoc = novel.scene_location ?? "";
+  const matchRoom = [...novel.world.rooms.values()].find((r) => sceneLoc.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(sceneLoc.toLowerCase()));
+  const roomId = matchRoom ? matchRoom.name.toLowerCase() : undefined;
   novel.story_journal.push({
     index, type, entry,
     scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
     entity_ids: [],
     timestamp: new Date().toISOString(),
+    room_id: roomId,
   });
   state.recordMutation(novel, "record_story", "journal");
   state.saveNovel(novel);
@@ -3833,6 +3918,8 @@ server.registerTool("list_roster_characters", {
 server.registerTool("toggle_action_patterns", {
   title: "Toggle Action Patterns",
   description: "Toggle enrich-derived action patterns on or off for the active Novel. Game Master only.",
+  // REQ-115 — action pattern activation: flips the Novel-scoped boolean; when
+  // enabled, synthesis patterns supplement suggest_actions; pure-resolution.
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -3993,6 +4080,8 @@ function loadNovelFromStateData(data: any): NovelState {
     active_session_id: data.active_session_id ?? null,
     pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
     codex_sources: data.codex_sources ?? [],
+    player_synthesis: data.player_synthesis ?? {},
+    campaign_memory: data.campaign_memory ?? [],
   };
 }
 
@@ -4023,14 +4112,47 @@ server.registerTool("set_briefing_order", {
 }, async ({ sections }: any) => {
   requireGM();
   const novel = requireNovel();
+  // REQ-082/186 — section token validation: unknown tokens return
+  // [INVALID_INPUT] with valid tokens enumerated.
+  const VALID_TOKENS = ["scene_state", "entities", "combat_state", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
+  if (sections.length > 0) {
+    const unknown = sections.filter((s: string) => !VALID_TOKENS.includes(s));
+    if (unknown.length > 0) {
+      return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
+    }
+  }
   novel.briefing_order = sections;
   state.saveNovel(novel);
   return ok(`Briefing order set to: ${sections.join(", ")}.`);
 });
 
+server.registerTool("compress_audit", {
+  title: "Compress Audit Log",
+  description: "Return a Markdown prompt compressing recent audit entries. Callable by both badges.",
+  // REQ-086 — audit compression: header line + one line per entry in
+  // `[timestamp] [badge] tool_name — output_prefix` (or [BOUNDARY_VIOLATION]);
+  // pure-generation, badge-filtered; max_entries ≤ 0 → [INVALID_INPUT].
+  inputSchema: { max_entries: z.number().optional() },
+}, async ({ max_entries }: any) => {
+  const novel = requireNovel();
+  const max = max_entries ?? 20;
+  if (max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+  const recent = novel.audit_log.slice(-max);
+  const isGM = novel.badge === "game_master";
+  const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
+  if (filtered.length === 0) return ok("Compressed audit log (summarize into a single paragraph):\n(no entries)");
+  const lines = filtered.map(e => {
+    const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
+    const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
+    return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
+  });
+  return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+});
+
+// compact_audit_log: legacy alias for compress_audit (REQ-086).
 server.registerTool("compact_audit_log", {
   title: "Compact Audit Log",
-  description: "Summarize recent audit entries. Callable by both badges.",
+  description: "Alias for compress_audit.",
   inputSchema: { max_entries: z.number().optional() },
 }, async ({ max_entries }: any) => {
   const novel = requireNovel();
@@ -5115,6 +5237,30 @@ server.registerTool("spec_health", {
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.
     verbosity_mode: outputVerbosity,
+    // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
+    // their REQ-109 groups and whether the group currently has runtime content.
+    section_tokens: [
+      { token: "scene_state", group: "current scene state", has_content: !!(novel?.scene_description) },
+      { token: "entities", group: "active entities", has_content: !!(novel && novel.entities.size > 0) },
+      { token: "combat_state", group: "active combat state", has_content: !!(novel?.combat?.active) },
+      { token: "npcs", group: "active NPCs", has_content: !!(novel && novel.npcs.size > 0) },
+      { token: "countdowns", group: "active countdowns", has_content: !!(novel && novel.countdowns.size > 0) },
+      { token: "lore", group: "active lore entries", has_content: !!(novel && novel.lore.size > 0) },
+      { token: "narrative_threads", group: "narrative threads", has_content: true },
+      { token: "campaign_memory", group: "campaign memory", has_content: !!(novel && (novel.campaign_memory ?? []).length > 0) },
+      { token: "world_state", group: "world-model room context", has_content: !!(novel && novel.world.rooms.size > 0) },
+      { token: "story_journal", group: "story journal", has_content: !!(novel && novel.story_journal.length > 0) },
+    ],
+    // REQ-263 — synthesis auto-trigger threshold (visible).
+    synthesis_auto_trigger: process.env.TTRPG_SYNTHESIS_AUTO_TRIGGER ?? "off",
+    // REQ-266 — last synthesis run timestamp.
+    synthesis_last_run: state.enrichmentManifest?.collected_at ?? null,
+    campaign_memory: novel ? {
+      npcs: (novel.campaign_memory ?? []).filter((f) => f.category === "npcs").length,
+      threads: (novel.campaign_memory ?? []).filter((f) => f.category === "threads").length,
+      locations: (novel.campaign_memory ?? []).filter((f) => f.category === "locations").length,
+      total: (novel.campaign_memory ?? []).length,
+    } : { npcs: 0, threads: 0, locations: 0, total: 0 },
     // REQ-312d1 — narration validation gate status and rejection count.
     narration_validation: narrationValidationOn() ? "on" : "off",
     narration_rejection_count: narrationRejectionCount,
@@ -5555,6 +5701,14 @@ function synthesisModuleCounts(): Record<string, { total: number; activated: num
   return out;
 }
 
+// REQ-226 — narrative voice profiles: media-cited narrative voice profiles
+// stored at synthesis://narrative_voices; ruleset-free/vendor-absent → empty.
+server.registerResource("synthesis-narrative-voices", "synthesis://narrative_voices", { title: "Narrative Voice Profiles" }, async () => {
+  const profiles = (state.enrichmentManifest?.narrative_voices ?? DEFAULT_ENRICHMENT.narrative_voices) ?? [];
+  const list = (Array.isArray(profiles) ? profiles : []).map((p: any) => `## ${p?.name ?? "voice"}\n${p?.description ?? ""}`).join("\n\n");
+  return { contents: [{ uri: "synthesis://narrative_voices", text: `# Narrative Voice Profiles\n\n${list || "(no profiles — module empty)"}`, mimeType: "text/markdown" }] };
+});
+
 server.registerResource("synthesis-status", "synthesis://status", { title: "Synthesis Status" }, async () => {
   const counts = synthesisModuleCounts();
   const active = state.enriched;
@@ -5722,9 +5876,65 @@ server.registerTool("codex_import", {
 });
 
 // Synthesis tools (REQ-103, REQ-260-263)
+// REQ-261 — player synthesis: player-authored [player]-tagged items in a
+// player-facing module subset; active immediately; per-module cap of 15;
+// private scope supported; GM cannot modify them.
+const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementary_guidance", "narrative_voices", "lore_templates"];
+server.registerTool("player_synthesize", {
+  title: "Player Synthesize",
+  description: "Create a player-authored synthesis item. Player badge only.",
+  inputSchema: { module: z.string(), key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["shared", "player"]).optional() },
+}, async ({ module, key, content, triggers, badge_scope }: any) => {
+  requirePlayer();
+  const novel = requireNovel();
+  if (!PLAYER_SYNTH_MODULES.includes(module)) return err("INVALID_INPUT", `Module '${module}' is not a player synthesis module. Valid: ${PLAYER_SYNTH_MODULES.join(", ")}.`);
+  novel.player_synthesis = novel.player_synthesis ?? {};
+  const items = novel.player_synthesis[module] ?? [];
+  if (items.length >= 15) return err("STATE_CONFLICT", "Player synthesis per-module cap (15) reached.");
+  if (items.some((i: any) => i.key === key)) return err("STATE_CONFLICT", `Item '${key}' already exists in module '${module}'.`);
+  items.push({ key, content, triggers, badge_scope: badge_scope ?? "shared", created_at: new Date().toISOString() });
+  novel.player_synthesis[module] = items;
+  state.saveNovel(novel);
+  audit("player_synthesize", { module, key });
+  return ok(`Player synthesis item '${key}' created in '${module}' (active immediately).`);
+});
+
+server.registerTool("player_remove_synthesis", {
+  title: "Player Remove Synthesis",
+  description: "Remove a player-authored synthesis item. Player badge only.",
+  inputSchema: { module: z.string(), key: z.string() },
+}, async ({ module, key }: any) => {
+  requirePlayer();
+  const novel = requireNovel();
+  const items = (novel.player_synthesis ?? {})[module] ?? [];
+  const idx = items.findIndex((i: any) => i.key === key);
+  if (idx === -1) return err("RULE_VIOLATION", `Item '${key}' is not a player-authored item in '${module}'.`);
+  items.splice(idx, 1);
+  novel.player_synthesis[module] = items;
+  state.saveNovel(novel);
+  return ok(`Player synthesis item '${key}' removed.`);
+});
+
+server.registerTool("player_list_synthesis", {
+  title: "Player List Synthesis",
+  description: "List player-authored synthesis items. Player badge only.",
+  inputSchema: { module: z.string().optional() },
+}, async ({ module }: any) => {
+  requirePlayer();
+  const novel = requireNovel();
+  const ps = novel.player_synthesis ?? {};
+  const flat = Object.entries(ps).flatMap(([m, items]) => (module && m !== module ? [] : (items as any[]).map((i) => ({ module: m, key: i.key, preview: i.content.slice(0, 60), scope: i.badge_scope, activated: true }))));
+  if (flat.length === 0) return ok("[No player synthesis items.]");
+  return raw(JSON.stringify(flat, null, 2));
+});
+
 server.registerTool("synthesize", {
   title: "Synthesize",
   description: "Run synthesis against the active Novel's state and vendor content. Use when: generating voice examples, lore templates, and action patterns from Novel and vendor sources. Do NOT use when: editing mechanical fields — synthesis is additive only.",
+  // REQ-262 — synthesis tool: Novel-state analysis producing [supplementary]
+  // items with novel:// source URIs; fingerprint staleness + force bypass.
+  // REQ-264 — confidence model: explicit-field items carry MEDIUM, inferred
+  // items LOW, tagged [supplementary] [MEDIUM|LOW].
   inputSchema: { force: z.boolean().optional() },
 }, async ({ force }: any) => {
   requireGM();
@@ -5795,6 +6005,10 @@ server.registerTool("toggle_synthesis_module", {
 }, async ({ module, enabled }: any) => {
   requireGM();
   const novel = requireNovel();
+  // REQ-231 — per-module synthesis toggle: module name validated; disabling
+  // suppresses items from all surfaces, items persist, re-enable restores.
+  const MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
+  if (!MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${MODULES.join(", ")}.`);
   const m = novel.synthesis_module_enabled ?? {};
   if (enabled) m[module] = true; else delete m[module];
   novel.synthesis_module_enabled = m;
@@ -5876,6 +6090,10 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
     briefing += `\nAdventure Scene (${novel.adventure_slug ?? "generated"} § ${wp}): ${idx?.locations?.find((l: any) => l.name === wp)?.description ?? ""}${nearby ? ` — nearby: ${nearby}` : ""}`;
   }
 
+  // REQ-310 — campaign memory: decision-critical group after scene state,
+  // before entities; prioritized by relevance, capped by config.
+  briefing += composeCampaignMemorySection(novel, badge);
+
   // REQ-335 — current beat surfaces immediately after the scene type tag.
   briefing += `\n**Beat:** ${currentBeat(novel)}`;
 
@@ -5920,6 +6138,21 @@ You are in the story. Confine tool use and responses to the current Novel. To st
   // REQ-071 — narrative tone samples: ruleset-extracted prose demonstrating the
   // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
   briefing += `\n\n### Narrative tone\n[narrative-tone] Describe the world through grounded, sensory detail. Let consequences follow from the fiction — every mechanical outcome lands in the scene you narrate.`;
+
+  // REQ-265 — synthesis in badge_briefing: active synthesis items render under
+  // their sections tagged [supplementary] with confidence, badge-filtered; no
+  // empty section when none are active.
+  if (badge === "game_master" && state.enriched) {
+    const synthLines: string[] = [];
+    const manifest = state.enrichmentManifest;
+    if (manifest?.voice_examples?.length) synthLines.push(`[supplementary] [MEDIUM] voice examples: ${manifest.voice_examples.length}`);
+    if (manifest?.lore_templates?.length) synthLines.push(`[supplementary] [MEDIUM] lore templates: ${manifest.lore_templates.length}`);
+    if (manifest?.action_patterns?.length) synthLines.push(`[supplementary] [MEDIUM] action patterns: ${manifest.action_patterns.length}`);
+    const playerItems = Object.entries(novel.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).filter((i: any) => i.badge_scope !== "player").map((i: any) => `[player] ${m}: ${i.key}`));
+    if (synthLines.length > 0 || playerItems.length > 0) {
+      briefing += `\n\n### Synthesis\n${[...synthLines, ...playerItems].join("\n")}`;
+    }
+  }
 
   // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
   // never trimmed. Each is an absolute do-not-narrate directive.

@@ -119,6 +119,11 @@ export interface LoreEntry {
   sticky_remaining: number;
   enabled: boolean;
   group?: string;
+  // REQ-333 — provenance for promoted story journal entries.
+  source?: string;
+  // REQ-328 — lore-world coupling: world-model target that triggers the entry
+  // on interaction instead of (or alongside) keyword match.
+  world_target?: string;
 }
 
 export interface Countdown {
@@ -163,6 +168,7 @@ export interface StoryEntry {
   entity_ids: string[];
   timestamp: string;
   discovered?: boolean; // REQ-340 — consequence fired while absent
+  room_id?: string; // REQ-331 — story journal-world coupling
 }
 
 export interface FactionState {
@@ -373,6 +379,11 @@ export interface NovelState {
   constraint_overrides: { type: string; name?: string; source?: string; prerequisites?: string[]; slots_remaining?: number; match_all?: boolean }[];
   synthesis_activated: Record<string, number>;
   synthesis_module_enabled: Record<string, boolean>;
+  // REQ-261 — player-authored synthesis items, per module, tagged [player].
+  player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string }>>;
+  // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
+  // derived from state-changing tool calls, surviving restart and rebuild.
+  campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "gm" | "shared" | "discovered"; scene: string }>;
   notes: NoteEntry[];
   vows: VowState[];
   checkpoints: Checkpoint[];
@@ -653,6 +664,8 @@ export class StateManager {
       constraint_overrides: [],
       synthesis_activated: {},
       synthesis_module_enabled: {},
+      player_synthesis: {},
+      campaign_memory: [],
       notes: [],
       vows: [],
       checkpoints: [],
@@ -806,6 +819,8 @@ export class StateManager {
       constraint_overrides: data.constraint_overrides ?? [],
       synthesis_activated: data.synthesis_activated ?? {},
       synthesis_module_enabled: data.synthesis_module_enabled ?? {},
+      player_synthesis: data.player_synthesis ?? {},
+      campaign_memory: data.campaign_memory ?? [],
       notes: data.notes ?? [],
       vows: data.vows ?? [],
       checkpoints: data.checkpoints ?? [],
@@ -1612,6 +1627,8 @@ function novelToJSON(novel: NovelState): any {
     constraint_overrides: novel.constraint_overrides,
     synthesis_activated: novel.synthesis_activated,
     synthesis_module_enabled: novel.synthesis_module_enabled,
+    player_synthesis: novel.player_synthesis,
+    campaign_memory: novel.campaign_memory,
     notes: novel.notes,
     vows: novel.vows,
     checkpoints: novel.checkpoints,
@@ -1715,6 +1732,8 @@ function novelFromJSON(data: any): NovelState {
     constraint_overrides: data.constraint_overrides ?? [],
     synthesis_activated: data.synthesis_activated ?? {},
     synthesis_module_enabled: data.synthesis_module_enabled ?? {},
+    campaign_memory: data.campaign_memory ?? [],
+    player_synthesis: data.player_synthesis ?? {},
     notes: data.notes ?? [],
     vows: data.vows ?? [],
     checkpoints: data.checkpoints ?? [],

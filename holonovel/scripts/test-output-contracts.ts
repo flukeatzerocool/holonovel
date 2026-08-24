@@ -746,6 +746,115 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 9: §5.8 Synthesis ──
+  await test("T70/REQ-086: compress_audit format and INVALID_INPUT", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const ca = await call(p, "compress_audit", { max_entries: 5 });
+    assertContains(ca, "Compressed audit log", "REQ-086 header line");
+    const bad = await call(p, "compress_audit", { max_entries: 0 });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-086 zero entries");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T476/REQ-087 + T119/REQ-115: scene type tagging and action pattern toggle", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const st = await call(p, "set_scene_type", { type: "social" });
+    assertContains(st, "[OK]", "REQ-087 scene type");
+    const tg = await call(p, "toggle_action_patterns", {});
+    assertContains(tg, "[OK]", "REQ-115 action pattern toggle");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T300/REQ-185 + T225/REQ-186: section token vocabulary and discoverability", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (!Array.isArray(health.section_tokens) || health.section_tokens.length === 0) throw new Error("REQ-185/186 section_tokens missing");
+    const bad = await call(p, "set_briefing_order", { sections: ["not_a_token"] });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-082 unknown token");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T299/REQ-155: sticky counter decay", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_lore_entry", { key: "k", content: "c", triggers: ["fire"], sticky: 2, badge_scope: "shared" });
+    await call(p, "set_scene_state", { description: "the fire burns" });
+    await call(p, "set_scene_state", { description: "quiet now" });
+    await call(p, "set_scene_state", { description: "quiet now" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief, "Triggered Lore", "REQ-155 sticky entry not triggered");
+    assertNotContains(brief, "the fire burns", "REQ-155 sticky content absent");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T307/REQ-231 + T322/REQ-263: per-module toggle and auto-trigger reporting", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9e" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const bad = await call(p, "toggle_synthesis_module", { module: "nope", enabled: false });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-231 unknown module");
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (!("synthesis_auto_trigger" in h)) throw new Error("REQ-263 auto-trigger missing");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T321/REQ-262 + T323/REQ-264 + T326/REQ-265: synthesize tool and briefing presence", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9f" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const s = await call(p, "synthesize", {});
+    assertContains(s, "[OK]", "REQ-262 synthesize runs");
+    const s2 = await call(p, "synthesize", {});
+    assertContains(s2, "up to date", "REQ-262 staleness fingerprint");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T355/REQ-310: campaign memory counts", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9g" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_npc", { name: "MemNpc" });
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (h.campaign_memory?.npcs < 1) throw new Error("REQ-310 campaign_memory npcs missing");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Campaign Memory", "REQ-310 briefing section");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T375/REQ-328 + T378/REQ-331: lore-world and story-world coupling", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9h" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_lore_entry", { key: "altar", content: "The altar hums", triggers: ["altar"], world_target: "altar_01" });
+    const s = await call(p, "record_story", { type: "moment", entry: "Found the door" });
+    assertContains(s, "[OK]", "REQ-331 record_story");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T302/REQ-226: narrative voice profiles resource", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w9i" });
+    const r = await proto(p, "resources/read", { uri: "synthesis://narrative_voices" });
+    assertContains(r, "Narrative Voice Profiles", "REQ-226 narrative voices resource");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

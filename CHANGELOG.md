@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-24 — Wave 9: §5.8 Synthesis subsystem (18 REQs → C)
+
+- REQ-261 player synthesis: `player_synthesize`/`player_remove_synthesis`/
+  `player_list_synthesis` ([player]-tagged items, per-module cap 15, private
+  scope, active immediately, GM cannot modify).
+- REQ-333 `promote_story_to_lore`: revelation/moment → lore entry (source
+  `story_journal:<index>`); decision/consequence → `[RULE_VIOLATION]`; existing
+  key → `[STATE_CONFLICT]`.
+- REQ-310 campaign memory: engine-recorded facts (npcs/threads/locations) from
+  tool calls, `## Campaign Memory` briefing section, `campaign_memory` counts in
+  spec_health.
+- REQ-086 `compress_audit` (REQ-compliant header/format, `[INVALID_INPUT]` for
+  ≤0), `compact_audit_log` alias.
+- REQ-155 sticky counter decay in set_scene_state (decay/re-match/disable).
+- REQ-185/186 section tokens: validated `set_briefing_order` + `section_tokens`
+  in spec_health; REQ-231 module validation on toggle_synthesis_module.
+- REQ-328 lore-world coupling: `world_target` on set_lore_entry; REQ-331 story
+  journal room_id auto-population.
+- REQ-226 `synthesis://narrative_voices` resource; REQ-262/264 synthesize
+  citations + staleness; REQ-263/265/266 spec_health synthesis surfaces.
+- REQ-114/130/228/243/244/245 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows to 149 assertions (T70/T94/T119/T225/T299/
+  T300/T302/T307/T321/T322/T323/T326/T355/T375/T378/T476).
+  Buckets now A 14 / B 5 / C 257 / E 105.
+
 ## 2026-08-24 — Wave 8: §5.7/§5.2 Determinism & safety (4 REQs → C)
 
 - REQ-054 input safety citation + test (adversarial input stored/echoed verbatim
