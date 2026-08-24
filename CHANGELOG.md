@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-23 — Journey remediation: choices, workflow freeze, and prompts
+
+- A player's answer to a structured choice now has mechanical reach: recording
+  the choice in the audit log, advancing any countdown bound to that choice,
+  and ticking faction clocks whose goals match it. (REQ-235b/c)
+- Undo and redo now refuse to run while a decision is pending, so a half-open
+  workflow can no longer roll back state underneath it. (REQ-042)
+- Creating a Novel now points to the setup guide as the next step, and the
+  per-badge briefing surfaces setup progress, boundaries, point-of-view,
+  autonomy state, narrative threads, and the story journal. (REQ-089d, REQ-109)
+- The intro, session zero, and setup prompts were rewritten in plain English
+  to their contract shapes — a browsable world library on intro, an eight-part
+  session zero, and a three-step setup wizard with completion markers.
+  (REQ-063, REQ-078, REQ-089)
+
 ## 2026-08-22 — Sync lockfile version and fenced-heading extraction
 
 - The version bump to 2026.08.22 updated `package.json` but left the dependency
