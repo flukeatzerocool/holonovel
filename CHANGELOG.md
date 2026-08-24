@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-24 — Review-loop governance + backlog program kickoff
+
+- `AGENTS.md` gains a Review-loop governance section: completion-bar rule,
+  P0–P3 finding triage, register hygiene, and loop-status verdict — so a
+  completed plan can return `LOOP PAUSED` with zero new action items.
+- `ROADMAP.md` carries the 11-wave backlog-clearance program (145 A + 6 B REQs
+  from `req-coverage.md`), dependency-ordered; program done when
+  `--impl-audit=strict` passes.
+- `spec/audit/review-register.md` created: all open findings re-baselined to
+  terminal dispositions (Resolved / Scheduled-roadmap / Closed-P3 /
+  Deferred-by-user).
+
 ## 2026-08-24 — §5.9 persistence additions (REQ-117/259/294/334)
 
 - `update_novel_description(description)` tool (REQ-259) — sets/replaces/clears
