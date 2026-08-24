@@ -1,5 +1,11 @@
 # REQ Coverage Remediation Plan — 2026-08-24
 
+> **Execution status (2026-08-24):** Finding 1 (§5.12) is now largely remediated —
+> 28 of 32 REQs implemented and evidenced (bucket C), 4 partial. The whitelist
+> (Finding 2) is implemented as bucket E in `scripts/validate.ts`. Finding 4
+> (bucket-B backfill) remains open. The G7 `narrative_coherence` attestation is
+> recorded in `holonovel/DECISIONS.md`. See CHANGELOG 2026-08-24 (§5.12 entry).
+
 Generated from `scripts/validate.ts` implementation-coverage audit (`npm run validate -- --write-register`).
 Register: `spec/audit/req-coverage.md`. Baseline: 381 base REQs → **281 A (gap), 80 B (review), 20 C (evidenced), 0 D (spec-side)**.
 

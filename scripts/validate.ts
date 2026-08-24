@@ -1161,7 +1161,7 @@ interface CoverageRow {
   reqId: string;
   title: string;
   section: string;
-  bucket: "A" | "B" | "C" | "D";
+  bucket: "A" | "B" | "C" | "D" | "E";
   subParts: string[];
   exercisedTests: string[];
   disposition?: string;
@@ -1172,6 +1172,24 @@ interface CoverageRow {
 // a base REQ is "cited" if it or any sub-part is cited, "evidenced" if a spec
 // test/sub-workflow mapped to it or any sub-part is exercised, and "Check:-bearing"
 // if it or any sub-part carries a Check: citation.
+// REQ-346 — canonical §5.12 REQ list for the narrative_coherence disposition.
+// Intended-gap whitelist: REQs owed by the builder/verifier pipeline (§5.2
+// extraction/confidence, §5.14 content sources, §5.16 multi-ruleset build,
+// §5.17/§5.18 ruleset packages / workflow entry points, and the build-tooling
+// subset of §5.3), not by the runtime `holonovel/src` server. Their absence
+// from server source is correct, so they are exempt from `--impl-audit=strict`.
+const INTENDED_GAP_REQS = new Set([
+  "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016",
+  "REQ-017", "REQ-018", "REQ-099", "REQ-102", "REQ-111", "REQ-147", "REQ-153",
+  "REQ-154", "REQ-207", "REQ-209", "REQ-210", "REQ-212", "REQ-214", "REQ-215",
+  "REQ-225", "REQ-272", "REQ-315", "REQ-324",
+  "REQ-067", "REQ-161", "REQ-162", "REQ-163", "REQ-164", "REQ-187", "REQ-278",
+  "REQ-107", "REQ-388",
+  "REQ-372", "REQ-373",
+  "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
+  "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
+]);
+
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
   const appF = parseAppendixFReqTests(text);
   const subMap = parseSubworkflowMap(text);
@@ -1204,11 +1222,15 @@ function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCi
       return b.includes("*Check:*") || b.includes("_Check:_");
     });
 
-    let bucket: "A" | "B" | "C" | "D";
-    if (!cited) bucket = "A";
-    else if (exercised.length > 0) bucket = "C";
-    else bucket = "B";
-    if (!hasCheck && bucket === "B") bucket = "D";
+    let bucket: "A" | "B" | "C" | "D" | "E";
+    if (!INTENDED_GAP_REQS.has(base)) {
+      if (!cited) bucket = "A";
+      else if (exercised.length > 0) bucket = "C";
+      else bucket = "B";
+      if (!hasCheck && bucket === "B") bucket = "D";
+    } else {
+      bucket = "E";
+    }
 
     const num = reqNumeric(base);
     let disposition: string | undefined;
@@ -1240,7 +1262,7 @@ function writeCoverageRegister(rows: CoverageRow[], specHash: string | null): st
   lines.push(`Generated: ${date}`);
   if (specHash) lines.push(`Spec hash: ${specHash}`);
   lines.push("");
-  lines.push("Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation).");
+  lines.push("Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).");
   lines.push("");
   lines.push("| REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |");
   lines.push("|-----|-------|---------|--------|-----------------|-------------------|");
@@ -1463,17 +1485,17 @@ function main(): void {
   const exercisedIds = gatherExercisedIds();
   const implRows = checkImplCoverage(text, reqIndex, sourceCites, exercisedIds);
 
-  const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+  const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
   for (const r of implRows) bucketCounts[r.bucket]++;
 
   const implStrict = process.argv.includes("--impl-audit=strict");
   const writeRegister = process.argv.includes("--write-register");
 
   console.log(`Source-cited REQs: ${sourceCites.size}; exercised test IDs: ${exercisedIds.size}; total REQs: ${implRows.length}`);
-  console.log(`Buckets → A (gap): ${bucketCounts.A}, B (review): ${bucketCounts.B}, C (evidenced): ${bucketCounts.C}, D (spec-side): ${bucketCounts.D}`);
+  console.log(`Buckets → A (gap): ${bucketCounts.A}, B (review): ${bucketCounts.B}, C (evidenced): ${bucketCounts.C}, D (spec-side): ${bucketCounts.D}, E (intended-gap): ${bucketCounts.E}`);
 
   for (const r of implRows) {
-    if (r.bucket === "C") continue;
+    if (r.bucket === "C" || r.bucket === "E") continue;
     const extra = r.disposition ? ` [§5.12 ${r.disposition}]` : "";
     console.log(`  ${r.bucket === "A" ? "GAP" : r.bucket === "B" ? "REVIEW" : "SPEC-SIDE"}: ${r.reqId} ${r.title}${extra}`);
     if (implStrict && r.bucket === "A") errors++;

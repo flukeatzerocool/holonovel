@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-24 — §5.12 narrative engine + coverage-gap whitelist
+
+- Implemented the §5.12 Narrative Architecture layer (REQ-335–366) in
+  `holonovel/src`: scene beat taxonomy, dramatic pacing signal, story-beat arc,
+  faction/NPC autonomy, discovered consequences + consequence-to-knowledge,
+  player spatial surface, scene-from-world-model, unified intent resolution,
+  voice feedback + codex voice capture, background knowledge/lore triggering,
+  the eleven coupling advisories, and the observer narrative surface. Landed the
+  REQ-125 scene transition hook and the knowledge_state / narrative_threads
+  briefing sections they depend on.
+- Added `holonovel/scripts/test-narrative.ts`, exercising Appendix F tests
+  T385–T417 (25/25) against a live server. Register now records 30/32 §5.12 REQs
+  as evidenced (bucket C).
+- Added an intended-gap whitelist (bucket E) to `scripts/validate.ts` for
+  builder/verifier-side REQs owed elsewhere, so `--impl-audit=strict` targets
+  only server-runtime gaps.
+- Recorded the G7 `narrative_coherence` attestation (`@section evidence`) in
+  `holonovel/DECISIONS.md` and a `spec_health.narrative_coherence` disposition.
+
 ## 2026-08-24 — Implementation-coverage audit (REQ → source evidence)
 
 - `scripts/validate.ts` now runs an always-on implementation-coverage audit
