@@ -256,10 +256,10 @@ async function main() {
     });
 
     await test("T319/T321/T326/T260: granular synthesis activation toggles modules", async () => {
-      const disabled = await call(proc, "toggle_synthesis_module", { module: "lore", enabled: false });
-      assertContains(disabled, "[OK] Synthesis module 'lore' disabled");
-      const enabled = await call(proc, "toggle_synthesis_module", { module: "lore", enabled: true });
-      assertContains(enabled, "[OK] Synthesis module 'lore' enabled");
+      const disabled = await call(proc, "toggle_synthesis_module", { module: "lore_templates", enabled: false });
+      assertContains(disabled, "[OK] Synthesis module 'lore_templates' disabled");
+      const enabled = await call(proc, "toggle_synthesis_module", { module: "lore_templates", enabled: true });
+      assertContains(enabled, "[OK] Synthesis module 'lore_templates' enabled");
     });
 
     await test("T104: prompt health in spec_health", async () => {
@@ -550,9 +550,9 @@ async function main() {
     });
 
     await test("T303/T227: synthesis model — toggle_synthesis_module surfaces modules", async () => {
-      const t = await call(proc, "toggle_synthesis_module", { module: "lore", enabled: false });
+      const t = await call(proc, "toggle_synthesis_module", { module: "lore_templates", enabled: false });
       assertContains(t, "[OK]");
-      await call(proc, "toggle_synthesis_module", { module: "lore", enabled: true });
+      await call(proc, "toggle_synthesis_module", { module: "lore_templates", enabled: true });
     });
 
     await test("T477/T488/T408: parameter ceiling recorded in spec_health", async () => {
