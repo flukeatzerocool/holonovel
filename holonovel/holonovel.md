@@ -3828,7 +3828,6 @@ Gaps — a REQ in the covered sections with no mapped sub-workflow — are logge
 
 **REQ-376a3 — Holonovel Pattern Buffer traceability (Part a3).**
 Gaps detected by `npm run validate` are errors that block assembly. _Check:_ T431.
-**REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
 
 ---
 
@@ -3853,7 +3852,6 @@ The server SHALL support registration of additional MCP tools at runtime when su
 
 **REQ-373a2 — Dynamic tool registration (Part a2).**
 When a supplementary ruleset is removed (REQ-372), its tools SHALL be deregistered — `tools/list` and tool invocation SHALL behave as if the tools were never present. *Acceptance criterion:* After `import_supplementary`, `tools/list` includes new tools annotated with source slug. Tool invocation produces `[OK]` with response prefix, error taxonomy, and source quoting. After `remove_supplementary`, tools are absent from `tools/list` and invocation returns `[NOT_FOUND]` (tool not recognized by the MCP layer). _Check:_ T424.
-**REQ-373b — Dynamic tool registration (Part b).**
 
 ---
 
@@ -8637,7 +8635,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-376a1 | Holonovel Pattern Buffer traceability (Part a1) | 2026-08-11 |
 | REQ-376a2 | Holonovel Pattern Buffer traceability (Part a2) | 2026-08-11 |
 | REQ-376a3 | Holonovel Pattern Buffer traceability (Part a3) | 2026-08-11 |
-| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-372a | Supplementary ruleset import (Part a) | 2026-08-11 |
 | REQ-372b | Supplementary ruleset import (Part b) | 2026-08-11 |
 | REQ-372c | Supplementary ruleset import (Part c) | 2026-08-11 |
@@ -8645,7 +8642,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-372e | Supplementary ruleset import (Part e) | 2026-08-11 |
 | REQ-373a1 | Dynamic tool registration (Part a1) | 2026-08-11 |
 | REQ-373a2 | Dynamic tool registration (Part a2) | 2026-08-11 |
-| REQ-373b | Dynamic tool registration (Part b) | 2026-08-11 |
 | REQ-377a | Mechanical coupling extraction (Part a) | 2026-08-11 |
 | REQ-377b | Mechanical coupling extraction (Part b) | 2026-08-11 |
 | REQ-377c | Mechanical coupling extraction (Part c) | 2026-08-11 |
@@ -8733,6 +8729,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
 | REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
 | REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
+| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-300 | Structured failure diagnostics | 2026-08-11 |
 | REQ-301 | Convergence loop audit trail | 2026-08-11 |
 | REQ-303 | Scoped re-verification | 2026-08-11 |

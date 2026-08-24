@@ -337,7 +337,7 @@ export interface NovelState {
     | { decision: string; snapshot: WorkflowSnapshot | null; payload?: any }
     | { decision: string; snapshot: WorkflowSnapshot | null; creation?: import("./character-creation.js").CreationWorkflowState; payload?: any }
     | null;
-  connection_counter: number;
+  connection_counter: number; // REQ-030 — single-user connection; incremented per session
   pending_staleness_counter: number;
   pov_mode: "character" | "omniscient";
   autonomy: AutonomyState;
@@ -1498,6 +1498,20 @@ function novelFromJSON(data: any): NovelState {
       last_scene_anchor: "",
     },
   };
+}
+
+// Serialize a Novel to its full interchange form (REQ-096). Returns the flat
+// serialization used on disk — including actual world rooms/things, entities,
+// npcs, countdowns, audit log, checkpoints, notes, and vows — so that
+// export → import → export is byte-identical after a no-op import.
+export function exportNovelJSON(novel: NovelState): any {
+  return novelToJSON(novel);
+}
+
+// Reconstruct a NovelState from interchange data. Mirrors the on-disk load
+// path so an exported payload round-trips through import without loss.
+export function importNovelJSON(data: any): NovelState {
+  return novelFromJSON(data);
 }
 
 // Overwrite every Novel-tier field of `target` with the values from `source`.

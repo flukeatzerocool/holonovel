@@ -1106,9 +1106,52 @@ function gatherExercisedIds(): Set<string> {
   for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
-    for (const m of content.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)) ids.add(m[1]);
+    // Count only IDs named in an executed `test("<name>", ...)` call, not
+    // every [TIS]\d+ token that happens to appear in a header comment. A test
+    // name may carry several IDs joined by `/` (e.g. "T100/T281/T096: ...").
+    for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
+      for (const id of m[1].matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)) ids.add(id[1]);
+    }
   }
   return ids;
+}
+
+// Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
+// strings still present in the server source. A registered tool body that
+// returns a sentinel string (e.g. "(Placeholder" or "no ruleset mechanics
+// available") is a placeholder implementation and must not ship.
+const PLACEHOLDER_SENTINELS = [
+  "(Placeholder",
+  "(placeholder",
+  "Placeholder —",
+  "no ruleset mechanics available",
+  "world model must be populated with convert_source",
+];
+
+function checkPlaceholderStubs(): string[] {
+  const issues: string[] = [];
+  const indexFile = path.join(IMPL_SRC_DIR, "index.ts");
+  let content = "";
+  try { content = fs.readFileSync(indexFile, "utf-8"); } catch { return issues; }
+  for (const sentinel of PLACEHOLDER_SENTINELS) {
+    if (content.includes(sentinel)) issues.push(`placeholder stub sentinel present in holonovel/src/index.ts: "${sentinel}"`);
+  }
+  return issues;
+}
+
+// Return the set of base REQ IDs recorded in the committed coverage register.
+// Used by the G4 guard to distinguish a pre-existing gap (already triaged and
+// committed) from a REQ first introduced by the current change.
+function readCommittedRegisterReqs(): Set<string> {
+  const reqs = new Set<string>();
+  const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
+  let content = "";
+  try { content = fs.readFileSync(regPath, "utf-8"); } catch { return reqs; }
+  for (const line of content.split("\n")) {
+    const m = line.match(/^\|\s*(REQ-\d{3})\s*\|/);
+    if (m) reqs.add(m[1]);
+  }
+  return reqs;
 }
 
 // Appendix F test table: `| T3 | Manual | <desc> | REQ-024, REQ-021 |`.
@@ -1490,6 +1533,29 @@ function main(): void {
 
   const implStrict = process.argv.includes("--impl-audit=strict");
   const writeRegister = process.argv.includes("--write-register");
+
+  const stubIssues = checkPlaceholderStubs();
+  if (stubIssues.length > 0) { for (const issue of stubIssues) console.log(`ERROR: ${issue}`); errors += stubIssues.length; }
+  else console.log("PASS: No placeholder stub sentinels in server source");
+
+  // G4 — new REQs must be cited or whitelisted. A REQ whose base ID appears in
+  // the spec but not in the committed coverage register is "new since baseline";
+  // if it buckets to A (no source citation, not an intended gap), that is an
+  // un-cited addition and fails the gate until the implementing source carries
+  // its REQ-NNN citation or the REQ is added to the intended-gap whitelist.
+  const knownReqs = readCommittedRegisterReqs();
+  const newGapIssues: string[] = [];
+  for (const r of implRows) {
+    if (r.bucket !== "A") continue;
+    if (INTENDED_GAP_REQS.has(r.reqId)) continue;
+    if (!knownReqs.has(r.reqId)) newGapIssues.push(`${r.reqId} ${r.title}`);
+  }
+  if (newGapIssues.length > 0) {
+    for (const issue of newGapIssues) console.log(`ERROR: new-REQ-gap (uncited, not whitelisted, not in committed register): ${issue}`);
+    errors += newGapIssues.length;
+  } else {
+    console.log("PASS: No un-cited REQs newly added since the committed register");
+  }
 
   console.log(`Source-cited REQs: ${sourceCites.size}; exercised test IDs: ${exercisedIds.size}; total REQs: ${implRows.length}`);
   console.log(`Buckets → A (gap): ${bucketCounts.A}, B (review): ${bucketCounts.B}, C (evidenced): ${bucketCounts.C}, D (spec-side): ${bucketCounts.D}, E (intended-gap): ${bucketCounts.E}`);

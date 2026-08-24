@@ -15,7 +15,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON } from "./core/state.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -41,10 +41,15 @@ import {
 import { createRng, sessionRoll } from "./core/rng.js";
 
 // ── Constants ──────────────────────────────────────────────────────
+//
+// REQ-051 — no runtime network access: the server performs no outbound network
+// calls; all content is drawn from indexed ruleset data and vendor enrichment.
 
 const __filename = new URL(import.meta.url).pathname;
 const __dirname = path.dirname(__filename);
 
+// REQ-052 — path containment: all filesystem access resolves under the data
+// dir or the server's own install dir, never an arbitrary caller-supplied path.
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, "..", ".holonovel-state");
 function computeSpecHash(): string {
   try {
@@ -575,6 +580,9 @@ function ok(text: string) {
   return { content: [{ type: "text" as const, text: `[OK] ${expandMacros(text, buildMacroContext())}` }] };
 }
 
+// REQ-002 — error taxonomy: every failure surfaces [ERROR] [CODE] + corrective
+// action; REQ-001 — response contract (OK/raw/err) and REQ-032 server-side
+// gating via requireGM/requirePlayer.
 const CORRECTIVE_ACTIONS: Record<string, string> = {
   NOT_FOUND: "Check the name or id for typos, or list valid values with help.",
   INVALID_INPUT: "Supply a valid value for every required parameter.",
@@ -803,6 +811,7 @@ function badgeLabel(badge: Badge): string {
   return badge;
 }
 
+// REQ-066 — set_badge switches the active badge (player/game_master/observer/none).
 server.registerTool("set_badge", {
   title: "Set Active Badge",
   description: "Switch active badge: player, game_master, observer, or none (Editor). Always callable.",
@@ -1429,6 +1438,7 @@ server.registerTool("set_voice_examples", {
   return ok(`Voice examples set for '${entity_id}' (${examples.length} examples).`);
 });
 
+// REQ-069 — player feedback signal to the GM.
 server.registerTool("player_signal", {
   title: "Player Signal",
   description: "Send a narrative signal from the player to the GM.",
@@ -3308,24 +3318,153 @@ server.registerTool("compact_audit_log", {
   return raw(`## Audit (last ${filtered.length} entries)\n${lines.join("\n")}`);
 });
 
+// Slug-ify a free-text premise into a stable identifier for adventure storage
+// (REQ-090: title is slug-ified from the premise).
+function slugifyPremise(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "generated";
+}
+
+// REQ-090 — generate_adventure(premise, target?). Produces a real adventure
+// scaffold: title, GM-only Overview, player-visible Hook, 2–6 locations with
+// table-rolled flavor, NPC name suggestions, and encounter-table seeds — drawn
+// from Synthesis adventure_advice templates / scenario_starters / table
+// expansions. `target` selects novel (default when a Novel is active), codex
+// (default otherwise), or both. No Novel is required for the codex target.
 server.registerTool("generate_adventure", {
   title: "Generate Adventure",
   description: "Generate an adventure scaffold from a premise. Game Master only.",
-  inputSchema: { premise: z.string() },
-}, async ({ premise }: any) => {
+  inputSchema: {
+    premise: z.string(),
+    target: z.enum(["novel", "codex", "both"]).optional(),
+  },
+}, async ({ premise, target }: any) => {
   requireGM();
-  requireNovel();
-  return ok(`Adventure scaffold generated from premise: "${premise}". (Placeholder — world model must be populated with convert_source or adventure modules.)`);
+  const novel = state.activeNovel;
+  const slug = slugifyPremise(premise);
+  const tgt = target ?? (novel ? "novel" : "codex");
+
+  const advice = state.enrichmentManifest?.adventure_advice ?? DEFAULT_ENRICHMENT.adventure_advice;
+  const templates = advice.templates ?? [];
+  const starters = advice.scenario_starters ?? [];
+  const tableExpansions = advice.table_expansions ?? [];
+
+  const rng = createRng(`adventure:${slug}:${premise}`);
+
+  // Location flavor pools (REQ-090: table-rolled flavor — setting, horror,
+  // puzzle). Drawn deterministically so regeneration with the same premise
+  // replaces the prior scaffold with an identical one.
+  const settingPool = ["a windswept ruin", "a crowded market square", "a flooded crypt", "a crumbling keep", "a mist-shrouded harbor", "a forgotten library", "a frost-bitten watchtower", "a labyrinth of salt caves"];
+  const horrorPool = ["something moved in the dark", "the air smells of copper", "a distant bell tolls once", "footprints stop halfway across the floor", "a child's toy lies abandoned", "the walls are too warm"];
+  const puzzlePool = ["a locked door with no keyhole", "an inscription in a dead script", "three levers and one warning", "a scale that demands a matching weight", "a mural whose figures are missing", "a door that opens only when it rains"];
+  const npcPool = ["the reticent caretaker", "a guild mouthpiece with divided loyalties", "an exile who knows the truth", "a fence with a price on integrity", "the last custodian of the old faith", "a rival who wants the prize first"];
+
+  const locCount = Math.min(6, 2 + (rng.roll(5) - 1));
+  const locations: { heading: string; flavor: string }[] = [];
+  for (let i = 0; i < locCount; i++) {
+    const setting = settingPool[rng.roll(settingPool.length) - 1];
+    const horror = horrorPool[rng.roll(horrorPool.length) - 1];
+    const puzzle = puzzlePool[rng.roll(puzzlePool.length) - 1];
+    locations.push({ heading: `Location ${i + 1}: ${setting}`, flavor: `${horror}. ${puzzle}.` });
+  }
+  const npcSuggestions = [...npcPool].sort(() => rng.roll(2) - 1).slice(0, 3);
+  const encounterSeed = tableExpansions.length > 0
+    ? (tableExpansions[rng.roll(tableExpansions.length) - 1] as any).content
+    : "the rival faction arrives as the characters reach the final location";
+  const starter = starters.length > 0 ? (starters[rng.roll(starters.length) - 1] as any).content : "";
+  const template = templates.length > 0 ? (templates[rng.roll(templates.length) - 1] as any).source_url : "synthesis://adventure_advice";
+
+  const scaffold: any = {
+    title: premise.trim(),
+    slug,
+    overview: `Overview (GM-only): ${starter || "A open-ended adventure scaffold keyed to the premise."} Template source: ${template}.`,
+    hook: `${locations[0]?.heading ?? "A starting scene"} draws the characters in — ${locations[0]?.flavor ?? ""}`,
+    locations,
+    npc_suggestions: npcSuggestions,
+    encounter_seeds: [encounterSeed],
+    genre_tags: novel?.genre ? [novel.genre] : [],
+    generated_at: new Date().toISOString(),
+    source: "generated",
+  };
+
+  const results: string[] = [];
+
+  if (tgt === "codex" || tgt === "both") {
+    const id = `adventure_${slug}`;
+    const existing = state.codex.get(id);
+    const entry: any = {
+      id, kind: "adventure", name: slug, content: { ...scaffold, suggested_beats: scaffold.locations.map((l: any) => ({ beat: "setup", scene_preview: l.heading })) },
+      description: premise.trim(),
+      tags: scaffold.genre_tags,
+      visibility: existing?.visibility ?? "library",
+      imported_at: existing?.imported_at ?? new Date().toISOString(),
+      codex_modified_at: new Date().toISOString(),
+    };
+    state.codex.set(id, entry);
+    state.saveCodex();
+    results.push(`Codex adventure '${id}' stored`);
+  }
+
+  if (tgt === "novel" || tgt === "both") {
+    if (!novel) return err("INVALID_INPUT", "No active Novel — use target:'codex' without a Novel, or create a Novel first.");
+    novelSnapshot();
+    novel.generated_adventure = scaffold;
+    novel.adventure_index = {
+      premise: premise.trim(),
+      hooks: [scaffold.hook],
+      npcs: npcSuggestions.map((n) => ({ name: n })),
+      locations: locations.map((l) => ({ name: l.heading, description: l.flavor })),
+      factions: [],
+    };
+    novel.adventure_set = true;
+    state.saveNovel(novel);
+    audit("generate_adventure", { premise, target: tgt, slug });
+    results.push(`Novel adventure scaffold stored (adventure://generated/${slug})`);
+  }
+
+  return ok(`Adventure "${premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}\n\n${results.join("\n")}`);
 });
 
+// REQ-091 — generate_encounter(context). Produces a scene description, an NPC
+// stat block, and a complication lore entry as one atomic batch with a single
+// undo target. Player badge → [FORBIDDEN].
 server.registerTool("generate_encounter", {
   title: "Generate Encounter",
   description: "Generate a scene + NPC + lore entry from context. Game Master only.",
   inputSchema: { context: z.string() },
 }, async ({ context }: any) => {
   requireGM();
-  requireNovel();
-  return ok(`Encounter generated from context: "${context}". (Placeholder — no ruleset mechanics available.)`);
+  const novel = requireNovel();
+  const ctx = String(context).trim();
+  const rng = createRng(`encounter:${ctx}`);
+
+  const monsterPool = ["a lone sentinel", "a pack of shadow hounds", "an armored enforcer with a debt", "a shrieking flock", "a stone golem misfiring its wards"];
+  const complicationPool = ["the ground collapses underfoot", "a third party arrives mid-fight", "the objective is trapped", "reinforcements are on the way", "the environment is flammable"];
+  const monster = monsterPool[rng.roll(monsterPool.length) - 1];
+  const complication = complicationPool[rng.roll(complicationPool.length) - 1];
+
+  // Single undo target for the whole batch (REQ-091b).
+  novelSnapshot();
+
+  const sceneDesc = `${ctx} — ${monster} blocks the way.`;
+  novel.scene_description = sceneDesc;
+  novel.scene_location = ctx;
+  novel.scene_type = [...new Set([...(novel.scene_type ?? []), "combat" as const])];
+
+  const npcId = `npc_${Date.now().toString(36)}`;
+  const npc: any = { id: npcId, name: monster, description: `Encountered during: ${ctx}`, disposition: "hostile", location: ctx, conditions: [], condition_rounds: {} };
+  novel.npcs.set(npcId, npc);
+
+  const loreKey = `complication_${slugifyPremise(ctx)}`;
+  novel.lore.set(loreKey, {
+    key: loreKey, content: complication,
+    triggers: [ctx], badge_scope: "game_master",
+    priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
+  });
+
+  state.saveNovel(novel);
+  audit("generate_encounter", { context: ctx, npc_id: npcId, lore_key: loreKey });
+
+  return ok(`Encounter generated (atomic batch, single undo target):\n\n**Scene:** ${sceneDesc}\n\n**NPC:** ${monster} (${npcId}, hostile)\n\n**Complication:** ${complication}\n\nUndo rolls back the scene, NPC, and lore entry together.`);
 });
 
 server.registerTool("load_adventure", {
@@ -3358,6 +3497,7 @@ server.registerTool("load_adventure", {
 
 // --- Session ---
 
+// REQ-072 — session_recap summarizes recent session activity.
 server.registerTool("session_recap", {
   title: "Session Recap",
   description: "Summarize recent session activity.",
@@ -3480,8 +3620,8 @@ Options: yes, cancel`);
 server.registerTool("export_novel", {
   title: "Export Novel",
   description: "Export the active novel in interchange format. Game Master only.",
-  inputSchema: { format: z.enum(["json", "markdown"]).optional() },
-}, async ({ format: fmt }: any) => {
+  inputSchema: { format: z.enum(["json", "markdown"]).optional(), scope: z.string().optional() },
+}, async ({ format: fmt, scope }: any) => {
   requireGM();
   const novel = requireNovel();
   if (fmt === "markdown") {
@@ -3504,27 +3644,63 @@ server.registerTool("export_novel", {
     }
     return raw(md);
   }
-  const data = {
-    novel_format_version: "1",
-    server_spec_version: state.buildFingerprint.specVersion,
-    builder_implementation: "holonovel-ruleset-free",
-    ruleset_hash: novel.ruleset ?? null,
-    property_groups_present: [
-      "slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows",
-    ],
-    slug: novel.slug, name: novel.name, genre: novel.genre, description: novel.description,
-    scene: { description: novel.scene_description, location: novel.scene_location },
-    world: { rooms: [...novel.world.rooms.values()].length, things: [...novel.world.things.values()].length },
-    lore: [...novel.lore.entries()].map(([k, v]) => ({ key: k, content: v.content, triggers: v.triggers, badge_scope: v.badge_scope })),
-    npcs: [...novel.npcs.values()],
-    story_journal: novel.story_journal,
-    factions: novel.factions,
-    secrets: novel.secrets,
-    relationships: novel.relationships,
-    gm_context: novel.gm_context,
-    notes: Object.fromEntries(novel.notes.map(n => [n.key, { content: n.content, badge_scope: n.badge_scope }])),
-    vows: novel.vows,
+  // Full-self-contained interchange per Annex Q / REQ-096. The `novel` key
+  // carries the complete serialized state (including actual world rooms/things,
+  // entities, npcs, countdowns, audit log, checkpoints, notes, vows), so a
+  // replace-import round-trip is lossless.
+  const full = exportNovelJSON(novel);
+  const data: any = {
+    format_version: 2,
+    manifest: {
+      novel_format_version: 2,
+      server_spec_version: state.buildFingerprint.specVersion,
+      ruleset_hash: novel.ruleset ?? null,
+      builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
+      adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
+      adventures_embedded: false,
+      property_groups_present: [
+        "slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows",
+      ],
+      waiver_dependent_mechanics: [],
+    },
+    novel: full,
   };
+  // scope filtering (REQ-096b): retain only the payload described by scope.
+  const SCOPE_KEYS: Record<string, string[]> = {
+    full: [],
+    state_only: ["audit_log", "checkpoints", "undo_stacks", "redo_stacks"],
+    lore: [],
+    world_model: [],
+    npcs: [],
+    factions: [],
+    secrets: [],
+    relationships: [],
+    gm_context: [],
+    notes: [],
+    story_journal: [],
+    scene_history: [],
+  };
+  if (scope && scope !== "full") {
+    // scope keys describe the ONLY tier(s) to keep; everything else is stripped.
+    const keep: Record<string, string[]> = {
+      lore: ["lore"],
+      world_model: ["world"],
+      npcs: ["npcs"],
+      factions: ["factions"],
+      secrets: ["secrets"],
+      relationships: ["relationships"],
+      gm_context: ["gm_context"],
+      notes: ["notes"],
+      story_journal: ["story_journal"],
+      scene_history: ["scene_history"],
+    };
+    const keys = keep[scope] ?? [];
+    for (const k of Object.keys(data.novel)) {
+      if (!["slug", "name", "ruleset", "genre", "description", "metadata"].includes(k) && !keys.includes(k)) {
+        delete data.novel[k];
+      }
+    }
+  }
   return raw(JSON.stringify(data, null, 2));
 });
 
@@ -3539,34 +3715,98 @@ server.registerTool("import_novel", {
 }, async ({ data, mode, strict }: any) => {
   requireGM();
   const m = mode ?? "dry-run";
+  const strictMode = strict === true;
   let parsed: any;
   try {
     parsed = JSON.parse(data);
   } catch {
     return err("INVALID_INPUT", "Could not parse novel data.");
   }
-  // Manifest validation (REQ-096): missing required manifest fields are
-  // fatal under strict mode; a warning otherwise.
-  const missing = ["novel_format_version", "slug", "name"].filter(k => parsed[k] === undefined);
-  if (missing.length > 0) {
-    if (strict) return err("INVALID_INPUT", `Import rejected: missing manifest fields ${missing.join(", ")}. Corrective action: export with a conformant interchange format.`);
-  }
-  if (m === "dry-run") return ok(`Dry-run: novel '${parsed.name}' (${parsed.slug}) would be imported (${missing.length ? `missing ${missing.join(", ")}` : "valid manifest"}).`);
-  const novel = requireNovel();
-  if (m === "replace") {
-    if (parsed.scene) { novel.scene_description = parsed.scene.description; novel.scene_location = parsed.scene.location; }
-  }
-  if (parsed.lore && Array.isArray(parsed.lore)) {
-    if (m === "replace") novel.lore.clear();
-    for (const e of parsed.lore) {
-      novel.lore.set(e.key, {
-        key: e.key, content: e.content, triggers: e.triggers ?? [],
-        badge_scope: e.badge_scope ?? "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
-      });
+  // Accept the interchange envelope ({ format_version, manifest, novel }) or a
+  // flat legacy payload. The `novel` key is authoritative when present.
+  const flat = parsed && parsed.novel && typeof parsed.novel === "object" ? parsed.novel : parsed;
+  const manifest = parsed && parsed.manifest && typeof parsed.manifest === "object" ? parsed.manifest : null;
+
+  // Cross-reference validation (REQ-096d1). Collects failures with item paths.
+  const failures: string[] = [];
+  const validateRefs = (src: any) => {
+    const entityIds = new Set<string>(Object.keys(src.entities ?? {}));
+    const npcIds = new Set<string>(src.npcs ? Object.keys(src.npcs) : (src.npcs ?? []).map((n: any) => n.id));
+    const factionNames = new Set<string>((src.factions ?? []).map((f: any) => f.name));
+    for (const [key, e] of Object.entries(src.lore ?? {})) {
+      for (const t of ((e as any).triggers ?? [])) {
+        if (typeof t === "string" && /^(npc|entity):/.test(t)) {
+          const id = t.split(":")[1];
+          if (!npcIds.has(id) && !entityIds.has(id)) failures.push(`lore.${key}.triggers: ${t} references missing npc/entity`);
+        }
+      }
     }
+    for (const th of (src.gm_context?.active_threads ?? [])) {
+      for (const f of (th.faction_refs ?? [])) {
+        if (!factionNames.has(f)) failures.push(`gm_context.active_threads: faction ${f} not present`);
+      }
+    }
+    for (const rel of (src.relationships ?? [])) {
+      for (const t of [rel.source, rel.target]) {
+        if (t && !entityIds.has(t) && !npcIds.has(t) && !factionNames.has(t)) failures.push(`relationships: ${t} not present`);
+      }
+    }
+    const rooms = new Set<string>(Object.keys(src.world?.rooms ?? {}));
+    for (const [, room] of Object.entries(src.world?.rooms ?? {})) {
+      for (const target of Object.values((room as any).exits ?? {})) {
+        if (typeof target === "string" && !rooms.has(target)) failures.push(`world.rooms.${(room as any).name}.exits: ${target} not present`);
+      }
+    }
+    const cdNames = new Set<string>(Object.keys(src.countdowns ?? {}));
+    for (const [name, cd] of Object.entries(src.countdowns ?? {})) {
+      for (const c of (cd as any).clocks ?? []) {
+        for (const o of [...(c.opposes ?? []), ...(c.unlocks ?? [])]) {
+          if (!cdNames.has(o)) failures.push(`countdowns.${name}.clock: references ${o} not present`);
+        }
+      }
+    }
+  };
+  validateRefs(flat);
+
+  const name = flat.name ?? manifest?.name ?? "unknown";
+  const slug = flat.slug ?? manifest?.slug ?? "—";
+
+  if (m === "dry-run") {
+    if (failures.length > 0) {
+      const report = `Dry-run: novel '${name}' (${slug}) — ${failures.length} reference failure(s):\n${failures.map(f => `  - ${f}`).join("\n")}`;
+      if (strictMode) return raw(`{"isError": false, "report": ${JSON.stringify(report)}}`);
+      return raw(report);
+    }
+    return ok(`Dry-run: novel '${name}' (${slug}) would be imported (valid manifest, no reference failures).`);
   }
+
+  const novel = requireNovel();
+
+  if (failures.length > 0) {
+    if (strictMode) {
+      return err("STATE_CONFLICT", `Import blocked by validation failures:\n${failures.map(f => `  - ${f}`).join("\n")}`);
+    }
+    // Non-strict: surface as warnings but proceed.
+  }
+
+  if (m === "replace") {
+    const imported = importNovelJSON(flat);
+    applyNovelState(novel, imported);
+  } else if (m === "merge") {
+    // Merge entities, NPCs, and lore by id/key, skipping duplicates (REQ-096f).
+    const imported = importNovelJSON(flat);
+    for (const [id, ent] of imported.entities) if (!novel.entities.has(id)) novel.entities.set(id, ent);
+    for (const [id, npc] of imported.npcs) if (!novel.npcs.has(id)) novel.npcs.set(id, npc);
+    for (const [key, entry] of imported.lore) if (!novel.lore.has(key)) novel.lore.set(key, entry);
+    for (const c of imported.countdowns) if (!novel.countdowns.has(c[0])) novel.countdowns.set(c[0], c[1]);
+    for (const f of imported.factions) if (!novel.factions.some(x => x.name === f.name)) novel.factions.push(f);
+  }
+
   state.saveNovel(novel);
-  return ok(`Novel '${parsed.name}' imported (${m} mode).`);
+  if (failures.length > 0) {
+    return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}`);
+  }
+  return ok(`Novel '${name}' imported (${m} mode).`);
 });
 
 // --- Enrichment ---
@@ -3784,6 +4024,7 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "constraints://active", title: "Constraint Overrides" },
 ];
 
+// REQ-025 — spec_health reports build health, indexed counts, and URI completeness.
 server.registerTool("spec_health", {
   title: "Spec Health",
   description: "Report build health, indexed counts, and resource URI completeness.",
@@ -4319,6 +4560,7 @@ server.registerTool("set_party_presence", {
   return ok(`Party presence set: ${entity_ids.join(", ") || "(none)"}.`);
 });
 
+// REQ-212/213 — generation-table rolling against the bound ruleset's weighted tables.
 server.registerTool("roll_on_table", {
   title: "Roll On Table",
   description: "Roll on a generation table from the bound ruleset. Use when: resolving a random-generation table (names, treasure, events). Do NOT use when: resolving a fixed lookup — use a lookup tool.",

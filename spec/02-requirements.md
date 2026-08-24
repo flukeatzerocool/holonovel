@@ -3405,7 +3405,6 @@ Gaps — a REQ in the covered sections with no mapped sub-workflow — are logge
 
 **REQ-376a3 — Holonovel Pattern Buffer traceability (Part a3).**
 Gaps detected by `npm run validate` are errors that block assembly. _Check:_ T431.
-**REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
 
 ---
 
@@ -3430,7 +3429,6 @@ The server SHALL support registration of additional MCP tools at runtime when su
 
 **REQ-373a2 — Dynamic tool registration (Part a2).**
 When a supplementary ruleset is removed (REQ-372), its tools SHALL be deregistered — `tools/list` and tool invocation SHALL behave as if the tools were never present. *Acceptance criterion:* After `import_supplementary`, `tools/list` includes new tools annotated with source slug. Tool invocation produces `[OK]` with response prefix, error taxonomy, and source quoting. After `remove_supplementary`, tools are absent from `tools/list` and invocation returns `[NOT_FOUND]` (tool not recognized by the MCP layer). _Check:_ T424.
-**REQ-373b — Dynamic tool registration (Part b).**
 
 ---
 
