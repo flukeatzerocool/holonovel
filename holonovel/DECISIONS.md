@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 363dbc1d1680eb883144a4fdc3c4d525e9367d3cb98c798ae9f624aeacb9e074
+**Spec hash:** c6651a76b1a9065af37fd58ab0ea0d2bf01b2f15b7e7f4496ec2226c9e8253ca
+
+### Holonovel Spec Update — 2026-08-24 (interchange/generation + guardrail layer)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (`REQ-376b`/`REQ-373b` empty-body remnants removed; Appendix E rows reconciled) + tooling (`checkEmptyReqBodies` `---` terminator; `gatherExercisedIds` counts only executed test() calls; placeholder-stub sentinel scan; new-REQ-must-be-cited-or-whitelisted guard; `scripts/test-req-checks.ts` self-test) + implementation (`export_novel`/`import_novel` rewritten to Appendix Q with lossless replace round-trip incl. world/entities/npcs/countdowns; `generate_adventure`/`generate_encounter` implemented per REQ-090/091 with codex target + atomic encounter batch) |
+| Reused | extraction, lockfile |
+| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-persistence 11/11; test-adventure 9/9; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; check:fast 0 errors |
 
 ### Holonovel Server Change — 2026-08-24 (§5.12 narrative engine)
 

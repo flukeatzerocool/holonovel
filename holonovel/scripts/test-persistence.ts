@@ -126,8 +126,49 @@ async function main() {
       const parsed = JSON.parse(exported); // must be parseable JSON
       assertContains(exported, "\"slug\"");
       assertContains(exported, "\"name\"");
+      // Appendix Q envelope: format_version (integer) + manifest object.
+      assertContains(exported, "\"format_version\"");
+      assertContains(exported, "\"manifest\"");
+      assertContains(exported, "\"novel\"");
       const dryrun = await call(proc, "import_novel", { data: exported, mode: "dry-run" });
       assertContains(dryrun, "valid manifest");
+    });
+
+    await test("T100: replace-import round-trip restores world and entities", async () => {
+      // Populate a novel with world model + NPC + countdown + lore.
+      await call(proc, "create_room", { name: "throne room", description: "A grand hall." });
+      await call(proc, "create_thing", { name: "throne", description: "An ornate seat." });
+      await call(proc, "create_npc", { name: "Chancellor", description: "A wary official.", disposition: "neutral" });
+      await call(proc, "set_countdown", { name: "court adjourns", ticks: 5, type: "narrative", scope: "throne room" });
+      await call(proc, "set_lore_entry", { key: "the_crown", content: "The crown is a forgery.", triggers: ["the_crown"] });
+
+      const before = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      const roomsBefore = Object.keys(before.novel.world.rooms).sort();
+      const thingsBefore = Object.keys(before.novel.world.things).sort();
+      const npcsBefore = Object.keys(before.novel.npcs).sort();
+      const loreBefore = Object.keys(before.novel.lore).sort();
+      const countdownsBefore = Object.keys(before.novel.countdowns).sort();
+      assertContains(roomsBefore.join(","), "throne room");
+      assertContains(thingsBefore.join(","), "throne");
+
+      // Replace-import the export back and re-export — tiers must survive.
+      await call(proc, "import_novel", { data: JSON.stringify(before), mode: "replace" });
+      const after = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      if (JSON.stringify(Object.keys(after.novel.world.rooms).sort()) !== JSON.stringify(roomsBefore)) {
+        throw new Error(`round-trip rooms mismatch: before=${roomsBefore} after=${Object.keys(after.novel.world.rooms).sort()}`);
+      }
+      if (JSON.stringify(Object.keys(after.novel.world.things).sort()) !== JSON.stringify(thingsBefore)) {
+        throw new Error("round-trip things mismatch");
+      }
+      if (JSON.stringify(Object.keys(after.novel.npcs).sort()) !== JSON.stringify(npcsBefore)) {
+        throw new Error("round-trip npcs mismatch");
+      }
+      if (JSON.stringify(Object.keys(after.novel.lore).sort()) !== JSON.stringify(loreBefore)) {
+        throw new Error("round-trip lore mismatch");
+      }
+      if (JSON.stringify(Object.keys(after.novel.countdowns).sort()) !== JSON.stringify(countdownsBefore)) {
+        throw new Error("round-trip countdowns mismatch");
+      }
     });
 
     await test("T78/T99/T093: metadata in spec_health lists Novels", async () => {

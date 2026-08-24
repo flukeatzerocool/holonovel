@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-24 — interchange/generation rewrite + register guardrail layer
+
+- Fixed `checkEmptyReqBodies` to treat `---` as a REQ-body terminator (matching
+  `checkTruncatedReqBodies`), surfacing two latent empty-body remnants
+  (`REQ-376b`, `REQ-373b`) which were removed from the spec and their Appendix E
+  rows reconciled. Added `scripts/test-req-checks.ts` (`npm run test:validators`)
+  as a regression self-test, wired into `check:fast`.
+- Tightened `gatherExercisedIds` to count only test IDs named in executed
+  `test("<id> …")` calls, so a T-ID mentioned in a harness header comment can no
+  longer mint a bucket-C claim. The register now honestly reports 189 A / 86 B /
+  56 C (previously over-claimed C and under-counted B).
+- Added three validator guards: a placeholder-stub sentinel scan (REQ-090/091
+  stubs can't recur), and a new-REQ-must-be-cited-or-whitelisted guard (G4) that
+  fails the gate when a REQ added since the committed register buckets to A
+  without a source citation or intended-gap whitelist entry.
+- Rewrote `export_novel`/`import_novel` (REQ-096) to the Appendix Q envelope:
+  `format_version` + `manifest` object, `scope` filtering, and a lossless
+  `replace` round-trip that restores the serialized world (rooms/things),
+  entities, NPCs, countdowns, lore, and all tiers — previously `world` exported
+  only counts and import restored only scene+lore. Strengthened T100 in
+  `test-persistence.ts` to assert the replace round-trip.
+- Implemented `generate_adventure(premise, target?)` and
+  `generate_encounter(context)` (REQ-090/091) in place of placeholder stubs:
+  a deterministic scaffold (GM-only overview, player hook, 2–6 table-rolled
+  locations, NPC suggestions, encounter seed) with `novel`/`codex`/`both`
+  targets and a codex `adventure` entry (`source: generated`) that survives
+  restart; encounter generation batches scene + NPC + lore as a single undo
+  target with Player `[FORBIDDEN]`. Added `holonovel/scripts/test-adventure.ts`
+  (T75/T76/T367).
+- Register: REQ-090/091 flipped to bucket C (T75/T76/T367); REQ-096 retains C
+  with honest round-trip evidence. Strict-gate (`--impl-audit=strict`) enablement
+  remains deferred pending the 189-REQ backlog triage; the new-REQ guard is the
+  active recurrence protection.
+
 ## 2026-08-24 — §5.12 closure to G7-pass + §5.9 persistence backfill
 
 - Fixed `recordBeatTransition`: a GM-set beat now replaces the same-beat

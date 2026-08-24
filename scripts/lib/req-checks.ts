@@ -21,7 +21,7 @@ const REQ_HEADER_RE = /\*\*(REQ-\d{3}[a-z0-9]*)\s+—\s+.+?\.\*\*/g;
 
 export function checkEmptyReqBodies(text: string): string[] {
   const issues: string[] = [];
-  const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+/gm;
+  const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+|^---\s*$/gm;
   for (const h of text.matchAll(REQ_HEADER_RE)) {
     const bodyStart = (h.index ?? 0) + h[0].length;
     terminatorRe.lastIndex = bodyStart;

@@ -1025,7 +1025,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-376a1 | Holonovel Pattern Buffer traceability (Part a1) | 2026-08-11 |
 | REQ-376a2 | Holonovel Pattern Buffer traceability (Part a2) | 2026-08-11 |
 | REQ-376a3 | Holonovel Pattern Buffer traceability (Part a3) | 2026-08-11 |
-| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-372a | Supplementary ruleset import (Part a) | 2026-08-11 |
 | REQ-372b | Supplementary ruleset import (Part b) | 2026-08-11 |
 | REQ-372c | Supplementary ruleset import (Part c) | 2026-08-11 |
@@ -1033,7 +1032,6 @@ date-stamps matching CHANGELOG entries.
 | REQ-372e | Supplementary ruleset import (Part e) | 2026-08-11 |
 | REQ-373a1 | Dynamic tool registration (Part a1) | 2026-08-11 |
 | REQ-373a2 | Dynamic tool registration (Part a2) | 2026-08-11 |
-| REQ-373b | Dynamic tool registration (Part b) | 2026-08-11 |
 | REQ-377a | Mechanical coupling extraction (Part a) | 2026-08-11 |
 | REQ-377b | Mechanical coupling extraction (Part b) | 2026-08-11 |
 | REQ-377c | Mechanical coupling extraction (Part c) | 2026-08-11 |
@@ -1121,6 +1119,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
 | REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
 | REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
+| REQ-376b | Holonovel Pattern Buffer traceability (Part b) | 2026-08-11 |
 | REQ-300 | Structured failure diagnostics | 2026-08-11 |
 | REQ-301 | Convergence loop audit trail | 2026-08-11 |
 | REQ-303 | Scoped re-verification | 2026-08-11 |
