@@ -227,6 +227,15 @@ export interface ConditionState {
   condition_rounds: Record<string, number>;
 }
 
+// Pre-workflow snapshot (REQ-042b): captured when a tool raises [NEED_INPUT],
+// persisted with the pending decision, and restored on respond(cancel) or
+// staleness auto-cancel. `state` is a novelToSnapshotJSON clone (undo/redo
+// stacks omitted); `timestamp` records when the workflow began.
+export interface WorkflowSnapshot {
+  timestamp: string;
+  state: any;
+}
+
 export interface AutonomyState {
   level: "full" | "mechanical_prompt" | "manual";
   confirmation: "auto" | "confirm" | "prompt";
@@ -303,8 +312,8 @@ export interface NovelState {
   characters_present_ids: string[];
   adventure_set: boolean;
   pending_workflow:
-    | { decision: string; snapshot: any }
-    | { decision: string; snapshot: any; creation?: import("./character-creation.js").CreationWorkflowState }
+    | { decision: string; snapshot: WorkflowSnapshot | null; payload?: any }
+    | { decision: string; snapshot: WorkflowSnapshot | null; creation?: import("./character-creation.js").CreationWorkflowState; payload?: any }
     | null;
   connection_counter: number;
   pending_staleness_counter: number;
@@ -631,6 +640,7 @@ export class StateManager {
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
     this.audit(novel, novel.badge, "resume_novel", { slug });
+    this.checkWorkflowStaleness(novel);
     return novel;
   }
 
@@ -757,6 +767,83 @@ export class StateManager {
 
   // ── Snapshots, Undo, Redo ─────────────────────────────────────
 
+  // Capture a pre-workflow snapshot (REQ-042b/d): a full Novel-state clone with
+  // the workflow start timestamp. Persisted alongside the pending decision so
+  // respond(cancel) or staleness auto-cancel can restore it after a restart.
+  captureWorkflowSnapshot(novel: NovelState): WorkflowSnapshot {
+    // The connection that raises the workflow is connection 1 for staleness
+    // accounting (REQ-224, T266): the workflow survives the first N connections
+    // and auto-cancels on the (N+1)th.
+    novel.connection_counter = (novel.connection_counter ?? 0) + 1;
+    novel.pending_staleness_counter = 1;
+    return {
+      timestamp: new Date().toISOString(),
+      state: JSON.parse(JSON.stringify(novelToSnapshotJSON(novel))),
+    };
+  }
+
+  // Restore the pre-workflow snapshot over all Novel-tier fields, clear the
+  // pending workflow, and reset the staleness counter (REQ-042b, REQ-224a).
+  // The audit entry is the caller's responsibility (explicit cancel vs. stale
+  // differ in their entry tags). Returns the restored snapshot for audit text.
+  restoreFromSnapshot(novel: NovelState, snapshot: WorkflowSnapshot | null): { timestamp: string } {
+    let timestamp = snapshot?.timestamp ?? new Date().toISOString();
+    if (snapshot?.state) {
+      const restored = novelFromJSON(snapshot.state);
+      // Preserve the undo/redo stacks and audit log from the *pre-restore*
+      // novel — REQ-041 keeps workflow cancellation independent of undo, and
+      // the snapshot omits stacks/bookkeeping by design.
+      const undoStacks = novel.undo_stacks;
+      const redoStacks = novel.redo_stacks;
+      const auditLog = novel.audit_log;
+      const connectionCounter = novel.connection_counter;
+      applyNovelState(novel, restored);
+      novel.undo_stacks = undoStacks;
+      novel.redo_stacks = redoStacks;
+      novel.audit_log = auditLog;
+      novel.connection_counter = connectionCounter;
+      timestamp = snapshot!.timestamp;
+    }
+    novel.pending_workflow = null;
+    novel.pending_staleness_counter = 0;
+    return { timestamp };
+  }
+
+  // REQ-224a/b: on each new connection to a Novel with a pending workflow,
+  // increment the staleness counter. When it reaches TTRPG_WORKFLOW_STALENESS_CONNECTIONS
+  // (default 5), auto-cancel with the same behavior as respond("cancel"), but
+  // tagged [workflow-stale]. A threshold of 0 disables detection. Returns a
+  // non-null description when an auto-cancel occurred.
+  checkWorkflowStaleness(novel: NovelState): string | null {
+    const threshold = parseInt(process.env.TTRPG_WORKFLOW_STALENESS_CONNECTIONS ?? "5", 10);
+    if (threshold <= 0) return null;
+    if (!novel.pending_workflow) return null;
+
+    novel.connection_counter = (novel.connection_counter ?? 0) + 1;
+    novel.pending_staleness_counter = (novel.pending_staleness_counter ?? 0) + 1;
+
+    const counter = novel.pending_staleness_counter;
+    const decision = novel.pending_workflow.decision;
+    if (counter < threshold) {
+      this.saveNovel(novel);
+      return null;
+    }
+
+    // Auto-cancel: restore the pre-workflow snapshot and emit a [workflow-stale]
+    // audit entry distinct from explicit cancellation (REQ-224a).
+    const snapshot = novel.pending_workflow.snapshot;
+    const baseline = novel.pending_staleness_counter;
+    this.restoreFromSnapshot(novel, snapshot);
+    // restoreFromSnapshot resets the counter; carry the value into the audit text.
+    this.audit(novel, novel.badge, "workflow_stale", {
+      decision,
+      connections: baseline,
+      timestamp: snapshot?.timestamp ?? null,
+    }, "[workflow-stale]");
+    this.saveNovel(novel);
+    return `Workflow '${decision}' auto-cancelled after ${baseline} connections (staleness threshold ${threshold}).`;
+  }
+
   snapshot(novel: NovelState, badge: Badge): void {
     const clone = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     const stackKey = badge;
@@ -777,32 +864,7 @@ export class StateManager {
 
     const restore = stack.pop()!;
     const restored = novelFromJSON(restore);
-    novel.entities = restored.entities;
-    novel.active_entity_id = restored.active_entity_id;
-    novel.npcs = restored.npcs;
-    novel.scene_description = restored.scene_description;
-    novel.scene_location = restored.scene_location;
-    novel.scene_time_of_day = restored.scene_time_of_day;
-    novel.scene_atmosphere = restored.scene_atmosphere;
-    novel.scene_history = restored.scene_history;
-    novel.scene_type = restored.scene_type;
-    novel.narrative_directive = restored.narrative_directive;
-    novel.combat = restored.combat;
-    novel.countdowns = restored.countdowns;
-    novel.lore = restored.lore;
-    novel.badge = restored.badge;
-    novel.player_signals = restored.player_signals;
-    novel.briefing_assembly_count = restored.briefing_assembly_count;
-    novel.story_journal = restored.story_journal;
-    novel.factions = restored.factions;
-    novel.secrets = restored.secrets;
-    novel.relationships = restored.relationships;
-    novel.gm_context = restored.gm_context;
-    novel.notes = restored.notes;
-    novel.vows = restored.vows;
-    novel.checkpoints = restored.checkpoints;
-    novel.world = restored.world;
-    novel.metadata = restored.metadata;
+    applyNovelState(novel, restored);
     this.saveNovel(novel);
     return { data: restore };
   }
@@ -817,32 +879,7 @@ export class StateManager {
 
     const restore = stack.pop()!;
     const restored = novelFromJSON(restore);
-    novel.entities = restored.entities;
-    novel.active_entity_id = restored.active_entity_id;
-    novel.npcs = restored.npcs;
-    novel.scene_description = restored.scene_description;
-    novel.scene_location = restored.scene_location;
-    novel.scene_time_of_day = restored.scene_time_of_day;
-    novel.scene_atmosphere = restored.scene_atmosphere;
-    novel.scene_history = restored.scene_history;
-    novel.scene_type = restored.scene_type;
-    novel.narrative_directive = restored.narrative_directive;
-    novel.combat = restored.combat;
-    novel.countdowns = restored.countdowns;
-    novel.lore = restored.lore;
-    novel.badge = restored.badge;
-    novel.player_signals = restored.player_signals;
-    novel.briefing_assembly_count = restored.briefing_assembly_count;
-    novel.story_journal = restored.story_journal;
-    novel.factions = restored.factions;
-    novel.secrets = restored.secrets;
-    novel.relationships = restored.relationships;
-    novel.gm_context = restored.gm_context;
-    novel.notes = restored.notes;
-    novel.vows = restored.vows;
-    novel.checkpoints = restored.checkpoints;
-    novel.world = restored.world;
-    novel.metadata = restored.metadata;
+    applyNovelState(novel, restored);
     this.saveNovel(novel);
     return { data: restore };
   }
@@ -1387,4 +1424,60 @@ function novelFromJSON(data: any): NovelState {
       last_scene_anchor: "",
     },
   };
+}
+
+// Overwrite every Novel-tier field of `target` with the values from `source`.
+// Used by undo/redo (existing) and workflow-snapshot restore (REQ-042b), which
+// must cover all Novel property groups, not a subset. Undo/redo stacks are
+// deliberately NOT touched here — they are internal bookkeeping, preserved
+// across a workflow-cancel restore (REQ-041: workflows are independent of undo).
+export function applyNovelState(target: NovelState, source: NovelState): void {
+  target.slug = source.slug;
+  target.name = source.name;
+  target.ruleset = source.ruleset;
+  target.badge = source.badge;
+  target.entities = source.entities;
+  target.active_entity_id = source.active_entity_id;
+  target.npcs = source.npcs;
+  target.scene_description = source.scene_description;
+  target.scene_location = source.scene_location;
+  target.scene_time_of_day = source.scene_time_of_day;
+  target.scene_atmosphere = source.scene_atmosphere;
+  target.scene_history = source.scene_history;
+  target.scene_type = source.scene_type;
+  target.narrative_directive = source.narrative_directive;
+  target.combat = source.combat;
+  target.countdowns = source.countdowns;
+  target.lore = source.lore;
+  target.briefing_assembly_count = source.briefing_assembly_count;
+  target.player_signals = source.player_signals;
+  target.adventure_slug = source.adventure_slug;
+  target.generated_adventure = source.generated_adventure;
+  target.briefing_order = source.briefing_order;
+  target.action_patterns_enabled = source.action_patterns_enabled;
+  target.session_zero_completed = source.session_zero_completed;
+  target.characters_present = source.characters_present;
+  target.characters_present_ids = source.characters_present_ids;
+  target.adventure_set = source.adventure_set;
+  target.pending_workflow = source.pending_workflow;
+  target.pov_mode = source.pov_mode;
+  target.autonomy = source.autonomy;
+  target.help_category_overrides = source.help_category_overrides;
+  target.story_journal = source.story_journal;
+  target.factions = source.factions;
+  target.secrets = source.secrets;
+  target.relationships = source.relationships;
+  target.gm_context = source.gm_context;
+  target.constraint_overrides = source.constraint_overrides;
+  target.synthesis_activated = source.synthesis_activated;
+  target.synthesis_module_enabled = source.synthesis_module_enabled;
+  target.notes = source.notes;
+  target.vows = source.vows;
+  target.checkpoints = source.checkpoints;
+  target.description = source.description;
+  target.genre = source.genre;
+  target.adventure_index = source.adventure_index;
+  target.adventure_scene_waypoint = source.adventure_scene_waypoint;
+  target.world = source.world;
+  target.metadata = source.metadata;
 }

@@ -10,7 +10,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState } from "./core/state.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -551,6 +551,13 @@ server.registerTool("set_badge", {
   return ok(`Active badge: ${badge}`);
 });
 
+// REQ-042a — canonicalization: leading/trailing whitespace stripped, internal
+// whitespace collapsed to single spaces, so a decision that differs from the
+// emitted text only in whitespace still matches.
+function canon(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
 server.registerTool("respond", {
   title: "Respond to Workflow Decision",
   description: "Respond to a pending workflow decision.",
@@ -558,19 +565,46 @@ server.registerTool("respond", {
 }, async ({ decision, option }) => {
   requireNotObserver();
   const novel = requireNovel();
-  if (option === "cancel") {
-    novel.pending_workflow = null;
-    state.saveNovel(novel);
-    return ok("Workflow cancelled.");
+  const pw = novel.pending_workflow;
+
+  // REQ-042a/b: no workflow pending → [NOT_FOUND]; the decision text must
+  // reference the open workflow, else [NOT_FOUND] with the canonical text.
+  if (!pw) {
+    return err("NOT_FOUND", "No workflow decision is pending.");
   }
-  if (decision.toLowerCase().includes("end novel") || decision.toLowerCase().includes("end_novel")) {
+
+  const dec = canon(String(decision));
+  const opt = canon(String(option));
+
+  // Explicit cancellation (REQ-042b): restore the pre-workflow snapshot,
+  // clear the pending workflow, reset the staleness counter, and audit a
+  // workflow-cancellation entry recording the decision text and timestamp.
+  if (opt === "cancel") {
+    const snapshot = pw.snapshot;
+    const { timestamp } = state.restoreFromSnapshot(novel, snapshot);
+    audit("workflow_cancelled", {
+      decision: pw.decision,
+      timestamp,
+    }, "[workflow-cancelled]");
+    state.saveNovel(novel);
+    return ok(`Workflow '${pw.decision}' cancelled — pre-workflow state restored.`);
+  }
+
+  // Determine the workflow kind from the stable machine token, not the echo.
+  const kind = pw.decision;
+  if (kind.includes("end_novel") || kind.includes("end novel") || kwMatch(dec, ["end novel", "end_novel"])) {
     const slug = state.activeNovel!.slug;
-    const result = state.endNovel(novel, option as "yes" | "cancel");
-    if (result.removed) return ok(`Novel '${slug}' ended.`);
+    const result = state.endNovel(novel, opt === "yes" ? "yes" : "cancel");
+    if (result.removed) {
+      novel.pending_workflow = null;
+      return ok(`Novel '${slug}' ended.`);
+    }
+    state.restoreFromSnapshot(novel, pw.snapshot);
+    state.saveNovel(novel);
     return ok("End novel cancelled.");
   }
-  if (decision.toLowerCase().includes("present_choices")) {
-    const chosenId = String(option).trim();
+  if (kind === "present_choices" || kwMatch(dec, ["present_choices", "present choices"])) {
+    const chosenId = opt;
     // REQ-235b: record the player's choice in the audit log.
     audit("respond", { decision, option: chosenId }, "[choice]");
     // REQ-235b: advance countdowns whose scope equals the chosen id.
@@ -597,16 +631,16 @@ server.registerTool("respond", {
     state.saveNovel(novel);
     return ok(`Choice '${chosenId}' selected.`);
   }
-  if (decision.toLowerCase().startsWith("safety_escalation:")) {
-    const target = decision.slice("safety_escalation:".length);
+  if (kind.startsWith("safety_escalation:")) {
+    const target = kind.slice("safety_escalation:".length);
     const auto = novel.autonomy;
-    if (option.toLowerCase() === "decline" || option.toLowerCase() === "cancel") {
-      novel.pending_workflow = null;
+    if (opt === "decline" || opt === "cancel") {
+      state.restoreFromSnapshot(novel, pw.snapshot);
       state.saveNovel(novel);
       return ok(`Safety escalation declined — tier remains ${auto.safety}.`);
     }
-    if (option.toLowerCase() !== "confirm") {
-      return err("INVALID_INPUT", "Respond 'confirm' to raise the safety tier, or 'decline' to keep the current tier.");
+    if (opt !== "confirm") {
+      return err("NOT_FOUND", `Respond 'confirm' to raise the safety tier, or 'decline' to keep the current tier (${auto.safety}).`);
     }
     auto.safety = target as "safe" | "moderate" | "hardcore";
     if (!auto.confirmed_safety_tiers.includes(target)) auto.confirmed_safety_tiers.push(target);
@@ -615,13 +649,12 @@ server.registerTool("respond", {
     audit("set_autonomy", { safety: target, confirmed: true });
     return ok(`Safety tier raised to '${target}'.`);
   }
-  if (decision.toLowerCase().includes("character_creation")) {
-    const pw = novel.pending_workflow;
-    if (!pw || !("creation" in pw) || !pw.creation) return err("STATE_CONFLICT", "No character-creation workflow in progress.");
-    const wf = pw.creation;
+  if (kind === "character_creation" || kwMatch(dec, ["character creation"])) {
+    const wf = ("creation" in pw ? pw.creation : undefined);
+    if (!wf) return err("STATE_CONFLICT", "No character-creation workflow in progress.");
     const steps = creationSteps(wf.rules ?? undefined);
     const step = steps[wf.stepIndex] ?? "name";
-    const ans = String(option).trim();
+    const ans = opt;
     switch (step) {
       case "name": wf.answers.name = ans; break;
       case "species": wf.answers.species = ans; break;
@@ -636,7 +669,7 @@ server.registerTool("respond", {
     }
     wf.stepIndex++;
     if (wf.stepIndex < steps.length) {
-      novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: wf };
+      novel.pending_workflow = { decision: "character_creation", snapshot: pw.snapshot, creation: wf };
       state.saveNovel(novel);
       return needInput(creationStepPrompt(wf));
     }
@@ -682,8 +715,29 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
 
 Character '${build.name}' created as ${entity.id} with derived statistics.`);
   }
-  return ok(`Responded to '${decision}' with '${option}'.`);
+  if (kind.startsWith("restore_checkpoint:")) {
+    const label = kind.slice("restore_checkpoint:".length);
+    if (opt === "yes") {
+      const stateData = pw.payload?.state;
+      const restored = stateData ? loadNovelFromStateData(stateData) : null;
+      applyNovelState(novel, restored ?? novel);
+      novel.pending_workflow = null;
+      state.saveNovel(novel);
+      audit("checkpoint_restored", { label }, "[checkpoint-restored]");
+      return ok(`Checkpoint '${label}' restored.`);
+    }
+    state.restoreFromSnapshot(novel, pw.snapshot);
+    state.saveNovel(novel);
+    return ok(`Checkpoint '${label}' restore cancelled.`);
+  }
+  return err("NOT_FOUND", `Unrecognized decision '${decision}'. Canonical decision: '${pw.decision}'.`);
 });
+
+// REQ-042a helper: whole-token keyword match on canonicalized decision text.
+function kwMatch(canonicalDecision: string, keywords: string[]): boolean {
+  const tokens = canonicalDecision.toLowerCase().split(/\s+/);
+  return keywords.some((kw) => tokens.includes(kw.toLowerCase()));
+}
 
 server.registerTool("undo", {
   title: "Undo",
@@ -908,7 +962,7 @@ server.registerTool("create_character", {
     // Step-by-step mode: start a guided creation workflow.
     if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
     const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, rules, answers: {} };
-    novel.pending_workflow = { decision: "character_creation", snapshot: null, creation: workflow };
+    novel.pending_workflow = { decision: "character_creation", snapshot: state.captureWorkflowSnapshot(novel), creation: workflow };
     state.saveNovel(novel);
     return needInput(creationStepPrompt(workflow));
   }
@@ -1128,7 +1182,7 @@ server.registerTool("set_autonomy", {
   // REQ-306f — escalating safety above `safe` requires confirmation, once per
   // Novel per target tier.
   if (safety && safety !== "safe" && safety !== auto.safety && !auto.confirmed_safety_tiers.includes(safety)) {
-    novel.pending_workflow = { decision: `safety_escalation:${safety}`, snapshot: null };
+    novel.pending_workflow = { decision: `safety_escalation:${safety}`, snapshot: state.captureWorkflowSnapshot(novel) };
     state.saveNovel(novel);
     const severity = safety === "hardcore"
       ? "warning: disengaging safety protocols permits permanent character death with no warnings"
@@ -2506,25 +2560,18 @@ server.registerTool("restore_checkpoint", {
 }, async ({ label }: any) => {
   requireGM();
   const novel = requireNovel();
+  if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
   const cp = novel.checkpoints.find(c => c.label === label);
   if (!cp) return err("NOT_FOUND", `Checkpoint '${label}' not found.`);
-  const restored = loadNovelFromStateData(cp.state);
-  novel.entities = restored.entities;
-  novel.npcs = restored.npcs;
-  novel.scene_description = restored.scene_description;
-  novel.scene_location = restored.scene_location;
-  novel.combat = restored.combat;
-  novel.countdowns = restored.countdowns;
-  novel.lore = restored.lore;
-  novel.world = restored.world;
-  novel.story_journal = restored.story_journal;
-  novel.factions = restored.factions;
-  novel.secrets = restored.secrets;
-  novel.relationships = restored.relationships;
-  novel.vows = restored.vows;
-  novel.notes = restored.notes;
+  novel.pending_workflow = {
+    decision: `restore_checkpoint:${label}`,
+    snapshot: state.captureWorkflowSnapshot(novel),
+    payload: { label, state: cp.state },
+  };
   state.saveNovel(novel);
-  return ok(`Checkpoint '${label}' restored.`);
+  return needInput(`Decision: -restore_checkpoint-
+Question: Restore checkpoint "${label}"? This reverts the Novel to that snapshot.
+Options: yes, cancel`);
 });
 
 server.registerTool("remove_checkpoint", {
@@ -2673,11 +2720,19 @@ server.registerTool("present_choices", {
     prompt: z.string(),
     choices: z.array(z.object({ id: z.string(), label: z.string(), description: z.string().optional() })),
     allow_freeform: z.boolean().optional(),
+    context: z.record(z.string(), z.any()).optional(),
   },
-}, async ({ prompt, choices, allow_freeform }: any) => {
+}, async ({ prompt, choices, allow_freeform, context }: any) => {
   requireGM();
   const novel = requireNovel();
-  novel.pending_workflow = { decision: "present_choices", snapshot: { prompt, choices, allow_freeform } };
+  if (novel.pending_workflow) {
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+  }
+  novel.pending_workflow = {
+    decision: "present_choices",
+    snapshot: state.captureWorkflowSnapshot(novel),
+    payload: { prompt, choices, allow_freeform, context },
+  };
   state.saveNovel(novel);
   const opts = choices.map((c: any) => `  **${c.id}** — ${c.label}${c.description ? `: ${c.description}` : ""}`).join("\n");
   return needInput(`Decision: -present_choices-\nQuestion: ${prompt}\n\nOptions:\n${opts}${allow_freeform ? "\n\nYou may also respond with a freeform answer." : ""}`);
@@ -2963,6 +3018,11 @@ server.registerTool("end_novel", {
 }, async () => {
   requireNotObserver();
   const novel = requireNovel();
+  if (novel.pending_workflow) {
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+  }
+  novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
+  state.saveNovel(novel);
   return needInput(`Decision: -end_novel-confirm
 Question: End Novel "${novel.name}"?
 Options: yes, cancel`);
@@ -3337,6 +3397,11 @@ server.registerTool("spec_health", {
       reported: true,
     },
     entities, npcs, lore_entries: loreCount, countdowns,
+    // REQ-224b / REQ-193a — pending workflow staleness surfaced to operators.
+    pending_workflow: isGM ? (novel?.pending_workflow ? { decision: novel.pending_workflow.decision, connections: novel.pending_staleness_counter, threshold: parseInt(process.env.TTRPG_WORKFLOW_STALENESS_CONNECTIONS ?? "5", 10) } : null) : undefined,
+    pending_workflow_warning: isGM && novel?.pending_workflow && novel.pending_staleness_counter >= 3
+      ? { decision: novel.pending_workflow.decision, connections: novel.pending_staleness_counter }
+      : undefined,
     synthesis_active,
     synthesis_status: { modules: synthesisCounts, last_run: state.enrichmentManifest?.collected_at ?? null },
     synthesis_health: {
