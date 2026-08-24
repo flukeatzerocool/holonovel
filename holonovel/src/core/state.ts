@@ -377,7 +377,7 @@ export interface NovelState {
   checkpoints: Checkpoint[];
   description: string;
   genre: string;
-  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[] } | null;
+  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[]; scene_count?: number } | null;
   adventure_scene_waypoint: { anchor: string; description: string } | null;
   // World-model tier
   world: WorldModel;

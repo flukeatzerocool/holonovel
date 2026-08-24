@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-24 — Wave 6: §5.6 Adventure resources (8 REQs → C)
+
+- REQ-292 `list_adventures` tool: catalog metadata (slug/title/preview/genre/
+  rooms/NPCs/complexity/last_modified), genre filter, empty-state marker;
+  `adventure_catalog_count` in spec_health.
+- REQ-170 `adventures://` resource: indexed adventure slugs with titles and
+  badge-filtered hooks; `indexed_adventures` in spec_health.
+- REQ-247 structural extraction on load_adventure (headings → index, NPC refs,
+  locations, factions, scene count).
+- REQ-248/249 `adventure://<slug>/overview` + `/navigation` resources with
+  badge filtering and `[WARNING]` empty-state.
+- REQ-250 `adventure_scene` waypoint on set_scene_state: anchor validation
+  (`[NOT_FOUND]` + nearby), persistence, briefing labeled block with adjacent
+  scenes.
+- REQ-252 `fast_forward` on set_scene_state: countdown adjustments, NPC changes,
+  `[fast-forward]` audit bridging summary.
+- REQ-229 load_adventure synthesis linkage augmentation section ("Synthesis
+  found X…") with `synthesis://status` pointer, omitted when no matches.
+- REQ-171/172/247 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows to 105 assertions (T146/T207/T284/T285/T286/
+  T305/T312/T338). Buckets now A 52 / B 5 / C 228 / E 96.
+
 ## 2026-08-24 — Wave 5: §5.6 NPC surface & memory (16 REQs → C)
 
 - REQ-311 NPC memory model: per-NPC `memory` state (witnessed events, contact

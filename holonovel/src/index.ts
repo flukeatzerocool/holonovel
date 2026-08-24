@@ -647,6 +647,12 @@ function audit(tool: string, args: any, prefix?: string): void {
   if (novel) state.audit(novel, getBadge(), tool, args, prefix);
 }
 
+// REQ-292 — count adventure modules on disk (empty → 0).
+function countAdventureModules(): number {
+  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  try { return fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")).length; } catch { return 0; }
+}
+
 function getActiveEntity() {
   return state.getActiveEntity();
 }
@@ -2549,8 +2555,18 @@ server.registerTool("set_scene_state", {
     atmosphere: z.string().optional(),
     beat: z.enum(BEAT_VALUES).optional(),
     skip_transition_hook: z.boolean().optional(),
+    // REQ-250 — adventure scene waypoint: heading anchor from the adventure
+    // structural index; empty/null clears; unknown anchors → [NOT_FOUND].
+    adventure_scene: z.string().nullable().optional(),
+    // REQ-252 — narrative fast-forward: skip intervening time with a bridging
+    // summary, countdown adjustments, and NPC changes.
+    fast_forward: z.object({
+      interval: z.string(),
+      changes: z.array(z.object({ npc_id: z.string(), location: z.string().optional(), disposition: z.string().optional(), condition: z.string().optional() })).optional(),
+      skip_countdowns: z.boolean().optional(),
+    }).optional(),
   },
-}, async ({ description, location, time_of_day, atmosphere, beat, skip_transition_hook }: any) => {
+}, async ({ description, location, time_of_day, atmosphere, beat, skip_transition_hook, adventure_scene, fast_forward }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -2579,6 +2595,48 @@ server.registerTool("set_scene_state", {
   novel.scene_location = location;
   novel.scene_time_of_day = time_of_day;
   novel.scene_atmosphere = atmosphere;
+
+  // REQ-250 — adventure scene waypoint: set/clear the waypoint anchor; unknown
+  // anchors return [NOT_FOUND] with nearby scene names enumerated.
+  if (adventure_scene !== undefined) {
+    if (adventure_scene === "" || adventure_scene === null) {
+      novel.adventure_scene_waypoint = null;
+    } else {
+      const scenes = (novel.adventure_index?.locations ?? []).map((l: any) => l.name);
+      if (!scenes.includes(adventure_scene)) {
+        const nearby = scenes.slice(0, 8).join(", ") || "(none)";
+        return err("NOT_FOUND", `Adventure scene '${adventure_scene}' not found in the structural index. Nearby scenes: ${nearby}.`);
+      }
+      novel.adventure_scene_waypoint = adventure_scene;
+    }
+  }
+
+  // REQ-252 — narrative fast-forward: advance narrative countdowns by the
+  // declared interval, apply declared NPC changes, record a [fast-forward]
+  // audit bridging summary. skip_countdowns preserves countdown state.
+  if (fast_forward) {
+    const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [] };
+    if (!fast_forward.skip_countdowns) {
+      for (const [name, cd] of [...novel.countdowns.entries()]) {
+        if (cd.type === "narrative") {
+          const decrement = Math.max(1, Math.round(Number((fast_forward.interval.match(/\d+/) ?? ["1"])[0]) || 1));
+          cd.ticks -= decrement;
+          ff.countdown_adjustments.push({ name, ticks: cd.ticks });
+          if (cd.ticks <= 0) { novel.countdowns.delete(name); ff.countdown_adjustments.push({ name, fired: true }); }
+        }
+      }
+    }
+    for (const change of fast_forward.changes ?? []) {
+      const npc = novel.npcs.get(change.npc_id);
+      if (npc) {
+        if (change.location !== undefined) npc.location = change.location;
+        if (change.disposition !== undefined) npc.disposition = change.disposition;
+        if (change.condition !== undefined && !npc.conditions.includes(change.condition)) npc.conditions.push(change.condition);
+        ff.npc_changes.push({ npc_id: change.npc_id, location: change.location, disposition: change.disposition });
+      }
+    }
+    audit("fast-forward", { interval: fast_forward.interval, ...ff }, "[fast-forward]");
+  }
 
   // REQ-335 — record the transition into story_beats, then advance the beat.
   if (beat !== undefined) {
@@ -3930,6 +3988,9 @@ function slugifyPremise(text: string): string {
 server.registerTool("generate_adventure", {
   title: "Generate Adventure",
   description: "Generate an adventure scaffold from a premise. Game Master only.",
+  // REQ-132 — adventure generation lifecycle: transient Novel-scoped artifact
+  // surfaced at adventure://generated/<anchor>, replaced on regeneration,
+  // discarded by end_novel, never persisted to TTRPG_ADVENTURE.
   inputSchema: {
     premise: z.string(),
     target: z.enum(["novel", "codex", "both"]).optional(),
@@ -4099,6 +4160,24 @@ server.registerTool("load_adventure", {
   const filePath = path.join(adventureDir, `${slug}.md`);
   if (!fs.existsSync(filePath)) return err("NOT_FOUND", `Adventure '${slug}' not found at ${filePath}.`);
   const content = fs.readFileSync(filePath, "utf-8");
+  // REQ-247 — structural extraction on load: headings become the structural
+  // index; bolded names with stats become NPC references; scene headings
+  // become locations. Populates adventure_index for the overview/navigation
+  // resources (REQ-248/249) and the scene waypoint (REQ-250).
+  const headings = content.match(/^#{2,3} .+$/gm) ?? [];
+  const npcRefs: string[] = [];
+  const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
+  if (m) for (const line of m.slice(0, 10)) npcRefs.push(line.replace(/\*\*/g, "").trim());
+  const locHeadings = headings.filter((h) => !/(roll|check|save|attack|damage)/i.test(h)).slice(0, 20).map((h) => h.replace(/^#{2,3}\s+/, ""));
+  const sceneCount = locHeadings.length;
+  novel.adventure_index = {
+    premise: (content.match(/## Premise\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").trim() || `Adventure: ${slug}`,
+    hooks: content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/) ? [content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)![1].trim()] : [],
+    npcs: npcRefs.map((n) => ({ name: n })),
+    locations: locHeadings.map((l) => ({ name: l, description: "" })),
+    factions: (content.match(/## Factions\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").split("\n").filter((l) => l.trim().length > 2 && !l.startsWith("#")).map((l) => ({ name: l.trim() })),
+    scene_count: sceneCount,
+  };
   // Parse ## World section if present
   const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
   if (worldMatch) {
@@ -4108,12 +4187,105 @@ server.registerTool("load_adventure", {
     novel.adventure_set = true;
     state.saveNovel(novel);
     audit("load_adventure", { slug, rooms: result.rooms, things: result.things });
-    return ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.`);
+    // REQ-229 — adventure synthesis linkage: report match counts in the load
+    // response after world-model population; omitted when nothing matches.
+    const synthVoice = (state.enrichmentManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
+    const synthLore = (state.enrichmentManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
+    const aug = synthVoice > 0 || synthLore > 0
+      ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.`
+      : "";
+    return ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}`);
   }
   novel.adventure_slug = slug;
   novel.adventure_set = true;
   state.saveNovel(novel);
+  audit("load_adventure", { slug, rooms: 0, things: 0 });
   return ok(`Adventure '${slug}' loaded (no world-model section found — flat prose only).`);
+});
+
+// REQ-292 — adventure catalog: list_adventures returns metadata for every
+// adventure module in TTRPG_ADVENTURE (slug, title, preview, genre_tags,
+// room_count, npc_count, complexity, last_modified); filter by genre tag;
+// empty-state when no modules; badge-filtered.
+server.registerTool("list_adventures", {
+  title: "List Adventures",
+  description: "List adventure modules with metadata. Always callable.",
+  inputSchema: { filter: z.string().optional() },
+}, async ({ filter }: any) => {
+  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  let files: string[] = [];
+  try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
+  if (files.length === 0) return ok("[No adventure modules found.]");
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
+  const entries = files.map((f) => {
+    const slug = f.replace(/\.md$/, "");
+    const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
+    const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
+    const preview = content.match(/## (?:Premise|Adventure Hook)\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim().split(/\s+/).slice(0, 30).join(" ") ?? "";
+    const genreTags: string[] = [];
+    const gm = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "";
+    const genre = gm.match(/genre[:\s]+([a-z_]+)/i)?.[1];
+    if (genre) genreTags.push(genre);
+    const roomCount = (content.match(/^### .+$/gm) ?? []).length;
+    const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
+    const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
+    const stat = fs.statSync(path.join(adventureDir, f));
+    return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString() };
+  }).filter((e) => !filter || e.genre_tags.includes(filter) || isGM);
+  const visible = isGM ? entries : entries.filter((e) => e.preview); // player-visible when a shared hook exists
+  return raw(JSON.stringify(visible, null, 2));
+});
+
+// REQ-170 — adventure discovery surface: adventures:// lists indexed adventure
+// slugs with titles and badge-filtered hooks.
+server.registerResource("adventures", "adventures://", { title: "Adventure Catalog" }, async () => {
+  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  let files: string[] = [];
+  try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
+  const entries = files.map((f) => {
+    const slug = f.replace(/\.md$/, "");
+    const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
+    const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
+    const hook = content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
+    const overview = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
+    return { slug, title, hook: isGM ? hook || overview : hook };
+  });
+  return { contents: [{ uri: "adventures://", text: JSON.stringify(entries, null, 2), mimeType: "application/json" }] };
+});
+
+// REQ-248 — adventure overview resource: adventure://<slug>/overview summarizes
+// premise, key NPCs, major locations, factions, and scene count; badge-filtered.
+server.registerResource("adventure-overview", new ResourceTemplate("adventure://{slug}/overview", { list: undefined }), { title: "Adventure Overview" }, async (uri) => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active Novel.", mimeType: "text/plain" }] };
+  const slug = uri.href.split("/")[2] ?? "";
+  const idx = novel.adventure_index;
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  if (!idx) return { contents: [{ uri: uri.href, text: `[WARNING] No structured overview available for '${slug}'.`, mimeType: "text/plain" }] };
+  const text = `## ${slug} Overview\n\n**Premise:** ${idx.premise ?? ""}\n**NPCs:** ${(idx.npcs ?? []).map((n: any) => `${n.name}`).join(", ") || "(none)"}\n**Locations:** ${(idx.locations ?? []).map((l: any) => l.name).join(", ") || "(none)"}\n${isGM && (idx.factions ?? []).length > 0 ? `**Factions:** ${idx.factions.map((f: any) => f.name).join(", ")}\n` : ""}**Scenes:** ${idx.scene_count ?? (idx.locations ?? []).length}`;
+  return { contents: [{ uri: uri.href, text, mimeType: "text/markdown" }] };
+});
+
+// REQ-249 — adventure navigation resource: adventure://<slug>/navigation renders
+// the structural index as navigable Markdown with the current waypoint marked.
+server.registerResource("adventure-navigation", new ResourceTemplate("adventure://{slug}/navigation", { list: undefined }), { title: "Adventure Navigation" }, async (uri) => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active Novel — load an adventure first.", mimeType: "text/plain" }] };
+  const slug = uri.href.split("/")[2] ?? "";
+  const idx = novel.adventure_index;
+  if (!idx) return { contents: [{ uri: uri.href, text: "[WARNING] No navigation index available.", mimeType: "text/plain" }] };
+  const scenes = (idx.locations ?? []).map((l: any) => l.name);
+  const waypoint = novel.adventure_scene_waypoint ?? "";
+  const lines = scenes.map((s: string, i: number) => {
+    const marker = s === waypoint ? "[→] " : "";
+    const prev = i > 0 ? ` (prev: ${scenes[i - 1]})` : "";
+    const next = i < scenes.length - 1 ? ` (next: ${scenes[i + 1]})` : "";
+    return `- ${marker}${s}${prev}${next}`;
+  });
+  return { contents: [{ uri: uri.href, text: `## ${slug} Navigation\n\n${lines.join("\n") || "(no scenes)"}`, mimeType: "text/markdown" }] };
 });
 
 // --- Session ---
@@ -4787,6 +4959,11 @@ server.registerTool("spec_health", {
     codex: isGM ? state.codex.size : undefined,
     // REQ-332 — codex provenance register for the active Novel.
     codex_sources: isGM && novel ? (novel.codex_sources ?? []) : undefined,
+    // REQ-170 — adventure discovery surface: indexed adventure slugs + content
+    // hashes (informational; adventure modules ship with the build).
+    indexed_adventures: isGM ? Object.fromEntries((novel?.adventure_index ? [[novel.adventure_slug ?? "generated", "adventure-scaffold"]] : [])) : undefined,
+    // REQ-292b — adventure catalog count.
+    adventure_catalog_count: countAdventureModules(),
     constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
     active_novel: novel?.slug ?? null,
     // REQ-294 — genre declaration surfaced in spec_health when set.
@@ -5575,6 +5752,18 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
 ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}`;
+
+  // REQ-250 — adventure scene waypoint: surface the adventure scene as a
+  // distinct labeled block alongside the current scene state, with adjacent
+  // scenes listed as nearby.
+  if (novel.adventure_scene_waypoint) {
+    const wp = novel.adventure_scene_waypoint;
+    const idx = novel.adventure_index;
+    const scenes = (idx?.locations ?? []).map((l: any) => l.name);
+    const i = scenes.indexOf(wp);
+    const nearby = [i > 0 ? `prev: ${scenes[i - 1]}` : "", i < scenes.length - 1 ? `next: ${scenes[i + 1]}` : ""].filter(Boolean).join(", ");
+    briefing += `\nAdventure Scene (${novel.adventure_slug ?? "generated"} § ${wp}): ${idx?.locations?.find((l: any) => l.name === wp)?.description ?? ""}${nearby ? ` — nearby: ${nearby}` : ""}`;
+  }
 
   // REQ-335 — current beat surfaces immediately after the scene type tag.
   briefing += `\n**Beat:** ${currentBeat(novel)}`;

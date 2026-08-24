@@ -1269,6 +1269,10 @@ const INTENDED_GAP_REQS = new Set([
   // constructs (REQ-127, exercised by manual T141). Not owed by the ruleset-free
   // runtime server.
   "REQ-127",
+  // §5.6 builder-side (2026-08-24 wave-6 triage): adventure content validation
+  // and drift detection are discovery/build-time processes (REQ-171, REQ-172);
+  // adventure structure extraction is a §6.3 discovery heuristic (REQ-247).
+  "REQ-171", "REQ-172", "REQ-247",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
