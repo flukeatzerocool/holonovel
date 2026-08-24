@@ -346,6 +346,142 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 4: §5.6 State/lifecycle + §5.9 ──
+  await test("T216/REQ-176 + T217/REQ-177 + T219/REQ-178: entity/roster removal and listing", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4a" });
+    await call(p, "create_character", { name: "R1", stage_to_roster: true });
+    await call(p, "set_badge", { badge: "game_master" });
+    const lst = await call(p, "list_roster_characters", {});
+    assertContains(lst, "character_01", "REQ-178 roster listing");
+    const rm = await call(p, "remove_roster_character", { roster_id: "character_01" });
+    assertContains(rm, "[OK]", "REQ-177 roster removal");
+    const rm2 = await call(p, "remove_roster_character", { roster_id: "character_01" });
+    assertContains(rm2, "[NOT_FOUND]", "REQ-177 NOT_FOUND on absent");
+    const entRm = await call(p, "remove_entity", { entity_id: "character_01" });
+    assertContains(entRm, "[OK]", "REQ-176 entity removal");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T258/REQ-217: condition tools with validation and warnings", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Cond" });
+    const a = await call(p, "apply_condition", { entity_id: "character_01", condition: "prone" });
+    assertContains(a, "[OK]", "REQ-217 apply");
+    const dup = await call(p, "apply_condition", { entity_id: "character_01", condition: "prone" });
+    assertContains(dup, "[WARNING]", "REQ-217 duplicate warning");
+    const bad = await call(p, "apply_condition", { entity_id: "character_01", condition: "not_a_condition" });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-217 unknown condition");
+    const rem = await call(p, "remove_condition", { entity_id: "character_01", condition: "prone" });
+    assertContains(rem, "[OK]", "REQ-217 remove");
+    const rem2 = await call(p, "remove_condition", { entity_id: "character_01", condition: "prone" });
+    assertContains(rem2, "[WARNING]", "REQ-217 remove absent warning");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T275/REQ-237 + T328/REQ-279: session segmentation and narrative orientation", async () => {
+    const p = await boot({ TTRPG_SESSION_ID: "sess-1" });
+    await call(p, "create_novel", { name: "w4c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "record_story", { type: "decision", entry: "The party weighs the two doors." });
+    const recap = await call(p, "session_recap", {});
+    assertContains(recap, "narrative_orientation", "REQ-279 orientation field");
+    assertContains(recap, "The party weighs the two doors", "REQ-279 decision in orientation");
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (!Array.isArray(health.sessions)) throw new Error("REQ-237 sessions array missing");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T352/REQ-308 + T374/T377/REQ-330: knowledge gating by presence and exploration", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Explorer" });
+    await call(p, "create_room", { name: "Entrance", description: "d" });
+    await call(p, "create_room", { name: "Guard Room", description: "g" });
+    await call(p, "create_exit", { direction: "north", room_a: "Entrance", room_b: "Guard Room" });
+    const nav = await call(p, "command", { command: "go north" });
+    assertContains(nav, "[OK]", "REQ-330 parser navigation");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Explored:", "REQ-330 exploration knowledge");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T369/REQ-322: vow-countdown coupling", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4e" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_vow", { name: "Find Crown", description: "Recover the Crown", parties: ["pc_1"], difficulty: "dangerous", scope: "shared" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Vow countdown suggestion", "REQ-322 suggestion in threads");
+    await call(p, "respond", { decision: "accept", option: "accept" });
+    const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief2, "vow:Find Crown", "REQ-322 linked countdown created");
+    await call(p, "mark_milestone", { vow_name: "Find Crown" });
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-094 lorebook round-trip + REQ-295 genre filtering ──
+  await test("T80/REQ-094 + T340/REQ-295: lorebook round-trip and genre-filtered generation", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4f" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_lore_entry", { key: "city", content: "The city is old.", triggers: ["city"], badge_scope: "shared" });
+    const exp = await call(p, "export_lorebook", {});
+    const imp = await call(p, "import_lorebook", { data: exp, mode: "replace" });
+    assertContains(imp, "[OK]", "REQ-094 import replace");
+    const exp2 = await call(p, "export_lorebook", {});
+    assertContains(exp2, "The city is old.", "REQ-094 round-trip preserves content");
+    const playerBlocked = await call(p, "set_badge", { badge: "player" });
+    void playerBlocked;
+    const expP = await call(p, "export_lorebook", {});
+    assertContains(expP, "[FORBIDDEN]", "REQ-094 player forbidden");
+    await call(p, "set_badge", { badge: "game_master" });
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-329 countdown-world trigger ──
+  await test("T373/T376/REQ-329: countdown on_room_enter trigger advances", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4g" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Wanderer" });
+    await call(p, "create_room", { name: "Hall", description: "h" });
+    await call(p, "create_room", { name: "guard_room", description: "g" });
+    await call(p, "create_exit", { direction: "east", room_a: "Hall", room_b: "guard_room" });
+    await call(p, "set_countdown", { name: "ambush", ticks: 2, type: "narrative", triggers: ["on_room_enter(guard_room)"] });
+    const nav = await call(p, "command", { command: "go east" });
+    assertContains(nav, "[OK]", "REQ-329 navigation");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "ambush (1", "REQ-329 trigger advanced countdown");
+    passed++;
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-332 codex provenance ──
+  await test("T380/T384/REQ-332: codex import records provenance and reports stale", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w4h" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "codex_set", { kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
+    await call(p, "codex_import", { entry_id: "npc_blacksmith" });
+    const info = JSON.parse(await call(p, "novel_info", {}));
+    assertContains(JSON.stringify(info), "codex_sources", "REQ-332 codex_sources in novel_info");
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    assertContains(JSON.stringify(health), "npc_blacksmith", "REQ-332 provenance registered");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

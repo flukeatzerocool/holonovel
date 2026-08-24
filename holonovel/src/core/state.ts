@@ -79,6 +79,12 @@ export interface NovelEntity {
   // Ruleset-derived mechanical statistics (REQ-104/181). Populated by the
   // ruleset-driven character creation workflow. Ruleset-free: opaque storage.
   stats?: Record<string, any>;
+  // REQ-330 — exploration-derived knowledge (rooms visited, things taken),
+  // retained per REQ-308 regardless of current presence.
+  knowledge?: { explored?: Array<{ type: "room" | "thing"; name: string; at: string }> };
+  // REQ-332 — codex provenance: records which Codex entry produced this entity
+  // and when (id, imported_at, codex_modified_at).
+  codex_source?: { id: string; kind: string; imported_at: string; codex_modified_at: string };
 }
 
 export interface NpcState {
@@ -114,6 +120,11 @@ export interface Countdown {
   direction?: string;
   clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
   on_scene_transition?: boolean;
+  // REQ-329 — countdown-world coupling: mechanical triggers that advance the
+  // countdown when the matching world-model event occurs (on_room_enter(<id>),
+  // on_thing_take(<id>), on_door_open(<ref>)). Any trigger match advances one
+  // tick; triggers supplement (never replace) normal advancement.
+  triggers?: string[];
 }
 
 export interface CombatState {
@@ -161,6 +172,8 @@ export interface StoryBeat {
   beat: string;
   scene_preview: string;
   source?: "adventure-scaffold" | "gm";
+  // REQ-332 — codex provenance on adventure-scaffold beats.
+  codex_source?: { id: string; kind: string; imported_at: string; codex_modified_at: string };
 }
 
 // REQ-339 — NPC goal pursuit suggestion lifecycle.
@@ -380,7 +393,28 @@ export interface NovelState {
     session_count: number;
     total_combat_rounds: number;
     last_scene_anchor: string;
+    // REQ-237 — session segmentation: per-session metadata derived from
+    // `[session-boundary]` audit markers (entry_count, combat rounds,
+    // significant rolls, scene transitions, timespan).
+    sessions: Array<{
+      session_id: string;
+      entry_count: number;
+      timespan_start: string;
+      timespan_end: string | null;
+      combat_rounds: number;
+      significant_roll_count: number;
+      scene_transitions: number;
+    }>;
   };
+  // REQ-237 — the session id currently being written; marker emitted on change.
+  active_session_id: string | null;
+  // REQ-322 — pending vow-countdown creation suggestion surfaced in
+  // narrative_threads; accepted via `respond accept` (auto-creates the linked
+  // mission countdown) or declined via `respond decline`.
+  pending_vow_countdown_suggestion: { vow_name: string; countdown_name: string; tick_count: number; scope: string } | null;
+  // REQ-332 — codex provenance register for the Novel: every Codex-sourced
+  // artifact, with import timestamp and the Codex entry's modified_at.
+  codex_sources: Array<{ id: string; kind: string; imported_at: string; codex_modified_at: string }>;
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -636,7 +670,11 @@ export class StateManager {
         session_count: 0,
         total_combat_rounds: 0,
         last_scene_anchor: "",
+        sessions: [],
       },
+      active_session_id: null,
+      pending_vow_countdown_suggestion: null,
+      codex_sources: [],
     };
 
     this.novels.set(slug, novel);
@@ -779,13 +817,10 @@ export class StateManager {
       last_mutation_at: data.last_mutation_at ?? null,
       mutation_counts_by_group: data.mutation_counts_by_group ?? {},
       uncommitted_rolls: data.uncommitted_rolls ?? [],
-      metadata: data.metadata ?? {
-        created: new Date().toISOString(),
-        modified: new Date().toISOString(),
-        session_count: 0,
-        total_combat_rounds: 0,
-        last_scene_anchor: "",
-      },
+      metadata: { ...(data.metadata ?? {}), sessions: data.metadata?.sessions ?? [] },
+      active_session_id: data.active_session_id ?? null,
+      pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
+      codex_sources: data.codex_sources ?? [],
     };
     return novel;
   }
@@ -1022,6 +1057,37 @@ export class StateManager {
   // ── Audit ─────────────────────────────────────────────────────
 
   audit(novel: NovelState, badge: Badge, tool: string, args: any, output_prefix?: string): void {
+    // REQ-237 — session segmentation: when the session id changes (first
+    // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a
+    // `[session-boundary]` marker entry and open a new session record.
+    const sessionId = process.env.TTRPG_SESSION_ID ?? `session-${novel.metadata.session_count + 1}`;
+    if (novel.active_session_id !== sessionId) {
+      const prev = novel.active_session_id;
+      const now = new Date().toISOString();
+      const prevSession = prev ? novel.metadata.sessions.find((s) => s.session_id === prev) : undefined;
+      if (prevSession) prevSession.timespan_end = now;
+      novel.active_session_id = sessionId;
+      novel.metadata.sessions.push({
+        session_id: sessionId,
+        entry_count: 0,
+        timespan_start: now,
+        timespan_end: null,
+        combat_rounds: 0,
+        significant_roll_count: 0,
+        scene_transitions: 0,
+      });
+      const marker: AuditEntry & { session_id?: string } = {
+        timestamp: now,
+        badge,
+        tool: "[session-boundary]",
+        args: JSON.stringify({ session_id: sessionId }),
+        output_prefix: "[session-boundary]",
+        hash: "",
+      };
+      marker.session_id = sessionId;
+      marker.hash = crypto.createHash("sha256").update((novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000") + marker.tool + marker.args).digest("hex").substring(0, 8);
+      novel.audit_log.push(marker as AuditEntry);
+    }
     const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
     const entry: AuditEntry = {
       timestamp: new Date().toISOString(),
@@ -1032,6 +1098,12 @@ export class StateManager {
       hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
     };
     novel.audit_log.push(entry);
+    const cur = novel.metadata.sessions.find((s) => s.session_id === novel.active_session_id);
+    if (cur) {
+      cur.entry_count++;
+      if (tool === "advance_combat") cur.combat_rounds++;
+      if (tool === "set_scene_state" || tool === "set_scene_type") cur.scene_transitions++;
+    }
   }
 
   auditForbidden(badge: Badge, tool: string, args: any): void {
@@ -1622,13 +1694,10 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       last_mutation_at: data.last_mutation_at ?? null,
       mutation_counts_by_group: data.mutation_counts_by_group ?? {},
       uncommitted_rolls: data.uncommitted_rolls ?? [],
-      metadata: data.metadata ?? {
-        created: new Date().toISOString(),
-      modified: new Date().toISOString(),
-      session_count: 0,
-      total_combat_rounds: 0,
-      last_scene_anchor: "",
-    },
+      metadata: { ...(data.metadata ?? {}), sessions: data.metadata?.sessions ?? [] },
+    active_session_id: data.active_session_id ?? null,
+    pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
+    codex_sources: data.codex_sources ?? [],
   };
 }
 

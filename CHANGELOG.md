@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-24 — Wave 4: §5.6 State/lifecycle + §5.9 (13 REQs → C)
+
+- REQ-237 session segmentation: `[session-boundary]` audit markers on session
+  change, per-session metadata (entry_count, combat_rounds, transitions) in
+  `spec_health.sessions`, badge-filtered.
+- REQ-279 narrative orientation: `session_recap` leads with a `narrative_orientation`
+  "Previously on…" paragraph synthesized from journal/bonds/dispositions/directive/
+  countdowns/vows, with empty-state marker.
+- REQ-217 condition tools: condition catalogue validation (`[INVALID_INPUT]` +
+  enumeration), duplicate → `[WARNING] Condition already active.`, remove-absent →
+  `[WARNING] Condition not present.`
+- REQ-329 countdown-world coupling: `triggers` on set_countdown, mechanical
+  `on_room_enter`/`on_thing_take`/`on_door_open` advancement.
+- REQ-330 knowledge-world coupling: exploration-derived "Explored:" knowledge
+  entries (rooms visited, things taken), retained per presence.
+- REQ-322 vow-countdown coupling: countdown suggestion surfaced in
+  narrative_threads, `respond accept/decline`, linked countdown advances on
+  milestones.
+- REQ-332 codex provenance: `codex_source` on imported artifacts, `codex_sources`
+  register in novel_info + spec_health.
+- REQ-176/177/178 citations (remove_entity, remove_roster_character,
+  list_roster_characters with empty-state); REQ-094 lorebook citation + round-trip;
+  REQ-295 genre-filtered generation (prefer genre-tagged tables).
+- REQ-044/131/302 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows to 83 assertions (T80/T216/T217/T219/T258/
+  T275/T328/T340/T352/T369/T373/T374/T376/T377/T380/T384).
+  Buckets now A 80 / B 5 / C 204 / E 92.
+
 ## 2026-08-24 — Wave 3: §5.5 Badges & Access (11 REQs → C)
 
 - REQ-133 forbidden-call audit: every tool handler wrapped with

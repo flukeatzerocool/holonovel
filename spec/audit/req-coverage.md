@@ -27,12 +27,12 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T64, T66, T68, T75, T76, T90, T91, T100, T101, T104, T110, T112, T119, T133, T134, T221, T261, T285, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T64, T66, T68, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T119, T133, T134, T221, T261, T285, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T100, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T76, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T25, T47, T56, T90, T91, T110, T131, T161, T162 | — |
-| REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | A | S17 | — |
+| REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T20 | — |
@@ -70,15 +70,15 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T476 | — |
 | REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T98, T122, T159, T402 | — |
-| REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74 | — |
+| REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T219 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T75, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
 | REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T77, T88, T125, T138, T156, T261 | — |
 | REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99, T110 | — |
-| REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T80 | — |
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
 | REQ-096 | Novel interchange (Part a) (11 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281 | — |
-| REQ-097 | Novel health (Part a1) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T101, T160 | — |
+| REQ-097 | Novel health (Part a1) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T101, T160, T384 | — |
 | REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | — | — |
 | REQ-099 | Confidence-floor acknowledgment | 5.2 Extraction and Confidence | E | — | — |
 | REQ-100 | Performance benchmark (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | E | T479 | — |
@@ -112,7 +112,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211, T314 | — |
 | REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T218 | — |
 | REQ-130 | Synthesis rebuild contract (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | E | — | — |
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T147, S6 | — |
 | REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | S6 | — |
@@ -154,9 +154,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211 | — |
 | REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T473, T53, T213 | — |
 | REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T53, T214 | — |
-| REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T216 | — |
-| REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216 | — |
+| REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217 | — |
+| REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219 | — |
 | REQ-179 | Output pointer resource template (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T221 | — |
 | REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T222 | — |
 | REQ-181 | Character creation output surface (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T47, T468 | — |
@@ -193,7 +193,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-214 | Table classification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-215 | Table content extraction (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T256 | — |
 | REQ-216 | Generation table badge filtering (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T257 | — |
-| REQ-217 | Condition tools (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T258 | — |
+| REQ-217 | Condition tools (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T258 | — |
 | REQ-218 | Ruleset-free build (Part a) (3 sub-parts) | 5.11 Ruleset-Free Build Mode | C | T259 | — |
 | REQ-219 | Ruleset-free entity creation (Part a1) (3 sub-parts) | 5.11 Ruleset-Free Build Mode | C | T468, T260 | — |
 | REQ-220 | Narrative point of view (Part a) (4 sub-parts) | 5.5 Badges and Access | C | T262 | — |
@@ -213,7 +213,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-234 | Secrets and knowledge (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T406, T414 | — |
 | REQ-235 | Structured player choices (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T273 | — |
 | REQ-236 | Entity relationships (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T410 | — |
-| REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T471 | — |
+| REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T471, T275 | — |
 | REQ-238 | Backup rotation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T276 | — |
 | REQ-239 | Audit log compaction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T277 | — |
 | REQ-240 | Clone Novel (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T278 | — |
@@ -233,7 +233,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-255 | Boundary signal propagation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T314 | — |
 | REQ-256 | Rename Novel (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T315 | — |
 | REQ-257 | List Novels (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T316 | — |
-| REQ-258 | Novel info (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T317 | — |
+| REQ-258 | Novel info (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T317, T384 | — |
 | REQ-259 | Update Novel description | 5.9 Novel Persistence and Transport | C | T318 | — |
 | REQ-260 | Granular synthesis activation (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T319, T321, T326 | — |
 | REQ-261 | Player synthesis (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T320 | — |
@@ -252,7 +252,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-276 | Independent verifier model criteria | 5.5 Badges and Access | E | T296 | — |
 | REQ-277 | Fixture evolution contract | 5.1 Output and Error Contracts | E | — | — |
 | REQ-278 | Build-phase-map staleness detection | 5.3 Tools, Resources, and Lookups | E | — | — |
-| REQ-279 | Narrative orientation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-279 | Narrative orientation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T328 | — |
 | REQ-280 | Source-anchor citation (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T329 | — |
 | REQ-281 | Narrative-threads section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T330 | — |
 | REQ-282 | NPC voice directive (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -264,18 +264,18 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-291 | Oracle tool (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T481, T337 | — |
 | REQ-292 | Adventure catalog (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-294 | Genre declaration | 5.9 Novel Persistence and Transport | C | T339 | — |
-| REQ-295 | Genre-filtered generation (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-295 | Genre-filtered generation (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T340 | — |
 | REQ-296 | Knowledge-graph resource (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T341 | — |
 | REQ-299 | Cross-model audit sufficiency | 6.5 Verification and convergence | E | — | — |
 | REQ-300 | Structured failure diagnostics | 6.6 The Pattern Buffer | E | — | — |
 | REQ-301 | Convergence loop audit trail | 6.6 The Pattern Buffer | E | — | — |
-| REQ-302 | Per-section content hashing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-302 | Per-section content hashing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-303 | Scoped re-verification | 6.6 The Pattern Buffer | E | — | — |
 | REQ-304 | Counterpart AI role (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T482, T348 | — |
 | REQ-305 | Observer mode (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T349, T417, S6 | — |
 | REQ-306 | Adjustable autonomy (Part a) (7 sub-parts) | 5.5 Badges and Access | C | T483, T484, T485, T350, S22 | — |
 | REQ-307 | Entity presence (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T351, T356, S17 | — |
-| REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T356 | — |
+| REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356 | — |
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T356 | — |
@@ -289,18 +289,18 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-319 | Extended parser command vocabulary (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T364 | — |
 | REQ-320 | Narrative-intent parser verbs (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T365 | — |
 | REQ-321 | Codex (Part a) (16 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T397, T402, S17 | — |
-| REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T369 | — |
 | REQ-323 | resolve_intent tool (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
 | REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | — | — |
 | REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | B | — | — |
-| REQ-326 | Scene-world coupling (Part a) (4 sub-parts) | 5.10 World-Model Layer | B | — | — |
-| REQ-327 | NPC-world coupling (Part a) (3 sub-parts) | 5.10 World-Model Layer | A | — | — |
+| REQ-326 | Scene-world coupling (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T373 | — |
+| REQ-327 | NPC-world coupling (Part a) (3 sub-parts) | 5.10 World-Model Layer | A | T374 | — |
 | REQ-328 | Lore-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-329 | Countdown-world coupling (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-330 | Knowledge-world coupling (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-329 | Countdown-world coupling (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T376 | — |
+| REQ-330 | Knowledge-world coupling (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T377 | — |
 | REQ-331 | Story journal-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-332 | Codex provenance (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-333 | Story journal to lore promotion (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
+| REQ-332 | Codex provenance (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T384 | — |
+| REQ-333 | Story journal to lore promotion (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T380 | — |
 | REQ-334 | Novel archive (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T381 | — |
 | REQ-335 | Scene beat taxonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T385, T404 | implemented |
 | REQ-336 | Dramatic pacing signal (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T386, T401 | implemented |

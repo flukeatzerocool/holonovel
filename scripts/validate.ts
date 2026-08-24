@@ -1260,6 +1260,10 @@ const INTENDED_GAP_REQS = new Set([
   // verifier model criteria are §10 independent-verification contracts (REQ-211,
   // REQ-275, REQ-276). Not owed by the runtime server.
   "REQ-137", "REQ-180", "REQ-211", "REQ-275", "REQ-276",
+  // §5.6/§5.9 builder-side (2026-08-24 wave-4 triage): ruleset hash recording,
+  // per-section content hashing, and Novel initialization order are build-time
+  // DECISIONS.md records (§5.6/§5.9). Not owed by the runtime server.
+  "REQ-044", "REQ-131", "REQ-302",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
