@@ -146,6 +146,35 @@ manually before a spec-changing push — see Appendix V.4. The pipeline warns
 (does not block) when the hash changed with no dated entry; REQ-394's gate is
 the hard block.
 
+## Review-loop governance
+
+The improvement loop terminates; it does not spiral. A completed plan is
+**clean** when its AAR returns `LOOP PAUSED` with zero new action items and
+the coverage backlog itself is cleared (bucket-A reflects intended coverage;
+`--impl-audit=strict` passes).
+
+- **Completion bar.** Every plan states its own done-bar — what must pass and
+  what must close for *this* plan to be done. Bars are session-achievable.
+  "Execute all <unbounded backlog>" is not a bar; plan-review rejects it. The
+  AAR judges against the plan's declared bar, never an idealized zero-backlog
+  state.
+- **Finding triage (P0–P3).** P0 = demonstrated wrong output or gate failure
+  — fix in-session. P1 = normative REQ unevidenced and unscheduled — schedule
+  on ROADMAP.md. P2 = improvement preventing a *demonstrated* failure —
+  bounded, else downgraded. P3 = informational (open-ended "audit X", "worth
+  a guard" with no demonstrated recurrence) — record-and-close, no action.
+  "Audit X" is P3 unless a failure is demonstrated.
+- **Register hygiene.** Findings live in `spec/audit/review-register.md` with
+  terminal dispositions: `Resolved` / `Scheduled-roadmap` / `Closed-P3` /
+  `Deferred-by-user`. The REQ-coverage register (`spec/audit/req-coverage.md`)
+  and ROADMAP.md are the tracking surfaces; the AAR references them and never
+  restates them as recommendations.
+- **Loop status.** Every AAR ends with `LOOP PAUSED` or `LOOP OPEN`. PAUSED
+  requires: gates green, deployed verified, no open P0/P1 beyond the scheduled
+  roadmap. When PAUSED, the AAR lists zero new action items; the next plan
+  comes from ROADMAP.md or a direct user request — never from "AAR
+  recommendations."
+
 ## Before committing spec changes
 
 `npm run assemble && npm run check:fast` (above) covers REQ shape,
