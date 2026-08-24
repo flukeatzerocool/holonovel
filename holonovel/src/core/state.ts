@@ -4,7 +4,11 @@
 // REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-095, REQ-096,
 // REQ-097, REQ-116, REQ-195, REQ-198, REQ-199, REQ-218, REQ-219,
 // REQ-232, REQ-233, REQ-234, REQ-236, REQ-238, REQ-239, REQ-240,
-// REQ-241, REQ-242, REQ-246, REQ-256, REQ-257, REQ-258, REQ-285, REQ-289
+// REQ-241, REQ-242, REQ-246, REQ-256, REQ-257, REQ-258, REQ-285, REQ-289,
+// REQ-335, REQ-336, REQ-337, REQ-338, REQ-339, REQ-340, REQ-341, REQ-342,
+// REQ-343, REQ-344, REQ-345, REQ-347, REQ-348, REQ-349, REQ-350, REQ-351,
+// REQ-352, REQ-353, REQ-355, REQ-356, REQ-357, REQ-358, REQ-359, REQ-360,
+// REQ-361, REQ-362, REQ-363, REQ-364, REQ-365, REQ-366
 
 import * as fs from "fs";
 import * as path from "path";
@@ -137,6 +141,7 @@ export interface StoryEntry {
   scene_anchor: string;
   entity_ids: string[];
   timestamp: string;
+  discovered?: boolean; // REQ-340 — consequence fired while absent
 }
 
 export interface FactionState {
@@ -148,6 +153,21 @@ export interface FactionState {
   clock: number;
   clock_max: number;
   status: string;
+  territory?: string[]; // REQ-364 — faction world coupling
+}
+
+// REQ-335/337 — scene beat taxonomy and story-beat arc sequence.
+export interface StoryBeat {
+  beat: string;
+  scene_preview: string;
+  source?: "adventure-scaffold" | "gm";
+}
+
+// REQ-339 — NPC goal pursuit suggestion lifecycle.
+export interface GoalSuggestion {
+  npc_id: string;
+  text: string;
+  state: "pending" | "deferred" | "dismissed" | "accepted";
 }
 
 export interface SecretState {
@@ -156,6 +176,7 @@ export interface SecretState {
   triggers: string[];
   badge_scope: "game_master" | "shared";
   known_by: string[];
+  world_target?: string; // REQ-363 — world-model room ID
 }
 
 export interface Relationship {
@@ -292,7 +313,8 @@ export interface NovelState {
   scene_location?: string;
   scene_time_of_day?: string;
   scene_atmosphere?: string;
-  scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string }[];
+  scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string; beat?: string }[];
+  scene_beat: string; // REQ-335 — current beat ("" = unset, renders as mid_scene)
   scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
   combat: CombatState | null;
@@ -337,6 +359,14 @@ export interface NovelState {
   adventure_scene_waypoint: { anchor: string; description: string } | null;
   // World-model tier
   world: WorldModel;
+  // §5.12 Narrative Architecture (REQ-335 through REQ-366)
+  story_beats: StoryBeat[]; // REQ-337 — completed beat sequence
+  pacing_counter: number; // REQ-336 — tool calls since last transition
+  pacing_autonomy_fired: boolean; // REQ-351 — at-most-once per pacing window
+  scene_transition_count: number; // REQ-338 — for faction autonomous interval
+  faction_autonomous_ticks: Record<string, number>; // REQ-338 — per-faction autonomous tick count
+  npc_goal_suggestions: GoalSuggestion[]; // REQ-339 — World in Motion suggestions
+  voice_corrections_this_session: number; // REQ-344 — correction limit counter
   metadata: {
     created: string;
     modified: string;
@@ -443,7 +473,7 @@ export class StateManager {
   enriched = false;
   enrichmentManifest: any = null;
   maxLoreTokens: number | null = null;
-  serverNotes: Map<string, string> = new Map();
+  serverNotes: Map<string, { content: string; narrative_tag?: string }> = new Map();
   codex: Map<string, CodexEntry> = new Map();
 
   private npcCounter = 0;
@@ -539,6 +569,7 @@ export class StateManager {
       scene_time_of_day: undefined,
       scene_atmosphere: undefined,
       scene_history: [],
+      scene_beat: "",
       scene_type: ["neutral"],
       narrative_directive: "",
       combat: null,
@@ -579,6 +610,13 @@ export class StateManager {
       adventure_index: null,
       adventure_scene_waypoint: null,
       world: createEmptyWorldModel(),
+      story_beats: [],
+      pacing_counter: 0,
+      pacing_autonomy_fired: false,
+      scene_transition_count: 0,
+      faction_autonomous_ticks: {},
+      npc_goal_suggestions: [],
+      voice_corrections_this_session: 0,
       metadata: {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -659,6 +697,7 @@ export class StateManager {
       scene_time_of_day: data.scene_time_of_day,
       scene_atmosphere: data.scene_atmosphere,
       scene_history: data.scene_history ?? [],
+      scene_beat: data.scene_beat ?? "",
       scene_type: normalizeSceneType(data.scene_type),
       narrative_directive: data.narrative_directive ?? "",
       combat: data.combat ?? null,
@@ -709,6 +748,13 @@ export class StateManager {
       adventure_index: data.adventure_index ?? null,
       adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
       world: worldFromJSON(data.world),
+      story_beats: data.story_beats ?? [],
+      pacing_counter: data.pacing_counter ?? 0,
+      pacing_autonomy_fired: data.pacing_autonomy_fired ?? false,
+      scene_transition_count: data.scene_transition_count ?? 0,
+      faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
+      npc_goal_suggestions: data.npc_goal_suggestions ?? [],
+      voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -1209,8 +1255,8 @@ ${turnOrder}`;
     if (!fs.existsSync(filePath)) return;
     try {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-      for (const [key, content] of Object.entries(data)) {
-        this.serverNotes.set(key, content as string);
+      for (const [key, val] of Object.entries(data)) {
+        this.serverNotes.set(key, typeof val === "string" ? { content: val } : (val as { content: string; narrative_tag?: string }));
       }
     } catch { /* ignore corrupt */ }
   }
@@ -1287,6 +1333,7 @@ function novelToJSON(novel: NovelState): any {
     scene_time_of_day: novel.scene_time_of_day,
     scene_atmosphere: novel.scene_atmosphere,
     scene_history: novel.scene_history,
+    scene_beat: novel.scene_beat,
     scene_type: novel.scene_type,
     narrative_directive: novel.narrative_directive,
     combat: novel.combat,
@@ -1327,6 +1374,13 @@ function novelToJSON(novel: NovelState): any {
     adventure_index: novel.adventure_index,
     adventure_scene_waypoint: novel.adventure_scene_waypoint,
     world: worldToJSON(novel.world),
+    story_beats: novel.story_beats,
+    pacing_counter: novel.pacing_counter,
+    pacing_autonomy_fired: novel.pacing_autonomy_fired,
+    scene_transition_count: novel.scene_transition_count,
+    faction_autonomous_ticks: novel.faction_autonomous_ticks,
+    npc_goal_suggestions: novel.npc_goal_suggestions,
+    voice_corrections_this_session: novel.voice_corrections_this_session,
     metadata: novel.metadata,
   };
 }
@@ -1366,6 +1420,7 @@ function novelFromJSON(data: any): NovelState {
     scene_time_of_day: data.scene_time_of_day,
     scene_atmosphere: data.scene_atmosphere,
     scene_history: data.scene_history ?? [],
+    scene_beat: data.scene_beat ?? "",
     scene_type: normalizeSceneType(data.scene_type),
     narrative_directive: data.narrative_directive ?? "",
     combat: data.combat ?? null,
@@ -1416,6 +1471,13 @@ function novelFromJSON(data: any): NovelState {
     adventure_index: data.adventure_index ?? null,
     adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
     world: worldFromJSON(data.world),
+    story_beats: data.story_beats ?? [],
+    pacing_counter: data.pacing_counter ?? 0,
+    pacing_autonomy_fired: data.pacing_autonomy_fired ?? false,
+    scene_transition_count: data.scene_transition_count ?? 0,
+    faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
+    npc_goal_suggestions: data.npc_goal_suggestions ?? [],
+    voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     metadata: data.metadata ?? {
       created: new Date().toISOString(),
       modified: new Date().toISOString(),
@@ -1444,6 +1506,7 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.scene_time_of_day = source.scene_time_of_day;
   target.scene_atmosphere = source.scene_atmosphere;
   target.scene_history = source.scene_history;
+  target.scene_beat = source.scene_beat;
   target.scene_type = source.scene_type;
   target.narrative_directive = source.narrative_directive;
   target.combat = source.combat;
@@ -1479,5 +1542,12 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.adventure_index = source.adventure_index;
   target.adventure_scene_waypoint = source.adventure_scene_waypoint;
   target.world = source.world;
+  target.story_beats = source.story_beats;
+  target.pacing_counter = source.pacing_counter;
+  target.pacing_autonomy_fired = source.pacing_autonomy_fired;
+  target.scene_transition_count = source.scene_transition_count;
+  target.faction_autonomous_ticks = source.faction_autonomous_ticks;
+  target.npc_goal_suggestions = source.npc_goal_suggestions;
+  target.voice_corrections_this_session = source.voice_corrections_this_session;
   target.metadata = source.metadata;
 }

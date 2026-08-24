@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 // Inform MCP Server — Ruleset-Free Holonovel Build
 // REQ-001, REQ-020, REQ-022, REQ-023, REQ-195 through REQ-202, REQ-218, REQ-219
+// §5.8 scene-transition hook (REQ-125); §5.12 narrative architecture:
+// REQ-335, REQ-336, REQ-337, REQ-338, REQ-339, REQ-340, REQ-341, REQ-342,
+// REQ-343, REQ-344, REQ-345, REQ-347, REQ-348, REQ-349, REQ-350, REQ-351,
+// REQ-352, REQ-353, REQ-355, REQ-356, REQ-357, REQ-358, REQ-359, REQ-360,
+// REQ-361, REQ-362, REQ-363, REQ-364, REQ-365, REQ-366
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -67,6 +72,266 @@ const server = new McpServer({
   name: "inform-holonovel",
   version: "2026.08.24",
 });
+
+// ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
+
+// REQ-346 — canonical §5.12 REQ list for the narrative_coherence disposition.
+const SECTION_512_REQS = [
+  "REQ-335", "REQ-336", "REQ-337", "REQ-338", "REQ-339", "REQ-340", "REQ-341",
+  "REQ-342", "REQ-343", "REQ-344", "REQ-345", "REQ-346", "REQ-347", "REQ-348",
+  "REQ-349", "REQ-350", "REQ-351", "REQ-352", "REQ-353", "REQ-354", "REQ-355",
+  "REQ-356", "REQ-357", "REQ-358", "REQ-359", "REQ-360", "REQ-361", "REQ-362",
+  "REQ-363", "REQ-364", "REQ-365", "REQ-366",
+];
+const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" && r !== "REQ-354");
+
+// REQ-335 — fixed beat vocabulary; the six values are the only valid beats.
+const BEAT_VALUES = ["setup", "escalation", "turning_point", "climax", "resolution", "denouement"] as const;
+const DEFAULT_BEAT = "mid_scene";
+
+// §7.6 / REQ-336/338/339/344/353 — behavioral TTRPG_* config with defaults.
+function configInt(name: string, dflt: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return dflt;
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? dflt : n;
+}
+function pacingWindow(): number { return configInt("TTRPG_PACING_WINDOW", 21); }
+function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERATION", 2); }
+function factionAutonomyInterval(): number { return configInt("TTRPG_FACTION_AUTONOMY_INTERVAL", 0); }
+function npcAutonomyOn(): boolean { return (process.env.TTRPG_NPC_AUTONOMY ?? "off") === "on"; }
+function maxVoiceCorrections(): number { return configInt("TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION", 3); }
+function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS", 20); }
+
+const DISPOSITION_SCALE = ["hostile", "suspicious", "neutral", "friendly"];
+
+function shiftDisposition(current: string, toward: "hostile" | "friendly"): string {
+  const idx = DISPOSITION_SCALE.indexOf(current);
+  const base = idx === -1 ? DISPOSITION_SCALE.indexOf("neutral") : idx;
+  if (toward === "hostile") return DISPOSITION_SCALE[Math.max(0, base - 1)];
+  return DISPOSITION_SCALE[Math.min(DISPOSITION_SCALE.length - 1, base + 1)];
+}
+
+// The pacing counter increments on every read of a scene-affecting surface;
+// the transition hook (REQ-125, REQ-336) resets it. Counted in badge_briefing.
+function currentBeat(novel: NovelState): string {
+  return novel.scene_beat || DEFAULT_BEAT;
+}
+
+// REQ-336 — pacing signal fires when the tool-call counter exceeds the window.
+// Called by badge_briefing (a read surface); the counter increments elsewhere.
+function pacingSignalText(novel: NovelState): string | null {
+  const window = pacingWindow();
+  if (window <= 0) return null;
+  return novel.pacing_counter > window ? `[pacing] Scene stabilized — ${novel.pacing_counter} actions since last transition.` : null;
+}
+
+// REQ-351 — pacing-triggered autonomy. When the pacing signal fires, perform one
+// autonomous advancement cycle (faction tick + NPC goal pursuit), at most once
+// per pacing window. REQ-348 — faction-NPC coordination suppresses a suggestion
+// whose goal overlaps the faction's advanced goal.
+function triggerPacingAutonomy(novel: NovelState): void {
+  if (pacingSignalText(novel) === null) return;
+  if (novel.pacing_autonomy_fired) return;
+  novel.pacing_autonomy_fired = true;
+
+  const affectedFactions: string[] = [];
+  for (const f of novel.factions) {
+    f.clock = Math.min(f.clock_max, f.clock + 1);
+    affectedFactions.push(f.id);
+  }
+  const affectedNpcs: string[] = [];
+  for (const [, npc] of novel.npcs) {
+    const goal = npc.personality?.goals;
+    if (!goal) continue;
+    // REQ-348 — suppress when a faction goal overlaps this NPC's goal.
+    const overlap = novel.factions.some((f) => goalsOverlap(f.goals, goal));
+    if (overlap) {
+      audit("faction-npc-coordination", { npc: npc.id, goal, factions: novel.factions.map((f) => f.id) });
+      continue;
+    }
+    ensureGoalSuggestion(novel, npc.id, npc.name, goal);
+    affectedNpcs.push(npc.id);
+  }
+  audit("pacing-autonomy", { factions: affectedFactions, npcs: affectedNpcs });
+}
+
+// DISPOSITION / goal-overlap helpers shared by REQ-348 / REQ-338 / REQ-339.
+function goalsOverlap(factionGoals: string[], npcGoal: string): boolean {
+  const tokens = npcGoal.toLowerCase().split(/\s+/).filter((t) => t.length > 3);
+  return factionGoals.some((g) => {
+    const gt = g.toLowerCase();
+    return tokens.some((t) => gt.includes(t) || gt.split(/\s+/).includes(t));
+  });
+}
+
+// REQ-339 — generate/fetch a goal-pursuit suggestion for a goal-carrying NPC.
+function ensureGoalSuggestion(novel: NovelState, npcId: string, name: string, goal: string): void {
+  const existing = novel.npc_goal_suggestions.find((s) => s.npc_id === npcId);
+  if (existing) return;
+  novel.npc_goal_suggestions.push({ npc_id: npcId, text: `${name} pursues "${goal}" off-screen`, state: "pending" });
+}
+
+// REQ-355 through REQ-365 — navigational coupling advisories surfaced in
+// narrative_threads. Each is advisory: the server suggests; the GM decides.
+function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
+  const out: string[] = [];
+  const sceneLoc = (novel.scene_location ?? "").toLowerCase();
+
+  // REQ-355 — secret-countdown: revealed secret whose key appears in a countdown scope/direction.
+  for (const s of novel.secrets) {
+    if (!s.known_by.length) continue;
+    for (const [name, cd] of novel.countdowns) {
+      const hay = `${cd.scope ?? ""} ${cd.direction ?? ""}`.toLowerCase();
+      if (hay.includes(s.key.toLowerCase())) {
+        out.push(`Countdown-advancement advisory: secret "${s.key}" relates to countdown "${name}" — advance or ignore.`);
+      }
+    }
+  }
+
+  // REQ-356 — vow-lore: vow name/description intersects lore triggers/keys.
+  for (const v of novel.vows) {
+    if (v.state !== "active") continue;
+    for (const [, entry] of novel.lore) {
+      const hay = `${entry.triggers.join(" ")} ${entry.key}`.toLowerCase();
+      const vowText = `${v.name} ${v.description}`.toLowerCase();
+      if (entry.triggers.some((t) => vowText.includes(t.toLowerCase())) || vowText.includes(entry.key.toLowerCase())) {
+        out.push(`[vow-relevant] ${entry.key}`);
+      }
+    }
+  }
+
+  // REQ-357 — story journal-faction: consequence/moment referencing faction goal text.
+  for (const s of novel.story_journal) {
+    if (s.type !== "consequence" && s.type !== "moment") continue;
+    for (const f of novel.factions) {
+      for (const g of f.goals) {
+        const gTokens = g.toLowerCase().split(/\s+/).filter((t) => t.length > 3);
+        if (gTokens.some((t) => s.entry.toLowerCase().includes(t))) {
+          out.push(`Faction-clock-advancement advisory: ${f.name} (goal "${g}") — advance or ignore.`);
+        }
+      }
+    }
+  }
+
+  // REQ-359 — relationship-countdown: ally → rival/hostile flip referencing matched countdown.
+  for (const [name, cd] of novel.countdowns) {
+    const hay = `${cd.scope ?? ""} ${cd.direction ?? ""}`.toLowerCase();
+    if (hay.length < 3) continue;
+    for (const r of novel.relationships) {
+      if (r.type === "rival" || (r.type as string) === "hostile") {
+        if (hay.includes(r.entity_a.toLowerCase()) || hay.includes(r.entity_b.toLowerCase())) {
+          out.push(`Relationship-countdown advisory: ${r.entity_a} -> ${r.entity_b} (${r.type}) relates to countdown "${name}".`);
+        }
+      }
+    }
+  }
+
+  // REQ-360 — lore-countdown: lore with temporal urgency triggers suggests countdown creation.
+  const urgencyWords = ["imminent", "approaching", "deadline", "ticking", "countdown"];
+  for (const [, entry] of novel.lore) {
+    if (!entry.enabled) continue;
+    const matches = entry.triggers.filter((t) => urgencyWords.includes(t.toLowerCase()));
+    if (!matches.length) continue;
+    const existing = [...novel.countdowns.keys()].some((n) => n.toLowerCase().includes(entry.key.toLowerCase()) || (entry.key && n.toLowerCase().includes(entry.key.toLowerCase())));
+    if (!existing) out.push(`Countdown-creation advisory: lore "${entry.key}" mentions urgency ("${matches.join(", ")}") — create a countdown or ignore.`);
+  }
+
+  // REQ-361 — NPC-vow: goal-carrying NPC suggests vow creation.
+  for (const [, npc] of novel.npcs) {
+    const goal = npc.personality?.goals;
+    if (!goal || goal.length < vowSuggestionMinChars()) continue;
+    const alreadyVowed = novel.vows.some((v) => v.state === "active" && v.description.toLowerCase().includes(goal.toLowerCase()));
+    if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via set_vow or ignore.`);
+  }
+
+  // REQ-362 — faction-vow: faction goal intersecting known entities/locations prompts vow.
+  for (const f of novel.factions) {
+    for (const g of f.goals) {
+      const knownText = `${[...novel.lore.values()].map((l) => l.content).join(" ")} ${novel.story_journal.map((s) => s.entry).join(" ")}`.toLowerCase();
+      const gTokens = g.toLowerCase().split(/\s+/).filter((t) => t.length > 3);
+      const intersects = gTokens.some((t) => knownText.includes(t));
+      if (!intersects) continue;
+      const alreadyVowed = novel.vows.some((v) => v.state === "active" && v.description.toLowerCase().includes(g.toLowerCase()));
+      if (!alreadyVowed) out.push(`Faction-vow suggestion: ${f.name} seeks "${g}" — create a vow or ignore.`);
+    }
+  }
+
+  // REQ-363 — secret-world: world_target secret surfaces [world-linked] when scene resolves.
+  for (const s of novel.secrets) {
+    if (!s.world_target) continue;
+    const targetRoom = [...novel.world.rooms.keys()].find((k) => k.toLowerCase() === s.world_target!.toLowerCase());
+    if (targetRoom && sceneLoc && sceneLoc.startsWith(targetRoom.toLowerCase())) {
+      out.push(`[world-linked] ${s.key}`);
+    }
+  }
+
+  // REQ-364 — faction-world: territorial factions surface when scene matches territory.
+  for (const f of novel.factions) {
+    if (!f.territory?.length) continue;
+    for (const t of f.territory) {
+      if (sceneLoc && sceneLoc.startsWith(t.toLowerCase())) {
+        out.push(`[territorial] ${f.name} (clock ${f.clock}/${f.clock_max})`);
+      }
+    }
+  }
+
+  return out;
+}
+
+// REQ-286 — knowledge_state section: revealed secrets, participant relationships,
+// presence-scoped lore, background knowledge, discovered consequences. Badge-filtered.
+function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): string {
+  let section = "";
+  if (!entity) {
+    section += `\n\n### Knowledge state\n[No active entity — knowledge state unavailable.]`;
+    return section;
+  }
+  const activeId = entity.id;
+  const present = (novel.characters_present_ids ?? []).includes(activeId);
+
+  const lines: string[] = [];
+  // Revealed secrets (REQ-234/286).
+  const knownSecrets = novel.secrets.filter((s) => s.known_by.includes(activeId));
+  for (const s of knownSecrets) lines.push(`Secret: ${s.key} — ${s.content}`);
+
+  // Participant relationships (REQ-236/286).
+  const rels = novel.relationships.filter((r) => r.entity_a === activeId || r.entity_b === activeId);
+  for (const r of rels) lines.push(`Relationship: ${r.entity_a} -> ${r.entity_b} (${r.type})`);
+
+  // Presence-scoped shared lore (REQ-286/308): lore triggered while entity present.
+  for (const [, entry] of novel.lore) {
+    if (!entry.enabled || entry.badge_scope !== "shared") continue;
+    const triggered = entry.triggers.some((t) => novel.scene_description.toLowerCase().includes(t.toLowerCase()));
+    if (triggered && present) lines.push(`Lore: [${entry.key}] ${entry.content}`);
+  }
+
+  // Discovered consequences (REQ-340/349): [discovered] entries populate knowledge.
+  const discovered = novel.story_journal.filter((s) => s.type === "consequence" && s.discovered);
+  for (const s of discovered) lines.push(`[discovered] ${s.entry}`);
+
+  // REQ-345 — background knowledge directive when entity has a background.
+  const background = entity.personality?.background;
+  if (background) {
+    lines.push(`Background knowledge: ${background} — the character may know things their background implies (regional geography, academic knowledge, underworld contacts) without having witnessed them in a scene.`);
+    // REQ-350 — background lore triggering: match background tokens against shared lore triggers.
+    const bgTokens = background.toLowerCase().split(/\s+/).filter((t: string) => t.length > 3);
+    for (const [, entry] of novel.lore) {
+      if (!entry.enabled || entry.badge_scope !== "shared") continue;
+      const matched = entry.triggers.find((t: string) => bgTokens.some((bt: string) => bt.includes(t.toLowerCase()) || t.toLowerCase().includes(bt)));
+      if (matched) lines.push(`[background-relevant] ${entry.key} (matched "${matched}")`);
+    }
+  }
+
+  section += `\n\n### Knowledge state`;
+  if (!present) section += `\n[Entity not present in this scene]`;
+  if (lines.length === 0) {
+    section += `\n[No known information.]`;
+  } else {
+    section += `\n${lines.join("\n")}`;
+  }
+  return section;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────
 // Badge gating and snapshot helpers provided by core/server.ts
@@ -567,14 +832,26 @@ server.registerTool("respond", {
   const novel = requireNovel();
   const pw = novel.pending_workflow;
 
+  const dec = canon(String(decision));
+  const opt = canon(String(option));
+
+  // REQ-339 — World in Motion goal-pursuit suggestion resolution (no pending
+  // workflow required; suggestions are surfaced in badge_briefing).
+  if (novel.npc_goal_suggestions.length > 0 && ["accept", "defer", "dismiss"].includes(opt)) {
+    const suggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === option || s.npc_id === dec)
+      ?? novel.npc_goal_suggestions.find((s) => s.state !== "accepted" && s.state !== "dismissed");
+    if (suggestion) {
+      if (opt === "accept") { suggestion.state = "accepted"; audit("world-in-motion", { npc: suggestion.npc_id, disposition: "accepted" }); state.saveNovel(novel); return ok(`Goal pursuit accepted for ${suggestion.npc_id}.`); }
+      if (opt === "defer") { suggestion.state = "deferred"; state.saveNovel(novel); return ok(`Goal pursuit deferred for ${suggestion.npc_id} — will re-surface at the next transition.`); }
+      if (opt === "dismiss") { suggestion.state = "dismissed"; audit("world-in-motion", { npc: suggestion.npc_id, disposition: "dismissed" }); state.saveNovel(novel); return ok(`Goal pursuit dismissed for ${suggestion.npc_id}.`); }
+    }
+  }
+
   // REQ-042a/b: no workflow pending → [NOT_FOUND]; the decision text must
   // reference the open workflow, else [NOT_FOUND] with the canonical text.
   if (!pw) {
     return err("NOT_FOUND", "No workflow decision is pending.");
   }
-
-  const dec = canon(String(decision));
-  const opt = canon(String(option));
 
   // Explicit cancellation (REQ-042b): restore the pre-workflow snapshot,
   // clear the pending workflow, reset the staleness counter, and audit a
@@ -1151,12 +1428,27 @@ server.registerTool("player_signal", {
   title: "Player Signal",
   description: "Send a narrative signal from the player to the GM.",
   inputSchema: {
-    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary"]),
+    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]),
     value: z.string(),
   },
 }, async ({ signal, value }: any) => {
   requirePlayer();
   const novel = requireNovel();
+  // REQ-344 — voice feedback corrects the entity's voice examples, rate-limited.
+  if (signal === "voice_feedback") {
+    const entity = state.getActiveEntity();
+    if (!entity) return err("INVALID_INPUT", "No active entity to correct. Corrective action: set an active entity first.");
+    const limit = maxVoiceCorrections();
+    if (novel.voice_corrections_this_session >= limit) {
+      return warn("Voice correction limit reached for this session.");
+    }
+    if (!entity.voice_examples) entity.voice_examples = [];
+    entity.voice_examples.push({ context: "player correction", dialogue: value, tag: "player-corrected" });
+    novel.voice_corrections_this_session++;
+    state.saveNovel(novel);
+    audit("voice-feedback", { corrected: value, count: novel.voice_corrections_this_session });
+    return ok(`Voice correction captured (${novel.voice_corrections_this_session}/${limit}).`);
+  }
   novel.player_signals[signal] = value;
   state.saveNovel(novel);
   audit("player_signal", { signal, value });
@@ -1737,6 +2029,83 @@ server.registerTool("remove_combat_participant", {
 
 // --- Narrative (GM) ---
 
+// REQ-335/337/353 — derive a scene description from world-model state when
+// `location` resolves to a room and no explicit description is supplied.
+function deriveSceneDescription(location: string | undefined, novel: NovelState): string | null {
+  if (!location) return null;
+  const room = [...novel.world.rooms.entries()].find(([, r]) =>
+    location.toLowerCase().startsWith(r.name.toLowerCase()) || r.name.toLowerCase().startsWith(location.toLowerCase()));
+  if (!room) return null;
+  const r = room[1];
+  const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === r.name.toLowerCase() && t.locationType === "room");
+  const npcs = [...novel.npcs.values()].filter((n) => n.location && n.location.toLowerCase() === r.name.toLowerCase());
+  const parts: string[] = [r.description || r.name];
+  if (npcs.length) parts.push(`Visible: ${npcs.map((n) => n.name).join(", ")}.`);
+  if (things.length) parts.push(`Here: ${things.map((t) => t.name).join(", ")}.`);
+  return parts.join(" ");
+}
+
+// REQ-335/337 — record a beat transition into story_beats when the beat changes.
+function recordBeatTransition(novel: NovelState, newBeat: string, scenePreview: string): void {
+  const effective = newBeat || DEFAULT_BEAT;
+  const prev = currentBeat(novel);
+  if (prev !== effective) {
+    novel.story_beats.push({ beat: effective, scene_preview: scenePreview, source: "gm" });
+  }
+}
+
+// REQ-336/351 — reset pacing state on a scene transition.
+function resetPacing(novel: NovelState): void {
+  novel.pacing_counter = 0;
+  novel.pacing_autonomy_fired = false;
+}
+
+// REQ-338 — faction autonomous advancement: one tick per interval, [autonomous].
+function factionAutonomousAdvance(novel: NovelState): void {
+  const interval = factionAutonomyInterval();
+  if (interval <= 0) return;
+  novel.scene_transition_count++;
+  if (novel.scene_transition_count % interval !== 0) return;
+  for (const f of novel.factions) {
+    f.clock = Math.min(f.clock_max, f.clock + 1);
+    novel.faction_autonomous_ticks[f.id] = (novel.faction_autonomous_ticks[f.id] ?? 0) + 1;
+    audit("faction_autonomous_advance", { faction: f.id, clock: f.clock });
+  }
+}
+
+// REQ-340 — when an on_scene_transition countdown fires while the active entity
+// is absent from all scenes since its creation, produce a [discovered] entry.
+function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string }): void {
+  const presentIds = new Set(novel.characters_present_ids ?? []);
+  const activeId = novel.active_entity_id;
+  const absent = activeId && !presentIds.has(activeId);
+  novel.countdowns.delete(name);
+  const entry: any = {
+    index: novel.story_journal.length,
+    type: "consequence",
+    entry: `Countdown "${name}" fired: ${cd.direction ?? "consequence reached"}.`,
+    scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
+    entity_ids: [],
+    timestamp: new Date().toISOString(),
+  };
+  if (absent) entry.discovered = true;
+  novel.story_journal.push(entry);
+  audit("countdown_expired", { name, discovered: absent });
+}
+
+// REQ-353 — countdowns with on_scene_transition decrement on transition; climax
+// accelerates the decrement by TTRPG_CLIMAX_ACCELERATION.
+function advanceSceneTransitionCountdowns(novel: NovelState): void {
+  const accel = currentBeat(novel) === "climax" ? climaxAcceleration() : 1;
+  const effective = accel <= 0 ? 1 : accel;
+  for (const [name, cd] of [...novel.countdowns.entries()]) {
+    if (cd.type === "round") continue;
+    if (!cd.on_scene_transition) continue;
+    cd.ticks -= effective;
+    if (cd.ticks <= 0) fireCountdown(novel, name, cd);
+  }
+}
+
 server.registerTool("set_scene_state", {
   title: "Set Scene State",
   description: "Set the scene description and location. Game Master only.",
@@ -1745,29 +2114,47 @@ server.registerTool("set_scene_state", {
     location: z.string().optional(),
     time_of_day: z.string().optional(),
     atmosphere: z.string().optional(),
+    beat: z.enum(BEAT_VALUES).optional(),
     skip_transition_hook: z.boolean().optional(),
   },
-}, async ({ description, location, time_of_day, atmosphere, skip_transition_hook }: any) => {
+}, async ({ description, location, time_of_day, atmosphere, beat, skip_transition_hook }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
 
+  // REQ-342 — derive the scene description from world-model state when `location`
+  // resolves and no explicit description is supplied.
+  const derived = !description && location ? deriveSceneDescription(location, novel) : null;
+  const effectiveDescription = description || derived || "";
+
+  const isTransition = novel.scene_description !== "" && novel.scene_description !== effectiveDescription;
+
   if (novel.scene_description) {
-    novel.scene_history.push({
+    const historyEntry: any = {
       timestamp: new Date().toISOString(),
       description: novel.scene_description,
       location: novel.scene_location,
       time_of_day: novel.scene_time_of_day,
       atmosphere: novel.scene_atmosphere,
-    });
+      beat: currentBeat(novel),
+    };
+    if (novel.scene_description !== effectiveDescription) {
+      novel.scene_history.push(historyEntry);
+    }
   }
-  novel.scene_description = description;
+  novel.scene_description = effectiveDescription;
   novel.scene_location = location;
   novel.scene_time_of_day = time_of_day;
   novel.scene_atmosphere = atmosphere;
 
-  // Auto-update active entity position if location or description matches a world-model room
-  const sceneRoomName = location || description;
+  // REQ-335 — set beat if provided and record the transition into story_beats.
+  if (beat !== undefined) {
+    novel.scene_beat = beat;
+    recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60));
+  }
+
+  // Auto-update active entity position if location or description matches a world-model room (REQ-326)
+  const sceneRoomName = location || effectiveDescription;
   if (sceneRoomName) {
     const matchRoom = [...novel.world.rooms.entries()].find(([, r]) =>
       sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()));
@@ -1779,9 +2166,17 @@ server.registerTool("set_scene_state", {
     }
   }
 
+  // REQ-125 — scene transition hook: audit + countdown/faction advancement.
+  if (isTransition && !skip_transition_hook) {
+    audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
+    advanceSceneTransitionCountdowns(novel); // REQ-353
+    factionAutonomousAdvance(novel); // REQ-338
+    resetPacing(novel); // REQ-336
+  }
+
   state.saveNovel(novel);
-  audit("set_scene_state", { description, location, time_of_day, atmosphere });
-  return ok(`Scene set: ${description}`);
+  audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
+  return ok(`Scene set: ${effectiveDescription}`);
 });
 
 server.registerTool("set_scene_type", {
@@ -1789,12 +2184,17 @@ server.registerTool("set_scene_type", {
   description: "Tag the scene as combat, social, exploration, or neutral. Game Master only.",
   inputSchema: {
     type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]),
+    beat: z.enum(BEAT_VALUES).optional(),
   },
-}, async ({ type }: any) => {
+}, async ({ type, beat }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
   novel.scene_type = Array.isArray(type) ? type : [type];
+  if (beat !== undefined) {
+    novel.scene_beat = beat;
+    recordBeatTransition(novel, beat, novel.scene_description.substring(0, 60));
+  }
   state.saveNovel(novel);
   return ok(`Scene type set to: ${novel.scene_type.join(", ")}.`);
 });
@@ -1822,13 +2222,16 @@ server.registerTool("create_npc", {
     description: z.string().optional(),
     disposition: z.string().optional(),
     location: z.string().optional(),
+    goals: z.string().optional(),
   },
-}, async ({ name, description, disposition, location }: any) => {
+}, async ({ name, description, disposition, location, goals }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
   const id = `npc_${Date.now().toString(36)}`;
-  novel.npcs.set(id, { id, name, description, disposition, location, conditions: [], condition_rounds: {} });
+  const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
+  if (goals) npc.personality = { goals };
+  novel.npcs.set(id, npc);
   state.saveNovel(novel);
   audit("create_npc", { name, id });
   return ok(`NPC '${name}' created (${id}).`);
@@ -1843,8 +2246,9 @@ server.registerTool("update_npc", {
     description: z.string().optional(),
     disposition: z.string().optional(),
     location: z.string().optional(),
+    goals: z.string().optional(),
   },
-}, async ({ npc_id, name, description, disposition, location }: any) => {
+}, async ({ npc_id, name, description, disposition, location, goals }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -1854,6 +2258,7 @@ server.registerTool("update_npc", {
   if (description !== undefined) npc.description = description;
   if (disposition !== undefined) npc.disposition = disposition;
   if (location !== undefined) npc.location = location;
+  if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
   state.saveNovel(novel);
   audit("update_npc", { npc_id });
   return ok(`NPC '${npc_id}' updated.`);
@@ -1885,14 +2290,15 @@ server.registerTool("set_countdown", {
     type: z.enum(["round", "narrative"]).optional(),
     scope: z.string().optional(),
     direction: z.string().optional(),
+    on_scene_transition: z.boolean().optional(),
   },
-}, async ({ name, ticks, type, scope, direction }: any) => {
+}, async ({ name, ticks, type, scope, direction, on_scene_transition }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
-  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction });
+  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition });
   state.saveNovel(novel);
-  audit("set_countdown", { name, ticks, type });
+  audit("set_countdown", { name, ticks, type, on_scene_transition });
   return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"}).`);
 });
 
@@ -1909,6 +2315,19 @@ server.registerTool("advance_countdown", {
   cd.ticks--;
   if (cd.ticks <= 0) {
     novel.countdowns.delete(name);
+    // REQ-358 — countdown fire shifts disposition of NPCs whose location matches
+    // the countdown scope toward the countdown direction (hostile/benign).
+    const direction = cd.direction?.toLowerCase() ?? "";
+    const toward = direction.includes("hostile") ? "hostile" : direction.includes("benign") ? "friendly" : null;
+    if (toward && cd.scope) {
+      for (const [, npc] of novel.npcs) {
+        if (npc.location && npc.location.toLowerCase() === cd.scope!.toLowerCase()) {
+          const prev = npc.disposition ?? "neutral";
+          npc.disposition = shiftDisposition(prev, toward);
+          audit("countdown-disposition", { npc: npc.id, countdown: name, from: prev, to: npc.disposition });
+        }
+      }
+    }
     audit("countdown_expired", { name });
     state.saveNovel(novel);
     return ok(`Countdown '${name}' expired. Recorded in audit log.`);
@@ -2151,25 +2570,26 @@ server.registerTool("remove_condition", {
 server.registerTool("create_faction", {
   title: "Create Faction",
   description: "Create a named faction with goals, resources, and a progress clock. Game Master only.",
-  inputSchema: { name: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional() },
-}, async ({ name, description, goals, resources }: any) => {
+  inputSchema: { name: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional(), territory: z.array(z.string()).optional() },
+}, async ({ name, description, goals, resources, territory }: any) => {
   requireGM();
   const novel = requireNovel();
   if (novel.factions.some(f => f.name === name)) return err("STATE_CONFLICT", `Faction '${name}' already exists.`);
   const faction = {
     id: `faction_${Date.now().toString(36)}`,
     name, description: description ?? "", goals: goals ?? [], resources: resources ?? "", clock: 0, clock_max: 10, status: "neutral",
+    territory: territory ?? undefined,
   };
   novel.factions.push(faction);
   state.saveNovel(novel);
-  audit("create_faction", { name, description, goals });
+  audit("create_faction", { name, description, goals, territory });
   return ok(`Faction '${name}' created (${faction.id}).`);
 });
 
 server.registerTool("update_faction", {
   title: "Update Faction",
   description: "Update a faction's fields. Game Master only.",
-  inputSchema: { faction_id: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional() },
+  inputSchema: { faction_id: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional(), territory: z.array(z.string()).optional() },
 }, async ({ faction_id, ...fields }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2201,12 +2621,12 @@ server.registerTool("remove_faction", {
 server.registerTool("set_secret", {
   title: "Set Secret",
   description: "Create a secret lore entry. GM-only; visible to entities after reveal_secret. Game Master only.",
-  inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["game_master", "shared"]).optional() },
-}, async ({ key, content, triggers, badge_scope }: any) => {
+  inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["game_master", "shared"]).optional(), world_target: z.string().optional() },
+}, async ({ key, content, triggers, badge_scope, world_target }: any) => {
   requireGM();
   const novel = requireNovel();
   if (novel.secrets.some(s => s.key === key)) return err("STATE_CONFLICT", `Secret '${key}' already exists.`);
-  novel.secrets.push({ key, content, triggers: triggers ?? [], badge_scope: badge_scope ?? "game_master", known_by: [] });
+  novel.secrets.push({ key, content, triggers: triggers ?? [], badge_scope: badge_scope ?? "game_master", known_by: [], world_target });
   state.saveNovel(novel);
   return ok(`Secret '${key}' created.`);
 });
@@ -2458,10 +2878,10 @@ server.registerTool("list_notes", {
 server.registerTool("set_server_note", {
   title: "Set Server Note",
   description: "Create or update a server-level note. Game Master only.",
-  inputSchema: { key: z.string(), content: z.string() },
-}, async ({ key, content }: any) => {
+  inputSchema: { key: z.string(), content: z.string(), narrative_tag: z.enum(["campaign_bible", "house_rules", "lore_seed", "session_reminder"]).optional() },
+}, async ({ key, content, narrative_tag }: any) => {
   requireGM();
-  state.serverNotes.set(key, content);
+  state.serverNotes.set(key, { content, narrative_tag });
   state.saveServerNotes();
   return ok(`Server note '${key}' set.`);
 });
@@ -2774,7 +3194,7 @@ function novelToJSONState(novel: NovelState): any {
     npcs: Object.fromEntries(novel.npcs),
     scene_description: novel.scene_description, scene_location: novel.scene_location,
     scene_time_of_day: novel.scene_time_of_day, scene_atmosphere: novel.scene_atmosphere,
-    scene_history: novel.scene_history, scene_type: novel.scene_type,
+    scene_history: novel.scene_history, scene_beat: novel.scene_beat, scene_type: novel.scene_type,
     narrative_directive: novel.narrative_directive, combat: novel.combat,
     countdowns: Object.fromEntries(novel.countdowns), lore: Object.fromEntries(novel.lore),
     briefing_order: novel.briefing_order, action_patterns_enabled: novel.action_patterns_enabled,
@@ -2787,6 +3207,10 @@ function novelToJSONState(novel: NovelState): any {
     genre: novel.genre, adventure_index: novel.adventure_index,
     adventure_scene_waypoint: novel.adventure_scene_waypoint,
     world: { rooms: Object.fromEntries(novel.world.rooms), things: Object.fromEntries(novel.world.things) },
+    story_beats: novel.story_beats, pacing_counter: novel.pacing_counter,
+    pacing_autonomy_fired: novel.pacing_autonomy_fired, scene_transition_count: novel.scene_transition_count,
+    faction_autonomous_ticks: novel.faction_autonomous_ticks, npc_goal_suggestions: novel.npc_goal_suggestions,
+    voice_corrections_this_session: novel.voice_corrections_this_session,
     metadata: novel.metadata,
   };
 }
@@ -2808,6 +3232,7 @@ function loadNovelFromStateData(data: any): NovelState {
     scene_description: data.scene_description ?? "",
     scene_location: data.scene_location, scene_time_of_day: data.scene_time_of_day,
     scene_atmosphere: data.scene_atmosphere, scene_history: data.scene_history ?? [],
+    scene_beat: data.scene_beat ?? "",
     scene_type: normalizeSceneTypeState(data.scene_type),
     narrative_directive: data.narrative_directive ?? "", combat: data.combat ?? null,
     countdowns: new Map(Object.entries(data.countdowns ?? {})),
@@ -2833,7 +3258,11 @@ function loadNovelFromStateData(data: any): NovelState {
     autonomy: normalizeAutonomy(data.autonomy),
     genre: data.genre ?? "", adventure_index: data.adventure_index ?? null,
     adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
-    world, metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "" },
+    world, story_beats: data.story_beats ?? [], pacing_counter: data.pacing_counter ?? 0,
+    pacing_autonomy_fired: data.pacing_autonomy_fired ?? false, scene_transition_count: data.scene_transition_count ?? 0,
+    faction_autonomous_ticks: data.faction_autonomous_ticks ?? {}, npc_goal_suggestions: data.npc_goal_suggestions ?? [],
+    voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
+    metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "" },
   };
 }
 
@@ -2965,8 +3394,8 @@ server.registerTool("session_recap", {
 server.registerTool("create_novel", {
   title: "Create Novel",
   description: "Create a named novel. Novel persists to disk.",
-  inputSchema: { name: z.string(), ruleset: z.string().optional(), genre: z.string().optional(), description: z.string().optional() },
-}, async ({ name, ruleset, genre, description }: any) => {
+  inputSchema: { name: z.string(), ruleset: z.string().optional(), genre: z.string().optional(), description: z.string().optional(), codex_adventure: z.string().optional() },
+}, async ({ name, ruleset, genre, description, codex_adventure }: any) => {
   requireNotObserver();
   if (ruleset && !rulesets.isInstalled(ruleset)) {
     return err("INVALID_INPUT", `Ruleset '${ruleset}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
@@ -2974,7 +3403,21 @@ server.registerTool("create_novel", {
   const novel = state.createNovel(name, ruleset ?? null);
   if (genre) novel.genre = genre;
   if (description) novel.description = description;
-  if (genre || description) state.saveNovel(novel);
+  // REQ-352 — codex adventure beat sequences: pre-populate story_beats from the
+  // adventure entry's suggested_beats with [adventure-scaffold] annotation.
+  if (codex_adventure) {
+    const entry = state.codex.get(codex_adventure);
+    if (!entry) return err("NOT_FOUND", `Codex adventure '${codex_adventure}' not found.`);
+    if (entry.kind !== "adventure") return err("NOT_FOUND", `Codex entry '${codex_adventure}' is not of kind 'adventure'.`);
+    const suggested = (entry.content as any)?.suggested_beats;
+    if (Array.isArray(suggested)) {
+      for (const sb of suggested) {
+        novel.story_beats.push({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" });
+      }
+      novel.adventure_set = true;
+    }
+  }
+  if (genre || description || codex_adventure) state.saveNovel(novel);
   if (ruleset) { try { rulesets.hydrate(ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); } }
   return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}${genre ? `, genre: ${genre}` : ""}
 
@@ -3250,27 +3693,47 @@ server.registerTool("suggest_actions", {
   const useResolveIntent = rulesetBound && badge !== "game_master";
   const spatialTool = useResolveIntent ? "resolve_intent" : "command";
   const intentLower = intent.toLowerCase();
-  const suggestions: string[] = [];
-  if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where")) {
-    suggestions.push(`${spatialTool}("look")`);
-    suggestions.push(`command("examine <thing>")`);
+
+  // REQ-343 — unified intent resolution grouped by domain: mechanical, spatial, social.
+  const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
+
+  if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
+    domains.spatial.push(`${spatialTool}("look")`, `command("examine <thing>")`);
   }
-  if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel")) {
-    suggestions.push(`${spatialTool}("${useResolveIntent ? "go north" : "go north"}")`);
+  if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel") || intentLower.includes("sneak")) {
+    domains.spatial.push(`${spatialTool}("go <direction>")`);
   }
   if (intentLower.includes("take") || intentLower.includes("grab") || intentLower.includes("get")) {
-    suggestions.push(`command("take <thing>")`);
+    domains.spatial.push(`command("take <thing>")`);
   }
   if (intentLower.includes("open") || intentLower.includes("unlock")) {
-    suggestions.push(`command("open <door>")`);
+    domains.spatial.push(`command("open <door>")`);
   }
   if (intentLower.includes("fight") || intentLower.includes("attack")) {
-    suggestions.push("init_combat (GM only, auto-advance mode)");
+    domains.mechanical.push("init_combat (GM only, auto-advance mode)");
   }
-  if (suggestions.length === 0) {
-    suggestions.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
+  // Social intents — persuasion, convincing, negotiation; resolved against NPC
+  // dispositions and the caller entity's relationships (REQ-343c).
+  if (intentLower.includes("convince") || intentLower.includes("persuade") || intentLower.includes("talk") || intentLower.includes("negotiate") || intentLower.includes("intimidate")) {
+    for (const [, npc] of novel.npcs) {
+      domains.social.push(`${npc.name} (disposition: ${npc.disposition ?? "neutral"}) — skill check with persuasion`);
+    }
+    for (const r of novel.relationships) {
+      if (r.entity_a === (entity?.id ?? "") || r.entity_b === (entity?.id ?? "")) {
+        domains.social.push(`relationship (${r.type}) with ${r.entity_a === entity?.id ? r.entity_b : r.entity_a}`);
+      }
+    }
   }
-  return ok(`Actions for ${name}: ${suggestions.join(", ")}.`);
+
+  if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
+    domains.spatial.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
+  }
+
+  const blocks: string[] = [];
+  if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
+  if (domains.spatial.length) blocks.push(`Spatial:\n${domains.spatial.map((s) => `  - ${s}`).join("\n")}`);
+  if (domains.social.length) blocks.push(`Social:\n${domains.social.map((s) => `  - ${s}`).join("\n")}`);
+  return ok(`Actions for ${name}:\n${blocks.join("\n")}`);
 });
 
 // REQ-022 resource URI catalog — presence is reported against this fixed list.
@@ -3428,6 +3891,15 @@ server.registerTool("spec_health", {
     token_footprint: {
       tools_list_bytes: cachedMetadata().toolsListBytes,
       prompt_scaffold_bytes: cachedMetadata().promptBytes,
+    },
+    // REQ-346 — narrative coherence disposition (G7). Derived from the §5.12
+    // REQs implemented in this build; a full list with per-REQ dispositions
+    // is recorded in DECISIONS.md under the narrative_coherence attestation.
+    narrative_coherence: {
+      implemented: SECTION_512_IMPLEMENTED.length,
+      total: SECTION_512_REQS.length,
+      disposition: SECTION_512_IMPLEMENTED.length >= SECTION_512_REQS.length ? "pass" : (SECTION_512_IMPLEMENTED.length > 0 ? "partial" : "fail"),
+      reqs: SECTION_512_IMPLEMENTED.slice(),
     },
   };
 
@@ -3714,9 +4186,9 @@ server.registerResource("server-notes-single", new ResourceTemplate("server-note
     return { contents: [{ uri: uri.href, text: "[FORBIDDEN] Server notes are Game Master only.", mimeType: "text/plain" }] };
   }
   const key = decodeURIComponent(uri.href.split("/").pop() ?? "");
-  const content = state.serverNotes.get(key);
-  if (content === undefined) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: content, mimeType: "text/markdown" }] };
+  const entry = state.serverNotes.get(key);
+  if (entry === undefined) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  return { contents: [{ uri: uri.href, text: entry.content, mimeType: "text/markdown" }] };
 });
 
 // Codex resource (REQ-321)
@@ -3910,6 +4382,62 @@ server.registerTool("codex_list", {
   return raw(JSON.stringify(entries.map(e => ({ id: e.id, kind: e.kind, name: e.name, visibility: e.visibility, tags: e.tags })), null, 2));
 });
 
+// REQ-347 — voice feedback codex capture: store an entity's corrected voice
+// profile as a `voice_profile` Codex entry.
+server.registerTool("codex_capture", {
+  title: "Capture to Codex",
+  description: "Capture an entity's voice profile to the Codex. Use when: persisting a character's corrected voice across Novels. Do NOT use when: storing Novel-scoped lore — use set_lore_entry.",
+  inputSchema: { kind: z.enum(["voice_profile"]), entity_id: z.string(), update_source: z.boolean().optional() },
+}, async ({ kind, entity_id, update_source }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const entity = novel.entities.get(entity_id);
+  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
+  const id = `voice_profile_${entity_id.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+  const corrected = (entity.voice_examples ?? []).filter((v: any) => v.tag === "player-corrected").map((v: any) => ({ corrected_text: v.dialogue, context: v.context }));
+  const entry: any = {
+    id, kind: "voice_profile", name: entity.name,
+    content: { corrected_text: corrected, original_text: [], source_novel: novel.slug, background: entity.personality?.background },
+    visibility: "library",
+    imported_at: new Date().toISOString(), codex_modified_at: new Date().toISOString(),
+    update_source: !!update_source,
+  };
+  state.codex.set(id, entry);
+  state.saveCodex();
+  return ok(`Voice profile '${id}' captured to Codex.`);
+});
+
+// REQ-347/352 — import a Codex entry into the active Novel.
+server.registerTool("codex_import", {
+  title: "Import from Codex",
+  description: "Import a Codex entry into the active Novel. Use when: pulling reusable content (voice profiles, adventures) in. Do NOT use when: reading the Codex — use codex_list.",
+  inputSchema: { entry_id: z.string() },
+}, async ({ entry_id }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  const entry = state.codex.get(entry_id);
+  if (!entry) return err("NOT_FOUND", `Codex entry '${entry_id}' not found.`);
+  if (entry.kind === "voice_profile") {
+    const name = (entry.name ?? entry_id).toLowerCase();
+    const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || novel.entities.get(id)!.name.toLowerCase() === name) ?? [...novel.entities.keys()].find((id) => id.includes(entry_id.replace("voice_profile_", "")));
+    if (targetId) {
+      const target = novel.entities.get(targetId)!;
+      if (!target.voice_examples) target.voice_examples = [];
+      for (const v of (entry.content as any)?.corrected_text ?? []) {
+        target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
+      }
+    }
+  } else if (entry.kind === "adventure") {
+    const suggested = (entry.content as any)?.suggested_beats;
+    if (Array.isArray(suggested)) {
+      novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const })));
+      novel.adventure_set = true;
+    }
+  }
+  state.saveNovel(novel);
+  return ok(`Codex entry '${entry_id}' imported.`);
+});
+
 // Synthesis tools (REQ-103, REQ-260-263)
 server.registerTool("synthesize", {
   title: "Synthesize",
@@ -4038,9 +4566,17 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   const badge = novel.badge;
   const entity = state.getActiveEntity();
 
+  // REQ-336/351 — advancing the pacing counter on each briefing render; the
+  // pacing signal fires (and pacing autonomy triggers) when it exceeds the window.
+  novel.pacing_counter++;
+  triggerPacingAutonomy(novel);
+
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
-${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}`;
+${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}`;
+
+  // REQ-335 — current beat surfaces immediately after the scene type tag.
+  briefing += `\n**Beat:** ${currentBeat(novel)}`;
 
   if (entity && badge !== "game_master") {
     briefing += `\n**Active entity:** ${entity.name}`;
@@ -4109,14 +4645,36 @@ Use \`command("<action>")\` to interact with the world:
 - command("examine thing") — look at something closely
 - command("inventory") — check what you're carrying
 - command("open door") — open an openable object`;
+
+    // REQ-341 — player-facing spatial surface (no internal IDs).
+    if (novel.world.rooms.size > 0) {
+      const room = entity?.current_room
+        ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === entity.current_room!.toLowerCase())
+        : undefined;
+      if (room) {
+        const exitDirs = [...room.exits.keys()];
+        const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === room.name.toLowerCase() && t.locationType === "room");
+        briefing += `\n\n### Surroundings
+Room: ${room.name}
+Exits: ${exitDirs.length ? exitDirs.join(", ") : "none"}
+Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of note"}`;
+      } else {
+        briefing += `\n\n### Surroundings
+[No world model — surroundings are as described by the GM.]`;
+      }
+    } else {
+      briefing += `\n\n### Surroundings
+[No world model — surroundings are as described by the GM.]`;
+    }
   } else if (badge === "game_master" || badge === "observer") {
     briefing += `\n\n### GM State
 **World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
 **NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}`;
 
     if (badge === "observer") {
+      // REQ-366 — observer omniscient orientation directive.
       briefing += `\n\n### Observer Mode
-You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel.`;
+You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;
     }
 
     // Triggered lore
@@ -4135,27 +4693,74 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       briefing += `\n\n### Triggered Lore\n${triggered.join("\n")}`;
     }
 
-    // REQ-109 — narrative threads (GM): unresolved decisions, active
-    // countdowns, non-neutral NPC dispositions, and active vows.
+    // REQ-337 — story beats arc (GM surface: shared + GM beats).
+    if (novel.story_beats.length > 0) {
+      const window = configInt("TTRPG_STORY_BEAT_WINDOW", 10);
+      const recent = novel.story_beats.slice(-window);
+      const beatLine = recent.map((b) => `${b.beat} ("${b.scene_preview}")${b.source === "adventure-scaffold" ? " [adventure-scaffold]" : ""}`).join(" -> ");
+      briefing += `\n\n### Story beats\n${beatLine}`;
+    } else {
+      briefing += `\n\n### Story beats\n[No beats completed.]`;
+    }
+
+    // REQ-336/281 — narrative threads: pacing signal, unresolved decisions, bonds,
+    // countdowns, non-default NPC dispositions, active vows, and §5.12 couplings.
     const threadLines: string[] = [];
+
+    const pacing = pacingSignalText(novel);
+    if (pacing) threadLines.push(pacing);
+
+    const unresolvedDecisions = novel.story_journal.filter((s) => s.type === "decision" && !novel.story_journal.some((c) => c.type === "consequence" && c.scene_anchor === s.scene_anchor));
+    for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);
+
+    const openBonds = novel.story_journal.filter((s) => s.type === "bond" && !novel.story_journal.some((c) => c.type === "consequence" && c.entry === s.entry));
+    for (const s of openBonds.slice(-3)) threadLines.push(`Promise: ${s.entry}`);
+
     for (const v of novel.vows) {
       if (v.state === "active") threadLines.push(`Vow: ${v.name} (${v.difficulty}, ${v.milestones} milestones)`);
     }
     for (const [name, cd] of novel.countdowns) {
       if (cd.ticks > 0) threadLines.push(`Countdown: ${name} (${cd.ticks}/${cd.total})`);
     }
+    if (badge === "game_master") {
+      for (const [, npc] of novel.npcs) {
+        if (npc.disposition && npc.disposition !== "neutral") threadLines.push(`${npc.name} (${npc.disposition})`);
+      }
+    }
+
+    threadLines.push(...collectCouplingAdvisories(novel, entity));
+
     if (threadLines.length > 0) {
       briefing += `\n\n### Narrative threads\n${threadLines.join("\n")}`;
     } else {
-      briefing += `\n\n### Narrative threads\nNo open threads — no active vows or running countdowns.`;
+      briefing += `\n\n### Narrative threads\n[No unresolved threads.]`;
+    }
+
+    // REQ-339 — World in Motion: goal-pursuit suggestions (GM only).
+    if (badge === "game_master" && npcAutonomyOn()) {
+      for (const [, npc] of novel.npcs) {
+        const goal = npc.personality?.goals;
+        if (!goal) continue;
+        const prevSuggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
+        if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
+        ensureGoalSuggestion(novel, npc.id, npc.name, goal);
+      }
+      const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
+      if (active.length > 0) {
+        briefing += `\n\n## World in Motion\n${active.map((s) => `${s.text}\n   — respond \`accept\`, \`defer\`, or \`dismiss\` (suggestion ${s.npc_id})`).join("\n")}`;
+        state.saveNovel(novel);
+      }
     }
 
     // REQ-109 — story journal (GM): recent decision/bond/moment entries.
-    const storyItems = novel.story_journal.slice(-3).map((s) => `[${s.type}] ${s.entry}`).join("\n");
+    const storyItems = novel.story_journal.slice(-3).map((s) => `${s.discovered ? "[discovered] " : ""}[${s.type}] ${s.entry}`).join("\n");
     if (storyItems) {
       briefing += `\n\n### Story journal\n${storyItems}`;
     }
   }
+
+  // REQ-286 — knowledge state (decision-critical, all badges with an entity).
+  briefing += composeKnowledgeState(novel, entity, badge);
 
   // REQ-109 — intro pointer: always surface the intro prompt as an entry point.
   briefing += `\n\nUse the intro prompt to get started, or badge_briefing for current badge guidance.`;

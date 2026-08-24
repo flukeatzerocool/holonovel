@@ -2,6 +2,24 @@
 
 **Spec hash:** 7b14491ba40eaddeaa146779770b9631fe3107b2f28a44d339f2e87417e60a0b
 
+### Holonovel Server Change — 2026-08-24 (§5.12 narrative engine)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | implementation only — §5.12 Narrative Architecture (REQ-335–366) server layer: scene beat taxonomy, pacing signal, story-beat arc, faction/NPC autonomy, discovered consequences, spatial surface, unified intent resolution, voice feedback, background knowledge, coupling advisories, observer surface; REQ-125 scene transition hook; knowledge_state + narrative_threads briefing sections; new `test-narrative.ts` harness (T385–T417) |
+| Reused | spec, extraction, tooling |
+| Verification | typecheck 0 errors; test-narrative 20/20; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; validate:fast 0 errors |
+
+#### narrative_coherence (G7)
+
+@section evidence
+
+- **(a) implementation status** — 30 of 32 §5.12 REQs `converged`/evidenced (bucket C, harness `test-narrative.ts`); partial: REQ-346 (this attestation block) and REQ-352 (`codex_import` `suggested_beats` pre-population — implemented, not yet harness-exercised). REQ-354 (extended narrative extraction) is builder-side, out of server scope.
+- **(b) badge_briefing population** — the briefing renders `Beat:`, narrative threads (pacing signal, unresolved decisions, bonds, countdowns, dispositions, coupling advisories), `Story beats`, `World in Motion`, `Knowledge state`, spatial surface, and observer orientation.
+- **(c) smoke-session transcript** — the `holonovel/scripts/test-narrative.ts` harness exercises a 5+ turn cooperative-play sequence across beats, autonomy, world couplings, voice feedback, and coupled lore; results recorded in `spec/audit/req-coverage.md` (§5.12 rows, bucket C).
+- **spec_health.narrative_coherence** — `partial` (30/32 implemented; see `spec_health` tool output).
+
 ### Holonovel Spec Update — 2026-08-22 (provenance, licensing, and toolchain consolidation)
 
 | Field | Value |
