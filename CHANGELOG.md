@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-24 — Wave 7: Combat (8 REQs → C)
+
+- REQ-203 combat-init guard: `[STATE_CONFLICT] Combat already active` on
+  re-init, no state modified.
+- REQ-204 participant validation before combat construction (`[NOT_FOUND]` +
+  enumeration of valid IDs; no combat state on reject).
+- REQ-205 mid-combat changes: add-after-current without pointer advance;
+  remove-current advances pointer; last-participant removal auto-ends combat.
+- REQ-206 combat-round condition expiry: `condition_rounds` decrement on turn
+  resolution, auto-removal + `[condition-expired]` audit at zero.
+- REQ-221 combat-navigation interaction: navigation verbs blocked during
+  combat (`[STATE_CONFLICT]`), inspection/non-spatial allowed, resumes after
+  end_combat.
+- REQ-157 combat determinism: seeded danger initiative via isolated `createRng`
+  draw (same seed → same order across sessions).
+- REQ-251 generation intent guard: harm/power-inversion/ceiling detection with
+  `[WARNING]`, `!force` override audited `[generation-guard-overridden]`.
+- REQ-253 output verbosity control: `set_verbosity` tool + `verbosity_mode` in
+  spec_health; session-scoped normal/terse.
+- `test-output-contracts.ts` grows to 123 assertions (T192/T246–T249/T263/
+  T311/T313). Buckets now A 44 / B 5 / C 236 / E 96.
+
 ## 2026-08-24 — Wave 6: §5.6 Adventure resources (8 REQs → C)
 
 - REQ-292 `list_adventures` tool: catalog metadata (slug/title/preview/genre/
