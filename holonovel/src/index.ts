@@ -3082,18 +3082,63 @@ server.registerTool("rename_novel", {
   return ok(`Novel renamed to '${novel.slug}'.`);
 });
 
+// REQ-259 — Update Novel description: sets/replaces/clears the active Novel's
+// description, surfaced in novel_info and badge_briefing.
+server.registerTool("update_novel_description", {
+  title: "Update Novel Description",
+  description: "Set or replace the active Novel's description. An empty string clears it. Game Master only.",
+  inputSchema: { description: z.string() },
+}, async ({ description }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  novel.description = description ?? "";
+  state.saveNovel(novel);
+  audit("update_novel_description", { description: (description ?? "").substring(0, 120) });
+  return ok(description ? `Novel description updated.` : "Novel description cleared.");
+});
+
 server.registerTool("list_novels", {
   title: "List Novels",
   description: "List all Novels on disk with metadata. Always callable.",
-  inputSchema: { ...detailZod },
-}, async ({ detail }: any) => {
-  const novels = [...state.novels.entries()].map(([slug, n]) => {
-    if (wantsDetail(detail)) {
-      return { slug, name: n.name, entities: n.entities.size, npcs: n.npcs.size, lore: n.lore.size, world_rooms: n.world.rooms.size, modified: n.metadata.modified };
-    }
-    return { slug, name: n.name, entities: n.entities.size, modified: n.metadata.modified };
-  });
-  return raw(JSON.stringify(novels, null, 2));
+  inputSchema: { ...detailZod, filter: z.enum(["active", "archived", "all"]).optional() },
+}, async ({ detail, filter }: any) => {
+  const arch = state.archivedNovels();
+  const archivedSlugs = new Set(arch.map((a) => a.slug));
+  const active = [...state.novels.entries()].filter(([, n]) => !archivedSlugs.has(n.slug));
+  const mode = filter ?? "active";
+  const rows = mode === "archived"
+    ? arch
+    : active.filter(([, n]) => (mode === "all" ? true : !archivedSlugs.has(n.slug))).map(([slug, n]) => {
+      if (wantsDetail(detail)) {
+        return { slug, name: n.name, entities: n.entities.size, npcs: n.npcs.size, lore: n.lore.size, world_rooms: n.world.rooms.size, modified: n.metadata.modified };
+      }
+      return { slug, name: n.name, entities: n.entities.size, modified: n.metadata.modified };
+    });
+  return raw(JSON.stringify(rows, null, 2));
+});
+
+// REQ-334 — archive/unarchive Novel (Game Master only).
+server.registerTool("archive_novel", {
+  title: "Archive Novel",
+  description: "Move a Novel to the long-term archive (read-only). Game Master only.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }: any) => {
+  requireGM();
+  if (state.activeNovelId === slug) state.activeNovelId = null;
+  const result = state.archiveNovel(slug);
+  audit("archive_novel", { slug });
+  return ok(`Novel '${slug}' archived (read-only).`);
+});
+
+server.registerTool("unarchive_novel", {
+  title: "Unarchive Novel",
+  description: "Restore an archived Novel to active status. Game Master only.",
+  inputSchema: { slug: z.string() },
+}, async ({ slug }: any) => {
+  requireGM();
+  const novel = state.unarchiveNovel(slug);
+  audit("unarchive_novel", { slug });
+  return ok(`Novel '${slug}' restored from archive.`);
 });
 
 server.registerTool("novel_info", {
@@ -3111,6 +3156,24 @@ server.registerTool("novel_info", {
     scene: novel.scene_description ? novel.scene_description.substring(0, 100) : null,
     created: novel.metadata.created, modified: novel.metadata.modified,
   }, null, 2));
+});
+
+// REQ-294 — set_genre: set the active Novel's canonical genre tag.
+const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
+server.registerTool("set_genre", {
+  title: "Set Genre",
+  description: "Set the active Novel's genre tag. Game Master only. Valid: noir, high_fantasy, sword_and_sorcery, sci_fi_horror, cosmic_horror, historical, western, modern, cyberpunk.",
+  inputSchema: { genre: z.string() },
+}, async ({ genre }: any) => {
+  requireGM();
+  const novel = requireNovel();
+  if (!GENRE_CATALOG.includes(genre)) {
+    return err("INVALID_INPUT", `Unknown genre '${genre}'. Valid: ${GENRE_CATALOG.join(", ")}.`);
+  }
+  novel.genre = genre;
+  state.saveNovel(novel);
+  audit("set_genre", { genre });
+  return ok(`Genre set to '${genre}'.`);
 });
 
 server.registerTool("clone_novel", {
@@ -3613,6 +3676,8 @@ server.registerTool("create_novel", {
     return err("INVALID_INPUT", `Ruleset '${ruleset}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
   }
   const novel = state.createNovel(name, ruleset ?? null);
+  // REQ-294 — genre declaration: the Novel carries a canonical-genre `genre`
+  // field surfaced in novel_info, spec_health.active_genre, and badge_briefing.
   if (genre) novel.genre = genre;
   if (description) novel.description = description;
   // REQ-352 — codex adventure beat sequences: pre-populate story_beats from the
@@ -4182,10 +4247,14 @@ server.registerTool("spec_health", {
     defect_count: 0,
     world_model: { rooms, things },
     novels_available: [...state.novels.keys()].length,
+    // REQ-334 — archived Novels surface with slug + archive timestamp.
+    archived_novels: isGM ? state.archivedNovels() : undefined,
     server_notes: state.serverNotes.size,
     codex: isGM ? state.codex.size : undefined,
     constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
     active_novel: novel?.slug ?? null,
+    // REQ-294 — genre declaration surfaced in spec_health when set.
+    active_genre: novel?.genre && novel.genre.length > 0 ? novel.genre : undefined,
     active_badge: novel?.badge ?? null,
     autonomy: isGM ? (novel?.autonomy ?? null) : undefined,
     creativity_mapping: {

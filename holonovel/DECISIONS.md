@@ -2,6 +2,15 @@
 
 **Spec hash:** 99d370e588984e511c58d6aa8d5b8cd41184f5c6bef7fda453b73a0286466e33
 
+### Holonovel Server Change — 2026-08-24 (§5.9 persistence additions)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — §5.9: `update_novel_description` (REQ-259), `set_genre` + `active_genre` (REQ-294), Novel archive `archive_novel`/`unarchive_novel`/`list_novels filter`/`archived_novels` (REQ-334), REQ-117 trash-retention citation; `test-persistence.ts` T122/T318/T339/T381 |
+| Reused | spec, extraction, tooling |
+| Verification | typecheck 0 errors; test-persistence 16/16; all other harnesses green; check:fast 0 errors; register §5.9 REQ-117/259/294/334 → C |
+
 ### Holonovel Spec Update — 2026-08-24 (§5.4 decision workflows + §6.6 mapping)
 
 | Field | Value |

@@ -69,7 +69,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-085 | Macro system (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T69 | — |
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T476 | — |
-| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T98, T159, T402 | — |
+| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T98, T122, T159, T402 | — |
 | REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T75, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
@@ -98,7 +98,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-114 | Suggestion coverage (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-115 | Action pattern activation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T119 | — |
 | REQ-116 | Redo | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T121, S22 | — |
-| REQ-117 | Novel retention period | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-117 | Novel retention period | 5.9 Novel Persistence and Transport | C | T122 | — |
 | REQ-118 | Prompt length budget (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | A | T479 | — |
 | REQ-119 | NPC stat block reference (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-120 | NPC rendering | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -234,7 +234,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-256 | Rename Novel (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T315 | — |
 | REQ-257 | List Novels (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T316 | — |
 | REQ-258 | Novel info (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T317 | — |
-| REQ-259 | Update Novel description | 5.9 Novel Persistence and Transport | A | T318 | — |
+| REQ-259 | Update Novel description | 5.9 Novel Persistence and Transport | C | T318 | — |
 | REQ-260 | Granular synthesis activation (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T319, T321, T326 | — |
 | REQ-261 | Player synthesis (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T320 | — |
 | REQ-262 | Synthesis tool (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T321 | — |
@@ -263,7 +263,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-289 | Vow tracking (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T407, T412, T413 | — |
 | REQ-291 | Oracle tool (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T481, T337 | — |
 | REQ-292 | Adventure catalog (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-294 | Genre declaration | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-294 | Genre declaration | 5.9 Novel Persistence and Transport | C | T339 | — |
 | REQ-295 | Genre-filtered generation (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
 | REQ-296 | Knowledge-graph resource (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T341 | — |
 | REQ-299 | Cross-model audit sufficiency | 6.5 Verification and convergence | E | — | — |
@@ -301,7 +301,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-331 | Story journal-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-332 | Codex provenance (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-333 | Story journal to lore promotion (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-334 | Novel archive (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
+| REQ-334 | Novel archive (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T381 | — |
 | REQ-335 | Scene beat taxonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T385, T404 | implemented |
 | REQ-336 | Dramatic pacing signal (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T386, T401 | implemented |
 | REQ-337 | Narrative arc visibility (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T387, T402 | implemented |
