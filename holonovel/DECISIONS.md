@@ -2,6 +2,24 @@
 
 **Spec hash:** 99d370e588984e511c58d6aa8d5b8cd41184f5c6bef7fda453b73a0286466e33
 
+### Holonovel Spec Update — 2026-08-24 (Wave 1: §5.1 output contracts + T26 mapping)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — Appendix F T26 row gains REQ-071 (REQ-071b already cited T26); spec hash → 16ef3ca4 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; all harnesses green (test-output-contracts 19/19); register §5.1: REQ-003/004/060/061/064/070/071/113/118/184/194/280 → C, REQ-101/277 → E |
+
+### Holonovel Server Change — 2026-08-24 (Wave 1: §5.1 output contracts)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — §5.1: truncation + output:// (REQ-004), source quoting + source_anchor (REQ-061/280), roll transparency (REQ-003), briefing orientation layer (REQ-064/070/071), anti-slop resource (REQ-184), result counts (REQ-113), prompt budget (REQ-118), `core/anchors.ts` (REQ-194) |
+| Reused | spec, extraction, tooling |
+| Verification | typecheck 0 errors; test-output-contracts 19/19; all other harnesses green; check:fast 0 errors; register §5.1 12 REQs → C |
+
 ### Holonovel Server Change — 2026-08-24 (§5.9 persistence additions)
 
 | Field | Value |
@@ -11,7 +29,7 @@
 | Reused | spec, extraction, tooling |
 | Verification | typecheck 0 errors; test-persistence 16/16; all other harnesses green; check:fast 0 errors; register §5.9 REQ-117/259/294/334 → C |
 
-### Holonovel Spec Update — 2026-08-24 (§5.4 decision workflows + §6.6 mapping)
+### Holonovel Server Change — 2026-08-24 (§5.4 decision workflows + §6.6 mapping)
 
 | Field | Value |
 |-------|-------|
