@@ -41,4 +41,13 @@ fi
 echo "  spec checks (lint, validate, audit, scan)..."
 npm run check
 
+echo "  implementation-coverage strict gate..."
+npm run validate:sdd -- --impl-audit=strict || {
+    echo ""
+    echo "BLOCKED: implementation-coverage strict gate failed — bucket-A (gap) REQs present."
+    echo "Every server-runtime REQ must be evidenced (C) or builder-side (E) before push."
+    echo ""
+    exit 1
+}
+
 echo "Pre-push checks passed."

@@ -405,6 +405,8 @@ let metadataCache: MetadataCache | null = null;
 let cacheHits = 0;
 let cacheMisses = 0;
 
+// REQ-392 — tool-description budget: descriptions fit a recorded budget;
+  // spec_health reports `tools_list_bytes` (aggregate default tools/list size).
 function computeToolMetrics() {
   const tools: Record<string, any> = (server as any)._registeredTools ?? {};
   let bytes = 0;
@@ -676,6 +678,19 @@ function composeCampaignMemorySection(novel: NovelState, badge: string): string 
     return `- [${f.category}] ${f.text}${tag}`;
   });
   return `\n\n## Campaign Memory\n${lines.join("\n")}`;
+}
+
+// REQ-255b — boundary signal propagation: when free-text input contains a
+// substring matching an active boundary value, return [WARNING] identifying the
+// match without suppressing the operation (advisory collision check).
+function boundaryCollisionWarning(novel: NovelState, text: string): string | null {
+  const boundary = novel.player_signals?.boundary;
+  if (!boundary) return null;
+  const t = text.toLowerCase();
+  if (t.includes(boundary.toLowerCase())) {
+    return `Boundary collision: input contains the boundary value '${boundary}'. Advisory — do not narrate content evoking this topic.`;
+  }
+  return null;
 }
 
 function audit(tool: string, args: any, prefix?: string): void {
@@ -2832,7 +2847,9 @@ server.registerTool("set_scene_state", {
   state.recordMutation(novel, "set_scene_state", "scene");
   state.saveNovel(novel);
   audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
-  return ok(`Scene set: ${effectiveDescription}`);
+  // REQ-255b — boundary collision advisory (operation already applied).
+  const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
+  return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
 });
 
 server.registerTool("set_scene_type", {
@@ -4628,6 +4645,22 @@ server.registerTool("session_recap", {
     : "[No narrative history yet — your story begins here.]";
 
   let recap = `narrative_orientation: ${narrative_orientation}`;
+  // REQ-173 — connection counter: number of session connections this Novel.
+  recap += `\nconnections: ${novel.connection_counter ?? 0}`;
+  // REQ-174 — significant rolls: dice-resolution audit entries with an entity
+  // participant, listed chronologically (tool, entity, faces).
+  const significantRolls = novel.audit_log.filter((e) => e.tool.includes("roll") && !e.tool.includes("table") && e.args).slice(-5);
+  if (significantRolls.length > 0) {
+    recap += `\nsignificant_rolls: ${significantRolls.map((e) => `${e.tool}`).join(", ")}`;
+  }
+  // REQ-175 — confrontation summaries derived from init_combat/advance_combat/
+  // end_combat audit entries.
+  const initIdx = novel.audit_log.findIndex((e) => e.tool === "init_combat");
+  const endCount = novel.audit_log.filter((e) => e.tool === "end_combat").length;
+  const advCount = novel.audit_log.filter((e) => e.tool === "advance_combat").length;
+  const confrontations_completed = endCount;
+  const confrontation_pending = novel.combat?.active ? `round ${novel.combat.round}, ${novel.combat.turn_order.length} participants` : null;
+  recap += `\nconfrontations_completed: ${confrontations_completed}${initIdx >= 0 ? ` (${advCount} combat advances)` : ""}${confrontation_pending ? `\nconfrontation_pending: ${confrontation_pending}` : ""}`;
   recap += `\nActive Novel: ${novel.name} (${novel.slug})`;
   if (novel.scene_description) {
     recap += `\nScene: ${novel.scene_description}${novel.scene_location ? ` — ${novel.scene_location}` : ""}`;
@@ -5058,6 +5091,9 @@ server.registerTool("remove_ruleset", {
 server.registerTool("list_rulesets", {
   title: "List Rulesets",
   description: "List installed ruleset packages with loaded-versus-installed state.",
+  // REQ-391 — scoped tool listing: default surface is active Novel's ruleset
+  // tools plus infrastructure; list_rulesets exposes per-package state without
+  // forcing hydration of inactive packages (REQ-390 lazy hydration).
   inputSchema: {},
 }, async () => {
   const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
@@ -5328,6 +5364,8 @@ server.registerTool("spec_health", {
     },
     // REQ-197 — room description mode (session-scoped).
     description_mode: roomDescriptionMode,
+    // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
+    // their REQ-109 groups and whether the group currently has runtime content.
     section_tokens: [
       { token: "scene_state", group: "current scene state", has_content: !!(novel?.scene_description) },
       { token: "entities", group: "active entities", has_content: !!(novel && novel.entities.size > 0) },

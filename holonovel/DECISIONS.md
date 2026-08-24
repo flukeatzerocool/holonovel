@@ -11,7 +11,16 @@
 | Reused | server, extraction, tooling |
 | Verification | assemble + check:fast 0 errors; all harnesses green (test-output-contracts 19/19); register §5.1: REQ-003/004/060/061/064/070/071/113/118/184/194/280 → C, REQ-101/277 → E |
 
-### Holonovel Server Change — 2026-08-24 (Wave 1: §5.1 output contracts)
+### Holonovel Spec Update — 2026-08-24 (Wave 11 terminal: T494 mapping)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — Appendix F gains T494 (pending-workflow staleness, REQ-193); spec hash → 399d4b04 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; all harnesses green (test-output-contracts 172/172); `--impl-audit=strict` passes with 0 errors (A=0, B=0, C=275, E=106) |
+
+### Holonovel Server Change — 2026-08-24 (Wave 11: session recap, boundary advisory, ruleset citations)
 
 | Field | Value |
 |-------|-------|

@@ -945,6 +945,57 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 11: §5.16/§5.17 Ruleset packages + §5.4 workflows ──
+  await test("T441/T449/REQ-380 + T452/T453/REQ-389 + T454/T455/REQ-390: ruleset binding, package format, lazy hydration", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "create_novel", { name: "w11a", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (typeof h.rulesets_installed !== "number") throw new Error("REQ-380 ruleset binding health");
+    const look = await call(p, "wave1test_lookup_spell", { key: "fireball" });
+    assertContains(look, "Evocation", "REQ-389 package tool surface");
+    const list = await call(p, "list_rulesets", {});
+    assertContains(list, "wave1test", "REQ-390 hydration state");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T460/REQ-393 + T459/REQ-392 + T456/REQ-391: update preservation, tool budget, scoped listing", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "create_novel", { name: "w11b", ruleset: "wave1test" });
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (typeof h.rulesets_hydrated !== "number") throw new Error("REQ-393 update preservation");
+    if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");
+    const list = await call(p, "list_rulesets", {});
+    assertContains(list, "wave1test", "REQ-391 scoped listing");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T32/REQ-056: advancement workflow raises NEED_INPUT per open choice", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w11c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const nf = await call(p, "create_character", {});
+    assertContains(nf, "[NEED_INPUT]", "REQ-056 workflow raises");
+    await call(p, "respond", { decision: "cancel", option: "cancel" });
+    passed++;
+    await kill(p);
+  });
+
+  await test("T494/REQ-193: pending workflow staleness surfaced in spec_health", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w11d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", {});
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    if (!("pending_workflow" in h)) throw new Error("REQ-193 staleness surface");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

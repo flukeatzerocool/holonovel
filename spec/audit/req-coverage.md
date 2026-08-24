@@ -38,7 +38,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T20 | — |
 | REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | C | T20, T42, T487 | — |
 | REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T27, T98, T261, S17 | — |
-| REQ-056 | Advancement workflow | 5.4 Decision workflows | A | T32 | — |
+| REQ-056 | Advancement workflow | 5.4 Decision workflows | E | T32 | — |
 | REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39 | — |
 | REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41, T42 | — |
 | REQ-059 | Parameter canon validation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39a | — |
@@ -151,9 +151,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-170 | Adventure discovery surface | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207 | — |
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
-| REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211 | — |
-| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T473, T53, T213 | — |
-| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T53, T214 | — |
+| REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211 | — |
+| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T53, T213 | — |
+| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T214 | — |
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217 | — |
 | REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219 | — |
@@ -163,13 +163,13 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
 | REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |
 | REQ-184 | Anti-slop resource rendering (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
-| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T300 | — |
-| REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T225 | — |
+| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T300 | — |
+| REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T225 | — |
 | REQ-187 | Spec content hash computation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-190 | Respond drain result | 5.4 Decision workflows | C | T138 | — |
 | REQ-191 | Option display-label pairs | 5.4 Decision workflows | C | T32 | — |
 | REQ-192 | Batch-respond collision | 5.4 Decision workflows | C | S22 | — |
-| REQ-193 | Pending workflow staleness detection (Part a) (2 sub-parts) | 5.4 Decision workflows | B | — | — |
+| REQ-193 | Pending workflow staleness detection (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T494 | — |
 | REQ-194 | Anchor derivation (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T236 | — |
 | REQ-195 | World-model state tier (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T238, T414, T415 | — |
 | REQ-196 | Parser command dispatch (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T239, T261, T313 | — |
@@ -230,7 +230,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-251 | Generation intent guard (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T311 | — |
 | REQ-252 | Narrative fast-forward (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T312 | — |
 | REQ-253 | Tool-output verbosity control (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T478, T313 | — |
-| REQ-255 | Boundary signal propagation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T314 | — |
+| REQ-255 | Boundary signal propagation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T314 | — |
 | REQ-256 | Rename Novel (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T315 | — |
 | REQ-257 | List Novels (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T316 | — |
 | REQ-258 | Novel info (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T317, T384 | — |
@@ -346,21 +346,21 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck | E | — | — |
 | REQ-377 | Mechanical coupling extraction (Part a) (4 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-378 | Mechanical coupling verification (Part a) (2 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
-| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | B | — | — |
-| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-385 | suggest_actions cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441, T449 | — |
+| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449, T456 | — |
+| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-385 | suggest_actions cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
 | REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T450 | — |
-| REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | B | — | — |
-| REQ-390 | Lazy ruleset hydration (Part a) (2 sub-parts) | 5.17 Ruleset Packages | B | — | — |
-| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | A | — | — |
-| REQ-392 | Tool-description budget | 5.17 Ruleset Packages | A | T479 | — |
-| REQ-393 | Update preservation | 5.17 Ruleset Packages | A | — | — |
+| REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T452, T453 | — |
+| REQ-390 | Lazy ruleset hydration (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T454, T455 | — |
+| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456 | — |
+| REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
+| REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460 | — |
 | REQ-394 | Spec publication integrity | 5.17 Ruleset Packages | E | — | — |
 | REQ-395 | Ruleset-build entry point (Part a) (2 sub-parts) | 5.18 Workflow Entry Points | E | — | — |
 | REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |

@@ -1284,6 +1284,11 @@ const INTENDED_GAP_REQS = new Set([
   // and pre-computed synthesis manifest (REQ-245) are all build-time
   // DECISIONS.md/CONVERGENCE.md processes. Not owed by the runtime server.
   "REQ-114", "REQ-130", "REQ-228", "REQ-243", "REQ-244", "REQ-245",
+  // §5.4 ruleset-dependent (2026-08-24 wave-11 disposition): the advancement
+  // workflow (REQ-056) requires a ruleset with defined progression/leveling
+  // tables; the workflow pattern itself is covered by character creation
+  // (REQ-104). Not owed by the ruleset-free runtime server.
+  "REQ-056",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
