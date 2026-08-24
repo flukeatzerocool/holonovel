@@ -10,7 +10,7 @@
   "mcpName": "io.github.flukeatzerocool/holonovel",
   "repository": {
     "type": "git",
-    "url": "git+https://git.gay/flukeatzerocool/Holonovel.git"
+    "url": "git+https://github.com/flukeatzerocool/holonovel.git"
   },
   "files": [
     "dist",
