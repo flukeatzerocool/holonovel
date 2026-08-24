@@ -227,47 +227,12 @@ else
   echo -e "${YELLOW}  No 'github' remote configured — skipping mirror sync.${NC}"
 fi
 
-# ── 7c. npm publish (version-gated, holonovel server subpackage) ──
+# ── 7c. npm + MCP Registry publish (delegated to mirror CI via OIDC) ──
 
-echo -e "${GREEN}=== 7c. npm publish (version-gated) ===${NC}"
-SERVER_PKG="holonovel/package.json"
-SERVER_VERSION=$(node -e "console.log(require('./$SERVER_PKG').version)")
-SERVER_NAME=$(node -e "console.log(require('./$SERVER_PKG').name)")
-if npm whoami >/dev/null 2>&1; then
-  PUBLISHED_VERSION=$(npm view "$SERVER_NAME" version 2>/dev/null || echo "")
-  if [[ "$PUBLISHED_VERSION" == "$SERVER_VERSION" ]]; then
-    echo -e "${YELLOW}  npm: version ${SERVER_VERSION} already published — skipping.${NC}"
-  else
-    echo -e "${YELLOW}  Publishing ${SERVER_NAME}@${SERVER_VERSION} to npm...${NC}"
-    if (cd holonovel && npm publish --access public); then
-      echo -e "${GREEN}  npm publish: DONE (${SERVER_VERSION})${NC}"
-    else
-      echo -e "${RED}  npm publish FAILED — registry listing will be stale.${NC}"
-    fi
-  fi
-else
-  echo -e "${YELLOW}  npm not authenticated — skipping publish. Run 'npm login'.${NC}"
-fi
-
-# ── 7d. MCP Registry publish (version-gated) ──
-
-echo -e "${GREEN}=== 7d. MCP Registry publish (version-gated) ===${NC}"
-if command -v mcp-publisher >/dev/null 2>&1; then
-  MCPNAME=$(node -e "console.log(require('./$SERVER_PKG').mcpName || 'io.github.flukeatzerocool/holonovel')")
-  REGISTERED_VERSION=$(mcp-publisher get "$MCPNAME" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).latestVersion||"")}catch{console.log("")}})' 2>/dev/null || echo "")
-  if [[ "$REGISTERED_VERSION" == "$SERVER_VERSION" ]]; then
-    echo -e "${YELLOW}  MCP Registry: version ${SERVER_VERSION} already published — skipping.${NC}"
-  else
-    echo -e "${YELLOW}  Publishing ${SERVER_VERSION} to the MCP Registry...${NC}"
-    if (cd holonovel && mcp-publisher publish); then
-      echo -e "${GREEN}  MCP Registry publish: DONE (${SERVER_VERSION})${NC}"
-    else
-      echo -e "${YELLOW}  MCP Registry publish FAILED — re-run 'mcp-publisher login' then publish manually.${NC}"
-    fi
-  fi
-else
-  echo -e "${YELLOW}  mcp-publisher not installed — skipping MCP Registry publish.${NC}"
-fi
+echo -e "${GREEN}=== 7c. npm + MCP Registry publish (mirror CI) ===${NC}"
+echo -e "${YELLOW}  Publishing is handled by the GitHub mirror's workflow${NC}"
+echo -e "${YELLOW}  (.github/workflows/publish.yml) via npm Trusted Publishing (OIDC).${NC}"
+echo -e "${YELLOW}  The local pipeline only mirrors to GitHub; the mirror CI publishes.${NC}"
 
 # ── 8. Push wiki ──
 
