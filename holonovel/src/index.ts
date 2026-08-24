@@ -349,6 +349,17 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     }
   }
 
+  // REQ-330 — exploration-derived knowledge (rooms visited, things taken),
+  // retained regardless of current presence; grouped as "Explored".
+  const explored = (entity.knowledge?.explored ?? []) as Array<{ type: string; name: string; at: string }>;
+  if (explored.length > 0) {
+    const rooms = explored.filter((e) => e.type === "room").map((e) => e.name);
+    const things = explored.filter((e) => e.type === "thing").map((e) => e.name);
+    const exploredLines = [`Explored: ${rooms.join(", ") || "(none)"}`];
+    if (things.length > 0) exploredLines.push(`Seen things: ${things.join(", ")}`);
+    lines.push(exploredLines.join(" | "));
+  }
+
   section += `\n\n### Knowledge state`;
   if (!present) section += `\n[Entity not present in this scene]`;
   if (lines.length === 0) {
@@ -1072,6 +1083,26 @@ server.registerTool("respond", {
     }
   }
 
+  // REQ-322 — vow-countdown coupling suggestion resolution (no pending
+  // workflow required): `respond accept` auto-creates the linked mission
+  // countdown; `respond decline` clears the suggestion.
+  if (novel.pending_vow_countdown_suggestion && ["accept", "decline"].includes(opt)) {
+    const s = novel.pending_vow_countdown_suggestion;
+    if (opt === "accept") {
+      novel.countdowns.set(s.countdown_name, {
+        name: s.countdown_name, ticks: s.tick_count, total: s.tick_count,
+        type: "narrative", scope: s.scope, clock_type: "mission",
+      });
+      audit("vow_countdown_created", { vow_name: s.vow_name, countdown: s.countdown_name, ticks: s.tick_count });
+      novel.pending_vow_countdown_suggestion = null;
+      state.saveNovel(novel);
+      return ok(`Linked countdown '${s.countdown_name}' (${s.tick_count} ticks) created for vow '${s.vow_name}'.`);
+    }
+    novel.pending_vow_countdown_suggestion = null;
+    state.saveNovel(novel);
+    return ok(`Countdown suggestion for vow '${s.vow_name}' declined — manage the vow via milestones.`);
+  }
+
   // REQ-042a/b: no workflow pending → [STATE_CONFLICT] identifying the drained
   // state (REQ-192 batch-respond collision: a second respond on a drained
   // workflow must not be applied twice).
@@ -1754,6 +1785,43 @@ server.registerTool("set_autonomy", {
 
 // --- World-Model Tools ---
 
+// REQ-329 — countdown-world coupling: advance any countdown whose mechanical
+// trigger matches the given world-model event (`on_room_enter(<id>)`,
+// `on_thing_take(<id>)`, `on_door_open(<ref>)`). Mechanical — fires regardless
+// of narrative framing; supplements normal advancement.
+function advanceWorldTriggeredCountdowns(novel: NovelState, event: string): void {
+  const [evType, evTarget] = event.split(":");
+  for (const [name, cd] of [...novel.countdowns.entries()]) {
+    if (!cd.triggers || cd.triggers.length === 0) continue;
+    const matched = cd.triggers.some((t) => {
+      const m = t.match(/^on_(room_enter|thing_take|door_open)\((.+)\)$/);
+      return m && evType === m[1] && evTarget === m[2];
+    });
+    if (matched) {
+      const dir = cd.direction === "increment" ? 1 : -1;
+      cd.ticks += dir;
+      audit("countdown_world_trigger", { name, event, ticks: cd.ticks });
+      if ((dir < 0 && cd.ticks <= 0) || (dir > 0 && cd.ticks >= cd.total)) {
+        fireCountdown(novel, name, cd);
+      }
+      state.saveNovel(novel);
+    }
+  }
+}
+
+// REQ-330 — knowledge-world coupling: exploration-derived knowledge entries on
+// the active entity (rooms visited, things taken). Retained regardless of
+// current presence; grouped under "Explored" in knowledge_state.
+function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room" | "thing", name: string): void {
+  if (!entity) return;
+  const explored = (entity.knowledge?.explored ?? []) as Array<{ type: string; name: string; at: string }>;
+  if (!explored.some((e) => e.type === type && e.name === name)) {
+    explored.push({ type, name, at: new Date().toISOString() });
+    entity.knowledge = { ...(entity.knowledge ?? {}), explored };
+    state.saveNovel(novel);
+  }
+}
+
 server.registerTool("command", {
   title: "Parser Command",
   description: "Execute a natural-language parser command against the world model. Use for navigation (go, n/s/e/w), inspection (look, examine), object interaction (take, drop, open, close), inventory, and wait.",
@@ -1790,6 +1858,9 @@ server.registerTool("command", {
       entity.current_room = goResult.newRoom;
       // Trigger lore matching the new room name
       audit("command", { command, moved_to: goResult.newRoom });
+      // REQ-329 — countdown on_room_enter triggers; REQ-330 — explored rooms.
+      advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
+      recordExplorationKnowledge(novel, entity, "room", goResult.newRoom.toLowerCase());
     }
   }
 
@@ -1805,6 +1876,9 @@ server.registerTool("command", {
         targetThing.locationType = null;
         state.saveNovel(novel);
         audit("command", { command, took: targetThing.name });
+        // REQ-329 — countdown on_thing_take triggers; REQ-330 — explored things.
+        advanceWorldTriggeredCountdowns(novel, `thing_take:${targetThing.name.toLowerCase()}`);
+        recordExplorationKnowledge(novel, entity, "thing", targetThing.name.toLowerCase());
       }
     } else if (verb === "drop" && tokens.length > 1) {
       const target = tokens.slice(1).join(" ").toLowerCase();
@@ -2573,16 +2647,19 @@ server.registerTool("set_countdown", {
     scope: z.string().optional(),
     direction: z.string().optional(),
     on_scene_transition: z.boolean().optional(),
+    // REQ-329 — world-model coupling triggers (on_room_enter/on_thing_take/
+    // on_door_open). Any match advances one tick; supplements normal advancement.
+    triggers: z.array(z.string()).optional(),
   },
-}, async ({ name, ticks, type, scope, direction, on_scene_transition }: any) => {
+}, async ({ name, ticks, type, scope, direction, on_scene_transition, triggers }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
-  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition });
+  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers });
   state.recordMutation(novel, "set_countdown", "countdown");
   state.saveNovel(novel);
-  audit("set_countdown", { name, ticks, type, on_scene_transition });
-  return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"}).`);
+  audit("set_countdown", { name, ticks, type, on_scene_transition, triggers });
+  return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
 });
 
 server.registerTool("advance_countdown", {
@@ -2759,6 +2836,8 @@ server.registerTool("suggest_lore", {
 server.registerTool("export_lorebook", {
   title: "Export Lorebook",
   description: "Export novel lore entries in interchange format. Game Master only.",
+  // REQ-094 — lorebook interchange: lore-only export/import with merge, replace,
+  // and dry-run modes; round-trip preserves lore metadata (Appendix L).
   inputSchema: { format: z.enum(["json", "markdown"]).optional() },
 }, async ({ format: fmt }: any) => {
   requireGM();
@@ -2813,6 +2892,19 @@ server.registerTool("import_lorebook", {
 
 // --- Conditions (GM) ---
 
+// REQ-217 — condition tools: condition names validate against the ruleset's
+// indexed condition list when bound, else a ruleset-agnostic base catalogue.
+// Unknown conditions return [INVALID_INPUT] with valid values enumerated.
+const BASE_CONDITIONS = ["blinded", "charmed", "deafened", "frightened", "grappled", "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious"];
+function conditionCatalogue(novel: NovelState): string[] {
+  const slug = novel?.ruleset ?? null;
+  if (slug && rulesets.isInstalled(slug)) {
+    const model = rulesets.hydrate(slug).model as any;
+    const c = (model.conditions ?? model.concepts_conditions) ?? {};
+    if (typeof c === "object" && Object.keys(c).length > 0) return Object.keys(c);
+  }
+  return BASE_CONDITIONS;
+}
 server.registerTool("apply_condition", {
   title: "Apply Condition",
   description: "Apply a condition to an entity.",
@@ -2823,9 +2915,18 @@ server.registerTool("apply_condition", {
   novelSnapshot();
   const entity = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
+  // REQ-217a — validate against the indexed condition list.
+  const catalogue = conditionCatalogue(novel);
+  if (!catalogue.includes(condition)) {
+    return err("INVALID_INPUT", `Unknown condition '${condition}'. Valid conditions: ${catalogue.join(", ")}.`);
+  }
   if (!entity.conditions) entity.conditions = [];
   if (!entity.condition_rounds) entity.condition_rounds = {};
-  if (!entity.conditions.includes(condition)) entity.conditions.push(condition);
+  // REQ-217b — duplicate application returns [WARNING], no state change.
+  if (entity.conditions.includes(condition)) {
+    return warn("Condition already active.");
+  }
+  entity.conditions.push(condition);
   if (rounds) entity.condition_rounds[condition] = rounds;
   state.saveNovel(novel);
   return ok(`'${condition}' applied to '${entity_id}'${rounds ? ` for ${rounds} rounds` : ""}.`);
@@ -2841,7 +2942,8 @@ server.registerTool("remove_condition", {
   novelSnapshot();
   const entity = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  if (!entity.conditions) return ok(`Entity '${entity_id}' has no conditions.`);
+  if (!entity.conditions) return warn("Condition not present.");
+  if (!entity.conditions.includes(condition)) return warn("Condition not present.");
   entity.conditions = entity.conditions.filter((c: string) => c !== condition);
   delete entity.condition_rounds[condition];
   state.saveNovel(novel);
@@ -2985,9 +3087,20 @@ server.registerTool("set_vow", {
     name, description, parties, difficulty: difficulty as any, scope: scope ?? "shared",
     milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty] ?? 10, state: "active",
   });
+  // REQ-322 — vow-countdown coupling: offer a countdown creation suggestion
+  // (vow:<vow_name>, tick count = milestone total) surfaced in narrative_threads;
+  // the GM accepts via respond.
+  if (!novel.countdowns.has(`vow:${name}`)) {
+    novel.pending_vow_countdown_suggestion = {
+      vow_name: name,
+      countdown_name: `vow:${name}`,
+      tick_count: DIFFICULTY_TRACKS[difficulty] ?? 10,
+      scope: scope ?? "shared",
+    };
+  }
   state.recordMutation(novel, "set_vow", "vow");
   state.saveNovel(novel);
-  return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones).`);
+  return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones). A linked countdown suggestion is available in badge_briefing — respond \`accept\` to create it.`);
 });
 
 server.registerTool("mark_milestone", {
@@ -3000,8 +3113,19 @@ server.registerTool("mark_milestone", {
   const vow = novel.vows.find(v => v.name === vow_name);
   if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
   vow.milestones++;
+  // REQ-322 — vow-countdown coupling: advancing a vow advances its linked
+  // countdown by one tick; a filled countdown makes the vow resolvable.
+  const linked = novel.countdowns.get(`vow:${vow_name}`);
+  if (linked) {
+    linked.ticks += 1;
+    if (linked.ticks >= linked.total) {
+      novel.countdowns.delete(`vow:${vow_name}`);
+      audit("vow_countdown_filled", { vow_name, countdown: `vow:${vow_name}` });
+    }
+    state.saveNovel(novel);
+  }
   state.saveNovel(novel);
-  return ok(`Vow '${vow_name}' progress: ${vow.milestones}/${vow.rank_track} milestones.`);
+  return ok(`Vow '${vow_name}' progress: ${vow.milestones}/${vow.rank_track} milestones.${linked ? ` Linked countdown at ${linked.ticks}/${linked.total}.` : ""}`);
 });
 
 server.registerTool("resolve_vow", {
@@ -3389,6 +3513,8 @@ server.registerTool("novel_info", {
     factions: novel.factions.length, vows: novel.vows.length,
     scene: novel.scene_description ? novel.scene_description.substring(0, 100) : null,
     created: novel.metadata.created, modified: novel.metadata.modified,
+    // REQ-332 — codex provenance: every Codex-sourced artifact.
+    codex_sources: novel.codex_sources ?? [],
   }, null, 2));
 });
 
@@ -3435,6 +3561,9 @@ server.registerTool("clone_novel", {
 server.registerTool("remove_entity", {
   title: "Remove Entity",
   description: "Remove an entity from the active Novel. Game Master only.",
+  // REQ-176 — entity removal: clears the active-entity field when the removed
+  // entity was active; party://current excludes removed entities; roster
+  // baseline unaffected (re-import creates a fresh copy). Player → [FORBIDDEN].
   inputSchema: { entity_id: z.string() },
 }, async ({ entity_id }: any) => {
   requireGM();
@@ -3449,6 +3578,9 @@ server.registerTool("remove_entity", {
 server.registerTool("remove_roster_character", {
   title: "Remove Roster Character",
   description: "Remove a character from the roster. Game Master only.",
+  // REQ-177 — roster entity removal: removes from roster:// only; Novel copies
+  // survive independently; Player → [FORBIDDEN]; absent → [NOT_FOUND] with
+  // valid roster IDs enumerated.
   inputSchema: { roster_id: z.string() },
 }, async ({ roster_id }: any) => {
   requireGM();
@@ -3461,9 +3593,12 @@ server.registerTool("remove_roster_character", {
 server.registerTool("list_roster_characters", {
   title: "List Roster Characters",
   description: "List all characters in the roster.",
+  // REQ-178 — roster listing: any-badge, structured (id/name), empty-state
+  // marker when the roster is empty; novel_setup sources its list from here.
   inputSchema: {},
 }, async () => {
   const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name }));
+  if (chars.length === 0) return ok("Roster is empty — no characters staged yet.");
   return raw(JSON.stringify(chars, null, 2));
 });
 
@@ -3628,7 +3763,10 @@ function loadNovelFromStateData(data: any): NovelState {
     last_mutation_at: data.last_mutation_at ?? null,
     mutation_counts_by_group: data.mutation_counts_by_group ?? {},
     uncommitted_rolls: data.uncommitted_rolls ?? [],
-    metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "" },
+    metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "", sessions: [] },
+    active_session_id: data.active_session_id ?? null,
+    pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
+    codex_sources: data.codex_sources ?? [],
   };
 }
 
@@ -3789,7 +3927,31 @@ server.registerTool("generate_encounter", {
 
   const monsterPool = ["a lone sentinel", "a pack of shadow hounds", "an armored enforcer with a debt", "a shrieking flock", "a stone golem misfiring its wards"];
   const complicationPool = ["the ground collapses underfoot", "a third party arrives mid-fight", "the objective is trapped", "reinforcements are on the way", "the environment is flammable"];
-  const monster = monsterPool[rng.roll(monsterPool.length) - 1];
+
+  // REQ-295 — genre-filtered generation: prefer genre-tagged ruleset
+  // generation tables/entries; draw untagged/universal only when genre-matching
+  // content is exhausted; non-matching genres excluded unless `!include_all`.
+  const genre = novel.genre ?? null;
+  const includeAll = ctx.trim().startsWith("!include_all");
+  const slug = novel.ruleset ?? null;
+  let genreEntries: any[] = [];
+  if (slug && rulesets.isInstalled(slug)) {
+    const model = rulesets.hydrate(slug).model as any;
+    const tables = model.generation_tables ?? {};
+    genreEntries = Object.entries(tables)
+      .filter(([, t]: [string, any]) => {
+        const tags = t?.genre_tags ?? [];
+        if (tags.length === 0) return false; // universal — used only when genre pool exhausted
+        if (includeAll) return true;
+        return genre ? tags.includes(genre) : true;
+      })
+      .map(([name, t]) => ({ name, ...(t as any) }));
+  }
+  let monster = monsterPool[rng.roll(monsterPool.length) - 1];
+  if (genreEntries.length > 0) {
+    const pick = genreEntries[rng.roll(genreEntries.length) - 1];
+    monster = pick?.ranges?.[0]?.result ?? pick?.name ?? monster;
+  }
   const complication = complicationPool[rng.roll(complicationPool.length) - 1];
 
   // Single undo target for the whole batch (REQ-091b).
@@ -3855,7 +4017,30 @@ server.registerTool("session_recap", {
 }, async () => {
   const novel = requireNovel();
   const entity = state.getActiveEntity();
-  let recap = `Active Novel: ${novel.name} (${novel.slug})`;
+
+  // REQ-279 — narrative_orientation: a plain-English "Previously on…" paragraph
+  // synthesized from the last 3 decision/bond journal entries, non-default NPC
+  // dispositions, the narrative directive, active countdowns, and active vows.
+  // Empty-state marker when nothing has happened yet.
+  const parts: string[] = [];
+  const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
+  for (const s of recent) parts.push(s.entry);
+  for (const [, npc] of novel.npcs) {
+    if (npc.disposition && npc.disposition !== "neutral") parts.push(`${npc.name} is ${npc.disposition}`);
+  }
+  if (novel.narrative_directive) parts.push(`the current focus is: ${novel.narrative_directive}`);
+  for (const [name, cd] of novel.countdowns) {
+    if (cd.ticks > 0) parts.push(`the ${name} completes in ${cd.ticks} more tick${cd.ticks === 1 ? "" : "s"}`);
+  }
+  for (const v of novel.vows) {
+    if (v.state === "active") parts.push(`the vow to ${v.name} has ${v.milestones} milestones done`);
+  }
+  const narrative_orientation = parts.length > 0
+    ? parts.join("; ") + "."
+    : "[No narrative history yet — your story begins here.]";
+
+  let recap = `narrative_orientation: ${narrative_orientation}`;
+  recap += `\nActive Novel: ${novel.name} (${novel.slug})`;
   if (novel.scene_description) {
     recap += `\nScene: ${novel.scene_description}${novel.scene_location ? ` — ${novel.scene_location}` : ""}`;
   }
@@ -4491,6 +4676,8 @@ server.registerTool("spec_health", {
     archived_novels: isGM ? state.archivedNovels() : undefined,
     server_notes: state.serverNotes.size,
     codex: isGM ? state.codex.size : undefined,
+    // REQ-332 — codex provenance register for the active Novel.
+    codex_sources: isGM && novel ? (novel.codex_sources ?? []) : undefined,
     constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
     active_novel: novel?.slug ?? null,
     // REQ-294 — genre declaration surfaced in spec_health when set.
@@ -4509,6 +4696,9 @@ server.registerTool("spec_health", {
     pending_workflow_warning: isGM && novel?.pending_workflow && novel.pending_staleness_counter >= 3
       ? { decision: novel.pending_workflow.decision, connections: novel.pending_staleness_counter }
       : undefined,
+    // REQ-237 — session segmentation: per-session metrics from [session-boundary]
+    // markers, badge-filtered (Player sees timespans without session ids).
+    sessions: novel ? (isGM ? novel.metadata.sessions : novel.metadata.sessions.map((s) => ({ session_id: undefined, entry_count: s.entry_count, timespan_start: s.timespan_start, timespan_end: s.timespan_end }))) : undefined,
     synthesis_active,
     synthesis_status: { modules: synthesisCounts, last_run: state.enrichmentManifest?.collected_at ?? null },
     synthesis_health: {
@@ -5073,6 +5263,10 @@ server.registerTool("codex_import", {
   const novel = requireNovel();
   const entry = state.codex.get(entry_id);
   if (!entry) return err("NOT_FOUND", `Codex entry '${entry_id}' not found.`);
+  const now = new Date().toISOString();
+  // REQ-332 — codex provenance: track every Codex-sourced artifact with the
+  // entry id, import timestamp, and the entry's codex_modified_at at import.
+  const provenance = { id: entry.id, kind: entry.kind, imported_at: now, codex_modified_at: entry.codex_modified_at ?? now };
   if (entry.kind === "voice_profile") {
     const name = (entry.name ?? entry_id).toLowerCase();
     const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || novel.entities.get(id)!.name.toLowerCase() === name) ?? [...novel.entities.keys()].find((id) => id.includes(entry_id.replace("voice_profile_", "")));
@@ -5082,14 +5276,19 @@ server.registerTool("codex_import", {
       for (const v of (entry.content as any)?.corrected_text ?? []) {
         target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
       }
+      target.codex_source = provenance;
     }
   } else if (entry.kind === "adventure") {
     const suggested = (entry.content as any)?.suggested_beats;
     if (Array.isArray(suggested)) {
-      novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const })));
+      novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const, codex_source: provenance })));
       novel.adventure_set = true;
     }
   }
+  if (!novel.codex_sources) novel.codex_sources = [];
+  const existingIdx = novel.codex_sources.findIndex((s) => s.id === entry.id);
+  if (existingIdx >= 0) novel.codex_sources[existingIdx] = provenance;
+  else novel.codex_sources.push(provenance);
   state.saveNovel(novel);
   return ok(`Codex entry '${entry_id}' imported.`);
 });
@@ -5443,6 +5642,12 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
     }
 
     threadLines.push(...collectCouplingAdvisories(novel, entity));
+
+    // REQ-322 — vow-countdown coupling suggestion surfaced in narrative_threads.
+    if (novel.pending_vow_countdown_suggestion) {
+      const s = novel.pending_vow_countdown_suggestion;
+      threadLines.push(`Vow countdown suggestion: create '${s.countdown_name}' (${s.tick_count} ticks, mission) tied to vow '${s.vow_name}' — respond \`accept\` or \`decline\`.`);
+    }
 
     if (threadLines.length > 0) {
       briefing += `\n\n### Narrative threads\n${threadLines.join("\n")}`;
