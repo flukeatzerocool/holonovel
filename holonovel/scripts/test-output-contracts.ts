@@ -6,7 +6,7 @@
 // REQ-280 (source anchor).
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -63,6 +63,10 @@ const RULESET_PKG = {
       goblin: { name: "Goblin", ac: 15, hp: 7, traits: ["nimble escape"] },
     },
     tables: { "omen": [{ result: "A cold wind", weight: 1 }, { result: "A crow caws", weight: 1 }] },
+    generation_tables: {
+      "omen": { name: "omen", badge_scope: "shared", dice_expression: "1d6", ranges: [{ min: 1, max: 6, result: "A cold wind" }] },
+      "secret_table": { name: "secret_table", badge_scope: "game_master", dice_expression: "1d6", ranges: [{ min: 1, max: 6, result: "hidden" }] },
+    },
   },
   tools: [
     { name: "lookup_spell", title: "Lookup Spell", description: "Look up a spell.", kind: "lookup", collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string" } } } },
@@ -245,6 +249,99 @@ async function main() {
     }
     if (!health.audit_chain || health.audit_chain.valid !== true) throw new Error("REQ-169 audit_chain missing/valid");
     if (!health.safety_protocols?.state_loss) throw new Error("REQ-269 safety_protocols missing");
+    passed++;
+    await kill(p);
+  });
+
+  // ── Wave 3: §5.5 Badges & Access ──
+  await test("T9/REQ-031 + T147/REQ-133: badge activation and forbidden-call audit", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w3a" });
+    const s = await call(p, "set_badge", { badge: "game_master" });
+    assertContains(s, "[OK]", "REQ-031 badge activation");
+    await call(p, "set_badge", { badge: "player" });
+    const fb = await call(p, "create_npc", { name: "Denied" });
+    assertContains(fb, "[FORBIDDEN]", "REQ-032 player GM gate");
+    await call(p, "set_badge", { badge: "game_master" });
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(audit, "create_npc", "REQ-133 forbidden call audited");
+    assertContains(audit, "boundary", "REQ-133 boundary marker");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T150/REQ-136: editor badge briefing (no novel) lists Novels + intro pointer", async () => {
+    const p = await boot();
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Editor Briefing", "REQ-136 editor orientation");
+    assertContains(brief, "intro prompt", "REQ-136 intro pointer");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T257/REQ-216: GM-only generation table filtered under Player", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "create_novel", { name: "w3b", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "player" });
+    const roll = await call(p, "roll_on_table", { table: "secret_table" });
+    assertContains(roll, "[FORBIDDEN]", "REQ-216 player table filtered");
+    assertNotContains(roll, "hidden", "REQ-216 table content not revealed");
+    await call(p, "set_badge", { badge: "game_master" });
+    const gmRoll = await call(p, "roll_on_table", { table: "secret_table" });
+    assertContains(gmRoll, "Roll:", "REQ-216 GM sees table result");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T262/REQ-220 + T265/REQ-223: POV directive and pov mode control", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w3c" });
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "create_character", { name: "PovChar" });
+    await call(p, "set_active_entity", { entity_id: "character_01", pov: "omniscient" });
+    const brief1 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief1, "POV: none — narration is omniscient", "REQ-223 omniscient marker");
+    await call(p, "set_active_entity", { entity_id: "character_01", pov: "character" });
+    const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief2, "Describe the scene through PovChar's eyes", "REQ-220 character POV");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T348/REQ-304: TTRPG_AI_ROLE locks orientation", async () => {
+    const p = await boot({ TTRPG_AI_ROLE: "player" });
+    await call(p, "create_novel", { name: "w3d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "[anti-slop]", "REQ-304 anti-slop present under forced role");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T349/REQ-305: observer mode read-only", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w3e" });
+    const s = await call(p, "set_badge", { badge: "observer" });
+    assertContains(s, "read-only spectator mode", "REQ-305 observer mode");
+    const fb = await call(p, "create_npc", { name: "No" });
+    assertContains(fb, "[FORBIDDEN]", "REQ-305 observer mutating call forbidden");
+    const help = await call(p, "help", {});
+    assertNotContains(help, "[ERROR]", "REQ-305 observer read-only succeeds");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-281 narrative threads section token ──
+  await test("T330/REQ-281: narrative_threads section renders in briefing", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w3f" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_countdown", { name: "Doom", ticks: 3 });
+    await call(p, "create_npc", { name: "Grumpy", disposition: "hostile" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Countdown: Doom", "REQ-281 countdown in threads");
+    assertContains(brief, "Grumpy (hostile)", "REQ-281 NPC disposition in threads");
     passed++;
     await kill(p);
   });

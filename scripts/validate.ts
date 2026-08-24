@@ -1254,6 +1254,12 @@ const INTENDED_GAP_REQS = new Set([
   // bounded-domain parameter documentation is a DECISIONS.md build record
   // (REQ-182). None are owed by the runtime `holonovel/src` server.
   "REQ-021", "REQ-110", "REQ-182",
+  // §5.5 builder-side (2026-08-24 wave-3 triage): gate classification
+  // auditability and truncation-budget units are DECISIONS.md build records
+  // (REQ-137, REQ-180); evidence-record fields, evidence hash commitment, and
+  // verifier model criteria are §10 independent-verification contracts (REQ-211,
+  // REQ-275, REQ-276). Not owed by the runtime server.
+  "REQ-137", "REQ-180", "REQ-211", "REQ-275", "REQ-276",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

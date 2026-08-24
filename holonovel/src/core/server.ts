@@ -44,6 +44,10 @@ export function withForbiddenAudit(
   handler: ToolHandler,
   toolName: string,
 ): ToolHandler {
+  // REQ-133 — forbidden-call audit: every [FORBIDDEN] is recorded with the
+  // active badge, tool name, and arguments, tagged `violation_type: boundary`
+  // (see StateManager.auditForbidden) and surfaced with a [BOUNDARY_VIOLATION]
+  // marker in compress_audit / audit://novel.
   return async (args: any, ctx: ToolCtx) => {
     try {
       return await handler(args, ctx);
