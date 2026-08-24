@@ -65,7 +65,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.08.22",
+  version: "2026.08.23",
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -570,9 +570,32 @@ server.registerTool("respond", {
     return ok("End novel cancelled.");
   }
   if (decision.toLowerCase().includes("present_choices")) {
+    const chosenId = String(option).trim();
+    // REQ-235b: record the player's choice in the audit log.
+    audit("respond", { decision, option: chosenId }, "[choice]");
+    // REQ-235b: advance countdowns whose scope equals the chosen id.
+    for (const [name, cd] of novel.countdowns) {
+      if (cd.scope && cd.scope === chosenId) {
+        cd.ticks--;
+        if (cd.ticks <= 0) {
+          novel.countdowns.delete(name);
+          audit("countdown_expired", { name });
+        } else {
+          audit("advance_countdown", { name, remaining: cd.ticks });
+        }
+      }
+    }
+    // REQ-235b/c: advance faction clocks whose goals match the chosen id.
+    for (const f of novel.factions) {
+      const tokens = f.goals.join(" ").toLowerCase().split(/\W+/).filter(Boolean);
+      if (tokens.includes(chosenId.toLowerCase())) {
+        f.clock = Math.min(f.clock + 1, f.clock_max);
+        audit("faction_clock", { faction: f.id, clock: f.clock });
+      }
+    }
     novel.pending_workflow = null;
     state.saveNovel(novel);
-    return ok(`Choice '${option}' selected.`);
+    return ok(`Choice '${chosenId}' selected.`);
   }
   if (decision.toLowerCase().startsWith("safety_escalation:")) {
     const target = decision.slice("safety_escalation:".length);
@@ -669,6 +692,9 @@ server.registerTool("undo", {
 }, async () => {
   requireNotObserver();
   const novel = requireNovel();
+  if (novel.pending_workflow) {
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before undoing.");
+  }
   state.undo(novel, getBadge());
   return ok("Undo successful.");
 });
@@ -680,6 +706,9 @@ server.registerTool("redo", {
 }, async () => {
   requireNotObserver();
   const novel = requireNovel();
+  if (novel.pending_workflow) {
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before redoing.");
+  }
   state.redo(novel, getBadge());
   return ok("Redo successful.");
 });
@@ -2892,7 +2921,9 @@ server.registerTool("create_novel", {
   if (description) novel.description = description;
   if (genre || description) state.saveNovel(novel);
   if (ruleset) { try { rulesets.hydrate(ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); } }
-  return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}${genre ? `, genre: ${genre}` : ""}`);
+  return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}${genre ? `, genre: ${genre}` : ""}
+
+Next step: run the novel_setup guide to add characters, choose a story source, and hold a session zero before play.`);
 });
 
 server.registerTool("resume_novel", {
@@ -3899,38 +3930,35 @@ server.registerTool("toggle_synthesis_module", {
 // ── Prompts ────────────────────────────────────────────────────────
 
 server.prompt("intro", "Introduction and Getting Started", async () => {
-  const novel = state.activeNovel;
-  const worldRooms = novel?.world.rooms.size ?? 0;
-  const hasWorld = worldRooms > 0;
+  const novels = [...state.novels.entries()].map(([slug, n]) => ({ slug, name: n.name, description: n.description, modified: n.metadata.modified }));
+
+  const libraryLines = novels.length > 0
+    ? novels.map((n) => `- ${n.name} — ${n.description || "no description yet"} (last played ${n.modified})`).join("\n")
+    : "";
+
+  const library = novels.length > 0
+    ? `\n## Your worlds\n${libraryLines}\n\nYou have ${novels.length} ${novels.length === 1 ? "world" : "worlds"}. Which would you like to resume, or create a new one?`
+    : `\n## Your worlds\nThere are no worlds yet. Create your first one — a named, persistent campaign that holds your scenes, characters, and world.`;
 
   return {
     messages: [{
       role: "user",
       content: {
         type: "text" as const,
-        text: `# Inform MCP Server — World-Model Interactive Fiction
+        text: `# Welcome to Holonovel
 
-This server provides a ruleset-free world-model layer for interactive fiction.
-Parser commands let you navigate, examine objects, and interact with a spatial
-world.
+This server runs tabletop roleplay with a real, persistent world. Every scene,
+character, and object lives on the server — not in a chat window — so your
+campaign survives restarts, breaks, and even rebuilds. Your campaign is the
+program you step into; the rules are whatever you bring to the table.
+${library}
 
-${hasWorld
-  ? `**World model populated:** ${worldRooms} rooms, ${novel!.world.things.size} things.
-
-### Getting Started
-1. \`set_badge("player")\` — switch to player badge
-2. \`command("look")\` — describe the current room
-3. \`command("go north")\` — move through exits
-4. \`command("examine <thing>")\` — inspect objects`
-  : `**No world model populated.**
-
-### Getting Started
-1. \`set_badge("game_master")\` — switch to GM badge
-2. \`create_novel({ name: "My World" })\` — create a new novel
-3. \`load_adventure({ slug: "<adventure>" })\` — load an adventure module
-4. \`convert_source({ source: "<world assertions>" })\` — parse room/thing declarations`}
-
-Use \`help\` to see all tools, or \`badge_briefing\` for current badge guidance.`,
+## Getting started
+1. Create a world for your campaign, or resume one from the list above.
+2. Run the setup guide to add characters, choose a story source, and agree on
+   tone before play.
+3. Choose your role — player, game master, or observer.
+4. Enter the story and begin your first scene.`,
       },
     }],
   };
@@ -3967,6 +3995,46 @@ Close each narrated turn by inviting the player's next action — ask what they 
 You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
   }
 
+  // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
+  // never trimmed. Each is an absolute do-not-narrate directive.
+  if (badge === "game_master") {
+    const boundary = novel.player_signals.boundary;
+    if (boundary) {
+      briefing += `\n\n### Boundaries
+The player has set these topics as off-limits for the entire story:
+- ${boundary}
+
+Do not narrate, imply, or introduce content that evokes these topics. They are
+kept out of every scene, every scene description, and every choice.`;
+    }
+  }
+
+  // REQ-109 — novel-setup progress markers (surface wizard completion state).
+  const setupMark = (done: boolean) => (done ? "[✓]" : "[ ]");
+  briefing += `\n\n### Novel Setup
+Characters: ${setupMark(novel.characters_present)} | Story source: ${setupMark(novel.adventure_set)} | Session zero: ${setupMark(novel.session_zero_completed)}`;
+  if (!novel.session_zero_completed) {
+    briefing += `\nA session zero has not been completed yet — run the session zero guide before play begins.`;
+  }
+
+  // REQ-109 — POV directive (character-perspective anchor, GM + Player).
+  if (badge === "game_master" || badge === "player") {
+    if (novel.pov_mode === "character" && entity) {
+      briefing += `\n\n### Point of view
+Describe the scene through ${entity.name}'s eyes — what they see, hear, and feel.`;
+    } else {
+      briefing += `\n\n### Point of view
+No character point of view is set — narrate in the third person until one is chosen.`;
+    }
+  }
+
+  // REQ-109 — autonomy state (GM only): AI decision delegation sliders.
+  if (badge === "game_master") {
+    const a = novel.autonomy;
+    briefing += `\n\n### Autonomy
+Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Creativity: ${a.creativity}`;
+  }
+
   if (badge === "player") {
     briefing += `\n\n### Player Tools
 Use \`command("<action>")\` to interact with the world:
@@ -4001,7 +4069,31 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
     if (triggered.length > 0) {
       briefing += `\n\n### Triggered Lore\n${triggered.join("\n")}`;
     }
+
+    // REQ-109 — narrative threads (GM): unresolved decisions, active
+    // countdowns, non-neutral NPC dispositions, and active vows.
+    const threadLines: string[] = [];
+    for (const v of novel.vows) {
+      if (v.state === "active") threadLines.push(`Vow: ${v.name} (${v.difficulty}, ${v.milestones} milestones)`);
+    }
+    for (const [name, cd] of novel.countdowns) {
+      if (cd.ticks > 0) threadLines.push(`Countdown: ${name} (${cd.ticks}/${cd.total})`);
+    }
+    if (threadLines.length > 0) {
+      briefing += `\n\n### Narrative threads\n${threadLines.join("\n")}`;
+    } else {
+      briefing += `\n\n### Narrative threads\nNo open threads — no active vows or running countdowns.`;
+    }
+
+    // REQ-109 — story journal (GM): recent decision/bond/moment entries.
+    const storyItems = novel.story_journal.slice(-3).map((s) => `[${s.type}] ${s.entry}`).join("\n");
+    if (storyItems) {
+      briefing += `\n\n### Story journal\n${storyItems}`;
+    }
   }
+
+  // REQ-109 — intro pointer: always surface the intro prompt as an entry point.
+  briefing += `\n\nUse the intro prompt to get started, or badge_briefing for current badge guidance.`;
 
   return { messages: [{ role: "user", content: { type: "text" as const, text: briefing } }] };
 });
@@ -4014,25 +4106,97 @@ server.prompt("session_zero", "Session Zero Setup", async () => {
         type: "text" as const,
         text: `# Session Zero
 
-## World-Model Interactive Fiction
+Before the story begins, this guide helps you and the game master agree on the
+shape of the adventure. It is a creative check and a safety check — the choices
+you make here shape the narration for the whole story. Nothing needs to be final.
 
-Before starting play:
-1. Create a Novel: \`create_novel({ name: "My Adventure" })\`
-2. Create characters: \`create_character({ name: "Hero", description: "..." })\`
-3. Populate the world model with \`convert_source\` or \`load_adventure\`
-4. The GM sets the opening scene with \`set_scene_state\`
-5. Players use \`set_badge("player")\` and start with parser commands
+## 1. Welcome and safety
+This is where you set expectations. You can change any of this later. If a topic
+is off-limits, say so now — the server remembers and keeps it out of the story.
 
-## Player Signals
-- \`player_signal({ signal: "pace", value: "faster/slower" })\`
-- \`player_signal({ signal: "difficulty", value: "harder/easier" })\`
-- \`player_signal({ signal: "boundary", value: "<topic>" })\``,
+## 2. Tone, difficulty, pace, focus, and boundaries
+Each of these is a dial you can set. Here is what each one does.
+
+Tone — the mood of the story.
+- Bright heroics: clear victories, warm allies, hope at the end of every scene.
+- Gritty realism: hard choices, scarce resources, consequences that stick.
+- Dark and ominous: creeping dread, fragile safety, victory at a cost.
+- Whimsical: playful logic, absurd coincidences, charm over threat.
+- Melancholic: quiet loss, bittersweet resolutions, emotional weight.
+
+Difficulty — how much the world pushes back.
+- Gentle: the world gives you room to succeed; stakes are low.
+- Balanced: fair odds, real risk, meaningful choices.
+- Relentless: the world is hostile; every step costs something.
+- Brutal: survival itself is an achievement; loss is common.
+
+Pace — how fast the story moves.
+- Slow: rich description, long scenes, time to linger.
+- Balanced: scenes move when they should.
+- Fast: cut to the action, little downtime, quick scene changes.
+
+Focus — what the story centers on.
+- Exploration: discovery, maps, unknown places.
+- Combat: tactics, battles, escalating threats.
+- Social: dialogue, intrigue, relationships.
+- Mystery: clues, hidden truths, revelation.
+- Mixed: all of the above, in balance.
+
+Boundaries — what stays out of the story.
+Name any topics that should never be narrated, implied, or introduced. They are
+kept out of every scene, every scene description, and every choice.
+
+## 3. Character introductions
+Three ways to introduce a character, from quickest to most detailed.
+- Quick: "A grizzled ranger who trusts no one." A single line is enough to play.
+- Full: three paragraphs — first appearance and mannerisms, then personality and
+  voice, then backstory and motivation.
+- Media short-hand: "Like Samwise, but hardened by a decade in the arena — loyal,
+  kind, and quietly ruthless when pushed." Name a known character, then say what
+  to change or emphasize.
+
+## 4. Character creation
+Your world's rules define how characters are built. Every mechanical choice —
+ancestry, class, background, ability scores, equipment — is described in plain
+English, and each option's meaning for your character's abilities is explained.
+If the world has a roster, those characters are available to import directly.
+
+## 5. Adventure confirmation
+If an adventure is loaded, here is its premise, its factions and their tensions,
+its key characters, and its opening scene. You can accept it as-is or describe
+what to change. If you are building from scratch, describe the setting and the
+game master will shape it around you.
+
+## 6. What the game master can do
+During play the game master can set scenes, introduce characters, run world
+events, offer you choices, and pace tension. Each is described in plain English
+with examples of what you would say — no commands, no jargon.
+
+## 7. Quick start
+Everything is ready. The first scene begins when the game master sets it, and
+you describe what your character does. You can refine anything here at any time.
+
+## 8. Between stories
+Characters can grow between sessions — refine personality, voice, dialogue, and
+advancement when your rules provide it. The world you build is kept for the next
+session.`,
       },
     }],
   };
 });
 
 server.prompt("novel_setup", "Novel Setup Guidance", async () => {
+  const novel = state.activeNovel;
+  const marc = (done: boolean) => (done ? "[✓]" : "[→]");
+  const steps = novel
+    ? {
+        characters: marc(novel.characters_present),
+        adventure: marc(novel.adventure_set),
+        sessionZero: marc(novel.session_zero_completed),
+        rosterCount: state.roster.size,
+      }
+    : { characters: "[→]", adventure: "[→]", sessionZero: "[→]", rosterCount: state.roster.size };
+
   return {
     messages: [{
       role: "user",
@@ -4040,19 +4204,29 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
         type: "text" as const,
         text: `# Novel Setup
 
-## Creating a World Model
-Use \`convert_source\` with declarative assertions to populate the world:
-\`\`\`
-The Entrance Chamber is a room. "A dusty hall with torches."
-North of the Entrance Chamber is the Hall of Statues.
-The Hall of Statues is a room. "Tall statues line both walls."
-A rusty sword is in the Entrance Chamber. "An old iron sword."
-The Obsidian Door is north of the Hall of Statues and south of the Throne Room.
-It is closed and locked.
-The Serpent Crown is in the Throne Room. "A golden crown with emerald eyes."
-\`\`\`
+A guided setup for your world. Complete each step in order; the markers show
+where you are.
 
-Or use \`load_adventure\` to load a pre-written adventure module with a ## World section.`,
+## Step 1 — Characters   ${steps.characters}
+You have ${steps.rosterCount} ${steps.rosterCount === 1 ? "character" : "characters"} in your roster.
+Would you like to import one, create a new one, or move on? Character creation
+choices are described in plain English.
+
+## Step 2 — Story source   ${steps.adventure}
+Choose where the story begins: load a written adventure, generate one from a
+premise, generate a random encounter, or build from scratch. Each option is
+explained in terms of what you get narratively.
+
+Community-sourced play advice tailored to your adventure's themes is available
+for this world — voice examples, lore ideas, and scene advice. You can run
+synthesis now or proceed without it.
+
+## Step 3 — Session zero   ${steps.sessionZero}
+Run the session zero guide to agree on tone, difficulty, pace, focus, and
+boundaries, and to confirm the opening scene.
+
+When all three steps show [✓], the world is ready. A summary follows describing
+what is ready and how to begin your first scene.`,
       },
     }],
   };
