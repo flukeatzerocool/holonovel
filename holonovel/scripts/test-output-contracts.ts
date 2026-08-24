@@ -54,7 +54,7 @@ const RULESET_PKG = {
   slug: "wave1test",
   manifest: { slug: "wave1test", name: "Wave1 Test", host_version: "2026.08.18", content_hash: "TBD", built_at: "2026-08-24", counts: { index: 3 } },
   index: [
-    { id: "fireball", anchor: "Spells > Level 3 > Fireball", source_file: "wave1test.md", content: "Fireball deals 8d6 fire damage.", category: "Spells", confidence: "high", line_range: "1420-1445" },
+    { id: "fireball", anchor: "Spells > Level 3 > Fireball", source_file: "wave1test.md", content: "Fireball deals 8d6 fire damage. See Monsters > Goblin for a common target.", category: "Spells", confidence: "high", line_range: "1420-1445" },
     { id: "goblin", anchor: "Monsters > Goblin", source_file: "wave1test.md", content: "Goblin: AC 15, HP 7.", category: "Monsters", confidence: "high", line_range: "200-210" },
   ],
   model: {
@@ -182,6 +182,70 @@ async function main() {
     const g = await call(p, "search_rules", { query: "fireball" });
     assertContains(g, "source_anchor", "REQ-280 source_anchor field present");
     assertContains(g, "---", "REQ-061 source block present");
+    await kill(p);
+  });
+
+  // ── REQ-106 spec repo URL + REQ-413/414/415 catalog surfaces ──
+  await test("T105/REQ-106 + T486/REQ-413 + T487/REQ-414 + T488/REQ-415: spec_health surfaces", async () => {
+    const p = await boot({ TTRPG_SPEC_REPO_URL: "https://example.com/spec" });
+    await call(p, "create_novel", { name: "w1h" });
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    assertContains(JSON.stringify(health.spec_repo_url), "example.com", "REQ-106 spec_repo_url");
+    if (!("catalog_verbosity" in health)) throw new Error("REQ-415 catalog_verbosity missing");
+    if (!("action_discriminators" in health)) throw new Error("REQ-413 action_discriminators missing");
+    if (!("nested_input_counts" in health)) throw new Error("REQ-414 nested_input_counts missing");
+    if (typeof health.tool_parameter_counts?.create_character !== "number") throw new Error("REQ-408 param counts missing");
+    if (health.tool_parameter_counts.create_character > health.parameter_ceiling) {
+      throw new Error(`REQ-408 ceiling exceeded: create_character ${health.tool_parameter_counts.create_character} > ${health.parameter_ceiling}`);
+    }
+    const intro = await proto(p, "prompts/get", { name: "intro" });
+    assertContains(intro, "example.com", "REQ-106 intro pointer");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-057/059/183 lookup enumeration + REQ-112 cross-references ──
+  await test("T39/REQ-057 + T39a/REQ-059 + T39b/REQ-183 + T115/REQ-112: lookup NOT_FOUND enumeration and cross-refs", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "create_novel", { name: "w1i", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const nf = await call(p, "wave1test_lookup_spell", { key: "fireballx" });
+    assertContains(nf, "Valid values: fireball, goblin", "REQ-057/059/183 NOT_FOUND enumeration");
+    assertContains(nf, "Did you mean 'fireball'?", "REQ-002 did-you-mean hint");
+    const okLookup = await call(p, "wave1test_lookup_spell", { key: "fireball" });
+    assertContains(okLookup, "cross_references", "REQ-112 cross-reference discovery");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-078 session zero + REQ-138 prompt health + REQ-139/169/269 ──
+  await test("T124/REQ-078: session zero has all 8 sections", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w1j" });
+    const sz = await proto(p, "prompts/get", { name: "session_zero" });
+    for (const s of ["## 1.", "## 2.", "## 3.", "## 4.", "## 5.", "## 6.", "## 7.", "## 8."]) {
+      if (!sz.includes(s)) throw new Error(`session_zero missing ${s}`);
+    }
+    passed++;
+    await kill(p);
+  });
+
+  await test("T152/REQ-138 + T153/REQ-139 + T204/REQ-169 + T289/REQ-269: spec_health reporting surfaces", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w1k" });
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (!Array.isArray(health.prompt_health) || health.prompt_health.length === 0) throw new Error("REQ-138 prompt_health empty");
+    for (const ph of health.prompt_health) {
+      if (!("name" in ph) || !("within" in ph) || !("stale_references" in ph)) throw new Error("REQ-138 prompt_health shape");
+    }
+    if (!Array.isArray(health.resource_uris) || health.resource_uris.length === 0) throw new Error("REQ-139 resource_uris empty");
+    for (const ru of health.resource_uris) {
+      if (!("uri" in ru) || !("presence" in ru)) throw new Error("REQ-139 resource_uris shape");
+    }
+    if (!health.audit_chain || health.audit_chain.valid !== true) throw new Error("REQ-169 audit_chain missing/valid");
+    if (!health.safety_protocols?.state_loss) throw new Error("REQ-269 safety_protocols missing");
+    passed++;
     await kill(p);
   });
 

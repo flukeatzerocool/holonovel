@@ -1249,6 +1249,11 @@ const INTENDED_GAP_REQS = new Set([
   // spec-level build-pipeline prompt (REQ-101); fixture-evolution is a
   // maintainer/verifier contract, not server-runtime (REQ-277).
   "REQ-101", "REQ-277",
+  // §5.3 builder-side (2026-08-24 wave-2 triage): tool-surface economy and
+  // consolidation are extraction-driven build decisions (REQ-021, REQ-110);
+  // bounded-domain parameter documentation is a DECISIONS.md build record
+  // (REQ-182). None are owed by the runtime `holonovel/src` server.
+  "REQ-021", "REQ-110", "REQ-182",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

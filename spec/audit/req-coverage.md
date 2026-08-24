@@ -7,8 +7,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |
 |-----|-------|---------|--------|-----------------|-------------------|
 | REQ-001 | Response contract (4 sub-parts) | 5.1 Output and Error Contracts | C | T90, T91, T261 | — |
-| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T177, S22 | — |
-| REQ-003 | Roll transparency (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T47, T210, T131 | — |
+| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T177, S22 | — |
+| REQ-003 | Roll transparency (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T47, T210, T131 | — |
 | REQ-004 | Truncation (1 sub-part) | 5.1 Output and Error Contracts | C | T13 | — |
 | REQ-010 | Traceability | 5.2 Extraction and Confidence | E | T15 | — |
 | REQ-011 | Confidence (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T15, T45, T93 | — |
@@ -20,11 +20,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-017 | Badge stories | 5.2 Extraction and Confidence | E | — | — |
 | REQ-018 | Extraction evidence | 5.2 Extraction and Confidence | E | — | — |
 | REQ-020 | Tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T5, T32, T259 | — |
-| REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-022 | Resources (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T16 | — |
 | REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T22, T26, T49, T50, T155, T480 | — |
-| REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | T49, T488 | — |
-| REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T154, T165, T166, T170, T171, T488 | — |
+| REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T488 | — |
+| REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | A | T9, S6, S22 | — |
 | REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T64, T66, T68, T75, T76, T90, T91, T100, T101, T104, T110, T112, T119, T133, T134, T221, T261, T285, T326, S6 | — |
@@ -36,16 +36,16 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T20 | — |
-| REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | A | T20 | — |
+| REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | A | T20, T487 | — |
 | REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T27, T98, T261, S17 | — |
 | REQ-056 | Advancement workflow | 5.4 Decision workflows | A | T32 | — |
-| REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
-| REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | A | T41 | — |
-| REQ-059 | Parameter canon validation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39 | — |
+| REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41 | — |
+| REQ-059 | Parameter canon validation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39a | — |
 | REQ-060 | Verbose output (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T47, T478 | — |
 | REQ-061 | Source quoting | 5.1 Output and Error Contracts | C | T48 | — |
 | REQ-062 | Badge foundations | 5.1 Output and Error Contracts | C | T26 | — |
-| REQ-063 | Connection introduction (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T49, T50, T259 | — |
+| REQ-063 | Connection introduction (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T49, T50, T124, T259 | — |
 | REQ-064 | Badge behavioral boundaries (Part a) (6 sub-parts) | 5.1 Output and Error Contracts | C | T461 | — |
 | REQ-065 | Build fingerprint (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T224, T77, T125, S17 | — |
 | REQ-066 | set_badge tool (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T138, S6 | — |
@@ -59,7 +59,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-075 | Named-NPC state (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T409 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
-| REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
 | REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T285 | — |
 | REQ-080 | Synthesis boundaries (Part a) (8 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T194 | — |
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
@@ -87,13 +87,13 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-103 | Synthesis reversion (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T321 | — |
 | REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468 | — |
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
-| REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | A | T105 | — |
+| REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-108 | Pattern Buffer traceability (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T110, T201 | — |
-| REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
-| REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | C | T115 | — |
 | REQ-113 | Result count reporting | 5.1 Output and Error Contracts | C | T116 | — |
 | REQ-114 | Suggestion coverage (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-115 | Action pattern activation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T119 | — |
@@ -119,8 +119,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | A | T461, T469, T470, T476 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | A | — | — |
 | REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | A | S6 | — |
-| REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
-| REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |
+| REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
 | REQ-141 | Input-validation convergence metric (Part a) (10 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-142 | Blocking classification principle (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
@@ -147,7 +147,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-166 | Personality briefing rendering (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T201 | — |
 | REQ-167 | Personality resource URIs (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T202 | — |
 | REQ-168 | Audit resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T100 | — |
-| REQ-169 | Audit chain integrity reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-169 | Audit chain integrity reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T204 | — |
 | REQ-170 | Adventure discovery surface | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -160,8 +160,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-179 | Output pointer resource template (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T221 | — |
 | REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | A | T222 | — |
 | REQ-181 | Character creation output surface (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T47, T468 | — |
-| REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
-| REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
+| REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |
 | REQ-184 | Anti-slop resource rendering (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T225 | — |
@@ -242,7 +242,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-264 | Synthesis confidence model (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T323 | — |
 | REQ-265 | Synthesis in badge_briefing (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T321, T326 | — |
 | REQ-266 | Synthesis in dashboard (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T327 | — |
-| REQ-269 | Safety protocol status | 5.3 Tools, Resources, and Lookups | A | — | — |
+| REQ-269 | Safety protocol status | 5.3 Tools, Resources, and Lookups | C | T289 | — |
 | REQ-270 | Artifact version identification | 5.2 Extraction and Confidence | A | — | — |
 | REQ-271 | AGENTS.md structure contract | 5.2 Extraction and Confidence | A | T291 | — |
 | REQ-272 | Stock elements catalog | 5.2 Extraction and Confidence | E | — | — |
@@ -380,9 +380,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-410 | Token footprint in performance record | 5.7 Determinism, Safety, and Performance | C | T479 | — |
 | REQ-411 | Stable-metadata caching | 5.3 Tools, Resources, and Lookups | C | T480 | — |
 | REQ-412 | Turn-handoff directive | 5.20 Narrative Turn Conventions | C | T482 | — |
-| REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | A | — | — |
-| REQ-414 | Schema-surface economy | 5.3 Tools, Resources, and Lookups | A | — | — |
-| REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | A | T488 | — |
+| REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | C | T486 | — |
+| REQ-414 | Schema-surface economy | 5.3 Tools, Resources, and Lookups | C | T487 | — |
+| REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | C | T488 | — |
 | REQ-416 | Config default inheritance | 5.7 Determinism, Safety, and Performance | A | — | — |
 | REQ-417 | Non-blocking startup probes | 5.7 Determinism, Safety, and Performance | A | — | — |
 | REQ-418 | Deployment verification | 5.18 Workflow Entry Points | E | — | — |

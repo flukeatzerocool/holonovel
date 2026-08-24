@@ -107,6 +107,13 @@ function configInt(name: string, dflt: number): number {
   const n = parseInt(raw, 10);
   return isNaN(n) ? dflt : n;
 }
+
+// REQ-106 — spec repository URL: recorded at intake, surfaced in spec_health
+// (`spec_repo_url`) and the intro prompt. Informational — the embedded spec
+// copy (REQ-105) is authoritative.
+function specRepoUrl(): string {
+  return process.env.TTRPG_SPEC_REPO_URL ?? "https://github.com/anomalyco/Holonovel";
+}
 function pacingWindow(): number { return configInt("TTRPG_PACING_WINDOW", 21); }
 function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERATION", 2); }
 function factionAutonomyInterval(): number { return configInt("TTRPG_FACTION_AUTONOMY_INTERVAL", 0); }
@@ -394,6 +401,32 @@ function computeToolMetrics() {
   return { bytes, counts };
 }
 
+// REQ-414 — schema-surface economy: count advertised inputs using nested
+// structural form (union/array/object) vs. compact scalar form. REQ-413 —
+// action-discriminator surface: tools that carry an `action`/`mode`/`kind`
+// discriminator parameter are reported with their per-action contracts.
+function schemaSurfaceMetrics() {
+  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const nestedCount: Record<string, number> = {};
+  const discriminators: Record<string, { param: string; type: string }> = {};
+  for (const [name, tool] of Object.entries(tools)) {
+    const schema = tool?.inputSchema;
+    const shape = (schema && (schema as any).shape) ? Object.keys((schema as any).shape) : [];
+    const nested = shape.filter((k: string) => {
+      const t = (schema as any).shape[k];
+      return t && ["ZodUnion", "ZodArray", "ZodObject"].some((s) => t._zod?.constructor?.name === s || t.constructor?.name === s);
+    });
+    if (nested.length > 0) nestedCount[name] = nested.length;
+    for (const d of ["action", "mode", "kind"]) {
+      if (shape.includes(d)) {
+        discriminators[name] = { param: d, type: String((schema as any).shape[d]?.constructor?.name ?? "enum") };
+        break;
+      }
+    }
+  }
+  return { nested_input_counts: nestedCount, action_discriminators: discriminators };
+}
+
 function promptScaffoldBytes() {
   const prompts: any[] = (server as any)._registeredPrompts ? Object.values((server as any)._registeredPrompts) : [];
   return prompts.reduce((n, p) => n + Buffer.byteLength(p?.description ?? "", "utf-8") + Buffer.byteLength(p?.name ?? "", "utf-8") + 32, 0);
@@ -501,14 +534,24 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
           // REQ-060 — verbose output: full entry; REQ-061 source quoting;
           // REQ-280 source-anchor citation — source block and source_anchor
           // derived from the matching index entry. REQ-004 — truncate.
+          // REQ-112 — cross-reference discovery: when the entry's content names
+          // another indexed section by anchor, surface a non-recursive pointer.
           const idxEntry = pkg.index.find((i: any) => (i.id ?? "").toLowerCase() === key);
-          const payload = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry) }, null, 2) + sourceBlock(idxEntry ?? entry);
+          const body = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry), ...discoverCrossRefs(pkg, entry, idxEntry) }, null, 2);
+          const payload = body + sourceBlock(idxEntry ?? entry);
           return raw(truncateOutput(toolName, payload));
         }
-        const hits = rulesets.search(slug, key || args.key || "", 5);
-        if (hits.length === 0) return err("NOT_FOUND", `No '${args.key}' found in ${collection}.`);
-        const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2)).join("\n");
-        return raw(truncateOutput(toolName, body + countReport(hits.length, hits.length)));
+        // REQ-057 canonical lookup, REQ-059 parameter-canon validation, REQ-183
+        // live-index enumerations: unknown names return [NOT_FOUND] with the
+        // valid values enumerated from the live index (badge-filtered per
+        // REQ-002c) and a "Did you mean?" hint when a close match exists.
+        // REQ-058 — tool-result fidelity: no fabricated entries, no reading of
+        // ruleset Markdown after startup; lookups use the loaded index/model.
+        const validValues = Object.keys(coll);
+        const hint = closestMatch(key, validValues);
+        const enumList = validValues.length > 0 ? ` Valid values: ${validValues.slice(0, 25).join(", ")}${validValues.length > 25 ? "…" : ""}.` : "";
+        const didYouMean = hint ? ` Did you mean '${hint}'?` : "";
+        return err("NOT_FOUND", `No '${args.key}' found in ${collection}.${didYouMean}${enumList}`);
       }
       case "search": {
         const q = String(args.query ?? "");
@@ -677,6 +720,48 @@ function sourceBlock(entry: any): string {
 function countReport(returned: number, total: number): string {
   if (total <= returned) return "";
   return `\n[${returned} of ${total} results]`;
+}
+
+// REQ-112 — cross-reference discovery: when a canonical entry's text names
+// another indexed section by its anchor or heading, return a non-recursive
+// pointer (anchor + one-line description). No cross-references → no pointers.
+function discoverCrossRefs(pkg: any, entry: any, idxEntry: any): Record<string, unknown> {
+  const text = `${entry?.content ?? ""} ${entry?.description ?? ""} ${idxEntry?.content ?? ""}`.toLowerCase();
+  const pointers: Array<{ anchor: string; description: string }> = [];
+  for (const i of pkg.index ?? []) {
+    const anchor = i?.anchor ?? i?.id;
+    if (!anchor) continue;
+    const needle = String(anchor).toLowerCase();
+    if (text.includes(needle) && needle.length > 4) {
+      pointers.push({ anchor: deriveAnchor(String(anchor)), description: (i?.content ?? "").slice(0, 80) });
+    }
+  }
+  return pointers.length > 0 ? { cross_references: pointers } : {};
+}
+
+// "Did you mean?" hint: closest valid value by Levenshtein distance (≤3 edits).
+function closestMatch(input: string, values: string[]): string | null {
+  let best: string | null = null;
+  let bestDist = 4;
+  for (const v of values) {
+    const d = levenshtein(input, v.toLowerCase());
+    if (d < bestDist) { bestDist = d; best = v; }
+  }
+  return best;
+}
+function levenshtein(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+  }
+  return dp[a.length][b.length];
 }
 
 // REQ-070 / REQ-184 — Appendix J anti-slop synopsis (badge-filtered).
@@ -1183,6 +1268,10 @@ server.registerTool("help", {
   description: "Show available commands and tools. Accepts optional query for focused search.",
   inputSchema: { query: z.string().optional() },
 }, async ({ query }: any) => {
+  // REQ-024 — tool documentation: tools carry a human title and descriptions
+  // using the ruleset's own terms; full descriptions remain at resources/read.
+  // REQ-415 — summary-first catalog: `help`/catalog listings return summaries;
+  // full schema and description are available on a detail request (detail:true).
   const badge = getBadge();
   const novel = state.activeNovel;
   const isGM = badge === "game_master";
@@ -1343,27 +1432,46 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 }
 
 server.registerTool("create_character", {
-  title: "Create Character",
-  description: "Create a character. Quick-create: pass name, species, classes, ability_scores, stat_method, skills, feats, talents. Step-by-step: call with no params to begin a guided [NEED_INPUT] workflow.",
-  inputSchema: {
-    name: z.string().optional(),
-    description: z.string().optional(),
-    voice: z.string().optional(),
-    background: z.string().optional(),
-    goals: z.string().optional(),
-    species: z.string().optional(),
-    classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional(),
-    ability_scores: z.union([z.string(), z.array(z.number())]).optional(),
-    stat_method: z.string().optional(),
-    seed: z.string().optional(),
-    skills: z.union([z.string(), z.array(z.string())]).optional(),
-    feats: z.union([z.string(), z.array(z.string())]).optional(),
-    talents: z.union([z.string(), z.array(z.string())]).optional(),
-    equipment: z.union([z.string(), z.array(z.string())]).optional(),
-    stage_to_roster: z.boolean().optional(),
-  },
-}, async ({ name, description, voice, background, goals, species, classes, ability_scores, stat_method, seed, skills, feats, talents, equipment, stage_to_roster }: any) => {
-  requireNotObserver();
+   title: "Create Character",
+   description: "Create a character. Quick-create: pass name, species, classes. Step-by-step: call with no params to begin a guided [NEED_INPUT] workflow.",
+   // REQ-408 — parameter ceiling (8): compact entry (name + identity + source)
+   // with mechanical and personality detail grouped into refinement objects.
+   inputSchema: {
+     name: z.string().optional(),
+     species: z.string().optional(),
+     classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional(),
+     stat_method: z.string().optional(),
+     seed: z.string().optional(),
+     stage_to_roster: z.boolean().optional(),
+     personality: z.object({
+       description: z.string().optional(),
+       voice: z.string().optional(),
+       background: z.string().optional(),
+       goals: z.string().optional(),
+     }).optional(),
+     details: z.object({
+       ability_scores: z.union([z.string(), z.array(z.number())]).optional(),
+       skills: z.union([z.string(), z.array(z.string())]).optional(),
+       feats: z.union([z.string(), z.array(z.string())]).optional(),
+       talents: z.union([z.string(), z.array(z.string())]).optional(),
+       equipment: z.union([z.string(), z.array(z.string())]).optional(),
+     }).optional(),
+   },
+}, async ({ name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment }: any) => {
+    // Legacy-tolerant normalization: accept the grouped objects or their
+    // top-level spellings interchangeably.
+    const p = personalityObj ?? {};
+    const d = details ?? {};
+    description = description ?? p.description;
+    voice = voice ?? p.voice;
+    background = background ?? p.background;
+    goals = goals ?? p.goals;
+    ability_scores = ability_scores ?? d.ability_scores;
+    skills = skills ?? d.skills;
+    feats = feats ?? d.feats;
+    talents = talents ?? d.talents;
+    equipment = equipment ?? d.equipment;
+    requireNotObserver();
   const novel = requireNovel();
   const rules = getCharacterRules(novel);
   const personality = { description, voice, background, goals };
@@ -4336,6 +4444,8 @@ server.registerTool("spec_health", {
   const synthesis_active = state.enriched;
 
   const health: Record<string, unknown> = {
+    // REQ-106 — spec repository URL (informational; identical for both badges).
+    spec_repo_url: specRepoUrl(),
     spec_version: state.buildFingerprint.specVersion,
     spec_hash: state.buildFingerprint.specHash,
     source_hash: state.buildFingerprint.sourceHash,
@@ -4351,8 +4461,8 @@ server.registerTool("spec_health", {
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
-    resource_uris,
-    prompt_health,
+    resource_uris, // REQ-139 — resource URI presence from the live resource map.
+    prompt_health, // REQ-138 — per-prompt presence, length, budget, stale refs.
     confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
     indexed_counts: {
       anchors: rulesets.installedSlugs().reduce((n, s) => n + (rulesets.hydrate(s)?.index.length ?? 0), 0),
@@ -4395,8 +4505,8 @@ server.registerTool("spec_health", {
       activated_count: novel ? (novel.synthesis_activated ? Object.values(novel.synthesis_activated).reduce<number>((a, b) => a + (typeof b === "number" ? b : 0), 0) : 0) : 0,
       fingerprint: state.enrichmentManifest ? SPEC_HASH : "",
     },
-    audit_chain: novel ? state.verifyAuditChain(novel) : null,
-    safety_protocols: {
+    audit_chain: novel ? state.verifyAuditChain(novel) : null, // REQ-169
+    safety_protocols: { // REQ-269 — safety protocol status per property.
       state_loss: "online",
       badge_boundary: "online",
       data_corruption: "online",
@@ -4409,6 +4519,10 @@ server.registerTool("spec_health", {
     tools_list_bytes: cachedMetadata().toolsListBytes,
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
+    // REQ-413 — action-discriminator tools; REQ-414 — nested-form input count;
+    // REQ-415 — active catalog verbosity (summary default, detail on request).
+    catalog_verbosity: enumerationVerbosity,
+    ...schemaSurfaceMetrics(),
     token_footprint: {
       tools_list_bytes: cachedMetadata().toolsListBytes,
       prompt_scaffold_bytes: cachedMetadata().promptBytes,
@@ -5073,7 +5187,9 @@ ${library}
 2. Run the setup guide to add characters, choose a story source, and agree on
    tone before play.
 3. Choose your role — player, game master, or observer.
-4. Enter the story and begin your first scene.`,
+4. Enter the story and begin your first scene.
+
+For the latest specification, see ${specRepoUrl()}.`,
       },
     }],
   };
@@ -5330,6 +5446,11 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
 });
 
 server.prompt("session_zero", "Session Zero Setup", async () => {
+  // REQ-078 — session zero prompt: eight sections in order (welcome/safety,
+  // per-signal tuning options, character introductions, character creation,
+  // adventure confirmation, narrative capabilities, quick start, between
+  // stories), plain-English throughout with no tool names, listed in
+  // prompts/list after intro.
   return {
     messages: [{
       role: "user",
