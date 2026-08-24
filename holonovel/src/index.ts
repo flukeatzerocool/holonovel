@@ -479,6 +479,8 @@ let enumerationVerbosity: "summary" | "detail" = "summary";
 // transparency) is the default; `terse` returns minimum mechanical content.
 // Selectable via the `detail=terse` player signal or a per-call `terse: true`.
 let outputVerbosity: "normal" | "terse" = "normal";
+// REQ-197 — room description mode, session-scoped (brief/verbose/normal).
+let roomDescriptionMode: "brief" | "verbose" | "normal" = "normal";
 function terseMode(terse?: boolean): boolean {
   return terse === true || outputVerbosity === "terse";
 }
@@ -1972,6 +1974,17 @@ server.registerTool("command", {
   inputSchema: { command: z.string() },
 }, async ({ command }: any) => {
   const novel = requireNovel();
+  // REQ-197 — description mode commands are always recognized verbs.
+  const cmdTrim = command.trim().toLowerCase();
+  if (cmdTrim === "brief") { roomDescriptionMode = "brief"; state.saveNovel(novel); return ok("Description mode: brief (room name + exits only)."); }
+  if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; state.saveNovel(novel); return ok("Description mode: verbose (full descriptions every time)."); }
+  if (cmdTrim === "normal") { roomDescriptionMode = "normal"; state.saveNovel(novel); return ok("Description mode: normal (full on first entry)."); }
+  if (cmdTrim === "verbs" || cmdTrim === "help verbs") {
+    // REQ-283 — verb coverage tiers.
+    const core = BASE_PARSER_COMMANDS.map((c) => c.verb);
+    const standard = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert"];
+    return ok(`Verb coverage — core (${core.length}): ${core.join(", ")}\nstandard (${standard.length}): ${standard.join(", ")}\nextended (0): none registered`);
+  }
   // Ruleset-bound Novels gate the parser to the Game Master (REQ-309); the
   // Player badge routes spatial intent through resolve_intent. Ruleset-free
   // Novels keep the parser as the primary Player surface (REQ-218, REQ-309e).
@@ -2177,8 +2190,20 @@ server.registerTool("create_thing", {
     fixed: z.boolean().optional(),
     openable: z.boolean().optional(),
     lockable: z.boolean().optional(),
+    locked: z.boolean().optional(),
+    lit: z.boolean().optional(),
+    switched_on: z.boolean().optional(),
+    switchable: z.boolean().optional(),
+    transparent: z.boolean().optional(),
+    readable: z.boolean().optional(),
+    read_text: z.string().optional(),
+    wearable: z.boolean().optional(),
+    edible: z.boolean().optional(),
+    drinkable: z.boolean().optional(),
+    enterable: z.boolean().optional(),
+    climbable: z.boolean().optional(),
   },
-}, async ({ name, kind, description, location, location_type, fixed, openable, lockable }: any) => {
+}, async ({ name, kind, description, location, location_type, fixed, openable, lockable, locked, lit, switched_on, switchable, transparent, readable, read_text, wearable, edible, drinkable, enterable, climbable }: any) => {
   requireGM();
   const novel = requireNovel();
   worldSnapshot();
@@ -2209,20 +2234,20 @@ server.registerTool("create_thing", {
     openable: k === "container" || k === "door" || openable === true,
     open: false,
     lockable: k === "container" || k === "door" || lockable === true,
-    locked: false,
-    lit: false,
-    switchable: k === "device",
-    switched_on: false,
-    enterable: k === "vehicle",
+    locked: locked === true,
+    lit: lit === true,
+    switchable: k === "device" || switchable === true,
+    switched_on: switched_on === true,
+    transparent: transparent === true,
+    readable: readable === true,
+    read_text: read_text ?? null,
+    wearable: wearable === true,
+    edible: edible === true,
+    drinkable: drinkable === true,
+    enterable: enterable === true,
+    climbable: climbable === true,
     vehiclePassengers: [],
-    wearable: false,
     worn_by: null,
-    readable: false,
-    read_text: null,
-    edible: false,
-    drinkable: false,
-    climbable: false,
-    transparent: false,
     annotations: {},
   };
   novel.world.things.set(lower, thing);
@@ -2582,11 +2607,19 @@ function factionAutonomousAdvance(novel: NovelState): void {
 
 // REQ-340 — when an on_scene_transition countdown fires while the active entity
 // is absent from all scenes since its creation, produce a [discovered] entry.
-function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string }): void {
+function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any }): void {
   const presentIds = new Set(novel.characters_present_ids ?? []);
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
   novel.countdowns.delete(name);
+  // REQ-368 — countdown-world effect coupling: apply the effect immediately
+  // after removal; a missing target records a [WARNING] but the countdown
+  // still fires.
+  if (cd.world_effect) {
+    const eff = cd.world_effect;
+    const applied = applyWorldEffect(novel, eff);
+    audit("countdown_effect", { countdown: name, effect: eff, applied: applied?.applied ?? false, warning: applied?.warning ?? null }, applied?.warning ? "[WARNING]" : undefined);
+  }
   const entry: any = {
     index: novel.story_journal.length,
     type: "consequence",
@@ -2598,6 +2631,35 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
   if (absent) entry.discovered = true;
   novel.story_journal.push(entry);
   audit("countdown_expired", { name, discovered: absent });
+}
+
+// REQ-368 — apply a countdown world_effect (describe/property/exit) with undo
+// snapshots; missing targets record a warning without blocking the fire.
+function applyWorldEffect(novel: NovelState, eff: any): { applied: boolean; warning?: string } {
+  if (eff.type === "describe") {
+    const room = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(eff.target).toLowerCase());
+    if (!room) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
+    novelSnapshot();
+    room.description = String(eff.value ?? "");
+    return { applied: true };
+  }
+  if (eff.type === "property") {
+    const thing = novel.world.things.get(String(eff.target).toLowerCase());
+    if (!thing) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
+    novelSnapshot();
+    (thing as any)[String(eff.property)] = eff.value;
+    return { applied: true };
+  }
+  if (eff.type === "exit") {
+    const roomA = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(eff.target).toLowerCase());
+    const roomB = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(eff.destination).toLowerCase());
+    if (!roomA || !roomB) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
+    novelSnapshot();
+    roomA.exits.set(String(eff.direction), roomB.name);
+    roomB.exits.set(oppositeDirection(String(eff.direction) as Direction), roomA.name);
+    return { applied: true };
+  }
+  return { applied: false };
 }
 
 // REQ-405 — auto-record a story-journal moment entry on scene transition.
@@ -2852,6 +2914,11 @@ server.registerTool("create_npc", {
   }
   if (goals) npc.personality = { goals };
   novel.npcs.set(id, npc);
+  // REQ-327 — NPC-world coupling: an NPC whose location fuzzy-matches a room
+  // name is registered in that room; look/inspection lists it among present
+  // entities; update_npc re-registers on location change.
+  const roomMatch = [...novel.world.rooms.values()].find((r) => location && r.name.toLowerCase() === location.toLowerCase());
+  if (roomMatch) npc.room_id = roomMatch.name.toLowerCase();
   // REQ-310 — campaign memory: NPC creation is an engine-recorded fact.
   recordCampaignMemory(novel, "npcs", `NPC ${name} created (${id})`);
   state.recordMutation(novel, "create_npc", "npc");
@@ -2919,15 +2986,24 @@ server.registerTool("set_countdown", {
     // REQ-329 — world-model coupling triggers (on_room_enter/on_thing_take/
     // on_door_open). Any match advances one tick; supplements normal advancement.
     triggers: z.array(z.string()).optional(),
+    // REQ-368 — world-model effect coupling applied when the countdown fires.
+    world_effect: z.object({
+      type: z.enum(["describe", "property", "exit"]),
+      target: z.string(),
+      direction: z.string().optional(),
+      destination: z.string().optional(),
+      property: z.string().optional(),
+      value: z.string().optional(),
+    }).optional(),
   },
-}, async ({ name, ticks, type, scope, direction, on_scene_transition, triggers }: any) => {
+}, async ({ name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
-  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers });
+  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers, world_effect });
   state.recordMutation(novel, "set_countdown", "countdown");
   state.saveNovel(novel);
-  audit("set_countdown", { name, ticks, type, on_scene_transition, triggers });
+  audit("set_countdown", { name, ticks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
   return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
 });
 
@@ -2944,6 +3020,12 @@ server.registerTool("advance_countdown", {
   cd.ticks--;
   if (cd.ticks <= 0) {
     novel.countdowns.delete(name);
+    // REQ-368 — countdown-world effect coupling on fire.
+    if ((cd as any).world_effect) {
+      const eff = (cd as any).world_effect;
+      const applied = applyWorldEffect(novel, eff);
+      audit("countdown_effect", { countdown: name, effect: eff, applied: applied?.applied ?? false, warning: applied?.warning ?? null }, applied?.warning ? "[WARNING]" : undefined);
+    }
     // REQ-358 — countdown fire shifts disposition of NPCs whose location matches
     // the countdown scope toward the countdown direction (hostile/benign).
     const direction = cd.direction?.toLowerCase() ?? "";
@@ -5237,8 +5319,15 @@ server.registerTool("spec_health", {
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.
     verbosity_mode: outputVerbosity,
-    // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
-    // their REQ-109 groups and whether the group currently has runtime content.
+    // REQ-283 — parser verb coverage tiers: core (base vocabulary), standard
+    // (IF-community), extended (ruleset-derived). Advisory completeness signal.
+    parser_verb_coverage: {
+      core: BASE_PARSER_COMMANDS.length,
+      standard: BASE_PARSER_COMMANDS.filter((c) => ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert"].includes(c.verb)).length,
+      extended: 0,
+    },
+    // REQ-197 — room description mode (session-scoped).
+    description_mode: roomDescriptionMode,
     section_tokens: [
       { token: "scene_state", group: "current scene state", has_content: !!(novel?.scene_description) },
       { token: "entities", group: "active entities", has_content: !!(novel && novel.entities.size > 0) },
