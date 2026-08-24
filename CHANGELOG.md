@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-24 — Implementation-coverage audit (REQ → source evidence)
+
+- `scripts/validate.ts` now runs an always-on implementation-coverage audit
+  alongside the spec checks: it cross-references every REQ against
+  `holonovel/src` citations and exercised spec tests (Appendix F T-IDs, §6.6
+  S/I-IDs), classifying each into A gap / B review / C evidenced / D spec-side,
+  with a mandatory §5.12 disposition. `--write-register` emits
+  `spec/audit/req-coverage.md`; `--impl-audit=strict` fails on bucket-A.
+- Committed the first coverage register (381 base REQs: 281 gap, 80 review,
+  20 evidenced, 0 spec-side) and a remediation plan triaging findings by
+  ownership (builder/verifier-side vs. server-runtime).
+
 ## 2026-08-23 — Workflow lifecycle conforms to the decision contract
 
 - The pending-workflow decision contract now holds end to end: every tool that

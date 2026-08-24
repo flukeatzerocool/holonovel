@@ -114,7 +114,7 @@ This runs:
 | Command                    | What it checks                                    |
 |----------------------------|---------------------------------------------------|
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
-| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions (proofreading skipped) |
+| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
 
@@ -128,6 +128,13 @@ Also available separately:
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
 | `npm run validate:sdd` | Full validation including proofreading |
 | `npm run validate:quick` | Fast iteration — skips heavy coupling/patterning checks |
+
+The implementation-coverage audit runs unconditionally inside every `validate`
+invocation. Two optional flags extend it:
+
+- `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
+- `npm run validate:sdd -- --impl-audit=strict` — promote bucket-A (gap) REQs
+  to errors (use as a pre-push gate once gaps reflect intended coverage).
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
