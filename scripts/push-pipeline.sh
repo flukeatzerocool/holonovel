@@ -266,7 +266,16 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
     echo "  Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
     for server in "${SERVERS[@]}"; do
       if [[ -d "$DEPLOY_DIR/$server" ]]; then
-        (cd "$DEPLOY_DIR/$server" && npm install --quiet && npm run build --if-present)
+        # npm ci installs strictly from package-lock.json and never rewrites it.
+        # A bare `npm install` under a different npm rewrites the lockfile,
+        # invalidating the REQ-313 lockfile fingerprint and failing REQ-418
+        # verification (recurrence: 2026-08-24). Guard: revert any lockfile
+        # drift the toolchain still produces before the build.
+        (cd "$DEPLOY_DIR/$server" && npm ci --quiet --no-audit --no-fund && npm run build --if-present)
+        if [[ -n "$(git -C "$DEPLOY_DIR/$server" status --porcelain -- package-lock.json)" ]]; then
+          echo -e "${RED}    $server: package-lock.json drifted during install — reverting.${NC}"
+          git -C "$DEPLOY_DIR/$server" checkout -- package-lock.json
+        fi
         echo "    $server: deps and build updated"
       fi
     done
