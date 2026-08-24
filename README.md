@@ -419,6 +419,8 @@ npm install && npm run check   # lint + validate + assumption audit + ambiguity
 Edit files in `spec/`. Run `npm run assemble` before committing. Do not edit
 `holonovel.md` directly — it is generated from `spec/` source files.
 
+Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel). This GitHub repository is a read-only mirror.
+
 License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
 if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
 BitD SRD (CC BY 3.0, John Harper).
