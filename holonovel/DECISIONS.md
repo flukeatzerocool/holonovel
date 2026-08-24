@@ -2,6 +2,15 @@
 
 **Spec hash:** 0d602bd4ba7837cf0bbf4febd7aa494496417063572662eeeb28254a31266bc1
 
+### Holonovel Server Change — 2026-08-24 (§5.19 persistence guardrails)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — §5.19 State Persistence Guardrails (REQ-400–407): persistence directive + persist-tools in GM briefing, `state_ledger` token, session no-mutation detection, state-drift gate (`TTRPG_STATE_GATE`), roll-to-commit coupling, auto-moment on transitions, backup-regression visibility; new `test-persistence-guardrails.ts` (T469–T476) |
+| Reused | spec, extraction, tooling |
+| Verification | typecheck 0 errors; test-persistence-guardrails 10/10; all other harnesses green (narrative 32/32, backfill 64/64, persistence 11/11, adventure 9/9, workflow 9/9, character 10/10, g7 2/2); check:fast 0 errors; register §5.19 8/8 → C |
+
 ### Holonovel Spec Update — 2026-08-24 (coverage triage + §5.12 backfill)
 
 | Field | Value |

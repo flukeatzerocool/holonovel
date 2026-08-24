@@ -68,12 +68,12 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-084 | Action suggestions (Part b1) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T68, T96, T119, T120 | — |
 | REQ-085 | Macro system (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T69 | — |
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
+| REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T476 | — |
 | REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T98, T159, T402 | — |
 | REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T75, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
-| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T77, T88, T125, T156, T261 | — |
+| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T77, T88, T125, T156, T261 | — |
 | REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99, T110 | — |
 | REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | A | — | — |
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
@@ -106,7 +106,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T131 | — |
-| REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T404 | — |
+| REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T404 | — |
 | REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T202 | — |
 | REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211, T314 | — |
@@ -116,7 +116,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | A | S6 | — |
 | REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | A | S6 | — |
-| REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | A | — | — |
+| REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | A | T469, T470, T476 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | A | — | — |
 | REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | A | S6 | — |
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | A | — | — |
@@ -152,7 +152,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211 | — |
-| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T53, T213 | — |
+| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T473, T53, T213 | — |
 | REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T53, T214 | — |
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T216 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -213,7 +213,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-234 | Secrets and knowledge (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T406, T414 | — |
 | REQ-235 | Structured player choices (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T273 | — |
 | REQ-236 | Entity relationships (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T410 | — |
-| REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T471 | — |
 | REQ-238 | Backup rotation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T276 | — |
 | REQ-239 | Audit log compaction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T277 | — |
 | REQ-240 | Clone Novel (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T278 | — |
@@ -222,7 +222,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-243 | Synthesis population during spec-driven updates (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-244 | Convergence cache key (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T309 | — |
 | REQ-245 | Pre-computed synthesis manifest (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-246 | Story journal (Part b1) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T408 | — |
+| REQ-246 | Story journal (Part b1) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T408 | — |
 | REQ-247 | Adventure structure extraction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-248 | Adventure overview resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T285 | — |
 | REQ-249 | Adventure navigation resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -367,14 +367,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-397 | Untracked state location | 5.18 Workflow Entry Points | E | — | — |
 | REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | — | — |
 | REQ-399 | Character-creation package data (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T468 | — |
-| REQ-400 | State-Persistence Directive | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-401 | State ledger briefing token | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-402 | Session no-mutation detection | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-403 | State-drift detection (Part a) (2 sub-parts) | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-404 | Roll-to-commit coupling | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-405 | Auto-moment on transitions | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-406 | Backup-restore regression visibility | 5.19 State Persistence Guardrails | A | — | — |
-| REQ-407 | Persist-tools never truncated | 5.19 State Persistence Guardrails | A | — | — |
+| REQ-400 | State-Persistence Directive | 5.19 State Persistence Guardrails | C | T469 | — |
+| REQ-401 | State ledger briefing token | 5.19 State Persistence Guardrails | C | T470 | — |
+| REQ-402 | Session no-mutation detection | 5.19 State Persistence Guardrails | C | T471 | — |
+| REQ-403 | State-drift detection (Part a) (2 sub-parts) | 5.19 State Persistence Guardrails | C | T472 | — |
+| REQ-404 | Roll-to-commit coupling | 5.19 State Persistence Guardrails | C | T473 | — |
+| REQ-405 | Auto-moment on transitions | 5.19 State Persistence Guardrails | C | T474 | — |
+| REQ-406 | Backup-restore regression visibility | 5.19 State Persistence Guardrails | C | T475 | — |
+| REQ-407 | Persist-tools never truncated | 5.19 State Persistence Guardrails | C | T476 | — |
 | REQ-408 | Tool parameter ceiling | 5.3 Tools, Resources, and Lookups | C | T477, T488 | — |
 | REQ-409 | Response-lean enumeration reads | 5.7 Determinism, Safety, and Performance | C | T478 | — |
 | REQ-410 | Token footprint in performance record | 5.7 Determinism, Safety, and Performance | C | T479 | — |

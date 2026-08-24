@@ -1414,6 +1414,7 @@ server.registerTool("set_personality", {
   if (background !== undefined) target.personality.background = background;
   if (goals !== undefined) target.personality.goals = goals;
 
+  state.recordMutation(novel, "set_personality", "personality");
   state.saveNovel(novel);
   const setFields = [description !== undefined, voice !== undefined, background !== undefined, goals !== undefined].filter(Boolean).length;
   audit("set_personality", { entity_id, fields: setFields });
@@ -2112,6 +2113,21 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
   audit("countdown_expired", { name, discovered: absent });
 }
 
+// REQ-405 — auto-record a story-journal moment entry on scene transition.
+function recordStoryMoment(novel: NovelState, scene: string, location: string | null): void {
+  const entry: any = {
+    index: novel.story_journal.length,
+    type: "moment",
+    entry: `Scene transition: ${scene}`,
+    scene_anchor: scene.substring(0, 80),
+    entity_ids: [],
+    timestamp: new Date().toISOString(),
+  };
+  if (location) entry.room_id = location;
+  novel.story_journal.push(entry);
+  audit("auto-moment", { scene: scene.substring(0, 80), location });
+}
+
 // REQ-353 — countdowns with on_scene_transition decrement on transition; climax
 // accelerates the decrement by TTRPG_CLIMAX_ACCELERATION.
 function advanceSceneTransitionCountdowns(novel: NovelState): void {
@@ -2191,8 +2207,13 @@ server.registerTool("set_scene_state", {
     advanceSceneTransitionCountdowns(novel); // REQ-353
     factionAutonomousAdvance(novel); // REQ-338
     resetPacing(novel); // REQ-336
+    // REQ-405 — auto-moment on transitions unless disabled or skipped.
+    if (novel.auto_record) {
+      recordStoryMoment(novel, effectiveDescription, location ?? null);
+    }
   }
 
+  state.recordMutation(novel, "set_scene_state", "scene");
   state.saveNovel(novel);
   audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
   return ok(`Scene set: ${effectiveDescription}`);
@@ -2251,6 +2272,7 @@ server.registerTool("create_npc", {
   const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
   if (goals) npc.personality = { goals };
   novel.npcs.set(id, npc);
+  state.recordMutation(novel, "create_npc", "npc");
   state.saveNovel(novel);
   audit("create_npc", { name, id });
   return ok(`NPC '${name}' created (${id}).`);
@@ -2316,6 +2338,7 @@ server.registerTool("set_countdown", {
   const novel = requireNovel();
   novelSnapshot();
   novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition });
+  state.recordMutation(novel, "set_countdown", "countdown");
   state.saveNovel(novel);
   audit("set_countdown", { name, ticks, type, on_scene_transition });
   return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"}).`);
@@ -2721,6 +2744,7 @@ server.registerTool("set_vow", {
     name, description, parties, difficulty: difficulty as any, scope: scope ?? "shared",
     milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty] ?? 10, state: "active",
   });
+  state.recordMutation(novel, "set_vow", "vow");
   state.saveNovel(novel);
   return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones).`);
 });
@@ -2786,6 +2810,7 @@ server.registerTool("record_story", {
     entity_ids: [],
     timestamp: new Date().toISOString(),
   });
+  state.recordMutation(novel, "record_story", "journal");
   state.saveNovel(novel);
   return ok(`Story entry #${index} recorded (${type}).`);
 });
@@ -2858,6 +2883,7 @@ server.registerTool("set_note", {
   } else {
     novel.notes.push({ key, content, badge_scope: scope });
   }
+  state.recordMutation(novel, "set_note", "note");
   state.saveNovel(novel);
   return ok(`Note '${key}' set.`);
 });
@@ -2948,6 +2974,8 @@ server.registerTool("set_pause_context", {
     active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
   };
   novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
+  // REQ-403 — committing the pause context records the state write, clearing drift.
+  state.recordMutation(novel, "set_pause_context", "context");
   state.saveNovel(novel);
   return ok("Pause context saved.");
 });
@@ -3180,7 +3208,7 @@ server.registerTool("ask_oracle", {
   inputSchema: { question: z.string(), likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional(), seed: z.string().optional() },
 }, async ({ question, likelihood, seed }: any) => {
   requireNotObserver();
-  requireNovel();
+  const novel = requireNovel();
   // Ask-the-Oracle ladder (REQ-291): each tier is a d100 target the roll must
   // meet or exceed for a YES. Omitted likelihood defaults to 50_50.
   const thresholds: Record<string, number> = { almost_certain: 11, likely: 26, "50_50": 51, unlikely: 76, small_chance: 91 };
@@ -3195,6 +3223,11 @@ server.registerTool("ask_oracle", {
     ? (yes ? "[EXCEPTIONAL_YES]" : "[EXCEPTIONAL_NO]")
     : (yes ? "[YES]" : "[NO]");
   audit("ask_oracle", { question, likelihood: band, seed });
+  // REQ-404 — roll-to-commit coupling: a significant roll flags an
+  // uncommitted-roll marker cleared by the next state write.
+  novel.uncommitted_rolls.push({ roll: `${roll}/100 → ${marker}`, suggested_tool: "record_story", at: new Date().toISOString() });
+  if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
+  state.saveNovel(novel);
   let flavor = "";
   if (!isDoubles && Math.abs(target - roll) <= 5) flavor = " (barely)";
   else if (!isDoubles && Math.abs(target - roll) >= 30) flavor = " (decisively)";
@@ -3227,6 +3260,12 @@ function novelToJSONState(novel: NovelState): any {
     pacing_autonomy_fired: novel.pacing_autonomy_fired, scene_transition_count: novel.scene_transition_count,
     faction_autonomous_ticks: novel.faction_autonomous_ticks, npc_goal_suggestions: novel.npc_goal_suggestions,
     voice_corrections_this_session: novel.voice_corrections_this_session,
+    auto_record: novel.auto_record,
+    session_no_mutation_windows: novel.session_no_mutation_windows,
+    state_regression: novel.state_regression,
+    last_mutation_at: novel.last_mutation_at,
+    mutation_counts_by_group: novel.mutation_counts_by_group,
+    uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
   };
 }
@@ -3278,6 +3317,12 @@ function loadNovelFromStateData(data: any): NovelState {
     pacing_autonomy_fired: data.pacing_autonomy_fired ?? false, scene_transition_count: data.scene_transition_count ?? 0,
     faction_autonomous_ticks: data.faction_autonomous_ticks ?? {}, npc_goal_suggestions: data.npc_goal_suggestions ?? [],
     voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
+    auto_record: data.auto_record ?? true,
+    session_no_mutation_windows: data.session_no_mutation_windows ?? [],
+    state_regression: data.state_regression ?? null,
+    last_mutation_at: data.last_mutation_at ?? null,
+    mutation_counts_by_group: data.mutation_counts_by_group ?? {},
+    uncommitted_rolls: data.uncommitted_rolls ?? [],
     metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "" },
   };
 }
@@ -3532,6 +3577,19 @@ server.registerTool("session_recap", {
     recap += `\nLore entries: ${enabledLore.length} active.`;
   }
 
+  // §5.19 guardrail markers (REQ-402/403/404) — observational, never block.
+  if (novel.session_no_mutation_windows.length > 0) {
+    recap += `\n[session-no-mutations] sessions with zero state writes: ${novel.session_no_mutation_windows.join(", ")}`;
+  }
+  if (state.stateDriftActive(novel)) {
+    recap += `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
+  }
+  if (novel.uncommitted_rolls.length > 0) {
+    for (const r of novel.uncommitted_rolls) {
+      recap += `\n[uncommitted-roll] roll "${r.roll}" has no following state write — commit with ${r.suggested_tool}.`;
+    }
+  }
+
   return ok(recap);
 });
 
@@ -3575,7 +3633,15 @@ server.registerTool("resume_novel", {
   description: "Resume a previously created novel from disk.",
   inputSchema: { slug: z.string() },
 }, async ({ slug }: any) => {
+  // REQ-402 — resuming closes the prior session window; a window with zero
+  // state writes is surfaced as [session-no-mutations].
+  if (state.activeNovel) {
+    const sessionId = process.env.TTRPG_SESSION_ID ?? state.activeNovel.metadata.session_count.toString();
+    state.closeSessionWindow(state.activeNovel, sessionId);
+  }
   const novel = state.resumeNovel(slug);
+  novel.metadata.session_count += 1;
+  state.saveNovel(novel);
   if (novel.ruleset) {
     if (!rulesets.isInstalled(novel.ruleset)) {
       return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
@@ -3590,6 +3656,16 @@ server.registerTool("switch_novel", {
   description: "Switch the active novel for this connection. Always callable.",
   inputSchema: { slug: z.string() },
 }, async ({ slug }: any) => {
+  // REQ-403b — TTRPG_STATE_GATE=block refuses to leave a drifting Novel.
+  const active = state.activeNovel;
+  if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
+    return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with set_pause_context or session_recap before switching.");
+  }
+  // REQ-402 — switching closes the prior session window.
+  if (active) {
+    const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
+    state.closeSessionWindow(active, sessionId);
+  }
   const novel = state.switchNovel(slug);
   if (novel.ruleset) {
     if (!rulesets.isInstalled(novel.ruleset)) {
@@ -3609,6 +3685,10 @@ server.registerTool("end_novel", {
   const novel = requireNovel();
   if (novel.pending_workflow) {
     return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+  }
+  // REQ-403b — TTRPG_STATE_GATE=block refuses to end a drifting Novel.
+  if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
+    return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with set_pause_context or session_recap before ending.");
   }
   novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
   state.saveNovel(novel);
@@ -4919,7 +4999,29 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
 **World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
 **NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}`;
 
-    if (badge === "observer") {
+    if (badge === "game_master") {
+      // REQ-400 — State-Persistence Directive (never-truncated tier).
+      briefing += `\n\n### State persistence
+Commit every narratable change to state in the same turn you narrate it — scene changes (set_scene_state), mechanical outcomes (countdowns, conditions), disposition shifts (update_npc), and story beats (record_story).`;
+
+      // REQ-401 — state_ledger decision-critical token (never-truncated).
+      const ledgerLines = [
+        `Last state mutation: ${novel.last_mutation_at ? new Date(novel.last_mutation_at).toISOString() : "none this session"}`,
+      ];
+      for (const [group, count] of Object.entries(novel.mutation_counts_by_group)) {
+        if (count > 0) ledgerLines.push(`  ${group}: ${count}`);
+      }
+      if (state.stateDriftActive(novel)) ledgerLines.push(`  [state-drift] GM context saved after last mutation — narration may be uncommitted.`);
+      if (novel.state_regression) ledgerLines.push(`  [state-regression] restored from backup (audit gap ${novel.state_regression.audit_gap}).`);
+      briefing += `\n\n### state_ledger\n${ledgerLines.join("\n")}`;
+    }
+
+    // REQ-407 — persist-tools never truncated: the GM scene-typed tool
+      // section always lists the core state-persistence tools regardless of
+      // scene type (scene, journal, countdown, note, personality, NPC, vow).
+      briefing += `\n\n### Persistence tools\nset_scene_state · record_story · set_countdown · set_note · set_personality · create_npc · set_vow`;
+
+      if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.
       briefing += `\n\n### Observer Mode
 You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;

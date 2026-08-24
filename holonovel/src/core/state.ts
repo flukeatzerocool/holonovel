@@ -367,6 +367,13 @@ export interface NovelState {
   faction_autonomous_ticks: Record<string, number>; // REQ-338 — per-faction autonomous tick count
   npc_goal_suggestions: GoalSuggestion[]; // REQ-339 — World in Motion suggestions
   voice_corrections_this_session: number; // REQ-344 — correction limit counter
+  // §5.19 State Persistence Guardrails (REQ-400 through REQ-407)
+  auto_record: boolean; // REQ-405 — auto-moment on transitions
+  session_no_mutation_windows: string[]; // REQ-402 — sessions closed with zero mutations
+  state_regression: { audit_gap: number; timestamp_gap_ms: number; recorded_at: string } | null; // REQ-406
+  last_mutation_at: string | null; // REQ-401/403 — timestamp of last state write
+  mutation_counts_by_group: Record<string, number>; // REQ-401 — per-group counts this session
+  uncommitted_rolls: Array<{ roll: string; suggested_tool: string; at: string }>; // REQ-404
   metadata: {
     created: string;
     modified: string;
@@ -617,6 +624,12 @@ export class StateManager {
       faction_autonomous_ticks: {},
       npc_goal_suggestions: [],
       voice_corrections_this_session: 0,
+      auto_record: true,
+      session_no_mutation_windows: [],
+      state_regression: null,
+      last_mutation_at: null,
+      mutation_counts_by_group: {},
+      uncommitted_rolls: [],
       metadata: {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -665,6 +678,11 @@ export class StateManager {
           const bakRaw = fs.readFileSync(bakPath, "utf-8");
           const bakData = JSON.parse(bakRaw);
           const loaded = this.loadNovelFromData(bakData);
+          // REQ-406 — surface the backup-restore content regression.
+          const auditGap = (data.audit_log?.length ?? 0) - (bakData.audit_log?.length ?? 0);
+          const tsGap = (new Date((data.metadata?.modified ?? bakData.metadata?.modified) ?? new Date()).getTime())
+            - new Date(bakData.metadata?.modified ?? new Date()).getTime();
+          loaded.state_regression = { audit_gap: Math.max(0, auditGap), timestamp_gap_ms: Math.max(0, tsGap), recorded_at: new Date().toISOString() };
           this.novels.set(slug, loaded);
           this.activeNovelId = slug;
           this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: true });
@@ -755,6 +773,12 @@ export class StateManager {
       faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
       npc_goal_suggestions: data.npc_goal_suggestions ?? [],
       voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
+      auto_record: data.auto_record ?? true,
+      session_no_mutation_windows: data.session_no_mutation_windows ?? [],
+      state_regression: data.state_regression ?? null,
+      last_mutation_at: data.last_mutation_at ?? null,
+      mutation_counts_by_group: data.mutation_counts_by_group ?? {},
+      uncommitted_rolls: data.uncommitted_rolls ?? [],
       metadata: data.metadata ?? {
         created: new Date().toISOString(),
         modified: new Date().toISOString(),
@@ -971,6 +995,49 @@ export class StateManager {
     };
     (entry as any).violation_type = "boundary";
     novel.audit_log.push(entry as AuditEntry);
+  }
+
+  // §5.19 REQ-401/403 — record a state-mutating write for the state_ledger
+  // token and drift detection. `group` groups tools into the REQ-401 per-group
+  // mutation counts (scene, journal, countdown, note, personality, npc, vow).
+  recordMutation(novel: NovelState, tool: string, group: string): void {
+    const now = new Date().toISOString();
+    novel.last_mutation_at = now;
+    novel.mutation_counts_by_group[group] = (novel.mutation_counts_by_group[group] ?? 0) + 1;
+    // REQ-404 — a committing mutation drains pending uncommitted-roll markers.
+    novel.uncommitted_rolls = [];
+    this.saveNovel(novel);
+  }
+
+  // §5.19 REQ-402 — close the current session window; record a no-mutation
+  // window when the session produced zero state writes.
+  closeSessionWindow(novel: NovelState, sessionId: string): void {
+    const hasMutation = Object.keys(novel.mutation_counts_by_group).some((g) => novel.mutation_counts_by_group[g] > 0);
+    if (!hasMutation && !novel.session_no_mutation_windows.includes(sessionId)) {
+      novel.session_no_mutation_windows.push(sessionId);
+    }
+    novel.mutation_counts_by_group = {};
+    novel.metadata.session_count += 1;
+    this.saveNovel(novel);
+  }
+
+  // §5.19 REQ-403b — the TTRPG_STATE_GATE setting (off|warn|block) gates
+  // session-close / context tools while state drift is active.
+  stateGate(): "off" | "warn" | "block" {
+    const v = process.env.TTRPG_STATE_GATE ?? "off";
+    return v === "warn" || v === "block" ? v : "off";
+  }
+
+  stateDriftActive(novel: NovelState): boolean {
+    const savedAt = novel.gm_context?.saved_at;
+    if (!savedAt || !novel.last_mutation_at) return false;
+    return new Date(savedAt).getTime() > new Date(novel.last_mutation_at).getTime();
+  }
+
+  // §5.19 REQ-406 — mark a load-from-backup with the content regression gap.
+  markStateRegression(novel: NovelState, auditEntryCountGap: number, timestampGapMs: number): void {
+    novel.state_regression = { audit_gap: auditEntryCountGap, timestamp_gap_ms: timestampGapMs, recorded_at: new Date().toISOString() };
+    this.saveNovel(novel);
   }
 
   verifyAuditChain(novel: NovelState): { valid: boolean; entries: number; first_broken_index?: number } {
@@ -1393,6 +1460,12 @@ function novelToJSON(novel: NovelState): any {
     faction_autonomous_ticks: novel.faction_autonomous_ticks,
     npc_goal_suggestions: novel.npc_goal_suggestions,
     voice_corrections_this_session: novel.voice_corrections_this_session,
+    auto_record: novel.auto_record,
+    session_no_mutation_windows: novel.session_no_mutation_windows,
+    state_regression: novel.state_regression,
+    last_mutation_at: novel.last_mutation_at,
+    mutation_counts_by_group: novel.mutation_counts_by_group,
+    uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
   };
 }
@@ -1489,9 +1562,15 @@ function novelFromJSON(data: any): NovelState {
     scene_transition_count: data.scene_transition_count ?? 0,
     faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
     npc_goal_suggestions: data.npc_goal_suggestions ?? [],
-    voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
-    metadata: data.metadata ?? {
-      created: new Date().toISOString(),
+voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
+      auto_record: data.auto_record ?? true,
+      session_no_mutation_windows: data.session_no_mutation_windows ?? [],
+      state_regression: data.state_regression ?? null,
+      last_mutation_at: data.last_mutation_at ?? null,
+      mutation_counts_by_group: data.mutation_counts_by_group ?? {},
+      uncommitted_rolls: data.uncommitted_rolls ?? [],
+      metadata: data.metadata ?? {
+        created: new Date().toISOString(),
       modified: new Date().toISOString(),
       session_count: 0,
       total_combat_rounds: 0,
@@ -1575,5 +1654,11 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.faction_autonomous_ticks = source.faction_autonomous_ticks;
   target.npc_goal_suggestions = source.npc_goal_suggestions;
   target.voice_corrections_this_session = source.voice_corrections_this_session;
+  target.auto_record = source.auto_record;
+  target.session_no_mutation_windows = source.session_no_mutation_windows;
+  target.state_regression = source.state_regression;
+  target.last_mutation_at = source.last_mutation_at;
+  target.mutation_counts_by_group = source.mutation_counts_by_group;
+  target.uncommitted_rolls = source.uncommitted_rolls;
   target.metadata = source.metadata;
 }
