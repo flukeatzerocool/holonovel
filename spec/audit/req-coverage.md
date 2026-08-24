@@ -36,11 +36,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T20 | — |
-| REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | A | T20, T487 | — |
+| REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | C | T20, T42, T487 | — |
 | REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T27, T98, T261, S17 | — |
 | REQ-056 | Advancement workflow | 5.4 Decision workflows | A | T32 | — |
 | REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39 | — |
-| REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41 | — |
+| REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41, T42 | — |
 | REQ-059 | Parameter canon validation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39a | — |
 | REQ-060 | Verbose output (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T47, T478 | — |
 | REQ-061 | Source quoting | 5.1 Output and Error Contracts | C | T48 | — |
@@ -243,8 +243,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-265 | Synthesis in badge_briefing (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T321, T326 | — |
 | REQ-266 | Synthesis in dashboard (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | T327 | — |
 | REQ-269 | Safety protocol status | 5.3 Tools, Resources, and Lookups | C | T289 | — |
-| REQ-270 | Artifact version identification | 5.2 Extraction and Confidence | A | — | — |
-| REQ-271 | AGENTS.md structure contract | 5.2 Extraction and Confidence | A | T291 | — |
+| REQ-270 | Artifact version identification | 5.2 Extraction and Confidence | E | — | — |
+| REQ-271 | AGENTS.md structure contract | 5.2 Extraction and Confidence | E | T291 | — |
 | REQ-272 | Stock elements catalog | 5.2 Extraction and Confidence | E | — | — |
 | REQ-273 | Independent verification reproducibility tolerance (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | E | — | — |
 | REQ-274 | Independent verifier confidence score | 5.7 Determinism, Safety, and Performance | E | — | — |
@@ -279,7 +279,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
-| REQ-312 | Pre-narration validation gate (Part d1) (5 sub-parts) | 5.7 Determinism, Safety, and Performance | A | — | — |
+| REQ-312 | Pre-narration validation gate (Part d1) (5 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357 | — |
 | REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-314 | Fingerprint-driven partial rebuild (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-315 | Full-text ruleset indexing (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
@@ -383,8 +383,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | C | T486 | — |
 | REQ-414 | Schema-surface economy | 5.3 Tools, Resources, and Lookups | C | T487 | — |
 | REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | C | T488 | — |
-| REQ-416 | Config default inheritance | 5.7 Determinism, Safety, and Performance | A | — | — |
-| REQ-417 | Non-blocking startup probes | 5.7 Determinism, Safety, and Performance | A | — | — |
+| REQ-416 | Config default inheritance | 5.7 Determinism, Safety, and Performance | E | — | — |
+| REQ-417 | Non-blocking startup probes | 5.7 Determinism, Safety, and Performance | C | T490 | — |
 | REQ-418 | Deployment verification | 5.18 Workflow Entry Points | E | — | — |
 | REQ-419 | Editorial delta classification | 5.17 Ruleset Packages | E | — | — |
 
