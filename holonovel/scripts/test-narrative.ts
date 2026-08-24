@@ -405,6 +405,69 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T386 / T391 / T397 / T401 / T417 — pacing, spatial, codex, observer ──
+  {
+    const proc = await boot({ TTRPG_PACING_WINDOW: "3", TTRPG_FACTION_AUTONOMY_INTERVAL: "5", TTRPG_NPC_AUTONOMY: "on" });
+    await call(proc, "create_novel", { name: "narrative-pacing" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    await test("T386: pacing signal fires after tool calls, resets on scene transition", async () => {
+      await call(proc, "set_scene_state", { description: "Start", beat: "setup" });
+      // 4 non-mutating tool calls (window 3).
+      for (let i = 0; i < 4; i++) await briefing(proc);
+      const b = await briefing(proc);
+      assertContains(b, "[pacing] Scene stabilized");
+      await call(proc, "set_scene_state", { description: "New scene" });
+      const b2 = await briefing(proc);
+      assertNotContains(b2, "[pacing] Scene stabilized");
+    });
+
+    await test("T401: pacing-triggered autonomy advances faction and surfaces goal pursuit", async () => {
+      await call(proc, "create_faction", { name: "Thieves Guild", goals: ["Plunder the treasury"], resources: "lockpicks" });
+      await call(proc, "create_npc", { name: "Locke", disposition: "suspicious", goals: "Crack the vault" });
+      for (let i = 0; i < 4; i++) await briefing(proc);
+      const b = await briefing(proc);
+      assertContains(b, "[pacing]");
+      assertContains(b, "World in Motion");
+    });
+
+    await test("T391: player-facing spatial surface renders room + exits, no internal IDs", async () => {
+      await call(proc, "create_room", { name: "Throne Room", description: "A grand hall." });
+      await call(proc, "create_room", { name: "Anteroom", description: "A small chamber." });
+      await call(proc, "create_exit", { direction: "north", room_a: "Throne Room", room_b: "Anteroom" });
+      await call(proc, "create_character", { name: "SpatialChar", description: "hero" });
+      await call(proc, "set_active_entity", { entity_id: "character_01" });
+      await call(proc, "set_scene_state", { description: "In the throne room", location: "Throne Room" });
+      await call(proc, "set_badge", { badge: "player" });
+      const b = await briefing(proc);
+      assertContains(b, "### Surroundings");
+      assertContains(b, "Throne Room");
+      assertContains(b, "Exits:");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T397: voice feedback captured to Codex as voice_profile", async () => {
+      await call(proc, "set_voice_examples", { entity_id: "character_01", examples: [{ context: "greeting", dialogue: "Hello." }] });
+      const cap = await call(proc, "codex_capture", { kind: "voice_profile", entity_id: "character_01", update_source: true });
+      assertContains(cap, "[OK] Voice profile");
+      const list = await call(proc, "codex_list", { kind: "voice_profile" });
+      assertContains(list, "voice_profile_character_01");
+    });
+
+    await test("T417: observer briefing renders omniscient surface", async () => {
+      await call(proc, "set_badge", { badge: "observer" });
+      const b = await briefing(proc);
+      assertContains(b, "### Observer Mode");
+      assertContains(b, "omniscient");
+      // Observer is read-only: set_scene_state must be blocked.
+      const blocked = await call(proc, "set_scene_state", { description: "attempt" });
+      assertContains(blocked, "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await kill(proc);
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

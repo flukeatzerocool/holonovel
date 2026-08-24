@@ -290,14 +290,17 @@ function parseManifest(text: string): Set<string> {
 }
 
 function sectionNameForReq(reqId: string, text: string): string {
-  const sections = text.match(/^### (5\.\d+ .+)$/gm) || [];
+  const sections = text.match(/^### (?:5\.\d+ .+|6\.\d+ .+)$/gm) || [];
   const reqIdx = text.indexOf(`**${reqId}`);
   if (reqIdx < 0) return "unknown";
   let nearest = "unknown";
   let minDist = Infinity;
   for (const sec of sections) {
     const idx = text.indexOf(sec);
-    if (idx < reqIdx && reqIdx - idx < minDist) { minDist = reqIdx - idx; nearest = sec.replace(/^### /, ""); }
+    if (idx < reqIdx && reqIdx - idx < minDist) {
+      minDist = reqIdx - idx;
+      nearest = sec.replace(/^### /, "");
+    }
   }
   return nearest;
 }
@@ -1231,6 +1234,17 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-372", "REQ-373",
   "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
+  // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
+  // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
+  // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline
+  // or verification tooling, not the runtime `holonovel/src` server.
+  "REQ-098", "REQ-108", "REQ-141", "REQ-142", "REQ-208",
+  "REQ-299", "REQ-300", "REQ-301", "REQ-303",
+  "REQ-313", "REQ-314", "REQ-394",
+  "REQ-100", "REQ-146", "REQ-148", "REQ-149", "REQ-150",
+  "REQ-158", "REQ-273", "REQ-274", "REQ-354",
+  "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",
+  "REQ-377", "REQ-378",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

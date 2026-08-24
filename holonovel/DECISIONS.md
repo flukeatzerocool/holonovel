@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** c6651a76b1a9065af37fd58ab0ea0d2bf01b2f15b7e7f4496ec2226c9e8253ca
+**Spec hash:** 0d602bd4ba7837cf0bbf4febd7aa494496417063572662eeeb28254a31266bc1
+
+### Holonovel Spec Update — 2026-08-24 (coverage triage + §5.12 backfill)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (Appendix M REQ-body terminator convention) + tooling (`sectionNameForReq` §6 labeling; `INTENDED_GAP_REQS` +30 builder-side REQs → E) + implementation (`remove_room`/`remove_thing` snapshot-after-check fix; `test-backfill.ts` 64 tests; `test-narrative.ts` T386/T391/T397/T401/T417; `push-pipeline.sh` deploy `npm ci` + lockfile-revert guard) |
+| Reused | extraction, lockfile |
+| Verification | typecheck 0 errors; test-narrative 32/32; test-g7 2/2; test-persistence 11/11; test-adventure 9/9; test-workflow 9/9; test-character-creation 10/10; test-backfill 64/64; check:fast 0 errors; register B 85→6, C 56→135 |
 
 ### Holonovel Spec Update — 2026-08-24 (interchange/generation + guardrail layer)
 

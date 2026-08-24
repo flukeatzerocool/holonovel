@@ -1674,9 +1674,9 @@ server.registerTool("remove_room", {
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
-  worldSnapshot();
   const lower = name.toLowerCase();
   if (!novel.world.rooms.has(lower)) return err("NOT_FOUND", `Room '${name}' not found.`);
+  worldSnapshot();
 
   // Remove things in this room
   for (const [tKey, thing] of novel.world.things) {
@@ -1769,9 +1769,9 @@ server.registerTool("remove_thing", {
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
-  worldSnapshot();
   const lower = name.toLowerCase();
   if (!novel.world.things.has(lower)) return err("NOT_FOUND", `Thing '${name}' not found.`);
+  worldSnapshot();
   novel.world.things.delete(lower);
   state.saveNovel(novel);
   audit("remove_thing", { name });

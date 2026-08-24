@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-24 — coverage triage: B-backfill, builder-side E-whitelist, §5.12 partials
+
+- Wave 1.1 — Bucket-B → C test backfill: added `holonovel/scripts/test-backfill.ts`
+  (64 tests) exercising the previously cited-but-unverified REQs against a real
+  server, and extended `test-narrative.ts` with T386/T391/T397/T401/T417 for the
+  §5.12 partials (pacing signal, player spatial surface, voice codex capture,
+  pacing autonomy, observer surface). Bucket B dropped 85 → 6; exercised test
+  IDs rose from 64 to 119; register regenerated.
+- Builder-side E-whitelist expansion: moved 30 convergence-loop / build-process /
+  verifier / Holodeck / Mechanical-Coupling REQs (REQ-098/108/141/142/208/299–303,
+  REQ-313/314/394/354, REQ-100/146/148–150/158/273/274, REQ-369–371/374–378) from
+  bucket A to intended-gap E — they are owed by the build pipeline, not the
+  runtime server. `sectionNameForReq` now labels §6-defined REQs with their §6.x
+  section instead of the stale "5.20" fallback.
+- Fixed a real undo/redo bug surfaced by the backfill: `remove_room` and
+  `remove_thing` took their snapshot (clearing the redo stack) *before* the
+  existence check, so a failed removal wiped redo history. Snapshot now follows
+  the NOT_FOUND check.
+- REQ-408 finding (create_character exposes 15 params > ceiling 8) recorded as a
+  genuine gap for Wave 2.8; the backfill asserts the recoverable per-tool count.
+- `scripts/push-pipeline.sh` deploy step now uses `npm ci --no-audit --no-fund`
+  instead of `npm install` (which rewrote package-lock.json under a different
+  npm, failing REQ-418 verification), plus a revert guard for any residual
+  lockfile drift.
+- Appendix M now documents the REQ-body terminator convention (next REQ header,
+  heading, or `---` horizontal rule) matching the validator.
+
 ## 2026-08-24 — interchange/generation rewrite + register guardrail layer
 
 - Fixed `checkEmptyReqBodies` to treat `---` as a REQ-body terminator (matching
