@@ -26,6 +26,8 @@
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",
     "version-bump": "npx tsx scripts/version-bump.ts",
     "version-check": "npx tsx scripts/version-check.ts",
+    "newsletter": "npx tsx scripts/newsletter-digest.ts",
+    "newsletter-push": "npx tsx scripts/newsletter-push.ts",
     "refresh-properties": "npx tsx scripts/cross-property-couple.ts",
     "spec-delta": "npx tsx scripts/spec-delta.ts"
   },
