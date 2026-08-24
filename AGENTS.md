@@ -153,3 +153,18 @@ remaining items before committing:
 - [ ] Gate/workflow references use `GN` form (not "Gate N") outside §8
 
 Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).
+
+## Newsletter
+
+A weekly digest is generated every Wednesday (GitHub Actions cron,
+`.github/workflows/newsletter.yml`) and committed to `newsletter/drafts/`.
+
+- `outline.json` lists the sections and which are enabled. The three
+  always-on sections (`shipped`, `upcoming`, `spotlight`) are the minimum;
+  add, remove, or reorder sections by editing that file — no code changes.
+  `metrics` (if enabled) renders `scripts/spec-health-trends.ts` output.
+- The `upcoming` section renders `ROADMAP.md` verbatim. When planning a
+  release, update `ROADMAP.md` (1–3 lines per upcoming item, newest first);
+  remove entries once they ship to `CHANGELOG.md`.
+- `scripts/newsletter-push.ts` pushes the latest draft to Buttondown as a
+  *draft* (never sends); a human reviews and sends from the dashboard.
