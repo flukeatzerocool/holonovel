@@ -3140,6 +3140,13 @@ layer (§5.10) — with dramaturgical primitives, autonomous cast behavior, and
 a unified intent pipeline. Together they compose the server's narrative engine:
 the machinery that transforms state management into story emergence.
 
+The coupling advisories in this section (REQ-355 through REQ-365) match by
+token containment against a named field — an entity ID, lore key, secret key,
+faction goal, or countdown scope/direction. Every fixture in Appendix F that
+exercises a coupling advisory SHALL carry setup whose matched token appears
+verbatim in the field the contract names; a fixture whose `scope`, `direction`,
+or other matching field does not contain the referenced token is a spec defect.
+
 **REQ-335a — Scene beat taxonomy (Part a).**
 The server SHALL support scene beat annotation alongside scene type (REQ-087). Valid beat values are: `setup`, `escalation`, `turning_point`, `climax`, `resolution`, and `denouement`. Beats SHALL be set via `set_scene_state` as an optional `beat` parameter and via `set_scene_type` as a `beat` parameter. The current beat SHALL surface in `badge_briefing` as a sub-element of the scene state section, immediately after the scene type tag, in the form `Beat: <beat>`.
 
@@ -3305,7 +3312,7 @@ WHEN a countdown fires via `advance_countdown` or scene transition (REQ-073, REQ
 **REQ-358b — Countdown-NPC disposition coupling (Part b).**
 This is a mechanical coupling — disposition changes automatically on countdown fire. *Acceptance criterion:* Create NPC "Guard" with `disposition="neutral"`, `location="gatehouse"`. Create `hostile`-direction countdown with `scope="gatehouse"`. Fire the countdown — assert Guard's disposition shifts to `suspicious` with `[countdown-disposition]` audit entry. Create `benign`-direction countdown — fire — assert Guard shifts back to `neutral`. NPC outside countdown scope — assert no shift. _Check:_ T409.
 **REQ-359a — Relationship-countdown coupling (Part a).**
-WHEN a relationship type changes from `ally` to `rival` or `hostile` via `set_relationship` (REQ-236) AND a countdown exists whose `scope` or `direction` text references either entity in the relationship, THE server SHALL surface an advisory in the `narrative_threads` briefing section (REQ-281) suggesting the countdown be advanced or a new countdown be created to represent the fallout. The advisory SHALL carry both entity names, the relationship change, and the matching countdown name. This is a navigational coupling — the server suggests; the GM decides. *Acceptance criterion:* Create countdown with `scope="alliance"`.
+WHEN a relationship type changes from `ally` to `rival` or `hostile` via `set_relationship` (REQ-236) AND a countdown exists whose `scope` or `direction` text references either entity in the relationship, THE server SHALL surface an advisory in the `narrative_threads` briefing section (REQ-281) suggesting the countdown be advanced or a new countdown be created to represent the fallout. The advisory SHALL carry both entity names, the relationship change, and the matching countdown name. This is a navigational coupling — the server suggests; the GM decides. *Acceptance criterion:* Create countdown with `scope="npc_guard"`.
 
 **REQ-359b — Relationship-countdown coupling (Part b).**
 Call `set_relationship("pc_01", "npc_guard", "ally")`. Then call `set_relationship("pc_01", "npc_guard", "rival")` — assert `badge_briefing` `narrative_threads` includes relationship-countdown advisory referencing the countdown. Flip relationship where no matching countdown exists — assert no advisory. _Check:_ T410.
@@ -3359,6 +3366,7 @@ Before handoff (§9), the builder SHALL include in DECISIONS.md (6) a `narrative
 **REQ-346a2 — Narrative coherence attestation (Part a2).**
 A build missing this attestation is a handoff defect. *Acceptance criterion:* DECISIONS.md (6) contains a `narrative_coherence` section sub-headed `@section evidence` with the three attestation points and an embedded or linked smoke-session transcript. _Check:_ T396, T403.
 **REQ-346b — Narrative coherence attestation (Part b).**
+The `spec_health` `narrative_coherence` flag SHALL report a disposition of `pass`, `partial`, or `fail`. `pass` requires every server-side §5.12 REQ to be implemented and the attestation block to be recorded; `partial` requires at least one §5.12 REQ implemented; `fail` applies otherwise. A `fail` disposition blocks handoff (§9); a `partial` disposition is recorded as a non-blocking finding with a re-activation condition. _Check:_ T403.
 
 ---
 

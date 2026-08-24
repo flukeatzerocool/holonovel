@@ -291,6 +291,50 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T402: codex adventure beat sequences ─────────────────────────
+  {
+    const proc = await boot();
+
+    await test("T402: codex adventure suggested_beats pre-populate story_beats", async () => {
+      await call(proc, "codex_set", { kind: "adventure", name: "Test Quest", content: { title: "Test Quest", sections: {}, suggested_beats: [
+        { beat: "setup", scene_preview: "The tavern is quiet..." },
+        { beat: "escalation", scene_preview: "A fight breaks out..." },
+        { beat: "climax", scene_preview: "The dragon rises!" },
+      ] } });
+      await call(proc, "create_novel", { name: "test-quest", codex_adventure: "adventure_test_quest" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      let b = await briefing(proc);
+      assertContains(b, "setup (\"The tavern is quiet...\") [adventure-scaffold]");
+      assertContains(b, "climax (\"The dragon rises!\") [adventure-scaffold]");
+
+      // GM-set beat at a scaffold position replaces the scaffold entry; tag removed.
+      await call(proc, "set_scene_state", { description: "The tavern hums with conversation", beat: "setup" });
+      b = await briefing(proc);
+      assertContains(b, "setup (\"The tavern hums");
+      assertNotContains(b, "The tavern is quiet");
+
+      // Advance scene without an explicit beat — the remaining scaffold stays tagged.
+      await call(proc, "set_scene_state", { description: "The tension builds" });
+      b = await briefing(proc);
+      assertContains(b, "escalation (\"A fight breaks out...\") [adventure-scaffold]");
+
+      // GM-set climax replaces the third scaffold.
+      await call(proc, "set_scene_state", { description: "The vault doors open", beat: "climax" });
+      b = await briefing(proc);
+      assertNotContains(b, "The dragon rises!");
+    });
+
+    await test("T402b: adventure without suggested_beats pre-populates nothing", async () => {
+      await call(proc, "codex_set", { kind: "adventure", name: "Plain Quest", content: { title: "Plain Quest", sections: {} } });
+      await call(proc, "create_novel", { name: "plain-quest", codex_adventure: "adventure_plain_quest" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      const b = await briefing(proc);
+      assertContains(b, "[No beats completed.]");
+    });
+
+    await kill(proc);
+  }
+
   // ── T406–T416: coupling advisories ────────────────────────────────
   {
     const proc = await boot();

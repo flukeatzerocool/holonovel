@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-24 — §5.12 closure to G7-pass + §5.9 persistence backfill
+
+- Fixed `recordBeatTransition`: a GM-set beat now replaces the same-beat
+  `adventure-scaffold` entry instead of appending a duplicate (REQ-352), and
+  the beat is recorded *before* `scene_beat` advances (a pre-existing bug that
+  silently suppressed every beat transition). Added T402 to
+  `holonovel/scripts/test-narrative.ts`.
+- Fixed `rename_novel` to keep the active Novel active: the new
+  `StateManager.renameNovel` re-keys the map and updates `activeNovelId`
+  (REQ-256). Added `holonovel/scripts/test-persistence.ts` (T74/T78/T98/T99/
+  T100/T101/T160/T276/T278/T281/T315/T316/T317) exercising §5.9 lifecycle,
+  switching, rename, listing, metadata, clone, interchange, backup, and health.
+- Made `spec_health.narrative_coherence` reachable at `pass`: dropped REQ-354
+  (a §5.2 builder REQ) from the §5.12 server count and count REQ-346 as
+  implemented when the G7 attestation is recorded. Added `test-g7.ts`
+  (T396/T403) and flipped the disposition to `pass` (31/31).
+- Corrected the REQ-359/T410 fixture-contract conflict (`scope="alliance"` →
+  `scope="npc_guard"`, which the token-matching contract already requires) and
+  added a §5.12 convention note that coupling-advisory fixtures must carry the
+  matched token verbatim. Filled the empty REQ-346b body.
+- Register: §5.12 now 31/31 server REQs evidenced; §5.9 backfill moved 10 REQs
+  to bucket C. Remaining bucket-A count under `--impl-audit=strict`: 198 gap,
+  55 review (strict-gate enablement deferred until the backlog is triaged).
+
 ## 2026-08-24 — §5.12 narrative engine + coverage-gap whitelist
 
 - Implemented the §5.12 Narrative Architecture layer (REQ-335–366) in
