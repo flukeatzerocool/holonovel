@@ -214,6 +214,61 @@ if $HAS_COMMIT; then
   fi
 fi
 
+# ── 7b. Mirror sync (origin → github) ──
+
+echo -e "${GREEN}=== 7b. Mirror sync (github) ===${NC}"
+if git config --get remote.github.url >/dev/null 2>&1; then
+  git push github main || echo -e "${YELLOW}  Mirror push (main) FAILED — GitHub mirror is behind origin.${NC}"
+  if [[ -n "$TAG_TO_PUSH" ]]; then
+    git push github "$TAG_TO_PUSH" || echo -e "${YELLOW}  Mirror tag push FAILED.${NC}"
+  fi
+  echo -e "${GREEN}  Mirror sync: DONE${NC}"
+else
+  echo -e "${YELLOW}  No 'github' remote configured — skipping mirror sync.${NC}"
+fi
+
+# ── 7c. npm publish (version-gated, holonovel server subpackage) ──
+
+echo -e "${GREEN}=== 7c. npm publish (version-gated) ===${NC}"
+SERVER_PKG="holonovel/package.json"
+SERVER_VERSION=$(node -e "console.log(require('./$SERVER_PKG').version)")
+SERVER_NAME=$(node -e "console.log(require('./$SERVER_PKG').name)")
+if npm whoami >/dev/null 2>&1; then
+  PUBLISHED_VERSION=$(npm view "$SERVER_NAME" version 2>/dev/null || echo "")
+  if [[ "$PUBLISHED_VERSION" == "$SERVER_VERSION" ]]; then
+    echo -e "${YELLOW}  npm: version ${SERVER_VERSION} already published — skipping.${NC}"
+  else
+    echo -e "${YELLOW}  Publishing ${SERVER_NAME}@${SERVER_VERSION} to npm...${NC}"
+    if (cd holonovel && npm publish --access public); then
+      echo -e "${GREEN}  npm publish: DONE (${SERVER_VERSION})${NC}"
+    else
+      echo -e "${RED}  npm publish FAILED — registry listing will be stale.${NC}"
+    fi
+  fi
+else
+  echo -e "${YELLOW}  npm not authenticated — skipping publish. Run 'npm login'.${NC}"
+fi
+
+# ── 7d. MCP Registry publish (version-gated) ──
+
+echo -e "${GREEN}=== 7d. MCP Registry publish (version-gated) ===${NC}"
+if command -v mcp-publisher >/dev/null 2>&1; then
+  MCPNAME=$(node -e "console.log(require('./$SERVER_PKG').mcpName || 'io.github.flukeatzerocool/holonovel')")
+  REGISTERED_VERSION=$(mcp-publisher get "$MCPNAME" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).latestVersion||"")}catch{console.log("")}})' 2>/dev/null || echo "")
+  if [[ "$REGISTERED_VERSION" == "$SERVER_VERSION" ]]; then
+    echo -e "${YELLOW}  MCP Registry: version ${SERVER_VERSION} already published — skipping.${NC}"
+  else
+    echo -e "${YELLOW}  Publishing ${SERVER_VERSION} to the MCP Registry...${NC}"
+    if (cd holonovel && mcp-publisher publish); then
+      echo -e "${GREEN}  MCP Registry publish: DONE (${SERVER_VERSION})${NC}"
+    else
+      echo -e "${YELLOW}  MCP Registry publish FAILED — re-run 'mcp-publisher login' then publish manually.${NC}"
+    fi
+  fi
+else
+  echo -e "${YELLOW}  mcp-publisher not installed — skipping MCP Registry publish.${NC}"
+fi
+
 # ── 8. Push wiki ──
 
 echo -e "${GREEN}=== 8. Push wiki ===${NC}"
