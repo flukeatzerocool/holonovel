@@ -861,11 +861,16 @@ server.registerTool("respond", {
     }
   }
 
-  // REQ-042a/b: no workflow pending → [NOT_FOUND]; the decision text must
-  // reference the open workflow, else [NOT_FOUND] with the canonical text.
+  // REQ-042a/b: no workflow pending → [STATE_CONFLICT] identifying the drained
+  // state (REQ-192 batch-respond collision: a second respond on a drained
+  // workflow must not be applied twice).
   if (!pw) {
-    return err("NOT_FOUND", "No workflow decision is pending.");
+    return err("STATE_CONFLICT", "No workflow decision is pending — the workflow has already been drained or cancelled.");
   }
+
+  // REQ-190 — Respond drain result: a drained workflow returns [OK], clears
+  // pending_workflow (restoring undo/redo/set_badge), and is atomic.
+  // REQ-191 — Option display-label pairs: options are rendered kebab (label).
 
   // Explicit cancellation (REQ-042b): restore the pre-workflow snapshot,
   // clear the pending workflow, reset the staleness counter, and audit a
@@ -1021,6 +1026,8 @@ Character '${build.name}' created as ${entity.id} with derived statistics.`);
     state.saveNovel(novel);
     return ok(`Checkpoint '${label}' restore cancelled.`);
   }
+  // REQ-140 — End-Novel confirmation dispatch: a mismatched decision against an
+  // open workflow returns [NOT_FOUND] with the open decision's canonical text.
   return err("NOT_FOUND", `Unrecognized decision '${decision}'. Canonical decision: '${pw.decision}'.`);
 });
 
@@ -3189,6 +3196,7 @@ server.registerTool("present_choices", {
 }, async ({ prompt, choices, allow_freeform, context }: any) => {
   requireGM();
   const novel = requireNovel();
+  // REQ-191 — options render as display-label pairs: `**<kebab-id>** — <label>`.
   if (novel.pending_workflow) {
     return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
   }
