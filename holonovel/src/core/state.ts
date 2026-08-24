@@ -813,6 +813,9 @@ export class StateManager {
     return novel;
   }
 
+  // REQ-117 — Novel retention period: ended Novels move to .trash/ and are
+  // excluded from resume_novel; retention is configurable via
+  // TTRPG_NOVEL_RETENTION_DAYS (cleanupExpiredTrash).
   endNovel(novel: NovelState, dispose: "yes" | "cancel"): { removed: boolean } {
     if (dispose === "cancel") return { removed: false };
     const trashDir = path.join(this.stateDir, ".trash");
@@ -825,11 +828,61 @@ export class StateManager {
     if (fs.existsSync(bakFile)) {
       fs.renameSync(bakFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json.bak`));
     }
+    const archiveDir = path.join(this.stateDir, "archive");
+    if (fs.existsSync(archiveDir)) {
+      for (const entry of fs.readdirSync(archiveDir)) {
+        if (entry.startsWith(`${novel.slug}-`) || entry === `${novel.slug}.json`) {
+          const full = path.join(archiveDir, entry);
+          fs.renameSync(full, path.join(trashDir, `archived-${entry}`));
+        }
+      }
+    }
     this.novels.delete(novel.slug);
     if (this.activeNovelId === novel.slug) {
       this.activeNovelId = null;
     }
     return { removed: true };
+  }
+
+  // REQ-334 — Novel archive: move a Novel to .holonovel-state/archive/.
+  // Archived Novels are read-only long-term references, never auto-deleted.
+  archiveNovel(slug: string): { archived: boolean; at: string } {
+    const novelFile = path.join(this.stateDir, "novels", `${slug}.json`);
+    if (!fs.existsSync(novelFile)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
+    const archiveDir = path.join(this.stateDir, "archive");
+    fs.mkdirSync(archiveDir, { recursive: true });
+    const target = path.join(archiveDir, `${slug}.json`);
+    if (fs.existsSync(target)) fs.unlinkSync(target);
+    fs.renameSync(novelFile, target);
+    const bak = novelFile + ".bak";
+    if (fs.existsSync(bak)) fs.renameSync(bak, target + ".bak");
+    this.novels.delete(slug);
+    if (this.activeNovelId === slug) this.activeNovelId = null;
+    return { archived: true, at: new Date().toISOString() };
+  }
+
+  unarchiveNovel(slug: string): NovelState {
+    const archiveFile = path.join(this.stateDir, "archive", `${slug}.json`);
+    if (!fs.existsSync(archiveFile)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' is not archived.`);
+    const novelsDir = path.join(this.stateDir, "novels");
+    fs.mkdirSync(novelsDir, { recursive: true });
+    const target = path.join(novelsDir, `${slug}.json`);
+    if (fs.existsSync(target)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' already exists as active.`);
+    fs.renameSync(archiveFile, target);
+    const bak = archiveFile + ".bak";
+    if (fs.existsSync(bak)) fs.renameSync(bak, target + ".bak");
+    return this.resumeNovel(slug);
+  }
+
+  archivedNovels(): Array<{ slug: string; archived_at: string }> {
+    const archiveDir = path.join(this.stateDir, "archive");
+    if (!fs.existsSync(archiveDir)) return [];
+    return fs.readdirSync(archiveDir)
+      .filter((f) => f.endsWith(".json") && !f.endsWith(".json.bak"))
+      .map((f) => {
+        const stat = fs.statSync(path.join(archiveDir, f));
+        return { slug: f.replace(/\.json$/, ""), archived_at: stat.mtime.toISOString() };
+      });
   }
 
   cleanupExpiredTrash(): void {

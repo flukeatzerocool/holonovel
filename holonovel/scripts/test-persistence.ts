@@ -206,6 +206,55 @@ async function main() {
       await call(proc, "create_novel", { name: "restore-novel" });
     });
 
+    await test("T318/REQ-259: update_novel_description sets, surfaces, and clears", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "update_novel_description", { description: "A new premise." });
+      const info = JSON.parse(await call(proc, "novel_info", {}));
+      if (info.description !== "A new premise.") throw new Error(`desc not set: ${info.description}`);
+      await call(proc, "update_novel_description", { description: "" });
+      const info2 = JSON.parse(await call(proc, "novel_info", {}));
+      if (info2.description !== "") throw new Error("empty string did not clear description");
+    });
+
+    await test("T339/REQ-294: genre declaration surfaces in novel_info and spec_health", async () => {
+      await call(proc, "create_novel", { name: "genre-novel" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "set_genre", { genre: "noir" });
+      const health = JSON.parse(await call(proc, "spec_health", {}));
+      if (health.active_genre !== "noir") throw new Error(`active_genre missing: ${health.active_genre}`);
+      const info = JSON.parse(await call(proc, "novel_info", {}));
+      if (info.genre !== "noir") throw new Error(`genre not in novel_info: ${info.genre}`);
+      const bad = await call(proc, "set_genre", { genre: "invalid_genre" });
+      assertContains(bad, "[INVALID_INPUT]");
+    });
+
+    await test("T122/REQ-117: ended Novel moves to trash and is unresumable", async () => {
+      await call(proc, "create_novel", { name: "trash-me" });
+      await call(proc, "end_novel", {});
+      await call(proc, "respond", { decision: "end novel", option: "yes" });
+      const resume = await call(proc, "resume_novel", { slug: "trash-me" });
+      assertContains(resume, "[STATE_CONFLICT]");
+      await call(proc, "create_novel", { name: "restore-novel" });
+    });
+
+    await test("T381/REQ-334: archive/unarchive Novel lifecycle", async () => {
+      await call(proc, "create_novel", { name: "archive-me" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "create_room", { name: "archived-room", description: "d" });
+      await call(proc, "archive_novel", { slug: "archive-me" });
+      const active = await call(proc, "list_novels", {});
+      if (active.includes("archive-me")) throw new Error("archived novel still listed as active");
+      const archived = await call(proc, "list_novels", { filter: "archived" });
+      assertContains(archived, "archive-me");
+      const health = JSON.parse(await call(proc, "spec_health", {}));
+      if (!JSON.stringify(health.archived_novels).includes("archive-me")) throw new Error("archived_novels missing");
+      const resume = await call(proc, "resume_novel", { slug: "archive-me" });
+      assertContains(resume, "[STATE_CONFLICT]");
+      await call(proc, "unarchive_novel", { slug: "archive-me" });
+      const info = JSON.parse(await call(proc, "novel_info", {}));
+      if (info.slug !== "archive-me") throw new Error("unarchive did not restore active novel");
+    });
+
     await kill(proc);
   }
 

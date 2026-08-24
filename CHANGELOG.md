@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-24 — §5.9 persistence additions (REQ-117/259/294/334)
+
+- `update_novel_description(description)` tool (REQ-259) — sets/replaces/clears
+  the active Novel's description, surfaced in novel_info.
+- `set_genre(genre)` tool + `active_genre` in spec_health (REQ-294) — canonical
+  genre catalog with `[INVALID_INPUT]` enumeration.
+- Novel archive subsystem (REQ-334): `archive_novel`/`unarchive_novel` move
+  files to `.holonovel-state/archive/`, `list_novels(filter=active|archived|all)`,
+  `spec_health.archived_novels`, read-only archived Novels.
+- REQ-117 (trash retention) citation added; test-persistence.ts grew T122/T318/
+  T339/T381 (16 total).
+- Register: REQ-117/259/294/334 → C. Buckets now A 145 / B 6 / C 151 / E 79.
+
 ## 2026-08-24 — §5.4 decision-workflow completion (REQ-140/190/191/192)
 
 - `respond` with no pending workflow now returns `[STATE_CONFLICT]` identifying
