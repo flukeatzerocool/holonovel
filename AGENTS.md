@@ -134,7 +134,8 @@ invocation. Two optional flags extend it:
 
 - `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
 - `npm run validate:sdd -- --impl-audit=strict` — promote bucket-A (gap) REQs
-  to errors (use as a pre-push gate once gaps reflect intended coverage).
+  to errors (enabled as a pre-push gate in `.githooks/pre-push`; passes when
+  every server-runtime REQ is evidenced and builder-side REQs are whitelisted).
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.

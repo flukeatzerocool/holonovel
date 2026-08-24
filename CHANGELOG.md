@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-24 — Wave 11 + terminal: coverage backlog cleared, strict gate enabled
+
+- REQ-173/174/175 session-recap fields (connections, significant rolls,
+  confrontation summaries); REQ-255 boundary-collision advisory on scene text.
+- REQ-193 pending-workflow staleness surfaced; Appendix F gains T494 mapping.
+- REQ-391/392/393 ruleset-package citations + tests (scoped listing, tool
+  budget `tools_list_bytes`, update preservation); REQ-056 dispositioned
+  ruleset-dependent (E).
+- **Backlog cleared: A = 0, B = 0** — 275 C / 106 E across all 381 base REQs.
+- `--impl-audit=strict` enabled as a pre-push gate in `.githooks/pre-push`.
+- `test-output-contracts.ts` final: 172 assertions (T32/T441/T449/T452–T455/
+  T456/T459/T460/T494).
+
 ## 2026-08-24 — Wave 10: §5.10 World-model couplings (8 REQs → C)
 
 - REQ-197 description modes: `command("brief"/"verbose"/"normal")` +

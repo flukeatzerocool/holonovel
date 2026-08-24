@@ -107,6 +107,10 @@ export function rollDice(notation: string, seed?: string): RollResult {
   return { total, dice, modifier, notation: notation.trim() };
 }
 
+// REQ-389 — declarative ruleset packages (six JSON files, content-hash
+// validated); REQ-390 — lazy hydration on first use, eager via TTRPG_RULESETS;
+// REQ-393 — update preservation: packages revalidate against the host version
+// and are held inactive with a [package-incompatible] flag rather than dropped.
 export class RulesetManager {
   readonly installDir: string;
   readonly hostVersion: string;
