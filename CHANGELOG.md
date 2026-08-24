@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-24 — Wave 2: §5.3 Tool-surface economy (12 REQs → C)
+
+- `spec_repo_url` config + spec_health + intro pointer (REQ-106).
+- REQ-413/414/415: spec_health gains `catalog_verbosity`,
+  `action_discriminators`, and `nested_input_counts` (schema-surface metrics).
+- REQ-408: create_character restructured to 8 top-level params (personality +
+  details refinement objects), legacy-tolerant normalization; ceiling enforced.
+- REQ-057/059/183: ruleset lookup returns `[NOT_FOUND]` with live-index
+  enumerations + "Did you mean?" hint (badge-filtered), satisfying canonical
+  lookup, parameter-canon validation, and live-index enumeration.
+- REQ-112 cross-reference discovery: lookup results surface non-recursive
+  pointers when entry text names another indexed anchor.
+- REQ-024/078/138/139/169/269 citations + T-ID tests (session_zero 8 sections,
+  prompt_health, resource_uris, audit_chain, safety_protocols).
+- REQ-021/110/182 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows T39/T39a/T39b/T105/T115/T124/T152/T153/T204/
+  T289/T486/T487/T488 (28 assertions). Buckets now A 112 / B 6 / C 179 / E 84.
+
 ## 2026-08-24 — Wave 1: §5.1 Output & Error Contracts (12 REQs → C)
 
 - REQ-004 truncation: `truncateOutput()` with `output://<tool>/<counter>` pointer
