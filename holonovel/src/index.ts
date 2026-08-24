@@ -475,6 +475,17 @@ cachedMetadata();
 // default; a per-call `detail: true` requests full entries for a single call.
 let enumerationVerbosity: "summary" | "detail" = "summary";
 
+// REQ-253 — tool-output verbosity control: `normal` (full entries, full roll
+// transparency) is the default; `terse` returns minimum mechanical content.
+// Selectable via the `detail=terse` player signal or a per-call `terse: true`.
+let outputVerbosity: "normal" | "terse" = "normal";
+function terseMode(terse?: boolean): boolean {
+  return terse === true || outputVerbosity === "terse";
+}
+function terseOutput(tool: string, args: any, normal: string, terse: string): any {
+  return terseMode(args?.terse) ? raw(terse) : ok(normal);
+}
+
 // REQ-409 — normalize the per-call detail request: absent → summary (lean
 // default); explicit `true` → full entries; explicit `false` → summary.
 const detailZod = { detail: z.boolean().optional() };
@@ -1923,6 +1934,15 @@ server.registerTool("command", {
     return raw(`[ERROR] [STATE_CONFLICT] The world model has not been populated. Use an adventure module or \`convert_source\` to populate rooms before using parser commands.`);
   }
 
+  // REQ-221 — combat-navigation interaction: while combat is active, navigation
+  // verbs (go/enter/exit/move) return [STATE_CONFLICT]; inspection and
+  // non-spatial commands continue to function.
+  const navVerbs = new Set(["go", "walk", "move", "enter", "exit", "north", "south", "east", "west", "n", "s", "e", "w", "northeast", "northwest", "southeast", "southwest", "ne", "nw", "se", "sw", "up", "down", "u", "d"]);
+  const firstWord = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  if (novel.combat && novel.combat.active && navVerbs.has(firstWord)) {
+    return raw(`[ERROR] [STATE_CONFLICT] Combat is active — cannot navigate. Call \`end_combat\` first or flee per the ruleset's retreat mechanic.`);
+  }
+
   // Auto-place entity in first room if no current room
   let currentRoom = entity?.current_room ?? null;
   if (!currentRoom && entity) {
@@ -2381,7 +2401,19 @@ server.registerTool("init_combat", {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
-  const combat = state.initCombat(novel, participants, dangers ?? [], seed);
+  // REQ-203 — combat-init guard: init_combat while combat is active returns
+  // [STATE_CONFLICT]; no combat state modified.
+  if (novel.combat && novel.combat.active) {
+    return err("STATE_CONFLICT", "Combat already active — call `end_combat` first.");
+  }
+  // REQ-204 — participant validation before any combat state is constructed;
+  // unresolvable IDs return [NOT_FOUND] enumerating them and valid IDs.
+  const valid = new Set([...novel.entities.keys(), ...novel.npcs.keys()]);
+  const unresolved = (participants ?? []).filter((p: string) => !valid.has(p));
+  if (unresolved.length > 0) {
+    return err("NOT_FOUND", `Participants not found: ${unresolved.join(", ")}. Valid entity/NPC IDs: ${[...valid].join(", ") || "(none)"}.`);
+  }
+  const combat = state.initCombat(novel, participants ?? [], dangers ?? [], seed);
   state.saveNovel(novel);
   return ok(`Combat started. Round ${combat.round}, ${combat.turn_order.length} participants. Turn: ${combat.turn_order[0]} (auto-advance mode).`);
 });
@@ -3946,6 +3978,17 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 // --- Guidance (GM) ---
 
+server.registerTool("set_verbosity", {
+  title: "Set Output Verbosity",
+  description: "Set the session output verbosity mode: normal (full entries) or terse (minimum mechanical content). Callable by both badges.",
+  // REQ-253 — tool-output verbosity control: session-scoped mode, discarded on
+  // connection close; reported in spec_health.
+  inputSchema: { mode: z.enum(["normal", "terse"]) },
+}, async ({ mode }: any) => {
+  outputVerbosity = mode;
+  return ok(`Output verbosity set to '${mode}'.`);
+});
+
 server.registerTool("set_briefing_order", {
   title: "Set Briefing Order",
   description: "Reorder sections of badge_briefing. Game Master only.",
@@ -3979,6 +4022,19 @@ function slugifyPremise(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "generated";
 }
 
+// REQ-251 — generation intent guard assessment: returns a concern string or null.
+// Detects direct/implied harm, power-inversion requests, and mechanics-fabrication.
+function assessGenerationGuard(input: string): string | null {
+  const t = input.trim().replace(/^!force\s+/, "").toLowerCase();
+  if (/(capable of defeating|stronger than|outclass|overpower|kill|murder|torture|harm|hurt|rape|abuse)/i.test(t)) {
+    return "the premise requests content that may violate participant consent or invert expected power balance.";
+  }
+  if (/(infinite|unlimited|invincible|omnipotent|god-mode|no counter|impossible to defeat|beyond the (ruleset|mechanical) ceiling)/i.test(t)) {
+    return "the premise exceeds the ruleset's mechanical ceiling or requests fabricated mechanics.";
+  }
+  return null;
+}
+
 // REQ-090 — generate_adventure(premise, target?). Produces a real adventure
 // scaffold: title, GM-only Overview, player-visible Hook, 2–6 locations with
 // table-rolled flavor, NPC name suggestions, and encounter-table seeds — drawn
@@ -4000,6 +4056,19 @@ server.registerTool("generate_adventure", {
   const novel = state.activeNovel;
   const slug = slugifyPremise(premise);
   const tgt = target ?? (novel ? "novel" : "codex");
+
+  // REQ-251 — generation intent guard: assess the premise before producing
+  // output for harm, power-inversion ("create an adversary capable of defeating
+  // <entity>"), and mechanics-fabrication requests. `!force` overrides with an
+  // audited [generation-guard-overridden] entry.
+  const guardConcern = assessGenerationGuard(premise);
+  if (guardConcern) {
+    const forced = premise.trim().startsWith("!force");
+    if (!forced) {
+      return warn(`Generation guard: ${guardConcern} Please clarify or modify the premise (prefix with !force to override).`);
+    }
+    audit("generation-guard-overridden", { premise: premise.slice(0, 80), concern: guardConcern });
+  }
 
   const advice = state.enrichmentManifest?.adventure_advice ?? DEFAULT_ENRICHMENT.adventure_advice;
   const templates = advice.templates ?? [];
@@ -4093,6 +4162,13 @@ server.registerTool("generate_encounter", {
   requireGM();
   const novel = requireNovel();
   const ctx = String(context).trim();
+  // REQ-251 — generation intent guard (see generate_adventure for the guard).
+  const guardConcern = assessGenerationGuard(ctx);
+  if (guardConcern) {
+    const forced = ctx.trim().startsWith("!force");
+    if (!forced) return warn(`Generation guard: ${guardConcern} Please clarify or modify the context (prefix with !force to override).`);
+    audit("generation-guard-overridden", { context: ctx.slice(0, 80), concern: guardConcern });
+  }
   const rng = createRng(`encounter:${ctx}`);
 
   const monsterPool = ["a lone sentinel", "a pack of shadow hounds", "an armored enforcer with a debt", "a shrieking flock", "a stone golem misfiring its wards"];
@@ -5010,6 +5086,8 @@ server.registerTool("spec_health", {
     tools_list_bytes: cachedMetadata().toolsListBytes,
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
+    // REQ-253 — active tool-output verbosity mode.
+    verbosity_mode: outputVerbosity,
     // REQ-413 — action-discriminator tools; REQ-414 — nested-form input count;
     // REQ-415 — active catalog verbosity (summary default, detail on request).
     catalog_verbosity: enumerationVerbosity,

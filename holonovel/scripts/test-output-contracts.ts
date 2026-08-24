@@ -622,6 +622,103 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 7: Combat ──
+  await test("T246/REQ-203 + T247/REQ-204 + T248/REQ-205: combat init guard, participant validation, mid-combat changes", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Hero" });
+    await call(p, "create_npc", { name: "Goblin" });
+    const g = await call(p, "init_combat", { participants: ["nonexistent"] });
+    assertContains(g, "[NOT_FOUND]", "REQ-204 participant validation");
+    const c1 = await call(p, "init_combat", { participants: ["character_01", "npc_"] });
+    void c1;
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const npcId = Object.keys(npcs)[0];
+    await call(p, "init_combat", { participants: ["character_01", npcId] });
+    const again = await call(p, "init_combat", { participants: ["character_01", npcId] });
+    assertContains(again, "[STATE_CONFLICT]", "REQ-203 combat-init guard");
+    const add = await call(p, "add_combat_participant", { participant_id: "nonexistent2" });
+    assertContains(add, "[NOT_FOUND]", "REQ-205 add validation");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T249/REQ-206: combat-round condition expiry", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Fighter" });
+    await call(p, "apply_condition", { entity_id: "character_01", condition: "prone", rounds: 1 });
+    await call(p, "init_combat", { participants: ["character_01"] });
+    await call(p, "advance_combat", {});
+    await call(p, "advance_combat", {});
+    const sheet = await call(p, "character_sheet", { entity_id: "character_01" });
+    assertNotContains(sheet, "prone", "REQ-206 condition expired");
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "condition_expired", "REQ-206 expiry audited");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T263/REQ-221: combat-navigation interaction blocks movement", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "W" });
+    await call(p, "create_room", { name: "A", description: "a" });
+    await call(p, "create_room", { name: "B", description: "b" });
+    await call(p, "create_exit", { direction: "north", room_a: "A", room_b: "B" });
+    await call(p, "init_combat", { participants: ["character_01"] });
+    const nav = await call(p, "command", { command: "go north" });
+    assertContains(nav, "[STATE_CONFLICT]", "REQ-221 navigation blocked in combat");
+    const look = await call(p, "command", { command: "look" });
+    assertNotContains(look, "[ERROR]", "REQ-221 inspection allowed");
+    await call(p, "end_combat", {});
+    const nav2 = await call(p, "command", { command: "go north" });
+    assertNotContains(nav2, "Combat is active", "REQ-221 navigation resumes");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T311/REQ-251: generation intent guard warns on harm/power-inversion", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const warn = await call(p, "generate_adventure", { premise: "create an adversary capable of defeating Hero" });
+    assertContains(warn, "[WARNING]", "REQ-251 generation guard warns");
+    const force = await call(p, "generate_adventure", { premise: "!force create an adversary capable of defeating Hero" });
+    assertContains(force, "[OK]", "REQ-251 !force override proceeds");
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "generation-guard-overridden", "REQ-251 override audited");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T313/REQ-253: terse output verbosity", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7e" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "set_verbosity", { mode: "terse" });
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (health.verbosity_mode !== "terse") throw new Error("REQ-253 verbosity_mode not reported");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T192/REQ-157: combat determinism with per-call seed", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w7f" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "init_combat", { participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
+    await call(p, "end_combat", {});
+    await call(p, "init_combat", { participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "init_combat", "REQ-157 combat seeded init");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

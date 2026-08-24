@@ -135,7 +135,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-154 | README.md handoff content (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-155 | Sticky counter decay (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-156 | NPC description field | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T191 | — |
-| REQ-157 | Combat determinism (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | A | — | — |
+| REQ-157 | Combat determinism (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T192 | — |
 | REQ-158 | Independent verification obligation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
 | REQ-159 | Synthesis briefing integration (Part a) (4 sub-parts) | 5.5 Badges and Access | C | T194 | — |
 | REQ-160 | Synthesis health reporting (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T195 | — |
@@ -179,10 +179,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-200 | Kind mechanical contracts | 5.10 World-Model Layer | C | T243 | — |
 | REQ-201 | Hybrid source conversion | 5.10 World-Model Layer | C | T244, T261 | — |
 | REQ-202 | World-model resources (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T245 | — |
-| REQ-203 | Combat-init guard | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-204 | Combat participant validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-205 | Mid-combat participant changes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | S17 | — |
-| REQ-206 | Combat-round condition expiry (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-203 | Combat-init guard | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T246 | — |
+| REQ-204 | Combat participant validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T247 | — |
+| REQ-205 | Mid-combat participant changes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T248, S17 | — |
+| REQ-206 | Combat-round condition expiry (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T249 | — |
 | REQ-207 | Core-mechanic identification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-208 | Pattern Buffer convergence metric mapping (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-209 | Cross-format consistency | 5.2 Extraction and Confidence | E | — | — |
@@ -197,7 +197,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-218 | Ruleset-free build (Part a) (3 sub-parts) | 5.11 Ruleset-Free Build Mode | C | T259 | — |
 | REQ-219 | Ruleset-free entity creation (Part a1) (3 sub-parts) | 5.11 Ruleset-Free Build Mode | C | T468, T260 | — |
 | REQ-220 | Narrative point of view (Part a) (4 sub-parts) | 5.5 Badges and Access | C | T262 | — |
-| REQ-221 | Combat-navigation interaction (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-221 | Combat-navigation interaction (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T263 | — |
 | REQ-222 | Parser command vocabulary extension (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T264 | — |
 | REQ-223 | POV mode control (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T265 | — |
 | REQ-224 | Workflow staleness detection (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T266 | — |
@@ -227,9 +227,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-248 | Adventure overview resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T285 | — |
 | REQ-249 | Adventure navigation resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T286 | — |
 | REQ-250 | Adventure scene waypoint (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T284, T286 | — |
-| REQ-251 | Generation intent guard (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | A | — | — |
+| REQ-251 | Generation intent guard (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T311 | — |
 | REQ-252 | Narrative fast-forward (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T312 | — |
-| REQ-253 | Tool-output verbosity control (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | A | T478, T313 | — |
+| REQ-253 | Tool-output verbosity control (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T478, T313 | — |
 | REQ-255 | Boundary signal propagation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T314 | — |
 | REQ-256 | Rename Novel (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T315 | — |
 | REQ-257 | List Novels (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T316 | — |

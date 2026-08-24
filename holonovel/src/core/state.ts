@@ -13,6 +13,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { createRng } from "./rng.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 
 const SPEC_VERSION: string = JSON.parse(
@@ -1224,13 +1225,25 @@ export class StateManager {
   // ── Combat ────────────────────────────────────────────────────
 
   initCombat(novel: NovelState, participants: string[], dangers: { name: string; ac?: number; hp?: number; max_hp?: number; initiative_bonus?: number }[], seedStr?: string): CombatState {
+    // REQ-157 — combat determinism: danger initiative draws use the per-call
+    // seed's isolated PRNG (createRng), not advancing the session PRNG
+    // position; same seed → same danger initiative across sessions.
     const turn_order: string[] = [];
     // Simple ordering: entities first, then dangers — no initiative rolling in ruleset-free mode
     for (const pid of participants) {
       if (!turn_order.includes(pid)) turn_order.push(pid);
     }
-    for (const d of dangers) {
-      if (!turn_order.includes(d.name)) turn_order.push(d.name);
+    if (seedStr) {
+      // Deterministic danger initiative from the isolated per-call draw.
+      const rng = createRng(`combat:${seedStr}`);
+      const seeded = [...dangers].sort((a, b) => (rng.roll(20) + (a.initiative_bonus ?? 0)) - (rng.roll(20) + (b.initiative_bonus ?? 0))).reverse();
+      for (const d of seeded) {
+        if (!turn_order.includes(d.name)) turn_order.push(d.name);
+      }
+    } else {
+      for (const d of dangers) {
+        if (!turn_order.includes(d.name)) turn_order.push(d.name);
+      }
     }
 
     const combat: CombatState = {
@@ -1254,6 +1267,22 @@ export class StateManager {
     const isEntity = novel.entities.has(currentName);
     const isNpc = novel.npcs.has(currentName);
     const isDanger = combat.dangers.some(d => d.name === currentName);
+
+    // REQ-206 — combat-round condition expiry: conditions with a round duration
+    // decrement when the affected participant's turn resolves, then expire at
+    // zero (audited as [condition-expired]). No duration → no auto-expiry.
+    const target = novel.entities.get(currentName) ?? novel.npcs.get(currentName);
+    if (target && target.condition_rounds) {
+      for (const [cond, remaining] of Object.entries(target.condition_rounds)) {
+        if (remaining <= 0) continue;
+        target.condition_rounds[cond] = remaining - 1;
+        if (target.condition_rounds[cond] <= 0) {
+          delete target.condition_rounds[cond];
+          target.conditions = target.conditions.filter((c) => c !== cond);
+          this.audit(novel, novel.badge, "condition_expired", { entity: currentName, condition: cond, round: combat.round }, "[condition-expired]");
+        }
+      }
+    }
 
     // In ruleset-free mode, everyone auto-advances
     combat.current_turn++;
@@ -1289,6 +1318,8 @@ export class StateManager {
   }
 
   addCombatParticipant(novel: NovelState, participantId: string): CombatState {
+    // REQ-205 — mid-combat participant changes: added participants insert after
+    // the current turn without advancing the pointer; unresolved IDs → NOT_FOUND.
     if (!novel.combat || !novel.combat.active) throw new Error("[STATE_CONFLICT] No active combat.");
     if (!novel.entities.has(participantId) && !novel.npcs.has(participantId)) {
       const valid = [...novel.entities.keys(), ...novel.npcs.keys()];
@@ -1311,6 +1342,8 @@ export class StateManager {
   }
 
   removeCombatParticipant(novel: NovelState, participantId: string): { combat: CombatState | null; ended: boolean; outcome?: string } {
+    // REQ-205b/c — removing the current participant advances the pointer before
+    // removal; removing the last participant auto-triggers end_combat.
     if (!novel.combat || !novel.combat.active) throw new Error("[STATE_CONFLICT] No active combat.");
     const combat = novel.combat;
     const idx = combat.turn_order.indexOf(participantId);
