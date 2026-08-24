@@ -1,24 +1,24 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 7b14491ba40eaddeaa146779770b9631fe3107b2f28a44d339f2e87417e60a0b
+**Spec hash:** ec28ab1c22f01f1c4d59f0f1cda9b8ef834f00ad8546a0da968b59cc6d8e267e
 
 ### Holonovel Server Change — 2026-08-24 (§5.12 narrative engine)
 
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Changed | implementation only — §5.12 Narrative Architecture (REQ-335–366) server layer: scene beat taxonomy, pacing signal, story-beat arc, faction/NPC autonomy, discovered consequences, spatial surface, unified intent resolution, voice feedback, background knowledge, coupling advisories, observer surface; REQ-125 scene transition hook; knowledge_state + narrative_threads briefing sections; new `test-narrative.ts` harness (T385–T417) |
+| Changed | implementation only — §5.12 Narrative Architecture (REQ-335–366) server layer: scene beat taxonomy, pacing signal, story-beat arc, faction/NPC autonomy, discovered consequences, spatial surface, unified intent resolution, voice feedback, background knowledge, coupling advisories, observer surface; REQ-125 scene transition hook; knowledge_state + narrative_threads briefing sections; scaffold-replacement on GM beat (REQ-352); G7 disposition reachability (REQ-354 dropped from the §5.12 count, REQ-346 counted via attestation); new `test-narrative.ts` harness (T385–T417) + `test-g7.ts` (T396/T403) |
 | Reused | spec, extraction, tooling |
-| Verification | typecheck 0 errors; test-narrative 20/20; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; validate:fast 0 errors |
+| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; validate:fast 0 errors |
 
 #### narrative_coherence (G7)
 
 @section evidence
 
-- **(a) implementation status** — 30 of 32 §5.12 REQs `converged`/evidenced (bucket C, harness `test-narrative.ts`); partial: REQ-346 (this attestation block) and REQ-352 (`codex_import` `suggested_beats` pre-population — implemented, not yet harness-exercised). REQ-354 (extended narrative extraction) is builder-side, out of server scope.
+- **(a) implementation status** — 31 of 31 server-side §5.12 REQs `converged`/evidenced (bucket C, harnesses `test-narrative.ts` + `test-g7.ts`). REQ-354 (extended narrative extraction) is a builder-side §5.2 REQ and is excluded from the server-side count.
 - **(b) badge_briefing population** — the briefing renders `Beat:`, narrative threads (pacing signal, unresolved decisions, bonds, countdowns, dispositions, coupling advisories), `Story beats`, `World in Motion`, `Knowledge state`, spatial surface, and observer orientation.
 - **(c) smoke-session transcript** — the `holonovel/scripts/test-narrative.ts` harness exercises a 5+ turn cooperative-play sequence across beats, autonomy, world couplings, voice feedback, and coupled lore; results recorded in `spec/audit/req-coverage.md` (§5.12 rows, bucket C).
-- **spec_health.narrative_coherence** — `partial` (30/32 implemented; see `spec_health` tool output).
+- **spec_health.narrative_coherence** — `pass` (31/31 implemented; disposition derived at runtime from `SECTION_512_REQS`/`SECTION_512_IMPLEMENTED`).
 
 ### Holonovel Spec Update — 2026-08-22 (provenance, licensing, and toolchain consolidation)
 

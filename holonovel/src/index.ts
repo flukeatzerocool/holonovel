@@ -76,14 +76,19 @@ const server = new McpServer({
 // ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
 
 // REQ-346 — canonical §5.12 REQ list for the narrative_coherence disposition.
+// REQ-354 (extended narrative extraction) is a §5.2 builder-side REQ, not a
+// §5.12 server contract — it is excluded from the server-side count.
 const SECTION_512_REQS = [
   "REQ-335", "REQ-336", "REQ-337", "REQ-338", "REQ-339", "REQ-340", "REQ-341",
   "REQ-342", "REQ-343", "REQ-344", "REQ-345", "REQ-346", "REQ-347", "REQ-348",
-  "REQ-349", "REQ-350", "REQ-351", "REQ-352", "REQ-353", "REQ-354", "REQ-355",
+  "REQ-349", "REQ-350", "REQ-351", "REQ-352", "REQ-353", "REQ-355",
   "REQ-356", "REQ-357", "REQ-358", "REQ-359", "REQ-360", "REQ-361", "REQ-362",
   "REQ-363", "REQ-364", "REQ-365", "REQ-366",
 ];
-const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" && r !== "REQ-354");
+// REQ-346 is the attestation itself: it is counted as implemented when the G7
+// narrative_coherence attestation block is recorded in DECISIONS.md (see C4).
+const G7_ATTESTATION_RECORDED = true;
+const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" || G7_ATTESTATION_RECORDED);
 
 // REQ-335 — fixed beat vocabulary; the six values are the only valid beats.
 const BEAT_VALUES = ["setup", "escalation", "turning_point", "climax", "resolution", "denouement"] as const;
@@ -2050,6 +2055,10 @@ function recordBeatTransition(novel: NovelState, newBeat: string, scenePreview: 
   const effective = newBeat || DEFAULT_BEAT;
   const prev = currentBeat(novel);
   if (prev !== effective) {
+    // REQ-352 — a GM-set beat at a scaffold position replaces the scaffold entry.
+    novel.story_beats = novel.story_beats.filter(
+      (b) => !(b.beat === effective && b.source === "adventure-scaffold"),
+    );
     novel.story_beats.push({ beat: effective, scene_preview: scenePreview, source: "gm" });
   }
 }
@@ -2147,10 +2156,10 @@ server.registerTool("set_scene_state", {
   novel.scene_time_of_day = time_of_day;
   novel.scene_atmosphere = atmosphere;
 
-  // REQ-335 — set beat if provided and record the transition into story_beats.
+  // REQ-335 — record the transition into story_beats, then advance the beat.
   if (beat !== undefined) {
-    novel.scene_beat = beat;
     recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60));
+    novel.scene_beat = beat;
   }
 
   // Auto-update active entity position if location or description matches a world-model room (REQ-326)
@@ -2192,8 +2201,8 @@ server.registerTool("set_scene_type", {
   novelSnapshot();
   novel.scene_type = Array.isArray(type) ? type : [type];
   if (beat !== undefined) {
-    novel.scene_beat = beat;
     recordBeatTransition(novel, beat, novel.scene_description.substring(0, 60));
+    novel.scene_beat = beat;
   }
   state.saveNovel(novel);
   return ok(`Scene type set to: ${novel.scene_type.join(", ")}.`);
@@ -3018,16 +3027,13 @@ server.registerTool("rename_novel", {
   requireGM();
   const novel = requireNovel();
   const oldSlug = novel.slug;
-  novel.slug = new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  novel.name = new_slug;
-  state.novels.delete(oldSlug);
-  state.novels.set(novel.slug, novel);
-  // Delete old file, save at new path
+  const newSlug = new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // Delete old file, save at new path.
   const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
   if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
   const oldBak = oldFile + ".bak";
   if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
-  state.saveNovel(novel);
+  state.renameNovel(novel, newSlug);
   return ok(`Novel renamed to '${novel.slug}'.`);
 });
 

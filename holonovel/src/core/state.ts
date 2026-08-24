@@ -777,6 +777,18 @@ export class StateManager {
     return this.novels.get(slug)!;
   }
 
+  renameNovel(novel: NovelState, newSlug: string): NovelState {
+    const oldSlug = novel.slug;
+    novel.slug = newSlug;
+    novel.name = newSlug;
+    this.novels.delete(oldSlug);
+    this.novels.set(newSlug, novel);
+    if (this.activeNovelId === oldSlug) this.activeNovelId = newSlug;
+    this.audit(novel, novel.badge, "rename_novel", { from: oldSlug, to: newSlug });
+    this.saveNovel(novel);
+    return novel;
+  }
+
   endNovel(novel: NovelState, dispose: "yes" | "cancel"): { removed: boolean } {
     if (dispose === "cancel") return { removed: false };
     const trashDir = path.join(this.stateDir, ".trash");
