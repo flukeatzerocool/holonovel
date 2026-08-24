@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   readSpec,
+  extractReqBodies,
   extractReqBodiesWithSentences,
   extractTerminology,
   extractNarrativeProse,
@@ -1057,6 +1058,201 @@ function checkPreparePhaseMap(): string[] {
   return issues;
 }
 
+// ─── Implementation Coverage Audit (REQ → holonovel source) ─────────────
+//
+// Cross-references every spec REQ against the shipped server implementation
+// (`holonovel/`): a REQ is "source-cited" if its ID appears in a `holonovel/src`
+// file, and "evidenced" if a spec test (Appendix F T-ID) or Pattern Buffer
+// sub-workflow (S-ID / I-ID) that exercises it is itself declared by an
+// implementation harness (`holonovel/scripts/*.ts`). Classification:
+//
+//   A — certain gap:  no source citation anywhere.
+//   B — needs review: source-cited but no exercised test maps to it.
+//   C — evidenced:     source-cited AND an exercised test maps to it.
+//   D — spec-side:     REQ body has no `Check:` test citation.
+//
+// §5.12 narrative REQs additionally emit a mandatory one-line disposition
+// (implemented / partial / gap) per REQ-346.
+
+function walkTsFiles(dir: string): string[] {
+  const out: string[] = [];
+  let entries: import("node:fs").Dirent[] = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries) {
+    // Skip build output and vendored trees; a read-only audit over src/scripts.
+    if (e.name === "node_modules" || e.name === "dist" || e.name === ".git") continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...walkTsFiles(p));
+    else if (e.isFile() && e.name.endsWith(".ts")) out.push(p);
+  }
+  return out;
+}
+
+const IMPL_SRC_DIR = path.resolve(__dirname, "..", "holonovel", "src");
+const IMPL_SCRIPTS_DIR = path.resolve(__dirname, "..", "holonovel", "scripts");
+
+function gatherSourceCites(): Set<string> {
+  const cites = new Set<string>();
+  for (const f of walkTsFiles(IMPL_SRC_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of content.matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) cites.add("REQ-" + m[1]);
+  }
+  return cites;
+}
+
+function gatherExercisedIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of content.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)) ids.add(m[1]);
+  }
+  return ids;
+}
+
+// Appendix F test table: `| T3 | Manual | <desc> | REQ-024, REQ-021 |`.
+function parseAppendixFReqTests(text: string): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  const start = text.indexOf("| #     | Type     | Test");
+  if (start === -1) return map;
+  const end = text.indexOf("\n##", start + 1);
+  const slice = end === -1 ? text.slice(start) : text.slice(start, end);
+  for (const line of slice.split("\n")) {
+    const m = line.match(/^\|\s*(T\d+[a-z0-9]*)\s+\|[^|]*\|.*\|\s*([^|\n]+)\s*\|$/);
+    if (!m) continue;
+    const tid = m[1];
+    const reqsCell = m[2];
+    for (const rm of reqsCell.matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) {
+      const r = "REQ-" + rm[1];
+      if (!map.has(r)) map.set(r, new Set());
+      map.get(r)!.add(tid);
+    }
+  }
+  return map;
+}
+
+// §6.6 sub-workflow-to-REQ mapping: `| REQ-197 | I1, I4 | Room CRUD |`.
+function parseSubworkflowMap(text: string): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const line of text.split("\n")) {
+    const m = line.match(/^\|\s*(REQ-\d{3}[a-z0-9]*)\s+\|\s*([^|\n]+)\s*\|/);
+    if (!m) continue;
+    const req = m[1];
+    const idsCell = m[2];
+    const ids = idsCell.matchAll(/\b([SI]\d+[a-z0-9]*)\b/g);
+    if (!map.has(req)) map.set(req, new Set());
+    for (const im of ids) map.get(req)!.add(im[1]);
+  }
+  return map;
+}
+
+function reqNumeric(reqId: string): number {
+  const m = reqId.match(/^REQ-(\d{3})/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+function baseReq(reqId: string): string {
+  const m = reqId.match(/^REQ-\d{3}/);
+  return m ? m[0] : reqId;
+}
+
+interface CoverageRow {
+  reqId: string;
+  title: string;
+  section: string;
+  bucket: "A" | "B" | "C" | "D";
+  subParts: string[];
+  exercisedTests: string[];
+  disposition?: string;
+}
+
+// Roll sub-part REQs (REQ-042a, REQ-346a1) up to their base 3-digit REQ, so the
+// register keys on the 381 base REQs and sub-parts contribute their evidence:
+// a base REQ is "cited" if it or any sub-part is cited, "evidenced" if a spec
+// test/sub-workflow mapped to it or any sub-part is exercised, and "Check:-bearing"
+// if it or any sub-part carries a Check: citation.
+function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
+  const appF = parseAppendixFReqTests(text);
+  const subMap = parseSubworkflowMap(text);
+  const bodies = extractReqBodies(text);
+
+  // Collapse the REQ index to base REQs, remembering sub-parts.
+  const baseMap = new Map<string, { title: string; subParts: string[] }>();
+  for (const [reqId, title] of reqIndex) {
+    const base = baseReq(reqId);
+    if (!baseMap.has(base)) baseMap.set(base, { title: base === reqId ? title : title, subParts: [] });
+    const entry = baseMap.get(base)!;
+    if (reqId !== base) entry.subParts.push(reqId);
+    else if (entry.title !== title) { /* keep first title */ }
+  }
+
+  const rows: CoverageRow[] = [];
+  for (const [base, { title, subParts }] of baseMap) {
+    const ids = [base, ...subParts];
+    const cited = ids.some((id) => sourceCites.has(id));
+
+    const specTests = new Set<string>();
+    for (const id of ids) {
+      for (const t of appF.get(id) ?? []) specTests.add(t);
+      for (const t of subMap.get(id) ?? []) specTests.add(t);
+    }
+    const exercised = [...specTests].filter((t) => exercisedIds.has(t));
+
+    const hasCheck = ids.some((id) => {
+      const b = bodies.get(id)?.body ?? "";
+      return b.includes("*Check:*") || b.includes("_Check:_");
+    });
+
+    let bucket: "A" | "B" | "C" | "D";
+    if (!cited) bucket = "A";
+    else if (exercised.length > 0) bucket = "C";
+    else bucket = "B";
+    if (!hasCheck && bucket === "B") bucket = "D";
+
+    const num = reqNumeric(base);
+    let disposition: string | undefined;
+    if (num >= 335 && num <= 366) {
+      disposition = bucket === "A" ? "gap" : bucket === "B" ? "partial" : "implemented";
+    }
+
+    rows.push({
+      reqId: base,
+      title,
+      section: sectionNameForReq(base, text),
+      bucket,
+      subParts,
+      exercisedTests: exercised,
+      disposition,
+    });
+  }
+  return rows;
+}
+
+function writeCoverageRegister(rows: CoverageRow[], specHash: string | null): string {
+  const outDir = path.resolve(__dirname, "..", "spec", "audit");
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, "req-coverage.md");
+  const date = new Date().toISOString().slice(0, 10);
+  const lines: string[] = [];
+  lines.push("# REQ Coverage Register");
+  lines.push("");
+  lines.push(`Generated: ${date}`);
+  if (specHash) lines.push(`Spec hash: ${specHash}`);
+  lines.push("");
+  lines.push("Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation).");
+  lines.push("");
+  lines.push("| REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |");
+  lines.push("|-----|-------|---------|--------|-----------------|-------------------|");
+  for (const r of rows.sort((a, b) => reqNumeric(a.reqId) - reqNumeric(b.reqId))) {
+    const title = r.subParts.length > 0 ? `${r.title} (${r.subParts.length} sub-part${r.subParts.length > 1 ? "s" : ""})` : r.title;
+    lines.push(`| ${r.reqId} | ${title} | ${r.section} | ${r.bucket} | ${r.exercisedTests.join(", ") || "—"} | ${r.disposition ?? "—"} |`);
+  }
+  lines.push("");
+  fs.writeFileSync(outPath, lines.join("\n") + "\n");
+  return outPath;
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────
 
 function main(): void {
@@ -1259,6 +1455,35 @@ function main(): void {
         else { console.log(issue); warnings++; }
       }
     }
+  }
+
+  // ── Implementation Coverage Audit (always-on) ───────────────────────
+  console.log("\n=== IMPLEMENTATION COVERAGE AUDIT ===\n");
+  const sourceCites = gatherSourceCites();
+  const exercisedIds = gatherExercisedIds();
+  const implRows = checkImplCoverage(text, reqIndex, sourceCites, exercisedIds);
+
+  const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+  for (const r of implRows) bucketCounts[r.bucket]++;
+
+  const implStrict = process.argv.includes("--impl-audit=strict");
+  const writeRegister = process.argv.includes("--write-register");
+
+  console.log(`Source-cited REQs: ${sourceCites.size}; exercised test IDs: ${exercisedIds.size}; total REQs: ${implRows.length}`);
+  console.log(`Buckets → A (gap): ${bucketCounts.A}, B (review): ${bucketCounts.B}, C (evidenced): ${bucketCounts.C}, D (spec-side): ${bucketCounts.D}`);
+
+  for (const r of implRows) {
+    if (r.bucket === "C") continue;
+    const extra = r.disposition ? ` [§5.12 ${r.disposition}]` : "";
+    console.log(`  ${r.bucket === "A" ? "GAP" : r.bucket === "B" ? "REVIEW" : "SPEC-SIDE"}: ${r.reqId} ${r.title}${extra}`);
+    if (implStrict && r.bucket === "A") errors++;
+    else if (r.bucket === "A" || r.bucket === "B" || r.bucket === "D") warnings++;
+  }
+
+  if (writeRegister) {
+    const specHashMatch = text.match(/Spec hash:\s*([0-9a-f]{64})/i);
+    const outPath = writeCoverageRegister(implRows, specHashMatch ? specHashMatch[1] : null);
+    console.log(`Register written: ${outPath}`);
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);
