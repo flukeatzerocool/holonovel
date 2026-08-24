@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-24 — §5.19 State Persistence Guardrails implementation (REQ-400–407)
+
+- Implemented the full §5.19 guardrail layer in `holonovel/src`:
+  - REQ-400 State-Persistence Directive + REQ-407 persist-tools section in GM `badge_briefing`.
+  - REQ-401 `state_ledger` decision-critical token (last-mutation timestamp, per-group counts).
+  - REQ-402 session no-mutation detection (`[session-no-mutations]` marker; session windows closed on switch/resume).
+  - REQ-403 state-drift detection (`[state-drift]` marker) + `TTRPG_STATE_GATE=off|warn|block` gate on switch/end.
+  - REQ-404 roll-to-commit coupling (`[uncommitted-roll]` marker cleared by the next state write).
+  - REQ-405 auto-moment on scene transitions (story-journal `moment` entries, `auto_record` flag).
+  - REQ-406 backup-restore regression visibility (`[state-regression]` marker with audit/timestamp gap).
+- Added `holonovel/scripts/test-persistence-guardrails.ts` (10 tests, T469–T476).
+- Register: §5.19 8/8 REQs promoted to C. Buckets now A 153 / B 6 / C 143 / E 79.
+
 ## 2026-08-24 — coverage triage: B-backfill, builder-side E-whitelist, §5.12 partials
 
 - Wave 1.1 — Bucket-B → C test backfill: added `holonovel/scripts/test-backfill.ts`
