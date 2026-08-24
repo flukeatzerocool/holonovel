@@ -1245,6 +1245,10 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-158", "REQ-273", "REQ-274", "REQ-354",
   "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",
   "REQ-377", "REQ-378",
+  // §5.1 builder-side (2026-08-24 wave-1 triage): assumption-audit prompt is a
+  // spec-level build-pipeline prompt (REQ-101); fixture-evolution is a
+  // maintainer/verifier contract, not server-runtime (REQ-277).
+  "REQ-101", "REQ-277",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

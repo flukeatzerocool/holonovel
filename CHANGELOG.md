@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-24 — Wave 1: §5.1 Output & Error Contracts (12 REQs → C)
+
+- REQ-004 truncation: `truncateOutput()` with `output://<tool>/<counter>` pointer
+  and session-local store (eviction + `[ERROR] [NOT_FOUND]` on evicted pointer).
+- REQ-060/061/280: ruleset lookups/search return full entries with
+  `---`-separated source blocks and `source_anchor` (file, derived heading,
+  line range); ruleset-free returns null anchors.
+- REQ-003 roll transparency: ruleset roll output reports notation, per-die
+  faces, modifier line (always present).
+- REQ-064/070/071/184: badge_briefing orientation layer gains badge boundary
+  directive, `[anti-slop]` items (Appendix J synopsis, badge-filtered), and
+  `[narrative-tone]` sample; `guidance://<badge>/anti-slop` renders the synopsis.
+- REQ-113 result count reporting: `N of M results` on collection returns.
+- REQ-118 prompt budget: `applyPromptBudget()` with `[truncated]` markers and
+  never-truncated contract elements.
+- REQ-194 anchor derivation: `core/anchors.ts` (deterministic, explicit-id
+  precedence, CJK preservation, duplicate `-1/-2` suffixes).
+- REQ-101/277 classified builder-side (E whitelist). T26 mapping gains REQ-071.
+- New harness `test-output-contracts.ts` (T13/T26/T47/T48/T116/T123/T210/T221/
+  T223/T236/T329/T461; 19 assertions). Buckets now A 130 / B 6 / C 164 / E 81.
+
 ## 2026-08-24 — Review-loop governance + backlog program kickoff
 
 - `AGENTS.md` gains a Review-loop governance section: completion-bar rule,

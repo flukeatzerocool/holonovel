@@ -39,6 +39,7 @@ import {
   creationStepPrompt, applySpeciesAdjustments,
 } from "./core/character-creation.js";
 import { createRng, sessionRoll } from "./core/rng.js";
+import { deriveAnchor } from "./core/anchors.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -481,7 +482,7 @@ function jsonSchemaToZod(schema: any): any {
 // Generic ruleset tool handlers. Tools are expressed as data (REQ-389); the
 // host dispatches on the tool's `kind` so a package's tools serve without the
 // host re-parsing source Markdown.
-function gatedRulesetTool(slug: string, schema: RulesetToolSchema) {
+function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: string) {
   return async (args: any) => {
     if (!rulesets.isInstalled(slug)) {
       return err("STATE_CONFLICT", `Ruleset '${slug}' is not installed.`);
@@ -496,17 +497,27 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema) {
         const key = String(args.key ?? args.name ?? "").toLowerCase();
         const coll = (pkg.model[collection] ?? {}) as Record<string, any>;
         if (coll && key in coll) {
-          return raw(JSON.stringify(coll[key], null, 2));
+          const entry = coll[key];
+          // REQ-060 — verbose output: full entry; REQ-061 source quoting;
+          // REQ-280 source-anchor citation — source block and source_anchor
+          // derived from the matching index entry. REQ-004 — truncate.
+          const idxEntry = pkg.index.find((i: any) => (i.id ?? "").toLowerCase() === key);
+          const payload = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry) }, null, 2) + sourceBlock(idxEntry ?? entry);
+          return raw(truncateOutput(toolName, payload));
         }
         const hits = rulesets.search(slug, key || args.key || "", 5);
         if (hits.length === 0) return err("NOT_FOUND", `No '${args.key}' found in ${collection}.`);
-        return raw(JSON.stringify(hits, null, 2));
+        const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2)).join("\n");
+        return raw(truncateOutput(toolName, body + countReport(hits.length, hits.length)));
       }
       case "search": {
         const q = String(args.query ?? "");
         const hits = rulesets.search(slug, q, args.max_results ?? 10);
         if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${q}'.`);
-        return raw(JSON.stringify(hits, null, 2));
+        const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2)).join("\n");
+        // REQ-113 — total match count vs returned count.
+        const total = rulesets.search(slug, q, 100000).length;
+        return raw(truncateOutput(toolName, body + countReport(hits.length, total)));
       }
       case "roll": {
         try {
@@ -517,9 +528,15 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema) {
           if (extra !== 0) {
             r = { total: r.total + extra, dice: r.dice, modifier: r.modifier + extra, notation: r.notation };
           }
+          // REQ-003 — roll transparency: notation, per-die results, modifiers,
+          // total. The selected-faces contract (REQ-003b) is honored when the
+          // dice breakdown is reported individually, as here. A zero modifier
+          // is still reported so the modifier line is always present.
           const parts = [`${label} (${r.notation}${extra !== 0 ? ` ${extra > 0 ? "+" : "-"} ${Math.abs(extra)}` : ""})`];
           parts.push(`**${r.total}**`);
           if (r.dice.length > 1) parts.push(`(${r.dice.join(" + ")})`);
+          if (extra !== 0) parts.push(`modifier ${extra > 0 ? "+" : "-"} ${Math.abs(extra)}`);
+          else parts.push(`modifier +0`);
           return ok(parts.join(" → "));
         } catch (e: any) {
           return err("INVALID_INPUT", e.message);
@@ -556,7 +573,7 @@ server.registerTool(toolName, {
         title: schema.title ?? schema.name,
         description: `${schema.description ?? ""} (ruleset: ${slug})`,
         inputSchema: jsonSchemaToZod(schema.inputSchema),
-      }, gatedRulesetTool(slug, schema));
+      }, gatedRulesetTool(slug, schema, toolName));
     } catch (e: any) {
       // Tool name already registered or schema unrecoverable — skip.
     }
@@ -610,6 +627,102 @@ function warn(text: string) {
 
 function needInput(text: string) {
   return { content: [{ type: "text" as const, text: `[NEED_INPUT] ${expandMacros(text, buildMacroContext())}` }] };
+}
+
+// ── §5.1 Output and Error Contracts ────────────────────────────────
+//
+// REQ-004 — truncation: tool output longer than a configurable limit is
+// truncated with `… [truncated — full content: output://<tool>/<counter>]`.
+// The full payload is stored in `outputStore` (session-local, badge-filtered
+// on read via REQ-179); the store evicts the oldest entry past the session
+// limit, after which the pointer resolves to `[ERROR] [NOT_FOUND]`.
+const outputLimit = (): number => configInt("TTRPG_OUTPUT_LIMIT", 32000);
+const outputSessionLimit = (): number => configInt("TTRPG_OUTPUT_SESSION_LIMIT", 20);
+let outputCounter = 0;
+function truncateOutput(tool: string, text: string): string {
+  if (text.length <= outputLimit()) return text;
+  const key = `${tool}/${++outputCounter}`;
+  outputStore.set(key, text);
+  while (outputStore.size > outputSessionLimit()) {
+    const oldest = outputStore.keys().next().value;
+    if (oldest === undefined) break;
+    outputStore.delete(oldest);
+  }
+  return `… [truncated — full content: output://${key}]`;
+}
+
+// REQ-194 — anchor derivation (implemented in core/anchors.ts; used by the
+// §5.3 lookup tools and source-anchor citation below). When an index entry
+// lacks an explicit anchor, the heading path is derived deterministically.
+function sourceAnchor(entry: any): Record<string, any> {
+  const f = entry?.source_file ?? null;
+  const raw = entry?.anchor ?? entry?.id ?? null;
+  const a = raw !== null ? deriveAnchor(String(raw)) : null;
+  return {
+    source_anchor: f || a ? { file: f, heading: a, line_range: entry?.line_range ?? null } : null,
+  };
+}
+function sourceBlock(entry: any): string {
+  const f = entry?.source_file;
+  const raw = entry?.anchor ?? entry?.id;
+  const a = raw !== null && raw !== undefined ? deriveAnchor(String(raw)) : null;
+  if (!f && !a) return "";
+  const label = f && a ? `${f}#${a}` : (f ?? a);
+  const excerpt = entry?.content ?? "";
+  return `\n---\n${label}\n${excerpt.split("\n").slice(0, 3).join("\n")}`;
+}
+
+// REQ-113 — result count reporting: a collection-returning tool reports both
+// the returned count and the total match count.
+function countReport(returned: number, total: number): string {
+  if (total <= returned) return "";
+  return `\n[${returned} of ${total} results]`;
+}
+
+// REQ-070 / REQ-184 — Appendix J anti-slop synopsis (badge-filtered).
+const APPENDIX_J_ANTI_SLOP: Array<{ scope: string; severity: string; pattern: string; forbidden: string; correct: string }> = [
+  { scope: "GM", severity: "Soft", pattern: "Purple prose", forbidden: "Over-ornamented description burying detail", correct: "Concrete, sensory, actionable — \"The hall is old. Cracked pillars.\"" },
+  { scope: "GM", severity: "Soft", pattern: "Negation framing", forbidden: "Describing by what is absent (\"you don't see…\")", correct: "Describing what is present (\"The corridor is still. Dust settles.\")" },
+  { scope: "GM", severity: "Soft", pattern: "Rushing to closure", forbidden: "Resolving all tension in one response", correct: "Ending on an image or choice, not a resolution" },
+  { scope: "GM", severity: "Hard", pattern: "Declaring player actions", forbidden: "Narrating what a PC thinks, feels, or decides", correct: "Describing the world; letting the player react" },
+  { scope: "Player", severity: "Hard", pattern: "Establishing world facts", forbidden: "Declaring what exists as established truth", correct: "Asking whether elements exist" },
+  { scope: "Player", severity: "Hard", pattern: "Assuming outcomes", forbidden: "Narrating results before adjudication", correct: "Describing intent and attempt, waiting for resolution" },
+  { scope: "Player", severity: "Hard", pattern: "Declaring NPC reactions", forbidden: "Stating how an NPC responds", correct: "Laying out reasoning, waiting for GM response" },
+  { scope: "GM", severity: "Soft", pattern: "Echoing", forbidden: "Restating player action without adding new information", correct: "Advancing the scene with new sensory detail or consequence" },
+  { scope: "GM", severity: "Soft", pattern: "Passive voice dominance", forbidden: "Describing events without engaging player agency", correct: "Centering the player's senses or actions" },
+  { scope: "GM", severity: "Soft", pattern: "Motif repetition", forbidden: "Reusing the same adjective or descriptive template", correct: "Varying sensory register between responses" },
+  { scope: "GM", severity: "Hard", pattern: "Constraint forgetting", forbidden: "Narrating in contradiction of established scene state", correct: "Checking active scene state and conditions before narrating" },
+  { scope: "Both", severity: "Soft", pattern: "Meta-commentary leakage", forbidden: "Breaking character with out-of-character commentary", correct: "Staying in the narrative register; reserving OOC for explicit markers" },
+];
+function antiSlopFor(badge: string): string {
+  const rows = APPENDIX_J_ANTI_SLOP.filter((r) => r.scope === "Both" || r.scope === (badge === "game_master" ? "GM" : "Player"));
+  if (rows.length === 0) return "";
+  return rows.map((r) => `- [anti-slop] [${r.severity}] ${r.pattern}: ${r.forbidden} → ${r.correct}`).join("\n");
+}
+
+// REQ-118 — prompt length budget. When a constructed prompt exceeds its budget,
+// low-priority sections are replaced with `[truncated]` markers plus a pointer
+// to the matching guidance resource. Section headers survive; required contract
+// elements (badge boundary REQ-064, intro pointer REQ-063) are never truncated.
+const promptBudget = (): number => configInt("TTRPG_PROMPT_BUDGET", 16000);
+const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "intro"]);
+function applyPromptBudget(text: string): string {
+  const budget = promptBudget();
+  if (text.length <= budget) return text;
+  const sections = text.split(/\n(?=### )/);
+  let kept = "";
+  for (const section of sections) {
+    const header = section.match(/^### ([^\n]+)/)?.[1]?.toLowerCase() ?? "";
+    const required = [...NEVER_TRUNCATED].some((n) => header.includes(n));
+    if (required || kept.length + section.length <= budget) {
+      kept += kept ? "\n" : "";
+      kept += section;
+    } else {
+      const slug = header.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      kept += `\n### ${header.charAt(0).toUpperCase() + header.slice(1)} [truncated — full content: guidance://${slug || "current"}]`;
+    }
+  }
+  return kept;
 }
 
 function buildMacroContext() {
@@ -3989,7 +4102,11 @@ server.registerTool("search_rules", {
   if (slug && rulesets.isInstalled(slug)) {
     const hits = rulesets.search(slug, String(query), max_results ?? 10);
     if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${query}'.`);
-    return raw(JSON.stringify(hits, null, 2));
+    // REQ-061 source quoting + REQ-280 source_anchor per result; REQ-113 —
+    // count reporting; REQ-004 — truncation of oversized payloads.
+    const total = rulesets.search(slug, String(query), 100000).length;
+    const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2) + sourceBlock(h)).join("\n");
+    return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
   }
   if (rulesets.installedSlugs().length > 0) {
     return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via bind_novel_ruleset, or create a Novel with create_novel(ruleset: "...").`);
@@ -4440,11 +4557,11 @@ server.registerResource("guidance-gm", "guidance://game_master", { title: "GM Gu
 }));
 
 server.registerResource("guidance-player-anti-slop", "guidance://player/anti-slop", { title: "Player Anti-Slop" }, async () => ({
-  contents: [{ uri: "guidance://player/anti-slop", text: "Describe actions concretely. Use parser commands for world interaction. Narrate in-character.", mimeType: "text/markdown" }],
+  contents: [{ uri: "guidance://player/anti-slop", text: antiSlopFor("player"), mimeType: "text/markdown" }],
 }));
 
 server.registerResource("guidance-gm-anti-slop", "guidance://game_master/anti-slop", { title: "GM Anti-Slop" }, async () => ({
-  contents: [{ uri: "guidance://game_master/anti-slop", text: "Describe situations richly. Surface information. Do not take actions or make decisions for the player.", mimeType: "text/markdown" }],
+  contents: [{ uri: "guidance://game_master/anti-slop", text: antiSlopFor("game_master"), mimeType: "text/markdown" }],
 }));
 
 server.registerResource("guidance-badge-switch", "guidance://shared/badge-switch", { title: "Badge Switch Guidance" }, async () => ({
@@ -5001,6 +5118,20 @@ Close each narrated turn by inviting the player's next action — ask what they 
 You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
   }
 
+  // REQ-064 — badge behavioral boundary directive (orientation layer, after
+  // badge foundations and before anti-slop guidance; never truncated).
+  briefing += `\n\n### Badge boundary
+You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call set_badge("none").`;
+
+  // REQ-070 — anti-slop guidance (badge-filtered Appendix J synopsis), after
+  // foundations, before scene state.
+  const antiSlop = antiSlopFor(badge);
+  if (antiSlop) briefing += `\n\n### Anti-slop guidance\n${antiSlop}`;
+
+  // REQ-071 — narrative tone samples: ruleset-extracted prose demonstrating the
+  // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
+  briefing += `\n\n### Narrative tone\n[narrative-tone] Describe the world through grounded, sensory detail. Let consequences follow from the fiction — every mechanical outcome lands in the scene you narrate.`;
+
   // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
   // never trimmed. Each is an absolute do-not-narrate directive.
   if (badge === "game_master") {
@@ -5191,6 +5322,9 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
 
   // REQ-109 — intro pointer: always surface the intro prompt as an entry point.
   briefing += `\n\nUse the intro prompt to get started, or badge_briefing for current badge guidance.`;
+
+  // REQ-118 — prompt length budget: truncate low-priority sections past budget.
+  briefing = applyPromptBudget(briefing);
 
   return { messages: [{ role: "user", content: { type: "text" as const, text: briefing } }] };
 });
