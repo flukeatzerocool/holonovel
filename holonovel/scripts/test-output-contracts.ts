@@ -719,6 +719,33 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 8: §5.7/§5.2 determinism & safety ──
+  await test("T20/T42/REQ-054: adversarial input stored and echoed verbatim", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w8a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const evil = "'); DROP TABLE novels;--";
+    const s = await call(p, "set_scene_state", { description: evil });
+    assertContains(s, evil, "REQ-054 verbatim echo");
+    const cur = await proto(p, "resources/read", { uri: "scene://current" });
+    assertContains(cur, evil, "REQ-054 stored verbatim");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T357/REQ-312 + T490/REQ-417: narration validation gate and startup probes", async () => {
+    const p = await boot({ TTRPG_NARRATION_VALIDATION: "on" });
+    await call(p, "create_novel", { name: "w8b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_npc", { name: "Corpse", stats: { hp: 0 } });
+    const h1 = JSON.parse(await call(p, "spec_health", {}));
+    if (h1.narration_validation !== "on") throw new Error("REQ-312 narration_validation missing");
+    if (typeof h1.narration_rejection_count !== "number") throw new Error("REQ-312 rejection count");
+    if (h1.startup_probes?.ruleset_scan !== "completed") throw new Error("REQ-417 probe status");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

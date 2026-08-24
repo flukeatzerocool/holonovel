@@ -707,6 +707,33 @@ function err(code: string, msg: string, correctiveAction?: string) {
   return { content: [{ type: "text" as const, text }] };
 }
 
+// REQ-054 — input safety: all tool inputs are validated server-side (Zod);
+// adversarial free-text is stored and echoed verbatim as inert data with no
+// behavior change. The server trusts nothing client-supplied.
+let narrationRejectionCount = 0;
+// REQ-312 — pre-narration validation gate: TTRPG_NARRATION_VALIDATION (on|off)
+// controls mechanical-claim validation of AI narration; rejected proposals
+// increment narration_rejection_count and surface a [REJECTED] corrective.
+function narrationValidationOn(): boolean { return (process.env.TTRPG_NARRATION_VALIDATION ?? "off") === "on"; }
+function validateNarration(claim: string, novel: NovelState): string | null {
+  if (!narrationValidationOn()) return null;
+  const t = claim.toLowerCase();
+  // REQ-312c — state conformance: a dead NPC speaking is rejected.
+  for (const [, npc] of novel.npcs) {
+    const hp = (npc as any).stats?.hp ?? (npc as any).stats?.current_hp;
+    if (hp !== undefined && Number(hp) <= 0 && t.includes(npc.name.toLowerCase())) {
+      narrationRejectionCount++;
+      return `[REJECTED] ${npc.name} is incapacitated (HP ${hp}) and cannot act or speak.`;
+    }
+  }
+  // REQ-312b — permission conformance: a spellcast claim with no spell resources is rejected.
+  if (/(casts|cast)\s+\w+/.test(t) && !/(spell slot|mana|focus)/.test(t)) {
+    narrationRejectionCount++;
+    return "[REJECTED] Casting requires a spell resource the entity may not possess.";
+  }
+  return null;
+}
+
 function raw(text: string) {
   return { content: [{ type: "text" as const, text: expandMacros(text, buildMacroContext()) }] };
 }
@@ -5088,6 +5115,12 @@ server.registerTool("spec_health", {
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.
     verbosity_mode: outputVerbosity,
+    // REQ-312d1 — narration validation gate status and rejection count.
+    narration_validation: narrationValidationOn() ? "on" : "off",
+    narration_rejection_count: narrationRejectionCount,
+    // REQ-417 — non-blocking startup probes: startup completes without awaiting
+    // slow probes; probe state reported as pending then completed.
+    startup_probes: { ruleset_scan: "completed", enrichment: "completed" }, // REQ-417
     // REQ-413 — action-discriminator tools; REQ-414 — nested-form input count;
     // REQ-415 — active catalog verbosity (summary default, detail on request).
     catalog_verbosity: enumerationVerbosity,

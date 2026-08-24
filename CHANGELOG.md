@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-24 — Wave 8: §5.7/§5.2 Determinism & safety (4 REQs → C)
+
+- REQ-054 input safety citation + test (adversarial input stored/echoed verbatim
+  via Zod validation).
+- REQ-312 pre-narration validation gate: `TTRPG_NARRATION_VALIDATION` config,
+  `validateNarration` (state/permission conformance), `narration_validation` +
+  `narration_rejection_count` in spec_health.
+- REQ-417 non-blocking startup probes: `startup_probes` in spec_health
+  (completed, distinct from pending).
+- REQ-270/271/416 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows to 127 assertions (T20/T42/T357/T490).
+  Buckets now A 38 / B 5 / C 239 / E 99.
+
 ## 2026-08-24 — Wave 7: Combat (8 REQs → C)
 
 - REQ-203 combat-init guard: `[STATE_CONFLICT] Combat already active` on

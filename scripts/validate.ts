@@ -1273,6 +1273,11 @@ const INTENDED_GAP_REQS = new Set([
   // and drift detection are discovery/build-time processes (REQ-171, REQ-172);
   // adventure structure extraction is a §6.3 discovery heuristic (REQ-247).
   "REQ-171", "REQ-172", "REQ-247",
+  // §5.2/§5.7 builder-side (2026-08-24 wave-8 triage): artifact version
+  // identification and AGENTS.md structure are build records (REQ-270,
+  // REQ-271); config default inheritance is a DECISIONS.md config-surface
+  // record (REQ-416). Not owed by the runtime server.
+  "REQ-270", "REQ-271", "REQ-416",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
