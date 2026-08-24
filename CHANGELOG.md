@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-24 — Wave 5: §5.6 NPC surface & memory (16 REQs → C)
+
+- REQ-311 NPC memory model: per-NPC `memory` state (witnessed events, contact
+  history, stress markers, last-3 interactions), auto-updated on combat
+  engagement without a GM tool call; `## NPC Memory` briefing section for
+  present NPCs; `npc_memory_count` in spec_health.
+- REQ-119 ruleset stat-block reference on `create_npc` (populate stats from
+  ruleset entry, `[NOT_FOUND]` + enumeration for unknown references).
+- REQ-120/124: character_sheet renders NPCs (resolveEntityOrNpc) — same sheet
+  mechanism, `[NOT_FOUND]` for unknown IDs.
+- REQ-121: npcs:// resource badge-filtered (GM full, Player summaries).
+- REQ-122/156/167: set_personality accepts NPC IDs; NPC personality + voice
+  resources (`npc://<id>/personality`, `npc://<id>/voice_examples`); shared
+  description field (most-recent-wins).
+- REQ-282 NPC voice directive in briefing (location-matched NPCs with
+  voice_examples); REQ-128 player-signals briefing section.
+- REQ-123/126/129/165/166/168 citations + T-ID tests.
+- REQ-127 classified builder-side (E whitelist, manual T141).
+- `test-output-contracts.ts` grows to 96 assertions (T126–T131/T140/T141/T191/
+  T200–T203/T218/T332/T356). Buckets now A 63 / B 5 / C 220 / E 93.
+
 ## 2026-08-24 — Wave 4: §5.6 State/lifecycle + §5.9 (13 REQs → C)
 
 - REQ-237 session segmentation: `[session-boundary]` audit markers on session

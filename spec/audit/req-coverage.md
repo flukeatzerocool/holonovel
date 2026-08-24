@@ -27,8 +27,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T64, T66, T68, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T119, T133, T134, T221, T261, T285, T326, S6 | — |
-| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T100, T147 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T64, T66, T68, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T119, T127, T128, T129, T133, T134, T221, T261, T285, T326, S6 | — |
+| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T76, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T25, T47, T56, T90, T91, T110, T131, T161, T162 | — |
@@ -56,7 +56,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-072 | Session recap (Part a1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T73, T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T409 | — |
+| REQ-075 | Named-NPC state (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T130, T409 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
@@ -100,21 +100,21 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-116 | Redo | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T121, S22 | — |
 | REQ-117 | Novel retention period | 5.9 Novel Persistence and Transport | C | T122 | — |
 | REQ-118 | Prompt length budget (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T479, T123 | — |
-| REQ-119 | NPC stat block reference (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-120 | NPC rendering | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-121 | NPC resource URIs | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T131 | — |
+| REQ-119 | NPC stat block reference (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T126 | — |
+| REQ-120 | NPC rendering | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T127 | — |
+| REQ-121 | NPC resource URIs | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T128 | — |
+| REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129 | — |
+| REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T130 | — |
+| REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T131 | — |
 | REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T404 | — |
-| REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T202 | — |
-| REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T211, T314 | — |
-| REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T218 | — |
+| REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202 | — |
+| REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
+| REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T314 | — |
+| REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T218 | — |
 | REQ-130 | Synthesis rebuild contract (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
 | REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | E | — | — |
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
-| REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T147, S6 | — |
+| REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T203, T147, S6 | — |
 | REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | S6 | — |
 | REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T461, T469, T470, T476 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T150 | — |
@@ -134,7 +134,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-153 | AGENTS.md troubleshooting | 5.2 Extraction and Confidence | E | T291 | — |
 | REQ-154 | README.md handoff content (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-155 | Sticky counter decay (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-156 | NPC description field | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-156 | NPC description field | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T191 | — |
 | REQ-157 | Combat determinism (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | A | — | — |
 | REQ-158 | Independent verification obligation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
 | REQ-159 | Synthesis briefing integration (Part a) (4 sub-parts) | 5.5 Badges and Access | C | T194 | — |
@@ -143,10 +143,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-162 | Build-mode profiles (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-163 | Client config verification (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T198 | — |
 | REQ-164 | Viability pre-check (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T199 | — |
-| REQ-165 | Entity ownership for personality gating (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T200 | — |
-| REQ-166 | Personality briefing rendering (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T201 | — |
-| REQ-167 | Personality resource URIs (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T202 | — |
-| REQ-168 | Audit resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T100 | — |
+| REQ-165 | Entity ownership for personality gating (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200 | — |
+| REQ-166 | Personality briefing rendering (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T201 | — |
+| REQ-167 | Personality resource URIs (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202 | — |
+| REQ-168 | Audit resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T100, T203 | — |
 | REQ-169 | Audit chain integrity reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T204 | — |
 | REQ-170 | Adventure discovery surface | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
@@ -255,7 +255,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-279 | Narrative orientation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T328 | — |
 | REQ-280 | Source-anchor citation (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T329 | — |
 | REQ-281 | Narrative-threads section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T330 | — |
-| REQ-282 | NPC voice directive (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | — | — |
+| REQ-282 | NPC voice directive (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T332 | — |
 | REQ-283 | Verb coverage tiers (Part a) (3 sub-parts) | 5.10 World-Model Layer | A | — | — |
 | REQ-284 | Implicit action hints (Part a) (5 sub-parts) | 5.10 World-Model Layer | A | — | — |
 | REQ-285 | Server notes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T334, T416 | — |
@@ -278,7 +278,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356 | — |
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | A | — | — |
-| REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | A | T356 | — |
+| REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
 | REQ-312 | Pre-narration validation gate (Part d1) (5 sub-parts) | 5.7 Determinism, Safety, and Performance | A | — | — |
 | REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-314 | Fingerprint-driven partial rebuild (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
