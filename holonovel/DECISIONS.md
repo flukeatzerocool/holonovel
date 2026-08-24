@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** ec28ab1c22f01f1c4d59f0f1cda9b8ef834f00ad8546a0da968b59cc6d8e267e
+**Spec hash:** 363dbc1d1680eb883144a4fdc3c4d525e9367d3cb98c798ae9f624aeacb9e074
 
 ### Holonovel Server Change — 2026-08-24 (§5.12 narrative engine)
 
