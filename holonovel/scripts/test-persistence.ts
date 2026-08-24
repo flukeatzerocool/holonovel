@@ -194,6 +194,18 @@ async function main() {
       assertContains(list, "note-4");
     });
 
+    await test("T158/REQ-140: end_novel confirmation dispatch removes the Novel", async () => {
+      await call(proc, "create_novel", { name: "dispatch-me" });
+      const confirm = await call(proc, "end_novel", {});
+      assertContains(confirm, "[NEED_INPUT]");
+      await call(proc, "respond", { decision: "end novel", option: "yes" });
+      // After disposal, resume of the removed slug is a STATE_CONFLICT.
+      const resume = await call(proc, "resume_novel", { slug: "dispatch-me" });
+      assertContains(resume, "[STATE_CONFLICT]");
+      // Restore a working novel for subsequent tests.
+      await call(proc, "create_novel", { name: "restore-novel" });
+    });
+
     await kill(proc);
   }
 

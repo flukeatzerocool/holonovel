@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-08-24 — §5.4 decision-workflow completion (REQ-140/190/191/192)
+
+- `respond` with no pending workflow now returns `[STATE_CONFLICT]` identifying
+  the drained/cancelled state (REQ-192 batch-respond collision), instead of
+  `[NOT_FOUND]`. Added REQ-190/191/140 citations to the respond/present_choices
+  handlers.
+- Added §6.6 mapping row `REQ-192 → S22` so the register can evidence the
+  collision contract.
+- Tests: `test-workflow.ts` gained T138 drain-restore, T32 display-label pairs,
+  and S22 collision tests; `test-persistence.ts` gained T158 end-novel
+  confirmation dispatch.
+- Register: REQ-190/191/192/140 → C. Buckets now A 149 / B 6 / C 147 / E 79.
+
 ## 2026-08-24 — §5.19 State Persistence Guardrails implementation (REQ-400–407)
 
 - Implemented the full §5.19 guardrail layer in `holonovel/src`:

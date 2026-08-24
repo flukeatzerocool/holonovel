@@ -131,6 +131,30 @@ async function main() {
       assertContains(resolve, "north");
     });
 
+    await test("T138/REQ-190: drained workflow restores blocked tools and clears pending", async () => {
+      // After the T138f drain, undo must be callable (no pending workflow).
+      const undo = await call(proc, "undo", {});
+      if (undo.includes("A workflow decision is pending")) {
+        throw new Error(`undo still blocked after drain: ${undo.substring(0, 120)}`);
+      }
+    });
+
+    await test("T32/REQ-191: options render as display-label pairs (kebab, label)", async () => {
+      const r = await call(proc, "present_choices", { prompt: "choose", choices: [{ id: "acrobatics", label: "Acrobatics" }, { id: "arcana", label: "Arcana" }] });
+      assertContains(r, "acrobatics");
+      assertContains(r, "Acrobatics");
+      assertContains(r, "arcana");
+    });
+
+    await test("S22/REQ-192: second respond on drained workflow returns STATE_CONFLICT", async () => {
+      await call(proc, "present_choices", { prompt: "collide?", choices: [{ id: "a", label: "A" }] });
+      const first = await call(proc, "respond", { decision: "-present_choices-", option: "a" });
+      assertContains(first, "[OK]");
+      const second = await call(proc, "respond", { decision: "-present_choices-", option: "a" });
+      assertContains(second, "[STATE_CONFLICT]");
+      if (second.includes("[NOT_FOUND]")) throw new Error("drained respond should be STATE_CONFLICT, not NOT_FOUND");
+    });
+
     await kill(proc);
   }
 

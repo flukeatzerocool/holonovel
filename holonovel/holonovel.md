@@ -5413,6 +5413,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-077 | S2, S19, S28 | Entity personality fields |
 | REQ-079 | S18, S29 | Adventure modules |
 | REQ-116 | S4, S22 | Redo |
+| REQ-192 | S22 | Batch-respond collision |
 | REQ-119 | S16 | NPC stat block reference |
 | REQ-120 | S16 | NPC rendering |
 | REQ-121 | S16 | NPC resource URIs |

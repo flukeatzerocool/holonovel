@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 0d602bd4ba7837cf0bbf4febd7aa494496417063572662eeeb28254a31266bc1
+**Spec hash:** 99d370e588984e511c58d6aa8d5b8cd41184f5c6bef7fda453b73a0286466e33
+
+### Holonovel Spec Update — 2026-08-24 (§5.4 decision workflows + §6.6 mapping)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (§6.6 adds REQ-192 → S22 mapping row) + implementation (`respond` `!pw` → `[STATE_CONFLICT]` per REQ-192 collision; REQ-190/191/140 citations; `test-workflow.ts` T138/T32/S22 drain, display-label, collision tests; `test-persistence.ts` T158 end-novel dispatch) |
+| Reused | extraction, lockfile |
+| Verification | typecheck 0 errors; workflow 12/12; persistence 12/12; all other harnesses green; check:fast 0 errors; register REQ-190/191/192/140 → C |
 
 ### Holonovel Server Change — 2026-08-24 (§5.19 persistence guardrails)
 
