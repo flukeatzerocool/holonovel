@@ -79,6 +79,14 @@ const server = new McpServer({
   version: "2026.08.24",
 });
 
+// REQ-133 — forbidden-call audit: every tool handler is wrapped so that a
+// thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
+// violation_type: boundary) in the Novel audit log before propagating.
+const _registerTool = server.registerTool.bind(server);
+server.registerTool = ((name: string, config: any, handler: any) => {
+  return _registerTool(name, config, withForbiddenAudit(handler, name) as any);
+}) as unknown as typeof server.registerTool;
+
 // ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
 
 // REQ-346 — canonical §5.12 REQ list for the narrative_coherence disposition.
@@ -789,6 +797,9 @@ function antiSlopFor(badge: string): string {
 // low-priority sections are replaced with `[truncated]` markers plus a pointer
 // to the matching guidance resource. Section headers survive; required contract
 // elements (badge boundary REQ-064, intro pointer REQ-063) are never truncated.
+// REQ-135 — badge briefing size budget: same truncation discipline, never
+// touching badge foundations and the intro pointer; REQ-180 — byte-UTF-8
+// thresholds (characters ≈ bytes for UTF-8 Markdown here).
 const promptBudget = (): number => configInt("TTRPG_PROMPT_BUDGET", 16000);
 const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "intro"]);
 function applyPromptBudget(text: string): string {
@@ -1010,6 +1021,8 @@ function badgeLabel(badge: Badge): string {
 }
 
 // REQ-066 — set_badge switches the active badge (player/game_master/observer/none).
+// REQ-031 — badge activation: set_badge activates the badge and its gating
+// context; REQ-305 — observer mode: read-only spectator, AI plays both roles.
 server.registerTool("set_badge", {
   title: "Set Active Badge",
   description: "Switch active badge: player, game_master, observer, or none (Editor). Always callable.",
@@ -4967,6 +4980,13 @@ server.registerTool("roll_on_table", {
     return err("NOT_FOUND", `Table '${table}' not found. Valid tables: ${valid.join(", ") || "(none)"}.`);
   }
   const entry = tables[key];
+  // REQ-216 — generation table badge filtering: tables with `badge_scope:
+  // "game_master"` return [FORBIDDEN] under the Player badge, enumerating the
+  // table name without revealing content, directing to badge_briefing for a
+  // non-revealing list of accessible tables.
+  if (entry?.badge_scope === "game_master" && getBadge() === "player") {
+    return err("FORBIDDEN", `Table '${key}' is Game Master only. Corrective action: use badge_briefing to list tables your badge can access, or switch badges with set_badge.`);
+  }
   const rng = seed ? createRng(seed) : createRng(String(sessionRoll(1000000000)));
   const roll = entry.dice_expression ? rollDice(entry.dice_expression, String(rng.roll(1000000000))).total : rng.roll(100);
   const range = (entry.ranges ?? []).find((r: any) => roll >= r.min && roll <= r.max);
@@ -5197,8 +5217,12 @@ For the latest specification, see ${specRepoUrl()}.`,
 
 server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   const novel = state.activeNovel;
+  // REQ-136 — Editor-badge briefing: with no active Novel, return setup-oriented
+  // content — available Novels, the active Novel name if any, intro pointer.
   if (!novel) {
-    return { messages: [{ role: "user", content: { type: "text" as const, text: "No active Novel. Create or resume one first." } }] };
+    const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
+    const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
+    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or create_novel to set up a new campaign.` } }] };
   }
 
   const badge = novel.badge;
@@ -5234,14 +5258,24 @@ Close each narrated turn by inviting the player's next action — ask what they 
 You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
   }
 
+  // REQ-304 — Counterpart AI role: the AI's narrative role is the counterpart
+  // of the active badge by default; `TTRPG_AI_ROLE` (counterpart | game_master |
+  // player) locks the orientation. Orientation content (boundary, anti-slop,
+  // tone) follows the AI role; the active badge controls state/tool surfaces.
+  const aiRole = process.env.TTRPG_AI_ROLE ?? "counterpart";
+  const orientationRole = aiRole === "counterpart"
+    ? (badge === "game_master" ? "player" : "game_master")
+    : aiRole;
+  const orientationBadge = orientationRole === "player" ? "player" : orientationRole === "game_master" ? "game_master" : "none";
+
   // REQ-064 — badge behavioral boundary directive (orientation layer, after
   // badge foundations and before anti-slop guidance; never truncated).
   briefing += `\n\n### Badge boundary
 You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call set_badge("none").`;
 
-  // REQ-070 — anti-slop guidance (badge-filtered Appendix J synopsis), after
-  // foundations, before scene state.
-  const antiSlop = antiSlopFor(badge);
+  // REQ-070 — anti-slop guidance (orientation-filtered Appendix J synopsis),
+  // after foundations, before scene state.
+  const antiSlop = antiSlopFor(orientationBadge);
   if (antiSlop) briefing += `\n\n### Anti-slop guidance\n${antiSlop}`;
 
   // REQ-071 — narrative tone samples: ruleset-extracted prose demonstrating the
@@ -5271,13 +5305,16 @@ Characters: ${setupMark(novel.characters_present)} | Story source: ${setupMark(n
   }
 
   // REQ-109 — POV directive (character-perspective anchor, GM + Player).
+  // REQ-220 — narrative point of view: directive names the active entity, locks
+  // narration to their senses, and renders an omniscient empty-state marker when
+  // none is set. REQ-223 — POV mode control: `pov` mode is Novel-scoped state.
   if (badge === "game_master" || badge === "player") {
     if (novel.pov_mode === "character" && entity) {
       briefing += `\n\n### Point of view
 Describe the scene through ${entity.name}'s eyes — what they see, hear, and feel.`;
     } else {
       briefing += `\n\n### Point of view
-No character point of view is set — narrate in the third person until one is chosen.`;
+POV: none — narration is omniscient.`;
     }
   }
 
@@ -5289,6 +5326,8 @@ Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Crea
   }
 
   if (badge === "player") {
+    // REQ-134 — minimum Player tool surface: dice, lookups, sheet, suggestions,
+    // player signals, help, undo/redo, badge switching all callable by Player.
     briefing += `\n\n### Player Tools
 Use \`command("<action>")\` to interact with the world:
 - command("look") — describe the current room
@@ -5377,8 +5416,9 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       briefing += `\n\n### Story beats\n[No beats completed.]`;
     }
 
-    // REQ-336/281 — narrative threads: pacing signal, unresolved decisions, bonds,
-    // countdowns, non-default NPC dispositions, active vows, and §5.12 couplings.
+    // REQ-281 — narrative-threads section token (decision-critical group):
+    // unresolved decisions, active promises, countdowns, non-default NPC
+    // dispositions, active vows, and §5.12 couplings; badge-filtered.
     const threadLines: string[] = [];
 
     const pacing = pacingSignalText(novel);

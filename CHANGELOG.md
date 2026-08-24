@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-24 — Wave 3: §5.5 Badges & Access (11 REQs → C)
+
+- REQ-133 forbidden-call audit: every tool handler wrapped with
+  `withForbiddenAudit` via registerTool interception; `[FORBIDDEN]` records
+  badge/tool/args with `violation_type: boundary` + `[BOUNDARY_VIOLATION]` prefix.
+- REQ-304 Counterpart AI role: `TTRPG_AI_ROLE` (counterpart|game_master|player)
+  drives briefing orientation; orientation layer (boundary/anti-slop/tone)
+  follows the AI role, active badge controls state/tool surfaces.
+- REQ-216 generation table badge filtering: `badge_scope: game_master` tables
+  return `[FORBIDDEN]` under Player without revealing content.
+- REQ-136 Editor-badge briefing: no-active-Novel returns Novel list + intro
+  pointer; editor-with-Novel flows through GM-level briefing.
+- REQ-220/223 POV directive + pov-mode control: omniscient empty-state marker
+  and character-locked directive (already present, now cited + tested).
+- REQ-031/134/135/281/305 citations + T-ID tests (set_badge, player surface,
+  briefing budget, narrative_threads token, observer mode).
+- REQ-137/180/211/275/276 classified builder-side (E whitelist).
+- `test-output-contracts.ts` grows to 52 assertions (T9/T147/T148/T149/T150/
+  T257/T262/T265/T330/T348/T349). Buckets now A 96 / B 6 / C 190 / E 89.
+
 ## 2026-08-24 — Wave 2: §5.3 Tool-surface economy (12 REQs → C)
 
 - `spec_repo_url` config + spec_health + intro pointer (REQ-106).
