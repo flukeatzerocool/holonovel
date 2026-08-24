@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-23 — Workflow lifecycle conforms to the decision contract
+
+- The pending-workflow decision contract now holds end to end: every tool that
+  raises a `[NEED_INPUT]` captures a full pre-workflow snapshot, and
+  `respond(cancel)` restores all Novel-tier state from it (surviving restarts)
+  rather than merely clearing the prompt. (REQ-042b/c/d/e)
+- Workflow decisions are matched after whitespace canonicalization, and an
+  unrecognized decision or option returns `[NOT_FOUND]` with the canonical
+  text and valid values. (REQ-042a)
+- `end_novel` and `restore_checkpoint` now raise a real confirmation workflow
+  instead of acting immediately, so they freeze conflicting mutations and
+  restore pre-invocation state on cancel. (REQ-241a)
+- Abandoned workflows now auto-cancel: a per-workflow staleness counter
+  increments with each connection and, at `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`
+  (default 5; 0 disables), restores the snapshot under a `[workflow-stale]`
+  audit entry. `spec_health` surfaces `pending_workflow` and, at three or more
+  idle connections, `pending_workflow_warning`. (REQ-224, REQ-193)
+- Added a workflow-lifecycle conformance harness (`scripts/test-workflow.ts`,
+  `npm run test:workflow`) exercising T138 (raise/freeze/cancel-restore),
+  T157 (restart survival), and T266 (staleness auto-cancel and disable) against
+  a live server with real restart cycles.
+
 ## 2026-08-23 — Journey remediation: choices, workflow freeze, and prompts
 
 - A player's answer to a structured choice now has mechanical reach: recording
