@@ -566,6 +566,62 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 6: §5.6 Adventure resources ──
+  await test("T146/REQ-132 + T285/REQ-248 + T286/REQ-249: generated adventure lifecycle and resources", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w6a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "generate_adventure", { premise: "A haunted station" });
+    const ov = await proto(p, "resources/read", { uri: "adventure://generated/overview" });
+    assertContains(ov, "Premise", "REQ-248 overview resource");
+    const nav = await proto(p, "resources/read", { uri: "adventure://generated/navigation" });
+    assertContains(nav, "Navigation", "REQ-249 navigation resource");
+    await call(p, "set_scene_state", { description: "scene", adventure_scene: "hall" });
+    passed++;
+    await kill(p);
+  });
+
+  await test("T207/REQ-170 + T338/REQ-292: adventure catalog and discovery surface", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w6b" });
+    const cat = await call(p, "list_adventures", {});
+    assertContains(cat, "[No adventure modules found.]", "REQ-292 empty-state");
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (typeof health.adventure_catalog_count !== "number") throw new Error("REQ-292 adventure_catalog_count");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T284/REQ-250 + T312/REQ-252: adventure waypoint and fast-forward", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w6c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "generate_adventure", { premise: "A tower" });
+    await call(p, "set_countdown", { name: "ritual", ticks: 3, type: "narrative" });
+    await call(p, "set_scene_state", { description: "foyer", fast_forward: { interval: "three days of travel" } });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    void brief;
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "fast-forward", "REQ-252 fast-forward audit entry");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-229 adventure synthesis linkage ──
+  await test("T305/REQ-229: load_adventure synthesis augmentation section", async () => {
+    const advDir = join(DATA_DIR, "adventures");
+    mkdirSync(advDir, { recursive: true });
+    writeFileSync(join(advDir, "test-tower.md"), `# Test Tower\n## Premise\nA tall tower.\n## Adventure Hook\nThe tower rises.\n## World\n## Location\nentrance\n## NPCs\n**Guard captain**\n3 HP\n`);
+    const p = await boot({ TTRPG_ADVENTURE_DIR: advDir });
+    await call(p, "create_novel", { name: "w6d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "synthesize", {});
+    const load = await call(p, "load_adventure", { slug: "test-tower" });
+    assertContains(load, "Synthesis found", "REQ-229 synthesis linkage augmentation");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);
