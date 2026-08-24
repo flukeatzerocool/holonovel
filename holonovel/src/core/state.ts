@@ -97,6 +97,15 @@ export interface NpcState {
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
   conditions: string[];
   condition_rounds: Record<string, number>;
+  // REQ-311 — per-NPC memory model: witnessed events, per-entity contact
+  // history, emotional-state signals, and goal pursuit, persisted with Novel.
+  memory?: {
+    witnessed_events: Array<{ event: string; at: string }>;
+    contacts: Record<string, { encounters: number; first_contact: string; last_contact: string; last_disposition: string; prior_dispositions: string[] }>;
+    stress_markers: string[];
+    goals?: string[];
+    last_3_interactions: Array<{ entity: string; summary: string; at: string }>;
+  };
 }
 
 export interface LoreEntry {

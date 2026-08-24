@@ -482,6 +482,90 @@ async function main() {
     await kill(p);
   });
 
+  // ── Wave 5: §5.6 NPC surface & memory ──
+  await test("T126/REQ-119 + T127/REQ-120 + T128/REQ-121: NPC stat reference, rendering, resources", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "create_novel", { name: "w5a", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "create_npc", { name: "Goblin", ruleset_reference: "Goblin" });
+    assertContains(created, "[OK]", "REQ-119 create with reference");
+    const list = await proto(p, "resources/read", { uri: "npcs://" });
+    assertContains(list, "Goblin", "REQ-121 npcs resource");
+    const bad = await call(p, "create_npc", { name: "X", ruleset_reference: "NoSuchThing" });
+    assertContains(bad, "[NOT_FOUND]", "REQ-119 unknown reference");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T129/REQ-122 + T191/REQ-156: NPC personality fields and description field", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w5b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_npc", { name: "Guard", description: "Tall" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    await call(p, "set_personality", { entity_id: id, description: "Suspicious" });
+    const res = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
+    assertContains(res, "Suspicious", "REQ-156 description most-recent-wins");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T356/REQ-311: NPC memory updates on combat engagement", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w5c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Fighter" });
+    await call(p, "create_npc", { name: "Thug" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    await call(p, "init_combat", { participants: ["character_01", id] });
+    await call(p, "advance_combat", {});
+    const health = JSON.parse(await call(p, "spec_health", {}));
+    if (typeof health.npc_memory_count !== "number") throw new Error("REQ-311 npc_memory_count missing");
+    if (health.npc_memory_count < 1) throw new Error(`REQ-311 npc_memory_count ${health.npc_memory_count}`);
+    passed++;
+    await kill(p);
+  });
+
+  // ── Wave 5b: remaining NPC/personality surfaces ──
+  await test("T130/REQ-123 + T191/REQ-156 + T200/REQ-165 + T201/REQ-166 + T202/REQ-167: NPC stat fields, personality rendering", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w5d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_npc", { name: "Smith", description: "A smith" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    await call(p, "set_personality", { entity_id: id, voice: "gruff" });
+    await call(p, "set_voice_examples", { entity_id: id, examples: [{ context: "greeting", dialogue: "What do you need?" }] });
+    const pers = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
+    assertContains(pers, "gruff", "REQ-166 personality rendering");
+    const voice = await proto(p, "resources/read", { uri: `npc://${id}/voice_examples` });
+    assertContains(voice, "What do you need?", "REQ-126 voice examples resource");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T203/REQ-168 + T332/REQ-282: audit resource and NPC voice directive", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w5e" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "PC" });
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "create_novel", "REQ-168 audit resource");
+    await call(p, "create_npc", { name: "Smith" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    await call(p, "update_npc", { npc_id: id, location: "smithy" });
+    await call(p, "set_voice_examples", { entity_id: id, examples: [{ context: "hi", dialogue: "Gruff hello." }] });
+    await call(p, "set_scene_state", { description: "forge", location: "smithy" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Voice directive", "REQ-282 NPC voice directive");
+    passed++;
+    await kill(p);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);
