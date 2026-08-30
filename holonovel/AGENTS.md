@@ -42,7 +42,7 @@ src/index.ts            McpServer: ~44 tools, ~22 resources, 5 prompts.
 - **World Model:** command, create_room, delete_room, create_thing, delete_thing, create_exit, delete_exit, convert_source
 - **Lookups:** search_rules (empty), suggest_actions (context-only), spec_health
 - **Combat (GM):** init_combat, advance_combat, end_combat, add_combat_participant, remove_combat_participant
-- **Narrative (GM):** set_scene_state, set_scene_type, set_narrative_directive
+- **Narrative (GM):** set_scene_state, set_narrative_directive
 - **NPCs (GM):** create_npc, update_npc, remove_npc
 - **Countdowns (GM):** set_countdown, advance_countdown, remove_countdown
 - **Lore (GM):** set_lore_entry, update_lore_entry, remove_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export_lorebook, import_lorebook

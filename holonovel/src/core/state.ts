@@ -1131,7 +1131,7 @@ export class StateManager {
     if (cur) {
       cur.entry_count++;
       if (tool === "advance_combat") cur.combat_rounds++;
-      if (tool === "set_scene_state" || tool === "set_scene_type") cur.scene_transitions++;
+      if (tool === "set_scene_state") cur.scene_transitions++;
     }
   }
 

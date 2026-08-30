@@ -108,7 +108,7 @@ async function main() {
     });
 
     await test("T476/REQ-407: persistence tools listed for GM regardless of scene type", async () => {
-      await call(proc, "set_scene_type", { type: "combat" });
+      await call(proc, "set_scene_state", { description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
       for (const tool of ["set_scene_state", "record_story", "set_countdown", "set_note", "set_personality", "create_npc", "set_vow"]) {

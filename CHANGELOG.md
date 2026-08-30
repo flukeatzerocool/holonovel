@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-29 — REQ-087b scene_type surface reconciliation
+
+- Scene type tagging now lives on `set_scene_state` as a `scene_type`
+  parameter (single tag or array); the standalone `set_scene_type` tool is
+  removed. (REQ-087b)
+- Corrected stale briefing section-token names in the gauntlet verification
+  fixture so the scene/guidance sub-workflow passes again.
+- Recorded the 08-29 terminology-sweep and self-consistency spec-update
+  dispositions and the repaired REQ set in DECISIONS.md, and advanced the
+  stored spec hash and implementation fingerprints.
+
 ## 2026-08-29 — Self-consistency remediation and Spec Kit phased-artifact adoption
 
 - Repaired the REQ-313/REQ-314 fingerprint-block check coverage: added a

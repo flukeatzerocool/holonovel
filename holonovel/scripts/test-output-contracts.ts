@@ -763,7 +763,7 @@ async function main() {
     const p = await boot();
     await call(p, "create_novel", { name: "w9b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const st = await call(p, "set_scene_type", { type: "social" });
+    const st = await call(p, "set_scene_state", { description: "social scene", scene_type: "social" });
     assertContains(st, "[OK]", "REQ-087 scene type");
     const tg = await call(p, "toggle_action_patterns", {});
     assertContains(tg, "[OK]", "REQ-115 action pattern toggle");
