@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-30 — Push pipeline: push origin when local main is ahead
+
+- Fixed `push-pipeline.sh` skipping the origin push when the working tree is
+  already clean: the origin push was gated on `HAS_COMMIT`, so commits made in
+  a prior session (that were never pushed) left `origin` (git.gay) behind local
+  `main`. The deploy target pulls from git.gay, so it stayed on a stale commit
+  and REQ-418 deploy verification failed (spec hash + fingerprints mismatch).
+  The script now fetches `origin/main`, computes the unpushed-commit count, and
+  pushes origin whenever local `main` is ahead — independent of whether this run
+  created a commit.
+
 ## 2026-08-30 — Script discipline codified and mechanically enforced
 
 - Added a `## Script discipline` section to AGENTS.md: every script declares

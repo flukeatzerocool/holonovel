@@ -10,6 +10,11 @@
 # class, changed surfaces, verification) must be added manually before a
 # spec-changing push — see Appendix V.4. Step 5b warns when it is missing.
 #
+# NOTE: the origin push (step 7) runs whenever local main has unpushed commits,
+# not only when this run created one. A clean working tree can still be ahead
+# of origin after a prior session committed directly; skipping the push leaves
+# the deploy target stale and fails REQ-418.
+#
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
@@ -185,7 +190,7 @@ git add scripts/ holonovel/ .github/
 HAS_COMMIT=true
 TAG_TO_PUSH=""
 if git diff --staged --quiet 2>/dev/null; then
-  echo -e "${YELLOW}Nothing to commit — skipping commit/tag/push, continuing with wiki and deploy.${NC}"
+  echo -e "${YELLOW}Nothing new to commit.${NC}"
   HAS_COMMIT=false
 fi
 
@@ -196,13 +201,27 @@ if $HAS_COMMIT; then
   Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
+fi
 
+# ── 6a/7. Tag + push origin — run whenever local main has unpushed commits,
+#          not only when this run created one. A clean working tree can still
+#          be ahead of origin after a prior session committed directly, and
+#          skipping the origin push leaves the deploy target stale (REQ-418). ──
+
+git fetch origin main --quiet 2>/dev/null || true
+PENDING_PUSH=0
+if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+  PENDING_PUSH=$(git rev-list --count origin/main..main 2>/dev/null || echo 0)
+else
+  PENDING_PUSH=1
+fi
+
+if [[ "$PENDING_PUSH" -gt 0 ]]; then
   # ── 6a. Tag (only when the version is new) ──
 
   echo -e "${GREEN}=== 6a. Tag ===${NC}"
   VERSION=$(node -e "console.log(require('./package.json').version)")
   TAG="v$VERSION"
-  TAG_TO_PUSH=""
   if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
     echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
   else
@@ -218,6 +237,8 @@ if $HAS_COMMIT; then
   if [[ -n "$TAG_TO_PUSH" ]]; then
     git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
   fi
+else
+  echo -e "${YELLOW}Nothing to push — origin is up to date.${NC}"
 fi
 
 # ── 7b. Mirror sync (origin → github) ──
