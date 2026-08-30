@@ -178,6 +178,7 @@ done
 git add scripts/ holonovel/ .github/
 
 HAS_COMMIT=true
+TAG_TO_PUSH=""
 if git diff --staged --quiet 2>/dev/null; then
   echo -e "${YELLOW}Nothing to commit — skipping commit/tag/push, continuing with wiki and deploy.${NC}"
   HAS_COMMIT=false
