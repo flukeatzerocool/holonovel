@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-08-29 — README restructured to audience-first routing
+
+- Restructured `README.md` from a product-narrative flow (Quick start →
+  What it does → How it compares) to an audience-routed flow (Run a
+  server → How it works → How it compares → Contribute), with a TOC
+  tagged by audience and the five slogan pillars recast as the Convert →
+  Build → World → Novel → Synthesis pipeline. Badge enforcement is now
+  described once, as a cross-cutting runtime layer inside Novel.
+- Added a TOC↔heading sync check to `scripts/validate-readme.ts` so the
+  TOC can no longer drift from the headings (the "Install a ruleset"
+  entry had already gone stale), and updated the comparison-table check
+  to accept the category-column header with three rows.
+- Fixed the comparison table to compare competitor categories rather than
+  individual products, dropped the gimmick "Holodeck" row, and made the
+  "Your books. Your server. Your Holodeck." refrain single-instance.
+
 ## 2026-08-29 — REQ-087b scene_type surface reconciliation
 
 - Scene type tagging now lives on `set_scene_state` as a `scene_type`

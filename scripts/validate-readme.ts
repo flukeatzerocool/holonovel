@@ -75,8 +75,8 @@ function checkHeadingOrder(text: string): Issue[] {
   const expected: { level: number; title: string }[] = [
     { level: 1, title: "Holonovel" },
     { level: 2, title: "Table of contents" },
-    { level: 2, title: "Quick start" },
-    { level: 2, title: "What it does" },
+    { level: 2, title: "Run a server" },
+    { level: 2, title: "How it works" },
     { level: 2, title: "How it compares" },
     { level: 2, title: "Contribute" },
   ];
@@ -290,7 +290,7 @@ function checkComparisonTable(text: string): Issue[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith("| Tool") && trimmed.includes("Holonovel")) {
+    if (trimmed.startsWith("| Category") && trimmed.includes("Holonovel")) {
       headerFound = true;
       colCount = trimmed.split("|").filter((c) => c.trim().length > 0).length;
       continue;
@@ -306,11 +306,11 @@ function checkComparisonTable(text: string): Issue[] {
   }
 
   if (!headerFound) {
-    issues.push({ error: true, msg: "Comparison table header not found — expected 'Tool | What it is | Holonovel instead'" });
+    issues.push({ error: true, msg: "Comparison table header not found — expected 'Category | What you're used to | How Holonovel differs'" });
   }
 
-  if (rowCount < 4) {
-    issues.push({ error: false, msg: `Comparison table has ${rowCount} data rows — expected at least 4` });
+  if (rowCount < 3) {
+    issues.push({ error: false, msg: `Comparison table has ${rowCount} data rows — expected at least 3` });
   }
 
   return issues;
@@ -322,8 +322,19 @@ function checkSectionLengths(text: string): Issue[] {
   const lines = text.split("\n");
 
   for (let i = 0; i < headings.length; i++) {
+    if (headings[i].level === 3) continue;
+
     const startLine = headings[i].line;
-    const endLine = i + 1 < headings.length ? headings[i + 1].line - 1 : lines.length;
+    let endLine = lines.length;
+    let hasSub = false;
+    const boundary = headings[i].level === 1 ? 6 : headings[i].level;
+    for (let k = i + 1; k < headings.length; k++) {
+      if (headings[k].level === 3) hasSub = true;
+      if (headings[k].level <= boundary) {
+        endLine = headings[k].line - 1;
+        break;
+      }
+    }
 
     let wordCount = 0;
     let inBlock = false;
@@ -340,8 +351,6 @@ function checkSectionLengths(text: string): Issue[] {
       wordCount += trimmed.split(/\s+/).filter((w) => w.length > 0).length;
     }
 
-    if (headings[i].level === 3) continue;
-
     if (headings[i].title === "Holonovel") {
       if (wordCount > 200) {
         issues.push({ error: false, msg: `Hero section is ${wordCount} words — may be growing too long (suggest ≤200)` });
@@ -353,8 +362,49 @@ function checkSectionLengths(text: string): Issue[] {
     if (wordCount < 30 && !hasTable) {
       issues.push({ error: false, msg: `Section '${headings[i].title}' is ${wordCount} words — may be underdeveloped (suggest ≥30)` });
     }
-    if (wordCount > 350) {
+    if (wordCount > 350 && !hasSub) {
       issues.push({ error: false, msg: `Section '${headings[i].title}' is ${wordCount} words — may be growing too long (suggest ≤350)` });
+    }
+  }
+
+  return issues;
+}
+
+function checkTocSync(text: string): Issue[] {
+  const issues: Issue[] = [];
+  const headings = extractHeadings(text);
+  const headingSlugs = headings
+    .filter((h) => h.level >= 2 && h.title !== "Table of contents")
+    .map((h) => ({ title: h.title, slug: slugify(h.title) }));
+
+  const tocIdx = text.indexOf("## Table of contents");
+  if (tocIdx === -1) {
+    issues.push({ error: true, msg: "'## Table of contents' section not found" });
+    return issues;
+  }
+  const afterToc = text.slice(tocIdx + "## Table of contents".length);
+  const nextH2 = afterToc.search(/^##\s/m);
+  const tocBlock = nextH2 === -1 ? afterToc : afterToc.slice(0, nextH2);
+
+  const tocSlugs = extractLinks(tocBlock)
+    .filter((l) => l.url.startsWith("#") && l.url.length > 1)
+    .map((l) => l.url.slice(1));
+
+  for (const { title, slug } of headingSlugs) {
+    if (!tocSlugs.includes(slug)) {
+      issues.push({ error: true, msg: `Heading '${title}' (anchor '#${slug}') missing from Table of contents` });
+    }
+  }
+  for (const slug of tocSlugs) {
+    if (!headingSlugs.some((h) => h.slug === slug)) {
+      issues.push({ error: true, msg: `TOC link '#${slug}' does not match any heading` });
+    }
+  }
+
+  const audienceTags = ["operators", "evaluators", "contributors"];
+  for (const tag of audienceTags) {
+    if (!tocBlock.includes(tag)) {
+      issues.push({ error: false, msg: `TOC missing audience tag '${tag}' on an h2 entry` });
     }
   }
 
@@ -373,6 +423,7 @@ function main(): void {
     { name: "Tool names in prose", run: checkToolNamesInProse, severity: "hard" },
     { name: "Feature lists", run: checkFeatureLists, severity: "soft" },
     { name: "Internal links", run: checkInternalLinks, severity: "hard" },
+    { name: "TOC sync", run: checkTocSync, severity: "hard" },
     { name: "Voice drift", run: checkVoiceDrift, severity: "soft" },
     { name: "Near-duplicate sentences", run: checkNearDuplicates, severity: "soft" },
     { name: "External links", run: checkExternalLinks, severity: "soft" },
