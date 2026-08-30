@@ -9,6 +9,7 @@ const REF_IMPL_OUT = path.join(ROOT, "holonovel", "holonovel.md");
 
 const CORE_FILES = [
   "01-foundations.md",
+  "01a-constitution.md",
   "02-requirements.md",
   "03-build.md",
   "04-runtime.md",

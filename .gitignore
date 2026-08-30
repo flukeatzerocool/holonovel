@@ -10,7 +10,8 @@ opencode-raw-*.log
 !.holonovel-state/wiki/Getting-Started.md
 !.holonovel-state/wiki/Playing-the-Game.md
 *.bak
-plans/
+plans/*
+!plans/README.md
 
 # Build queue
 .opencode/build-queue.txt

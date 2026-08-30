@@ -961,7 +961,7 @@ are Novel-scoped: two connections to the same Novel share the same badge and ent
 state (REQ-031, REQ-074). Each connection may independently switch between Novels
 via `switch_novel` (REQ-095), and each Novel stores its own badge independently.
 *Acceptance criterion:* Starting a second MCP connection to the same Novel succeeds
-and inherits the Novel's current badge and active entity; switching badges. On one
+and inherits the Novel's current badge and active entity; switching badges on one
 connection is visible on the other.
 _Check:_ Appendix D.
 
@@ -1154,7 +1154,7 @@ DECISIONS.md (6) SHALL enumerate each blocking item and its pass/fail status.
 *Acceptance criterion:* A ruleset with duplicate headings fails G0a and
 the build does not proceed to discovery; a ruleset missing horizontal-rule
 separators passes G0a with the finding logged.
-_Check:_ G0; T183.
+_Check:_ G0a; T183.
 
 **REQ-149 — MCP conformance gate.** _(F3)_ The running server SHALL pass every
 check in Appendix D before the build proceeds past intake. A failed check stops
@@ -1165,7 +1165,7 @@ against the active fixture as specified in §8 G0b.
 lookup of a known-absent entity fails G0b and the build does not proceed;
 a server that passes all Appendix D checks produces an evidence record
 enumerating each check.
-_Check:_ G0; T184.
+_Check:_ G0b; T184.
 
 **REQ-150a — Golden transcript coverage completeness (Part a).**
 After the golden transcript passes G2, the builder SHALL verify that every behavioral contract the selected fixture exercises (REQ-001, REQ-032, REQ-041, REQ-042, REQ-043, REQ-050, REQ-072, REQ-073) is exercised by at least one transcript interaction. Any unexercised contract SHALL be recorded as a coverage gap in the G2 evidence record with the unexercised REQ cited. Coverage gaps do not block the line; they are findings recorded in DECISIONS.md (6) for operator disposition. *Acceptance criterion:* Replay the Appendix B golden transcript — assert every contract is exercised by at least one interaction.
@@ -1173,7 +1173,7 @@ After the golden transcript passes G2, the builder SHALL verify that every behav
 **REQ-150b — Golden transcript coverage completeness (Part b).**
 Mask an interaction from the transcript — assert the unexercised REQ is recorded as a coverage gap without blocking the build. _Check:_ G2; T185.
 **REQ-211a — Evidence record field contract (Part a).**
-DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0, G2, G3, G4, G5, or H1–H14), timestamp, environment pins (runtime version, OS, and spec hash at time of execution), pass/fail status, and a findings section enumerating each sub-check with its individual result.
+DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0a, G0b, G2, G3, G4, G5, G6, G7, G8, or H1–H18), timestamp, environment pins (runtime version, OS, and spec hash at time of execution), pass/fail status, and a findings section enumerating each sub-check with its individual result.
 
 **REQ-211b — Evidence record field contract (Part b).**
 Per-workflow extension fields: G0 records enumerate Appendix H and Appendix D checklist items with individual pass/fail; G2 records include the per-contract coverage enumeration defined in §8; G3 records include registry/resource diff summary; G4 records include per-test pass/fail counts; G5 (Pattern Buffer) records include per-sub-workflow verdict and blocking/non-blocking classification.
@@ -1356,7 +1356,7 @@ When no combat is active, `confrontations_completed` SHALL be an empty array and
 Both carry an unambiguous default preserving backward compatibility. `advance_countdown(name)` adjusts one tick in the countdown's direction. `remove_countdown(name)` deletes a countdown before it fires. When a countdown fires, it is recorded in the audit log with a timestamp and removed from active countdowns — its name slot freed for reuse. Expired countdowns remain in the audit log. `countdown://active` lists all active countdowns with remaining ticks, type, badge_scope, and direction, badge-filtered: only shared countdowns are visible to the Player badge.
 
 **REQ-073c3 — Countdowns (Part c3).**
-Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`. Countdown tools are Game Master only; the Player badge reads active countdowns via `badge_briefing` and resource URIs. *Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both badges. briefings; a GM-only countdown "patrol" appears only in the GM briefing; `advance_countdown("patrol")` at tick 1 fires and removes it. _Check:_ T54, T139.
+Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`. Countdown tools are Game Master only; the Player badge reads active countdowns via `badge_briefing` and resource URIs. *Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both badges' briefings; a GM-only countdown "patrol" appears only in the GM briefing; `advance_countdown("patrol")` at tick 1 fires and removes it. _Check:_ T54, T139.
 **REQ-329a — Countdown-world coupling (Part a).**
 Countdowns SHALL accept an optional `trigger` array with world-model event types. Supported trigger types: `on_room_enter(<room_id>)` — fires when the active entity enters the named room via parser navigation; `on_thing_take(<thing_id>)` — fires when the named thing is taken; `on_door_open(<exit_ref>)` — fires when the named exit's door is opened. World-model events that match a trigger SHALL advance the countdown by one tick. Multiple triggers per countdown SHALL be permitted — if any trigger matches, the countdown advances. Trigger resolution is mechanical — the countdown fires regardless of narrative framing.
 
@@ -1613,7 +1613,7 @@ During discovery (§6.3), the builder must identify ruleset-native personality c
 **REQ-127b — Ruleset-native personality mapping (Part b).**
 For example, a ruleset that defines "Traits," "Ideals," "Bonds," and "Flaws" would see those terms in tool descriptions alongside the Holonovel field names. The mapping is advisory — it does not constrain which fields a player sets, only how the surface is presented. If the ruleset defines no native personality constructs, the builder records this finding and uses only the Holonovel field names. *Acceptance criterion:* Building for D&D 5e produces RULESET_MODEL.md mapping Traits/Ideals/Bonds/Flaws to Holonovel fields; `set_personality` tool description includes "Traits," "Ideals," etc. _Check:_ T141.
 **REQ-165a — Entity ownership for personality gating (Part a).**
-`set_personality` badge gating (REQ-077), an entity is "owned" by the Player badge when that entity was created by the current connection under the Player badge. When no Novel is active, or when the server restarts, ownership of all existing entities resets to unowned — a Player may set personality fields on any entity until a badge is activated. Once the Game Master badge sets personality fields on an entity, the Player badge retains write access to that entity's personality fields (ownership is not exclusive).
+For `set_personality` badge gating (REQ-077), an entity is "owned" by the Player badge when that entity was created by the current connection under the Player badge. When no Novel is active, or when the server restarts, ownership of all existing entities resets to unowned — a Player may set personality fields on any entity until a badge is activated. Once the Game Master badge sets personality fields on an entity, the Player badge retains write access to that entity's personality fields (ownership is not exclusive).
 
 **REQ-165b — Entity ownership for personality gating (Part b).**
 This definition exists solely to resolve the "Player-only for own entities" contract in REQ-077 — it does not affect tool access, resource filtering, or any other subsystem. *Acceptance criterion:* A Player creates an entity (`create_character` under Player badge) and successfully calls `set_personality` on it. The same Player attempts `set_personality` on an entity created by the GM — the call SHALL succeed (ownership is non-exclusive per the body). A Player who has never created any entity can still call `set_personality` on entities imported by the GM (no ownership check blocks the Player). _Check:_ T200.
@@ -1834,27 +1834,27 @@ The server continues to operate with a clean state for the affected Novel — th
 **REQ-065f — Build fingerprint (Part f).**
 A ruleset modification after build produces a [ruleset-drift] warning in spec_health and stderr at next startup; a spec modification produces a [spec-drift] warning; neither blocks startup. _Check:_ T52, T224. *Out of scope:* relational database backends, distributed state across processes, cloud synchronization, and state migration between incompatible specification versions without the Update workflow (§6.7).
 **REQ-313a — Server implementation fingerprinting (Part a).**
-The builder SHALL compute SHA-256 content hashes for five server implementation components at every build and record them alongside the build fingerprint (REQ-065) in DECISIONS.md (1).
+The builder SHALL compute SHA-256 content hashes for five server implementation components at every build and record them alongside the build fingerprint (REQ-065) in DECISIONS.md (1). _Check:_ T497.
 
 **REQ-313b — Server implementation fingerprinting (Part b).**
-The five components are: server source code (all files in the server's source directory, sorted by path and concatenated), server configuration (the build configuration files governing compilation and dependencies), the dependency lockfile (recording the exact dependency tree), generated extraction data (ruleset extraction output produced during Discovery), and registered surfaces (the sorted, concatenated list of registered tool names, resource URIs, and prompt names).
+The five components are: server source code (all files in the server's source directory, sorted by path and concatenated), server configuration (the build configuration files governing compilation and dependencies), the dependency lockfile (recording the exact dependency tree), generated extraction data (ruleset extraction output produced during Discovery), and registered surfaces (the sorted, concatenated list of registered tool names, resource URIs, and prompt names). _Check:_ T497.
 
 **REQ-313c — Server implementation fingerprinting (Part c).**
-When generated extraction data is absent (ruleset-free builds or servers without extraction), the generated-data component records a sentinel indicating no extraction was performed. Each component hash SHALL be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT use these hashes to gate startup — they exist for scoping subsequent builds and updates (REQ-314). *Acceptance criterion:* A build records five component hashes in DECISIONS.md (1) alongside the build fingerprint; a subsequent build with unchanged source code produces an identical source code hash.
+When generated extraction data is absent (ruleset-free builds or servers without extraction), the generated-data component records a sentinel indicating no extraction was performed. Each component hash SHALL be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT use these hashes to gate startup — they exist for scoping subsequent builds and updates (REQ-314). *Acceptance criterion:* A build records five component hashes in DECISIONS.md (1) alongside the build fingerprint; a subsequent build with unchanged source code produces an identical source code hash. _Check:_ T497.
 
 **REQ-313d — Server implementation fingerprinting (Part d).**
-A ruleset-free build records the sentinel for generated extraction data. _Check:_ T357.
+A ruleset-free build records the sentinel for generated extraction data. _Check:_ T497.
 **REQ-314a — Fingerprint-driven partial rebuild (Part a).**
-During Build (§6.2–§6.6) or spec-driven updates (§6.7), the builder SHALL compare the current implementation fingerprints (REQ-313) against the stored fingerprints from the prior build. When one or more components changed but others are unchanged, the builder SHALL scope the rebuild to only the changed components and their dependents, reusing prior output for unchanged components. Source code changes (with configuration and dependencies unchanged) require a typecheck then Pattern Buffer sub-workflows for the changed surfaces per §6.6.
+During Build (§6.2–§6.6) or spec-driven updates (§6.7), the builder SHALL compare the current implementation fingerprints (REQ-313) against the stored fingerprints from the prior build. When one or more components changed but others are unchanged, the builder SHALL scope the rebuild to only the changed components and their dependents, reusing prior output for unchanged components. Source code changes (with configuration and dependencies unchanged) require a typecheck then Pattern Buffer sub-workflows for the changed surfaces per §6.6. _Check:_ T497.
 
 **REQ-314b — Fingerprint-driven partial rebuild (Part b).**
-Configuration or dependency changes (with source unchanged) require dependency reinstall and typecheck only. Generated extraction data changes (with ruleset content hash unchanged per REQ-044) require re-indexing generation data only, reusing prior extraction output per REQ-302. Registered surface changes require Pattern Buffer sub-workflows per §6.6 for the changed tools, resources, or prompts. Specification content hash changes per REQ-187 require a gap audit per REQ-098 then implementation of only changed surfaces.
+Configuration or dependency changes (with source unchanged) require dependency reinstall and typecheck only. Generated extraction data changes (with ruleset content hash unchanged per REQ-044) require re-indexing generation data only, reusing prior extraction output per REQ-302. Registered surface changes require Pattern Buffer sub-workflows per §6.6 for the changed tools, resources, or prompts. Specification content hash changes per REQ-187 require a gap audit per REQ-098 then implementation of only changed surfaces. _Check:_ T497.
 
 **REQ-314c — Fingerprint-driven partial rebuild (Part c).**
-Cold checkout (no stored fingerprints) and builds where more than half the fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6). The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which components changed, which remained unchanged, the scoping decision, and which prior outputs were reused. *Acceptance criterion:* A build where only the source code changed reuses the stored generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer sub-workflows. A cold checkout with no stored fingerprints runs the full Build workflow without scoping.
+Cold checkout (no stored fingerprints) and builds where more than half the fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6). The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which components changed, which remained unchanged, the scoping decision, and which prior outputs were reused. *Acceptance criterion:* A build where only the source code changed reuses the stored generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer sub-workflows. A cold checkout with no stored fingerprints runs the full Build workflow without scoping. _Check:_ T497.
 
 **REQ-314d — Fingerprint-driven partial rebuild (Part d).**
-When four of five components changed, the full Build workflow runs regardless of individual scoping rules. _Check:_ T358.
+When four of five components changed, the full Build workflow runs regardless of individual scoping rules. _Check:_ T497.
 **REQ-232a — Pause/resume context (Part a).**
 The Novel SHALL persist a `gm_context` object alongside other Novel state. Fields: `current_scene` (narrative summary of the active scene), `immediate_situation` (what is happening right now), `pending_player_action` (what the player was about to decide), `short_term_plans` (GM's next move), `long_term_plans` (GM's arc-level direction), `active_threads` (array of {name, status, urgency, description}), `npc_attitudes` (object mapping NPC ids to their current disposition strings), `player_goals` (what the player seems focused on), and `saved_at` (ISO 8601 timestamp of last save).
 
@@ -1960,10 +1960,10 @@ For kind `adventure`, `codex_import` SHALL materialize the adventure scaffold in
 The adventure data payload for kind `adventure` SHALL carry: `title`, `slug`, `source` (one of `generated`, `loaded:<adventure_slug>`, `captured:<novel_slug>`), `premise`, `overview`, `hook`, `locations` (array of `{heading, flavor_text}`), `npc_suggestions` (array of `{name, description}`), `encounter_seeds` (array of free-text entries), `genre_tags` (array of strings), and `sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes` `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind, source_id)` SHALL pull an existing Novel artifact into the codex — the captured entry carries a `source_novel` field tracing its origin.
 
 **REQ-321g — Codex (Part g).**
-The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")` SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined above. When the active Novel has no adventure content, `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel.
+The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")` SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined above. When the active Novel has no adventure content, `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel. Load an adventure via load_adventure or generate one via generate_adventure."`
 
 **REQ-321h — Codex (Part h).**
-Load an adventure via load_adventure or generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the captured artifact originated from a prior `codex_import` (detected by the provenance field defined in REQ-332), THE system SHALL update the source Codex entry in-place rather than creating a separate entry.
+WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the captured artifact originated from a prior `codex_import` (detected by the provenance field defined in REQ-332), THE system SHALL update the source Codex entry in-place rather than creating a separate entry.
 
 **REQ-321i — Codex (Part i).**
 When `update_source` is `true` but the artifact has no Codex provenance, the system SHALL return `[ERROR] [STATE_CONFLICT]` with corrective action directing the caller to omit `update_source`. `codex_list(kind?, tag?)` SHALL return a filterable list of codex entries with id, kind, name, description, tags, and visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
@@ -2061,7 +2061,6 @@ malformed input are rejected.
 returns `[ERROR] [INVALID_INPUT]` without reading any file outside the configured
 directories.
 _Check:_ T20.
-Performance benchmarks are governed by REQ-100 below.
 
 **REQ-251a — Generation intent guard (Part a).**
 Before producing generation output, `generate_adventure` and `generate_encounter` SHALL assess the premise or context string for direct and implied harm, power-inversion requests ("create an adversary capable of defeating <specific entity>"), and content that exceeds the ruleset's mechanical ceiling. Any request whose resolution would require the server to fabricate mechanics, void the ruleset's stated constraints, or generate content likely to violate participant consent SHALL return `[WARNING]` describing the concern and requesting clarification or modification — the server SHALL NOT silently comply.
@@ -2240,7 +2239,7 @@ WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject camp
 Campaign memory facts SHALL NOT introduce new mutating tools — they are a surfacing layer over existing state. `spec_health` SHALL report `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total. `export_novel` SHALL include `campaign_memory` in its payload. Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be presence-scoped: a fact is visible to the Player badge only when the active entity was present in the scene where the fact was recorded as determined by `characters_present` (REQ-307). The Game Master badge sees all facts (current behavior).
 
 **REQ-310d — Campaign Memory (Part d).**
-Facts from scenes the entity attended are retained regardless of current presence — presence scoping gates visibility, not storage. Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for GM-authored or engine-derived facts that should remain GM-visible only), `shared` (visible to both badges. When presence-scoped), or `discovered` (visible to both badges. tagged as player-discovered).
+Facts from scenes the entity attended are retained regardless of current presence — presence scoping gates visibility, not storage. Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for GM-authored or engine-derived facts that should remain GM-visible only), `shared` (visible to both badges when presence-scoped), or `discovered` (visible to both badges, tagged as player-discovered).
 
 **REQ-310e — Campaign Memory (Part e).**
 Under the Player badge, campaign memory visibility compounds two filters: a fact is visible only when (a) the active entity was present for the scene where the fact was recorded (presence scoping), AND (b) the fact's `badge_scope` is `shared` or `discovered`. The Game Master badge sees all facts regardless of `badge_scope`.
@@ -3021,7 +3020,7 @@ _Check:_ T244.
 URIs for the world-model tier: `room://<id>` (room name, description, visible things, exits), `thing://<id>` (thing name, description, location, properties), `world://map` (all rooms with exit connections — a navigable graph), `world://kinds` (kind hierarchy, property contracts, and parser command catalog from the `holonovel` package (B10)).
 
 **REQ-202b — World-model resources (Part b).**
-All world-model resources SHALL be badge-filtered: the Player badge sees only descriptions and visible state; sees only descriptions and visible state; the Game Master badge sees metadata including property values and containment chains. `world://map` SHALL return a list of room names with directional exits formatted as a navigable adjacency list. _Check:_ T245.
+All world-model resources SHALL be badge-filtered: the Player badge sees only descriptions and visible state; the Game Master badge sees metadata including property values and containment chains. `world://map` SHALL return a list of room names with directional exits formatted as a navigable adjacency list. _Check:_ T245.
 **REQ-222a — Parser command vocabulary extension (Part a).**
 THE builder SHALL discover additional command verbs from the ruleset's equipment, action descriptions, and mechanical procedures. Verbs discovered during extraction SHALL be registered in the parser command catalog alongside the base vocabulary (REQ-196). A discovered verb SHALL map to one or more parser command categories — navigation, inspection, object interaction, inventory, or wait — based on the ruleset context from which it was extracted. Verbs that do not fit an existing category SHALL be registered under a `ruleset_custom` category.
 

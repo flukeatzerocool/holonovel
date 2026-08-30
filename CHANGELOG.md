@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-29 — Self-consistency remediation and Spec Kit phased-artifact adoption
+
+- Repaired the REQ-313/REQ-314 fingerprint-block check coverage: added a
+  single T497 (fingerprint-scoped rebuild) cited across all eight sub-REQs,
+  replacing the misattributed T357 (narration validation) and T358 (world
+  reactivity) citations on REQ-313d/REQ-314d. (Appendix F, REQ-313, REQ-314)
+- Repaired REQ-321h's severed sentence — the `codex_capture` update-source
+  clause is now a single coherent WHEN…THE SHALL obligation, and the
+  corrective-action quote on REQ-321g closes correctly. (REQ-321g, REQ-321h)
+- Reconciled handoff-step counts and ranges to the canonical §9 table:
+  H1–H18 everywhere (Quick Reference, REQ-211a, T193, §10). (REQ-211a)
+- Corrected the Phase 1 convergence metric count to eleven (ten when
+  conversion is not selected), matching the §6.5 table. (§6.5)
+- Disambiguated the G0 gate family: check citations and fault trees now name
+  G0a (structural integrity) or G0b (MCP conformance) rather than the
+  ambiguous G0. (REQ-148, REQ-149, §3)
+- Aligned AGENTS.md REQ-shape limits with Appendix M and the validator
+  (800-char / 8-sentence).
+- Fixed prose defects in REQ bodies: mid-sentence periods after "badges"
+  (REQ-030, REQ-073c3, REQ-310d), a truncated lead clause (REQ-165a), a
+  duplicated clause (REQ-3024), and a stray trailing sentence (REQ-052).
+- Adopted the Spec Kit phased-artifact model: extracted the constitution and
+  standing rules into `spec/01a-constitution.md` (§4), named the phased model
+  (constitution → specify → plan → tasks → implement → converge) in the
+  reading guide and AGENTS.md, and defined the per-increment plan/tasks
+  artifact convention under `plans/`. Rejected alternatives: governance-only
+  naming (left the constitution embedded) and full Spec Kit CLI adoption
+  (overkill for a doc repo).
+
 ## 2026-08-29 — Appendix M convergence-metric ownership convention
 
 - The REQ authoring checklist now requires a new §6.5 convergence metric to

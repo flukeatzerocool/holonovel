@@ -43,7 +43,7 @@ Phase 1 — blind re-execution, in order:
    environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
-5. Run the automated handoff verification workflow (H1–H14) and record the results.
+5. Run the automated handoff verification workflow (H1–H18) and record the results.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Select five blocking Pattern Buffer sub-workflows (§6.6) at random
     from a weighted pool and re-execute them with your own tool calls — do not
@@ -109,7 +109,7 @@ Report in the format below.
 - Per-workflow verdict: PASS | FAIL | DISPUTED, with basis
 - Documentation gaps found during cold-start setup
 - Waiver audit: REQ-013 fields present or missing, per waiver
-- Handoff verification workflow: H1–H14 results and comparison with the builder's verification record
+- Handoff verification workflow: H1–H18 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
 - Adversarial Pattern Buffer re-execution: sub-workflows selected → verdicts
