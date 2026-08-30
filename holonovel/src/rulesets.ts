@@ -155,8 +155,10 @@ export class RulesetManager {
           const reason = manifest.package_format
             ? `package-format fingerprint mismatch ('${manifest.package_format}' != '${PACKAGE_FORMAT}')`
             : "missing package-format fingerprint";
-          this.incompatible.set(slug, { slug, reason });
-          errors.push(`${slug}: [package-incompatible] ${reason}`);
+          // REQ-420 — the flag is surfaced in spec_health naming the slug and
+          // both fingerprints, not only on stderr.
+          this.incompatible.set(slug, { slug, reason: `[package-incompatible] ${reason}` });
+          errors.push(`${slug}: ${this.incompatible.get(slug)!.reason}`);
           continue;
         }
         this.installed.set(slug, manifest);

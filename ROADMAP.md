@@ -8,6 +8,7 @@
 -->
 
 ## Next
-- No scheduled items — the 2026-08-24 backlog-clearance program (waves 1–11)
-  is complete: A=0, B=0, 275 C / 106 E across 381 base REQs;
-  `--impl-audit=strict` is enabled as a pre-push gate.
+- No scheduled items — coverage backlog cleared: A=0, B=0, 277 C / 109 E
+  across 386 base REQs; REQ-420/423 fingerprint evidence shipped 2026-08-30
+  (`test-fingerprints.ts` T498–T504); `--impl-audit=strict` is enabled as a
+  pre-push gate.

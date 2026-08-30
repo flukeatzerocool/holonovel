@@ -1,0 +1,14 @@
+{
+  "__holonovel_meta": { "data_format": "0000000000000000000000000000000000000000000000000000000000000000", "spec_version": "2026.08.30" },
+  "prior_hero": {
+    "id": "prior_hero",
+    "name": "Prior Hero",
+    "personality": null,
+    "voice_examples": null,
+    "inventory": [],
+    "current_room": null,
+    "conditions": [],
+    "condition_rounds": {},
+    "stats": null
+  }
+}

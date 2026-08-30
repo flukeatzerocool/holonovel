@@ -2137,6 +2137,13 @@ build artifact — it is a spec-maintainer reference.
 - [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
 - [ ] REQ body contains ≤ 8 sentences
 - [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens
+- [ ] Coverage class: a REQ naming runtime server behavior (a tool, resource,
+      prompt, or state contract) is server-runtime (audit bucket C — cited in
+      `holonovel/src` and evidenced by a harness); a REQ naming build/verifier
+      pipeline behavior (an entry point, gate, registry, or extraction step) is
+      builder-side (bucket E — owed by tooling, not `holonovel/src`). Classify
+      by which surface owes the behavior, not by section title (§5.18 mixes
+      both).
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,
