@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-29 — Terminology consistency sweep
+
+- Normalized the synthesis subsystem's vocabulary: the legacy "enrichment"
+  term is retired throughout the spec and test catalogue in favor of
+  "synthesis", and synthesis output modules are consistently counted as
+  seven (REQ-160b, REQ-225, T63, T94, T125, T195, T319).
+- Reconciled the provenance-tier model to the two-tier REQ contract —
+  Tier 1 Ruleset Wisdom (`[ruleset]`/`[vendor]`), Tier 2 synthesis
+  (`[supplementary]`); removed the phantom `[novel]` tag and the `tier=`
+  parameter on `list_synthesis_items` (REQ-260a, T303, T321–T325, T405,
+  T423, T306, T202).
+- Corrected stale identifiers: `dm_context` → `gm_context` (REQ-232a),
+  `listNovels` → `list_novels` (REQ-117), and the module-toggle tool name
+  `toggle_synthesis_module` (REQ-231, T307, T319, S27).
+- Fixed the infrastructure category name to "Badges & Workflow" (REQ-020a)
+  and the §5.6 heading to "State, Lifecycle, Entities, and Adventure
+  Content" across its citations (REQ-108a, T107).
+- Removed the undefined `set_scene_type` tool reference (REQ-335a, T436);
+  countdown interaction types now cite `clock_type` rather than an ambiguous
+  "type" (REQ-322a, REQ-233b2, REQ-233b3); named the lore tool surface in
+  REQ-083a; corrected the world-prominence default to `visible` (REQ-309).
+- `TTRPG_WORLD_PROMINENCE` default is now `visible`; T310 references
+  `synthesis_manifest.json` per REQ-245.
+
 ## 2026-08-24 — Wave 11 + terminal: coverage backlog cleared, strict gate enabled
 
 - REQ-173/174/175 session-recap fields (connections, significant rolls,
