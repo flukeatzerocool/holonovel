@@ -1119,6 +1119,36 @@ function gatherExercisedIds(): Set<string> {
   return ids;
 }
 
+// A harness whose `test("...")` calls contribute exercised T/S/I IDs must be
+// wired into a gate — its basename must appear in a `scripts` entry of
+// holonovel/package.json. This prevents an ungated (or silently broken) harness
+// from holding REQs at bucket C (coverage integrity).
+function checkHarnessGating(): string[] {
+  const issues: string[] = [];
+  const pkgPath = path.resolve(__dirname, "..", "holonovel", "package.json");
+  let pkgScripts: string[] = [];
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+    pkgScripts = Object.values(pkg.scripts ?? {}) as string[];
+  } catch {
+    return [`holonovel/package.json unreadable — cannot verify harness gating`];
+  }
+  const gated = new Set<string>();
+  for (const script of pkgScripts) {
+    for (const m of script.matchAll(/\bscripts\/([^/\s]+\.ts)\b/g)) gated.add(m[1]);
+  }
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    if (!/\btest\s*\(\s*["'`][^"'`]+["'`]/.test(content)) continue;
+    const base = path.basename(f);
+    if (!gated.has(base)) {
+      issues.push(`harness '${base}' carries exercised test IDs but is not wired into a gate (no holonovel/package.json script references it)`);
+    }
+  }
+  return issues;
+}
+
 // Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
 // strings still present in the server source. A registered tool body that
 // returns a sentinel string (e.g. "(Placeholder" or "no ruleset mechanics
@@ -1601,6 +1631,10 @@ function main(): void {
   const stubIssues = checkPlaceholderStubs();
   if (stubIssues.length > 0) { for (const issue of stubIssues) console.log(`ERROR: ${issue}`); errors += stubIssues.length; }
   else console.log("PASS: No placeholder stub sentinels in server source");
+
+  const gatingIssues = checkHarnessGating();
+  if (gatingIssues.length > 0) { for (const issue of gatingIssues) console.log(`ERROR: ${issue}`); errors += gatingIssues.length; }
+  else console.log("PASS: Every exercised harness is wired into a gate");
 
   // G4 — new REQs must be cited or whitelisted. A REQ whose base ID appears in
   // the spec but not in the committed coverage register is "new since baseline";
