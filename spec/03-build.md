@@ -655,16 +655,16 @@ archetype-informed coupling nature) and Coupling derivation (Phase 2 — the
 coupling table is derived from archetype pairs). A change to archetype
 assignments SHALL trigger re-verification of both metrics.
 
-Phase 1 exit: all ten metrics meet threshold (conversion-fidelity conditional —
-nine when conversion not selected, ten when conversion selected), or an extraction stall
+Phase 1 exit: all eleven metrics meet threshold (conversion-fidelity conditional —
+ten when conversion not selected, eleven when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains nine metrics and the exit
-condition is nine metrics meeting threshold.
+conversion was not selected, the table contains ten metrics and the exit
+condition is ten metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All

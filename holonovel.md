@@ -5,13 +5,13 @@
 > MCP server with dice, combat, character management, rules lookup, narrative directives,
 > dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
 > compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
-> adventure modules, and Ruleset Wisdom — plus four handoff artifacts (plus
-> LICENSE.md) (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md). World-model
+> adventure modules, and Ruleset Wisdom — plus four handoff artifacts
+> (RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md) and LICENSE.md. World-model
 > infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) provides
 > the spatial foundation for scene composition — defining what is physically possible in the
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
-> verification workflows, 14 handoff verification steps,
+> verification workflows, 18 handoff verification steps,
 > and a golden-transcript replay. One base server — the ruleset-free `holonovel`
 > host — loads one or more declarative ruleset packages at startup (packages are
 > data, not code: extracted models, tool schemas, and indexes). Ruleset-derived
@@ -53,7 +53,7 @@
 
 Read this specification in layers — not front to back.
 
-This specification is maintained as 13 source files under `spec/`. `npm run assemble`
+This specification is maintained as 14 source files under `spec/`. `npm run assemble`
 joins them into this document. During an AI build, the builder reads
 `build-phase-map.md` to load only the files the current phase needs. This cuts
 per-phase context by about 73% versus loading the full specification.
@@ -88,6 +88,12 @@ for Convert, Build, Synthesize, and Update before their §6 details.
 **Reference material** (Appendices) is supplementary. Glance at Appendix E to learn the
 REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the
 rest on demand during build phases or verification.
+
+**Phased artifact model.** This specification follows the Spec Kit phased model:
+constitution (§4 Standing Rules), specify (this document), plan and tasks
+(per-increment artifacts under `plans/`), implement (§6 Build Process), and converge
+(§6.5/§6.7). The house executable-spec conventions (gates, traceability, golden
+transcript) serve as the quality checklist layer.
 
 ---
 
@@ -147,7 +153,7 @@ factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
 **Definition of done.** The server must pass every verification workflow (§8). It must
 replay a golden transcript of a known fixture (§B.3) and a smoke session of cooperative
-play with a real LLM. It must hand off four specified artifacts and nothing else (§9).
+play with a real LLM. It must hand off the four specified handoff documents (plus LICENSE.md) and nothing else (§9).
 It must survive an independent verification (§10): a second AI re-runs the verification
 workflows blind from a cold checkout, comparing its results against the builder's own.
 
@@ -211,7 +217,7 @@ guard, the gap is explicit.
 
 **F1 — Server invents rules.**
 
-- Missed extraction section → REQ-011, G0 (structural integrity)
+- Missed extraction section → REQ-011, G0a (structural integrity)
 - Low-confidence treated as canonical → REQ-012, convergence loop (§6.5)
 - LLM hallucination in tool construction → G2 (golden transcript), REQ-058
 - Truncated ruleset feeding incomplete model (F2 interaction) → REQ-004, convergence
@@ -222,7 +228,7 @@ guard, the gap is explicit.
 - Single-pass ingestion of large ruleset → §6.3 chunked reading, REQ-100 tiers
 - Indexed items exceed context window → REQ-100 thresholds, confidence floor (≥70%)
 - Golden transcript fails on large fixture → G2 (N fixture), Appendix N
-- No complexity detection before build → G0 structural pass item count
+- No complexity detection before build → G0a structural pass item count
 
 **F3 — MCP protocol errors.**
 
@@ -250,7 +256,7 @@ guard, the gap is explicit.
 **F6 — Client configuration errors.**
 
 - Config doesn't match server metadata → H11, §6.2 config-write validation
-- Port/host mismatch → G0 live initialize
+- Port/host mismatch → G0b live initialize
 - Transport type wrong → REQ-001
 - Config tested against different build → H1, REQ-065
 
@@ -1384,7 +1390,7 @@ are Novel-scoped: two connections to the same Novel share the same badge and ent
 state (REQ-031, REQ-074). Each connection may independently switch between Novels
 via `switch_novel` (REQ-095), and each Novel stores its own badge independently.
 *Acceptance criterion:* Starting a second MCP connection to the same Novel succeeds
-and inherits the Novel's current badge and active entity; switching badges. On one
+and inherits the Novel's current badge and active entity; switching badges on one
 connection is visible on the other.
 _Check:_ Appendix D.
 
@@ -1577,7 +1583,7 @@ DECISIONS.md (6) SHALL enumerate each blocking item and its pass/fail status.
 *Acceptance criterion:* A ruleset with duplicate headings fails G0a and
 the build does not proceed to discovery; a ruleset missing horizontal-rule
 separators passes G0a with the finding logged.
-_Check:_ G0; T183.
+_Check:_ G0a; T183.
 
 **REQ-149 — MCP conformance gate.** _(F3)_ The running server SHALL pass every
 check in Appendix D before the build proceeds past intake. A failed check stops
@@ -1588,7 +1594,7 @@ against the active fixture as specified in §8 G0b.
 lookup of a known-absent entity fails G0b and the build does not proceed;
 a server that passes all Appendix D checks produces an evidence record
 enumerating each check.
-_Check:_ G0; T184.
+_Check:_ G0b; T184.
 
 **REQ-150a — Golden transcript coverage completeness (Part a).**
 After the golden transcript passes G2, the builder SHALL verify that every behavioral contract the selected fixture exercises (REQ-001, REQ-032, REQ-041, REQ-042, REQ-043, REQ-050, REQ-072, REQ-073) is exercised by at least one transcript interaction. Any unexercised contract SHALL be recorded as a coverage gap in the G2 evidence record with the unexercised REQ cited. Coverage gaps do not block the line; they are findings recorded in DECISIONS.md (6) for operator disposition. *Acceptance criterion:* Replay the Appendix B golden transcript — assert every contract is exercised by at least one interaction.
@@ -1596,7 +1602,7 @@ After the golden transcript passes G2, the builder SHALL verify that every behav
 **REQ-150b — Golden transcript coverage completeness (Part b).**
 Mask an interaction from the transcript — assert the unexercised REQ is recorded as a coverage gap without blocking the build. _Check:_ G2; T185.
 **REQ-211a — Evidence record field contract (Part a).**
-DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0, G2, G3, G4, G5, or H1–H14), timestamp, environment pins (runtime version, OS, and spec hash at time of execution), pass/fail status, and a findings section enumerating each sub-check with its individual result.
+DECISIONS.md (6) SHALL include, at minimum: workflow identifier (G0a, G0b, G2, G3, G4, G5, G6, G7, G8, or H1–H18), timestamp, environment pins (runtime version, OS, and spec hash at time of execution), pass/fail status, and a findings section enumerating each sub-check with its individual result.
 
 **REQ-211b — Evidence record field contract (Part b).**
 Per-workflow extension fields: G0 records enumerate Appendix H and Appendix D checklist items with individual pass/fail; G2 records include the per-contract coverage enumeration defined in §8; G3 records include registry/resource diff summary; G4 records include per-test pass/fail counts; G5 (Pattern Buffer) records include per-sub-workflow verdict and blocking/non-blocking classification.
@@ -1779,7 +1785,7 @@ When no combat is active, `confrontations_completed` SHALL be an empty array and
 Both carry an unambiguous default preserving backward compatibility. `advance_countdown(name)` adjusts one tick in the countdown's direction. `remove_countdown(name)` deletes a countdown before it fires. When a countdown fires, it is recorded in the audit log with a timestamp and removed from active countdowns — its name slot freed for reuse. Expired countdowns remain in the audit log. `countdown://active` lists all active countdowns with remaining ticks, type, badge_scope, and direction, badge-filtered: only shared countdowns are visible to the Player badge.
 
 **REQ-073c3 — Countdowns (Part c3).**
-Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`. Countdown tools are Game Master only; the Player badge reads active countdowns via `badge_briefing` and resource URIs. *Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both badges. briefings; a GM-only countdown "patrol" appears only in the GM briefing; `advance_countdown("patrol")` at tick 1 fires and removes it. _Check:_ T54, T139.
+Countdowns are Novel-scoped — survive connection restarts, discarded by `end_novel`. Countdown tools are Game Master only; the Player badge reads active countdowns via `badge_briefing` and resource URIs. *Acceptance criterion:* A shared countdown "torch" (3 ticks) appears in both badges' briefings; a GM-only countdown "patrol" appears only in the GM briefing; `advance_countdown("patrol")` at tick 1 fires and removes it. _Check:_ T54, T139.
 **REQ-329a — Countdown-world coupling (Part a).**
 Countdowns SHALL accept an optional `trigger` array with world-model event types. Supported trigger types: `on_room_enter(<room_id>)` — fires when the active entity enters the named room via parser navigation; `on_thing_take(<thing_id>)` — fires when the named thing is taken; `on_door_open(<exit_ref>)` — fires when the named exit's door is opened. World-model events that match a trigger SHALL advance the countdown by one tick. Multiple triggers per countdown SHALL be permitted — if any trigger matches, the countdown advances. Trigger resolution is mechanical — the countdown fires regardless of narrative framing.
 
@@ -2036,7 +2042,7 @@ During discovery (§6.3), the builder must identify ruleset-native personality c
 **REQ-127b — Ruleset-native personality mapping (Part b).**
 For example, a ruleset that defines "Traits," "Ideals," "Bonds," and "Flaws" would see those terms in tool descriptions alongside the Holonovel field names. The mapping is advisory — it does not constrain which fields a player sets, only how the surface is presented. If the ruleset defines no native personality constructs, the builder records this finding and uses only the Holonovel field names. *Acceptance criterion:* Building for D&D 5e produces RULESET_MODEL.md mapping Traits/Ideals/Bonds/Flaws to Holonovel fields; `set_personality` tool description includes "Traits," "Ideals," etc. _Check:_ T141.
 **REQ-165a — Entity ownership for personality gating (Part a).**
-`set_personality` badge gating (REQ-077), an entity is "owned" by the Player badge when that entity was created by the current connection under the Player badge. When no Novel is active, or when the server restarts, ownership of all existing entities resets to unowned — a Player may set personality fields on any entity until a badge is activated. Once the Game Master badge sets personality fields on an entity, the Player badge retains write access to that entity's personality fields (ownership is not exclusive).
+For `set_personality` badge gating (REQ-077), an entity is "owned" by the Player badge when that entity was created by the current connection under the Player badge. When no Novel is active, or when the server restarts, ownership of all existing entities resets to unowned — a Player may set personality fields on any entity until a badge is activated. Once the Game Master badge sets personality fields on an entity, the Player badge retains write access to that entity's personality fields (ownership is not exclusive).
 
 **REQ-165b — Entity ownership for personality gating (Part b).**
 This definition exists solely to resolve the "Player-only for own entities" contract in REQ-077 — it does not affect tool access, resource filtering, or any other subsystem. *Acceptance criterion:* A Player creates an entity (`create_character` under Player badge) and successfully calls `set_personality` on it. The same Player attempts `set_personality` on an entity created by the GM — the call SHALL succeed (ownership is non-exclusive per the body). A Player who has never created any entity can still call `set_personality` on entities imported by the GM (no ownership check blocks the Player). _Check:_ T200.
@@ -2257,27 +2263,27 @@ The server continues to operate with a clean state for the affected Novel — th
 **REQ-065f — Build fingerprint (Part f).**
 A ruleset modification after build produces a [ruleset-drift] warning in spec_health and stderr at next startup; a spec modification produces a [spec-drift] warning; neither blocks startup. _Check:_ T52, T224. *Out of scope:* relational database backends, distributed state across processes, cloud synchronization, and state migration between incompatible specification versions without the Update workflow (§6.7).
 **REQ-313a — Server implementation fingerprinting (Part a).**
-The builder SHALL compute SHA-256 content hashes for five server implementation components at every build and record them alongside the build fingerprint (REQ-065) in DECISIONS.md (1).
+The builder SHALL compute SHA-256 content hashes for five server implementation components at every build and record them alongside the build fingerprint (REQ-065) in DECISIONS.md (1). _Check:_ T497.
 
 **REQ-313b — Server implementation fingerprinting (Part b).**
-The five components are: server source code (all files in the server's source directory, sorted by path and concatenated), server configuration (the build configuration files governing compilation and dependencies), the dependency lockfile (recording the exact dependency tree), generated extraction data (ruleset extraction output produced during Discovery), and registered surfaces (the sorted, concatenated list of registered tool names, resource URIs, and prompt names).
+The five components are: server source code (all files in the server's source directory, sorted by path and concatenated), server configuration (the build configuration files governing compilation and dependencies), the dependency lockfile (recording the exact dependency tree), generated extraction data (ruleset extraction output produced during Discovery), and registered surfaces (the sorted, concatenated list of registered tool names, resource URIs, and prompt names). _Check:_ T497.
 
 **REQ-313c — Server implementation fingerprinting (Part c).**
-When generated extraction data is absent (ruleset-free builds or servers without extraction), the generated-data component records a sentinel indicating no extraction was performed. Each component hash SHALL be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT use these hashes to gate startup — they exist for scoping subsequent builds and updates (REQ-314). *Acceptance criterion:* A build records five component hashes in DECISIONS.md (1) alongside the build fingerprint; a subsequent build with unchanged source code produces an identical source code hash.
+When generated extraction data is absent (ruleset-free builds or servers without extraction), the generated-data component records a sentinel indicating no extraction was performed. Each component hash SHALL be updated on every build and every spec-driven update (§6.7). The builder SHALL NOT use these hashes to gate startup — they exist for scoping subsequent builds and updates (REQ-314). *Acceptance criterion:* A build records five component hashes in DECISIONS.md (1) alongside the build fingerprint; a subsequent build with unchanged source code produces an identical source code hash. _Check:_ T497.
 
 **REQ-313d — Server implementation fingerprinting (Part d).**
-A ruleset-free build records the sentinel for generated extraction data. _Check:_ T357.
+A ruleset-free build records the sentinel for generated extraction data. _Check:_ T497.
 **REQ-314a — Fingerprint-driven partial rebuild (Part a).**
-During Build (§6.2–§6.6) or spec-driven updates (§6.7), the builder SHALL compare the current implementation fingerprints (REQ-313) against the stored fingerprints from the prior build. When one or more components changed but others are unchanged, the builder SHALL scope the rebuild to only the changed components and their dependents, reusing prior output for unchanged components. Source code changes (with configuration and dependencies unchanged) require a typecheck then Pattern Buffer sub-workflows for the changed surfaces per §6.6.
+During Build (§6.2–§6.6) or spec-driven updates (§6.7), the builder SHALL compare the current implementation fingerprints (REQ-313) against the stored fingerprints from the prior build. When one or more components changed but others are unchanged, the builder SHALL scope the rebuild to only the changed components and their dependents, reusing prior output for unchanged components. Source code changes (with configuration and dependencies unchanged) require a typecheck then Pattern Buffer sub-workflows for the changed surfaces per §6.6. _Check:_ T497.
 
 **REQ-314b — Fingerprint-driven partial rebuild (Part b).**
-Configuration or dependency changes (with source unchanged) require dependency reinstall and typecheck only. Generated extraction data changes (with ruleset content hash unchanged per REQ-044) require re-indexing generation data only, reusing prior extraction output per REQ-302. Registered surface changes require Pattern Buffer sub-workflows per §6.6 for the changed tools, resources, or prompts. Specification content hash changes per REQ-187 require a gap audit per REQ-098 then implementation of only changed surfaces.
+Configuration or dependency changes (with source unchanged) require dependency reinstall and typecheck only. Generated extraction data changes (with ruleset content hash unchanged per REQ-044) require re-indexing generation data only, reusing prior extraction output per REQ-302. Registered surface changes require Pattern Buffer sub-workflows per §6.6 for the changed tools, resources, or prompts. Specification content hash changes per REQ-187 require a gap audit per REQ-098 then implementation of only changed surfaces. _Check:_ T497.
 
 **REQ-314c — Fingerprint-driven partial rebuild (Part c).**
-Cold checkout (no stored fingerprints) and builds where more than half the fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6). The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which components changed, which remained unchanged, the scoping decision, and which prior outputs were reused. *Acceptance criterion:* A build where only the source code changed reuses the stored generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer sub-workflows. A cold checkout with no stored fingerprints runs the full Build workflow without scoping.
+Cold checkout (no stored fingerprints) and builds where more than half the fingerprint components changed SHALL run the full Build workflow (§6.2–§6.6). The builder SHALL record a fingerprint delta summary in DECISIONS.md (1): which components changed, which remained unchanged, the scoping decision, and which prior outputs were reused. *Acceptance criterion:* A build where only the source code changed reuses the stored generated-data hash, skips extraction, and runs only surface-dependent Pattern Buffer sub-workflows. A cold checkout with no stored fingerprints runs the full Build workflow without scoping. _Check:_ T497.
 
 **REQ-314d — Fingerprint-driven partial rebuild (Part d).**
-When four of five components changed, the full Build workflow runs regardless of individual scoping rules. _Check:_ T358.
+When four of five components changed, the full Build workflow runs regardless of individual scoping rules. _Check:_ T497.
 **REQ-232a — Pause/resume context (Part a).**
 The Novel SHALL persist a `gm_context` object alongside other Novel state. Fields: `current_scene` (narrative summary of the active scene), `immediate_situation` (what is happening right now), `pending_player_action` (what the player was about to decide), `short_term_plans` (GM's next move), `long_term_plans` (GM's arc-level direction), `active_threads` (array of {name, status, urgency, description}), `npc_attitudes` (object mapping NPC ids to their current disposition strings), `player_goals` (what the player seems focused on), and `saved_at` (ISO 8601 timestamp of last save).
 
@@ -2383,10 +2389,10 @@ For kind `adventure`, `codex_import` SHALL materialize the adventure scaffold in
 The adventure data payload for kind `adventure` SHALL carry: `title`, `slug`, `source` (one of `generated`, `loaded:<adventure_slug>`, `captured:<novel_slug>`), `premise`, `overview`, `hook`, `locations` (array of `{heading, flavor_text}`), `npc_suggestions` (array of `{name, description}`), `encounter_seeds` (array of free-text entries), `genre_tags` (array of strings), and `sections` (the full parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes` `## NPCs`, `## Lore`, `## Seeds`). `codex_capture(kind, source_id)` SHALL pull an existing Novel artifact into the codex — the captured entry carries a `source_novel` field tracing its origin.
 
 **REQ-321g — Codex (Part g).**
-The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")` SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined above. When the active Novel has no adventure content, `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel.
+The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). `codex_capture("adventure")` SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined above. When the active Novel has no adventure content, `codex_capture("adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel. Load an adventure via load_adventure or generate one via generate_adventure."`
 
 **REQ-321h — Codex (Part h).**
-Load an adventure via load_adventure or generate one via generate_adventure."` `codex_list(kind?, tag?)` SHALL return a WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the captured artifact originated from a prior `codex_import` (detected by the provenance field defined in REQ-332), THE system SHALL update the source Codex entry in-place rather than creating a separate entry.
+WHEN `codex_capture` is called with an `update_source` flag set to `true`, and the captured artifact originated from a prior `codex_import` (detected by the provenance field defined in REQ-332), THE system SHALL update the source Codex entry in-place rather than creating a separate entry.
 
 **REQ-321i — Codex (Part i).**
 When `update_source` is `true` but the artifact has no Codex provenance, the system SHALL return `[ERROR] [STATE_CONFLICT]` with corrective action directing the caller to omit `update_source`. `codex_list(kind?, tag?)` SHALL return a filterable list of codex entries with id, kind, name, description, tags, and visibility. `codex_list` SHALL be badge-filtered: when a badge is active, the Player badge sees only `shared`-visibility entries; the Game Master badge sees all entries.
@@ -2484,7 +2490,6 @@ malformed input are rejected.
 returns `[ERROR] [INVALID_INPUT]` without reading any file outside the configured
 directories.
 _Check:_ T20.
-Performance benchmarks are governed by REQ-100 below.
 
 **REQ-251a — Generation intent guard (Part a).**
 Before producing generation output, `generate_adventure` and `generate_encounter` SHALL assess the premise or context string for direct and implied harm, power-inversion requests ("create an adversary capable of defeating <specific entity>"), and content that exceeds the ruleset's mechanical ceiling. Any request whose resolution would require the server to fabricate mechanics, void the ruleset's stated constraints, or generate content likely to violate participant consent SHALL return `[WARNING]` describing the concern and requesting clarification or modification — the server SHALL NOT silently comply.
@@ -2663,7 +2668,7 @@ WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject camp
 Campaign memory facts SHALL NOT introduce new mutating tools — they are a surfacing layer over existing state. `spec_health` SHALL report `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total. `export_novel` SHALL include `campaign_memory` in its payload. Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be presence-scoped: a fact is visible to the Player badge only when the active entity was present in the scene where the fact was recorded as determined by `characters_present` (REQ-307). The Game Master badge sees all facts (current behavior).
 
 **REQ-310d — Campaign Memory (Part d).**
-Facts from scenes the entity attended are retained regardless of current presence — presence scoping gates visibility, not storage. Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for GM-authored or engine-derived facts that should remain GM-visible only), `shared` (visible to both badges. When presence-scoped), or `discovered` (visible to both badges. tagged as player-discovered).
+Facts from scenes the entity attended are retained regardless of current presence — presence scoping gates visibility, not storage. Every campaign memory fact SHALL carry a `badge_scope` field — `gm` (default, for GM-authored or engine-derived facts that should remain GM-visible only), `shared` (visible to both badges when presence-scoped), or `discovered` (visible to both badges, tagged as player-discovered).
 
 **REQ-310e — Campaign Memory (Part e).**
 Under the Player badge, campaign memory visibility compounds two filters: a fact is visible only when (a) the active entity was present for the scene where the fact was recorded (presence scoping), AND (b) the fact's `badge_scope` is `shared` or `discovered`. The Game Master badge sees all facts regardless of `badge_scope`.
@@ -3444,7 +3449,7 @@ _Check:_ T244.
 URIs for the world-model tier: `room://<id>` (room name, description, visible things, exits), `thing://<id>` (thing name, description, location, properties), `world://map` (all rooms with exit connections — a navigable graph), `world://kinds` (kind hierarchy, property contracts, and parser command catalog from the `holonovel` package (B10)).
 
 **REQ-202b — World-model resources (Part b).**
-All world-model resources SHALL be badge-filtered: the Player badge sees only descriptions and visible state; sees only descriptions and visible state; the Game Master badge sees metadata including property values and containment chains. `world://map` SHALL return a list of room names with directional exits formatted as a navigable adjacency list. _Check:_ T245.
+All world-model resources SHALL be badge-filtered: the Player badge sees only descriptions and visible state; the Game Master badge sees metadata including property values and containment chains. `world://map` SHALL return a list of room names with directional exits formatted as a navigable adjacency list. _Check:_ T245.
 **REQ-222a — Parser command vocabulary extension (Part a).**
 THE builder SHALL discover additional command verbs from the ruleset's equipment, action descriptions, and mechanical procedures. Verbs discovered during extraction SHALL be registered in the parser command catalog alongside the base vocabulary (REQ-196). A discovered verb SHALL map to one or more parser command categories — navigation, inspection, object interaction, inventory, or wait — based on the ruleset context from which it was extracted. Verbs that do not fit an existing category SHALL be registered under a `ruleset_custom` category.
 
@@ -4723,16 +4728,16 @@ archetype-informed coupling nature) and Coupling derivation (Phase 2 — the
 coupling table is derived from archetype pairs). A change to archetype
 assignments SHALL trigger re-verification of both metrics.
 
-Phase 1 exit: all ten metrics meet threshold (conversion-fidelity conditional —
-nine when conversion not selected, ten when conversion selected), or an extraction stall
+Phase 1 exit: all eleven metrics meet threshold (conversion-fidelity conditional —
+ten when conversion not selected, eleven when conversion selected), or an extraction stall
 (no-delta on all metrics) triggers the unbuildable disposition check (§6.5.3).
 An extraction stall after 3 iterations records residual gaps in DECISIONS.md
 (5). The build does not proceed to Phase 2 until Phase 1 exits.
 
 NOTE: Phase 1 row count varies with workflow selection. The conversion-fidelity
 metric exists only when the Convert workflow (§6.2) was selected. When
-conversion was not selected, the table contains nine metrics and the exit
-condition is nine metrics meeting threshold.
+conversion was not selected, the table contains ten metrics and the exit
+condition is ten metrics meeting threshold.
 
 **Ruleset-free convergence.** Phase 1 metrics are skipped per Standing Rule 9. The
 builder records `ruleset-free — skipped` for each metric in DECISIONS.md (5). All
@@ -6811,7 +6816,7 @@ Phase 1 — blind re-execution, in order:
    environment pins.
 3. Audit every waiver in `DECISIONS.md` against REQ-013.
 4. Re-run T29; sample five rows of the traceability table and walk each end to end.
-5. Run the automated handoff verification workflow (H1–H14) and record the results.
+5. Run the automated handoff verification workflow (H1–H18) and record the results.
 6. Confirm the four-artifact diet: no stray files.
 7. (Adversarial) Select five blocking Pattern Buffer sub-workflows (§6.6) at random
     from a weighted pool and re-execute them with your own tool calls — do not
@@ -6877,7 +6882,7 @@ Report in the format below.
 - Per-workflow verdict: PASS | FAIL | DISPUTED, with basis
 - Documentation gaps found during cold-start setup
 - Waiver audit: REQ-013 fields present or missing, per waiver
-- Handoff verification workflow: H1–H14 results and comparison with the builder's verification record
+- Handoff verification workflow: H1–H18 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
 - Traceability: T29 result; five sampled rows walked end to end
 - Adversarial Pattern Buffer re-execution: sub-workflows selected → verdicts
@@ -8856,6 +8861,7 @@ diet.
 | T494 | Automated | Pending-workflow staleness: start a character-creation workflow (connection 1), reconnect the server twice more (connections 2, 3) — assert `spec_health` includes `pending_workflow_warning` with the decision text and connection count ≥ 3. | REQ-193 |
 | T495 | Automated | Host-owned metric disposition: build a TTRPG package against a pre-built `holonovel` host at B10. Assert DECISIONS.md (5) records each host-owned metric (archetype coverage, coupling derivation, resource URI completeness, truncation accuracy, narrative coherence) as `host-verified — holonovel vX.Y.Z` citing CONVERGENCE.md; assert package-owned metrics run fresh; assert a host CONVERGENCE.md whose spec version mismatches records `[host-verification-pending]`. | REQ-245b, §6.5 |
 | T496 | Automated | Enrichment artifact-scope: build a ruleset with GM-advice chapters producing `[ruleset]` Wisdom items. Assert Phase 1 Synthesis population ≥4-of-7 and term anchoring ≥90% on the artifact (RULESET_MODEL.md / synthesis manifest). Load the package into a host — assert the runtime Novel's Wisdom content is the vendor manifest only (`[vendor]` tags per §11.4) and no `[ruleset]` items appear in `list_synthesis_items`. Assert REQ-371 mechanical enactment (P6/P7/P10) applies to vendor-carried content. | REQ-371, REQ-080b, §6.5 |
+| T497 | Automated | Fingerprint-scoped rebuild: after a ruleset-free build, assert DECISIONS.md (1) records the sentinel for generated extraction data. Record a build with only source changed — assert the stored generated-data and extraction hashes are reused and only surface-dependent Pattern Buffer sub-workflows run. Record a build where four of five fingerprint components changed — assert the full Build workflow runs with no scoping. | REQ-313, REQ-314 |
 | T52   | Automated | Build fingerprint: build server, create state (character, Novel entities), record fingerprint. Modify a copy of the ruleset to add/remove an entity field, rebuild, restart: (1) fingerprint mismatch warning on stderr, (2) state loads without error, (3) roster baselines unchanged, (4) `spec_health` reports mismatch status. Attempt to load structurally corrupted state — verify the server reports unrecoverable state and does not silently discard. Waived if the ruleset has no mutable state (no entities, no roster). | REQ-065                                     |
 | T224  | Automated | Startup drift comparison: build a server with a known ruleset, record the fingerprint. Modify a ruleset file, restart — assert spec_health reports [ruleset-drift] with stored and current hashes, assert stderr carries matching warning. Modify the embedded holonovel.md, restart — assert spec_health reports [spec-drift]. Modify the installed holonovel package version (e.g., symlink a newer version of the package) and restart — assert spec_health reports [holonovel-drift] with stored and current versions. Revert both changes — assert no drift warnings. Assert drift detection does not block startup or novel resume. Assert a fresh start with no stored fingerprint produces no drift warnings. | REQ-065, REQ-014 |
 | T226  | Automated | Spec content hash: compute SHA-256 of the embedded `holonovel.md` in the server directory — assert it matches `state.buildFingerprint.specHash`. Modify one character of the embedded spec file — restart, assert drift warning on stderr and `spec_health.spec_hash_current: false`. Restore the original file — restart, assert warning clears and `spec_hash_current: true`. | REQ-187 |
@@ -8938,7 +8944,7 @@ diet.
 | T129  | Automated | NPC narrative fields: create NPC. Call `set_personality(npc_id, description, voice, background, goals)` — assert fields set and surfaced in `badge_briefing` and at `npc://<id>/personality`. Call `set_voice_examples(npc_id, [...])` — assert examples set. Verify NPC narrative fields are Novel-scoped — `end_novel` removes them, no roster backing. Assert Player badge attempt on `set_personality` for NPC returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                            | REQ-122, REQ-075, REQ-032                   |
 | T191  | Automated | NPC description field: call `create_npc("Guard", description="Tall")` then `set_personality(npc_id, {description: "Suspicious"})` — assert the NPC's description reads "Suspicious" at `npc://<id>`, `character_sheet`, and `npc://<id>/personality`. Call `create_npc("Merchant")` (no description) then `set_personality(npc_id, {description: "Cheerful"})` — assert description is "Cheerful" at all three surfaces.                                                                                                                                                                                                                                                                                                                 | REQ-156                                     |
 | T192  | Automated | Combat determinism: start a fresh server with `TTRPG_SEED=7`. Call `init_combat` with one danger and `seed="42"` — assert danger initiative d20 face matches Appendix B.4 seed-42 column at position 1 (value 6). Call `roll_save("dexterity")` without a seed — assert the d20 face matches the session sequence (seed-7 B.4 column). Call `init_combat` with two dangers and `seed="42"` — assert d20 faces match positions 1 and 2 of the B.4 seed-42 column. Call `init_combat` with one danger and no seed — assert the d20 face matches the next position in the seed-7 session sequence (after the roll_save draw). | REQ-157                                     |
-| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0b–G4, smoke session, waiver audit, T29, H1–H14, artifact diet, adversarial Pattern Buffer) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
+| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0b–G4, smoke session, waiver audit, T29, H1–H18, artifact diet, adversarial Pattern Buffer) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
 | T194  | Automated | Synthesis briefing integration: after synthesizing a Novel, invoke `badge_briefing` as GM — assert supplementary guidance items appear tagged `[supplementary]` with source URLs. Assert synthesis-sourced voice examples appear under entity personality with `[supplementary]` tag. Switch to Player badge — assert game_master-scoped synthesis items are absent. Call `revert_synthesis` — assert all synthesis content absent from all badge briefing views.                                                                                                                       | REQ-159, REQ-080                            |
 | T195  | Automated | Synthesis health reporting: after synthesizing a Novel, invoke `spec_health` — assert `synthesis_active: true`, per-module counts matching the manifest, non-empty fingerprint. Call `revert_synthesis` — assert `synthesis_active: false` and `module_counts` contains all seven module names (`voice_examples`, `briefing_order`, `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`, `narrative_voices`) each with value zero. Populate stale items past `TTRPG_SYNTHESIS_STALE_DAYS` — assert `stale_count` increments and `[stale]` flag. Activate a lore template via `set_lore_entry` — assert `activated_count` increments.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-160, REQ-025                            |
 | T196  | Automated | Intake workflow contract: attempt a build without recording intake answers in DECISIONS.md (1) — assert the process-compliance convergence metric fails. Run a non-interactive build with network detected — assert Q0 defaults to `build + synthesis` and the probe result is recorded in DECISIONS.md (1). Run a non-interactive build offline — assert Q0 defaults to `build` only. Re-run a build selecting an additional workflow — assert only new workflow questions are re-asked.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-161                                     |

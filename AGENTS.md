@@ -7,12 +7,21 @@ build specification for an MCP server that serves tabletop RPG rulesets from
 Markdown sources. The canonical document is `holonovel.md`. This is a
 specification document, not an implementation.
 
+## Spec Kit phased model
+
+The specification follows the Spec Kit phased-artifact model: **constitution**
+(§4 Standing Rules), **specify** (`spec/` sources), **plan** and **tasks**
+(per-increment artifacts under `plans/`), **implement** (§6 Build Process), and
+**converge** (§6.5/§6.7). The house executable-spec conventions (gates,
+traceability, golden transcript) are the quality checklist layer.
+
 ## Layer map
 
 ```
 holonovel.md             Assembled specification (generated from spec/, committed)
 spec/                    Source files — edit here, not holonovel.md directly
-  ├── 01-foundations.md  Reading guide, mission, failure modes, standing rules
+  ├── 01-foundations.md  Reading guide, mission, failure modes
+  ├── 01a-constitution.md §4 standing rules and terminology
   ├── 02-requirements.md §5 requirements (the normative core)
   ├── 03-build.md        §6 build process (includes Prepare: phase-loading hints)
   ├── 04-runtime.md      §7 runtime conventions
@@ -89,7 +98,7 @@ Push to origin: `git push origin main`.
 - Appendix M defines what belongs in a REQ vs. what belongs elsewhere
   (builder, convergence loop, gates).
 - `npm run validate --sdd-strict` checks REQ block integrity, REQ shape (one
-  paragraph, no tables/bullets/steps, 500-char limit, 5-sentence limit), spec
+  paragraph, no tables/bullets/steps, 800-char limit, 8-sentence limit), spec
   violations (parameter types, Default: clauses, enumerated catalogs), ambiguity
   (hedging, vague qualifiers), cross-references (dead citations, orphan REQs),
   assumptions (magic numbers, absolute language, untiered thresholds), REQ ID

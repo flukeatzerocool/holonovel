@@ -46,15 +46,16 @@ reduction in per-phase context.
 
 | #  | File                     | Contents                            |
 |----|--------------------------|-------------------------------------|
-| 1  | 01-foundations.md        | §0–§4: reading guide, mission, failure modes, standing rules |
-| 2  | 02-requirements.md       | §5: all REQs, 20 subsections        |
-| 3  | 03-build.md              | §6: build process                   |
-| 4  | 04-runtime.md            | §7: runtime conventions             |
-| 5  | 05-verification.md       | §8: verification workflows          |
-| 6  | 06-artifacts.md          | §9: artifacts and handoff           |
-| 7  | 07-independent.md        | §10: independent verification       |
-| 8  | 08-synthesis.md         | §11: Synthesis             |
-| 9  | appendices-reference.md  | # Appendices heading + A, D–T (reference material) |
-| 10 | appendices-fixtures.md   | B, C, N, W, X, Y, Z (golden, injection, complex, world-model, social, stress-test, supplementary fixtures) |
-| 11 | appendices-licenses.md   | Appendix U (content licenses)                 |
-| 12 | appendices-runbooks.md   | Appendix V (workflow runbooks)                |
+| 1  | 01-foundations.md        | §0–§3: reading guide, mission, failure modes |
+| 2  | 01a-constitution.md      | §4: standing rules and terminology  |
+| 3  | 02-requirements.md       | §5: all REQs, 20 subsections        |
+| 4  | 03-build.md              | §6: build process                   |
+| 5  | 04-runtime.md            | §7: runtime conventions             |
+| 6  | 05-verification.md       | §8: verification workflows          |
+| 7  | 06-artifacts.md          | §9: artifacts and handoff           |
+| 8  | 07-independent.md        | §10: independent verification       |
+| 9  | 08-synthesis.md         | §11: Synthesis             |
+| 10 | appendices-reference.md  | # Appendices heading + A, D–T (reference material) |
+| 11 | appendices-fixtures.md   | B, C, N, W, X, Y, Z (golden, injection, complex, world-model, social, stress-test, supplementary fixtures) |
+| 12 | appendices-licenses.md   | Appendix U (content licenses)                 |
+| 13 | appendices-runbooks.md   | Appendix V (workflow runbooks)                |
