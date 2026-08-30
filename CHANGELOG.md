@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-29 — push-pipeline.sh TAG_TO_PUSH unbound-variable fix
+
+- Initialized `TAG_TO_PUSH` unconditionally so the mirror-sync step no
+  longer crashes on an unbound variable when there is nothing to commit
+  (the "nothing to commit" path skipped the block that set it).
+
 ## 2026-08-29 — README restructured to audience-first routing
 
 - Restructured `README.md` from a product-narrative flow (Quick start →
