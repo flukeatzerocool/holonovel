@@ -51,8 +51,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
-# Canonical server list (update spec-delta.ts and spec-propagate.ts when changing)
-SERVERS=("holonovel")
+# Canonical server list — single source of truth in scripts/lib/servers.json
+SERVERS=($(node -e "process.stdout.write(require('./scripts/lib/servers.json').join(' '))"))
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
 # can restore them (tracked files are reverted via `git checkout -- .`).

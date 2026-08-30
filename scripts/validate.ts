@@ -1,7 +1,13 @@
 #!/usr/bin/env npx tsx
+/**
+ * validate.ts — cross-reference checker for the assembled spec. [gate]
+ *
+ * Runs REQ integrity, shape, spec-violation, ambiguity, cross-reference,
+ * assumption, coupling, phase-map, and implementation-coverage audits in one
+ * pass. Exit codes: 0 = pass, 1 = one or more error-class findings.
+ */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   readSpec,
   extractReqBodies,
@@ -17,7 +23,7 @@ import {
   checkTruncatedReqBodies,
 } from "./lib/req-checks.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 const SPEC = path.resolve(__dirname, "..", "holonovel.md");
 
 const sddStrict = process.argv.includes("--sdd-strict");

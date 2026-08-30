@@ -1,22 +1,29 @@
+#!/usr/bin/env npx tsx
+/**
+ * spec-delta.ts — classify the spec delta against the last-published hash. [gate]
+ *
+ * Compares the assembled spec to the last-published revision and classifies
+ * the change as none/patch/editorial/minor/major, reporting requirements
+ * added/removed/modified. Exit codes: 0 = classified (in/out of sync), 1 =
+ * unknown server.
+ */
 import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
-import { extractH2Headings } from "./lib/parse-spec";
+import { extractH2Headings } from "./lib/parse-spec.js";
+import { SERVERS } from "./lib/servers.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 const SPEC_PATH = join(root, "holonovel.md");
 
 const server = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]
-  : "holonovel";
+  : SERVERS[0];
 
-// Must match push-pipeline.sh SERVERS
-if (server !== "holonovel") {
-  console.error("Usage: npm run spec-delta -- --server holonovel");
+if (!SERVERS.includes(server)) {
+  console.error(`Usage: npm run spec-delta -- --server <${SERVERS.join("|")}>`);
   process.exit(1);
 }
 

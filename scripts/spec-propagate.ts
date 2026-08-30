@@ -1,15 +1,18 @@
+#!/usr/bin/env npx tsx
+/**
+ * spec-propagate.ts — copy the assembled spec into each server directory. [build tool]
+ *
+ * Mirrors holonovel.md into each server's holonovel.md so the embedded copy
+ * stays in sync. Exit codes: 0 = propagated, 1 = a target directory missing.
+ */
 import { copyFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { SERVERS } from "./lib/servers.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 const SOURCE = join(root, "holonovel.md");
-// Must match push-pipeline.sh SERVERS
-const TARGETS = [
-  join(root, "holonovel", "holonovel.md"),
-];
+const TARGETS = SERVERS.map((s) => join(root, s, "holonovel.md"));
 
 let ok = true;
 

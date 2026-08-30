@@ -1,3 +1,7 @@
+// fingerprints.ts — implementation fingerprint computation (REQ-313).
+//
+// Computes the five fingerprint components (source, config, lockfile,
+// extraction, surfaces) over a server source tree.
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";

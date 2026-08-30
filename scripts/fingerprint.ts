@@ -1,8 +1,16 @@
-import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
+#!/usr/bin/env npx tsx
+/**
+ * fingerprint.ts — compute implementation fingerprints for a server. [build tool]
+ *
+ * Emits the five fingerprint components (source, config, lockfile, extraction,
+ * surfaces) as key=value lines, or as JSON with --json. Exit codes: 0 =
+ * computed, 1 = unknown server.
+ */
+import { computeFingerprints, type Fingerprints } from "./lib/fingerprints.js";
 import { join } from "node:path";
+import { SERVERS } from "./lib/servers.js";
 
 const root = join(import.meta.dirname, "..");
-const SERVERS = ["holonovel"];
 
 interface FingerprintReport extends Fingerprints {
   server: string;

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Wave-1 §5.1 Output & Error Contracts harness.
 // Covers REQ-003 (roll transparency), REQ-004 (truncation + output://),
 // REQ-060 (verbose output), REQ-061 (source quoting), REQ-064 (badge boundary),
@@ -17,7 +18,7 @@ const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "wave1-"));
 let msgId = 0; const pending = new Map(); let buffer = "";
 function send(proc: any, msg: any) { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
-function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { } } }); }
+function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
 async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function proto(proc: any, method: string, params: any) {
@@ -26,7 +27,7 @@ async function proto(proc: any, method: string, params: any) {
   if (r.result?.messages) return r.result.messages.map((m: any) => m.content?.text ?? "").join("\n");
   return JSON.stringify(r.result).slice(0, 500);
 }
-async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { } await new Promise((r) => setTimeout(r, 100)); }
+async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
 async function test(name: string, fn: () => void | Promise<void>): Promise<void> {

@@ -1,9 +1,14 @@
+#!/usr/bin/env npx tsx
+/**
+ * version-bump.ts — sync version references across the repo to root package.json. [build tool]
+ *
+ * Bumps holonovel/package.json, AGENTS.md, DECISIONS.md, src/index.ts, and the
+ * lockfile to the root version. Exit codes: 0 = bumped, 1 = a pattern not found.
+ */
 import { readFileSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 const version = rootPkg.version;

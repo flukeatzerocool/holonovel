@@ -109,6 +109,53 @@ Push to origin: `git push origin main`.
   All run in a single pass. Shape violations and spec violations are ERRORS
   under --sdd-strict; proofreading checks are WARNINGS.
 
+## Script discipline
+
+All scripts in this repository — the spec tooling in `scripts/`, the server
+harnesses in `holonovel/scripts/`, the shell entry points (`push-pipeline.sh`,
+`.githooks/`), and CI workflow steps — follow one discipline. These rules apply
+to new scripts and to modifications of existing scripts.
+
+**Roles.** Every script declares one of four roles in its header: gate (exits
+non-zero on failure; wired into a gate), build tool (mutates tracked artifacts
+in a deterministic order), entry point (implements a §6.7 REQ contract and
+carries the REQ citation), or informational (reports findings, exits 0). A
+harness is a gate role; it must be wired into a `package.json` script
+(`checkHarnessGating` enforces this).
+
+**Mechanically enforced (`npm run check-script-discipline`, wired into
+`check:fast` and `check`):**
+
+- Every top-level script starts with a shebang (`#!/usr/bin/env npx tsx` for
+  TS, `#!/usr/bin/env node` for harnesses, `#!/bin/sh`/`#!/usr/bin/env bash`
+  for shell) and a JSDoc header naming the script's role, purpose, exit-code
+  contract, and REQ citations (when it implements a spec contract).
+- Exit codes: 0 = pass, 1 = gate/check failure or build error, 2 = fatal
+  unexpected error. No other exit codes.
+- Server list: no literal `["holonovel"]` arrays. Read `SERVERS` from
+  `scripts/lib/servers.json` (shared by TS and bash).
+- Path resolution: use `import.meta.dirname` to derive repo-root paths; no
+  `fileURLToPath(import.meta.url)` boilerplate.
+- Empty `catch {}` blocks carry a comment explaining why the error is safely
+  ignored.
+
+**Conventions (documented, not mechanically checked):**
+
+- stdout carries the result payload; stderr carries diagnostics, warnings,
+  and progress. Machine-readable output goes to stdout (`--json` where the
+  script emits JSON).
+- Flag-taking scripts implement `--help`/`-h` (usage to stdout, exit 0) and
+  reject unknown flags (diagnostic to stderr, exit 1). Scripts with more than
+  one flag parse through `scripts/lib/args.ts`.
+- Deterministic by default: no wall-clock-dependent output, no network, no
+  hidden state. Mutating scripts offer `--dry-run` (or document why not).
+- REQ traceability: a script implementing a spec contract cites the REQ ID in
+  its header; a behavioral change to a gate requires a CHANGELOG entry and a
+  re-run of the gates it feeds.
+- Shell discipline: `set -euo pipefail`, a case-based flag parser, `--help`,
+  color only on TTY. CI workflow steps rely on script exit codes and never
+  swallow them.
+
 ## Gates
 
 Run before committing or after any change to `spec/`. Use `check:fast` for
@@ -126,6 +173,7 @@ This runs:
 | `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
+| `npm run check-script-discipline` | Script standards (shebang, header, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` |
 
 Also available separately:
 

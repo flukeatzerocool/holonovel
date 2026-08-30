@@ -1,10 +1,16 @@
+#!/usr/bin/env npx tsx
+/**
+ * newsletter-digest.ts — generate the weekly newsletter draft. [build tool]
+ *
+ * Renders the enabled sections in newsletter/outline.json into a dated draft
+ * under newsletter/drafts/. Exit codes: 0 = draft written, 1 = a required
+ * input (outline.json) is missing or malformed.
+ */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 type Outline = { sections: { id: string; enabled: boolean }[] };
 type SectionRenderer = (ctx: Ctx) => string;

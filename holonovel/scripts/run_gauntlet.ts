@@ -516,7 +516,7 @@ async function main() {
   console.log();
 
   // Clean & prepare
-  try { rmSync(DATA_DIR, { recursive: true }); } catch {}
+  try { rmSync(DATA_DIR, { recursive: true }); } catch { /* fresh dir — absent on first run */ }
   mkdirSync(DATA_DIR, { recursive: true });
   const adventuresDir = join(DATA_DIR, "adventures");
   mkdirSync(adventuresDir, { recursive: true });
@@ -590,7 +590,7 @@ async function main() {
     try {
       await doAction(proc, T("end_novel", {}));
       await doAction(proc, T("respond", { decision: "end novel confirm", option: "yes" }));
-    } catch {}
+    } catch { /* cleanup best-effort — a dead server errors here */ }
 
     verdict.duration_ms = Date.now() - started;
     verdicts.push(verdict);

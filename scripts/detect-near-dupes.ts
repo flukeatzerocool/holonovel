@@ -1,4 +1,10 @@
 #!/usr/bin/env npx tsx
+/**
+ * detect-near-dupes.ts — near-duplicate paragraph detector. [informational]
+ *
+ * Flags sentence pairs whose Jaccard similarity exceeds a threshold. Exit
+ * codes: 0 always (findings are warnings, not failures).
+ */
 import { readSpec } from "./lib/parse-spec.js";
 
 const BOILERPLATE_STARTS = [

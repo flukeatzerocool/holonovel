@@ -1,3 +1,4 @@
+#!/usr/bin/env npx tsx
 /**
  * migrate-user-data.ts — User-data migration entry point (REQ-424).
  *
