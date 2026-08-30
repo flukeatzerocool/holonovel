@@ -387,4 +387,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-417 | Non-blocking startup probes | 5.7 Determinism, Safety, and Performance | C | T490 | — |
 | REQ-418 | Deployment verification | 5.18 Workflow Entry Points | E | — | — |
 | REQ-419 | Editorial delta classification | 5.17 Ruleset Packages | E | — | — |
+| REQ-420 | Ruleset package-format fingerprint | 5.18 Workflow Entry Points | B | — | — |
+| REQ-421 | Ruleset source registry | 5.18 Workflow Entry Points | E | — | — |
+| REQ-422 | Ruleset update entry point | 5.18 Workflow Entry Points | E | — | — |
+| REQ-423 | User-data format fingerprint | 5.18 Workflow Entry Points | B | — | — |
+| REQ-424 | User-data migration entry point | 5.18 Workflow Entry Points | E | — | — |
 

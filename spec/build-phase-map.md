@@ -14,7 +14,7 @@ independently specify file lists.**
 | Convert (if selected)          | 03-build.md §6.2 Convert, appendices-reference.md §G                          | 3,000   |
 | Discovery (§6.3)               | 03-build.md §6.3, 02-requirements.md §5.2, §5.15 | 5,000   |
 | Construction (§6.4)            | 03-build.md §6.4, 02-requirements.md §5.3–§5.7, 04-runtime.md                 | 7,500   |
-| Package (§6.4.2)               | 03-build.md §6.4.2, 02-requirements.md §5.16, §5.17                             | 3,500   |
+| Package (§6.4.2)               | 03-build.md §6.4.2, 02-requirements.md §5.16, §5.17, §5.18                             | 3,700   |
 | Convergence (§6.5)             | 03-build.md §6.5, 02-requirements.md (all), 05-verification.md, 08-synthesis.md §11.4 (when synthesis metrics in scope) | 9,200   |
 | Ruleset Pattern Buffer (§6.6)         | 03-build.md §6.6, 05-verification.md, 06-artifacts.md                         | 3,000   |
 | Holonovel Pattern Buffer (§6.6)         | 03-build.md §6.6 Holonovel Pattern Buffer (holonovel package verification only — not part of TTRPG builds)   | 1,800   |

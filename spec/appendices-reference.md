@@ -1101,6 +1101,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-417 | Non-blocking startup probes | 2026-08-22 |
 | REQ-418 | Deployment verification | 2026-08-22 |
 | REQ-419 | Editorial delta classification | 2026-08-22 |
+| REQ-420 | Ruleset package-format fingerprint | 2026-08-30 |
+| REQ-421 | Ruleset source registry | 2026-08-30 |
+| REQ-422 | Ruleset update entry point | 2026-08-30 |
+| REQ-423 | User-data format fingerprint | 2026-08-30 |
+| REQ-424 | User-data migration entry point | 2026-08-30 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1616,7 +1621,14 @@ diet.
 | T457 | Automated | Schema deferral: assert the on-demand schema surface returns a single tool's full schema and a single ruleset's tool set; assert default listing entries preserve name, category, and one-line purpose when abbreviated. | REQ-391b |
 | T458 | Automated | Pagination: a host whose `tools/list(scope=all)` exceeds the size cap returns paginated pages; assert default scoped listing size is independent of installed package count. | REQ-391c |
 | T459 | Automated | Description budget: assert every tool description fits the build-time budget recorded in DECISIONS.md; assert `spec_health.tools_list_bytes` is present and reflects the default listing. | REQ-392 |
-| T460 | Automated | Update preservation: bump the host version, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package-incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
+| T460 | Automated | Update preservation: advance the package-format fingerprint, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package-incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
+| T498 | Automated | Package-format fingerprint: build a package recording its package-format fingerprint, then advance the package-contract sections and restart the host — assert the package is flagged `[package-incompatible]` in `spec_health` with its slug and both fingerprints named, and held inactive; a package built against the current fingerprint stays loaded. | REQ-420 |
+| T499 | Automated | Source registry: run `build-ruleset <slug>=<path>` — assert the registry under the state directory maps the slug to the source path, fingerprint, and timestamp; a deploy step preserves it; a re-run with no path defaults to the recorded path. | REQ-421 |
+| T500 | Automated | Update entry point: with one stale and one current installed package, run `update-rulesets` — assert it reports the stale slug with its recorded source and prints a Build invocation, and omits the current slug; with no arguments it prints usage, the install directory, and a per-package summary. | REQ-422 |
+| T501 | Automated | Data-format fingerprint: write a Novel, roster, codex, and server note under a prior data-format fingerprint, restart the host — assert each is flagged `[data-stale]` in `spec_health.data_health` naming the artifact and both fingerprints, and each still loads with inert fields preserved and defaults added. | REQ-423 |
+| T502 | Automated | Migration entry point: run `migrate-user-data` in default mode — assert no side effects and a report of what would change; run with the explicit migrate flag — assert stale artifacts are re-stamped with the current fingerprint and re-export after migration is unchanged; a migration that fails mid-round-trip leaves the original artifact unchanged and names it. | REQ-424 |
+| T503 | Automated | Legacy-artifact transition: install a package whose manifest lacks a `package_format` fingerprint — assert it is flagged stale (rebuild-recommended) and not hard-blocked; write a Novel lacking a `data_format` stamp — assert it is flagged `[data-stale]` and loads. | REQ-420, REQ-423 |
+| T504 | Automated | Migration failure preservation: corrupt a stale artifact so its round-trip re-serialize fails — assert `migrate-user-data` aborts that artifact without replacing it and reports the failure naming the artifact. | REQ-424 |
 
 ---
 

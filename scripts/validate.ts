@@ -1234,6 +1234,12 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-372", "REQ-373",
   "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
+  // §5.18 update/migration entry points are build-tooling contracts
+  // (scripts/update-rulesets.ts, scripts/migrate-user-data.ts, and the
+  // build-ruleset registry), not runtime server behavior. REQ-420 and REQ-423
+  // are server-runtime (fingerprint stamp/compare) and are cited in
+  // holonovel/src — they are NOT whitelisted.
+  "REQ-421", "REQ-422", "REQ-424",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline

@@ -14,11 +14,17 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createRng } from "./rng.js";
+import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 
 const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
 ).version;
+
+// REQ-423 — reserved envelope key carrying the data-format fingerprint and spec
+// version on flat-map artifacts (roster, codex, server notes). Double-underscore
+// prefix avoids collision with operator-authored keys.
+const META_KEY = "__holonovel_meta";
 
 function computeSourceHash(): string {
   try {
@@ -542,6 +548,11 @@ export class StateManager {
   serverNotes: Map<string, { content: string; narrative_tag?: string }> = new Map();
   codex: Map<string, CodexEntry> = new Map();
 
+  // REQ-423 — the host's current data-format fingerprint and the set of
+  // persisted artifacts whose fingerprint differs (flagged [data-stale]).
+  readonly dataFormat = DATA_FORMAT;
+  staleData = new Map<string, string>();
+
   private npcCounter = 0;
   private entityCounter = 0;
   private stateDir: string;
@@ -766,6 +777,13 @@ export class StateManager {
   }
 
   private loadNovelFromData(data: any): NovelState {
+    // REQ-423 — a Novel written under a prior (or absent) data-format
+    // fingerprint is flagged [data-stale]; it still loads per REQ-065.
+    if (data.data_format !== DATA_FORMAT) {
+      this.staleData.set(`novel:${data.slug}`, data.data_format
+        ? "data-format fingerprint mismatch"
+        : "missing data-format fingerprint");
+    }
     data = migrateNovelData(data);
     const novel: NovelState = {
       slug: data.slug,
@@ -1440,6 +1458,9 @@ ${turnOrder}`;
 
     const json = JSON.stringify(novelToJSON(novel));
     const payload: any = JSON.parse(json);
+    // REQ-423 — stamp the data-format fingerprint and spec version at write time.
+    payload.data_format = DATA_FORMAT;
+    payload.spec_version = SPEC_VERSION;
     payload._checksum = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 
     const out = JSON.stringify(payload, null, 2);
@@ -1470,6 +1491,7 @@ ${turnOrder}`;
         stats: entity.stats,
       };
     }
+    rosterData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(rosterData, null, 2), "utf-8");
   }
 
@@ -1478,7 +1500,9 @@ ${turnOrder}`;
     if (!fs.existsSync(filePath)) return;
     const raw = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw);
+    this.checkFlatMeta("roster", data);
     for (const [id, entity] of Object.entries(data)) {
+      if (id === META_KEY) continue;
       const e = entity as any;
       this.roster.set(id, {
         id: e.id || id,
@@ -1491,6 +1515,15 @@ ${turnOrder}`;
         condition_rounds: e.condition_rounds || {},
         stats: e.stats,
       });
+    }
+  }
+
+  // REQ-423 — record a [data-stale] flag for a flat-map artifact whose stamped
+  // data-format fingerprint differs from (or is absent from) the host's value.
+  private checkFlatMeta(artifact: string, data: Record<string, any>): void {
+    const meta = data[META_KEY];
+    if (!meta || meta.data_format !== DATA_FORMAT) {
+      this.staleData.set(artifact, meta?.data_format ? "data-format fingerprint mismatch" : "missing data-format fingerprint");
     }
   }
 
@@ -1520,7 +1553,9 @@ ${turnOrder}`;
     if (!fs.existsSync(filePath)) return;
     try {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      this.checkFlatMeta("server-notes", data);
       for (const [key, val] of Object.entries(data)) {
+        if (key === META_KEY) continue;
         this.serverNotes.set(key, typeof val === "string" ? { content: val } : (val as { content: string; narrative_tag?: string }));
       }
     } catch { /* ignore corrupt */ }
@@ -1528,9 +1563,11 @@ ${turnOrder}`;
 
   saveServerNotes(): void {
     fs.mkdirSync(this.stateDir, { recursive: true });
+    const notesData: Record<string, any> = Object.fromEntries(this.serverNotes);
+    notesData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
     fs.writeFileSync(
       path.join(this.stateDir, "server-notes.json"),
-      JSON.stringify(Object.fromEntries(this.serverNotes), null, 2),
+      JSON.stringify(notesData, null, 2),
       "utf-8",
     );
   }
@@ -1540,7 +1577,9 @@ ${turnOrder}`;
     if (!fs.existsSync(filePath)) return;
     try {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      this.checkFlatMeta("codex", data);
       for (const [id, entry] of Object.entries(data)) {
+        if (id === META_KEY) continue;
         this.codex.set(id, entry as CodexEntry);
       }
     } catch { /* ignore corrupt */ }
@@ -1548,9 +1587,11 @@ ${turnOrder}`;
 
   saveCodex(): void {
     fs.mkdirSync(this.stateDir, { recursive: true });
+    const codexData: Record<string, any> = Object.fromEntries(this.codex);
+    codexData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
     fs.writeFileSync(
       path.join(this.stateDir, "codex.json"),
-      JSON.stringify(Object.fromEntries(this.codex), null, 2),
+      JSON.stringify(codexData, null, 2),
       "utf-8",
     );
   }

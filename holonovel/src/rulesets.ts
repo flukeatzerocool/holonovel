@@ -10,13 +10,17 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createRng, sessionRoll } from "./core/rng.js";
-
-export const HOST_VERSION = "2026.08.18";
+import { PACKAGE_FORMAT } from "./generated/contract-fingerprints.js";
 
 export interface RulesetManifest {
   slug: string;
   name: string;
   host_version: string;
+  // REQ-420 — the package-format fingerprint (spec-derived content hash of
+  // §5.16, §5.17, §6.3, §6.4.2) is the host's compatibility signal. A package
+  // whose fingerprint differs from — or is absent from — the host's current
+  // value is held inactive rather than dropped (REQ-393).
+  package_format: string;
   content_hash: string;
   built_at: string;
   counts: Record<string, number>;
@@ -109,24 +113,27 @@ export function rollDice(notation: string, seed?: string): RollResult {
 
 // REQ-389 — declarative ruleset packages (six JSON files, content-hash
 // validated); REQ-390 — lazy hydration on first use, eager via TTRPG_RULESETS;
-// REQ-393 — update preservation: packages revalidate against the host version
-// and are held inactive with a [package-incompatible] flag rather than dropped.
+// REQ-393 — update preservation: packages revalidate against the host's current
+// package-format fingerprint (REQ-420) and are held inactive with a
+// [package-incompatible] flag rather than dropped.
 export class RulesetManager {
   readonly installDir: string;
-  readonly hostVersion: string;
   private installed = new Map<string, RulesetManifest>();
+  private incompatible = new Map<string, { slug: string; reason: string }>();
   private hydrated = new Map<string, RulesetPackage>();
 
-  constructor(installDir: string, hostVersion: string = HOST_VERSION) {
+  constructor(installDir: string) {
     this.installDir = installDir;
-    this.hostVersion = hostVersion;
   }
 
   // Scan the install directory and record installed package metadata, WITHOUT
   // loading index/model (lazy hydration — REQ-390). Returns an array of
-  // per-slug validation errors (empty means clean).
+  // per-slug validation errors (empty means clean). A package whose
+  // package-format fingerprint differs from the host's current value is held
+  // inactive with a [package-incompatible] flag (REQ-420, REQ-393).
   scan(): string[] {
     this.installed.clear();
+    this.incompatible.clear();
     const errors: string[] = [];
     if (!fs.existsSync(this.installDir)) return errors;
     const entries = fs.readdirSync(this.installDir, { withFileTypes: true });
@@ -144,8 +151,12 @@ export class RulesetManager {
           errors.push(`${slug}: manifest slug mismatch ('${manifest.slug}')`);
           continue;
         }
-        if (manifest.host_version !== this.hostVersion) {
-          errors.push(`${slug}: incompatible host_version '${manifest.host_version}' (expected '${this.hostVersion}')`);
+        if (!manifest.package_format || manifest.package_format !== PACKAGE_FORMAT) {
+          const reason = manifest.package_format
+            ? `package-format fingerprint mismatch ('${manifest.package_format}' != '${PACKAGE_FORMAT}')`
+            : "missing package-format fingerprint";
+          this.incompatible.set(slug, { slug, reason });
+          errors.push(`${slug}: [package-incompatible] ${reason}`);
           continue;
         }
         this.installed.set(slug, manifest);
@@ -158,6 +169,12 @@ export class RulesetManager {
 
   installedSlugs(): string[] {
     return [...this.installed.keys()];
+  }
+
+  // REQ-420 — incompatible packages are reported in spec_health, held inactive,
+  // and never silently dropped (REQ-393).
+  incompatibleSlugs(): { slug: string; reason: string }[] {
+    return [...this.incompatible.values()];
   }
 
   isInstalled(slug: string): boolean {
@@ -241,8 +258,8 @@ export class RulesetManager {
     if (!manifest || manifest.slug !== slug) {
       throw new Error(`[INVALID_INPUT] manifest.slug must equal '${slug}'.`);
     }
-    if (manifest.host_version !== this.hostVersion) {
-      throw new Error(`[INVALID_INPUT] incompatible host_version '${manifest.host_version}' (expected '${this.hostVersion}').`);
+    if (!manifest.package_format || manifest.package_format !== PACKAGE_FORMAT) {
+      throw new Error(`[INVALID_INPUT] incompatible package-format fingerprint '${manifest.package_format}' (expected '${PACKAGE_FORMAT}').`);
     }
     const hash = computeContentHash(
       files.index ?? [],

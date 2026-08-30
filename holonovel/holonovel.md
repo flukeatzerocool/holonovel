@@ -83,7 +83,9 @@ The verification workflows are executable — follow them in order. Use the asse
 
 **If you are adding a ruleset:**
 Read Appendix V (Workflow Runbooks) first — it names the entry point and happy path
-for Convert, Build, Synthesize, and Update before their §6 details.
+for Convert, Build, Synthesize, and Update before their §6 details. When a spec
+update changes the package contract or the state model, V.7 (`update-rulesets`)
+and V.8 (`migrate-user-data`) name the rebuild and migration entry points.
 
 **Reference material** (Appendices) is supplementary. Glance at Appendix E to learn the
 REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the
@@ -407,6 +409,14 @@ do not alter meaning are editorial and do not require a version bump.
 | Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
 | Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
 | Deployment        | The git-managed specification repository (source of truth, edited by maintainers) versus the separately deployed host server tree (built from it, hosting runtime state). Spec changes reach the deployed server only via the Update workflow (§6.7) and the fingerprint gate (REQ-394); user data and installed packages live outside the spec repository (REQ-396, REQ-397, REQ-398). |
+| User data         | Operator-owned persistent state served by the host: Novels (including embedded world-model data), roster, codex, server notes, and installed ruleset packages. Preserved byte-for-byte across deploys and host updates (REQ-396, REQ-397). |
+| Host version      | The CalVer of the host server at the time a package or state artifact was produced, recorded in each package's version manifest (REQ-389). Compatibility between the host and installed packages or state artifacts is determined by the package-format and data-format fingerprints, not by this string alone (REQ-420, REQ-423). |
+| Package-format fingerprint | A content hash of the package-contract sections (§5.16, §5.17, §6.3, §6.4.2) of the assembled specification, computed at Package time and recorded in each package's version manifest. The host compares it against its own current value at startup and after a host update (REQ-420). |
+| Data-format fingerprint | A content hash of the state-model sections (§7.7, §5.9, §5.19, Appendix Q) of the assembled specification, computed at write time and recorded in every persisted user-data artifact. The host compares it against its own current value at startup and after a host update (REQ-423). |
+| Drift             | A change detected after build between a source artifact and the fingerprint recorded at build time, surfaced as `[ruleset-drift]`, `[spec-drift]`, or `[holonovel-drift]` (REQ-065). Distinct from format-stale and incompatible. |
+| Format-stale      | A persisted state artifact written under a data-format fingerprint that differs from — or is absent from — the host's current value; surfaced as `[data-stale]` and always loadable (REQ-423). Distinct from stale (synthesis age) and incompatible (packages). |
+| Incompatible      | A ruleset package whose package-format fingerprint differs from — or is absent from — the host's current value; held inactive and surfaced as `[package-incompatible]` (REQ-420). |
+| Stale             | A synthesis item older than the configured freshness window, surfaced with a `[stale]` marker (REQ-080, REQ-102). Distinct from format-stale. |
 | Ruleset slug     | A filename-safe identifier for a ruleset (e.g., `dnd5e`, `starfinder`, `osr`). Derived from the ruleset identifier (B2) using slug rules (§7.1a). Used as the tool prefix for ruleset-derived tools (REQ-379). Recorded in DECISIONS.md (1). |
 | Tool prefix      | The ruleset slug prepended to every ruleset-derived tool name with an underscore separator: `<slug>_<tool_name>`. Infrastructure tools (REQ-020 categories) carry no prefix. The server reports the prefix-to-ruleset mapping in `spec_health`. REQ-379. |
 | Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `install_ruleset`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
@@ -3951,7 +3961,7 @@ A ruleset package is a self-contained declarative artifact produced by the Packa
 A package whose declared content hash does not match its contents SHALL be rejected at load with its slug and the expected and received hashes reported; the host SHALL surface the rejection in `spec_health` and continue serving other packages. *Acceptance criterion:* A package built via the Package step loads once and serves `search_rules`, lookups, and dice tools with no source-Markdown access; a package with a corrupted manifest is rejected by slug without affecting loaded packages. _Check:_ T452.
 
 **REQ-389c — Ruleset install surface (Part c).**
-`install_ruleset` SHALL validate slug uniqueness and host-version compatibility before activation; `remove_ruleset` SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel is bound to its slug. `list_rulesets` SHALL report each installed package with installed-versus-loaded state. All three are Game Master or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible host version fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `list_rulesets` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
+`install_ruleset` SHALL validate slug uniqueness and package-format compatibility (REQ-420) before activation; `remove_ruleset` SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel is bound to its slug. `list_rulesets` SHALL report each installed package with installed-versus-loaded state. All three are Game Master or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible package-format fingerprint fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `list_rulesets` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
 
 **REQ-390a — Lazy ruleset hydration (Part a).**
 On startup the host SHALL scan the install directory, validate package integrity and version compatibility, and record installed-package metadata. Search-index loading, tool registration, and model hydration for an installed package SHALL be deferred until a Novel bound to that ruleset is first activated. A tool call for an installed-but-not-yet-hydrated ruleset SHALL return `[ERROR] [STATE_CONFLICT]` directing first activation of a Novel bound to that slug.
@@ -3972,7 +3982,7 @@ A mechanism SHALL exist for a client to retrieve an individual tool's full schem
 Every registered tool's `description` SHALL fit a build-time size budget recorded in DECISIONS.md; it SHALL state the tool's one-line purpose and ruleset scope and SHALL NOT duplicate parameter guidance already carried by the schema. `spec_health` SHALL report `tools_list_bytes` — the aggregate byte size of the default `tools/list` response. *Acceptance criterion:* Tool descriptions fit the recorded budget; `spec_health.tools_list_bytes` is present and reflects the current default listing. _Check:_ T459.
 
 **REQ-393 — Update preservation.**
-A host update (§6.7) SHALL revalidate installed packages against the new host version without re-building or re-extracting them. A package whose version manifest names an incompatible host version SHALL be reported in `spec_health` and held inactive (surfacing a `[package-incompatible]` flag) rather than silently dropped. Installed packages and all Novel, roster, codex, server-note, and world-model data SHALL survive a host update unchanged. *Acceptance criterion:* After a host version bump, a still-compatible package stays loaded and retains its indexed data; an incompatible package is flagged and held inactive; all user data survives byte-for-byte. _Check:_ T460.
+A host update (§6.7) SHALL revalidate installed packages against the host's current package-format fingerprint (REQ-420) without re-building or re-extracting them. A package whose version manifest names an incompatible package-format fingerprint SHALL be reported in `spec_health` and held inactive (surfacing a `[package-incompatible]` flag) rather than silently dropped. User data (REQ-396) SHALL survive a host update unchanged. *Acceptance criterion:* After a package-format fingerprint change, a still-compatible package stays loaded and retains its indexed data; an incompatible package is flagged and held inactive; all user data survives byte-for-byte. _Check:_ T460.
 
 **REQ-394 — Spec publication integrity.**
 A Minor or Major spec delta (§6.7) SHALL NOT be propagated to a repository or deployed server, or recorded as applied, until implementation fingerprints (REQ-313) advance to reflect the update. Publication tooling SHALL detect a pending update — a non-patch delta with unchanged fingerprints — and block publication with a pending-update notice; patch deltas are exempt. The gate SHALL classify a delta against the last-published spec hash, never a hand-edited value. An operator override recorded in DECISIONS.md may lift the block when the update is scheduled. *Acceptance criterion:* A Minor or Major delta with unchanged fingerprints blocks publication; after the update advances the fingerprints, publication succeeds. _Check:_ T462.
@@ -3999,6 +4009,21 @@ The deployment model is a git-managed specification repository that produces a s
 
 **REQ-418 — Deployment verification.**
 Publication tooling SHALL, after updating a deployed instance, verify the deployed spec hash equals the published spec hash and the deployed implementation fingerprints (REQ-313) match the published fingerprints. A pull that fails, conflicts, or leaves the deployed tree at a prior revision SHALL surface a deploy-failed notice naming the server, and the deployment SHALL NOT be reported complete until verification passes. When the canonical implementation source lives inside the specification repository, verification SHALL run against the deployed clone after the pull. *Acceptance criterion:* A deploy that cannot fast-forward ends with a deploy-failed notice and no completion marker; a successful deploy reports matching spec hash and fingerprints. _Check:_ T491.
+
+**REQ-420 — Ruleset package-format fingerprint.**
+A ruleset package's version manifest SHALL record a package-format fingerprint: a content hash of the package-contract sections (§5.16, §5.17, §6.3, §6.4.2) of the assembled specification, computed at Package time (§6.4.2). The host SHALL compare each installed package's package-format fingerprint against its own current value at startup and after a host update (§6.7), and a mismatch SHALL hold the package inactive and surface a `[package-incompatible]` flag in `spec_health` naming the slug and both fingerprints, without re-building or re-extracting the package (REQ-393). *Acceptance criterion:* a package built under a prior package-format fingerprint is flagged `[package-incompatible]` and held inactive after a fingerprint change; a current package stays loaded. _Check:_ T498.
+
+**REQ-421 — Ruleset source registry.**
+The `build-ruleset` entry point (REQ-395a) SHALL record each accepted `slug=path` intake in a source registry stored under the server's state directory (REQ-397), mapping slug to source path, package-format fingerprint, and build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded path. *Acceptance criterion:* after a build the registry maps the slug to its source; a deploy preserves it; a re-run defaults to the recorded path. _Check:_ T499.
+
+**REQ-422 — Ruleset update entry point.**
+The distribution SHALL expose a documented entry point — `update-rulesets` — that lists installed packages whose package-format fingerprint (REQ-420) differs from the host's current value or is absent, and emits the Build workflow invocation for each affected slug, reading slug-to-source mappings from the source registry (REQ-421). Invoked with no arguments, it SHALL print usage, the install directory, and a per-package compatibility summary. *Acceptance criterion:* `update-rulesets` reports each stale slug with its recorded source and prints a Build invocation; no stale slug is omitted. _Check:_ T500.
+
+**REQ-423 — User-data format fingerprint.**
+Every persisted user-data artifact — Novel, roster, codex, and server-note state — SHALL record a data-format fingerprint: a content hash of the state-model sections (§7.7, §5.9, §5.19, Appendix Q) of the assembled specification, computed at write time. The host SHALL compare each artifact's data-format fingerprint against its own current value at startup and after a host update (§6.7) and SHALL surface a `[data-stale]` flag in `spec_health` naming the artifact and both fingerprints. Staleness SHALL NOT block loading — artifacts load per REQ-065 with inert fields preserved and defaults added. *Acceptance criterion:* an artifact written under a prior data-format fingerprint reports `[data-stale]` and still loads; user data survives byte-for-byte apart from the stamp. _Check:_ T501.
+
+**REQ-424 — User-data migration entry point.**
+The distribution SHALL expose a documented entry point — `migrate-user-data` — that lists artifacts whose data-format fingerprint (REQ-423) differs from the host's current value or is absent and, when explicitly invoked, re-stamps each through the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults per REQ-065. The default invocation SHALL be a dry run with no side effects. A migration that fails before completing SHALL leave the original artifact unchanged and name the artifact. *Acceptance criterion:* the default invocation changes nothing; an explicit run re-stamps stale artifacts; re-export after migration is unchanged. _Check:_ T502.
 
 ### 5.19 State Persistence Guardrails
 
@@ -4278,12 +4303,8 @@ mechanical-section count SHALL be recorded as zero.
 02-requirements.md §5.2.
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
-builder's context window — chunks are sized to fill approximately 3,000 tokens of
-mechanical prose each. After extracting the first 5 mechanical sections, the builder
-measures the average token-per-section and sets per-chunk section count to
-min(20, max(3, floor(3000 / avg_tokens_per_section))). The builder records the
-chunking strategy (per-section token estimate, calibrated section count, floor/ceiling)
-in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
+builder's context window. The builder records the chunking strategy in
+DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
 requests the next. Guidance-only sections are read in a post-processing pass after
 mechanical extraction and do not count against the mechanical-section budget.
 
@@ -4540,8 +4561,9 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
 1. **Assemble the artifact.** Serialize the extracted model, the full-text search
    index, every ruleset-derived tool schema with execution logic expressed as data,
    rule sources, and prompt definitions into the package. Each package carries a
-   content hash and a version manifest naming the host version it was built against
-   (REQ-389). When the model carries character-creation rules, the package SHALL
+   content hash and a version manifest carrying the package-format fingerprint
+   (REQ-420) and the host version it was built against (REQ-389). When the model
+   carries character-creation rules, the package SHALL
    include them (REQ-399). Derived-statistic formulas use a self-contained expression
    grammar over the model's value vocabulary: numeric literals, the arithmetic
    operators, parentheses, `floor`, `ceil`, `min`, and `max`, and named inputs drawn
@@ -5931,6 +5953,17 @@ existing Novel state loads without error under REQ-065 compatibility rules. Nove
 state fields present in stored state but absent in the updated model are preserved
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
+
+#### User-data disposition
+
+The builder SHALL record a user-data disposition in the gap audit naming each tier
+— ruleset packages, Novels, roster, codex, server notes — whose contract surface
+changed, with the action (rebuild / migrate / none) and the citing REQ. A delta
+touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recommend
+`update-rulesets` (REQ-422); a delta touching the state model (§7.7) SHALL
+recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
+be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
+loading by staleness (REQ-423).
 
 #### Synthesis consistency check
 
@@ -8744,6 +8777,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-417 | Non-blocking startup probes | 2026-08-22 |
 | REQ-418 | Deployment verification | 2026-08-22 |
 | REQ-419 | Editorial delta classification | 2026-08-22 |
+| REQ-420 | Ruleset package-format fingerprint | 2026-08-30 |
+| REQ-421 | Ruleset source registry | 2026-08-30 |
+| REQ-422 | Ruleset update entry point | 2026-08-30 |
+| REQ-423 | User-data format fingerprint | 2026-08-30 |
+| REQ-424 | User-data migration entry point | 2026-08-30 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9259,7 +9297,14 @@ diet.
 | T457 | Automated | Schema deferral: assert the on-demand schema surface returns a single tool's full schema and a single ruleset's tool set; assert default listing entries preserve name, category, and one-line purpose when abbreviated. | REQ-391b |
 | T458 | Automated | Pagination: a host whose `tools/list(scope=all)` exceeds the size cap returns paginated pages; assert default scoped listing size is independent of installed package count. | REQ-391c |
 | T459 | Automated | Description budget: assert every tool description fits the build-time budget recorded in DECISIONS.md; assert `spec_health.tools_list_bytes` is present and reflects the default listing. | REQ-392 |
-| T460 | Automated | Update preservation: bump the host version, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package-incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
+| T460 | Automated | Update preservation: advance the package-format fingerprint, restart with installed packages — assert a still-compatible package stays loaded with its indexed data intact, an incompatible package is flagged `[package-incompatible]` and held inactive, and Novel/roster/codex/server-note data survives byte-for-byte. | REQ-393 |
+| T498 | Automated | Package-format fingerprint: build a package recording its package-format fingerprint, then advance the package-contract sections and restart the host — assert the package is flagged `[package-incompatible]` in `spec_health` with its slug and both fingerprints named, and held inactive; a package built against the current fingerprint stays loaded. | REQ-420 |
+| T499 | Automated | Source registry: run `build-ruleset <slug>=<path>` — assert the registry under the state directory maps the slug to the source path, fingerprint, and timestamp; a deploy step preserves it; a re-run with no path defaults to the recorded path. | REQ-421 |
+| T500 | Automated | Update entry point: with one stale and one current installed package, run `update-rulesets` — assert it reports the stale slug with its recorded source and prints a Build invocation, and omits the current slug; with no arguments it prints usage, the install directory, and a per-package summary. | REQ-422 |
+| T501 | Automated | Data-format fingerprint: write a Novel, roster, codex, and server note under a prior data-format fingerprint, restart the host — assert each is flagged `[data-stale]` in `spec_health.data_health` naming the artifact and both fingerprints, and each still loads with inert fields preserved and defaults added. | REQ-423 |
+| T502 | Automated | Migration entry point: run `migrate-user-data` in default mode — assert no side effects and a report of what would change; run with the explicit migrate flag — assert stale artifacts are re-stamped with the current fingerprint and re-export after migration is unchanged; a migration that fails mid-round-trip leaves the original artifact unchanged and names it. | REQ-424 |
+| T503 | Automated | Legacy-artifact transition: install a package whose manifest lacks a `package_format` fingerprint — assert it is flagged stale (rebuild-recommended) and not hard-blocked; write a Novel lacking a `data_format` stamp — assert it is flagged `[data-stale]` and loads. | REQ-420, REQ-423 |
+| T504 | Automated | Migration failure preservation: corrupt a stale artifact so its round-trip re-serialize fails — assert `migrate-user-data` aborts that artifact without replacing it and reports the failure naming the artifact. | REQ-424 |
 
 ---
 
@@ -10554,9 +10599,9 @@ completion, and the recovery path when a step fails. Read the runbook you need
 before the workflow's full §6 sections — they are the "how do I actually run
 this" index into the normative text.
 
-The entry points are also emitted by their commands: `build-ruleset` and
-`update-server` print a pointer to this appendix when invoked without valid
-arguments.
+The entry points are also emitted by their commands: `build-ruleset`,
+`update-server`, `update-rulesets`, and `migrate-user-data` print a pointer to
+this appendix when invoked without valid arguments.
 
 ### V.1 Add a ruleset (Build)
 
@@ -10681,6 +10726,53 @@ unbind or archive the Novel first, then retry.
 The Novel is already bound to a different slug (`[ERROR] [STATE_CONFLICT]`):
 the binding is one-way per REQ-380c — decide which slug the Novel should keep
 before re-binding.
+
+### V.7 Update a ruleset
+
+**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts).
+
+**Happy path.**
+
+1. Run `update-rulesets` with no arguments — it prints usage, the install
+   directory, and a per-package compatibility summary listing each installed
+   slug with its package-format fingerprint and whether it matches the host's
+   current value (REQ-420).
+2. For each stale slug, rebuild against the recorded source: `build-ruleset
+   <slug>=<path>` — the source registry (REQ-421) defaults the path when it is
+   omitted.
+3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
+   slug after the rebuild.
+
+**Recovery.**
+
+- A legacy package lacks a `package_format` fingerprint: rebuild it once via
+  `build-ruleset` — it is flagged stale, never dropped or hard-blocked.
+- The registry has no entry for a stale slug: re-run `build-ruleset
+  <slug>=<path>` with the explicit source path, which re-records it.
+
+### V.8 Migrate user data
+
+**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts).
+
+**Happy path.**
+
+1. Run `migrate-user-data` in its default dry-run mode — it lists artifacts
+   whose data-format fingerprint differs from the host's current value (REQ-423)
+   and reports what re-stamping would change, with no side effects.
+2. Re-run with the explicit migrate flag to re-serialize each stale artifact
+   through the interchange round-trip (REQ-096, Appendix Q), re-stamping the
+   current fingerprint while preserving inert fields and applying defaults
+   (REQ-065).
+3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
+   migration.
+
+**Recovery.**
+
+- A migration fails mid-round-trip: the original artifact is left unchanged and
+  the failure names the artifact — inspect and retry, or leave the artifact
+  stale (staleness never blocks loading, REQ-423).
+- A legacy artifact lacks a fingerprint: it is flagged `[data-stale]` and
+  re-stamped by the next explicit migration.
 
 ---
 
