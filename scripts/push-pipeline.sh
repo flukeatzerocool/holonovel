@@ -282,6 +282,17 @@ fi
 echo -e "${GREEN}=== 9. Deploy to MCP target ===${NC}"
 DEPLOY_DIR="$HOME/Holonovel-deployed"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
+  # Deploy clone is a git-pull-only mirror: discard any uncommitted working-tree
+  # edits before the pull, matching the AGENTS.md Two-Repo Workflow contract
+  # ("discards any uncommitted working tree edits"). Recurrence 2026-08-30: a
+  # stale HOST_VERSION edit blocked the fast-forward. dist/, node_modules/, and
+  # .holonovel-state/ are gitignored, so runtime data and ruleset packages
+  # (REQ-396/REQ-395a) survive the clean.
+  if [[ -n "$(git -C "$DEPLOY_DIR" status --porcelain)" ]]; then
+    echo -e "${YELLOW}  Deploy tree has uncommitted changes — discarding before pull.${NC}"
+    git -C "$DEPLOY_DIR" checkout -- .
+    git -C "$DEPLOY_DIR" clean -fd
+  fi
   DEPLOY_PREV=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
   if ! git -C "$DEPLOY_DIR" pull --ff-only origin main; then
     echo -e "${RED}Deploy FAILED — pull could not fast-forward (non-ff or conflict).${NC}"

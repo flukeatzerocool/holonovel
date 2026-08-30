@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-30 — Push pipeline: discard deploy-tree drift before pull
+
+- `push-pipeline.sh` step 9 now discards any uncommitted working-tree edits in
+  the deploy clone (`checkout -- .` + `clean -fd`) before `git pull --ff-only`,
+  matching the AGENTS.md Two-Repo Workflow contract ("discards any uncommitted
+  working tree edits"). A stale edit (obsolete `HOST_VERSION`) had blocked the
+  fast-forward and failed REQ-418 deploy verification; `dist/`, `node_modules/`,
+  and `.holonovel-state/` remain gitignored, so runtime data and ruleset
+  packages survive.
+
 ## 2026-08-30 — Push pipeline: push origin when local main is ahead
 
 - Fixed `push-pipeline.sh` skipping the origin push when the working tree is
