@@ -1,9 +1,16 @@
+#!/usr/bin/env npx tsx
+/**
+ * version-check.ts — verify version references are in sync. [gate]
+ *
+ * Checks that holonovel/package.json, AGENTS.md, DECISIONS.md, src/index.ts,
+ * and the lockfile all match the root package.json version, and that the
+ * version is not stale against the CHANGELOG (REQ-107a). Exit codes: 0 = in
+ * sync, 1 = a mismatch or stale version.
+ */
 import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 const rootVersion = rootPkg.version;

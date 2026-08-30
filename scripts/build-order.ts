@@ -1,12 +1,19 @@
+#!/usr/bin/env npx tsx
+/**
+ * build-order.ts — assemble → check → propagate → regenerate fingerprints. [build tool]
+ *
+ * Runs the spec build in dependency order and records a build-order
+ * fingerprint for spec_health visibility. Exit codes: 0 = complete, 1 = a
+ * step failed.
+ */
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { regenerateContractFingerprints } from "./lib/contract-fingerprint.js";
+import { SERVERS } from "./lib/servers.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 const FINGERPRINT_PATH = join(root, ".holonovel-state", "build-order-fingerprint.json");
 
 function hashDir(dir: string): string {
@@ -191,7 +198,7 @@ const after = computeCurrent();
 saveFingerprint(after);
 
 // Copy fingerprint to server data dirs for spec_health visibility
-for (const server of ["holonovel"]) {
+for (const server of SERVERS) {
   const destDir = join(root, server, ".holonovel-state");
   if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
   writeFileSync(join(destDir, "build-order-fingerprint.json"), JSON.stringify(after, null, 2) + "\n");

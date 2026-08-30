@@ -1,3 +1,4 @@
+#!/usr/bin/env npx tsx
 /**
  * build-ruleset.ts — Ruleset-build entry point (REQ-395a).
  *

@@ -1,4 +1,10 @@
 #!/usr/bin/env npx tsx
+/**
+ * spec-health-trends.ts — spec health metrics over revisions. [informational]
+ *
+ * Reports REQ count, test count, line count, heading/table/code-block counts,
+ * and cross-reference density. Exit codes: 0 always.
+ */
 import { readSpec } from "./lib/parse-spec.js";
 
 function main(): void {

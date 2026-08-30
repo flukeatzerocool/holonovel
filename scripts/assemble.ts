@@ -1,8 +1,17 @@
+#!/usr/bin/env npx tsx
+/**
+ * assemble.ts — assemble holonovel.md from spec/ source files. [build tool]
+ *
+ * Reads the core section files and the appendix files in canonical order and
+ * writes the assembled `holonovel.md` plus the reference-implementation copy
+ * (`holonovel/holonovel.md`). Exit codes: 0 = assembled, 1 = a source file is
+ * missing or empty.
+ */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const ROOT = path.resolve(import.meta.dirname, "..");
 const SPEC_DIR = path.join(ROOT, "spec");
 const OUT_FILE = path.join(ROOT, "holonovel.md");
 const REF_IMPL_OUT = path.join(ROOT, "holonovel", "holonovel.md");

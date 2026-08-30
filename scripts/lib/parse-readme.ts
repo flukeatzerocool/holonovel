@@ -1,8 +1,11 @@
+// parse-readme.ts — README structural parsers.
+//
+// Headings, links, blockquotes, and bullet-list extraction shared by
+// validate-readme.ts.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 const DEFAULT_README = path.resolve(__dirname, "..", "..", "README.md");
 
 export function readReadme(readmePath?: string): string {

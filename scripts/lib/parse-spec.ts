@@ -1,8 +1,11 @@
+// parse-spec.ts — shared spec parsers.
+//
+// readSpec, REQ-boundary extraction, heading extraction, and sentence
+// splitting shared by validate.ts and the analysis scripts.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 const DEFAULT_SPEC = path.resolve(__dirname, "..", "..", "holonovel.md");
 
 export function readSpec(specPath?: string): string {

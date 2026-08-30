@@ -1,8 +1,16 @@
+#!/usr/bin/env npx tsx
+/**
+ * check-traceability.ts — DECISIONS.md traceability drift check. [informational]
+ *
+ * Cross-references Deferred/Waived traceability rows against tools and
+ * resources registered in the server source, reporting stale entries as
+ * warnings. Exit codes: 0 always (findings are warnings, not failures).
+ */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { SERVERS } from "./lib/servers.js";
 
 const root = join(import.meta.dirname, "..");
-const SERVERS = ["holonovel"];
 
 const serverArg = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]

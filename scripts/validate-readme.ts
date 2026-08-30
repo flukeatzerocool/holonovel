@@ -1,4 +1,10 @@
 #!/usr/bin/env npx tsx
+/**
+ * validate-readme.ts — README guardrail. [gate]
+ *
+ * Verifies README structure, voice, links, and comparison table against the
+ * README DESIGN comment. Exit codes: 0 = pass, 1 = an error-class finding.
+ */
 import { readReadme, extractHeadings, extractLinks, extractBlockquotes, extractBulletLists, proseOnly, proseLines, slugify } from "./lib/parse-readme.js";
 
 const toolNames = [

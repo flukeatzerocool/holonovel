@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-30 — Script discipline codified and mechanically enforced
+
+- Added a `## Script discipline` section to AGENTS.md: every script declares
+  a role (gate / build tool / entry point / informational), follows a fixed
+  exit-code contract (0 pass, 1 failure, 2 fatal), reads the server list from
+  `scripts/lib/servers.json`, resolves paths via `import.meta.dirname`, and
+  documents its purpose in a header. Harnesses are gates and must be wired
+  into a `package.json` script.
+- Added `scripts/check-script-discipline.ts` (`npm run check-script-discipline`),
+  wired into `check` and `check:fast`, which enforces the mechanical rules
+  (shebang, header, exit codes, shared server list, path resolution, no empty
+  catch) across `scripts/` and `holonovel/scripts/`.
+- Added shared `scripts/lib/servers.json`/`servers.ts` and
+  `scripts/lib/args.ts`; de-duplicated the hardcoded `["holonovel"]` server
+  list across `spec-delta`, `spec-propagate`, `fingerprint`,
+  `check-traceability`, `build-order`, and `push-pipeline.sh`.
+- Normalized path resolution to `import.meta.dirname` across the tooling
+  (including a space-unsafe `new URL(import.meta.url).pathname` in
+  `assemble.ts`) and added shebang + JSDoc headers to the top-level scripts
+  that lacked them.
+
 ## 2026-08-30 — Ruleset-package evidence harness repaired and gated
 
 - Repaired `test-output-contracts.ts`: its wave1test seed package now records

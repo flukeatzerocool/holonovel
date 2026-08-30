@@ -1,4 +1,10 @@
 #!/usr/bin/env npx tsx
+/**
+ * graph-deps.ts — REQ dependency graph. [informational]
+ *
+ * Emits a DOT/Graphviz digraph of REQ citation edges to stdout. Exit codes:
+ * 0 always.
+ */
 import { readSpec, extractReqBodies } from "./lib/parse-spec.js";
 
 function main(): void {

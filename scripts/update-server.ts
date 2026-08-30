@@ -1,3 +1,4 @@
+#!/usr/bin/env npx tsx
 /**
  * update-server.ts — Fingerprint-scoped Update workflow invoker (§6.7).
  *

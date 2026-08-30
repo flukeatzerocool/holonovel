@@ -1,9 +1,14 @@
+#!/usr/bin/env npx tsx
+/**
+ * newsletter-push.ts — push the latest newsletter draft to Buttondown as a draft. [build tool]
+ *
+ * Requires BUTTONDOWN_API_KEY; never sends on its own. Exit codes: 0 =
+ * pushed as draft, 1 = missing key, missing draft, or API failure.
+ */
 import { readFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 // Pushes the latest newsletter draft to Buttondown as a *draft* (status
 // "draft"), so a human reviews and sends it from the Buttondown dashboard.

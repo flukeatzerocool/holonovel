@@ -1,4 +1,10 @@
 #!/usr/bin/env npx tsx
+/**
+ * fmea.ts — REQ-level failure mode and effects skeleton. [informational]
+ *
+ * Maps each REQ to the failure-mode tags (F1..Fn) it prevents. Exit codes: 0
+ * always.
+ */
 import { readSpec } from "./lib/parse-spec.js";
 
 function extractFailureModeTags(text: string): Map<number, string> {

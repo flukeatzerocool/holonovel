@@ -1,3 +1,4 @@
+#!/usr/bin/env npx tsx
 /**
  * update-rulesets.ts — Ruleset update entry point (REQ-422).
  *

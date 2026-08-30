@@ -1,10 +1,16 @@
+#!/usr/bin/env npx tsx
+/**
+ * cross-property-couple.ts — refresh README and wiki from spec-derived properties. [build tool]
+ *
+ * Extracts REQ counts, appendix ranges, gate lists, and section counts from
+ * the assembled spec and writes them into README.md and the wiki. Exit codes:
+ * 0 = refreshed, 1 = a referenced property or command was missing.
+ */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, basename } from "node:path";
 import { extractH2Headings } from "./lib/parse-spec";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = join(__dirname, "..");
+const root = join(import.meta.dirname, "..");
 
 const SPEC_PATH = join(root, "holonovel.md");
 const README_PATH = join(root, "README.md");
