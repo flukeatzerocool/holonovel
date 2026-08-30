@@ -23,6 +23,10 @@ the tracking surfaces for the coverage backlog.
   snapshot-before-NOT_FOUND bug was fixed and regression-tested. The suggested
   validator guard is recorded below as `Closed-P3`.
 - **§5.4 / §5.9 / §5.12 / §5.19 completion waves**: shipped 2026-08-24.
+- **Deploy pull blocked by stale uncommitted tree edit** (P2, 2026-08-30):
+  `push-pipeline.sh` step 9 now discards working-tree drift before
+  `git pull --ff-only`, matching the AGENTS.md Two-Repo Workflow contract;
+  verified REQ-418 deploy verification passes end-to-end.
 
 ## Scheduled-roadmap
 
