@@ -112,8 +112,9 @@ deterministic tool contracts are verified by G2 (golden transcript) and G4
 
 **Verification workflow G6 — Synthesis lifecycle (ruleset-facing).** After the
 synthesis workflow (§11) completes, verify: all synthesis items carry a source
-tag (`[supplementary]` or `[player]`); Ruleset Wisdom (`[ruleset]`, `[vendor]`) items
-survive server rebuild with unchanged ruleset hash; deactivated items are
+tag (`[supplementary]` or `[player]`); Ruleset Wisdom items the host carries
+(`[vendor]`-tagged per §11.4) survive server rebuild with unchanged ruleset
+hash; deactivated items are
 absent from `badge_briefing` and `suggest_actions` output; `synthesis://status`
 reports correct per-module active/inactive counts; `revert_synthesis` removes all
 `[supplementary]` items while preserving Ruleset Wisdom and `[player]`
