@@ -331,8 +331,10 @@ adventure_advice. Classification is feedback-driven per REQ-225: after the initi
 sort, the builder checks each module for content and re-reads source sections for
 any barren module per the REQ-225 re-read mapping. Items carry the `[ruleset]` tag
 and source anchors with HIGH confidence. The classified items form the
-ruleset-native synthesis manifest, written to the Novel's synthesis state during
-construction (Step 5). Ruleset-free builds produce an empty manifest.
+ruleset-native synthesis manifest — artifact-scope build output recorded in
+RULESET_MODEL.md and the package. A pre-built host does not inject `[ruleset]`
+items into runtime Novel state; the host's runtime Wisdom manifest carries
+vendor content only (§11.4). Ruleset-free builds produce an empty manifest.
 
 **Mechanical coupling classification.** After the seven extraction categories
 are complete and Ruleset Wisdom extraction is done, the builder SHALL classify
@@ -594,6 +596,11 @@ before any server code is written.
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
 | Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 30 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
+Synthesis population, Synthesis term anchoring, and the Wisdom mechanical
+coupling rate (REQ-375) are artifact-scope metrics — they verify the extracted
+model and the ruleset-native synthesis manifest, not runtime enactment. Runtime
+Wisdom content is the host's vendor manifest per §11.4.
+
 **Regression gate.** After each metric-targeted improvement step completes (the
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
@@ -720,6 +727,24 @@ suggestion coverage are skipped. Process compliance, surface terminology, prompt
 health, resource URI completeness, and truncation accuracy operate identically
 regardless of ruleset presence.
 
+**Host-owned metrics.** Five convergence metrics measure the pre-built host's
+implementation, not the ruleset package: Archetype coverage (Phase 1), Coupling
+derivation, Resource URI completeness, Truncation accuracy, and Narrative
+coherence (Phase 2). When a build consumes a pre-built `holonovel` host at a
+pinned version (B10), the builder SHALL record each host-owned metric as
+`host-verified — holonovel v<B10>` in DECISIONS.md (5), citing the host
+package's CONVERGENCE.md results per REQ-245b, and SHALL NOT enter the
+measurement/improvement loop for these metrics — the pre-built host cannot be
+modified by the package builder, and their improvement steps (reassign
+archetypes, add coupling rows, register URIs, fix truncation, remediate
+narrative REQs) apply only when the builder owns the host. The host-verified
+disposition requires the host's CONVERGENCE.md specification version to match
+the current spec; when it does not, the builder records a
+`[host-verification-pending]` finding in DECISIONS.md (5) and the affected
+metric is dispositioned when the host advances (§6.7). Package-owned metrics —
+MUST coverage, Mechanics fidelity, Process compliance, Suggestion coverage,
+Surface terminology, Prompt health — always run fresh per §6.5.5 and REQ-244b.
+
 ### 6.5.1 No-delta detection
 
 If a step produces zero measurable improvement from one iteration to the next
@@ -838,7 +863,8 @@ re-running the measurement/improvement iteration loop:
 - **Phase 2 (extraction-dependent):** Mechanics fidelity, Suggestion coverage.
 
 The following metrics SHALL always run fresh regardless of cache-key match —
-they measure builder implementation quality, not input stability:
+they measure builder implementation quality, not input stability, except host-owned
+metrics dispositioned `host-verified` per §6.5:
 
 - MUST coverage, Process compliance, Surface terminology, Prompt health,
   Resource URI completeness, Truncation accuracy.
@@ -1159,7 +1185,7 @@ four items is incomplete and blocks handoff.
     pre-chain state restored. (Blocking.)
 33. **Wisdom mechanical enactment** — build with synthesis active on all 7 modules.
     Create entity and NPC while Wisdom is active — assert NPC `character_sheet` shows
-    auto-populated voice_examples with `[ruleset]` tag, goals from Wisdom patterns,
+    auto-populated voice_examples with `[vendor]` tag, goals from Wisdom patterns,
     personality without manual `set_personality`/`set_voice_examples` calls (P6).
     Create countdown — assert `advance_countdown` auto-applies on `set_scene_state`, 1
     tick per transition (P7). Call `suggest_actions("negotiate with the guard")` —

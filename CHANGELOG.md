@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-29 — Host-owned metric disposition and enrichment artifact-scope
+
+- The convergence loop (§6.5) now distinguishes host-owned metrics from
+  package-owned metrics. When a build consumes a pre-built `holonovel` host,
+  five metrics — archetype coverage, coupling derivation, resource URI
+  completeness, truncation accuracy, and narrative coherence — are recorded
+  `host-verified — holonovel vX.Y.Z` from the host's CONVERGENCE.md rather
+  than entered into the builder's improvement loop, which cannot modify the
+  host. (REQ-245b, REQ-244b)
+- Ruleset-native `[ruleset]` Ruleset Wisdom items are now artifact-scope:
+  they are verified by the Phase 1 extraction metrics and shipped in the
+  package, but a pre-built host's runtime Wisdom manifest carries vendor
+  content only, so runtime enactment applies to host-carried `[vendor]`
+  content. (REQ-080b, REQ-371)
+
 ## 2026-08-29 — Terminology consistency sweep
 
 - Normalized the synthesis subsystem's vocabulary: the legacy "enrichment"

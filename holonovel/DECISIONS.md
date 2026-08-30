@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 399d4b043e0bac625eaac3c74ddf9f0b235796e806780a92ee81e926e3ce3cb6
+**Spec hash:** 9ebd23375b9d660112421bee13ccfbd65b1531ad5a0624ca67394db44b50aa81
+
+### Holonovel Spec Update — 2026-08-29 (host-owned metric disposition + enrichment artifact-scope)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — §6.5 host-owned metric disposition (archetype coverage, coupling derivation, resource URI completeness, truncation accuracy, narrative coherence recorded `host-verified` per REQ-245b); REQ-245b/244b carve-out; REQ-080b/371a/371b + §6.3/§7.7.0 scope runtime Wisdom enactment to host-carried vendor content, ruleset-native items artifact-scope; §8 G6, §6.6 S33, T422/T428 re-scoped; T495/T496 added; spec hash → 9ebd2337 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; check:full 0 errors; validate:sdd 0 errors; typecheck 0 errors; check-traceability clean |
 
 ### Holonovel Spec Update — 2026-08-24 (Wave 1: §5.1 output contracts + T26 mapping)
 
