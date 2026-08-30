@@ -92,6 +92,11 @@ if $DRY_RUN; then snapshot_state; fi
 echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → typecheck → version) ===${NC}"
 npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 
+# ── 1b. Server harness suite (a red harness blocks the push) ──
+
+echo -e "${GREEN}=== 1b. Server harness suite (test:all) ===${NC}"
+(cd holonovel && npm run test:all) || { echo -e "${RED}Server harness suite FAILED${NC}"; exit 1; }
+
 # ── 2. Cross-property coupling ──
 
 echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"

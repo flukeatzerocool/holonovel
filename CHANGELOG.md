@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-30 — Ruleset-package evidence harness repaired and gated
+
+- Repaired `test-output-contracts.ts`: its wave1test seed package now records
+  a `package_format` fingerprint (REQ-420), so the host no longer holds it
+  inactive as `[package-incompatible]` — restoring the harness to 172/172.
+- Wired the full server harness suite into the pre-push gate: added
+  `test:output-contracts`, `test:gauntlet`, `test:backfill`, `test:persistence`,
+  `test:persistence-guardrails`, `test:narrative`, `test:adventure`, and
+  `test:g7` scripts plus a `test:all` aggregate, and `push-pipeline.sh` now runs
+  the suite before pushing, so a red harness blocks the push.
+- Hardened the implementation-coverage audit: a harness whose `test(...)` calls
+  evidence server-runtime REQs must be wired into a gate (referenced by a
+  `holonovel/package.json` script) — an ungated harness is now an error instead
+  of silently holding REQs at bucket C.
+
 ## 2026-08-30 — Fingerprint evidence harness + coverage-class convention
 
 - Added `holonovel/scripts/test-fingerprints.ts` (T498–T504) plus committed

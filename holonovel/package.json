@@ -29,7 +29,16 @@
     "typecheck": "tsc --noEmit",
     "test:workflow": "tsx scripts/test-workflow.ts",
     "test:character-creation": "tsx scripts/test-character-creation.ts",
-    "test:fingerprints": "tsx scripts/test-fingerprints.ts"
+    "test:fingerprints": "tsx scripts/test-fingerprints.ts",
+    "test:output-contracts": "tsx scripts/test-output-contracts.ts",
+    "test:gauntlet": "tsx scripts/run_gauntlet.ts",
+    "test:backfill": "tsx scripts/test-backfill.ts",
+    "test:persistence": "tsx scripts/test-persistence.ts",
+    "test:persistence-guardrails": "tsx scripts/test-persistence-guardrails.ts",
+    "test:narrative": "tsx scripts/test-narrative.ts",
+    "test:adventure": "tsx scripts/test-adventure.ts",
+    "test:g7": "tsx scripts/test-g7.ts",
+    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:gauntlet && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7"
   },
   "keywords": [
     "inform",

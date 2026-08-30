@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deriveAnchor } from "../src/core/anchors.js";
+import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "wave1-"));
@@ -52,7 +53,7 @@ function contentHash(pkg: any): string {
 
 const RULESET_PKG = {
   slug: "wave1test",
-  manifest: { slug: "wave1test", name: "Wave1 Test", host_version: "2026.08.18", content_hash: "TBD", built_at: "2026-08-24", counts: { index: 3 } },
+  manifest: { slug: "wave1test", name: "Wave1 Test", host_version: "2026.08.18", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-08-24", counts: { index: 3 } },
   index: [
     { id: "fireball", anchor: "Spells > Level 3 > Fireball", source_file: "wave1test.md", content: "Fireball deals 8d6 fire damage. See Monsters > Goblin for a common target.", category: "Spells", confidence: "high", line_range: "1420-1445" },
     { id: "goblin", anchor: "Monsters > Goblin", source_file: "wave1test.md", content: "Goblin: AC 15, HP 7.", category: "Monsters", confidence: "high", line_range: "200-210" },
