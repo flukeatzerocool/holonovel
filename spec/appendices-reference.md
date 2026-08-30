@@ -2114,6 +2114,8 @@ build artifact — it is a spec-maintainer reference.
       has a coupling row in §7.7.1a with a Session-archetype source (player_signal or
       set_narrative_directive). System configuration is annotated as non-behavioral
       with justification.
+- [ ] Convergence metrics: a new §6.5 metric names its ownership class — host-owned
+      (recorded `host-verified` per §6.5) or package-owned (runs fresh).
 - [ ] REQ body is exactly one paragraph — no blank lines, no tables, no bullet lists,
       no numbered steps
 - [ ] REQ body is ≤ 800 characters

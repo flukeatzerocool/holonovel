@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-08-29 — Appendix M convergence-metric ownership convention
+
+- The REQ authoring checklist now requires a new §6.5 convergence metric to
+  name its ownership class — host-owned (recorded `host-verified`) or
+  package-owned (runs fresh) — so future metrics follow the disposition
+  established for pre-built-host builds. (Appendix M)
+
 ## 2026-08-29 — Host-owned metric disposition and enrichment artifact-scope
 
 - The convergence loop (§6.5) now distinguishes host-owned metrics from
