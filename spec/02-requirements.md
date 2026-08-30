@@ -11,7 +11,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411, 413–415 |
 | 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
 | 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
-| 5.6     | State and Lifecycle                 | 040–041, 043–044, 065, 069, 072–077, 073a, 073c, 076a–076b, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a–233b, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
+| 5.6     | State, Lifecycle, Entities, and Adventure Content                 | 040–041, 043–044, 065, 069, 072–077, 073a, 073c, 076a–076b, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a–233b, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
 | 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 312, 312a–312d, 409–410, 416–417  |
 | 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a–084b, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–246, 246a–246b, 260–266, 328, 333 |
 | 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
@@ -497,7 +497,7 @@ _Check:_ T368.
 ### 5.3 Tools, Resources, and Lookups
 
 **REQ-020a — Tools (Part a).**
-Server behavior is modeled as MCP tools using ruleset terminology — never invented names. Infrastructure tools in four immutable categories — World, Novels, Badges, Narrative (enumerated in Appendix T) — SHALL always be present. Character creation, condition management, combat, table rolling, and session recap are the minimum ruleset-derived categories; missing categories are recorded as waivers.
+Server behavior is modeled as MCP tools using ruleset terminology — never invented names. Infrastructure tools in four immutable categories — World, Novels, Badges & Workflow, Narrative (enumerated in Appendix T) — SHALL always be present. Character creation, condition management, combat, table rolling, and session recap are the minimum ruleset-derived categories; missing categories are recorded as waivers.
 
 **REQ-020b — Tools (Part b).**
 Tools whose results depend on indexed ruleset content produce empty or context-only results when that content is absent. *Acceptance criterion:* `tools/list` includes at minimum character creation, condition management, combat, table rolling, and session recap tools; a missing category is recorded as a waiver in DECISIONS.md. _Check:_ T3, T5, T32, T33; G2.
@@ -1377,13 +1377,13 @@ Active vows appear in `badge_briefing` (`narrative_threads` section per REQ-281)
 **REQ-289e — Vow tracking (Part e).**
 Vow tools are Game Master only; the Player badge reads vow state via `badge_briefing` and `session_recap` when the vow's scope is `shared` or `party`. *Acceptance criterion:* `set_vow("Find the Crown", "Recover the lost Crown of Alara", parties=["pc_1", "pc_2"], difficulty="dangerous", scope="shared")` creates a vow with a 20-milestone track. `mark_milestone("Find the Crown")` advances the counter. `resolve_vow("Find the Crown", "The Crown is found in the Dragon's hoard", "The kingdom is restored")` moves the vow to resolved. `forsake_vow("other_vow", "Too dangerous")` marks it forsaken. _Check:_ T335.
 **REQ-322a — Vow-countdown coupling (Part a).**
-WHEN `set_vow` creates a vow (REQ-289), THE engine SHALL offer a countdown creation suggestion in the `narrative_threads` section of `badge_briefing`: the suggestion carries the vow name, a proposed countdown name (`vow:<vow_name>`), and the vow's milestone total as the tick count. The GM may accept via `respond` to auto-create a `mission`-type countdown linked to the vow. WHEN `mark_milestone` advances a vow, if a linked countdown exists with name `vow:<vow_name>`, THE engine SHALL advance that countdown by one tick. WHEN a linked countdown fills, the countdown fires its completion AND the vow becomes eligible for `resolve_vow`.
+WHEN `set_vow` creates a vow (REQ-289), THE engine SHALL offer a countdown creation suggestion in the `narrative_threads` section of `badge_briefing`: the suggestion carries the vow name, a proposed countdown name (`vow:<vow_name>`), and the vow's milestone total as the tick count. The GM may accept via `respond` to auto-create a countdown with `clock_type: mission` linked to the vow. WHEN `mark_milestone` advances a vow, if a linked countdown exists with name `vow:<vow_name>`, THE engine SHALL advance that countdown by one tick. WHEN a linked countdown fills, the countdown fires its completion AND the vow becomes eligible for `resolve_vow`.
 
 **REQ-322b — Vow-countdown coupling (Part b).**
 WHEN `resolve_vow` or `forsake_vow` closes a vow, any linked countdown with name `vow:<vow_name>` is removed. The coupling is optional — the GM may decline the suggestion and manage vows via milestones alone (current behavior). Vow-countdown links SHALL survive Novel persistence and SHALL be included in `set_pause_context` captures (REQ-232).
 
 **REQ-322c — Vow-countdown coupling (Part c).**
-For shared-scope vows, the countdown suggestion and linked countdown state SHALL be visible in Player and Observer `badge_briefing` `narrative_threads`; GM-scope vow countdowns remain GM-only. *Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a countdown suggestion in `badge_briefing`. Accepting creates a 20-tick `mission`-type countdown named `vow:Find Crown`. `mark_milestone("Find Crown")` advances both the milestone counter and the countdown.
+For shared-scope vows, the countdown suggestion and linked countdown state SHALL be visible in Player and Observer `badge_briefing` `narrative_threads`; GM-scope vow countdowns remain GM-only. *Acceptance criterion:* `set_vow("Find Crown", ..., difficulty="dangerous")` produces a countdown suggestion in `badge_briefing`. Accepting creates a 20-tick `clock_type: mission` countdown named `vow:Find Crown`. `mark_milestone("Find Crown")` advances both the milestone counter and the countdown.
 
 **REQ-322d — Vow-countdown coupling (Part d).**
 Filling the countdown makes the vow eligible for `resolve_vow`. `resolve_vow("Find Crown", ...)` removes the countdown. _Check:_ T369.
@@ -1856,7 +1856,7 @@ Cold checkout (no stored fingerprints) and builds where more than half the finge
 **REQ-314d — Fingerprint-driven partial rebuild (Part d).**
 When four of five components changed, the full Build workflow runs regardless of individual scoping rules. _Check:_ T358.
 **REQ-232a — Pause/resume context (Part a).**
-The Novel SHALL persist a `dm_context` object alongside other Novel state. Fields: `current_scene` (narrative summary of the active scene), `immediate_situation` (what is happening right now), `pending_player_action` (what the player was about to decide), `short_term_plans` (GM's next move), `long_term_plans` (GM's arc-level direction), `active_threads` (array of {name, status, urgency, description}), `npc_attitudes` (object mapping NPC ids to their current disposition strings), `player_goals` (what the player seems focused on), and `saved_at` (ISO 8601 timestamp of last save).
+The Novel SHALL persist a `gm_context` object alongside other Novel state. Fields: `current_scene` (narrative summary of the active scene), `immediate_situation` (what is happening right now), `pending_player_action` (what the player was about to decide), `short_term_plans` (GM's next move), `long_term_plans` (GM's arc-level direction), `active_threads` (array of {name, status, urgency, description}), `npc_attitudes` (object mapping NPC ids to their current disposition strings), `player_goals` (what the player seems focused on), and `saved_at` (ISO 8601 timestamp of last save).
 
 **REQ-232b — Pause/resume context (Part b).**
 All fields are optional; a call supplies only the fields the GM wants to update. `set_pause_context(fields...)` — Game Master only — merges provided fields into the existing `gm_context`. `get_pause_context()` returns a complete briefing for session resumption: `gm_context` content plus a Novel state summary plus the `badge_briefing` prompt.
@@ -1870,10 +1870,10 @@ The story journal and vow captures SHALL be stored as `story_context` (array of 
 The Game Master may manage named organizations (factions) with goals, resources, and a progress clock. `create_faction(name, description, goals?, resources?)` creates a faction. `update_faction(faction_id, fields...)` mutates existing fields. `remove_faction(faction_id)` removes a faction and its clock. Factions persist with the Novel. Resources: `faction://<id>` and `factions://` — GM-filtered. Faction clocks update faction progress and are surfaced in `badge_briefing`. When a faction clock fills, the faction's status updates to the next goal and a new clock begins — surfaced as a `[WARNING]` in `spec_health`. Factions appear in `gm_context.active_threads` (REQ-232).
 
 **REQ-233b2 — Factions (Part b2).**
-Faction clocks SHALL advance by one tick at scene transitions (REQ-125). *Coupling:* `create_faction` SHALL auto-create a `faction`-type countdown (REQ-073) for the faction's primary goal. `advance_countdown` on a faction-named clock SHALL update the faction's clock display.
+Faction clocks SHALL advance by one tick at scene transitions (REQ-125). *Coupling:* `create_faction` SHALL auto-create a countdown with `clock_type: faction` (REQ-073) for the faction's primary goal. `advance_countdown` on a faction-named clock SHALL update the faction's clock display.
 
 **REQ-233b3 — Factions (Part b3).**
-When a relationship is set between a faction and an entity (REQ-236), the faction name SHALL be accepted as valid for either direction. *Acceptance criterion:* `create_faction("Merchant Guild", "Controls trade routes", goals=["Expand to East Dock"])` creates a faction with a `faction`-type clock; `faction://<id>` returns the faction with its current clock position. _Check:_ T269.
+When a relationship is set between a faction and an entity (REQ-236), the faction name SHALL be accepted as valid for either direction. *Acceptance criterion:* `create_faction("Merchant Guild", "Controls trade routes", goals=["Expand to East Dock"])` creates a faction with a `clock_type: faction` countdown; `faction://<id>` returns the faction with its current clock position. _Check:_ T269.
 **REQ-233a1 — World reactivity (Part a1).**
 WHEN scene_transition (REQ-125) fires, THE engine SHALL autonomously advance the world state beyond faction clocks. FOR each NPC with `goals` whose last-known location differs from a goal-relevant entity's current scene, the engine SHALL check goal progress — success produces a campaign memory fact (REQ-310), failure produces a stalled-pursuit fact. WHEN a player action triggers a state change in a connected entity (relationship change, secret revelation, faction clock filling), the engine SHALL trace ripple effects through directly connected entities one hop.
 
@@ -2306,7 +2306,7 @@ The valid section token set SHALL be discoverable without triggering an error. `
 **REQ-186b — Section token discoverability (Part b).**
 The `[INVALID_INPUT]` error from `set_briefing_order` (REQ-082) SHALL continue to enumerate valid tokens for the immediate caller, but callers are not required to probe via error to find valid tokens. *Acceptance criterion:* `spec_health` returns a `section_tokens` array with token, group, and has_content fields. `set_briefing_order` with an unknown token returns `[INVALID_INPUT]` with valid tokens enumerated — and the enumerated list matches the `section_tokens` field exactly. _Check:_ T225.
 **REQ-083a — Dynamic lore (Part a).**
-The Game Master may set (upsert — create or update), toggle, group, and remove keyword-triggered lore entries via `set_lore_entry(key, content, ...)`. If the key already exists, provided fields merge into the existing entry; if the key does not exist, a new entry is created. `content` is required for new entries and optional for updates. Entries activate when trigger keywords appear in scene description text (§7.7 Scene → Lore coupling), are badge-filtered, support priority ordering and sticky persistence, and are subject to a configurable token budget. The server SHALL return matching synthesis templates from `lore://templates` via `suggest_lore`.
+The Game Master may set (upsert — create or update), toggle, group, and remove keyword-triggered lore entries via `set_lore_entry(key, content, ...)`, `update_lore_entry`, `toggle_lore_entry`, and `remove_lore_entry`. If the key already exists, provided fields merge into the existing entry; if the key does not exist, a new entry is created. `content` is required for new entries and optional for updates. Entries activate when trigger keywords appear in scene description text (§7.7 Scene → Lore coupling), are badge-filtered, support priority ordering and sticky persistence, and are subject to a configurable token budget. The server SHALL return matching synthesis templates from `lore://templates` via `suggest_lore`.
 
 **REQ-083b — Dynamic lore (Part b).**
 The returned template set SHALL include all badge_scope values when called from the Game Master badge, and SHALL exclude only templates whose badge_scope is `game_master` when called from the Player badge. The template's badge_scope is advisory — the Game Master may activate a template with any badge_scope value via `set_lore_entry`, regardless of the template's source scope. Suggested templates carry the same provenance fields (key, content preview, triggers, confidence, source_url, badge_scope) as lore templates in the synthesis manifest. (REQ-155) Lore entries and groups persist with the Novel.
@@ -2582,7 +2582,7 @@ If `TTRPG_NOVEL` is set but activation fails for any reason other than non-exist
 *Acceptance criterion:* `create_novel("my-novel", "A noir detective story set in a rain-soaked city.")` creates `novels/my-novel.json` and stores the description; `end_novel()` prompts `[NEED_INPUT]` with yes/cancel; on "yes", the file is moved to `.trash/` and the roster survives. `create_novel("dragon-game", codex_adventure="dragon-hoard")` creates the Novel and imports the dragon-hoard Codex adventure scaffold atomically; `create_novel("broken", codex_adventure="nonexistent")` returns `[NOT_FOUND]`. _Check:_ T72, T73, T98, T159, T379.
 **REQ-117 — Novel retention period.** On `end_novel` confirmation, the server moves the
 Novel's save file and its backup to a `.trash/` subdirectory within the state directory
-rather than deleting them immediately. Files in `.trash/` are excluded from `listNovels`
+rather than deleting them immediately. Files in `.trash/` are excluded from `list_novels`
 and `resume_novel`. The operator may configure a retention duration via
 `TTRPG_NOVEL_RETENTION_DAYS`; files older than this duration are eligible for removal on
 next server startup. If `TTRPG_NOVEL_RETENTION_DAYS` is unset or set to zero, files in
@@ -2834,7 +2834,7 @@ commands are a Game-Master tool — the Player badge never sees parser verb name
 or the `command` tool. At every prominence level, the AI narrator resolves
 player spatial intent through `resolve_intent` (REQ-323) without exposing parser
 mechanics. At the
-default `secondary` level: In TTRPG builds, the parser `command` SHALL be
+`secondary` level: In TTRPG builds, the parser `command` SHALL be
 the only world-model tool visible in the primary help surface (under "World
 Inspection", Game Master only) — and only when
 a world model is populated. All other World tools (`create_room`, `remove_room`,
@@ -3148,7 +3148,7 @@ verbatim in the field the contract names; a fixture whose `scope`, `direction`,
 or other matching field does not contain the referenced token is a spec defect.
 
 **REQ-335a — Scene beat taxonomy (Part a).**
-The server SHALL support scene beat annotation alongside scene type (REQ-087). Valid beat values are: `setup`, `escalation`, `turning_point`, `climax`, `resolution`, and `denouement`. Beats SHALL be set via `set_scene_state` as an optional `beat` parameter and via `set_scene_type` as a `beat` parameter. The current beat SHALL surface in `badge_briefing` as a sub-element of the scene state section, immediately after the scene type tag, in the form `Beat: <beat>`.
+The server SHALL support scene beat annotation alongside scene type (REQ-087). Valid beat values are: `setup`, `escalation`, `turning_point`, `climax`, `resolution`, and `denouement`. Beats SHALL be set via `set_scene_state` as an optional `beat` parameter. The current beat SHALL surface in `badge_briefing` as a sub-element of the scene state section, immediately after the scene type tag, in the form `Beat: <beat>`.
 
 **REQ-335b — Scene beat taxonomy (Part b).**
 A scene without an explicit beat SHALL carry the default `mid_scene`. `session_recap` SHALL include beat transitions alongside scene transitions in the `scene_transitions` array as `beat_before` and `beat_after` pairs. A scene transition that retains the same beat SHALL NOT record a beat transition. The beat taxonomy is a fixed vocabulary — the six values in REQ-335a are the only valid beats, and the server SHALL reject unrecognized values with `[INVALID_INPUT]`; the GM may set any *valid* beat at any time and the server does not enforce beat progression sequences.
@@ -3393,7 +3393,7 @@ Builder SHALL verify during convergence Phase 1 that every Novel property group 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
 **REQ-375a — Wisdom mechanical coupling rate (Part a).**
-Enrichment population meets its threshold, the builder SHALL verify that Wisdom items extracted from the ruleset include Mechanical couplings — not exclusively Navigational ones. The metric measures: Wisdom items classified with Mechanical coupling nature per §7.7.1a / total Wisdom items extracted. Threshold: ≥30% Mechanical. A build where all Wisdom items are Navigational meets the Enrichment population metric but violates REQ-371's intent — the ruleset's guidance should render as server behavior.
+Synthesis population meets its threshold, the builder SHALL verify that Wisdom items extracted from the ruleset include Mechanical couplings — not exclusively Navigational ones. The metric measures: Wisdom items classified with Mechanical coupling nature per §7.7.1a / total Wisdom items extracted. Threshold: ≥30% Mechanical. A build where all Wisdom items are Navigational meets the Synthesis population metric but violates REQ-371's intent — the ruleset's guidance should render as server behavior.
 
 **REQ-375b — Wisdom mechanical coupling rate (Part b).**
 The builder SHALL improve the rate by re-reading ruleset source sections where the text carries strong behavioral language (procedures, pacing directives, structural patterns), re-classifying items from Navigational to Mechanical where the coupling contract supports it. *Acceptance criterion:* At least 30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational causes this metric to fail, directing the builder to re-classify. _Check:_ T426.

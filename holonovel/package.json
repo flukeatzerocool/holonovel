@@ -1,6 +1,6 @@
 {
   "name": "holonovel",
-  "version": "2026.08.24",
+  "version": "2026.08.29",
   "description": "Holonovel MCP server — world-model base for tabletop RPG play. Provides core scaffold (state management, badge gating, macros, enrichment) and world-model layer (rooms, things, exits, parser commands, kind hierarchy). Consumed by TTRPG servers as a build-time dependency.",
   "type": "module",
   "main": "dist/index.js",

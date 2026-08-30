@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-08-24
+Generated: 2026-08-30
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 

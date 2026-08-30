@@ -76,7 +76,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.08.24",
+  version: "2026.08.29",
 });
 
 // REQ-133 — forbidden-call audit: every tool handler is wrapped so that a

@@ -345,7 +345,7 @@ divination, detection, revelation, or information discovery →
 Knowledge-carrying; urgency creation, round-limited effects, or time pressure
 → Temporal.
 
-Classification follows the same feedback-driven pattern as Enrichment
+Classification follows the same feedback-driven pattern as Synthesis
 classification (§6.3): the builder sort-assigns each qualifying tool's
 coupling effect to the matching archetype, then checks per-category coverage.
 Mechanical coupling items below the REQ-378 thresholds trigger re-reading of
@@ -354,7 +354,7 @@ under-coupled source sections.
 Coupling metadata is written to the Mechanics property group and rendered in
 the coupling table (§7.7.1a) per pattern rules P34–P37.
 
-**Enrichment extraction memoization.** Before running REQ-225 classification,
+**Synthesis extraction memoization.** Before running REQ-225 classification,
 the builder SHALL check for a pre-built synthesis manifest per REQ-245. When
 a validated manifest is present, REQ-225 extraction and the feedback-driven
 re-classification loop SHALL be skipped. When no pre-built manifest is present,
@@ -476,7 +476,7 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
 
 2. **Register per-ruleset surfaces.** For each ruleset, assign the `<slug>_` prefix
    to every ruleset-derived tool and annotate it with the ruleset slug (REQ-379).
-   Infrastructure tools (REQ-020 World, Novels, Badges, Narrative categories) are
+    Infrastructure tools (REQ-020 World, Novels, Badges & Workflow, Narrative categories) are
    provided by the host and SHALL NOT be duplicated in a package. Per-ruleset
    resources (`ruleset://`, `monsters://`, `spells://`, `equipment://`,
    `classes://`, `adventure://`) SHALL be namespaced as `<slug>://<path>` — each
@@ -589,8 +589,8 @@ before any server code is written.
 | Category floor | Lowest per-category HIGH + MEDIUM across the 7 extraction categories | ≥ 50% | Re-extract weakest category, raise to ≥50%, or log operator-notified waiver |
 | Cross-format consistency | Sampled items with MD/JSON agreement / 10 | 100% | Re-sample, resolve mismatches in defect log, re-verify |
 | Reconciliation quality | Restated mechanics resolved to single canonical source / total restated mechanics | ≥ 90% | Re-resolve ties with additional evidence, or log `[authority-tie]` as accepted residual |
-| Enrichment population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
-| Enrichment term anchoring | Enrichment items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
+| Synthesis population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
+| Synthesis term anchoring | Synthesis items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
 | Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 30 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
@@ -598,11 +598,11 @@ before any server code is written.
 metric's pass/fail is measured), the builder SHALL re-measure metrics whose source
 data overlaps with the changed step's domain. Confidence shares source data with
 Extraction completeness and Category floor; Extraction fidelity shares with
-Cross-format consistency; Enrichment population shares source data with Extraction
-completeness; Archetype coverage shares source data with Enrichment population
+Cross-format consistency; Synthesis population shares source data with Extraction
+completeness; Archetype coverage shares source data with Synthesis population
 (Wisdom items carry archetype-informed coupling nature) and Coupling derivation
 (Phase 2 — the coupling table is derived from archetype pairs);
-Reconciliation quality and Enrichment term anchoring are independent.
+Reconciliation quality and Synthesis term anchoring are independent.
 Mechanical coupling population shares source data with Extraction completeness
 (mechanical tools populate both metrics).
 The builder records the dependency map in DECISIONS.md (5) at Phase 1 start. If any
@@ -643,7 +643,7 @@ produces zero couplings — the Phase 2 Coupling derivation metric cannot detect
 this gap because the cross-product excludes unclassified groups. Below 100%
 triggers re-reading of §7.7.0 archetype definitions and reassignment per the
 coupling pattern rules that govern each group's behavioral nature. Archetype
-coverage shares source data with Enrichment population (Wisdom items carry
+coverage shares source data with Synthesis population (Wisdom items carry
 archetype-informed coupling nature) and Coupling derivation (Phase 2 — the
 coupling table is derived from archetype pairs). A change to archetype
 assignments SHALL trigger re-verification of both metrics.
@@ -833,7 +833,7 @@ re-running the measurement/improvement iteration loop:
 
 - **Phase 1 (all nine):** Confidence, Extraction fidelity, Conversion fidelity
   (when selected), Extraction completeness, Category floor, Cross-format
-  consistency, Reconciliation quality, Enrichment population, Enrichment term
+  consistency, Reconciliation quality, Synthesis population, Synthesis term
   anchoring.
 - **Phase 2 (extraction-dependent):** Mechanics fidelity, Suggestion coverage.
 
@@ -915,7 +915,7 @@ novel defect class in DECISIONS.md (6) with a proposed metric mapping for
 future builds.
 
 **Independent invocation.** The Pattern Buffer must also be re-run whenever server source
-code changes — after Enrich, after every spec-driven update (REQ-098),
+code changes — after Synthesize, after every spec-driven update (REQ-098),
 and after any manual code modification. A previously-passing blocking sub-workflow that now
 fails is a defect. Pattern Buffer results are recorded in DECISIONS.md (6).
 
@@ -1047,7 +1047,7 @@ four items is incomplete and blocks handoff.
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_badge blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
-23. **Narrative features sweep** — exercise all six DMCP narrative tools end to end:
+23. **Narrative features sweep** — exercise the narrative tool surface end to end:
     `set_pause_context` / `get_pause_context` round-trip with auto-captured faction
     clocks, countdown positions, NPC dispositions, and entity relationships;
     `end_novel` clears gm_context; `create_faction` with faction-type countdown,
@@ -1098,7 +1098,7 @@ four items is incomplete and blocks handoff.
 27. **Synthesis lifecycle with Wisdom mechanical enactment** — requires
     synthesis to have been run. Assert `synthesis://status` reports active
     modules with per-module item counts. Deactivate a module via
-    `set_synthesis_module(module_name, false)` — assert items from that module
+    `toggle_synthesis_module(module_name, false)` — assert items from that module
     absent from synthesis surfaces. Reactivate — assert items return.
     `revert_synthesis()` — assert community synthesis items removed, ruleset-native
     items (`[ruleset]` tag) preserved, `synthesis://status` reports zero community
@@ -1192,7 +1192,7 @@ four items is incomplete and blocks handoff.
     Call `forsake_vow` — assert coupled countdown removed. (Non-blocking.)
 
 **REQ-108a — Pattern Buffer traceability (Part a).**
-Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and Performance), §5.8 (Synthesis, Lore, and Macros), §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the error contracts of REQ-002 (Error taxonomy). The builder records a sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a spec-driven update (REQ-098), the builder re-examines every sub-workflow mapped to it.
+Pattern Buffer sub-workflow exercises each requirement in §5.5 (Badges and Access), §5.6 (State, Lifecycle, Entities, and Adventure Content), §5.7 (Determinism, Safety, and Performance), §5.8 (Synthesis, Lore, and Macros), §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the error contracts of REQ-002 (Error taxonomy). The builder records a sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a spec-driven update (REQ-098), the builder re-examines every sub-workflow mapped to it.
 
 **REQ-108b — Pattern Buffer traceability (Part b).**
 Gaps — a REQ in the covered sections with no mapped sub-workflow — are logged as process-compliance findings and must be resolved before handoff. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T107.
@@ -1265,7 +1265,7 @@ S1 is always selected when new tools are added or existing tool signatures chang
 | Session segmentation, audit compaction                      | S24 |
 | Backup rotation, checkpoints, clone novel                   | S25 |
 | Narrative POV (REQ-220, REQ-223)                            | S26 |
-| Enrichment lifecycle, status, toggles                       | S27 (T429) |
+| Synthesis lifecycle, status, toggles                       | S27 (T429) |
 | Briefing ordering, voice examples, session notation         | S28 |
 | Novel export/import, action suggestions (REQ-084)           | S29, S1 |
 | Supplementary ruleset import, dynamic tool registration      | S30, S31 |
@@ -1297,7 +1297,7 @@ re-runs (§11). The operator MAY disable cascade tracing with
 `--surface-only-scoping` to select only direct-surface sub-workflows.
 
 **REQ Pattern Buffer coverage map.** The following table maps every requirement in §5.5
-(Badges and Access), §5.6 (State and Lifecycle), §5.7 (Determinism, Safety, and
+ (Badges and Access), §5.6 (State, Lifecycle, Entities, and Adventure Content), §5.7 (Determinism, Safety, and
 Performance), and REQ-002 (Error taxonomy) to at least one Pattern Buffer sub-workflow
 that exercises its contract. This table is normative — it ships with the
 specification and is mechanically verified by `scripts/validate.ts`. When a spec
@@ -1321,7 +1321,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-148 | S6, S19 | Entity ownership filter |
 | REQ-149 | S6, S19 | Badge-filtered resources |
 | REQ-150 | S6 | Server-settable entity visibility |
-| REQ-159 | S19, S27 | Enrichment briefing integration |
+| REQ-159 | S19, S27 | Synthesis briefing integration |
 | REQ-216 | S7 | Generation table badge filtering |
 | REQ-220 | S26 | Narrative point of view |
 | REQ-223 | S26 | POV mode control |
@@ -1833,7 +1833,7 @@ state fields present in stored state but absent in the updated model are preserv
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-#### Enrichment consistency check
+#### Synthesis consistency check
 
 After the gap audit and before Pattern Buffer
 re-execution, the builder SHALL scan all synthesis items (ruleset-native and

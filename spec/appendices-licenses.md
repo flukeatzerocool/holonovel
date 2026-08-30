@@ -20,5 +20,5 @@ into the README.md license footer during handoff (§6.2 H11).
 | Ironsworn SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
 
 Adding a content source requires: (a) a row in this table, (b) a LICENSE file
-in the content's subdirectory, and (c) a `source_url` field in the enrichment
+in the content's subdirectory, and (c) a `source_url` field in the synthesis
 manifest (§6.3). Removing a source removes the row.
