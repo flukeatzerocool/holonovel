@@ -6,9 +6,9 @@ completion, and the recovery path when a step fails. Read the runbook you need
 before the workflow's full §6 sections — they are the "how do I actually run
 this" index into the normative text.
 
-The entry points are also emitted by their commands: `build-ruleset` and
-`update-server` print a pointer to this appendix when invoked without valid
-arguments.
+The entry points are also emitted by their commands: `build-ruleset`,
+`update-server`, `update-rulesets`, and `migrate-user-data` print a pointer to
+this appendix when invoked without valid arguments.
 
 ### V.1 Add a ruleset (Build)
 
@@ -133,3 +133,50 @@ unbind or archive the Novel first, then retry.
 The Novel is already bound to a different slug (`[ERROR] [STATE_CONFLICT]`):
 the binding is one-way per REQ-380c — decide which slug the Novel should keep
 before re-binding.
+
+### V.7 Update a ruleset
+
+**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts).
+
+**Happy path.**
+
+1. Run `update-rulesets` with no arguments — it prints usage, the install
+   directory, and a per-package compatibility summary listing each installed
+   slug with its package-format fingerprint and whether it matches the host's
+   current value (REQ-420).
+2. For each stale slug, rebuild against the recorded source: `build-ruleset
+   <slug>=<path>` — the source registry (REQ-421) defaults the path when it is
+   omitted.
+3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
+   slug after the rebuild.
+
+**Recovery.**
+
+- A legacy package lacks a `package_format` fingerprint: rebuild it once via
+  `build-ruleset` — it is flagged stale, never dropped or hard-blocked.
+- The registry has no entry for a stale slug: re-run `build-ruleset
+  <slug>=<path>` with the explicit source path, which re-records it.
+
+### V.8 Migrate user data
+
+**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts).
+
+**Happy path.**
+
+1. Run `migrate-user-data` in its default dry-run mode — it lists artifacts
+   whose data-format fingerprint differs from the host's current value (REQ-423)
+   and reports what re-stamping would change, with no side effects.
+2. Re-run with the explicit migrate flag to re-serialize each stale artifact
+   through the interchange round-trip (REQ-096, Appendix Q), re-stamping the
+   current fingerprint while preserving inert fields and applying defaults
+   (REQ-065).
+3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
+   migration.
+
+**Recovery.**
+
+- A migration fails mid-round-trip: the original artifact is left unchanged and
+  the failure names the artifact — inspect and retry, or leave the artifact
+  stale (staleness never blocks loading, REQ-423).
+- A legacy artifact lacks a fingerprint: it is flagged `[data-stale]` and
+  re-stamped by the next explicit migration.

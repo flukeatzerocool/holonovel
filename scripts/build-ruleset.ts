@@ -12,13 +12,36 @@
  * opencode access must run the printed command manually.
  */
 
-import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync } from "node:fs";
+import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readAndCompute } from "./lib/contract-fingerprint.js";
 
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
 const decisionsFile = join(dataDir, "build-intake.md");
+// REQ-421 — slug→source registry under the state directory (REQ-397), survives
+// deploys and host updates, and is never committed to the spec repository.
+const registryFile = join(dataDir, "ruleset-registry.json");
+
+interface RegistryEntry {
+  source: string;
+  package_format: string;
+  built_at: string;
+}
+
+function loadRegistry(): Record<string, RegistryEntry> {
+  try {
+    return JSON.parse(readFileSync(registryFile, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveRegistry(entries: Record<string, RegistryEntry>): void {
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(registryFile, JSON.stringify(entries, null, 2) + "\n", "utf-8");
+}
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 
@@ -44,10 +67,10 @@ function parseArgs(argv: string[]): Intake[] {
     .filter((a) => !a.startsWith("-"))
     .map((arg) => {
       const eq = arg.indexOf("=");
-      if (eq <= 0) return { slug: "", path: "" };
+      if (eq <= 0) return { slug: arg, path: "" };
       return { slug: arg.slice(0, eq), path: arg.slice(eq + 1) };
     })
-    .filter((i) => i.slug !== "" && i.path !== "");
+    .filter((i) => i.slug !== "");
 }
 
 function hasMarkdown(dirPath: string): boolean {
@@ -81,6 +104,15 @@ if (intakes.length === 0) {
   process.exit(0);
 }
 
+// REQ-421 — a bare slug (no `=path`) defaults to the recorded source path.
+const registry = loadRegistry();
+for (const intake of intakes) {
+  if (intake.path === "" && registry[intake.slug]?.source) {
+    intake.path = registry[intake.slug].source;
+    console.log(`build-ruleset: ${intake.slug} → recorded source ${intake.path}`);
+  }
+}
+
 const failures: string[] = [];
 for (const intake of intakes) {
   if (!SLUG_RE.test(intake.slug)) {
@@ -106,6 +138,18 @@ for (const intake of intakes) {
 }
 
 recordIntake(intakes);
+
+// REQ-421 — record the slug→source registry entry with the current
+// package-format fingerprint at intake.
+{
+  const packageFormat = readAndCompute().packageFormat;
+  const stamp = new Date().toISOString();
+  const next = loadRegistry();
+  for (const intake of intakes) {
+    next[intake.slug] = { source: intake.path, package_format: packageFormat, built_at: stamp };
+  }
+  saveRegistry(next);
+}
 
 console.log("");
 console.log("Build workflow (§6.1, §6.2) must now be run by an opencode agent.");

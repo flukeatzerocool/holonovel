@@ -83,7 +83,9 @@ The verification workflows are executable — follow them in order. Use the asse
 
 **If you are adding a ruleset:**
 Read Appendix V (Workflow Runbooks) first — it names the entry point and happy path
-for Convert, Build, Synthesize, and Update before their §6 details.
+for Convert, Build, Synthesize, and Update before their §6 details. When a spec
+update changes the package contract or the state model, V.7 (`update-rulesets`)
+and V.8 (`migrate-user-data`) name the rebuild and migration entry points.
 
 **Reference material** (Appendices) is supplementary. Glance at Appendix E to learn the
 REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the

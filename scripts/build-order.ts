@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSy
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { regenerateContractFingerprints } from "./lib/contract-fingerprint.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -116,6 +117,26 @@ if (specChanged) {
   steps.push({ label: "1. Assemble spec", fn: () => run("1. Assemble spec", "npx tsx scripts/assemble.ts") });
 } else {
   steps.push({ label: "1. Assemble spec", fn: () => skip("1. Assemble spec", "spec/ unchanged") });
+}
+
+// Step 1b: Regenerate contract fingerprints (depends on assembled holonovel.md)
+if (specChanged) {
+  steps.push({
+    label: "1b. Regenerate contract fingerprints",
+    fn: () => {
+      try {
+        const fp = regenerateContractFingerprints();
+        console.log(`OK (package_format ${fp.packageFormat.slice(0, 12)}…, data_format ${fp.dataFormat.slice(0, 12)}…)`);
+        return true;
+      } catch (e: unknown) {
+        console.log("FAILED");
+        console.error(`  ${(e as Error).message}`);
+        return false;
+      }
+    },
+  });
+} else {
+  steps.push({ label: "1b. Regenerate contract fingerprints", fn: () => skip("1b. Regenerate contract fingerprints", "spec/ unchanged") });
 }
 
 // Step 2: Check spec (depends on spec/)

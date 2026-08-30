@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** badbb571e21de4a076523b3b800aa312e5b8e4db409910e4cb0ca2c2c6ad397f
+**Spec hash:** c61f7b94a050fc5a963cafaad8561b75cade45ecb365634ee38f26832cc32c11
+
+### Holonovel Spec Update — 2026-08-30 (ruleset/user-data update workflow)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + tooling + implementation — REQ-420–REQ-424 (package-format fingerprint, data-format fingerprint, slug→source registry, `update-rulesets` / `migrate-user-data` entry points); REQ-393/REQ-389c amended to resolve compatibility to the fingerprint; §6.7 user-data disposition; §1 terminology (user data, host version, fingerprints, drift/format-stale/incompatible); runbooks V.7/V.8; §6.3 chunk-size trim. Tooling: `scripts/lib/contract-fingerprint.ts`, `update-rulesets.ts`, `migrate-user-data.ts`, registry write in `build-ruleset.ts`, build-order regeneration step, INTENDED_GAP whitelist for REQ-421/422/424. Implementation: `rulesets.ts` gates on `package_format` (held inactive, `[package-incompatible]`); `state.ts` stamps `data_format` on Novels/roster/codex/server-notes and flags `[data-stale]`; `spec_health` reports `ruleset_package_alerts` + `data_health` |
+| Reused | lockfile (fingerprint components unchanged except generated dir) |
+| Verification | assemble + check:fast 0 errors (A=0, B=2 [REQ-420/423 cited-not-harnessed], C=275, E=109); typecheck 0 errors (root + holonovel); validate --impl-audit=strict 0 errors; update-rulesets + migrate-user-data smoke-tested |
 
 ### Holonovel Server Change — 2026-08-29 (REQ-087b scene_type surface reconciliation)
 
@@ -396,7 +405,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.08.29 |
+| Spec version | 2026.08.30 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

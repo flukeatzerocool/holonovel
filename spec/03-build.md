@@ -205,12 +205,8 @@ mechanical-section count SHALL be recorded as zero.
 02-requirements.md §5.2.
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
-builder's context window — chunks are sized to fill approximately 3,000 tokens of
-mechanical prose each. After extracting the first 5 mechanical sections, the builder
-measures the average token-per-section and sets per-chunk section count to
-min(20, max(3, floor(3000 / avg_tokens_per_section))). The builder records the
-chunking strategy (per-section token estimate, calibrated section count, floor/ceiling)
-in DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
+builder's context window. The builder records the chunking strategy in
+DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
 requests the next. Guidance-only sections are read in a post-processing pass after
 mechanical extraction and do not count against the mechanical-section budget.
 
@@ -467,8 +463,9 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
 1. **Assemble the artifact.** Serialize the extracted model, the full-text search
    index, every ruleset-derived tool schema with execution logic expressed as data,
    rule sources, and prompt definitions into the package. Each package carries a
-   content hash and a version manifest naming the host version it was built against
-   (REQ-389). When the model carries character-creation rules, the package SHALL
+   content hash and a version manifest carrying the package-format fingerprint
+   (REQ-420) and the host version it was built against (REQ-389). When the model
+   carries character-creation rules, the package SHALL
    include them (REQ-399). Derived-statistic formulas use a self-contained expression
    grammar over the model's value vocabulary: numeric literals, the arithmetic
    operators, parentheses, `floor`, `ceil`, `min`, and `max`, and named inputs drawn
@@ -1858,6 +1855,17 @@ existing Novel state loads without error under REQ-065 compatibility rules. Nove
 state fields present in stored state but absent in the updated model are preserved
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
+
+#### User-data disposition
+
+The builder SHALL record a user-data disposition in the gap audit naming each tier
+— ruleset packages, Novels, roster, codex, server notes — whose contract surface
+changed, with the action (rebuild / migrate / none) and the citing REQ. A delta
+touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recommend
+`update-rulesets` (REQ-422); a delta touching the state model (§7.7) SHALL
+recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
+be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
+loading by staleness (REQ-423).
 
 #### Synthesis consistency check
 

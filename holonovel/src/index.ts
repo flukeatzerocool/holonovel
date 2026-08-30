@@ -28,7 +28,7 @@ import {
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult } from "./world/parser.js";
 import {
-  RulesetManager, HOST_VERSION, rollDice, computeContentHash,
+  RulesetManager, rollDice, computeContentHash,
   RulesetToolSchema,
 } from "./rulesets.js";
 import {
@@ -76,7 +76,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.08.29",
+  version: "2026.08.30",
 });
 
 // REQ-133 — forbidden-call audit: every tool handler is wrapped so that a
@@ -499,8 +499,13 @@ function wantsDetail(detail?: boolean): boolean {
 
 // ── Ruleset packages (REQ-389, REQ-390, REQ-379) ───────────────────
 
-const rulesets = new RulesetManager(RULESET_DIR, HOST_VERSION);
+const rulesets = new RulesetManager(RULESET_DIR);
 const scanErrors = rulesets.scan();
+// REQ-420 — incompatible packages are held inactive and surfaced on stderr and
+// in spec_health.ruleset_package_alerts, never silently dropped (REQ-393).
+for (const e of scanErrors) {
+  if (e.includes("[package-incompatible]")) console.error(`holonovel: ${e}`);
+}
 const eagerSlugs = (process.env.TTRPG_RULESETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 for (const slug of eagerSlugs) {
   if (rulesets.isInstalled(slug)) {
@@ -5264,6 +5269,12 @@ server.registerTool("spec_health", {
     rulesets_installed: rulesets.installedSlugs().length,
     rulesets_hydrated: rulesets.installedSlugs().filter((s) => rulesets.isHydrated(s)).length,
     ruleset_prefix_map: isGM ? rulesets.prefixMap() : undefined,
+    // REQ-420 — incompatible packages, held inactive (REQ-393).
+    ruleset_package_alerts: isGM ? rulesets.incompatibleSlugs() : undefined,
+    // REQ-423 — [data-stale] artifacts, advisory (never block loading).
+    data_health: isGM
+      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData) }
+      : undefined,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),

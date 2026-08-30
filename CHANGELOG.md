@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-08-30 — Spec-driven update of rulesets and all user data
+
+- Added REQ-420–REQ-424: a package-format fingerprint (ruleset packages) and
+  a data-format fingerprint (Novels, roster, codex, server notes), a
+  slug→source registry, and `update-rulesets` / `migrate-user-data` entry
+  points, so a spec update now flags stale packages and state data and names
+  a repair path instead of leaving them silently incompatible.
+- Amended REQ-393 and REQ-389c so compatibility resolves to the
+  package-format fingerprint (REQ-420) rather than a frozen host-version
+  string; de-duplicated REQ-393's survival guarantee against REQ-396.
+- Extended §6.7 with a user-data disposition in the gap audit; added §1
+  terminology (user data, host version, package-format/data-format
+  fingerprint, drift/stale/format-stale/incompatible); added runbooks V.7 and
+  V.8; trimmed §6.3's chunk-size formula to contract level.
+- Implemented fingerprint stamp/compare in the server: `rulesets.ts` gates
+  packages on `package_format` (held inactive, `[package-incompatible]`);
+  `state.ts` stamps `data_format` on all persisted state and flags
+  `[data-stale]`; `spec_health` reports `ruleset_package_alerts` and
+  `data_health`.
+- Added `scripts/lib/contract-fingerprint.ts`, `update-rulesets.ts`,
+  `migrate-user-data.ts`, the registry write in `build-ruleset.ts`, and the
+  build-order regeneration step; whitelisted REQ-421/422/424 as builder-side
+  and regenerated the coverage register.
+
 ## 2026-08-29 — push-pipeline.sh TAG_TO_PUSH unbound-variable fix
 
 - Initialized `TAG_TO_PUSH` unconditionally so the mirror-sync step no
