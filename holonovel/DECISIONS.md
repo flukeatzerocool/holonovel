@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 9ebd23375b9d660112421bee13ccfbd65b1531ad5a0624ca67394db44b50aa81
+**Spec hash:** f5f637e87d265e454932453cf65a59daea895352fddbc9ac049ab733f586145e
+
+### Holonovel Spec Update — 2026-08-29 (Appendix M convergence-metric ownership convention)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — Appendix M authoring checklist gains a convergence-metric ownership item (host-owned `host-verified` vs package-owned runs-fresh); spec hash → f5f637e8 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors |
 
 ### Holonovel Spec Update — 2026-08-29 (host-owned metric disposition + enrichment artifact-scope)
 
