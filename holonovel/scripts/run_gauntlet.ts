@@ -487,8 +487,7 @@ function buildScenarios(): GauntletScenario[] {
     steps: [
       { label: "create_novel", action: T("create_novel", { name: "gauntlet-i13" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "set_scene_state full", action: T("set_scene_state", { description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively" }), assert: (r) => assertContains(r, "Scene set") },
-      { label: "set_scene_type", action: T("set_scene_type", { type: "social" }), assert: assertOK },
+      { label: "set_scene_state full", action: T("set_scene_state", { description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively", scene_type: "social" }), assert: (r) => assertContains(r, "Scene set") },
       { label: "set_narrative_directive", action: T("set_narrative_directive", { directive: "Emphasize the noise and crowd density." }), assert: assertOK },
       { label: "badge_briefing prompt — GM", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => {
         assertContains(r, "marketplace");
@@ -499,7 +498,7 @@ function buildScenarios(): GauntletScenario[] {
         assertContains(r, "Market Square");
         assertContains(r, "midday");
       }},
-      { label: "set_briefing_order", action: T("set_briefing_order", { sections: ["scene", "world", "narrative"] }), assert: assertOK },
+      { label: "set_briefing_order", action: T("set_briefing_order", { sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
     ],
   };
 
@@ -621,7 +620,7 @@ async function main() {
     "create_npc", "update_npc", "remove_npc", "set_personality", "set_voice_examples",
     "set_lore_entry", "toggle_lore_entry", "update_lore_entry", "remove_lore_entry",
     "set_countdown", "advance_countdown",
-    "set_scene_state", "set_scene_type", "set_narrative_directive", "set_briefing_order",
+    "set_scene_state", "set_narrative_directive", "set_briefing_order",
   ].sort();
   const resourceUris = [
     "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",

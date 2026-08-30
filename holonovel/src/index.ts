@@ -966,7 +966,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Lookups": ["search_rules", "suggest_actions", "spec_health"],
   "Combat (GM)": ["init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant"],
   "Conditions (GM)": ["apply_condition", "remove_condition"],
-  "Narrative (GM)": ["set_scene_state", "set_scene_type", "set_narrative_directive"],
+  "Narrative (GM)": ["set_scene_state", "set_narrative_directive"],
   "NPCs (GM)": ["create_npc", "update_npc", "remove_npc"],
   "Factions (GM)": ["create_faction", "update_faction", "remove_faction"],
   "Secrets (GM)": ["set_secret", "reveal_secret", "get_knowledge"],
@@ -989,7 +989,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 
 const GMToolsSet = new Set([
   "init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant",
-  "set_scene_state", "set_scene_type", "set_narrative_directive",
+  "set_scene_state", "set_narrative_directive",
   "create_npc", "update_npc", "remove_npc",
   "set_countdown", "advance_countdown", "remove_countdown",
   "set_lore_entry", "update_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group",
@@ -2713,6 +2713,10 @@ server.registerTool("set_scene_state", {
     location: z.string().optional(),
     time_of_day: z.string().optional(),
     atmosphere: z.string().optional(),
+    // REQ-087 — scene type tagging: scene_type accepts a single tag or an array
+    // from the canonical catalog (social/exploration/neutral; combat is a
+    // resolution mode, added automatically on init_combat).
+    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional(),
     beat: z.enum(BEAT_VALUES).optional(),
     skip_transition_hook: z.boolean().optional(),
     // REQ-250 — adventure scene waypoint: heading anchor from the adventure
@@ -2726,7 +2730,7 @@ server.registerTool("set_scene_state", {
       skip_countdowns: z.boolean().optional(),
     }).optional(),
   },
-}, async ({ description, location, time_of_day, atmosphere, beat, skip_transition_hook, adventure_scene, fast_forward }: any) => {
+}, async ({ description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward }: any) => {
   requireGM();
   const novel = requireNovel();
   novelSnapshot();
@@ -2755,6 +2759,9 @@ server.registerTool("set_scene_state", {
   novel.scene_location = location;
   novel.scene_time_of_day = time_of_day;
   novel.scene_atmosphere = atmosphere;
+  if (scene_type !== undefined) {
+    novel.scene_type = Array.isArray(scene_type) ? scene_type : [scene_type];
+  }
 
   // REQ-155 — sticky counter decay: sticky lore entries decay by one when the
   // new scene text no longer matches their triggers; re-match resets the
@@ -2850,28 +2857,6 @@ server.registerTool("set_scene_state", {
   // REQ-255b — boundary collision advisory (operation already applied).
   const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
   return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
-});
-
-server.registerTool("set_scene_type", {
-  title: "Set Scene Type",
-  description: "Set scene type tags. Game Master only.",
-  // REQ-087 — scene type tagging: canonical catalog (social/exploration/neutral)
-  // always present; combat is a resolution mode, not a scene type.
-  inputSchema: {
-    type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]),
-    beat: z.enum(BEAT_VALUES).optional(),
-  },
-}, async ({ type, beat }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  novel.scene_type = Array.isArray(type) ? type : [type];
-  if (beat !== undefined) {
-    recordBeatTransition(novel, beat, novel.scene_description.substring(0, 60));
-    novel.scene_beat = beat;
-  }
-  state.saveNovel(novel);
-  return ok(`Scene type set to: ${novel.scene_type.join(", ")}.`);
 });
 
 server.registerTool("set_narrative_directive", {

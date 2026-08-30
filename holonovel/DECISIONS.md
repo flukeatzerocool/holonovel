@@ -1,6 +1,34 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** f5f637e87d265e454932453cf65a59daea895352fddbc9ac049ab733f586145e
+**Spec hash:** badbb571e21de4a076523b3b800aa312e5b8e4db409910e4cb0ca2c2c6ad397f
+
+### Holonovel Server Change — 2026-08-29 (REQ-087b scene_type surface reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — removed the un-mandated `set_scene_type` tool; added `scene_type` (single tag or array) to `set_scene_state` per REQ-087b; updated help categories, the scene-transition counter, and the affected harnesses (run_gauntlet I13, test-output-contracts T476, test-persistence-guardrails T476); fixed a stale `set_briefing_order` token fixture in run_gauntlet I13 |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; test-output-contracts 172/172; test-persistence-guardrails 10/10; run_gauntlet 13/13; remaining harnesses green (backfill 64, narrative 32, persistence 16, workflow 12, character-creation 10, adventure 9, g7 2); validate:fast 0 errors (A=0, B=0, C=275, E=106) |
+
+### Holonovel Spec Update — 2026-08-29 (self-consistency remediation + Spec Kit phased-artifact adoption)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — REQ-313/314 fingerprint-block check coverage repaired (single T497 cited across all eight sub-REQs); REQ-321g/h severed-sentence repair; H1–H18 handoff counts reconciled; Phase 1 convergence-metric count to eleven; G0→G0a/G0b disambiguation; AGENTS.md REQ-shape limits aligned; prose fixes (REQ-030, REQ-073c3, REQ-310d, REQ-165a, REQ-3024, REQ-052); Spec Kit phased-artifact model adopted (constitution extraction, plans/ convention); spec hash → badbb571 |
+| Repaired REQ set | REQ-313a–d, REQ-314a–d, REQ-321g, REQ-321h, REQ-211a, REQ-148, REQ-149, REQ-030, REQ-073c3, REQ-310d, REQ-165a, REQ-3024, REQ-052 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors |
+
+### Holonovel Spec Update — 2026-08-29 (terminology consistency sweep)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — legacy "enrichment" retired for "synthesis" across spec + test catalogue; seven synthesis modules counted consistently (REQ-160b, REQ-225); provenance tier reconciled to `[ruleset]`/`[vendor]`/`[supplementary]`, removing the `[novel]` tag and the `tier=` parameter (REQ-260a); stale identifiers corrected: `dm_context`→`gm_context` (REQ-232a), `listNovels`→`list_novels` (REQ-117), `toggle_synthesis_module` (REQ-231); removed the undefined `set_scene_type` tool reference (REQ-335a, T436); `TTRPG_WORLD_PROMINENCE` default → `visible` (REQ-309) |
+| Reused | server (renames already applied 2026-08-21), extraction, tooling |
+| Verification | assemble + check:fast 0 errors |
 
 ### Holonovel Spec Update — 2026-08-29 (Appendix M convergence-metric ownership convention)
 
