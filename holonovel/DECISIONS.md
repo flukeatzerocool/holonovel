@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** c61f7b94a050fc5a963cafaad8561b75cade45ecb365634ee38f26832cc32c11
+**Spec hash:** 38ac21694ddd8dca3c57414df9a19a92a9c2f6000a468cd022ab297d64a65d69
+
+### Holonovel Spec Update — 2026-08-30 (§5.18 fingerprint evidence + Appendix M coverage-class convention)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec (Appendix M coverage-classification checklist item — classifies new REQs as server-runtime bucket C vs builder/verifier-side bucket E by which surface owes the behavior) + implementation (`rulesets.ts` surfaces the `[package-incompatible]` flag in `spec_health.ruleset_package_alerts`, not only on stderr — REQ-420) + new `test-fingerprints.ts` harness (T498–T504) + committed state fixtures (`testdata/state/`) |
+| Reused | extraction, lockfile |
+| Verification | test-fingerprints 8/8; test-character-creation 10/10; test-backfill 64/64; typecheck 0 errors (root + holonovel); check:fast 0 errors; validate --impl-audit=strict 0 errors; register REQ-420/423 → C (B 2→0, C 275→277) |
 
 ### Holonovel Spec Update — 2026-08-30 (ruleset/user-data update workflow)
 

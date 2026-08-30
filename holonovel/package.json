@@ -28,7 +28,8 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test:workflow": "tsx scripts/test-workflow.ts",
-    "test:character-creation": "tsx scripts/test-character-creation.ts"
+    "test:character-creation": "tsx scripts/test-character-creation.ts",
+    "test:fingerprints": "tsx scripts/test-fingerprints.ts"
   },
   "keywords": [
     "inform",

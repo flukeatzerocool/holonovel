@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-30 — Fingerprint evidence harness + coverage-class convention
+
+- Added `holonovel/scripts/test-fingerprints.ts` (T498–T504) plus committed
+  state fixtures (`holonovel/testdata/state/`) exercising the §5.18
+  fingerprint/entry-point REQs: package-format fingerprint (REQ-420),
+  source registry (REQ-421), update entry point (REQ-422), data-format
+  fingerprint (REQ-423), and migration entry point (REQ-424).
+- Surfaces the `[package-incompatible]` flag in `spec_health` (REQ-420),
+  not only on stderr, so incompatible packages name their slug and both
+  fingerprints in `ruleset_package_alerts`.
+- Appendix M gains a coverage-classification checklist item: new REQs are
+  classified server-runtime (bucket C) vs builder/verifier-side (bucket E)
+  by which surface owes the behavior, not by section title.
+- Coverage register: REQ-420 and REQ-423 promoted B → C (bucket B now 0).
+
 ## 2026-08-30 — Spec-driven update of rulesets and all user data
 
 - Added REQ-420–REQ-424: a package-format fingerprint (ruleset packages) and
