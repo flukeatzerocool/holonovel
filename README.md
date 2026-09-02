@@ -40,8 +40,9 @@ README DESIGN:
     landscape — one row per competitor category. §4 is for contributors.
 
   Orientation.
-    Exactly three elements: h1 heading, bold tagline on its own line,
-    one prose paragraph (≤80 words). The paragraph defines "holonovel"
+    Exactly four elements: h1 heading, bold tagline on its own line,
+    the MCP server card badge (below the tagline), one prose paragraph
+    (≤80 words). The paragraph defines "holonovel"
     as a Star Trek holodeck program. States what Holonovel builds (the
     server, the Holodeck), what a campaign becomes (the program, the
     Novel), and what rulebooks become (the engine). Names D&D 5e and
@@ -179,6 +180,8 @@ README DESIGN:
 # Holonovel
 
 **Build the Holodeck. Load your campaign.**
+
+[![holonovel MCP server](https://glama.ai/mcp/servers/flukeatzerocool/holonovel/badges/card.svg)](https://glama.ai/mcp/servers/flukeatzerocool/holonovel)
 
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
 step inside as a character and the rules govern. Holonovel builds the server (the
