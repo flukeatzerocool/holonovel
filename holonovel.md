@@ -2841,16 +2841,16 @@ Pure-state tool: idempotent, fully reversible — re-running synthesis after rev
 **REQ-103d — Synthesis reversion (Part d).**
 Re-running synthesis repopulates modules; a second revert call changes nothing (idempotent). _Check:_ T94, T125.
 **REQ-260a — Granular synthesis activation (Part a).**
-The Game Master may manage synthesis items individually. `synthesis (action: list, module?)` returns all available items with key, preview, source, source tag, and activated status — Ruleset Wisdom resolved from current build output, synthesis from Novel JSON. `synthesis (action: activate, module, key)` activates one item: Ruleset Wisdom adds the key to the Novel's `synthesis_activated` keys; synthesis items marked active in Novel JSON. `synthesis (action: deactivate, module, key)` deactivates without removal. `remove_synthesis_item(module, key)` permanently deletes a synthesis item from the Novel JSON.
+The Game Master may manage synthesis items individually. `synthesis (action: list, module?)` returns all available items with key, preview, source, source tag, and activated status — Ruleset Wisdom resolved from current build output, synthesis from Novel JSON. `synthesis (action: activate, module, key)` activates one item: Ruleset Wisdom adds the key to the Novel's `synthesis_activated` keys; synthesis items marked active in Novel JSON. `synthesis (action: deactivate, module, key)` deactivates without removal. Permanent deletion is limited to player-authored items via `synthesis (action: player_remove)` (REQ-261) and to bulk Tier-2 removal via reversion (REQ-103); Ruleset Wisdom is never removed.
 
 **REQ-260b — Granular synthesis activation (Part b).**
-Calling `remove_synthesis_item` on a Ruleset Wisdom item SHALL return `[ERROR] [RULE_VIOLATION]` directing the caller to `synthesis (action: deactivate)` — Ruleset Wisdom items cannot be removed, only deactivated. The above activation, deactivation, and removal tools are Game Master only. Activation and deactivation state persists with the Novel. Existing `synthesis (action: toggle)` and `synthesis (action: revert)` tools remain unchanged as convenience shortcuts.
+Ruleset Wisdom items cannot be removed, only deactivated; activation and deactivation tools are Game Master only. Activation and deactivation state persists with the Novel. Existing `synthesis (action: toggle)` and `synthesis (action: revert)` tools remain unchanged as convenience shortcuts.
 
 **REQ-260c — Granular synthesis activation (Part c).**
-The Player badge may call `synthesis (action: activate)` and `synthesis (action: deactivate)` on items they authored (tagged `[player]`) — items stored under the `player_synthesis` key in Novel JSON. Player-created items are active immediately upon creation; `synthesis (action: deactivate)` suppresses a player item from the player's `badge_briefing` and synthesis surfaces without deleting it. The Player may NOT call `remove_synthesis_item` — they use `synthesis (action: player_remove)` (REQ-261) for their own items.
+The Player badge may call `synthesis (action: activate)` and `synthesis (action: deactivate)` on items they authored (tagged `[player]`) — items stored under the `player_synthesis` key in Novel JSON. Player-created items are active immediately upon creation; `synthesis (action: deactivate)` suppresses a player item from the player's `badge_briefing` and synthesis surfaces without deleting it. The Player deletes their own items via `synthesis (action: player_remove)` (REQ-261).
 
 **REQ-260d — Granular synthesis activation (Part d).**
-Player badge attempts to activate, deactivate, or remove any item NOT tagged `[player]` SHALL return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* `synthesis (action: list)` shows all items with activation status and source tag; `synthesis (action: activate, "voice_examples", "goblin-snarl")` activates the item, surfacing it; `synthesis (action: deactivate, "voice_examples", "goblin-snarl")` removes it from surfaces; `remove_synthesis_item("voice_examples", "goblin-snarl")` on a Ruleset Wisdom item returns `[RULE_VIOLATION]`; on a synthesis item it deletes it; Player calls `synthesis (action: deactivate)` on a `[player]` item — hidden from player briefing; Player calls `synthesis (action: activate)` on a `[ruleset]` item — `[FORBIDDEN]`. _Check:_ T319.
+Player badge attempts to activate or deactivate any item NOT tagged `[player]` SHALL return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* `synthesis (action: list)` shows all items with activation status and source tag; `synthesis (action: activate, "voice_examples", "goblin-snarl")` activates the item, surfacing it; `synthesis (action: deactivate, "voice_examples", "goblin-snarl")` removes it from surfaces; Player calls `synthesis (action: deactivate)` on a `[player]` item — hidden from player briefing; Player calls `synthesis (action: activate)` on a `[ruleset]` item — `[FORBIDDEN]`. _Check:_ T319.
 **REQ-261a — Player synthesis (Part a).**
 The player may create synthesis items in a player-facing subset of output modules: `voice_examples`, `action_patterns`, `supplementary_guidance`, `narrative_voices`, and `lore_templates` — modules where player-authored content enriches the shared story experience.
 
@@ -7182,7 +7182,7 @@ spec minimum shown in this table. Overrides below the minimum are rejected with 
 warning and the default is used. The per-pass cap limits how many new items a single
 internal synthesis pass produces. When synthesis would exceed a total Novel cap, it
 produces up to the cap and records the overflow count in the synthesis result. The GM
-may remove items via `synthesis (action: deactivate)` or `remove_synthesis_item` to make room.
+may deactivate items via `synthesis (action: deactivate)` to make room.
 
 **Confidence.** Synthesis confidence uses source authority for external items,
 not mechanical completeness:

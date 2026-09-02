@@ -2,6 +2,15 @@
 
 **Spec hash:** 4db5c90134497939cce6e990b893a7ae35402357c209111f4990385dda312d33
 
+### Holonovel Spec Update — 2026-09-02 (reconcile remove_synthesis_item)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — REQ-260a/b/c/d amended to drop the spec-described `remove_synthesis_item` permanent-delete operation, which was never implemented in either the 127-tool or 25-tool surface and contradicted REQ-080b (only player-authored synthesis lives in Novel JSON; Ruleset Wisdom is always present and non-removable). GM removal-from-surfaces is `synthesis (action: deactivate)`; permanent deletion is `synthesis (action: player_remove)` (player items, REQ-261) or `synthesis (action: revert)` (Tier-2 bulk, REQ-103). §8 synthesis budget prose updated to match. No implementation change — the surface already matched the amended contract. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 281, E 110); typecheck 0 errors; no remaining `remove_synthesis_item` references in spec/ |
+
 ### Holonovel Spec Update — 2026-09-02 (spec prose sync to the 25-tool surface)
 
 | Field | Value |
