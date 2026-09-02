@@ -1050,6 +1050,10 @@ Every tool carries a `title` field with the ruleset's own term for that action. 
 
 **REQ-024b — Tool documentation (Part b).**
 Descriptions longer than three sentences are truncated in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
+
+**REQ-427 — Tool parameter semantics.**
+Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
+
 **REQ-025a — spec_health (Part a).**
 A `spec_health` tool reports build-health metrics derived from live registrations at call time — not from hardcoded numeric literals.
 
@@ -4049,6 +4053,9 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 
 **REQ-424 — User-data migration entry point.**
 The distribution SHALL expose a documented entry point — `migrate-user-data` — that lists artifacts whose data-format fingerprint (REQ-423) differs from the host's current value or is absent and, when explicitly invoked, re-stamps each through the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults per REQ-065. The default invocation SHALL be a dry run with no side effects. A migration that fails before completing SHALL leave the original artifact unchanged and name the artifact. *Acceptance criterion:* the default invocation changes nothing; an explicit run re-stamps stale artifacts; re-export after migration is unchanged. _Check:_ T502.
+
+**REQ-428 — Registry-published distribution.**
+The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 ### 5.19 State Persistence Guardrails
 
@@ -8824,6 +8831,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-426b | Tool-UI linkage (Part b) | 2026-09-01 |
 | REQ-426c | MCP Apps capability negotiation (Part c) | 2026-09-01 |
 | REQ-426d | UI resource security (Part d) | 2026-09-01 |
+| REQ-427 | Tool parameter semantics | 2026-09-02 |
+| REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9351,6 +9360,8 @@ diet.
 | T506 | Automated | Ruleset-declared format: install a fixture package declaring an additional format — assert it renders on package-defined surfaces, appears in the surface's `[INVALID_INPUT]` enumeration and in `spec_health`; request an undeclared format — assert `[INVALID_INPUT]`. | REQ-425d |
 | T507 | Automated | MCP Apps UI surface: negotiate the extension — assert `ui://` templates for stat-block, codex, lore, and Novel surfaces return `text/html;profile=mcp-app` matching the artifact's `html` render; `character_sheet` result carries `ui://` linkage metadata; every `ui://` resource declares no external origins in CSP metadata. | REQ-426a, REQ-426b, REQ-426c, REQ-426d |
 | T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
+| T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
+| T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 
 ---
 

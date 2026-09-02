@@ -48,10 +48,26 @@ jobs:
         if: steps.check.outputs.should_publish == 'true'
         working-directory: holonovel
         run: npm publish --provenance --access public
-      - name: Publish to MCP Registry
+      - name: Sync server.json version with package.json
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
+          CANONICAL=$(node -e "console.log(require('./holonovel/package.json').version.split('.').map((p,i)=>i===0?p:String(parseInt(p,10))).join('.'))")
+          node -e "
+            const fs = require('fs');
+            const p = 'holonovel/server.json';
+            const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+            j.version = process.argv[1];
+            j.packages[0].version = process.argv[1];
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+          " "$CANONICAL"
+      - name: Validate server.json
         if: steps.check.outputs.should_publish == 'true'
         run: |
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           chmod +x mcp-publisher
+          ./mcp-publisher validate holonovel/server.json
+      - name: Publish to MCP Registry
+        if: steps.check.outputs.should_publish == 'true'
+        run: |
           ./mcp-publisher login github-oidc
-          ./mcp-publisher publish --file=holonovel/server.json
+          ./mcp-publisher publish holonovel/server.json

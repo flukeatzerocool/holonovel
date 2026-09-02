@@ -83,6 +83,27 @@ ok = checkFileContains(
   "holonovel/src/core/state.ts: reads version dynamically"
 ) && ok;
 
+// server.json carries the npm-canonical version (leading zeros stripped), which
+// is the form the MCP registry's npm validator resolves. Compare against the
+// normalized root version, not the padded CalVer.
+const npmCanonical = (v: string): string =>
+  v.split(".").map((p, i) => (i === 0 ? p : String(parseInt(p, 10)))).join(".");
+
+const holoServerJson = readJson(join(root, "holonovel", "server.json"));
+ok = check(
+  "holonovel/server.json",
+  holoServerJson.version as string,
+  npmCanonical(rootVersion)
+) && ok;
+const holoServerPackages = holoServerJson.packages as
+  | Array<{ version?: string }>
+  | undefined;
+ok = check(
+  "holonovel/server.json packages[0].version",
+  holoServerPackages?.[0]?.version ?? null,
+  npmCanonical(rootVersion)
+) && ok;
+
 // ── REQ-107a: version currency vs CHANGELOG ──
 
 const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf-8");

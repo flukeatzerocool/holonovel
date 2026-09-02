@@ -1275,7 +1275,7 @@ const INTENDED_GAP_REQS = new Set([
   // build-ruleset registry), not runtime server behavior. REQ-420 and REQ-423
   // are server-runtime (fingerprint stamp/compare) and are cited in
   // holonovel/src — they are NOT whitelisted.
-  "REQ-421", "REQ-422", "REQ-424",
+  "REQ-421", "REQ-422", "REQ-424", "REQ-428",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline

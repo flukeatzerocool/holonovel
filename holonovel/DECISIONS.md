@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 36945745fc9d064fc5fc8793f3c0b7090fcf0d9598b61d19bc303fabe4666982
+**Spec hash:** 0dfc5b09b2167289de96d49da8aa115a99865f8d8869a72720831d79e1598a35
+
+### Holonovel Spec Update — 2026-09-02 (tool-definition quality + registry-published distribution)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — REQ-427 (tool parameter semantics: every advertised parameter carries a JSON Schema description) + REQ-428 (registry-published distribution: container image, server.json version matching the npm-canonical host version, fail-closed publish) + tests T509–T510. Implementation: three-clause descriptions ("Use when"/"Do NOT use when", REQ-024) and parameter `.describe()` on all 127 tools; `publish.yml` fixed to pass server.json as a positional argument (mcp-publisher ignores `--file=`), with a validate gate and canonical-version injection; `scripts/version-check.ts` gained a server.json guard; new `holonovel/Dockerfile` + `.dockerignore` + root `glama.json`; new `test-tool-definitions.ts` harness. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 280, E 110); typecheck 0 errors; holonovel harnesses all green (test-tool-definitions T509/T510 3/3; full test:all green); version-check 0 exit |
 
 ### Holonovel Spec Update — 2026-09-01 (output format catalog + MCP Apps UI surface)
 
@@ -423,7 +432,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.01 |
+| Spec version | 2026.09.02 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

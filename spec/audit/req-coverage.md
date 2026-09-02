@@ -23,7 +23,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-022 | Resources (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T16 | — |
 | REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T22, T26, T49, T50, T155, T480 | — |
-| REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T488 | — |
+| REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488 | — |
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
@@ -394,4 +394,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-424 | User-data migration entry point | 5.18 Workflow Entry Points | E | T502, T504 | — |
 | REQ-425 | Output format catalog (Part a) (4 sub-parts) | 5.1 Output and Error Contracts | C | T505, T506 | — |
 | REQ-426 | MCP Apps UI resource surface (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T507, T508 | — |
+| REQ-427 | Tool parameter semantics | 5.3 Tools, Resources, and Lookups | C | T509 | — |
+| REQ-428 | Registry-published distribution | 5.18 Workflow Entry Points | E | T510 | — |
 
