@@ -91,44 +91,44 @@ async function main() {
 
   {
     const proc = await boot();
-    await call(proc, "create_novel", { name: "guardrails" });
+    await call(proc, "novel", { action: "create",  name: "guardrails" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T469/REQ-400: State-Persistence Directive in GM briefing", async () => {
       const b = await briefing(proc);
       assertContains(b, "State persistence");
-      assertContains(b, "set_scene_state");
+      assertContains(b, "scene, action: set");
     });
 
     await test("T470/REQ-401: state_ledger token renders with mutation counts", async () => {
-      await call(proc, "set_note", { key: "ledger-note", content: "v" });
+      await call(proc, "note", { action: "set",  key: "ledger-note", content: "v" });
       const b = await briefing(proc);
       assertContains(b, "state_ledger");
       assertContains(b, "note: 1");
     });
 
     await test("T476/REQ-407: persistence tools listed for GM regardless of scene type", async () => {
-      await call(proc, "set_scene_state", { description: "combat scene", scene_type: "combat" });
+      await call(proc, "scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
-      for (const tool of ["set_scene_state", "record_story", "set_countdown", "set_note", "set_personality", "create_npc", "set_vow"]) {
+      for (const tool of ["scene (set)", "story (record)", "countdown (set)", "note (set)", "character (personality)", "npc (create)", "vow (set)"]) {
         if (!b.includes(tool)) throw new Error(`missing persist tool ${tool}`);
       }
     });
 
     await test("T473/REQ-404: uncommitted roll flagged and cleared by commit", async () => {
-      await call(proc, "ask_oracle", { question: "Do they notice?", seed: "z1" });
-      const recap = await call(proc, "session_recap", {});
+      await call(proc, "scene", { action: "oracle",  question: "Do they notice?", seed: "z1" });
+      const recap = await call(proc, "session", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
-      await call(proc, "set_note", { key: "commit-note", content: "v" });
-      const recap2 = await call(proc, "session_recap", {});
+      await call(proc, "note", { action: "set",  key: "commit-note", content: "v" });
+      const recap2 = await call(proc, "session", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });
 
     await test("T474/REQ-405: auto-moment recorded on scene transition", async () => {
-      await call(proc, "set_scene_state", { description: "Transition A" });
-      await call(proc, "set_scene_state", { description: "Transition B" });
-      const exp = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      await call(proc, "scene", { action: "set",  description: "Transition A" });
+      await call(proc, "scene", { action: "set",  description: "Transition B" });
+      const exp = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
       const story = exp.novel?.story_journal ?? exp.story_journal ?? [];
       const moments = story.filter((s: any) => s.type === "moment");
       if (moments.length < 1) throw new Error(`no auto-moments, got ${story.length} journal entries`);
@@ -139,12 +139,12 @@ async function main() {
 
   {
     const proc = await boot({ TTRPG_STATE_GATE: "warn" });
-    await call(proc, "create_novel", { name: "gate-novel" });
+    await call(proc, "novel", { action: "create",  name: "gate-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T472/REQ-403b: TTRPG_STATE_GATE=warn does not block session tools", async () => {
-      const pc = await call(proc, "set_pause_context", { current_scene: "Gate scene" });
+      const pc = await call(proc, "novel", { action: "save_context",  current_scene: "Gate scene" });
       assertContains(pc, "[OK]");
-      const sw = await call(proc, "switch_novel", { slug: "gate-novel" });
+      const sw = await call(proc, "novel", { action: "switch",  slug: "gate-novel" });
       assertContains(sw, "[OK]");
     });
     await kill(proc);
@@ -152,11 +152,11 @@ async function main() {
 
   {
     const proc = await boot({ TTRPG_STATE_GATE: "block" });
-    await call(proc, "create_novel", { name: "block-novel" });
+    await call(proc, "novel", { action: "create",  name: "block-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T472/REQ-403b: TTRPG_STATE_GATE=block permits clean session close", async () => {
-      await call(proc, "set_pause_context", { current_scene: "Clean" });
-      const sw = await call(proc, "switch_novel", { slug: "block-novel" });
+      await call(proc, "novel", { action: "save_context",  current_scene: "Clean" });
+      const sw = await call(proc, "novel", { action: "switch",  slug: "block-novel" });
       assertContains(sw, "[OK]");
     });
     await kill(proc);
@@ -164,10 +164,10 @@ async function main() {
 
   {
     const proc = await boot();
-    await call(proc, "create_novel", { name: "mut-novel" });
+    await call(proc, "novel", { action: "create",  name: "mut-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "set_note", { key: "m", content: "v" });
-    await call(proc, "set_vow", { name: "The Quest", description: "d", parties: [], difficulty: "dangerous" });
+    await call(proc, "note", { action: "set",  key: "m", content: "v" });
+    await call(proc, "vow", { action: "set",  name: "The Quest", description: "d", parties: [], difficulty: "dangerous" });
     await test("T470/REQ-401: mutation counts tracked per group", async () => {
       const b = await briefing(proc);
       assertContains(b, "note: 1");
@@ -177,15 +177,15 @@ async function main() {
     await test("T471/REQ-402: session close with zero mutations surfaces [session-no-mutations]", async () => {
       // Create a fresh novel, make no state writes, then close its session by
       // resuming it again — the zero-mutation window should be recorded.
-      await call(proc, "create_novel", { name: "silent-session" });
+      await call(proc, "novel", { action: "create",  name: "silent-session" });
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "switch_novel", { slug: "mut-novel" });
-      await call(proc, "resume_novel", { slug: "silent-session" });
+      await call(proc, "novel", { action: "switch",  slug: "mut-novel" });
+      await call(proc, "novel", { action: "resume",  slug: "silent-session" });
       await call(proc, "set_badge", { badge: "game_master" });
       // Resuming again closes silent-session's first (zero-mutation) window.
-      await call(proc, "switch_novel", { slug: "mut-novel" });
-      await call(proc, "resume_novel", { slug: "silent-session" });
-      const recap = await call(proc, "session_recap", {});
+      await call(proc, "novel", { action: "switch",  slug: "mut-novel" });
+      await call(proc, "novel", { action: "resume",  slug: "silent-session" });
+      const recap = await call(proc, "session", { action: "recap" });
       assertContains(recap, "session-no-mutations");
     });
 
@@ -205,9 +205,9 @@ async function main() {
       corrupt.audit_log.push({ timestamp: new Date().toISOString(), badge: "game_master", tool: "set_note", args: "{}", output_prefix: "", hash: "bbbbbbbb" });
       corrupt._checksum = "deadbeef0000000000000000000000000000000000000000000000000000";
       writeFileSync(file, JSON.stringify(corrupt));
-      const resp = await call(proc, "resume_novel", { slug: "corrupt-novel" });
+      const resp = await call(proc, "novel", { action: "resume",  slug: "corrupt-novel" });
       assertContains(resp, "[OK]");
-      const health = JSON.parse(await call(proc, "spec_health", {}));
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
       // state_regression surfaces via the state_ledger token in briefing.
       const b = await briefing(proc);
       assertContains(b, "state-regression");

@@ -88,7 +88,7 @@ async function main() {
   {
     const proc = await boot();
     await test("T403: spec_health.narrative_coherence reports a disposition", async () => {
-      const health = await call(proc, "spec_health");
+      const health = await call(proc, "session", { action: "health" });
       assertContains(health, "narrative_coherence");
       const m = health.match(/disposition"?\s*[:=]\s*"?(\w+)/);
       if (!m || !["pass", "partial", "fail"].includes(m[1])) {

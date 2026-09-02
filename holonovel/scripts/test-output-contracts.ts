@@ -102,7 +102,7 @@ async function main() {
   await test("T210/T47/REQ-003 + REQ-060 + REQ-061/REQ-280: ruleset lookup full entry, source quoting, roll transparency", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w1", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w1", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const look = await call(p, "wave1test_lookup_spell", { key: "fireball" });
     assertContains(look, '"school": "Evocation"', "REQ-060 verbose full entry");
@@ -110,7 +110,7 @@ async function main() {
     const roll = await call(p, "wave1test_roll_check", { dice: "2d6", skill: "strength", seed: "seed1" });
     assertContains(roll, "(2d6)", "REQ-003 dice notation");
     assertContains(roll, "modifier +0", "REQ-003 modifier reporting");
-    const nl = await call(p, "search_rules", { query: "goblin" });
+    const nl = await call(p, "ruleset", { action: "search",  query: "goblin" });
     assertContains(nl, "Monsters > Goblin", "REQ-280 source anchor via search");
     await kill(p);
   });
@@ -118,7 +118,7 @@ async function main() {
   // ── REQ-064 boundary + REQ-070 anti-slop + REQ-071 tone (default budget) ──
   await test("T461/REQ-064 + T223/REQ-070 + T26/REQ-071: briefing orientation layer", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w1b" });
+    await call(p, "novel", { action: "create",  name: "w1b" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Confine tool use and responses to the current Novel", "REQ-064 badge boundary");
     assertContains(brief, "[anti-slop]", "REQ-070 anti-slop items");
@@ -129,7 +129,7 @@ async function main() {
   // ── REQ-118 prompt length budget truncation (small budget) ──
   await test("T123/REQ-118: prompt budget truncation with never-truncated elements", async () => {
     const p = await boot({ TTRPG_PROMPT_BUDGET: "500" });
-    await call(p, "create_novel", { name: "w1e" });
+    await call(p, "novel", { action: "create",  name: "w1e" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "[truncated", "REQ-118 prompt budget truncation");
     assertContains(brief, "### Badge boundary", "REQ-118 never-truncated badge boundary");
@@ -139,7 +139,7 @@ async function main() {
   // ── REQ-184 anti-slop resource + REQ-070 badge filtering ──
   await test("T223/REQ-184 + REQ-070: guidance anti-slop resource badge-filtered", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w1c" });
+    await call(p, "novel", { action: "create",  name: "w1c" });
     await call(p, "set_badge", { badge: "player" });
     const pr = await proto(p, "resources/read", { uri: "guidance://player/anti-slop" });
     assertContains(pr, "Establishing world facts", "REQ-184 player anti-slop resource");
@@ -154,9 +154,9 @@ async function main() {
   await test("T13/REQ-004 + T221/REQ-179: truncation with output:// pointer retrieval", async () => {
     seedRuleset();
     const p = await boot({ TTRPG_OUTPUT_LIMIT: "100" });
-    await call(p, "create_novel", { name: "w1d", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w1d", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
-    const s = await call(p, "search_rules", { query: "fireball" });
+    const s = await call(p, "ruleset", { action: "search",  query: "fireball" });
     assertContains(s, "[truncated — full content: output://search_rules/", "REQ-004 truncation pointer");
     const uri = s.match(/output:\/\/search_rules\/(\d+)/)?.[0];
     if (!uri) { failed++; console.error("FAIL REQ-004: no output uri"); }
@@ -183,13 +183,13 @@ async function main() {
   await test("T48/REQ-061 + T329/REQ-280: source quoting and ruleset-free null source_anchor", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w1f" });
+    await call(p, "novel", { action: "create",  name: "w1f" });
     await call(p, "set_badge", { badge: "game_master" });
     // Ruleset-free novel with installed rulesets: search reports no binding.
-    const rf = await call(p, "search_rules", { query: "nothing" });
+    const rf = await call(p, "ruleset", { action: "search",  query: "nothing" });
     assertContains(rf, "No ruleset bound", "REQ-280 ruleset-free no source anchor path");
-    await call(p, "create_novel", { name: "w1g", ruleset: "wave1test" });
-    const g = await call(p, "search_rules", { query: "fireball" });
+    await call(p, "novel", { action: "create",  name: "w1g", ruleset: "wave1test" });
+    const g = await call(p, "ruleset", { action: "search",  query: "fireball" });
     assertContains(g, "source_anchor", "REQ-280 source_anchor field present");
     assertContains(g, "---", "REQ-061 source block present");
     await kill(p);
@@ -198,15 +198,20 @@ async function main() {
   // ── REQ-106 spec repo URL + REQ-413/414/415 catalog surfaces ──
   await test("T105/REQ-106 + T486/REQ-413 + T487/REQ-414 + T488/REQ-415: spec_health surfaces", async () => {
     const p = await boot({ TTRPG_SPEC_REPO_URL: "https://example.com/spec" });
-    await call(p, "create_novel", { name: "w1h" });
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "novel", { action: "create",  name: "w1h" });
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     assertContains(JSON.stringify(health.spec_repo_url), "example.com", "REQ-106 spec_repo_url");
     if (!("catalog_verbosity" in health)) throw new Error("REQ-415 catalog_verbosity missing");
     if (!("action_discriminators" in health)) throw new Error("REQ-413 action_discriminators missing");
     if (!("nested_input_counts" in health)) throw new Error("REQ-414 nested_input_counts missing");
-    if (typeof health.tool_parameter_counts?.create_character !== "number") throw new Error("REQ-408 param counts missing");
-    if (health.tool_parameter_counts.create_character > health.parameter_ceiling) {
-      throw new Error(`REQ-408 ceiling exceeded: create_character ${health.tool_parameter_counts.create_character} > ${health.parameter_ceiling}`);
+    if (typeof health.tool_parameter_counts?.character !== "number") throw new Error("REQ-408 param counts missing");
+    // REQ-408 (amended, per-action): action-discriminator tools are evaluated on
+    // their required-per-action parameters, not the union of optional fields.
+    if (health.parameter_ceiling_exceeded === true) {
+      throw new Error("REQ-408 per-action ceiling exceeded");
+    }
+    if ((health.tool_required_param_counts?.character ?? 0) > health.parameter_ceiling) {
+      throw new Error(`REQ-408 per-action ceiling exceeded: character requires ${health.tool_required_param_counts?.character} > ${health.parameter_ceiling}`);
     }
     const intro = await proto(p, "prompts/get", { name: "intro" });
     assertContains(intro, "example.com", "REQ-106 intro pointer");
@@ -218,7 +223,7 @@ async function main() {
   await test("T39/REQ-057 + T39a/REQ-059 + T39b/REQ-183 + T115/REQ-112: lookup NOT_FOUND enumeration and cross-refs", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w1i", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w1i", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const nf = await call(p, "wave1test_lookup_spell", { key: "fireballx" });
     assertContains(nf, "Valid values: fireball, goblin", "REQ-057/059/183 NOT_FOUND enumeration");
@@ -232,7 +237,7 @@ async function main() {
   // ── REQ-078 session zero + REQ-138 prompt health + REQ-139/169/269 ──
   await test("T124/REQ-078: session zero has all 8 sections", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w1j" });
+    await call(p, "novel", { action: "create",  name: "w1j" });
     const sz = await proto(p, "prompts/get", { name: "session_zero" });
     for (const s of ["## 1.", "## 2.", "## 3.", "## 4.", "## 5.", "## 6.", "## 7.", "## 8."]) {
       if (!sz.includes(s)) throw new Error(`session_zero missing ${s}`);
@@ -243,8 +248,8 @@ async function main() {
 
   await test("T152/REQ-138 + T153/REQ-139 + T204/REQ-169 + T289/REQ-269: spec_health reporting surfaces", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w1k" });
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "novel", { action: "create",  name: "w1k" });
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (!Array.isArray(health.prompt_health) || health.prompt_health.length === 0) throw new Error("REQ-138 prompt_health empty");
     for (const ph of health.prompt_health) {
       if (!("name" in ph) || !("within" in ph) || !("stale_references" in ph)) throw new Error("REQ-138 prompt_health shape");
@@ -262,15 +267,15 @@ async function main() {
   // ── Wave 3: §5.5 Badges & Access ──
   await test("T9/REQ-031 + T147/REQ-133: badge activation and forbidden-call audit", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w3a" });
+    await call(p, "novel", { action: "create",  name: "w3a" });
     const s = await call(p, "set_badge", { badge: "game_master" });
     assertContains(s, "[OK]", "REQ-031 badge activation");
     await call(p, "set_badge", { badge: "player" });
-    const fb = await call(p, "create_npc", { name: "Denied" });
+    const fb = await call(p, "npc", { action: "create",  name: "Denied" });
     assertContains(fb, "[FORBIDDEN]", "REQ-032 player GM gate");
     await call(p, "set_badge", { badge: "game_master" });
     const audit = await proto(p, "resources/read", { uri: "audit://novel" });
-    assertContains(audit, "create_npc", "REQ-133 forbidden call audited");
+    assertContains(audit, "npc", "REQ-133 forbidden call audited");
     assertContains(audit, "boundary", "REQ-133 boundary marker");
     passed++;
     await kill(p);
@@ -288,13 +293,13 @@ async function main() {
   await test("T257/REQ-216: GM-only generation table filtered under Player", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w3b", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w3b", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "player" });
-    const roll = await call(p, "roll_on_table", { table: "secret_table" });
+    const roll = await call(p, "ruleset", { action: "roll",  table: "secret_table" });
     assertContains(roll, "[FORBIDDEN]", "REQ-216 player table filtered");
     assertNotContains(roll, "hidden", "REQ-216 table content not revealed");
     await call(p, "set_badge", { badge: "game_master" });
-    const gmRoll = await call(p, "roll_on_table", { table: "secret_table" });
+    const gmRoll = await call(p, "ruleset", { action: "roll",  table: "secret_table" });
     assertContains(gmRoll, "Roll:", "REQ-216 GM sees table result");
     passed++;
     await kill(p);
@@ -302,13 +307,13 @@ async function main() {
 
   await test("T262/REQ-220 + T265/REQ-223: POV directive and pov mode control", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w3c" });
+    await call(p, "novel", { action: "create",  name: "w3c" });
     await call(p, "set_badge", { badge: "player" });
-    await call(p, "create_character", { name: "PovChar" });
-    await call(p, "set_active_entity", { entity_id: "character_01", pov: "omniscient" });
+    await call(p, "character", { action: "create",  name: "PovChar" });
+    await call(p, "character", { action: "set_active",  entity_id: "character_01", pov: "omniscient" });
     const brief1 = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief1, "POV: none — narration is omniscient", "REQ-223 omniscient marker");
-    await call(p, "set_active_entity", { entity_id: "character_01", pov: "character" });
+    await call(p, "character", { action: "set_active",  entity_id: "character_01", pov: "character" });
     const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief2, "Describe the scene through PovChar's eyes", "REQ-220 character POV");
     passed++;
@@ -317,7 +322,7 @@ async function main() {
 
   await test("T348/REQ-304: TTRPG_AI_ROLE locks orientation", async () => {
     const p = await boot({ TTRPG_AI_ROLE: "player" });
-    await call(p, "create_novel", { name: "w3d" });
+    await call(p, "novel", { action: "create",  name: "w3d" });
     await call(p, "set_badge", { badge: "game_master" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "[anti-slop]", "REQ-304 anti-slop present under forced role");
@@ -327,10 +332,10 @@ async function main() {
 
   await test("T349/REQ-305: observer mode read-only", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w3e" });
+    await call(p, "novel", { action: "create",  name: "w3e" });
     const s = await call(p, "set_badge", { badge: "observer" });
     assertContains(s, "read-only spectator mode", "REQ-305 observer mode");
-    const fb = await call(p, "create_npc", { name: "No" });
+    const fb = await call(p, "npc", { action: "create",  name: "No" });
     assertContains(fb, "[FORBIDDEN]", "REQ-305 observer mutating call forbidden");
     const help = await call(p, "help", {});
     assertNotContains(help, "[ERROR]", "REQ-305 observer read-only succeeds");
@@ -341,10 +346,10 @@ async function main() {
   // ── REQ-281 narrative threads section token ──
   await test("T330/REQ-281: narrative_threads section renders in briefing", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w3f" });
+    await call(p, "novel", { action: "create",  name: "w3f" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_countdown", { name: "Doom", ticks: 3 });
-    await call(p, "create_npc", { name: "Grumpy", disposition: "hostile" });
+    await call(p, "countdown", { action: "set",  name: "Doom", ticks: 3 });
+    await call(p, "npc", { action: "create",  name: "Grumpy", disposition: "hostile" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Countdown: Doom", "REQ-281 countdown in threads");
     assertContains(brief, "Grumpy (hostile)", "REQ-281 NPC disposition in threads");
@@ -355,16 +360,16 @@ async function main() {
   // ── Wave 4: §5.6 State/lifecycle + §5.9 ──
   await test("T216/REQ-176 + T217/REQ-177 + T219/REQ-178: entity/roster removal and listing", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4a" });
-    await call(p, "create_character", { name: "R1", stage_to_roster: true });
+    await call(p, "novel", { action: "create",  name: "w4a" });
+    await call(p, "character", { action: "create",  name: "R1", stage_to_roster: true });
     await call(p, "set_badge", { badge: "game_master" });
-    const lst = await call(p, "list_roster_characters", {});
+    const lst = await call(p, "character", { action: "roster_list" });
     assertContains(lst, "character_01", "REQ-178 roster listing");
-    const rm = await call(p, "remove_roster_character", { roster_id: "character_01" });
+    const rm = await call(p, "character", { action: "roster_remove",  roster_id: "character_01" });
     assertContains(rm, "[OK]", "REQ-177 roster removal");
-    const rm2 = await call(p, "remove_roster_character", { roster_id: "character_01" });
+    const rm2 = await call(p, "character", { action: "roster_remove",  roster_id: "character_01" });
     assertContains(rm2, "[NOT_FOUND]", "REQ-177 NOT_FOUND on absent");
-    const entRm = await call(p, "remove_entity", { entity_id: "character_01" });
+    const entRm = await call(p, "character", { action: "remove",  entity_id: "character_01" });
     assertContains(entRm, "[OK]", "REQ-176 entity removal");
     passed++;
     await kill(p);
@@ -372,18 +377,18 @@ async function main() {
 
   await test("T258/REQ-217: condition tools with validation and warnings", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4b" });
+    await call(p, "novel", { action: "create",  name: "w4b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Cond" });
-    const a = await call(p, "apply_condition", { entity_id: "character_01", condition: "prone" });
+    await call(p, "character", { action: "create",  name: "Cond" });
+    const a = await call(p, "condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
     assertContains(a, "[OK]", "REQ-217 apply");
-    const dup = await call(p, "apply_condition", { entity_id: "character_01", condition: "prone" });
+    const dup = await call(p, "condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
     assertContains(dup, "[WARNING]", "REQ-217 duplicate warning");
-    const bad = await call(p, "apply_condition", { entity_id: "character_01", condition: "not_a_condition" });
+    const bad = await call(p, "condition", { action: "apply",  entity_id: "character_01", condition: "not_a_condition" });
     assertContains(bad, "[INVALID_INPUT]", "REQ-217 unknown condition");
-    const rem = await call(p, "remove_condition", { entity_id: "character_01", condition: "prone" });
+    const rem = await call(p, "condition", { action: "remove",  entity_id: "character_01", condition: "prone" });
     assertContains(rem, "[OK]", "REQ-217 remove");
-    const rem2 = await call(p, "remove_condition", { entity_id: "character_01", condition: "prone" });
+    const rem2 = await call(p, "condition", { action: "remove",  entity_id: "character_01", condition: "prone" });
     assertContains(rem2, "[WARNING]", "REQ-217 remove absent warning");
     passed++;
     await kill(p);
@@ -391,13 +396,13 @@ async function main() {
 
   await test("T275/REQ-237 + T328/REQ-279: session segmentation and narrative orientation", async () => {
     const p = await boot({ TTRPG_SESSION_ID: "sess-1" });
-    await call(p, "create_novel", { name: "w4c" });
+    await call(p, "novel", { action: "create",  name: "w4c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "record_story", { type: "decision", entry: "The party weighs the two doors." });
-    const recap = await call(p, "session_recap", {});
+    await call(p, "story", { action: "record",  type: "decision", entry: "The party weighs the two doors." });
+    const recap = await call(p, "session", { action: "recap" });
     assertContains(recap, "narrative_orientation", "REQ-279 orientation field");
     assertContains(recap, "The party weighs the two doors", "REQ-279 decision in orientation");
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (!Array.isArray(health.sessions)) throw new Error("REQ-237 sessions array missing");
     passed++;
     await kill(p);
@@ -405,12 +410,12 @@ async function main() {
 
   await test("T352/REQ-308 + T374/T377/REQ-330: knowledge gating by presence and exploration", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4d" });
+    await call(p, "novel", { action: "create",  name: "w4d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Explorer" });
-    await call(p, "create_room", { name: "Entrance", description: "d" });
-    await call(p, "create_room", { name: "Guard Room", description: "g" });
-    await call(p, "create_exit", { direction: "north", room_a: "Entrance", room_b: "Guard Room" });
+    await call(p, "character", { action: "create",  name: "Explorer" });
+    await call(p, "world", { action: "create_room",  name: "Entrance", description: "d" });
+    await call(p, "world", { action: "create_room",  name: "Guard Room", description: "g" });
+    await call(p, "world", { action: "create_exit",  direction: "north", room_a: "Entrance", room_b: "Guard Room" });
     const nav = await call(p, "command", { command: "go north" });
     assertContains(nav, "[OK]", "REQ-330 parser navigation");
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
@@ -421,15 +426,15 @@ async function main() {
 
   await test("T369/REQ-322: vow-countdown coupling", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4e" });
+    await call(p, "novel", { action: "create",  name: "w4e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_vow", { name: "Find Crown", description: "Recover the Crown", parties: ["pc_1"], difficulty: "dangerous", scope: "shared" });
+    await call(p, "vow", { action: "set",  name: "Find Crown", description: "Recover the Crown", parties: ["pc_1"], difficulty: "dangerous", scope: "shared" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Vow countdown suggestion", "REQ-322 suggestion in threads");
     await call(p, "respond", { decision: "accept", option: "accept" });
     const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief2, "vow:Find Crown", "REQ-322 linked countdown created");
-    await call(p, "mark_milestone", { vow_name: "Find Crown" });
+    await call(p, "vow", { action: "milestone",  vow_name: "Find Crown" });
     passed++;
     await kill(p);
   });
@@ -437,17 +442,17 @@ async function main() {
   // ── REQ-094 lorebook round-trip + REQ-295 genre filtering ──
   await test("T80/REQ-094 + T340/REQ-295: lorebook round-trip and genre-filtered generation", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4f" });
+    await call(p, "novel", { action: "create",  name: "w4f" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_lore_entry", { key: "city", content: "The city is old.", triggers: ["city"], badge_scope: "shared" });
-    const exp = await call(p, "export_lorebook", {});
-    const imp = await call(p, "import_lorebook", { data: exp, mode: "replace" });
+    await call(p, "lore", { action: "set",  key: "city", content: "The city is old.", triggers: ["city"], badge_scope: "shared" });
+    const exp = await call(p, "lore", { action: "export" });
+    const imp = await call(p, "lore", { action: "import",  data: exp, mode: "replace" });
     assertContains(imp, "[OK]", "REQ-094 import replace");
-    const exp2 = await call(p, "export_lorebook", {});
+    const exp2 = await call(p, "lore", { action: "export" });
     assertContains(exp2, "The city is old.", "REQ-094 round-trip preserves content");
     const playerBlocked = await call(p, "set_badge", { badge: "player" });
     void playerBlocked;
-    const expP = await call(p, "export_lorebook", {});
+    const expP = await call(p, "lore", { action: "export" });
     assertContains(expP, "[FORBIDDEN]", "REQ-094 player forbidden");
     await call(p, "set_badge", { badge: "game_master" });
     passed++;
@@ -457,13 +462,13 @@ async function main() {
   // ── REQ-329 countdown-world trigger ──
   await test("T373/T376/REQ-329: countdown on_room_enter trigger advances", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4g" });
+    await call(p, "novel", { action: "create",  name: "w4g" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Wanderer" });
-    await call(p, "create_room", { name: "Hall", description: "h" });
-    await call(p, "create_room", { name: "guard_room", description: "g" });
-    await call(p, "create_exit", { direction: "east", room_a: "Hall", room_b: "guard_room" });
-    await call(p, "set_countdown", { name: "ambush", ticks: 2, type: "narrative", triggers: ["on_room_enter(guard_room)"] });
+    await call(p, "character", { action: "create",  name: "Wanderer" });
+    await call(p, "world", { action: "create_room",  name: "Hall", description: "h" });
+    await call(p, "world", { action: "create_room",  name: "guard_room", description: "g" });
+    await call(p, "world", { action: "create_exit",  direction: "east", room_a: "Hall", room_b: "guard_room" });
+    await call(p, "countdown", { action: "set",  name: "ambush", ticks: 2, type: "narrative", triggers: ["on_room_enter(guard_room)"] });
     const nav = await call(p, "command", { command: "go east" });
     assertContains(nav, "[OK]", "REQ-329 navigation");
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
@@ -476,13 +481,13 @@ async function main() {
   // ── REQ-332 codex provenance ──
   await test("T380/T384/REQ-332: codex import records provenance and reports stale", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w4h" });
+    await call(p, "novel", { action: "create",  name: "w4h" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "codex_set", { kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
-    await call(p, "codex_import", { entry_id: "npc_blacksmith" });
-    const info = JSON.parse(await call(p, "novel_info", {}));
+    await call(p, "codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
+    await call(p, "codex", { action: "import",  entry_id: "npc_blacksmith" });
+    const info = JSON.parse(await call(p, "novel", { action: "info" }));
     assertContains(JSON.stringify(info), "codex_sources", "REQ-332 codex_sources in novel_info");
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     assertContains(JSON.stringify(health), "npc_blacksmith", "REQ-332 provenance registered");
     passed++;
     await kill(p);
@@ -492,13 +497,13 @@ async function main() {
   await test("T126/REQ-119 + T127/REQ-120 + T128/REQ-121: NPC stat reference, rendering, resources", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w5a", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w5a", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
-    const created = await call(p, "create_npc", { name: "Goblin", ruleset_reference: "Goblin" });
+    const created = await call(p, "npc", { action: "create",  name: "Goblin", ruleset_reference: "Goblin" });
     assertContains(created, "[OK]", "REQ-119 create with reference");
     const list = await proto(p, "resources/read", { uri: "npcs://" });
     assertContains(list, "Goblin", "REQ-121 npcs resource");
-    const bad = await call(p, "create_npc", { name: "X", ruleset_reference: "NoSuchThing" });
+    const bad = await call(p, "npc", { action: "create",  name: "X", ruleset_reference: "NoSuchThing" });
     assertContains(bad, "[NOT_FOUND]", "REQ-119 unknown reference");
     passed++;
     await kill(p);
@@ -506,12 +511,12 @@ async function main() {
 
   await test("T129/REQ-122 + T191/REQ-156: NPC personality fields and description field", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w5b" });
+    await call(p, "novel", { action: "create",  name: "w5b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_npc", { name: "Guard", description: "Tall" });
+    await call(p, "npc", { action: "create",  name: "Guard", description: "Tall" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
-    await call(p, "set_personality", { entity_id: id, description: "Suspicious" });
+    await call(p, "character", { action: "personality",  entity_id: id, description: "Suspicious" });
     const res = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
     assertContains(res, "Suspicious", "REQ-156 description most-recent-wins");
     passed++;
@@ -520,15 +525,15 @@ async function main() {
 
   await test("T356/REQ-311: NPC memory updates on combat engagement", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w5c" });
+    await call(p, "novel", { action: "create",  name: "w5c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Fighter" });
-    await call(p, "create_npc", { name: "Thug" });
+    await call(p, "character", { action: "create",  name: "Fighter" });
+    await call(p, "npc", { action: "create",  name: "Thug" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
-    await call(p, "init_combat", { participants: ["character_01", id] });
-    await call(p, "advance_combat", {});
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "combat", { action: "init",  participants: ["character_01", id] });
+    await call(p, "combat", { action: "advance" });
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (typeof health.npc_memory_count !== "number") throw new Error("REQ-311 npc_memory_count missing");
     if (health.npc_memory_count < 1) throw new Error(`REQ-311 npc_memory_count ${health.npc_memory_count}`);
     passed++;
@@ -538,13 +543,13 @@ async function main() {
   // ── Wave 5b: remaining NPC/personality surfaces ──
   await test("T130/REQ-123 + T191/REQ-156 + T200/REQ-165 + T201/REQ-166 + T202/REQ-167: NPC stat fields, personality rendering", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w5d" });
+    await call(p, "novel", { action: "create",  name: "w5d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_npc", { name: "Smith", description: "A smith" });
+    await call(p, "npc", { action: "create",  name: "Smith", description: "A smith" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
-    await call(p, "set_personality", { entity_id: id, voice: "gruff" });
-    await call(p, "set_voice_examples", { entity_id: id, examples: [{ context: "greeting", dialogue: "What do you need?" }] });
+    await call(p, "character", { action: "personality",  entity_id: id, voice: "gruff" });
+    await call(p, "character", { action: "voice",  entity_id: id, examples: [{ context: "greeting", dialogue: "What do you need?" }] });
     const pers = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
     assertContains(pers, "gruff", "REQ-166 personality rendering");
     const voice = await proto(p, "resources/read", { uri: `npc://${id}/voice_examples` });
@@ -555,17 +560,17 @@ async function main() {
 
   await test("T203/REQ-168 + T332/REQ-282: audit resource and NPC voice directive", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w5e" });
+    await call(p, "novel", { action: "create",  name: "w5e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "PC" });
+    await call(p, "character", { action: "create",  name: "PC" });
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "create_novel", "REQ-168 audit resource");
-    await call(p, "create_npc", { name: "Smith" });
+    await call(p, "npc", { action: "create",  name: "Smith" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
-    await call(p, "update_npc", { npc_id: id, location: "smithy" });
-    await call(p, "set_voice_examples", { entity_id: id, examples: [{ context: "hi", dialogue: "Gruff hello." }] });
-    await call(p, "set_scene_state", { description: "forge", location: "smithy" });
+    await call(p, "npc", { action: "update",  npc_id: id, location: "smithy" });
+    await call(p, "character", { action: "voice",  entity_id: id, examples: [{ context: "hi", dialogue: "Gruff hello." }] });
+    await call(p, "scene", { action: "set",  description: "forge", location: "smithy" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Voice directive", "REQ-282 NPC voice directive");
     passed++;
@@ -575,24 +580,24 @@ async function main() {
   // ── Wave 6: §5.6 Adventure resources ──
   await test("T146/REQ-132 + T285/REQ-248 + T286/REQ-249: generated adventure lifecycle and resources", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w6a" });
+    await call(p, "novel", { action: "create",  name: "w6a" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "generate_adventure", { premise: "A haunted station" });
+    await call(p, "adventure", { action: "generate",  premise: "A haunted station" });
     const ov = await proto(p, "resources/read", { uri: "adventure://generated/overview" });
     assertContains(ov, "Premise", "REQ-248 overview resource");
     const nav = await proto(p, "resources/read", { uri: "adventure://generated/navigation" });
     assertContains(nav, "Navigation", "REQ-249 navigation resource");
-    await call(p, "set_scene_state", { description: "scene", adventure_scene: "hall" });
+    await call(p, "scene", { action: "set",  description: "scene", adventure_scene: "hall" });
     passed++;
     await kill(p);
   });
 
   await test("T207/REQ-170 + T338/REQ-292: adventure catalog and discovery surface", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w6b" });
-    const cat = await call(p, "list_adventures", {});
+    await call(p, "novel", { action: "create",  name: "w6b" });
+    const cat = await call(p, "adventure", { action: "list" });
     assertContains(cat, "[No adventure modules found.]", "REQ-292 empty-state");
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (typeof health.adventure_catalog_count !== "number") throw new Error("REQ-292 adventure_catalog_count");
     passed++;
     await kill(p);
@@ -600,11 +605,11 @@ async function main() {
 
   await test("T284/REQ-250 + T312/REQ-252: adventure waypoint and fast-forward", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w6c" });
+    await call(p, "novel", { action: "create",  name: "w6c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "generate_adventure", { premise: "A tower" });
-    await call(p, "set_countdown", { name: "ritual", ticks: 3, type: "narrative" });
-    await call(p, "set_scene_state", { description: "foyer", fast_forward: { interval: "three days of travel" } });
+    await call(p, "adventure", { action: "generate",  premise: "A tower" });
+    await call(p, "countdown", { action: "set",  name: "ritual", ticks: 3, type: "narrative" });
+    await call(p, "scene", { action: "set",  description: "foyer", fast_forward: { interval: "three days of travel" } });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     void brief;
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
@@ -619,10 +624,10 @@ async function main() {
     mkdirSync(advDir, { recursive: true });
     writeFileSync(join(advDir, "test-tower.md"), `# Test Tower\n## Premise\nA tall tower.\n## Adventure Hook\nThe tower rises.\n## World\n## Location\nentrance\n## NPCs\n**Guard captain**\n3 HP\n`);
     const p = await boot({ TTRPG_ADVENTURE_DIR: advDir });
-    await call(p, "create_novel", { name: "w6d" });
+    await call(p, "novel", { action: "create",  name: "w6d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "synthesize", {});
-    const load = await call(p, "load_adventure", { slug: "test-tower" });
+    await call(p, "synthesis", { action: "run" });
+    const load = await call(p, "adventure", { action: "load",  slug: "test-tower" });
     assertContains(load, "Synthesis found", "REQ-229 synthesis linkage augmentation");
     passed++;
     await kill(p);
@@ -631,20 +636,20 @@ async function main() {
   // ── Wave 7: Combat ──
   await test("T246/REQ-203 + T247/REQ-204 + T248/REQ-205: combat init guard, participant validation, mid-combat changes", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7a" });
+    await call(p, "novel", { action: "create",  name: "w7a" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Hero" });
-    await call(p, "create_npc", { name: "Goblin" });
-    const g = await call(p, "init_combat", { participants: ["nonexistent"] });
+    await call(p, "character", { action: "create",  name: "Hero" });
+    await call(p, "npc", { action: "create",  name: "Goblin" });
+    const g = await call(p, "combat", { action: "init",  participants: ["nonexistent"] });
     assertContains(g, "[NOT_FOUND]", "REQ-204 participant validation");
-    const c1 = await call(p, "init_combat", { participants: ["character_01", "npc_"] });
+    const c1 = await call(p, "combat", { action: "init",  participants: ["character_01", "npc_"] });
     void c1;
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const npcId = Object.keys(npcs)[0];
-    await call(p, "init_combat", { participants: ["character_01", npcId] });
-    const again = await call(p, "init_combat", { participants: ["character_01", npcId] });
+    await call(p, "combat", { action: "init",  participants: ["character_01", npcId] });
+    const again = await call(p, "combat", { action: "init",  participants: ["character_01", npcId] });
     assertContains(again, "[STATE_CONFLICT]", "REQ-203 combat-init guard");
-    const add = await call(p, "add_combat_participant", { participant_id: "nonexistent2" });
+    const add = await call(p, "combat", { action: "add_participant",  participant_id: "nonexistent2" });
     assertContains(add, "[NOT_FOUND]", "REQ-205 add validation");
     passed++;
     await kill(p);
@@ -652,14 +657,14 @@ async function main() {
 
   await test("T249/REQ-206: combat-round condition expiry", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7b" });
+    await call(p, "novel", { action: "create",  name: "w7b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Fighter" });
-    await call(p, "apply_condition", { entity_id: "character_01", condition: "prone", rounds: 1 });
-    await call(p, "init_combat", { participants: ["character_01"] });
-    await call(p, "advance_combat", {});
-    await call(p, "advance_combat", {});
-    const sheet = await call(p, "character_sheet", { entity_id: "character_01" });
+    await call(p, "character", { action: "create",  name: "Fighter" });
+    await call(p, "condition", { action: "apply",  entity_id: "character_01", condition: "prone", rounds: 1 });
+    await call(p, "combat", { action: "init",  participants: ["character_01"] });
+    await call(p, "combat", { action: "advance" });
+    await call(p, "combat", { action: "advance" });
+    const sheet = await call(p, "character", { action: "sheet",  entity_id: "character_01" });
     assertNotContains(sheet, "prone", "REQ-206 condition expired");
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "condition_expired", "REQ-206 expiry audited");
@@ -669,18 +674,18 @@ async function main() {
 
   await test("T263/REQ-221: combat-navigation interaction blocks movement", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7c" });
+    await call(p, "novel", { action: "create",  name: "w7c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "W" });
-    await call(p, "create_room", { name: "A", description: "a" });
-    await call(p, "create_room", { name: "B", description: "b" });
-    await call(p, "create_exit", { direction: "north", room_a: "A", room_b: "B" });
-    await call(p, "init_combat", { participants: ["character_01"] });
+    await call(p, "character", { action: "create",  name: "W" });
+    await call(p, "world", { action: "create_room",  name: "A", description: "a" });
+    await call(p, "world", { action: "create_room",  name: "B", description: "b" });
+    await call(p, "world", { action: "create_exit",  direction: "north", room_a: "A", room_b: "B" });
+    await call(p, "combat", { action: "init",  participants: ["character_01"] });
     const nav = await call(p, "command", { command: "go north" });
     assertContains(nav, "[STATE_CONFLICT]", "REQ-221 navigation blocked in combat");
     const look = await call(p, "command", { command: "look" });
     assertNotContains(look, "[ERROR]", "REQ-221 inspection allowed");
-    await call(p, "end_combat", {});
+    await call(p, "combat", { action: "end" });
     const nav2 = await call(p, "command", { command: "go north" });
     assertNotContains(nav2, "Combat is active", "REQ-221 navigation resumes");
     passed++;
@@ -689,11 +694,11 @@ async function main() {
 
   await test("T311/REQ-251: generation intent guard warns on harm/power-inversion", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7d" });
+    await call(p, "novel", { action: "create",  name: "w7d" });
     await call(p, "set_badge", { badge: "game_master" });
-    const warn = await call(p, "generate_adventure", { premise: "create an adversary capable of defeating Hero" });
+    const warn = await call(p, "adventure", { action: "generate",  premise: "create an adversary capable of defeating Hero" });
     assertContains(warn, "[WARNING]", "REQ-251 generation guard warns");
-    const force = await call(p, "generate_adventure", { premise: "!force create an adversary capable of defeating Hero" });
+    const force = await call(p, "adventure", { action: "generate",  premise: "!force create an adversary capable of defeating Hero" });
     assertContains(force, "[OK]", "REQ-251 !force override proceeds");
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "generation-guard-overridden", "REQ-251 override audited");
@@ -703,10 +708,10 @@ async function main() {
 
   await test("T313/REQ-253: terse output verbosity", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7e" });
+    await call(p, "novel", { action: "create",  name: "w7e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_verbosity", { mode: "terse" });
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "session", { action: "verbosity",  mode: "terse" });
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (health.verbosity_mode !== "terse") throw new Error("REQ-253 verbosity_mode not reported");
     passed++;
     await kill(p);
@@ -714,11 +719,11 @@ async function main() {
 
   await test("T192/REQ-157: combat determinism with per-call seed", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w7f" });
+    await call(p, "novel", { action: "create",  name: "w7f" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "init_combat", { participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
-    await call(p, "end_combat", {});
-    await call(p, "init_combat", { participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
+    await call(p, "combat", { action: "init",  participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
+    await call(p, "combat", { action: "end" });
+    await call(p, "combat", { action: "init",  participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "42" });
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "init_combat", "REQ-157 combat seeded init");
     passed++;
@@ -728,10 +733,10 @@ async function main() {
   // ── Wave 8: §5.7/§5.2 determinism & safety ──
   await test("T20/T42/REQ-054: adversarial input stored and echoed verbatim", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w8a" });
+    await call(p, "novel", { action: "create",  name: "w8a" });
     await call(p, "set_badge", { badge: "game_master" });
     const evil = "'); DROP TABLE novels;--";
-    const s = await call(p, "set_scene_state", { description: evil });
+    const s = await call(p, "scene", { action: "set",  description: evil });
     assertContains(s, evil, "REQ-054 verbatim echo");
     const cur = await proto(p, "resources/read", { uri: "scene://current" });
     assertContains(cur, evil, "REQ-054 stored verbatim");
@@ -741,10 +746,10 @@ async function main() {
 
   await test("T357/REQ-312 + T490/REQ-417: narration validation gate and startup probes", async () => {
     const p = await boot({ TTRPG_NARRATION_VALIDATION: "on" });
-    await call(p, "create_novel", { name: "w8b" });
+    await call(p, "novel", { action: "create",  name: "w8b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_npc", { name: "Corpse", stats: { hp: 0 } });
-    const h1 = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "npc", { action: "create",  name: "Corpse", stats: { hp: 0 } });
+    const h1 = JSON.parse(await call(p, "session", { action: "health" }));
     if (h1.narration_validation !== "on") throw new Error("REQ-312 narration_validation missing");
     if (typeof h1.narration_rejection_count !== "number") throw new Error("REQ-312 rejection count");
     if (h1.startup_probes?.ruleset_scan !== "completed") throw new Error("REQ-417 probe status");
@@ -755,11 +760,11 @@ async function main() {
   // ── Wave 9: §5.8 Synthesis ──
   await test("T70/REQ-086: compress_audit format and INVALID_INPUT", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9a" });
+    await call(p, "novel", { action: "create",  name: "w9a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const ca = await call(p, "compress_audit", { max_entries: 5 });
+    const ca = await call(p, "session", { action: "compress",  max_entries: 5 });
     assertContains(ca, "Compressed audit log", "REQ-086 header line");
-    const bad = await call(p, "compress_audit", { max_entries: 0 });
+    const bad = await call(p, "session", { action: "compress",  max_entries: 0 });
     assertContains(bad, "[INVALID_INPUT]", "REQ-086 zero entries");
     passed++;
     await kill(p);
@@ -767,11 +772,11 @@ async function main() {
 
   await test("T476/REQ-087 + T119/REQ-115: scene type tagging and action pattern toggle", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9b" });
+    await call(p, "novel", { action: "create",  name: "w9b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const st = await call(p, "set_scene_state", { description: "social scene", scene_type: "social" });
+    const st = await call(p, "scene", { action: "set",  description: "social scene", scene_type: "social" });
     assertContains(st, "[OK]", "REQ-087 scene type");
-    const tg = await call(p, "toggle_action_patterns", {});
+    const tg = await call(p, "synthesis", { action: "toggle_action" });
     assertContains(tg, "[OK]", "REQ-115 action pattern toggle");
     passed++;
     await kill(p);
@@ -779,11 +784,11 @@ async function main() {
 
   await test("T300/REQ-185 + T225/REQ-186: section token vocabulary and discoverability", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9c" });
+    await call(p, "novel", { action: "create",  name: "w9c" });
     await call(p, "set_badge", { badge: "game_master" });
-    const health = JSON.parse(await call(p, "spec_health", {}));
+    const health = JSON.parse(await call(p, "session", { action: "health" }));
     if (!Array.isArray(health.section_tokens) || health.section_tokens.length === 0) throw new Error("REQ-185/186 section_tokens missing");
-    const bad = await call(p, "set_briefing_order", { sections: ["not_a_token"] });
+    const bad = await call(p, "session", { action: "briefing_order",  sections: ["not_a_token"] });
     assertContains(bad, "[INVALID_INPUT]", "REQ-082 unknown token");
     passed++;
     await kill(p);
@@ -791,12 +796,12 @@ async function main() {
 
   await test("T299/REQ-155: sticky counter decay", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9d" });
+    await call(p, "novel", { action: "create",  name: "w9d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_lore_entry", { key: "k", content: "c", triggers: ["fire"], sticky: 2, badge_scope: "shared" });
-    await call(p, "set_scene_state", { description: "the fire burns" });
-    await call(p, "set_scene_state", { description: "quiet now" });
-    await call(p, "set_scene_state", { description: "quiet now" });
+    await call(p, "lore", { action: "set",  key: "k", content: "c", triggers: ["fire"], sticky: 2, badge_scope: "shared" });
+    await call(p, "scene", { action: "set",  description: "the fire burns" });
+    await call(p, "scene", { action: "set",  description: "quiet now" });
+    await call(p, "scene", { action: "set",  description: "quiet now" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertNotContains(brief, "Triggered Lore", "REQ-155 sticky entry not triggered");
     assertNotContains(brief, "the fire burns", "REQ-155 sticky content absent");
@@ -806,11 +811,11 @@ async function main() {
 
   await test("T307/REQ-231 + T322/REQ-263: per-module toggle and auto-trigger reporting", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9e" });
+    await call(p, "novel", { action: "create",  name: "w9e" });
     await call(p, "set_badge", { badge: "game_master" });
-    const bad = await call(p, "toggle_synthesis_module", { module: "nope", enabled: false });
+    const bad = await call(p, "synthesis", { action: "toggle",  module: "nope", enabled: false });
     assertContains(bad, "[INVALID_INPUT]", "REQ-231 unknown module");
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (!("synthesis_auto_trigger" in h)) throw new Error("REQ-263 auto-trigger missing");
     passed++;
     await kill(p);
@@ -818,11 +823,11 @@ async function main() {
 
   await test("T321/REQ-262 + T323/REQ-264 + T326/REQ-265: synthesize tool and briefing presence", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9f" });
+    await call(p, "novel", { action: "create",  name: "w9f" });
     await call(p, "set_badge", { badge: "game_master" });
-    const s = await call(p, "synthesize", {});
+    const s = await call(p, "synthesis", { action: "run" });
     assertContains(s, "[OK]", "REQ-262 synthesize runs");
-    const s2 = await call(p, "synthesize", {});
+    const s2 = await call(p, "synthesis", { action: "run" });
     assertContains(s2, "up to date", "REQ-262 staleness fingerprint");
     passed++;
     await kill(p);
@@ -830,10 +835,10 @@ async function main() {
 
   await test("T355/REQ-310: campaign memory counts", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9g" });
+    await call(p, "novel", { action: "create",  name: "w9g" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_npc", { name: "MemNpc" });
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "npc", { action: "create",  name: "MemNpc" });
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (h.campaign_memory?.npcs < 1) throw new Error("REQ-310 campaign_memory npcs missing");
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Campaign Memory", "REQ-310 briefing section");
@@ -843,10 +848,10 @@ async function main() {
 
   await test("T375/REQ-328 + T378/REQ-331: lore-world and story-world coupling", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9h" });
+    await call(p, "novel", { action: "create",  name: "w9h" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "set_lore_entry", { key: "altar", content: "The altar hums", triggers: ["altar"], world_target: "altar_01" });
-    const s = await call(p, "record_story", { type: "moment", entry: "Found the door" });
+    await call(p, "lore", { action: "set",  key: "altar", content: "The altar hums", triggers: ["altar"], world_target: "altar_01" });
+    const s = await call(p, "story", { action: "record",  type: "moment", entry: "Found the door" });
     assertContains(s, "[OK]", "REQ-331 record_story");
     passed++;
     await kill(p);
@@ -854,7 +859,7 @@ async function main() {
 
   await test("T302/REQ-226: narrative voice profiles resource", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w9i" });
+    await call(p, "novel", { action: "create",  name: "w9i" });
     const r = await proto(p, "resources/read", { uri: "synthesis://narrative_voices" });
     assertContains(r, "Narrative Voice Profiles", "REQ-226 narrative voices resource");
     passed++;
@@ -864,13 +869,13 @@ async function main() {
   // ── Wave 10: §5.10 World-model couplings ──
   await test("T240/REQ-197 + T333/REQ-283: description modes and verb coverage", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10a" });
+    await call(p, "novel", { action: "create",  name: "w10a" });
     await call(p, "set_badge", { badge: "game_master" });
     const b = await call(p, "command", { command: "brief" });
     assertContains(b, "[OK]", "REQ-197 brief mode");
     const v = await call(p, "command", { command: "verbs" });
     assertContains(v, "Verb coverage", "REQ-283 verb tiers");
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (typeof h.parser_verb_coverage?.core !== "number") throw new Error("REQ-283 parser_verb_coverage");
     if (h.description_mode !== "brief") throw new Error("REQ-197 description_mode");
     passed++;
@@ -879,16 +884,16 @@ async function main() {
 
   await test("T370/REQ-326 + T371/REQ-327: scene-world and NPC-world coupling", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10b" });
+    await call(p, "novel", { action: "create",  name: "w10b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_room", { name: "Throne Room", description: "golden" });
-    await call(p, "create_npc", { name: "Blacksmith", location: "Throne Room" });
-    await call(p, "set_scene_state", { description: "The throne room", location: "Throne Room" });
+    await call(p, "world", { action: "create_room",  name: "Throne Room", description: "golden" });
+    await call(p, "npc", { action: "create",  name: "Blacksmith", location: "Throne Room" });
+    await call(p, "scene", { action: "set",  description: "The throne room", location: "Throne Room" });
     const cur = await proto(p, "resources/read", { uri: "scene://current" });
     assertContains(cur, "Throne Room", "REQ-326 scene-world coupling room match");
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
-    const upd = await call(p, "update_npc", { npc_id: id, location: "Inn" });
+    const upd = await call(p, "npc", { action: "update",  npc_id: id, location: "Inn" });
     assertContains(upd, "[OK]", "REQ-327 update_npc location");
     passed++;
     await kill(p);
@@ -896,11 +901,11 @@ async function main() {
 
   await test("T419/REQ-368: countdown world_effect fires and applies", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10c" });
+    await call(p, "novel", { action: "create",  name: "w10c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_room", { name: "cellar", description: "dry" });
-    await call(p, "set_countdown", { name: "flood", ticks: 1, type: "narrative", world_effect: { type: "describe", target: "cellar", value: "Knee-deep water" } });
-    await call(p, "advance_countdown", { name: "flood" });
+    await call(p, "world", { action: "create_room",  name: "cellar", description: "dry" });
+    await call(p, "countdown", { action: "set",  name: "flood", ticks: 1, type: "narrative", world_effect: { type: "describe", target: "cellar", value: "Knee-deep water" } });
+    await call(p, "countdown", { action: "advance",  name: "flood" });
     const cur = await proto(p, "resources/read", { uri: "scene://current" });
     void cur;
     const room = await proto(p, "resources/read", { uri: "room://cellar" });
@@ -911,11 +916,11 @@ async function main() {
 
   await test("T372/REQ-325: constraint override catalog", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10d" });
+    await call(p, "novel", { action: "create",  name: "w10d" });
     await call(p, "set_badge", { badge: "game_master" });
     const c = await proto(p, "resources/read", { uri: "constraints://active" });
     assertContains(c, "[", "REQ-325 constraints resource");
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (!("constraint_override_counts" in h)) throw new Error("REQ-325 constraint_override_counts");
     passed++;
     await kill(p);
@@ -923,14 +928,14 @@ async function main() {
 
   await test("T354/REQ-284: implicit action hints on locked open", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10e" });
+    await call(p, "novel", { action: "create",  name: "w10e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "W" });
-    await call(p, "create_room", { name: "Hall", description: "h" });
-    await call(p, "create_thing", { name: "chest", description: "a chest", openable: true, lockable: true, locked: true, fixed: true, location: "Hall" });
+    await call(p, "character", { action: "create",  name: "W" });
+    await call(p, "world", { action: "create_room",  name: "Hall", description: "h" });
+    await call(p, "world", { action: "create_thing",  name: "chest", description: "a chest", openable: true, lockable: true, locked: true, fixed: true, location: "Hall" });
     const noKey = await call(p, "command", { command: "open chest" });
     assertContains(noKey, "locked", "REQ-284 locked message");
-    await call(p, "create_thing", { name: "iron key", description: "k", location: "Hall" });
+    await call(p, "world", { action: "create_thing",  name: "iron key", description: "k", location: "Hall" });
     const hint = await call(p, "command", { command: "open chest" });
     assertContains(hint, "Hint: You need the iron key", "REQ-284 reachable key hint");
     passed++;
@@ -939,12 +944,12 @@ async function main() {
 
   await test("T418/REQ-367: property propagation across containment", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w10f" });
+    await call(p, "novel", { action: "create",  name: "w10f" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "W2" });
-    await call(p, "create_room", { name: "Dark", description: "d" });
-    await call(p, "create_thing", { name: "glass jar", description: "j", openable: true, fixed: true, transparent: true, location: "Dark" });
-    await call(p, "create_thing", { name: "lantern", description: "l", lit: true, switched_on: true, location: "glass jar", location_type: "container" });
+    await call(p, "character", { action: "create",  name: "W2" });
+    await call(p, "world", { action: "create_room",  name: "Dark", description: "d" });
+    await call(p, "world", { action: "create_thing",  name: "glass jar", description: "j", openable: true, fixed: true, transparent: true, location: "Dark" });
+    await call(p, "world", { action: "create_thing",  name: "lantern", description: "l", lit: true, switched_on: true, location: "glass jar", location_type: "container" });
     const look = await call(p, "command", { command: "look" });
     assertContains(look, "glowing lantern", "REQ-367 transparent container propagation");
     passed++;
@@ -955,13 +960,13 @@ async function main() {
   await test("T441/T449/REQ-380 + T452/T453/REQ-389 + T454/T455/REQ-390: ruleset binding, package format, lazy hydration", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w11a", ruleset: "wave1test" });
+    await call(p, "novel", { action: "create",  name: "w11a", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (typeof h.rulesets_installed !== "number") throw new Error("REQ-380 ruleset binding health");
     const look = await call(p, "wave1test_lookup_spell", { key: "fireball" });
     assertContains(look, "Evocation", "REQ-389 package tool surface");
-    const list = await call(p, "list_rulesets", {});
+    const list = await call(p, "ruleset", { action: "list" });
     assertContains(list, "wave1test", "REQ-390 hydration state");
     passed++;
     await kill(p);
@@ -970,11 +975,11 @@ async function main() {
   await test("T460/REQ-393 + T459/REQ-392 + T456/REQ-391: update preservation, tool budget, scoped listing", async () => {
     seedRuleset();
     const p = await boot();
-    await call(p, "create_novel", { name: "w11b", ruleset: "wave1test" });
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "novel", { action: "create",  name: "w11b", ruleset: "wave1test" });
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (typeof h.rulesets_hydrated !== "number") throw new Error("REQ-393 update preservation");
     if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");
-    const list = await call(p, "list_rulesets", {});
+    const list = await call(p, "ruleset", { action: "list" });
     assertContains(list, "wave1test", "REQ-391 scoped listing");
     passed++;
     await kill(p);
@@ -982,9 +987,9 @@ async function main() {
 
   await test("T32/REQ-056: advancement workflow raises NEED_INPUT per open choice", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w11c" });
+    await call(p, "novel", { action: "create",  name: "w11c" });
     await call(p, "set_badge", { badge: "game_master" });
-    const nf = await call(p, "create_character", {});
+    const nf = await call(p, "character", { action: "create" });
     assertContains(nf, "[NEED_INPUT]", "REQ-056 workflow raises");
     await call(p, "respond", { decision: "cancel", option: "cancel" });
     passed++;
@@ -993,10 +998,10 @@ async function main() {
 
   await test("T494/REQ-193: pending workflow staleness surfaced in spec_health", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w11d" });
+    await call(p, "novel", { action: "create",  name: "w11d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", {});
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    await call(p, "character", { action: "create" });
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     if (!("pending_workflow" in h)) throw new Error("REQ-193 staleness surface");
     passed++;
     await kill(p);
@@ -1005,29 +1010,29 @@ async function main() {
   // ── Wave 12: output format catalog (REQ-425) + MCP Apps UI surface (REQ-426) ──
   await test("T505/REQ-425: output format catalog uniformity + validation", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w12a" });
+    await call(p, "novel", { action: "create",  name: "w12a" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Fen", description: "scarred" });
+    await call(p, "character", { action: "create",  name: "Fen", description: "scarred" });
     const entity_id = "character_01";
     // markdown default
-    const mdDefault = await call(p, "character_sheet", { entity_id });
+    const mdDefault = await call(p, "character", { action: "sheet",  entity_id });
     assertContains(mdDefault, "## Fen", "T505 character_sheet markdown default");
     // json structured
-    const j = await call(p, "character_sheet", { entity_id, format: "json" });
+    const j = await call(p, "character", { action: "sheet",  entity_id, format: "json" });
     const parsed = JSON.parse(j);
     if (parsed.name !== "Fen") throw new Error("T505 json name mismatch");
     // html presentational
-    const html = await call(p, "character_sheet", { entity_id, format: "html" });
+    const html = await call(p, "character", { action: "sheet",  entity_id, format: "html" });
     assertContains(html, "<h2>", "T505 character_sheet html");
     // ascii
-    const ascii = await call(p, "character_sheet", { entity_id, format: "ascii" });
+    const ascii = await call(p, "character", { action: "sheet",  entity_id, format: "ascii" });
     assertContains(ascii, "Fen", "T505 character_sheet ascii");
     // unsupported format -> INVALID_INPUT with enumeration
-    const bad = await call(p, "character_sheet", { entity_id, format: "pdf" });
+    const bad = await call(p, "character", { action: "sheet",  entity_id, format: "pdf" });
     assertContains(bad, "[INVALID_INPUT]", "T505 unsupported format rejects");
     assertContains(bad, "Supported formats", "T505 unsupported format enumerates");
     // resource ?format= markdown/json/html + byte-consistency via same renderer
-    await call(p, "create_npc", { name: "Goblin" });
+    await call(p, "npc", { action: "create",  name: "Goblin" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const npc_id = Object.keys(npcs)[0];
     const npcMd = await proto(p, "resources/read", { uri: `npc://${npc_id}` });
@@ -1035,10 +1040,10 @@ async function main() {
     const npcHtml = await proto(p, "resources/read", { uri: `npc://${npc_id}?format=html` });
     assertContains(npcHtml, "<h2>", "T505 npc resource html");
     // codex + lore resources honor the catalog
-    await call(p, "codex_set", { kind: "npc", name: "Blacksmith", content: { ac: 14 } });
+    await call(p, "codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { ac: 14 } });
     const codexHtml = await proto(p, "resources/read", { uri: "codex://npc_blacksmith?format=html" });
     assertContains(codexHtml, "<h2>", "T505 codex resource html");
-    await call(p, "set_lore_entry", { key: "treaty", content: "A border treaty." });
+    await call(p, "lore", { action: "set",  key: "treaty", content: "A border treaty." });
     const loreJson = await proto(p, "resources/read", { uri: "lore://treaty?format=json" });
     assertContains(loreJson, "border treaty", "T505 lore resource json");
     passed++;
@@ -1047,9 +1052,9 @@ async function main() {
 
   await test("T506/REQ-425d: ruleset-declared format registry surfaced in spec_health", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w12b" });
+    await call(p, "novel", { action: "create",  name: "w12b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = JSON.parse(await call(p, "spec_health", {}));
+    const h = JSON.parse(await call(p, "session", { action: "health" }));
     const of = h.output_formats;
     if (!of || !Array.isArray(of.declared)) throw new Error("T506 output_formats.declared missing");
     if (!Array.isArray(of.universal) || !of.universal.includes("html")) throw new Error("T506 universal html missing");
@@ -1059,12 +1064,12 @@ async function main() {
 
   await test("T507/REQ-426: MCP Apps ui:// surface (negotiated)", async () => {
     const p = await bootApps();
-    await call(p, "create_novel", { name: "w12c" });
+    await call(p, "novel", { action: "create",  name: "w12c" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Fen" });
+    await call(p, "character", { action: "create",  name: "Fen" });
     const entity_id = "character_01";
     // tool result carries ui:// linkage metadata (REQ-426b)
-    const r = await callRaw(p, "character_sheet", { entity_id });
+    const r = await callRaw(p, "character", { action: "sheet",  entity_id });
     const item = (r.content ?? [])[0] ?? {};
     if (item._meta?.ui?.resourceUri !== `ui://character-sheet/${entity_id}`) throw new Error("T507 character_sheet ui linkage missing");
     // ui:// resource served as text/html;profile=mcp-app with restrictive CSP (REQ-426a/d)
@@ -1080,12 +1085,12 @@ async function main() {
 
   await test("T508/REQ-426c: fallback without negotiation", async () => {
     const p = await boot();
-    await call(p, "create_novel", { name: "w12d" });
+    await call(p, "novel", { action: "create",  name: "w12d" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "create_character", { name: "Fen" });
+    await call(p, "character", { action: "create",  name: "Fen" });
     const entity_id = "character_01";
     // tool result has no ui linkage metadata when the client did not negotiate
-    const r = await callRaw(p, "character_sheet", { entity_id });
+    const r = await callRaw(p, "character", { action: "sheet",  entity_id });
     const item = (r.content ?? [])[0] ?? {};
     if (item._meta?.ui?.resourceUri !== undefined) throw new Error("T508 unexpected ui linkage");
     // ui:// read returns a plain-text fallback, not HTML

@@ -396,4 +396,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-426 | MCP Apps UI resource surface (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T507, T508 | — |
 | REQ-427 | Tool parameter semantics | 5.3 Tools, Resources, and Lookups | C | T509 | — |
 | REQ-428 | Registry-published distribution | 5.18 Workflow Entry Points | E | T510 | — |
+| REQ-429 | Server-wide action-discriminator surface | 5.18 Workflow Entry Points | C | T511 | — |
 

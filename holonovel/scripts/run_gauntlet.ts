@@ -186,12 +186,12 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Parser command sweep — every parser command on populated world model",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i1" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i1" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms"); assertContains(r, "exits"); assertContains(r, "things");
       }},
-      { label: "create_character", action: T("create_character", { name: "TestHero" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "TestHero" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look)", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber"); assertContains(r, "rusty sword");
@@ -218,12 +218,12 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Room navigation cycle — navigate through ≥5 linked rooms",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i2" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i2" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "populate 5-room chain", action: T("convert_source", { source: CHAIN_5 }), assert: (r) => {
+      { label: "populate 5-room chain", action: T("world", { action: "convert",  source: CHAIN_5 }), assert: (r) => {
         assertContains(r, "5 rooms");
       }},
-      { label: "create_character", action: T("create_character", { name: "Navigator" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "Navigator" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look at room 1", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Room 1") },
       { label: "go east to room 2", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 2") },
@@ -239,12 +239,12 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Object interaction — take/drop portable, fixed blocked, contained in closed blocked",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i3" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i3" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("create_character", { name: "Collector" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "Collector" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
       { label: "take rusty sword", action: T("command", { command: "take rusty sword" }), assert: (r) => assertOK(r) },
@@ -266,17 +266,17 @@ function buildScenarios(): GauntletScenario[] {
     objective: "CRUD round-trip — create room/thing/exit, read resource, delete, undo",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i4" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i4" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room", action: T("create_room", { name: "TestRoom", description: "A test room." }), assert: (r) => assertContains(r, "created") },
-      { label: "create_thing", action: T("create_thing", { name: "TestSword", location: "TestRoom", kind: "thing" }), assert: (r) => assertContains(r, "created") },
-      { label: "create_room2", action: T("create_room", { name: "TestRoom2", description: "Second room." }), assert: assertOK },
-      { label: "create_exit", action: T("create_exit", { direction: "east", room_a: "TestRoom", room_b: "TestRoom2" }), assert: (r) => assertContains(r, "Exit created") },
+      { label: "create_room", action: T("world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => assertContains(r, "created") },
+      { label: "create_thing", action: T("world", { action: "create_thing",  name: "TestSword", location: "TestRoom", kind: "thing" }), assert: (r) => assertContains(r, "created") },
+      { label: "create_room2", action: T("world", { action: "create_room",  name: "TestRoom2", description: "Second room." }), assert: assertOK },
+      { label: "create_exit", action: T("world", { action: "create_exit",  direction: "east", room_a: "TestRoom", room_b: "TestRoom2" }), assert: (r) => assertContains(r, "Exit created") },
       { label: "world://map includes rooms", action: R("world://map"), assert: (r) => {
         assertContains(r, "TestRoom"); assertContains(r, "TestRoom2");
       }},
       { label: "room://testroom resource", action: R("room://testroom"), assert: (r) => assertContains(r, "TestRoom") },
-      { label: "remove_room", action: T("remove_room", { name: "TestRoom" }), assert: (r) => assertContains(r, "removed") },
+      { label: "remove_room", action: T("world", { action: "remove_room",  name: "TestRoom" }), assert: (r) => assertContains(r, "removed") },
       { label: "world://map — room gone", action: R("world://map"), assert: (r) => assertNotContains(r, "TestRoom →") },
       { label: "undo", action: T("undo", {}), assert: assertOK },
       { label: "world://map — room restored", action: R("world://map"), assert: (r) => {
@@ -290,21 +290,21 @@ function buildScenarios(): GauntletScenario[] {
     objective: "convert_source with fixture — object counts, look output, state conflict on re-convert",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i5" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i5" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
         assertContains(r, "exits");
         assertContains(r, "things");
       }},
-      { label: "create_character", action: T("create_character", { name: "FixtureHero" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "FixtureHero" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "look shows Entrance Chamber", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
         assertContains(r, "rusty sword");
       }},
       { label: "set_badge GM for re-convert", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source again — STATE_CONFLICT", action: T("convert_source", { source: "The Crypt is a room. \"Dark.\"" }), assert: (r) => {
+      { label: "convert_source again — STATE_CONFLICT", action: T("world", { action: "convert",  source: "The Crypt is a room. \"Dark.\"" }), assert: (r) => {
         assertStateConflict(r);
       }},
     ],
@@ -315,11 +315,11 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Property state propagation — open/close/lock/unlock container via parser commands",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i6" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i6" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create room", action: T("create_room", { name: "TestRoom", description: "Test room." }), assert: assertOK },
-      { label: "create chest (container)", action: T("create_thing", { name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
-      { label: "create_character", action: T("create_character", { name: "ChestOpener" }), assert: assertOK },
+      { label: "create room", action: T("world", { action: "create_room",  name: "TestRoom", description: "Test room." }), assert: assertOK },
+      { label: "create chest (container)", action: T("world", { action: "create_thing",  name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "ChestOpener" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(open chest) — should open (new chests start unlocked)", action: T("command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "open") },
       { label: "command(close chest)", action: T("command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "close") },
@@ -340,9 +340,9 @@ function buildScenarios(): GauntletScenario[] {
     objective: "World-model resources — room://, thing://, world://map, world://kinds",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i7" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i7" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("convert_source", { source: APPENDIX_K_FIXTURE }), assert: assertOK },
+      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: assertOK },
       { label: "world://map", action: R("world://map"), assert: (r) => {
         assertContains(r, "Entrance Chamber");
         assertContains(r, "→");
@@ -371,12 +371,12 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Large-map navigation — 50+ room world model, ≥10 sequential moves",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i8" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i8" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "populate 50-room chain", action: T("convert_source", { source: CHAIN_50 }), assert: (r) => {
+      { label: "populate 50-room chain", action: T("world", { action: "convert",  source: CHAIN_50 }), assert: (r) => {
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("create_character", { name: "LongWalker" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "LongWalker" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       // Walk 10 steps east
       ...[2,3,4,5,6,7,8,9,10,11].map(n => ({
@@ -392,8 +392,8 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Empty world model — parser commands error, CRUD works, then parser works",
     blocking: false,
     steps: [
-      { label: "create_novel (empty world)", action: T("create_novel", { name: "gauntlet-i9" }), assert: assertOK },
-      { label: "create_character", action: T("create_character", { name: "EmptyWalker" }), assert: assertOK },
+      { label: "create_novel (empty world)", action: T("novel", { action: "create",  name: "gauntlet-i9" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "EmptyWalker" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look) — should fail", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "not been populated");
@@ -402,7 +402,7 @@ function buildScenarios(): GauntletScenario[] {
         assertContains(r, "not been populated");
       }},
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room on empty world", action: T("create_room", { name: "TestRoom", description: "A test room." }), assert: (r) => {
+      { label: "create_room on empty world", action: T("world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => {
         assertContains(r, "created");
       }},
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
@@ -417,20 +417,20 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Hybrid adventure load — load adventure module with ## World assertions",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i10" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i10" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "load_adventure", action: T("load_adventure", { slug: "tomb-of-the-serpent-king" }), assert: (r) => {
+      { label: "load_adventure", action: T("adventure", { action: "load",  slug: "tomb-of-the-serpent-king" }), assert: (r) => {
         assertContains(r, "loaded");
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("create_character", { name: "Adventurer" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "Adventurer" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(look) — adventure entrance", action: T("command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
       }},
       { label: "go north to Hall", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
       { label: "go north to Inner Sanctum", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "Inner Sanctum") },
-      { label: "session_recap", action: T("session_recap", {}), assert: (r) => {
+      { label: "session_recap", action: T("session", { action: "recap" }), assert: (r) => {
         assertContains(r, "rooms");
       }},
     ],
@@ -443,19 +443,19 @@ function buildScenarios(): GauntletScenario[] {
     steps: (() => {
       const npcRef = { id: "" };
       return [
-        { label: "create_novel", action: T("create_novel", { name: "gauntlet-i11" }), assert: assertOK },
+        { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i11" }), assert: assertOK },
         { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-        { label: "create_npc", action: T("create_npc", { name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
+        { label: "create_npc", action: T("npc", { action: "create",  name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
           const match = r.match(/\((\w+)\)/);
           if (match) npcRef.id = match[1];
           assertContains(r, "Galt");
           assertOK(r);
         }},
-        { label: "set_personality on npc", action: TL("set_personality", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
-        { label: "set_voice_examples on npc", action: TL("set_voice_examples", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
-        { label: "update_npc", action: TL("update_npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
-        { label: "remove_npc", action: TL("remove_npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
-        { label: "remove_nonexistent → NOT_FOUND", action: T("remove_npc", { npc_id: "nonexistent" }), assert: assertError },
+        { label: "set_personality on npc", action: TL("character", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
+        { label: "set_voice_examples on npc", action: TL("character", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
+        { label: "update_npc", action: TL("npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
+        { label: "remove_npc", action: TL("npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
+        { label: "remove_nonexistent → NOT_FOUND", action: T("npc", { action: "remove",  npc_id: "nonexistent" }), assert: assertError },
       ];
     })(),
   };
@@ -465,18 +465,18 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Lore and countdown lifecycle — set/toggle/update/remove lore; countdown expiry",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i12" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i12" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "set_lore_entry", action: T("set_lore_entry", { key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], badge_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
-      { label: "toggle_lore_entry (disable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
-      { label: "toggle_lore_entry (re-enable)", action: T("toggle_lore_entry", { key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
-      { label: "update_lore_entry", action: T("update_lore_entry", { key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
-      { label: "remove_lore_entry", action: T("remove_lore_entry", { key: "artifact" }), assert: assertOK },
-      { label: "remove_nonexistent lore", action: T("remove_lore_entry", { key: "nonexistent" }), assert: assertError },
-      { label: "set_countdown(ticks=2)", action: T("set_countdown", { name: "timer", ticks: 2, type: "narrative" }), assert: assertOK },
-      { label: "advance_countdown → 1 left", action: T("advance_countdown", { name: "timer" }), assert: (r) => assertContains(r, "1 tick") },
-      { label: "advance_countdown → expiry", action: T("advance_countdown", { name: "timer" }), assert: (r) => assertContains(r, "expired") },
-      { label: "advance_expired → NOT_FOUND", action: T("advance_countdown", { name: "timer" }), assert: assertError },
+      { label: "set_lore_entry", action: T("lore", { action: "set",  key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], badge_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
+      { label: "toggle_lore_entry (disable)", action: T("lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
+      { label: "toggle_lore_entry (re-enable)", action: T("lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
+      { label: "update_lore_entry", action: T("lore", { action: "update",  key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
+      { label: "remove_lore_entry", action: T("lore", { action: "remove",  key: "artifact" }), assert: assertOK },
+      { label: "remove_nonexistent lore", action: T("lore", { action: "remove",  key: "nonexistent" }), assert: assertError },
+      { label: "set_countdown(ticks=2)", action: T("countdown", { action: "set",  name: "timer", ticks: 2, type: "narrative" }), assert: assertOK },
+      { label: "advance_countdown → 1 left", action: T("countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "1 tick") },
+      { label: "advance_countdown → expiry", action: T("countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "expired") },
+      { label: "advance_expired → NOT_FOUND", action: T("countdown", { action: "advance",  name: "timer" }), assert: assertError },
     ],
   };
 
@@ -485,20 +485,20 @@ function buildScenarios(): GauntletScenario[] {
     objective: "Scene state and guidance — set_scene_state, scene_type, directive, badge_briefing, briefing_order",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("create_novel", { name: "gauntlet-i13" }), assert: assertOK },
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i13" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "set_scene_state full", action: T("set_scene_state", { description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively", scene_type: "social" }), assert: (r) => assertContains(r, "Scene set") },
-      { label: "set_narrative_directive", action: T("set_narrative_directive", { directive: "Emphasize the noise and crowd density." }), assert: assertOK },
+      { label: "set_scene_state full", action: T("scene", { action: "set",  description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively", scene_type: "social" }), assert: (r) => assertContains(r, "Scene set") },
+      { label: "set_narrative_directive", action: T("scene", { action: "directive",  directive: "Emphasize the noise and crowd density." }), assert: assertOK },
       { label: "badge_briefing prompt — GM", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => {
         assertContains(r, "marketplace");
         assertContains(r, "GM State");
       }},
-      { label: "set_scene_state second (push prior to history)", action: T("set_scene_state", { description: "The alley is dark and quiet.", location: "Back Alley", time_of_day: "night" }), assert: assertOK },
+      { label: "set_scene_state second (push prior to history)", action: T("scene", { action: "set",  description: "The alley is dark and quiet.", location: "Back Alley", time_of_day: "night" }), assert: assertOK },
       { label: "scene_history resource includes prior scene", action: R("scene://history"), assert: (r) => {
         assertContains(r, "Market Square");
         assertContains(r, "midday");
       }},
-      { label: "set_briefing_order", action: T("set_briefing_order", { sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
+      { label: "set_briefing_order", action: T("session", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
     ],
   };
 
@@ -588,7 +588,7 @@ async function main() {
 
     // Clean up for next scenario
     try {
-      await doAction(proc, T("end_novel", {}));
+      await doAction(proc, T("novel", { action: "end" }));
       await doAction(proc, T("respond", { decision: "end novel confirm", option: "yes" }));
     } catch { /* cleanup best-effort — a dead server errors here */ }
 
@@ -613,14 +613,10 @@ async function main() {
 
   // Surface hash
   const toolNames = [
-    "set_badge", "create_novel", "end_novel", "respond", "undo", "redo",
-    "command", "create_room", "remove_room", "create_thing", "remove_thing",
-    "create_exit", "remove_exit", "convert_source",
-    "create_character", "load_adventure", "session_recap",
-    "create_npc", "update_npc", "remove_npc", "set_personality", "set_voice_examples",
-    "set_lore_entry", "toggle_lore_entry", "update_lore_entry", "remove_lore_entry",
-    "set_countdown", "advance_countdown",
-    "set_scene_state", "set_narrative_directive", "set_briefing_order",
+    "adventure", "character", "codex", "combat", "command", "condition", "countdown",
+    "faction", "help", "lore", "note", "novel", "npc", "redo", "relationship",
+    "respond", "ruleset", "scene", "session", "set_badge", "story", "synthesis",
+    "undo", "vow", "world",
   ].sort();
   const resourceUris = [
     "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",

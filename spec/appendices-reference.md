@@ -1120,6 +1120,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-426d | UI resource security (Part d) | 2026-09-01 |
 | REQ-427 | Tool parameter semantics | 2026-09-02 |
 | REQ-428 | Registry-published distribution | 2026-09-02 |
+| REQ-429 | Server-wide action-discriminator surface | 2026-09-02 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1217,7 +1218,7 @@ diet.
 | T474 | Automated | Auto-moment: with `auto_record` defaulting true, call `set_scene_state("The vault")` — assert a `moment` story journal entry is appended with scene anchor and timestamp. Call with `skip_transition_hook=true` — assert no auto-moment. Set the Novel `auto_record` false — assert `set_scene_state` appends no moment. | REQ-405, REQ-246, REQ-125 |
 | T475 | Automated | Regression visibility: corrupt a Novel primary file, restart — assert backup restore succeeds and `spec_health` reports `[state-regression]` with an audit-entry-count and timestamp gap versus the corruption event. | REQ-406, REQ-092 |
 | T476 | Automated | Persist-tools never-truncated: set scene type to social, invoke `badge_briefing` as GM — assert the scene-typed tool section includes the core state-persistence tools (scene, story journal, countdown, note, personality, NPC, and vow) regardless of scene type, and that a small budget never truncates them. | REQ-407, REQ-087, REQ-135 |
-| T477 | Automated | Parameter ceiling: build a server and record the parameter ceiling in DECISIONS.md — assert no `tools/list` schema exceeds the ceiling; assert `spec_health` exposes per-tool parameter counts; assert a tool whose operation needs more inputs splits into a compact entry call plus a refinement path rather than inflating one schema. | REQ-408 |
+| T477 | Automated | Parameter ceiling: build a server and record the parameter ceiling in DECISIONS.md — assert no `tools/list` schema exceeds the ceiling (per-action for action-discriminator tools per REQ-413); assert `spec_health` exposes per-tool and per-action required-parameter counts; assert a tool whose operation needs more inputs splits into a compact entry call plus a refinement path rather than inflating one schema. | REQ-408 |
 | T478 | Automated | Response-lean enumeration: call a collection tool (e.g., `list_npcs`) — assert summary entries by default; request detail — assert full entries returned with no intervening state mutation. Call a lookup (e.g., `lookup_spell`) under the default — assert the full REQ-060 entry, not a summary. Assert `spec_health` reports the active enumeration verbosity. | REQ-409, REQ-060, REQ-253 |
 | T479 | Automated | Token footprint: after a Standard-tier build, assert DECISIONS.md (4) records the aggregate default-listing byte size (REQ-392) and prompt-budget consumption (REQ-118) alongside cold-start and latency figures; assert `spec_health` reports the same values as the most recent measurement; assert a build missing the footprint record fails the H10 handoff gate. | REQ-410, REQ-100, REQ-392, REQ-118 |
 | T480 | Automated | Stable-metadata caching: read a tool schema or prompt scaffold twice — assert the second read returns the cached entry (no recompute); mutate a registration — assert the cache invalidates and the next read reflects it; assert outputs are identical cached or not and `spec_health` reports cache coverage. | REQ-411, REQ-023b, REQ-025 |
@@ -1649,6 +1650,7 @@ diet.
 | T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
 | T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
+| T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
 
 ---
 

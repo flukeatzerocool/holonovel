@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Tool-definition quality harness (REQ-427, REQ-024) and registry-published
-// distribution guard (REQ-428). Exercises T509 and T510.
+// Tool-definition quality harness (REQ-427, REQ-024), registry-published
+// distribution guard (REQ-428), and server-wide action-discriminator surface
+// guard (REQ-429). Exercises T509, T510, and T511.
 //
 // T509 (REQ-427 + REQ-024): boots a ruleset-free host and asserts every
 // registered tool's description carries the three-clause structure (summary,
@@ -10,6 +11,10 @@
 // T510 (REQ-428): asserts holonovel/server.json's version and package version
 // equal the npm-canonical host version, and that the root version-check gate
 // passes against the committed manifest.
+//
+// T511 (REQ-429): asserts the registered tool catalog is at most twenty-five
+// tools, one per persisted entity type, and that every persisted type carries
+// a list/get/info/status/knowledge action on its entity tool.
 //
 // Exit codes: 0 = pass, 1 = one or more assertions failed.
 
@@ -81,7 +86,30 @@ async function main() {
   const proc = await boot();
   const listResp = await send(proc, { method: "tools/list", params: {} });
   const tools: any[] = listResp.result?.tools ?? [];
-  assert(tools.length > 50, `expected a large static tool surface, got ${tools.length}`);
+  assert(tools.length === 25, `expected the consolidated 25-tool surface, got ${tools.length}`);
+
+  // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
+  await test("T511/REQ-429: server-wide action-discriminator surface within a 25-tool budget", () => {
+    const toolNames = new Set(tools.map((t) => t.name));
+    const requiredEntityTools = ["novel", "character", "npc", "world", "faction", "vow", "countdown", "lore", "story", "note", "codex", "combat", "condition", "relationship"];
+    for (const name of requiredEntityTools) {
+      assert(toolNames.has(name), `missing entity tool '${name}'`);
+    }
+    const readActionHints: Record<string, string[]> = {
+      novel: ["info", "list"], character: ["sheet", "roster_list"], npc: ["list", "get"],
+      world: ["create_room"], faction: ["list"], vow: ["list"], countdown: ["list"],
+      lore: ["list", "get"], story: ["list"], note: ["list"], codex: ["list", "get"],
+      combat: ["status"], condition: ["list"], relationship: ["get"],
+    };
+    for (const [name, actions] of Object.entries(readActionHints)) {
+      const tool = tools.find((t) => t.name === name);
+      const props: Record<string, any> = (tool?.inputSchema && typeof tool.inputSchema === "object") ? (tool.inputSchema.properties ?? {}) : {};
+      const actionEnum: string[] = props.action?.enum ?? [];
+      for (const a of actions) {
+        assert(actionEnum.includes(a), `${name} action enum missing '${a}'`);
+      }
+    }
+  });
 
   let toolsWithDescription = 0;
   let describedParams = 0;
