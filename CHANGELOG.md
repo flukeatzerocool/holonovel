@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-02 — Spec prose sync to the 25-tool action-discriminator surface
+
+- Synchronized the specification prose, golden transcripts, and test catalog to
+  the consolidated 25-tool surface: every tool reference now uses the
+  `tool (action: X)` form (`session_recap`→`session (action: recap)`,
+  `set_lore_entry`→`lore (action: set)`, `roll_on_table`→`ruleset (action: roll)`,
+  `suggest_actions`/`resolve_intent`→`command`, `spec_health` invocation→
+  `session (action: health)`).
+- Kept `spec_health` as the health-report surface name (glossary-defined in §1a
+  as the `session` tool's `health` action); only tool-invocation phrasings changed.
+- Retitled the tool-naming REQs to the action form: REQ-323 "command resolve
+  action", REQ-385 "command suggest cross-ruleset scoping".
+- Rewrote Appendix B/C/N golden transcripts and ~50 Appendix T descriptions to
+  the new tool names; updated the §1 reading guide, §1a glossary, §4 P-tables,
+  §5 verification prose, §6 artifacts, §8 synthesis, and Appendix V runbooks.
+- Rewrote `holonovel/AGENTS.md` tool-surface list (25 action-discriminator tools).
+- Regenerated `holonovel/src/generated/contract-fingerprints.ts` — the tool-name
+  edits changed the hashed contract sections (§5.9/§5.16/§5.17/§5.19/§6.3).
+
 ## 2026-09-02 — Server-wide action-discriminator tool surface
 
 - Consolidated the 127-tool server surface to 25 action-discriminator tools —

@@ -2,6 +2,15 @@
 
 **Spec hash:** afbd3e672981db2d321164344d3ae3f7e7003d685cc59656dbfb70cdb7792360
 
+### Holonovel Spec Update — 2026-09-02 (spec prose sync to the 25-tool surface)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | spec documentation only (no normative change) — synchronized REQ bodies, the Appendix B/C/N golden transcripts, the Appendix T test catalog, the §1 reading guide, §1a glossary, §4 P-tables, §5 verification prose, §6 artifacts, §8 synthesis, and Appendix V runbooks to the consolidated 25-tool action-discriminator surface delivered in the prior increment. `spec_health` is retained as the glossary-defined name of the health report (produced by the `session` tool's `health` action); tool-invocation phrasings now use `session (action: health)`. REQ-323/REQ-385 retitled to the action form ("command resolve action", "command suggest cross-ruleset scoping"). `holonovel/AGENTS.md` tool-surface list rewritten to the 25 tools. `holonovel/src/generated/contract-fingerprints.ts` regenerated — the tool-name edits changed the hashed contract sections (§5.9/§5.16/§5.17/§5.19/§6.3). |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 281, E 110); typecheck 0 errors; holonovel test:all green; grep sweep — no stray old tool names outside the historical review-register |
+
 ### Holonovel Spec Update — 2026-09-02 (server-wide action-discriminator tool surface)
 
 | Field | Value |

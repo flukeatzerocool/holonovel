@@ -30,26 +30,34 @@ src/enrichment.ts       Enrichment manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole enrichment source.
         ↓
-src/index.ts            McpServer: ~44 tools, ~22 resources, 5 prompts.
+src/index.ts            McpServer: 25 action-discriminator tools, ~22 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
 ```
 
-## Tool Surface (~44 tools)
+## Tool Surface (25 tools)
 
 - **Badges & Workflow:** set_badge, respond, undo, redo, help
-- **Characters:** create_character (quick-create + step-by-step [NEED_INPUT] workflow), stage_character, import_character, character_sheet, set_active_entity, set_personality, set_voice_examples, player_signal
-- **World Model:** command, create_room, delete_room, create_thing, delete_thing, create_exit, delete_exit, convert_source
-- **Lookups:** search_rules (empty), suggest_actions (context-only), spec_health
-- **Combat (GM):** init_combat, advance_combat, end_combat, add_combat_participant, remove_combat_participant
-- **Narrative (GM):** set_scene_state, set_narrative_directive
-- **NPCs (GM):** create_npc, update_npc, remove_npc
-- **Countdowns (GM):** set_countdown, advance_countdown, remove_countdown
-- **Lore (GM):** set_lore_entry, update_lore_entry, remove_lore_entry, toggle_lore_entry, set_lore_group, suggest_lore, export_lorebook, import_lorebook
-- **Guidance (GM):** set_briefing_order, compress_audit, load_adventure, generate_adventure, generate_encounter, set_help_category
-- **Session:** session_recap
-- **Novel Lifecycle:** create_novel, resume_novel, switch_novel, end_novel, export_novel, import_novel
-- **Enrichment:** revert_enrichment
+- **character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
+- **npc** (action: create/update/remove/list/get) — GM NPC management
+- **world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert) — world-model rooms, things, exits
+- **command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
+- **combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
+- **condition** (action: apply/remove/list) — mechanical/narrative conditions
+- **countdown** (action: set/advance/remove/list) — GM countdown timers
+- **faction** (action: create/update/remove/list) — GM factions and progress clocks
+- **vow** (action: set/milestone/resolve/forsake/list) — GM narrative vows
+- **relationship** (action: set/get) — directed entity relationships
+- **lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge) — Novel lore entries and secrets
+- **story** (action: record/update/remove/list/promote) — story journal beats
+- **note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
+- **codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
+- **novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle
+- **adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
+- **synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — enrichment content
+- **ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
+- **scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
+- **session** (action: recap/verbosity/briefing_order/compress/health) — session recap, verbosity, briefing order, audit compression, and the `spec_health` report
 
 ## Running
 
@@ -67,7 +75,7 @@ npm run start
 
 ## State Model
 
-- **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `stage_character` / `create_character(stage_to_roster=true)`; imported into a novel via `import_character`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
+- **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `character (action: stage)` / `character (action: create, stage_to_roster=true)`; imported into a novel via `character (action: import)`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
 - **Snapshots:** Per-mutation snapshots per badge stack (undo/redo).

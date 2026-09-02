@@ -51,7 +51,7 @@ nothing has changed.
 **Auto-trigger.** When `TTRPG_SYNTHESIS_AUTO_TRIGGER` is set to
 `on_session_start` or `on_scene_change`, synthesis triggers automatically per
 REQ-264. Auto-triggered items are inert (inactive by default). The GM must
-explicitly activate them via `activate_synthesis_item` (REQ-260).
+explicitly activate them via `synthesis (action: activate)` (REQ-260).
 
 **Source inputs.** The synthesis tool analyzes seven categories of Novel state.
 Each category maps to specific output modules:
@@ -130,7 +130,7 @@ output.
 1. **Voice examples.** Up to 5 example dialogue snippets per entity type. Each records:
    `text` (the dialogue), `context` (situation tag), `source_url` or `source` (for internal
    items), and `confidence`. Stored at `synthesis://voice_examples`. The GM activates them
-   via `set_voice_examples` (REQ-077).
+   via `character (action: voice)` (REQ-077).
 
 2. **Prompt ordering.** A single recommended ordering of `badge_briefing` section
    tokens. Every token in the recommendation SHALL appear in the builder-documented
@@ -138,19 +138,19 @@ output.
    tokens follow their builder-default position after the listed tokens. Tokens not
    in the vocabulary are invalid and the synthesis module SHALL NOT produce them.
    Stored at `synthesis://briefing_order`. **Inert** — visible in `spec_health`,
-   never auto-applies. The GM must explicitly call `set_briefing_order` (REQ-082) to
+   never auto-applies. The GM must explicitly call `session (action: briefing_order)` (REQ-082) to
    use it.
 
 3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries
    total. Each records: `key` (slug), `content` (Markdown), `triggers` (keyword array),
    `badge_scope`, `source_url` or `source`, and `confidence`. Stored at `lore://templates`.
-   **Inert** — the GM must explicitly activate them via `set_lore_entry` (REQ-083).
+   **Inert** — the GM must explicitly activate them via `lore (action: set)` (REQ-083).
 
 4. **Action patterns.** Up to 10 patterns mapping common player intents to ruleset-legal
    actions. Each records: `intent` (natural-language string), `suggested_actions` (array of
    ruleset tool names), `source_url` or `source`, and `confidence`. They supplement the
-   `suggest_actions` (REQ-084) matching index. **Inert** — the GM must explicitly
-   activate them via a Novel-scoped toggle before they appear in `suggest_actions`
+   `command (action: suggest)` (REQ-084) matching index. **Inert** — the GM must explicitly
+   activate them via a Novel-scoped toggle before they appear in `command (action: suggest)`
    results. Unactivated patterns are visible at `synthesis://action_patterns` for
    review.
 
@@ -165,7 +165,7 @@ output.
    mystery, heist, sandbox). Each item records: `category` (adventure_templates,
    table_expansions, or scenario_starters), `content` (Markdown), `source_url` or `source`,
    `confidence`, and `badge_scope`. Stored at `synthesis://adventure_advice`. **Inert**
-   — the `generate_adventure` and `generate_encounter` tools (REQ-090, REQ-091) may draw
+   — the `adventure (action: generate)` and `adventure (action: generate_encounter)` tools (REQ-090, REQ-091) may draw
    from this module to seed scaffolds, but the content never auto-applies.
 
 7. **Narrative voice profiles.** Up to 15 items. Ruleset Wisdom items
@@ -174,7 +174,7 @@ output.
    novel, game), `description` (narrative techniques from the source material),
    `source_url` (for external items; ruleset-native items carry `source` anchor), and
    `confidence`. Stored at `synthesis://narrative_voices`. **Inert** — the GM applies a
-   profile via `set_narrative_directive` (REQ-081) by naming the profile. External
+   profile via `scene (action: directive)` (REQ-081) by naming the profile. External
    items tagged `[supplementary]`; ruleset-native items tagged `[ruleset]`.
 
 **Boundaries.** Synthesis may ADD to: entity voice_examples, prompt ordering
@@ -212,7 +212,7 @@ spec minimum shown in this table. Overrides below the minimum are rejected with 
 warning and the default is used. The per-pass cap limits how many new items a single
 internal synthesis pass produces. When synthesis would exceed a total Novel cap, it
 produces up to the cap and records the overflow count in the synthesis result. The GM
-may remove items via `deactivate_synthesis_item` or `remove_synthesis_item` to make room.
+may remove items via `synthesis (action: deactivate)` or `remove_synthesis_item` to make room.
 
 **Confidence.** Synthesis confidence uses source authority for external items,
 not mechanical completeness:
@@ -255,7 +255,7 @@ synthesis against a new fingerprint replaces all external synthesis items; inter
 are refreshed per-source. Synthesis items are stored in the Novel JSON under a
 `synthesis` key, organized by output module, alongside the Novel's other properties.
 
-**Reversion.** Calling `revert_synthesis` (REQ-103) removes all external synthesis items
+**Reversion.** Calling `synthesis (action: revert)` (REQ-103) removes all external synthesis items
 at runtime without requiring a rebuild. Internal synthesis items are removed by the same
 call. Ruleset Wisdom persists. Synthesis manifest and verification results remain in
 DECISIONS.md for audit.

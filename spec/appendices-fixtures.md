@@ -153,8 +153,8 @@ A correct extraction of the fixture includes at least:
   non-entity participants (REQ-043).
 - **Actions**: `roll_move` (Resolution, MUST), `create_delver` (Command, MUST —
   a REQ-042 workflow raising sequential `[NEED_INPUT]` decisions: stat array, then knack),
-  `apply_condition` / `remove_condition` (Command, MUST), `start_confrontation` /
-  `advance_confrontation` / `end_confrontation` (Command, MUST), `roll_on_table`
+  `condition (action: apply)` / `condition (action: remove)` (Command, MUST), `start_confrontation` /
+  `advance_confrontation` / `end_confrontation` (Command, MUST), `ruleset (action: roll)`
   (Generation, MUST), `snapshot_confrontation` / `load_confrontation` (Command, SHOULD).
   Eight MUST actions; ten domain tools registered. The five confrontation operations are
   Game Master; every other registered tool is both.
@@ -195,7 +195,7 @@ Options: marshwise, iron-stomach, quiet-step, old-wounds, lantern-lore, briar-bo
 → respond { "decision": "knack", "option": "quiet-step" }
 [OK] Delver created: Moss (roster://delver_01). Grit +2, Nerve +1, Wits +0. Harm 0/6. Knack: Quiet Step.
 
-→ import_character { "roster_id": "delver_01" }
+→ character { "action": "import", "roster_id": "delver_01" }
 [OK] Delver imported: Moss (entity://delver_01) from roster://delver_01. Grit +2, Nerve +1, Wits +0. Harm 0/6. Knack: Quiet Step.
 
 → roll_move { "move": "delve", "entity": "delver_01", "seed": 42 }
@@ -204,16 +204,16 @@ Dice: 2d6 = [2, 1]
 Modifiers: Grit +2
 Outcome: failure; the Keeper makes a move
 
-→ roll_on_table { "table": "undermarsh-encounters" }
+→ ruleset { "action": "roll", "table": "undermarsh-encounters" }
 [ERROR] [FORBIDDEN] "undermarsh-encounters" is Keeper-only.
 Corrective action: ask the Keeper to roll, or switch to game_master badge via `set_badge`.
 
-→ search_rules { "query": "pushing" }
+→ ruleset { "action": "search", "query": "pushing" }
 [OK] 1 result
 - tin_lanterns.md#pushing [confidence: LOW] — raw text available; unmodeled
   (contradicts tin_lanterns.md#dice)
 
-→ roll_on_table { "table": "knacks", "seed": 42 }
+→ ruleset { "action": "roll", "table": "knacks", "seed": 42 }
 [OK] Knacks (knacks): rolled 2 — Iron Stomach: immune to ingested poisons
 
 # --- same Novel, new connection, badge: Lantern Keeper ---
@@ -231,47 +231,47 @@ Corrective action: ask the Keeper to roll, or switch to game_master badge via `s
 
 The first combat block uses the ruleset term "confrontation" for tool names
 (`start_confrontation`, `advance_confrontation`, `end_confrontation`). The later
-block demonstrates the generic combat API (`init_combat`, `advance_combat`,
-`end_combat`). Both naming conventions are valid for the same ruleset
+block demonstrates the generic combat API (`combat (action: init)`, `combat (action: advance)`,
+`combat (action: end)`). Both naming conventions are valid for the same ruleset
 (REQ-020).
 
-→ spec_health {}
+→ session { "action": "health" }
 [OK] Confidence: <per-file and overall percentages>
 Indexed: <counts of anchors, concepts, entity types, actions, tables, procedures, guidance items>
 Pending sections: 0
 MUST coverage: 8/8 tools registered
-Defects: 3 — knacks rows 3/5 lack descriptions [content finding]; pushing contradiction [LOW; fallback: search_rules];
+Defects: 3 — knacks rows 3/5 lack descriptions [content finding]; pushing contradiction [LOW; fallback: ruleset (action: search)];
 broken link advancement.md#xp
 Ruleset version: matches intake snapshot
 
-→ set_scene_state { "description": "marsh clearing, lantern flies flickering" }
+→ scene { "action": "set", "description": "marsh clearing, lantern flies flickering" }
 [OK] Scene set: marsh clearing, lantern flies flickering
 
-→ set_countdown { "name": "lantern-oil", "ticks": 3, "type": "round" }
+→ countdown { "action": "set", "name": "lantern-oil", "ticks": 3, "type": "round" }
 [OK] Countdown set: lantern-oil (3 ticks, round)
 
-→ init_combat { "participants": ["delver_01"], "dangers": [{"name": "hollow-man"}, {"name": "willow-witch"}] }
+→ combat { "action": "init", "participants": ["delver_01"], "dangers": [{"name": "hollow-man"}, {"name": "willow-witch"}] }
 [OK] Confrontation active. Round 1. Turn order: Moss (6), hollow man (4), willow witch (3).
 
-→ advance_combat { "entity": "delver_01", "move": "delve", "seed": 42 }
+→ combat { "action": "advance", "entity": "delver_01", "move": "delve", "seed": 42 }
 [OK] Moss acts. (Delve: [2, 1] + 2 = 5, failure.) Keeper move: hollow man deals 1 Harm. Round 2. Countdown lantern-oil: 2 ticks remaining.
 
-→ apply_condition { "entity_id": "delver_01", "condition": "shaken" }
+→ condition { "action": "apply", "entity_id": "delver_01", "condition": "shaken" }
 [OK] Condition applied: shaken (delver_01). Expires after one scene of rest.
 
-→ advance_combat { "entity": "delver_01", "move": "steady", "seed": 7 }
+→ combat { "action": "advance", "entity": "delver_01", "move": "steady", "seed": 7 }
 [OK] Moss acts. (Steady: [2, 6] + 1 - 1 = 8, partial success.) Conditions: shaken (-1). Complication: marsh floor gives way. Round 3. Countdown lantern-oil: 1 tick remaining.
 
-→ advance_combat {}
+→ combat { "action": "advance" }
 [OK] Advanced. Round 3 complete. Countdown lantern-oil expired — recorded in audit log.
 
-→ session_recap {}
+→ session { "action": "recap" }
 [OK] Session: [timespan]. Entity: Moss (HP 5/6, Harm 1/6, Shaken). Confrontation active: Round 4. Scene: marsh clearing, lantern flies flickering.
 
 → undo {}
 [OK] Reverted. Countdown lantern-oil restored to 1 tick. Round: 3.
 
-→ end_combat { "outcome": "delvers fled" }
+→ combat { "action": "end", "outcome": "delvers fled" }
 [OK] Confrontation ended.
 ```
 
@@ -319,7 +319,7 @@ wounds, `Lantern Oil` → 3 uses (light property), `Blessed Pouch` → reroll on
 Knacks table — the dedup logic must collapse it into a cross-reference to the existing
 `knacks` anchor rather than registering a separate entity.
 
-Run `roll_on_table` for "gear" with a fixed seed and assert the result returns a valid row
+Run `ruleset (action: roll)` for "gear" with a fixed seed and assert the result returns a valid row
 from the gear table with its mechanical fields rendered. The RNG is already verified by
 G2's B.4 preflight; no additional witness values are needed.
 
@@ -611,11 +611,11 @@ A correct extraction of the fixture includes at least:
   are non-entity participants (REQ-043).
 - **Actions**: `roll_heroic_feat` (Resolution, MUST), `create_hero` (Command,
   MUST — REQ-042 workflow with sequential `[NEED_INPUT]` decisions: stat array,
-  then boon), `apply_condition` / `remove_condition` (Command, MUST),
+  then boon), `condition (action: apply)` / `condition (action: remove)` (Command, MUST),
   `init_cliffhanger` / `advance_cliffhanger` / `end_cliffhanger` (Command,
-  MUST), `roll_on_table` (Generation, MUST), `search_rules` (Canonical, MUST),
-  `spec_health` (Meta, MUST). Nine MUST tools registered. Cliffhanger
-  operations and `spec_health` are Game Master; every other tool is both.
+  MUST), `ruleset (action: roll)` (Generation, MUST), `ruleset (action: search)` (Canonical, MUST),
+  `session` (Meta, MUST — its `health` action serves the `spec_health` report). Nine MUST tools registered. Cliffhanger
+  operations and `session` are Game Master; every other tool is both.
 - **Tables**: gadgets (lookup + generation, with inline mechanical fields:
   Proton Gun → 2d6 energy, Rocket Boots → +2 Dash, Shield Belt → +2 Armor,
   De-Coherence Ray → 1d10 ignores armor, Grapple Gauntlet → climb/pull); Boons
@@ -666,17 +666,17 @@ Options: ace-pilot, iron-will, lucky-charm, gadgeteer, daring-escape, static-tou
 → respond { "decision": "boon", "option": "ace-pilot" }
 [OK] Hero created: Buster Kincaid (roster://hero_01). Might +4, Genius +1, Nerve +3, Dash +2. Peril 0/8. Boon: Ace Pilot.
 
-→ import_character { "roster_id": "hero_01" }
+→ character { "action": "import", "roster_id": "hero_01" }
 [OK] Hero imported: Buster Kincaid (entity://hero_01) from roster://hero_01. Might +4, Genius +1, Nerve +3, Dash +2. Peril 0/8. Boon: Ace Pilot.
 
 → set_badge { "badge": "player" }
 [OK] Badge active: player.
 
-→ roll_on_table { "table": "static-prison-foes" }
+→ ruleset { "action": "roll", "table": "static-prison-foes" }
 [ERROR] [FORBIDDEN] "static-prison-foes" is Chaotica's eyes only.
 Corrective action: ask Dr. Chaotica to roll, or switch to game_master badge via `set_badge`.
 
-→ search_rules { "query": "ion storms" }
+→ ruleset { "action": "search", "query": "ion storms" }
 [OK] 1 result
 - captain_proton_foes.md#static-prison-hazards [HIGH] — Ion storm! All Heroes take 1 Peril and must Stand Firm
 
@@ -684,56 +684,56 @@ Corrective action: ask Dr. Chaotica to roll, or switch to game_master badge via 
 → set_badge { "badge": "game_master" }
 [OK] Badge active: game_master.
 
-→ set_scene_state { "description": "Chaotica's Fortress of Solitude — ion cannons crackle, a green glow pulses from the catwalk above" }
+→ scene { "action": "set", "description": "Chaotica's Fortress of Solitude — ion cannons crackle, a green glow pulses from the catwalk above" }
 [OK] Scene set: Chaotica's Fortress of Solitude — ion cannons crackle, a green glow pulses from the catwalk above
 
-→ create_npc { "name": "Chaotica's Death-Bot", "description": "The Death-Bot lumbers forward — **Armor**: 4 against energy weapons, **Speed**: slow but relentless, **Attack**: plasma pincer 1d8+2." }
+→ npc { "action": "create", "name": "Chaotica's Death-Bot", "description": "The Death-Bot lumbers forward — **Armor**: 4 against energy weapons, **Speed**: slow but relentless, **Attack**: plasma pincer 1d8+2." }
 [OK] NPC created: Chaotica's Death-Bot (npc://death_bot_01). Description contains mechanical fields — Armor 4 (energy), Attack 1d8+2.
 
-→ set_countdown { "name": "ion-cannon-charge", "ticks": 3, "type": "round" }
+→ countdown { "action": "set", "name": "ion-cannon-charge", "ticks": 3, "type": "round" }
 [OK] Countdown set: ion-cannon-charge (3 ticks, round)
 
-→ init_combat { "participants": ["hero_01"], "dangers": [{"name": "death-bot"}, {"name": "lightning-fiend"}] }
+→ combat { "action": "init", "participants": ["hero_01"], "dangers": [{"name": "death-bot"}, {"name": "lightning-fiend"}] }
 [OK] Cliffhanger active. Round 1. Turn order: Buster Kincaid (Dash 2), Lightning Fiend, Death-Bot.
 
-→ advance_combat { "entity": "hero_01", "action": "brawl", "seed": "8" }
+→ combat { "action": "advance", "entity": "hero_01", "action": "brawl", "seed": "8" }
 [OK] Buster Kincaid acts. (Brawl: d20 = [5] + Might 4 = 9, failure — TN 13.) Chaotica's move: the Death-Bot deals Buster 1 Peril. Peril: 1/8. Round 2. Countdown ion-cannon-charge: 2 ticks remaining.
 
-→ apply_condition { "entity_id": "hero_01", "condition": "shaken" }
+→ condition { "action": "apply", "entity_id": "hero_01", "condition": "shaken" }
 [OK] Condition applied: shaken (hero_01). Disadvantage on Nerve and Dash tests. Expires after one scene of rest.
 
-→ advance_combat { "entity": "hero_01", "action": "stand-firm", "seed": "2000" }
+→ combat { "action": "advance", "entity": "hero_01", "action": "stand-firm", "seed": "2000" }
 [OK] Buster Kincaid acts (Shaken — disadvantage). (Stand Firm: d20 = [1, 14] take lower → 1 + Nerve 3 − 1(Peril) = 3, failure — TN 13.) Chaotica's move: the Lightning Fiend deals Buster 1 Peril. Peril: 2/8. Penalty: −1. Round 3. Countdown ion-cannon-charge: 1 tick remaining.
 
-→ update_npc { "npc_id": "death_bot_01", "hp": 18 }
+→ npc { "action": "update", "npc_id": "death_bot_01", "hp": 18 }
 [OK] NPC updated: Chaotica's Death-Bot. HP 18.
 
-→ advance_combat {}
+→ combat { "action": "advance" }
 [OK] Lightning Fiend menaces. Death-Bot repositions. Round 4. Countdown ion-cannon-charge: 0 ticks — expired. Expiry recorded in audit log.
 
-→ advance_combat { "entity": "hero_01", "action": "brawl", "seed": "1000" }
+→ combat { "action": "advance", "entity": "hero_01", "action": "brawl", "seed": "1000" }
 [OK] Buster Kincaid acts. (Shaken expired after previous scene. Brawl: d20 = [13] + Might 4 − 1(Peril) = 16, success — TN 13.) The Proton Gun hits. Round 5.
 
-→ session_recap {}
+→ session { "action": "recap" }
 [OK] Session: [timespan]. Entity: Buster Kincaid (Peril 2/8, penalty −1, Shaken). Cliffhanger active: Round 5. Scene: Chaotica's Fortress of Solitude. NPCs: Chaotica's Death-Bot (HP 18), Lightning Fiend.
 
 → undo {}
-[OK] Reverted: advance_combat. Buster Kincaid Peril 2 → 2. Round: 4. Audit entry appended.
+[OK] Reverted: combat (action: advance). Buster Kincaid Peril 2 → 2. Round: 4. Audit entry appended.
 
-→ advance_combat { "entity": "hero_01", "action": "brawl", "seed": "1000" }
+→ combat { "action": "advance", "entity": "hero_01", "action": "brawl", "seed": "1000" }
 [OK] Buster Kincaid acts. (Brawl: d20 = [13] + Might 4 − 1(Peril) = 16, success — TN 13.) Deterministic re-roll confirmed. Round 5.
 
-→ end_combat { "outcome": "heroes fled the fortress; Chaotica swears revenge!" }
+→ combat { "action": "end", "outcome": "heroes fled the fortress; Chaotica swears revenge!" }
 [OK] Cliffhanger ended. Outcome recorded in audit log.
 
 # --- switch to player badge ---
 → set_badge { "badge": "player" }
 [OK] Badge active: player.
 
-→ remove_condition { "entity_id": "hero_01", "condition": "shaken" }
+→ condition { "action": "remove", "entity_id": "hero_01", "condition": "shaken" }
 [ERROR] [FORBIDDEN] Condition management requires game_master badge. Switch via `set_badge`.
 
-→ spec_health {}
+→ session { "action": "health" }
 [OK] Confidence: <per-file and overall percentages>
 Indexed: <counts of anchors, concepts, entity types, actions, tables, procedures, guidance items>
 Pending sections: 0
@@ -801,14 +801,14 @@ the Hall of Statues when closed.
 ### W.3 Golden transcript
 
 ```
-→ create_novel { "name": "The Serpent Crown" }
+→ novel { "action": "create", "name": "The Serpent Crown" }
 [OK] Novel created: the-serpent-crown (novel://current)
 
-→ convert_source { "source": "<W.1 fixture text>" }
+→ world { "action": "convert", "source": "<W.1 fixture text>" }
 [OK] World model populated: 3 rooms, 2 things, 4 exits. Linked annotations: 0.
 Linked annotation counts — encounters: 0, NPCs: 0, traps: 0, lore: 0.
 
-→ set_scene_state { "description": "The entrance chamber. Torches flicker." }
+→ scene { "action": "set", "description": "The entrance chamber. Torches flicker." }
 [OK] Scene set: The entrance chamber. Torches flicker.
 
 # World-model parser commands under Player badge
@@ -853,33 +853,33 @@ open <door>, close <door>, inventory, or wait.
 → set_badge { "badge": "player" }
 [OK] Active badge: player
 
-→ init_combat { "participants": [], "dangers": [{"name": "stone-guardian"}] }
-[ERROR] [FORBIDDEN] init_combat is restricted to the game_master badge.
+→ combat { "action": "init", "participants": [], "dangers": [{"name": "stone-guardian"}] }
+[ERROR] [FORBIDDEN] combat (action: init) is restricted to the game_master badge.
 Corrective action: switch badges. Via `set_badge("game_master")`.
 
 # GM badge — manage state, set lore and countdown
 → set_badge { "badge": "game_master" }
 [OK] Active badge: game_master
 
-→ set_lore_entry { "key": "serpent-crown-lore", "content": "The Serpent Crown was
+→ lore { "action": "set", "key": "serpent-crown-lore", "content": "The Serpent Crown was
 forged by the Serpent King to bind the seven winds. It grants the wearer command
 over storms.", "triggers": ["serpent crown", "throne room"] }
 [OK] Lore entry created: serpent-crown-lore
 
-→ set_countdown { "name": "torch-fade", "ticks": 3, "type": "narrative" }
+→ countdown { "action": "set", "name": "torch-fade", "ticks": 3, "type": "narrative" }
 [OK] Countdown set: torch-fade (3 ticks, narrative)
 
-→ advance_countdown { "name": "torch-fade" }
+→ countdown { "action": "advance", "name": "torch-fade" }
 [OK] Countdown torch-fade: 2 ticks remaining.
 
-→ advance_countdown { "name": "torch-fade" }
+→ countdown { "action": "advance", "name": "torch-fade" }
 [OK] Countdown torch-fade: 1 tick remaining.
 
-→ advance_countdown { "name": "torch-fade" }
+→ countdown { "action": "advance", "name": "torch-fade" }
 [OK] Countdown torch-fade expired. Recorded in audit log.
 
 # Player triggers lore by entering the Throne Room (GM sets scene)
-→ set_scene_state { "description": "The Throne Room. The Serpent Crown gleams
+→ scene { "action": "set", "description": "The Throne Room. The Serpent Crown gleams
 on the black stone throne." }
 [OK] Scene set. Transition recorded.
 
@@ -903,7 +903,7 @@ Exits: south (obsidian door).
 → badge_briefing {}
 [OK] Lore: [serpent-crown-lore] The Serpent Crown was forged by the Serpent King...
 
-→ session_recap {}
+→ session { "action": "recap" }
 [OK] Active Novel: the-serpent-crown. Scene: The Throne Room. World model: 3 rooms,
 1 thing held by player, 1 fixed lever, 1 door (open).
 
@@ -923,30 +923,30 @@ Exits: south (obsidian door).
 → command { "command": "take serpent crown" }
 [OK] You take the Serpent Crown.
 
-→ end_novel {}
-[NEED_INPUT] Decision: -end_novel-confirm
+→ novel { "action": "end" }
+[NEED_INPUT] Decision: -novel (action: end)-confirm
 Question: End Novel "The Serpent Crown"?
 Options: yes, cancel
 
-→ respond { "decision": "-end_novel-confirm", "option": "yes" }
+→ respond { "decision": "-novel (action: end)-confirm", "option": "yes" }
 [OK] Novel ended: the-serpent-crown. Roster survives.
 ```
 
 ### W.4 Behavioral contracts exercised
 
 The Appendix W transcript exercises: REQ-001 (status prefixes on `[OK]`, `[WARNING]`,
-`[ERROR]`, `[NEED_INPUT]`), REQ-032 (badge gating — `init_combat` blocked from Player,
+`[ERROR]`, `[NEED_INPUT]`), REQ-032 (badge gating — `combat (action: init)` blocked from Player,
 `set_badge` switches badges., REQ-041 (undo round-trip restores item position on the
 throne), REQ-042 (decision workflow — `[NEED_INPUT]` with yes/cancel, concluded via
 `respond`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
-survives `end_novel`), REQ-072 (session_recap reports scene state, entity inventory,
+survives `novel (action: end)`), REQ-072 (session (action: recap) reports scene state, entity inventory,
 world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, audit),
 REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file
 removal), REQ-196 (parser commands — look, go north, go south, take, open, assert
 locked door blocks passage, assert fixed things cannot be taken, assert unrecognized
 commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
 door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
-(hybrid source conversion via convert_source populates rooms, things, and exits).
+(hybrid source conversion via world (action: convert) populates rooms, things, and exits).
 
 ---
 
@@ -1047,8 +1047,8 @@ A correct extraction of the fixture includes at least:
   modeled [HIGH]; advancement is undefined (the cross-reference is broken —
   defect 1), so no advance tool exists.
 - **Actions**: `roll_gambit` (Resolution, MUST), `create_courtier` (Command, MUST —
-  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `apply_condition` /
-  `remove_condition` (Command, MUST), `roll_on_table` (Generation, MUST). Four MUST
+  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `condition (action: apply)` /
+  `condition (action: remove)` (Command, MUST), `ruleset (action: roll)` (Generation, MUST). Four MUST
   tools registered.
 - **Tables**: Court Boons (lookup + generation — rows 3 and 5 lack descriptions,
   a content finding).

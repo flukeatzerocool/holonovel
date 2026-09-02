@@ -25,7 +25,7 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 4. Package step (§6.4.2): emit the declarative package (REQ-389) to the install
    directory.
 5. Verify (§6.5): run the convergence loop until no blocking findings remain.
-6. Bind a Novel to the slug (`bind_novel_ruleset`) and confirm the slug's tools
+6. Bind a Novel to the slug (`ruleset (action: bind)`) and confirm the slug's tools
    serve without re-parsing source Markdown.
 
 **Recovery.**
@@ -106,7 +106,7 @@ override in `DECISIONS.md` when the update is deliberately scheduled.
 
 ### V.5 Remove a ruleset
 
-**Entry point.** `remove_ruleset <slug>`.
+**Entry point.** `ruleset (action: remove) <slug>`.
 
 **Happy path.**
 
@@ -116,12 +116,12 @@ override in `DECISIONS.md` when the update is deliberately scheduled.
 
 **Recovery.**
 
-`remove_ruleset` returns `[ERROR] [STATE_CONFLICT]` because a Novel is bound:
+`ruleset (action: remove)` returns `[ERROR] [STATE_CONFLICT]` because a Novel is bound:
 unbind or archive the Novel first, then retry.
 
 ### V.6 Migrate a Novel to a ruleset
 
-**Entry point.** `bind_novel_ruleset <slug>` on an existing Novel.
+**Entry point.** `ruleset (action: bind) <slug>` on an existing Novel.
 
 **Happy path.**
 
