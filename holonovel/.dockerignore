@@ -1,9 +1,0 @@
-node_modules
-dist
-.holonovel-state
-testdata
-scripts
-.git
-*.md
-Dockerfile
-.dockerignore
