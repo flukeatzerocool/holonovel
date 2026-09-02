@@ -212,7 +212,7 @@ spec minimum shown in this table. Overrides below the minimum are rejected with 
 warning and the default is used. The per-pass cap limits how many new items a single
 internal synthesis pass produces. When synthesis would exceed a total Novel cap, it
 produces up to the cap and records the overflow count in the synthesis result. The GM
-may remove items via `synthesis (action: deactivate)` or `remove_synthesis_item` to make room.
+may deactivate items via `synthesis (action: deactivate)` to make room.
 
 **Confidence.** Synthesis confidence uses source authority for external items,
 not mechanical completeness:

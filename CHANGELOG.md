@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-02 — Reconcile the never-implemented remove_synthesis_item operation
+
+- Reconciled REQ-260 with the implemented synthesis surface: removed the
+  spec-described `remove_synthesis_item` permanent-delete operation, which was
+  never implemented (old or consolidated surface) and contradicts REQ-080b —
+  only player-authored synthesis lives in Novel JSON; Ruleset Wisdom is always
+  present and non-removable. GM removal-from-surfaces is
+  `synthesis (action: deactivate)`; permanent deletion is
+  `synthesis (action: player_remove)` (player items) or
+  `synthesis (action: revert)` (Tier-2 bulk).
+- Updated the §8 synthesis budget prose to match.
+
 ## 2026-09-02 — Spec prose sync to the 25-tool action-discriminator surface
 
 - Synchronized the specification prose, golden transcripts, and test catalog to
