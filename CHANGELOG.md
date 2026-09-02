@@ -20,6 +20,9 @@
 - Added `holonovel/Dockerfile` + `.dockerignore` (containerized distribution),
   root `glama.json` (maintainers), and `holonovel/scripts/test-tool-definitions.ts`
   (T509/T510), wired into `test:all`.
+- Removed the newsletter cron workflow (`.github/workflows/newsletter.yml`) to stop
+  weekly divergence of the GitHub `main` branch; full newsletter retirement is
+  scheduled on the roadmap.
 
 ## 2026-09-01 — Output format catalog + MCP Apps UI surface
 
