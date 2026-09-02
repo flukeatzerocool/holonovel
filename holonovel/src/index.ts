@@ -76,8 +76,15 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.08.30",
+  version: "2026.09.01",
 });
+
+// REQ-426c — MCP Apps capability negotiation: the server declares the
+// `io.modelcontextprotocol/ui` extension in its capabilities; a client that
+// does not negotiate the extension sees no `ui://` surface (see
+// appsNegotiated() below). REQ-426a — UI resources are served under the
+// `ui://` scheme as `text/html;profile=mcp-app`.
+server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui": {} } });
 
 // REQ-133 — forbidden-call audit: every tool handler is wrapped so that a
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
@@ -1122,6 +1129,130 @@ function formatNpcSheet(npc: any): string {
   return s;
 }
 
+// ── Output Format Catalog (REQ-425) ────────────────────────────────
+//
+// REQ-425a — every user-requestable artifact surface accepts an optional
+// `format` selector drawn from this catalog; the default is `markdown`.
+// REQ-425b — an unsupported format returns `[INVALID_INPUT]` enumerating the
+// surface's supported set, derived at call time (REQ-059). REQ-425c — the
+// same artifact in the same format renders byte-identically across surfaces
+// (tools and resources share the same render functions). REQ-425d — ruleset
+// packages may declare additional formats via the registry below.
+
+const UNIVERSAL_FORMATS = ["markdown", "json", "html"] as const;
+const STATBLOCK_FORMATS = ["markdown", "json", "html", "ascii"] as const;
+const SESSION_FORMATS = ["markdown", "lonelog"] as const;
+const INTERCHANGE_FORMATS = ["json", "markdown"] as const;
+
+// Ruleset-declared formats (REQ-425d). Packages register additional format
+// identifiers here at load time; they are surfaced in spec_health and in the
+// `[INVALID_INPUT]` enumeration of every surface.
+const declaredFormats = new Set<string>([]);
+function registerDeclaredFormat(name: string): void { declaredFormats.add(name); }
+
+function supportedFormats(surface: readonly string[]): string[] {
+  return [...new Set([...surface, ...declaredFormats])];
+}
+
+// REQ-425b — validate a requested format against a surface's supported set;
+// returns the normalized format or an `[INVALID_INPUT]` result.
+function resolveFormat(format: string | undefined, surface: readonly string[]): string | { content: { type: "text"; text: string }[] } {
+  const fmt = format ?? "markdown";
+  if (!supportedFormats(surface).includes(fmt)) {
+    const list = supportedFormats(surface).join(", ");
+    return err("INVALID_INPUT", `Unsupported format '${fmt}'. Supported formats: ${list}.`);
+  }
+  return fmt;
+}
+
+// REQ-425c / REQ-426a — a presentational HTML render of a Markdown artifact.
+// Self-contained (no external origins) per REQ-426d. Minimal Markdown→HTML:
+// headings, bold, italics, and line breaks; everything else is escaped.
+function htmlEscape(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function toHtml(markdown: string): string {
+  const body = markdown
+    .split("\n")
+    .map((line) => {
+      const heading = line.match(/^(#{1,3})\s+(.+)$/);
+      if (heading) {
+        const level = heading[1].length;
+        const text = htmlEscape(heading[2].replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1"));
+        return `<h${level}>${text}</h${level}>`;
+      }
+      let l = htmlEscape(line);
+      l = l.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
+      return l;
+    })
+    .join("<br>\n");
+  return `<!DOCTYPE html>\n<html><body><article>${body}</article></body></html>\n`;
+}
+
+// REQ-426d — UI resource CSP metadata: no external network origins.
+function uiResourceMeta(): { csp: { connectDomains: string[]; resourceDomains: string[]; frameDomains: string[] } } {
+  return { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } };
+}
+
+// REQ-426c — a negotiating client declares `io.modelcontextprotocol/ui` in its
+// capabilities.extensions. Non-negotiating clients fall back to text surfaces.
+function appsNegotiated(): boolean {
+  const ext = server.server.getClientCapabilities()?.extensions;
+  return !!ext && "io.modelcontextprotocol/ui" in ext;
+}
+
+// REQ-425c — the structured (`json`) render of a stat block, shared by the
+// character_sheet tool and the entity/npc resources so both agree byte-for-byte.
+function entitySheetJson(entity: any): object {
+  return {
+    id: entity.id ?? null,
+    name: entity.name ?? null,
+    stats: entity.stats ?? null,
+    personality: entity.personality ?? {},
+    inventory: entity.inventory ?? [],
+    current_room: entity.current_room ?? null,
+    conditions: entity.conditions ?? [],
+  };
+}
+
+// REQ-425c — a Markdown render of a codex entry, shared by the codex://
+// resource and its `ui://` HTML view.
+function codexEntryMarkdown(entry: any): string {
+  let md = `## ${entry.name}\n`;
+  if (entry.kind) md += `**Kind:** ${entry.kind}\n`;
+  if (entry.description) md += `*${entry.description}*\n`;
+  if (entry.content) md += `\n${JSON.stringify(entry.content, null, 2)}\n`;
+  return md;
+}
+
+// REQ-426a/c — build a `ui://` resource result. A negotiating client receives
+// `text/html;profile=mcp-app` with restrictive CSP metadata (REQ-426d); a
+// non-negotiating client receives a plain-text fallback (REQ-426c).
+function uiResourceResult(uri: string, html: string, negotiated: boolean): any {
+  if (!negotiated) {
+    return { contents: [{ uri, text: `[STATE_CONFLICT] ui:// resources require the MCP Apps extension (io.modelcontextprotocol/ui).`, mimeType: "text/plain" }] };
+  }
+  return { contents: [{ uri, text: html, mimeType: "text/html;profile=mcp-app", _meta: { ui: uiResourceMeta() } }] };
+}
+
+// REQ-426b — attach `ui://` linkage metadata to a tool result when a client has
+// negotiated the MCP Apps extension; non-negotiating clients get the bare result.
+function withUiLinkage(result: any, resourceUri: string): any {
+  if (!appsNegotiated()) return result;
+  const content = (result.content ?? []).map((c: any) => ({ ...c, _meta: { ui: { resourceUri } } }));
+  return { ...result, content };
+}
+
+// REQ-425a — read the `format` query parameter from a resource URI (default
+// markdown) and extract the resource id/key, excluding the query string.
+function resourceFormat(uri: URL): string {
+  return uri.searchParams.get("format") ?? "markdown";
+}
+function resourceKey(uri: URL): string {
+  const raw = uri.href.split("?")[0].split("/").filter(Boolean).pop() ?? "";
+  return decodeURIComponent(raw);
+}
+
 // ── Tools ──────────────────────────────────────────────────────────
 
 // --- Badge & Workflow ---
@@ -1737,20 +1868,32 @@ server.registerTool("import_character", {
 
 server.registerTool("character_sheet", {
   title: "Character Sheet",
-  description: "Render a character sheet for an entity. Formats: markdown (default), ascii.",
+  description: "Render a character sheet for an entity. Formats: markdown (default), json, html, ascii.",
   // REQ-120 — NPC rendering via the same sheet mechanism; REQ-124 — NPC damage
   // resolution targets NPCs by identifier; REQ-129 — property group cardinality.
+  // REQ-425a/b — the `format` selector is drawn from the output format catalog
+  // (STATBLOCK_FORMATS) and validated at call time; REQ-426b — the result
+  // carries `ui://` linkage metadata when the Apps extension is negotiated.
   inputSchema: {
     entity_id: z.string().optional(),
-    format: z.enum(["markdown", "ascii"]).optional(),
+    format: z.string().optional(),
   },
 }, async ({ entity_id, format }: any) => {
   const entity = resolveEntityOrNpc(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity or NPC '${entity_id || "none"}' not found. Corrective action: list entities with party://current or NPCs with npcs://.`);
-  if (format === "ascii") {
-    return raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}`);
+  const fmt = resolveFormat(format, STATBLOCK_FORMATS);
+  if (typeof fmt !== "string") return fmt;
+  let result: any;
+  if (fmt === "ascii") {
+    result = raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}`);
+  } else if (fmt === "json") {
+    result = raw(JSON.stringify(entitySheetJson(entity), null, 2));
+  } else if (fmt === "html") {
+    result = raw(toHtml(fmtEntitySheet(entity)));
+  } else {
+    result = ok(fmtEntitySheet(entity));
   }
-  return ok(fmtEntitySheet(entity));
+  return withUiLinkage(result, `ui://character-sheet/${entity.id}`);
 });
 
 server.registerTool("set_active_entity", {
@@ -3199,9 +3342,14 @@ server.registerTool("export_lorebook", {
   description: "Export novel lore entries in interchange format. Game Master only.",
   // REQ-094 — lorebook interchange: lore-only export/import with merge, replace,
   // and dry-run modes; round-trip preserves lore metadata (Appendix L).
-  inputSchema: { format: z.enum(["json", "markdown"]).optional() },
+  // REQ-425b — interchange surfaces accept only json/markdown; html is a
+  // presentation-only format and returns [INVALID_INPUT] enumerating the set.
+  inputSchema: { format: z.string().optional() },
 }, async ({ format: fmt }: any) => {
   requireGM();
+  if (fmt && !INTERCHANGE_FORMATS.includes(fmt)) {
+    return err("INVALID_INPUT", `Unsupported format '${fmt}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
+  }
   const novel = requireNovel();
   const entries = [...novel.lore.values()];
   if (fmt === "markdown") {
@@ -4803,9 +4951,14 @@ Options: yes, cancel`);
 server.registerTool("export_novel", {
   title: "Export Novel",
   description: "Export the active novel in interchange format. Game Master only.",
-  inputSchema: { format: z.enum(["json", "markdown"]).optional(), scope: z.string().optional() },
+  inputSchema: { format: z.string().optional(), scope: z.string().optional() },
 }, async ({ format: fmt, scope }: any) => {
   requireGM();
+  // REQ-425b — interchange surfaces accept only json/markdown; html returns
+  // [INVALID_INPUT] enumerating the set (presentation-only, not round-trippable).
+  if (fmt && !INTERCHANGE_FORMATS.includes(fmt)) {
+    return err("INVALID_INPUT", `Unsupported format '${fmt}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
+  }
   const novel = requireNovel();
   if (fmt === "markdown") {
     let md = `# ${novel.name}\n\n`;
@@ -5281,6 +5434,17 @@ server.registerTool("spec_health", {
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
     resource_uris, // REQ-139 — resource URI presence from the live resource map.
     prompt_health, // REQ-138 — per-prompt presence, length, budget, stale refs.
+    // REQ-425d — the output format catalog (universal + surface sets + any
+    // ruleset-declared formats) and whether the MCP Apps extension (REQ-426c)
+    // is negotiated by the current client.
+    output_formats: {
+      universal: [...UNIVERSAL_FORMATS],
+      statblock: [...STATBLOCK_FORMATS],
+      session: [...SESSION_FORMATS],
+      interchange: [...INTERCHANGE_FORMATS],
+      declared: [...declaredFormats],
+    },
+    mcp_apps: { negotiated: appsNegotiated() },
     confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
     indexed_counts: {
       anchors: rulesets.installedSlugs().reduce((n, s) => n + (rulesets.hydrate(s)?.index.length ?? 0), 0),
@@ -5491,11 +5655,18 @@ server.registerResource("npc-single", new ResourceTemplate("npc://{id}", { list:
   return { resources: [...novel.npcs.keys()].map(id => ({ uri: `npc://${id}`, name: id })) };
 } }), { title: "NPC Record" }, async (uri) => {
   const novel = state.activeNovel;
-  const id = uri.href.split("/").pop() ?? "";
+  const id = resourceKey(uri);
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const npc = novel.npcs.get(id);
   if (!npc) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(npc), mimeType: "application/json" }] };
+  // REQ-425a/c — the NPC stat block honors the output format catalog; the
+  // markdown render is byte-identical to character_sheet(npc_id) via the same
+  // fmtEntitySheet renderer.
+  const fmt = resourceFormat(uri);
+  if (fmt === "json") return { contents: [{ uri: uri.href, text: JSON.stringify(npc, null, 2), mimeType: "application/json" }] };
+  const md = fmtEntitySheet(npc);
+  if (fmt === "html") return { contents: [{ uri: uri.href, text: toHtml(md), mimeType: "text/html" }] };
+  return { contents: [{ uri: uri.href, text: md, mimeType: "text/markdown" }] };
 });
 
 server.registerResource("npcs", "npcs://", { title: "All NPCs" }, async () => {
@@ -5545,11 +5716,17 @@ server.registerResource("lore-single", new ResourceTemplate("lore://{key}", { li
   return { resources: [...novel.lore.keys()].map(k => ({ uri: `lore://${k}`, name: k })) };
 } }), { title: "Lore Entry" }, async (uri) => {
   const novel = state.activeNovel;
-  const key = uri.href.split("/").pop() ?? "";
+  const key = resourceKey(uri);
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const entry = novel.lore.get(key);
   if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(entry), mimeType: "application/json" }] };
+  // REQ-425a/c — the lore entry honors the output format catalog (markdown
+  // default, json, html).
+  const fmt = resourceFormat(uri);
+  if (fmt === "json") return { contents: [{ uri: uri.href, text: JSON.stringify(entry, null, 2), mimeType: "application/json" }] };
+  const md = `## ${entry.key}\n\n${entry.content}`;
+  if (fmt === "html") return { contents: [{ uri: uri.href, text: toHtml(md), mimeType: "text/html" }] };
+  return { contents: [{ uri: uri.href, text: md, mimeType: "text/markdown" }] };
 });
 
 // Audit resource
@@ -5730,14 +5907,20 @@ server.registerResource("server-notes-single", new ResourceTemplate("server-note
 server.registerResource("codex-single", new ResourceTemplate("codex://{id}", { list: () => {
   return { resources: [...state.codex.keys()].map(id => ({ uri: `codex://${id}`, name: state.codex.get(id)?.name ?? id })) };
 } }), { title: "Codex Entry" }, async (uri) => {
-  const id = decodeURIComponent(uri.href.split("/").pop() ?? "");
+  const id = resourceKey(uri);
   const entry = state.codex.get(id);
   if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   const badge = getBadge();
   if (entry.visibility === "private" && badge !== "game_master" && badge !== "none") {
     return { contents: [{ uri: uri.href, text: "[FORBIDDEN] This codex entry is private.", mimeType: "text/plain" }] };
   }
-  return { contents: [{ uri: uri.href, text: JSON.stringify(entry, null, 2), mimeType: "application/json" }] };
+  // REQ-425a/c — the codex entry honors the output format catalog (markdown
+  // default, json, html).
+  const fmt = resourceFormat(uri);
+  if (fmt === "json") return { contents: [{ uri: uri.href, text: JSON.stringify(entry, null, 2), mimeType: "application/json" }] };
+  const md = codexEntryMarkdown(entry);
+  if (fmt === "html") return { contents: [{ uri: uri.href, text: toHtml(md), mimeType: "text/html" }] };
+  return { contents: [{ uri: uri.href, text: md, mimeType: "text/markdown" }] };
 });
 
 // Faction resources (REQ-233)
@@ -5840,6 +6023,50 @@ server.registerResource("synthesis-status", "synthesis://status", { title: "Synt
     md += `## ${m}\nRuleset Wisdom: ${active ? c.total : 0}\nSynthesis activated/total: ${c.activated}/${active ? c.total : 0}\n`;
   }
   return { contents: [{ uri: "synthesis://status", text: md, mimeType: "text/markdown" }] };
+});
+
+// ── MCP Apps UI resources (REQ-426) ────────────────────────────────
+//
+// REQ-426a — interactive HTML views of user-requestable artifacts under the
+// `ui://` scheme, served `text/html;profile=mcp-app` with restrictive CSP
+// metadata (REQ-426d). REQ-426c — the view is gated on extension negotiation.
+
+server.registerResource("ui-character-sheet", new ResourceTemplate("ui://character-sheet/{id}", { list: () => {
+  const novel = state.activeNovel;
+  if (!novel) return { resources: [] };
+  return { resources: [...novel.entities.keys(), ...novel.npcs.keys()].map(id => ({ uri: `ui://character-sheet/${id}`, name: id })) };
+} }), { title: "Character Sheet (UI)" }, async (uri) => {
+  const id = resourceKey(uri);
+  const entity = resolveEntityOrNpc(id);
+  if (!entity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  return uiResourceResult(uri.href, toHtml(fmtEntitySheet(entity)), appsNegotiated());
+});
+
+server.registerResource("ui-codex", new ResourceTemplate("ui://codex/{id}", { list: () => {
+  return { resources: [...state.codex.keys()].map(id => ({ uri: `ui://codex/${id}`, name: state.codex.get(id)?.name ?? id })) };
+} }), { title: "Codex Entry (UI)" }, async (uri) => {
+  const entry = state.codex.get(resourceKey(uri));
+  if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  return uiResourceResult(uri.href, toHtml(codexEntryMarkdown(entry)), appsNegotiated());
+});
+
+server.registerResource("ui-lore", new ResourceTemplate("ui://lore/{key}", { list: () => {
+  const novel = state.activeNovel;
+  if (!novel) return { resources: [] };
+  return { resources: [...novel.lore.keys()].map(k => ({ uri: `ui://lore/${k}`, name: k })) };
+} }), { title: "Lore Entry (UI)" }, async (uri) => {
+  const novel = state.activeNovel;
+  const key = resourceKey(uri);
+  const entry = novel?.lore.get(key);
+  if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  return uiResourceResult(uri.href, toHtml(`## ${entry.key}\n\n${entry.content}`), appsNegotiated());
+});
+
+server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel (UI)" }, async () => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: "ui://novel/current", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
+  const md = `## ${novel.name}\n\n${novel.description ?? ""}\n`;
+  return uiResourceResult("ui://novel/current", toHtml(md), appsNegotiated());
 });
 
 // ── Additional tools (REQ-307, REQ-213/214, REQ-321, REQ-103, REQ-239) ──

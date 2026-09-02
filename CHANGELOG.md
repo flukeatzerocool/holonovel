@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-01 — Output format catalog + MCP Apps UI surface
+
+- Added REQ-425a–d (output format catalog): every user-requestable artifact
+  surface — tools and resources — accepts a `format` selector from a single
+  catalog (Appendix T.1), default `markdown`; `markdown`, `json`, and `html`
+  are universal, `ascii` is stat-block-scoped, `lonelog` is session-scoped, and
+  ruleset packages may declare additional formats. Unsupported formats return
+  `[INVALID_INPUT]` with the supported set enumerated; the same artifact in the
+  same format renders byte-identically across surfaces.
+- Added REQ-426a–d (MCP Apps UI surface, per SEP-1865): interactive HTML views
+  under the `ui://` scheme served as `text/html;profile=mcp-app` with
+  restrictive CSP metadata, tool-result `ui://` linkage, and capability
+  negotiation so non-negotiating clients fall back to text surfaces unchanged.
+- Spec: Appendix T.1 catalog, Appendix D conformance clause, manifest rows
+  (REQ-425/426), test catalogue T505–T508; `character_sheet` baseline now
+  lists `markdown`/`json`/`html`/`ascii`.
+- Implementation (`holonovel/src/index.ts`): shared format catalog + renderer;
+  `character_sheet` format selector (markdown/json/html/ascii); `?format=`
+  support on `npc://{id}`, `lore://{key}`, `codex://{id}`; `ui://` resources
+  (character sheet, codex, lore, novel) with negotiation gate; `html` rejected
+  on interchange exports; `spec_health` reports the catalog and negotiation.
+- Harness (`test-output-contracts.ts`) grows T505–T508; 186 assertions.
+- Verification: assemble + check:fast 0 errors (bucket A 2→0, C 277→279);
+  typecheck 0 errors (root + holonovel); holonovel harnesses all green.
+
 ## 2026-08-30 — Push pipeline: discard deploy-tree drift before pull
 
 - `push-pipeline.sh` step 9 now discards any uncommitted working-tree edits in

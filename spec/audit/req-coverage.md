@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-08-30
+Generated: 2026-09-02
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -392,4 +392,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-422 | Ruleset update entry point | 5.18 Workflow Entry Points | E | T500 | — |
 | REQ-423 | User-data format fingerprint | 5.18 Workflow Entry Points | C | T501, T503 | — |
 | REQ-424 | User-data migration entry point | 5.18 Workflow Entry Points | E | T502, T504 | — |
+| REQ-425 | Output format catalog (Part a) (4 sub-parts) | 5.1 Output and Error Contracts | C | T505, T506 | — |
+| REQ-426 | MCP Apps UI resource surface (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T507, T508 | — |
 

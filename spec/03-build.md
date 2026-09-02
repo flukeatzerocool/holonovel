@@ -433,8 +433,13 @@ finding. The server is built in six steps, each with an acceptance check:
 | 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 | 7     | Package: emit a declarative ruleset package (model, index, tool schemas, resources, prompts, hash, version manifest) per ruleset (REQ-389) | G8 pass, per-ruleset G2 replay after package load in the host |
 
-The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
-Both formats are Build baselines.
+The server renders user-requestable artifacts through the output format catalog
+(Appendix T.1). The `markdown`, `json`, and `html` formats are mandatory Build
+baselines on every artifact surface; `ascii` is a mandatory baseline on
+stat-block surfaces; `lonelog` and ruleset-declared formats are optional. The
+`character_sheet` tool SHALL support `markdown` (default), `json`, `html`, and
+`ascii`. Interactive `ui://` surfaces (REQ-426a) are an optional negotiated
+extension, not a baseline.
 
 For Step 1, the holonovel scaffold provides the MCP skeleton with badge gating
 helpers, state management, macros, and world-model layer (rooms,
