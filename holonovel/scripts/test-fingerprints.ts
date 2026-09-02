@@ -174,11 +174,11 @@ async function main() {
   {
     seedInstallDir(join(DATA_DIR, "rulesets"));
     const proc = await boot();
-    await call(proc, "create_novel", { name: "fp-novel" });
+    await call(proc, "novel", { action: "create",  name: "fp-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T498/REQ-420: package-format fingerprint flags prior-fingerprint package, keeps current", async () => {
-      const health = JSON.parse(await call(proc, "spec_health", {}));
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
       const alerts: { slug: string; reason: string }[] = health.ruleset_package_alerts ?? [];
       const stale = alerts.find((a) => a.slug === "stale");
       if (!stale) throw new Error(`no stale alert; alerts=${JSON.stringify(alerts)}`);
@@ -190,18 +190,18 @@ async function main() {
       if (alerts.some((a) => a.slug === "current")) throw new Error("current package wrongly flagged");
       if (health.rulesets_installed < 1) throw new Error("current package not installed");
       // Stale package held inactive — not installable/usable.
-      const bind = await call(proc, "create_novel", { name: "fp-bind", ruleset: "stale" });
+      const bind = await call(proc, "novel", { action: "create",  name: "fp-bind", ruleset: "stale" });
       assertContains(bind, "not installed");
     });
 
     await test("T503/REQ-420+REQ-423: legacy package without package_format flagged, not hard-blocked", async () => {
-      const health = JSON.parse(await call(proc, "spec_health", {}));
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
       const alerts: { slug: string; reason: string }[] = health.ruleset_package_alerts ?? [];
       const legacy = alerts.find((a) => a.slug === "legacy");
       if (!legacy) throw new Error(`no legacy alert; alerts=${JSON.stringify(alerts)}`);
       assertContains(legacy.reason, "missing package-format fingerprint");
       // Not hard-blocked: server still serves other calls.
-      const list = await call(proc, "list_rulesets", {});
+      const list = await call(proc, "ruleset", { action: "list" });
       assertContains(list, "current");
     });
 
@@ -215,9 +215,9 @@ async function main() {
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T501/REQ-423: prior data-format fingerprint flags Novel/roster/codex/notes, still loads", async () => {
-      const res = await call(proc, "resume_novel", { slug: "prior-novel" });
+      const res = await call(proc, "novel", { action: "resume",  slug: "prior-novel" });
       assertContains(res, "prior-novel");
-      const health = JSON.parse(await call(proc, "spec_health", {}));
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:prior-novel"]) throw new Error(`novel not flagged stale; stale=${JSON.stringify(stale)}`);
       for (const k of ["roster", "codex", "server-notes"]) {
@@ -233,9 +233,9 @@ async function main() {
       legacy.slug = "legacy-novel";
       legacy.name = "legacy-novel";
       writeFileSync(join(DATA_DIR, "novels", "legacy-novel.json"), JSON.stringify(legacy, null, 2) + "\n");
-      const res = await call(proc, "resume_novel", { slug: "legacy-novel" });
+      const res = await call(proc, "novel", { action: "resume",  slug: "legacy-novel" });
       assertContains(res, "legacy-novel");
-      const health = JSON.parse(await call(proc, "spec_health", {}));
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:legacy-novel"]) throw new Error(`legacy novel not flagged; stale=${JSON.stringify(stale)}`);
       assertContains(stale["novel:legacy-novel"], "missing data-format fingerprint");

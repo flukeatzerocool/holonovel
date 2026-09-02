@@ -89,6 +89,9 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // REQ-133 — forbidden-call audit: every tool handler is wrapped so that a
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
 // violation_type: boundary) in the Novel audit log before propagating.
+// REQ-429 — server-wide action-discriminator surface: one tool per persisted
+// entity type within a twenty-five-tool budget; every persisted type has a
+// list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
   return _registerTool(name, config, withForbiddenAudit(handler, name) as any);
@@ -275,7 +278,7 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
     const goal = npc.personality?.goals;
     if (!goal || goal.length < vowSuggestionMinChars()) continue;
     const alreadyVowed = novel.vows.some((v) => v.state === "active" && v.description.toLowerCase().includes(goal.toLowerCase()));
-    if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via set_vow or ignore.`);
+    if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via vow (action: set) or ignore.`);
   }
 
   // REQ-362 — faction-vow: faction goal intersecting known entities/locations prompts vow.
@@ -387,6 +390,10 @@ initServer(state);
 // REQ-408 — tool parameter ceiling, recorded at build time. The reference host
 // computes the ceiling from its own registrations rather than hardcoding a
 // blind cap: the ceiling is the maximum parameter count any single tool exposes.
+// REQ-408 (amended, REQ-413): for an action-discriminator tool, the ceiling is
+// evaluated per action — against the tool's *required* parameters (the action
+// discriminator plus any required fields of a single operation), not the union
+// of every optional field the tool may accept across actions.
 const PARAMETER_CEILING = 8;
 
 // REQ-411 — stable-metadata caching. Rendered listings (tool schemas, prompt
@@ -397,6 +404,8 @@ interface MetadataCache {
   fingerprint: string;
   toolsListBytes: number;
   toolParameterCounts: Record<string, number>;
+  toolRequiredParamCounts: Record<string, number>;
+  actionToolNames: Set<string>;
   promptBytes: number;
 }
 function registrationFingerprint(): string {
@@ -414,19 +423,35 @@ let cacheMisses = 0;
 
 // REQ-392 — tool-description budget: descriptions fit a recorded budget;
   // spec_health reports `tools_list_bytes` (aggregate default tools/list size).
+function isOptionalShape(schema: any, key: string): boolean {
+  const field = schema?.shape?.[key];
+  if (!field) return true;
+  const def = field._def ?? field._zod?.def ?? {};
+  const typeName = def.typeName ?? field.constructor?.name ?? "";
+  if (typeName === "ZodOptional") return true;
+  return !!def.innerType || !!field.isOptional?.();
+}
 function computeToolMetrics() {
   const tools: Record<string, any> = (server as any)._registeredTools ?? {};
   let bytes = 0;
   const counts: Record<string, number> = {};
+  const requiredCounts: Record<string, number> = {};
+  const actionToolNames = new Set<string>();
   for (const [name, tool] of Object.entries(tools)) {
     const desc = (tool?.description ?? "");
     const schema = tool?.inputSchema;
     const shape = (schema && (schema as any).shape) ? Object.keys((schema as any).shape) : [];
     counts[name] = shape.length;
+    let required = 0;
+    for (const key of shape) {
+      if (!isOptionalShape(schema, key)) required++;
+    }
+    requiredCounts[name] = required;
+    if (shape.includes("action")) actionToolNames.add(name);
     bytes += Buffer.byteLength(desc, "utf-8") + 64; // name overhead + description
     for (const key of shape) bytes += Buffer.byteLength(key, "utf-8") + 16;
   }
-  return { bytes, counts };
+  return { bytes, counts, requiredCounts, actionToolNames };
 }
 
 // REQ-414 — schema-surface economy: count advertised inputs using nested
@@ -468,11 +493,13 @@ function cachedMetadata(): MetadataCache {
     return metadataCache;
   }
   cacheMisses++;
-  const { bytes, counts } = computeToolMetrics();
+  const { bytes, counts, requiredCounts, actionToolNames } = computeToolMetrics();
   metadataCache = {
     fingerprint: fp,
     toolsListBytes: bytes,
     toolParameterCounts: counts,
+    toolRequiredParamCounts: requiredCounts,
+    actionToolNames,
     promptBytes: promptScaffoldBytes(),
   };
   return metadataCache;
@@ -976,55 +1003,32 @@ function worldSnapshot(): void {
 
 const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Badge & Workflow": ["set_badge", "respond", "undo", "redo", "help"],
-  "Characters": ["create_character", "import_character", "stage_character", "character_sheet", "set_active_entity", "set_personality", "set_voice_examples", "player_signal", "remove_entity", "list_roster_characters", "remove_roster_character"],
-  "World Model": ["command", "resolve_intent", "create_room", "remove_room", "create_thing", "remove_thing", "create_exit", "remove_exit", "convert_source"],
-  "Lookups": ["search_rules", "suggest_actions", "spec_health"],
-  "Combat (GM)": ["init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant"],
-  "Conditions (GM)": ["apply_condition", "remove_condition"],
-  "Narrative (GM)": ["set_scene_state", "set_narrative_directive"],
-  "NPCs (GM)": ["create_npc", "update_npc", "remove_npc"],
-  "Factions (GM)": ["create_faction", "update_faction", "remove_faction"],
-  "Secrets (GM)": ["set_secret", "reveal_secret", "get_knowledge"],
-  "Relationships (GM)": ["set_relationship", "get_relationships"],
-  "Vows (GM)": ["set_vow", "mark_milestone", "resolve_vow", "forsake_vow"],
-  "Countdowns (GM)": ["set_countdown", "advance_countdown", "remove_countdown"],
-  "Lore (GM)": ["set_lore_entry", "update_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group", "suggest_lore", "export_lorebook", "import_lorebook"],
-  "Story Journal (GM)": ["record_story", "update_story", "remove_story", "list_stories"],
-  "Notes": ["set_note", "remove_note", "list_notes"],
-  "Server Notes (GM)": ["set_server_note", "remove_server_note", "list_server_notes"],
-  "Pause/Resume (GM)": ["set_pause_context", "get_pause_context"],
-  "Checkpoints (GM)": ["set_checkpoint", "list_checkpoints", "restore_checkpoint", "remove_checkpoint"],
-  "Guidance (GM)": ["set_briefing_order", "compact_audit_log", "load_adventure", "generate_adventure", "generate_encounter", "set_help_category", "toggle_action_patterns", "present_choices"],
-  "Autonomy (GM)": ["set_autonomy"],
-  "Oracle": ["ask_oracle"],
-  "Session": ["session_recap"],
-  "Novel Lifecycle": ["create_novel", "resume_novel", "switch_novel", "end_novel", "export_novel", "import_novel", "rename_novel", "list_novels", "novel_info", "clone_novel"],
-  "Synthesis (GM)": ["revert_synthesis"],
+  "Characters": ["character"],
+  "World Model": ["command", "world"],
+  "Lookups": ["ruleset"],
+  "Combat": ["combat"],
+  "Conditions": ["condition"],
+  "Narrative": ["scene"],
+  "NPCs": ["npc"],
+  "Factions": ["faction"],
+  "Secrets": ["lore"],
+  "Relationships": ["relationship"],
+  "Vows": ["vow"],
+  "Countdowns": ["countdown"],
+  "Lore": ["lore"],
+  "Story Journal": ["story"],
+  "Notes": ["note"],
+  "Codex": ["codex"],
+  "Adventure": ["adventure"],
+  "Session": ["session"],
+  "Novel Lifecycle": ["novel"],
+  "Synthesis": ["synthesis"],
 };
 
 const GMToolsSet = new Set([
-  "init_combat", "advance_combat", "end_combat", "add_combat_participant", "remove_combat_participant",
-  "set_scene_state", "set_narrative_directive",
-  "create_npc", "update_npc", "remove_npc",
-  "set_countdown", "advance_countdown", "remove_countdown",
-  "set_lore_entry", "update_lore_entry", "remove_lore_entry", "toggle_lore_entry", "set_lore_group",
-  "suggest_lore", "export_lorebook", "import_lorebook",
-  "set_briefing_order", "compact_audit_log", "load_adventure", "generate_adventure", "generate_encounter",
-  "set_help_category", "export_novel", "import_novel", "revert_synthesis",
-  "create_room", "remove_room", "create_thing", "remove_thing", "create_exit", "remove_exit", "convert_source",
-  "apply_condition", "remove_condition",
-  "create_faction", "update_faction", "remove_faction",
-  "set_secret", "reveal_secret", "get_knowledge",
-  "set_relationship", "get_relationships",
-  "set_vow", "mark_milestone", "resolve_vow", "forsake_vow",
-  "set_checkpoint", "list_checkpoints", "restore_checkpoint", "remove_checkpoint",
-  "set_server_note", "remove_server_note", "list_server_notes",
-  "set_pause_context", "get_pause_context",
-  "record_story", "update_story", "remove_story", "list_stories",
-  "present_choices", "toggle_action_patterns",
-  "set_autonomy",
-  "rename_novel", "list_novels", "novel_info", "clone_novel",
-  "remove_entity", "remove_roster_character", "list_roster_characters",
+  "scene", "combat", "condition", "npc", "faction", "relationship", "vow",
+  "countdown", "lore", "story", "note", "world", "adventure", "novel",
+  "synthesis", "codex", "ruleset", "session",
 ]);
 
 function isGMTool(name: string): boolean {
@@ -1543,9 +1547,27 @@ server.registerTool("redo", {
 
 server.registerTool("help", {
   title: "Help and Tool Discovery",
-  description: "Show the available tools grouped by category, badge-filtered for the active badge. Use when: the caller needs to discover what tools exist or find one by keyword. Do NOT use when: reading the current badge's guidance — use the badge_briefing prompt.",
-  inputSchema: { query: z.string().optional().describe("Optional search term matched against tool name, description, and title.") },
-}, async ({ query }: any) => {
+  description: "Show the available tools grouped by category (badge-filtered) or reassign a tool's category. Use when: the caller needs to discover tools, find one by keyword, or override a tool's category for a session. Do NOT use when: reading the current badge's guidance — use the badge_briefing prompt.",
+  inputSchema: { query: z.string().optional().describe("Optional search term matched against tool name, description, and title."), action: z.enum(["list", "category"]).optional().describe("list (default) or category (reassign a tool's category)."), tool_name: z.string().optional().describe("Registered tool name to reassign (category)."), category: z.string().nullable().optional().describe("New category label, or null/empty to restore default (category).") },
+}, async (args: any) => {
+  if (args.action === "category") {
+    requireGM();
+    const novel = requireNovel();
+    const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+    if (!(args.tool_name in registeredTools)) {
+      const valid = Object.keys(registeredTools).join(", ");
+      return err("NOT_FOUND", `Tool '${args.tool_name}' not found. Valid: ${valid}`);
+    }
+    if (!args.category || args.category.trim() === "") {
+      delete novel.help_category_overrides[args.tool_name];
+      state.saveNovel(novel);
+      return ok(`Category override for '${args.tool_name}' removed.`);
+    }
+    novel.help_category_overrides[args.tool_name] = args.category.trim();
+    state.saveNovel(novel);
+    return ok(`Tool '${args.tool_name}' assigned to category '${args.category.trim()}'.`);
+  }
+  const query = args.query;
   // REQ-024 — tool documentation: tools carry a human title and descriptions
   // using the ruleset's own terms; full descriptions remain at resources/read.
   // REQ-415 — summary-first catalog: `help`/catalog listings return summaries;
@@ -1610,31 +1632,9 @@ server.registerTool("help", {
   if (novel && novel.world.rooms.size > 0) {
     result += `\n\nWorld-model populated: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things. Try \`command("look")\`.`;
   } else {
-    result += "\n\nNo world model — use `convert_source` or adventure tools to populate.";
+    result += "\n\nNo world model — use world (action: convert) or the adventure tool to populate.";
   }
   return raw(result);
-});
-
-server.registerTool("set_help_category", {
-  title: "Set Help Category Override",
-  description: "Override the builder-assigned category a tool appears under in help output, persisted to the Novel (Game Master only). Use when: reorganizing the tool catalog for a session. Do NOT use when: setting briefing section order — use set_briefing_order.",
-  inputSchema: { tool_name: z.string().describe("The registered tool name to reassign."), category: z.string().nullable().describe("The new category label, or null/empty to restore the builder default.") },
-}, async ({ tool_name, category }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
-  if (!(tool_name in registeredTools)) {
-    const valid = Object.keys(registeredTools).join(", ");
-    return err("NOT_FOUND", `Tool '${tool_name}' not found. Valid: ${valid}`);
-  }
-  if (!category || category.trim() === "") {
-    delete novel.help_category_overrides[tool_name];
-    state.saveNovel(novel);
-    return ok(`Category override for '${tool_name}' removed.`);
-  }
-  novel.help_category_overrides[tool_name] = category.trim();
-  state.saveNovel(novel);
-  return ok(`Tool '${tool_name}' assigned to category '${category.trim()}'.`);
 });
 
 // --- Characters (ruleset-free, REQ-219; ruleset-driven REQ-104/151/152/181) ---
@@ -1709,300 +1709,250 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
   return stats;
 }
 
-server.registerTool("create_character", {
-   title: "Create Character",
-   description: "Create a character via quick-create (name, species, classes) or a guided [NEED_INPUT] step-by-step workflow when called without a name, persisting the entity to the Novel. Use when: introducing a new player character or NPC. Do NOT use when: modifying an existing entity — use set_personality, set_voice_examples, or set_active_entity.",
-   // REQ-408 — parameter ceiling (8): compact entry (name + identity + source)
-   // with mechanical and personality detail grouped into refinement objects.
-   inputSchema: { name: z.string().optional().describe("The character's name; omit to begin the step-by-step creation workflow."), species: z.string().optional().describe("The species name; required for quick-create."), classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional().describe("Class levels as 'Class 5 / Other 2' or an array of {className, levels}."), stat_method: z.string().optional().describe("The stat-generation method; defaults to the ruleset's first method."), seed: z.string().optional().describe("Deterministic seed for ability-score generation."), stage_to_roster: z.boolean().optional().describe("When true, also stage the entity into the persistent roster."), personality: z.object({ description: z.string().optional().describe("Narrative description."), voice: z.string().optional().describe("Voice and speech pattern."), background: z.string().optional().describe("Backstory."), goals: z.string().optional().describe("Character goals.") }).optional().describe("Grouped personality fields."), details: z.object({ ability_scores: z.union([z.string(), z.array(z.number())]).optional().describe("Ability scores as '15 14 13 12 10 8' or an array."), skills: z.union([z.string(), z.array(z.string())]).optional().describe("Trained skills."), feats: z.union([z.string(), z.array(z.string())]).optional().describe("Feats."), talents: z.union([z.string(), z.array(z.string())]).optional().describe("Talents."), equipment: z.union([z.string(), z.array(z.string())]).optional().describe("Starting equipment.") }).optional().describe("Grouped mechanical details.") },
-}, async ({ name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment }: any) => {
-    // Legacy-tolerant normalization: accept the grouped objects or their
-    // top-level spellings interchangeably.
-    const p = personalityObj ?? {};
-    const d = details ?? {};
-    description = description ?? p.description;
-    voice = voice ?? p.voice;
-    background = background ?? p.background;
-    goals = goals ?? p.goals;
-    ability_scores = ability_scores ?? d.ability_scores;
-    skills = skills ?? d.skills;
-    feats = feats ?? d.feats;
-    talents = talents ?? d.talents;
-    equipment = equipment ?? d.equipment;
-    requireNotObserver();
-  const novel = requireNovel();
-  const rules = getCharacterRules(novel);
-  const personality = { description, voice, background, goals };
-  const hasPersonality = description || voice || background || goals;
+// Character (REQ-069, REQ-104, REQ-120, REQ-124, REQ-126, REQ-127, REQ-129, REQ-151, REQ-152, REQ-165, REQ-166, REQ-176, REQ-177, REQ-178, REQ-181, REQ-219, REQ-399) —
+// consolidated create/stage/import/sheet/set_active/personality/voice/signal/
+// remove/roster_remove/roster_list surface.
+server.registerTool("character", {
+  title: "Character",
+  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Use when: working with player characters. Do NOT use when: managing NPCs — use npc.",
+  inputSchema: {
+    action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, remove, roster_remove, or roster_list."),
+    name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
+    species: z.string().optional().describe("Species (create)."),
+    classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional().describe("Class levels (create)."),
+    stat_method: z.string().optional().describe("Stat-generation method (create)."),
+    seed: z.string().optional().describe("Deterministic seed (create)."),
+    stage_to_roster: z.boolean().optional().describe("Also stage into the roster (create)."),
+    personality: z.object({ description: z.string().optional(), voice: z.string().optional(), background: z.string().optional(), goals: z.string().optional() }).optional().describe("Grouped personality fields (create)."),
+    details: z.object({ ability_scores: z.union([z.string(), z.array(z.number())]).optional(), skills: z.union([z.string(), z.array(z.string())]).optional(), feats: z.union([z.string(), z.array(z.string())]).optional(), talents: z.union([z.string(), z.array(z.string())]).optional(), equipment: z.union([z.string(), z.array(z.string())]).optional() }).optional().describe("Grouped mechanical details (create)."),
+    description: z.string().optional().describe("Narrative description (create/personality)."),
+    voice: z.string().optional().describe("Voice and speech pattern (create/personality)."),
+    background: z.string().optional().describe("Backstory (create/personality)."),
+    goals: z.string().optional().describe("Character goals (create/personality)."),
+    ability_scores: z.union([z.string(), z.array(z.number())]).optional().describe("Ability scores (create)."),
+    skills: z.union([z.string(), z.array(z.string())]).optional().describe("Trained skills (create)."),
+    feats: z.union([z.string(), z.array(z.string())]).optional().describe("Feats (create)."),
+    talents: z.union([z.string(), z.array(z.string())]).optional().describe("Talents (create)."),
+    equipment: z.union([z.string(), z.array(z.string())]).optional().describe("Starting equipment (create)."),
+    entity_id: z.string().optional().describe("Entity identifier (stage/sheet/set_active/personality/voice/remove)."),
+    roster_id: z.string().optional().describe("Roster identifier (import/roster_remove)."),
+    format: z.string().optional().describe("Output format (sheet)."),
+    pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode (set_active)."),
+    examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })).optional().describe("Voice examples (voice)."),
+    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).optional().describe("Feedback category (signal)."),
+    value: z.string().optional().describe("Feedback text (signal)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "create": {
+      const { name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment } = args;
+      const p = personalityObj ?? {};
+      const d = details ?? {};
+      const effDescription = description ?? p.description;
+      const effVoice = voice ?? p.voice;
+      const effBackground = background ?? p.background;
+      const effGoals = goals ?? p.goals;
+      const effAbilityScores = ability_scores ?? d.ability_scores;
+      const effSkills = skills ?? d.skills;
+      const effFeats = feats ?? d.feats;
+      const effTalents = talents ?? d.talents;
+      const effEquipment = equipment ?? d.equipment;
+      requireNotObserver();
+      const novel = requireNovel();
+      const rules = getCharacterRules(novel);
+      const personality = { description: effDescription, voice: effVoice, background: effBackground, goals: effGoals };
+      const hasPersonality = effDescription || effVoice || effBackground || effGoals;
 
-  if (!name) {
-    // Step-by-step mode: start a guided creation workflow.
-    if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
-    const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, rules, answers: {} };
-    novel.pending_workflow = { decision: "character_creation", snapshot: state.captureWorkflowSnapshot(novel), creation: workflow };
-    state.saveNovel(novel);
-    return needInput(creationStepPrompt(workflow));
-  }
+      if (!name) {
+        if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+        const workflow: CreationWorkflowState = { kind: "character_creation", stepIndex: 0, rules, answers: {} };
+        novel.pending_workflow = { decision: "character_creation", snapshot: state.captureWorkflowSnapshot(novel), creation: workflow };
+        state.saveNovel(novel);
+        return needInput(creationStepPrompt(workflow));
+      }
 
-  // Ruleset-free (or character-data-less) profile-only path (REQ-219a1, REQ-399c).
-  if (!rules) {
-    if (classes || ability_scores || stat_method) {
-      return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
-    }
-    const profileStats = species && !hasPersonality ? { species } : undefined;
-    const entity = state.createEntity(name, hasPersonality ? personality : undefined, profileStats);
-    state.addEntity(novel, entity);
-    if (stage_to_roster) state.addToRoster(entity);
-    state.saveNovel(novel);
-    return ok(`${fmtEntitySheet(entity)}
+      if (!rules) {
+        if (classes || effAbilityScores || stat_method) {
+          return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
+        }
+        const profileStats = species && !hasPersonality ? { species } : undefined;
+        const entity = state.createEntity(name, hasPersonality ? personality : undefined, profileStats);
+        state.addEntity(novel, entity);
+        if (stage_to_roster) state.addToRoster(entity);
+        state.saveNovel(novel);
+        return ok(`${fmtEntitySheet(entity)}
 
 Character '${name}' created (profile-only — no mechanical stats).${stage_to_roster ? ` Staged to roster as ${entity.id}.` : ` Entity id ${entity.id}.`}`);
-  }
+      }
 
-  // Quick-create mode: require species + classes.
-  if (!species || !classes) {
-    return err("INVALID_INPUT", "Quick-create requires 'species' and 'classes'. Omit 'name' to start step-by-step, or provide all creation fields.");
-  }
-  const classLevels = parseClassLevels(classes);
-  if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Class 5 / Other 2'.");
-  for (const cl of classLevels) {
-    if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
-  }
-  const speciesName = species;
-  const speciesData = rules.species?.[speciesName.trim().toLowerCase()];
-  if (rules.species && !speciesData) return err("INVALID_INPUT", `Unknown species '${speciesName}'.`);
+      if (!species || !classes) {
+        return err("INVALID_INPUT", "Quick-create requires 'species' and 'classes'. Omit 'name' to start step-by-step, or provide all creation fields.");
+      }
+      const classLevels = parseClassLevels(classes);
+      if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Class 5 / Other 2'.");
+      for (const cl of classLevels) {
+        if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+      }
+      const speciesData = rules.species?.[species.trim().toLowerCase()];
+      if (rules.species && !speciesData) return err("INVALID_INPUT", `Unknown species '${species}'.`);
 
-  const method: StatMethod = stat_method ?? Object.keys(rules.stat_methods ?? {})[0] ?? "planned";
-  const rawScores = ability_scores
-    ? parseAbilityScores(ability_scores, rules)
-    : (() => {
-        const gen = generateAbilityScores(method, rules, seed);
-        const names = abilityNames(rules);
-        const out: Record<string, number> = {};
-        for (let i = 0; i < names.length; i++) out[names[i]] = gen[i] ?? 10;
-        return out;
-      })();
-  const abilityScores = applySpeciesAdjustments(rawScores, speciesName, rules);
+      const method: StatMethod = stat_method ?? Object.keys(rules.stat_methods ?? {})[0] ?? "planned";
+      const rawScores = effAbilityScores
+        ? parseAbilityScores(effAbilityScores, rules)
+        : (() => {
+            const gen = generateAbilityScores(method, rules, seed);
+            const names = abilityNames(rules);
+            const out: Record<string, number> = {};
+            for (let i = 0; i < names.length; i++) out[names[i]] = gen[i] ?? 10;
+            return out;
+          })();
+      const abilityScores = applySpeciesAdjustments(rawScores, species, rules);
 
-  const toList = (v: any): string[] => {
-    if (!v) return [];
-    if (Array.isArray(v)) return v.map(String);
-    return String(v).split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
-  };
+      const toList = (v: any): string[] => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v.map(String);
+        return String(v).split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
+      };
 
-  const build: CharacterBuildInput = {
-    name,
-    species: speciesName,
-    classLevels,
-    abilityScores,
-    trainedSkills: toList(skills),
-    feats: toList(feats),
-    talents: toList(talents),
-    statMethod: method,
-    seed,
-    equipment: toList(equipment),
-  };
-  const stats = buildCharacterStats(build, rules);
+      const build: CharacterBuildInput = {
+        name, species, classLevels, abilityScores,
+        trainedSkills: toList(effSkills), feats: toList(effFeats), talents: toList(effTalents),
+        statMethod: method, seed, equipment: toList(effEquipment),
+      };
+      const stats = buildCharacterStats(build, rules);
 
-  const entity = state.createEntity(name, hasPersonality ? personality : undefined, stats);
-  state.addEntity(novel, entity);
-  if (stage_to_roster) state.addToRoster(entity);
-  state.saveNovel(novel);
+      const entity = state.createEntity(name, hasPersonality ? personality : undefined, stats);
+      state.addEntity(novel, entity);
+      if (stage_to_roster) state.addToRoster(entity);
+      state.saveNovel(novel);
 
-  const inputs = [`name=${name}`, `species=${speciesName}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
-  const derived = Object.entries(stats)
-    .filter(([k, v]) => k !== "class" && k !== "species" && k !== "abilityScores" && k !== "statMethod" && k !== "trainedSkills" && k !== "feats" && k !== "talents" && k !== "equipment" && k !== "level" && !k.startsWith("_") && typeof v === "number")
-    .map(([k, v]) => `${k}=${v}`);
-  return ok(`${fmtEntitySheet(entity)}
+      const inputs = [`name=${name}`, `species=${species}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
+      const derived = Object.entries(stats)
+        .filter(([k, v]) => k !== "class" && k !== "species" && k !== "abilityScores" && k !== "statMethod" && k !== "trainedSkills" && k !== "feats" && k !== "talents" && k !== "equipment" && k !== "level" && !k.startsWith("_") && typeof v === "number")
+        .map(([k, v]) => `${k}=${v}`);
+      return ok(`${fmtEntitySheet(entity)}
 
 Created (inputs): ${inputs.join(" · ")}
 Derived: ${derived.join(" · ")}
 ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}`);
-});
-
-server.registerTool("stage_character", {
-  title: "Stage Character to Roster",
-  description: "Stage an existing Novel entity into the persistent roster, so it survives the Novel and can be imported elsewhere. Use when: persisting a character for reuse in another Novel. Do NOT use when: importing a roster character into the Novel — use import_character.",
-  inputSchema: { entity_id: z.string().optional().describe("The entity to stage; defaults to the active entity.") },
-}, async ({ entity_id }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  const entity = resolveEntity(entity_id);
-  if (!entity) return err("NOT_FOUND", "No entity to stage.");
-  const id = state.addToRoster(entity);
-  state.saveNovel(novel);
-  return ok(`Character '${entity.name}' staged to roster as ${id}.`);
-});
-
-
-server.registerTool("import_character", {
-  title: "Import Character",
-  description: "Import a roster character into the active Novel, copying name, personality, voice examples, and inventory. Use when: bringing a staged character into play. Do NOT use when: persisting a Novel entity to the roster — use stage_character.",
-  inputSchema: { roster_id: z.string().describe("The roster identifier to import.") },
-}, async ({ roster_id }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  const rosterEntity = state.roster.get(roster_id);
-  if (!rosterEntity) return err("NOT_FOUND", `Roster entity '${roster_id}' not found.`);
-  state.addEntity(novel, { ...rosterEntity, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
-  state.saveNovel(novel);
-  return ok(`Character '${rosterEntity.name}' imported.`);
-});
-
-server.registerTool("character_sheet", {
-  title: "Character Sheet",
-  description: "Render a character sheet for an entity or NPC in markdown (default), json, html, or ascii. Use when: the caller needs the full mechanical or profile view of a character. Do NOT use when: creating or editing a character — use create_character or set_personality.",
-  // REQ-120 — NPC rendering via the same sheet mechanism; REQ-124 — NPC damage
-  // resolution targets NPCs by identifier; REQ-129 — property group cardinality.
-  // REQ-425a/b — the `format` selector is drawn from the output format catalog
-  // (STATBLOCK_FORMATS) and validated at call time; REQ-426b — the result
-  // carries `ui://` linkage metadata when the Apps extension is negotiated.
-  inputSchema: { entity_id: z.string().optional().describe("The entity or NPC to render; defaults to the active entity."), format: z.string().optional().describe("Output format: markdown (default), json, html, or ascii.") },
-}, async ({ entity_id, format }: any) => {
-  const entity = resolveEntityOrNpc(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity or NPC '${entity_id || "none"}' not found. Corrective action: list entities with party://current or NPCs with npcs://.`);
-  const fmt = resolveFormat(format, STATBLOCK_FORMATS);
-  if (typeof fmt !== "string") return fmt;
-  let result: any;
-  if (fmt === "ascii") {
-    result = raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}`);
-  } else if (fmt === "json") {
-    result = raw(JSON.stringify(entitySheetJson(entity), null, 2));
-  } else if (fmt === "html") {
-    result = raw(toHtml(fmtEntitySheet(entity)));
-  } else {
-    result = ok(fmtEntitySheet(entity));
-  }
-  return withUiLinkage(result, `ui://character-sheet/${entity.id}`);
-});
-
-server.registerTool("set_active_entity", {
-  title: "Set Active Entity",
-  description: "Set the currently active entity and, optionally, the point-of-view mode (character or omniscient), persisting the choice to the Novel. Use when: switching which character the Player inhabits. Do NOT use when: changing the acting badge — use set_badge.",
-  inputSchema: { entity_id: z.string().describe("The entity to make active."), pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode for the active entity.") },
-}, async ({ entity_id, pov }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  novel.active_entity_id = entity_id;
-  if (pov !== undefined) novel.pov_mode = pov;
-  const mode = novel.pov_mode;
-  return ok(`Active entity set to '${entity_id}'${mode === "omniscient" ? " (omniscient POV)" : ""}.`);
-});
-
-server.registerTool("set_personality", {
-  title: "Set Entity or NPC Personality",
-  description: "Set narrative personality fields for an entity or NPC, persisting the most recent write across all read surfaces. Use when: defining how a character speaks, thinks, or what they want. Do NOT use when: setting dialogue examples — use set_voice_examples.",
-  // REQ-127 — ruleset-native personality mapping (set_personality description
-  // references ruleset-native construct names when a ruleset defines them);
-  // REQ-165 — entity ownership gating (Player for own entities, GM for all);
-  // REQ-166 — personality briefing rendering (fields surfaced in badge_briefing
-  // alongside stats); REQ-122 — NPC narrative fields (NPC identifiers accepted).
-  inputSchema: { entity_id: z.string().describe("The entity or NPC to update."), description: z.string().optional().describe("Narrative description."), voice: z.string().optional().describe("Voice and speech pattern."), background: z.string().optional().describe("Backstory."), goals: z.string().optional().describe("Character goals.") },
-}, async ({ entity_id, description, voice, background, goals }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  let target = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
-  if (!target) return err("NOT_FOUND", `Entity or NPC '${entity_id}' not found.`);
-
-  if (!target.personality) target.personality = {};
-  if (description !== undefined) {
-    target.personality.description = description;
-    // REQ-156 — the `description` field is shared between create_npc and
-    // set_personality; the most recent write wins on all read surfaces.
-    if (novel.npcs.has(entity_id)) (target as any).description = description;
-  }
-  if (voice !== undefined) target.personality.voice = voice;
-  if (background !== undefined) target.personality.background = background;
-  if (goals !== undefined) target.personality.goals = goals;
-
-  state.recordMutation(novel, "set_personality", "personality");
-  state.saveNovel(novel);
-  const setFields = [description !== undefined, voice !== undefined, background !== undefined, goals !== undefined].filter(Boolean).length;
-  audit("set_personality", { entity_id, fields: setFields });
-  return ok(`Personality set for '${entity_id}'.`);
-});
-
-server.registerTool("set_voice_examples", {
-  title: "Set Voice Examples",
-  description: "Set voice and dialogue examples for an entity or NPC, rendered ahead of trait descriptions to show rather than tell. Use when: giving the narrator concrete lines to imitate. Do NOT use when: setting abstract personality traits — use set_personality.",
-  // REQ-126 — voice examples render ahead of trait descriptions in prompts
-  // (show-don't-tell); REQ-077f — the primary dialogue-consistency mechanism.
-  inputSchema: { entity_id: z.string().describe("The entity or NPC to update."), examples: z.array(z.object({ context: z.string().describe("When the line was spoken."), dialogue: z.string().describe("The example line."), tag: z.string().optional().describe("Optional tag.") })).describe("Voice and dialogue examples.") },
-}, async ({ entity_id, examples }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  let target = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
-  if (!target) return err("NOT_FOUND", `Entity or NPC '${entity_id}' not found.`);
-  target.voice_examples = examples;
-  state.saveNovel(novel);
-  audit("set_voice_examples", { entity_id, count: examples.length });
-  return ok(`Voice examples set for '${entity_id}' (${examples.length} examples).`);
-});
-
-// REQ-069 — player feedback signal to the GM.
-server.registerTool("player_signal", {
-  title: "Player Signal",
-  description: "Send a narrative feedback signal from the Player to the GM (Player badge only), recording it to the Novel and correcting the entity's voice examples when the signal is voice_feedback. Use when: the player wants to steer pacing, difficulty, tone, focus, or set a boundary. Do NOT use when: making a game action — use command or a mechanical tool.",
-  inputSchema: { signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).describe("The feedback category."), value: z.string().describe("The feedback text.") },
-}, async ({ signal, value }: any) => {
-  requirePlayer();
-  const novel = requireNovel();
-  // REQ-344 — voice feedback corrects the entity's voice examples, rate-limited.
-  if (signal === "voice_feedback") {
-    const entity = state.getActiveEntity();
-    if (!entity) return err("INVALID_INPUT", "No active entity to correct. Corrective action: set an active entity first.");
-    const limit = maxVoiceCorrections();
-    if (novel.voice_corrections_this_session >= limit) {
-      return warn("Voice correction limit reached for this session.");
     }
-    if (!entity.voice_examples) entity.voice_examples = [];
-    entity.voice_examples.push({ context: "player correction", dialogue: value, tag: "player-corrected" });
-    novel.voice_corrections_this_session++;
-    state.saveNovel(novel);
-    audit("voice-feedback", { corrected: value, count: novel.voice_corrections_this_session });
-    return ok(`Voice correction captured (${novel.voice_corrections_this_session}/${limit}).`);
+    case "stage": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const entity = resolveEntity(args.entity_id);
+      if (!entity) return err("NOT_FOUND", "No entity to stage.");
+      const id = state.addToRoster(entity);
+      state.saveNovel(novel);
+      return ok(`Character '${entity.name}' staged to roster as ${id}.`);
+    }
+    case "import": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const rosterEntity = state.roster.get(args.roster_id);
+      if (!rosterEntity) return err("NOT_FOUND", `Roster entity '${args.roster_id}' not found.`);
+      state.addEntity(novel, { ...rosterEntity, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
+      state.saveNovel(novel);
+      return ok(`Character '${rosterEntity.name}' imported.`);
+    }
+    case "sheet": {
+      const entity = resolveEntityOrNpc(args.entity_id);
+      if (!entity) return err("NOT_FOUND", `Entity or NPC '${args.entity_id || "none"}' not found. Corrective action: list entities with party://current or NPCs with npcs://.`);
+      const fmt = resolveFormat(args.format, STATBLOCK_FORMATS);
+      if (typeof fmt !== "string") return fmt;
+      let result: any;
+      if (fmt === "ascii") result = raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}`);
+      else if (fmt === "json") result = raw(JSON.stringify(entitySheetJson(entity), null, 2));
+      else if (fmt === "html") result = raw(toHtml(fmtEntitySheet(entity)));
+      else result = ok(fmtEntitySheet(entity));
+      return withUiLinkage(result, `ui://character-sheet/${entity.id}`);
+    }
+    case "set_active": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      novel.active_entity_id = args.entity_id;
+      if (args.pov !== undefined) novel.pov_mode = args.pov;
+      const mode = novel.pov_mode;
+      return ok(`Active entity set to '${args.entity_id}'${mode === "omniscient" ? " (omniscient POV)" : ""}.`);
+    }
+    case "personality": {
+      requireNotObserver();
+      const novel = requireNovel();
+      let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
+      if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      if (!target.personality) target.personality = {};
+      if (args.description !== undefined) {
+        target.personality.description = args.description;
+        if (novel.npcs.has(args.entity_id)) (target as any).description = args.description;
+      }
+      if (args.voice !== undefined) target.personality.voice = args.voice;
+      if (args.background !== undefined) target.personality.background = args.background;
+      if (args.goals !== undefined) target.personality.goals = args.goals;
+      state.recordMutation(novel, "set_personality", "personality");
+      state.saveNovel(novel);
+      const setFields = [args.description !== undefined, args.voice !== undefined, args.background !== undefined, args.goals !== undefined].filter(Boolean).length;
+      audit("set_personality", { entity_id: args.entity_id, fields: setFields });
+      return ok(`Personality set for '${args.entity_id}'.`);
+    }
+    case "voice": {
+      requireNotObserver();
+      const novel = requireNovel();
+      let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
+      if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      target.voice_examples = args.examples;
+      state.saveNovel(novel);
+      audit("set_voice_examples", { entity_id: args.entity_id, count: args.examples.length });
+      return ok(`Voice examples set for '${args.entity_id}' (${args.examples.length} examples).`);
+    }
+    case "signal": {
+      requirePlayer();
+      const novel = requireNovel();
+      if (args.signal === "voice_feedback") {
+        const entity = state.getActiveEntity();
+        if (!entity) return err("INVALID_INPUT", "No active entity to correct. Corrective action: set an active entity first.");
+        const limit = maxVoiceCorrections();
+        if (novel.voice_corrections_this_session >= limit) {
+          return warn("Voice correction limit reached for this session.");
+        }
+        if (!entity.voice_examples) entity.voice_examples = [];
+        entity.voice_examples.push({ context: "player correction", dialogue: args.value, tag: "player-corrected" });
+        novel.voice_corrections_this_session++;
+        state.saveNovel(novel);
+        audit("voice-feedback", { corrected: args.value, count: novel.voice_corrections_this_session });
+        return ok(`Voice correction captured (${novel.voice_corrections_this_session}/${limit}).`);
+      }
+      novel.player_signals[args.signal] = args.value;
+      state.saveNovel(novel);
+      audit("player_signal", { signal: args.signal, value: args.value });
+      return ok(`Signal recorded: ${args.signal} → ${args.value}`);
+    }
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      novel.entities.delete(args.entity_id);
+      if (novel.active_entity_id === args.entity_id) novel.active_entity_id = null;
+      state.saveNovel(novel);
+      return ok(`Entity '${args.entity_id}' removed.`);
+    }
+    case "roster_remove": {
+      requireGM();
+      if (!state.roster.has(args.roster_id)) return err("NOT_FOUND", `Roster character '${args.roster_id}' not found.`);
+      state.roster.delete(args.roster_id);
+      state.saveRoster();
+      return ok(`Roster character '${args.roster_id}' removed.`);
+    }
+    case "roster_list": {
+      const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name }));
+      if (chars.length === 0) return ok("Roster is empty — no characters staged yet.");
+      return raw(JSON.stringify(chars, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown character action '${args.action}'.`);
   }
-  novel.player_signals[signal] = value;
-  state.saveNovel(novel);
-  audit("player_signal", { signal, value });
-  return ok(`Signal recorded: ${signal} → ${value}`);
 });
 
 // ── Autonomy (REQ-306) ────────────────────────────────────────────
-
-server.registerTool("set_autonomy", {
-  title: "Adjustable Autonomy",
-  description: "Set the AI autonomy sliders for the active Novel (level, confirmation, safety, creativity), persisting them and escalating safety raises through a confirmation workflow (Game Master only). Use when: tuning how much the AI auto-plays. Do NOT use when: switching the acting badge — use set_badge.",
-  inputSchema: { level: z.enum(["full", "mechanical_prompt", "manual"]).optional().describe("How much the AI auto-plays: full, mechanical_prompt, or manual."), confirmation: z.enum(["auto", "confirm", "prompt"]).optional().describe("When the AI asks before acting: auto, confirm, or prompt."), safety: z.enum(["safe", "moderate", "hardcore"]).optional().describe("Safety tier: safe, moderate, or hardcore."), creativity: z.enum(["predictable", "standard", "chaotic"]).optional().describe("Creativity: predictable, standard, or chaotic.") },
-}, async ({ level, confirmation, safety, creativity }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const auto = novel.autonomy;
-
-  // REQ-306f — escalating safety above `safe` requires confirmation, once per
-  // Novel per target tier.
-  if (safety && safety !== "safe" && safety !== auto.safety && !auto.confirmed_safety_tiers.includes(safety)) {
-    novel.pending_workflow = { decision: `safety_escalation:${safety}`, snapshot: state.captureWorkflowSnapshot(novel) };
-    state.saveNovel(novel);
-    const severity = safety === "hardcore"
-      ? "warning: disengaging safety protocols permits permanent character death with no warnings"
-      : "caution: raising safety to 'moderate' permits character death with warnings";
-    return needInput(`Safety escalation advisory — ${severity}. Respond with 'confirm' to raise the safety tier, or 'decline' to leave the current tier (${auto.safety}).`);
-  }
-
-  if (level) auto.level = level;
-  if (confirmation) auto.confirmation = confirmation;
-  if (creativity) auto.creativity = creativity;
-  if (safety) {
-    auto.safety = safety;
-    if (!auto.confirmed_safety_tiers.includes(safety)) auto.confirmed_safety_tiers.push(safety);
-  }
-  state.saveNovel(novel);
-  audit("set_autonomy", { level, confirmation, safety, creativity });
-  const a = novel.autonomy;
-  return ok(`Autonomy set — level: ${a.level}, confirmation: ${a.confirmation}, safety: ${a.safety}, creativity: ${a.creativity}`);
-});
 
 // REQ-311 — NPC memory model: automatically update an NPC's memory and
 // disposition when a player entity interacts with it (combat, social, or
@@ -2095,10 +2045,70 @@ function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room"
 }
 
 server.registerTool("command", {
-  title: "Parser Command",
-  description: "Execute a natural-language parser command against the world model, mutating it for navigation, inspection, object interaction, inventory, and wait. Use when: a player or narrator takes a physical action in the world. Do NOT use when: checking the outcome of an action without mutating state — use resolve_intent.",
-  inputSchema: { command: z.string().describe("The natural-language command, e.g. 'go north', 'look', 'take torch', 'open door'.") },
-}, async ({ command }: any) => {
+  title: "Command",
+  description: "Execute a parser command, resolve a spatial intent, or suggest actions from intent. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use world or lore.",
+  inputSchema: {
+    action: z.enum(["execute", "resolve", "suggest"]).optional().describe("execute (parser), resolve (non-mutating intent), or suggest (intent → tool calls). Defaults to execute."),
+    command: z.string().optional().describe("The natural-language command (execute)."),
+    intent: z.string().optional().describe("The intent to resolve or map (resolve/suggest)."),
+    entity_id: z.string().optional().describe("Optional entity context (suggest)."),
+  },
+}, async (args: any) => {
+  if (args.action === "resolve") {
+    const badge = getBadge();
+    if (badge === "player") {
+      return err("FORBIDDEN", "command (action: resolve) is not callable by the Player badge. Player spatial intents are resolved by the AI narrator. Corrective action: switch badge or direct intents through the narrator.");
+    }
+    requireNotObserver();
+    const novel = requireNovel();
+    const result = resolveIntentWorld(args.intent, novel);
+    return raw(JSON.stringify(result, null, 2));
+  }
+  if (args.action === "suggest") {
+    const novel = requireNovel();
+    const entity = args.entity_id ? novel.entities.get(args.entity_id) : state.getActiveEntity();
+    const name = entity?.name ?? "entity";
+    const rulesetBound = !!novel.ruleset;
+    const badge = getBadge();
+    const useResolveIntent = rulesetBound && badge !== "game_master";
+    const spatialTool = useResolveIntent ? "command (action: resolve)" : "command";
+    const intentLower = (args.intent ?? "").toLowerCase();
+    const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
+    if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
+      domains.spatial.push(`${spatialTool}("look")`, `command("examine <thing>")`);
+    }
+    if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel") || intentLower.includes("sneak")) {
+      domains.spatial.push(`${spatialTool}("go <direction>")`);
+    }
+    if (intentLower.includes("take") || intentLower.includes("grab") || intentLower.includes("get")) {
+      domains.spatial.push(`command("take <thing>")`);
+    }
+    if (intentLower.includes("open") || intentLower.includes("unlock")) {
+      domains.spatial.push(`command("open <door>")`);
+    }
+    if (intentLower.includes("fight") || intentLower.includes("attack")) {
+      domains.mechanical.push("combat (action: init — GM only, auto-advance mode)");
+    }
+    if (intentLower.includes("convince") || intentLower.includes("persuade") || intentLower.includes("talk") || intentLower.includes("negotiate") || intentLower.includes("intimidate")) {
+      for (const [, npc] of novel.npcs) {
+        domains.social.push(`${npc.name} (disposition: ${npc.disposition ?? "neutral"}) — skill check with persuasion`);
+      }
+      for (const r of novel.relationships) {
+        if (r.entity_a === (entity?.id ?? "") || r.entity_b === (entity?.id ?? "")) {
+          domains.social.push(`relationship (${r.type}) with ${r.entity_a === entity?.id ? r.entity_b : r.entity_a}`);
+        }
+      }
+    }
+    if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
+      domains.spatial.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
+    }
+    const blocks: string[] = [];
+    if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
+    if (domains.spatial.length) blocks.push(`Spatial:\n${domains.spatial.map((s) => `  - ${s}`).join("\n")}`);
+    if (domains.social.length) blocks.push(`Social:\n${domains.social.map((s) => `  - ${s}`).join("\n")}`);
+    return ok(`Actions for ${name}:\n${blocks.join("\n")}`);
+  }
+  const command = args.command;
   const novel = requireNovel();
   // REQ-197 — description mode commands are always recognized verbs.
   const cmdTrim = command.trim().toLowerCase();
@@ -2249,204 +2259,202 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 
 // --- World-Model CRUD (GM-only) ---
 
-server.registerTool("create_room", {
-  title: "Create Room",
-  description: "Create a new room in the world model, persisting it to the Novel save file (Game Master only). Use when: the GM needs to add a location to the world model. Do NOT use when: adding a thing or an exit — use create_thing or create_exit.",
-  inputSchema: { name: z.string().describe("The room name."), description: z.string().optional().describe("Optional room description.") },
-}, async ({ name, description }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  worldSnapshot();
-  const lower = name.toLowerCase();
-  if (novel.world.rooms.has(lower)) return err("STATE_CONFLICT", `Room '${name}' already exists.`);
-  const room: WorldRoom = {
-    name,
-    description: description ?? "",
-    exits: new Map(),
-    doorRefs: new Map(),
-    annotations: {},
-  };
-  novel.world.rooms.set(lower, room);
-  state.saveNovel(novel);
-  audit("create_room", { name });
-  return ok(`Room '${name}' created.`);
-});
-
-server.registerTool("remove_room", {
-  title: "Remove Room",
-  description: "Remove a room along with its contained things and exits, persisting the removal (Game Master only). Use when: deleting a location that is no longer needed. Do NOT use when: removing a single thing or exit — use remove_thing or remove_exit.",
-  inputSchema: { name: z.string().describe("The room to remove.") },
-}, async ({ name }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const lower = name.toLowerCase();
-  if (!novel.world.rooms.has(lower)) return err("NOT_FOUND", `Room '${name}' not found.`);
-  worldSnapshot();
-
-  // Remove things in this room
-  for (const [tKey, thing] of novel.world.things) {
-    if (thing.location?.toLowerCase() === lower && thing.locationType === "room") {
-      novel.world.things.delete(tKey);
+// World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
+// the previously-missing update_room/update_thing lifecycle (completeness).
+server.registerTool("world", {
+  title: "World",
+  description: "Manage the world model — rooms, things, and exits. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use command (action: execute) or command (action: resolve).",
+  inputSchema: {
+    action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert"]).describe("create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, or convert."),
+    name: z.string().optional().describe("Room/thing name (create/update/remove)."),
+    description: z.string().optional().describe("Optional description (create/update)."),
+    kind: z.string().optional().describe("Optional thing kind (create_thing)."),
+    location: z.string().optional().describe("Optional containing room or thing (create_thing/update_thing)."),
+    location_type: z.enum(["room", "container", "supporter"]).optional().describe("Where the thing is placed (create_thing)."),
+    fixed: z.boolean().optional().describe("When true the thing cannot be taken (create_thing/update_thing)."),
+    openable: z.boolean().optional().describe("When true the thing can be opened (create_thing/update_thing)."),
+    lockable: z.boolean().optional().describe("When true the thing can be locked (create_thing/update_thing)."),
+    locked: z.boolean().optional().describe("When true the thing starts locked (create_thing/update_thing)."),
+    lit: z.boolean().optional().describe("When true the thing is lit (create_thing/update_thing)."),
+    switched_on: z.boolean().optional().describe("When true the thing is switched on (create_thing/update_thing)."),
+    switchable: z.boolean().optional().describe("When true the thing can be switched (create_thing/update_thing)."),
+    transparent: z.boolean().optional().describe("When true the thing is transparent (create_thing/update_thing)."),
+    readable: z.boolean().optional().describe("When true the thing can be read (create_thing/update_thing)."),
+    read_text: z.string().optional().describe("Text revealed when the thing is read (create_thing/update_thing)."),
+    wearable: z.boolean().optional().describe("When true the thing can be worn (create_thing/update_thing)."),
+    edible: z.boolean().optional().describe("When true the thing can be eaten (create_thing/update_thing)."),
+    drinkable: z.boolean().optional().describe("When true the thing can be drunk (create_thing/update_thing)."),
+    enterable: z.boolean().optional().describe("When true the thing can be entered (create_thing/update_thing)."),
+    climbable: z.boolean().optional().describe("When true the thing can be climbed (create_thing/update_thing)."),
+    direction: z.string().optional().describe("Direction (create_exit/remove_exit)."),
+    room: z.string().optional().describe("Source room (create_exit/remove_exit)."),
+    room_a: z.string().optional().describe("Source room (create_exit)."),
+    room_b: z.string().optional().describe("Destination room (create_exit)."),
+    source: z.string().optional().describe("Hybrid world-model source text (convert)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "create_room": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const lower = args.name.toLowerCase();
+      if (novel.world.rooms.has(lower)) return err("STATE_CONFLICT", `Room '${args.name}' already exists.`);
+      const room: WorldRoom = { name: args.name, description: args.description ?? "", exits: new Map(), doorRefs: new Map(), annotations: {} };
+      novel.world.rooms.set(lower, room);
+      state.saveNovel(novel);
+      audit("create_room", { name: args.name });
+      return ok(`Room '${args.name}' created.`);
     }
-  }
-  // Remove exits referencing this room
-  for (const [, room] of novel.world.rooms) {
-    for (const [dir, target] of room.exits) {
-      if (target.toLowerCase() === lower) room.exits.delete(dir);
+    case "update_room": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const room = novel.world.rooms.get(args.name.toLowerCase());
+      if (!room) return err("NOT_FOUND", `Room '${args.name}' not found.`);
+      if (args.description !== undefined) room.description = args.description;
+      state.saveNovel(novel);
+      return ok(`Room '${args.name}' updated.`);
     }
-  }
-  novel.world.rooms.delete(lower);
-  state.saveNovel(novel);
-  audit("remove_room", { name });
-  return ok(`Room '${name}' and its contents removed.`);
-});
-
-server.registerTool("create_thing", {
-  title: "Create Thing",
-  description: "Create a new thing in the world model with an optional kind, container, and properties, persisting it (Game Master only). Use when: the GM needs to place an object, door, or device. Do NOT use when: adding a room — use create_room.",
-  inputSchema: { name: z.string().describe("The thing name."), kind: z.string().optional().describe("Optional kind from the hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region)."), description: z.string().optional().describe("Optional description."), location: z.string().optional().describe("Optional containing room or thing name."), location_type: z.enum(["room", "container", "supporter"]).optional().describe("Where the thing is placed: room, container, or supporter."), fixed: z.boolean().optional().describe("When true the thing cannot be taken."), openable: z.boolean().optional().describe("When true the thing can be opened."), lockable: z.boolean().optional().describe("When true the thing can be locked."), locked: z.boolean().optional().describe("When true the thing starts locked."), lit: z.boolean().optional().describe("When true the thing is lit."), switched_on: z.boolean().optional().describe("When true the thing is switched on."), switchable: z.boolean().optional().describe("When true the thing can be switched."), transparent: z.boolean().optional().describe("When true the thing is transparent."), readable: z.boolean().optional().describe("When true the thing can be read."), read_text: z.string().optional().describe("Text revealed when the thing is read."), wearable: z.boolean().optional().describe("When true the thing can be worn."), edible: z.boolean().optional().describe("When true the thing can be eaten."), drinkable: z.boolean().optional().describe("When true the thing can be drunk."), enterable: z.boolean().optional().describe("When true the thing can be entered."), climbable: z.boolean().optional().describe("When true the thing can be climbed.") },
-}, async ({ name, kind, description, location, location_type, fixed, openable, lockable, locked, lit, switched_on, switchable, transparent, readable, read_text, wearable, edible, drinkable, enterable, climbable }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  worldSnapshot();
-  const lower = name.toLowerCase();
-  if (novel.world.things.has(lower)) return err("STATE_CONFLICT", `Thing '${name}' already exists.`);
-
-  const validKinds = ["thing", "container", "supporter", "door", "device", "vehicle", "person", "backdrop", "region"];
-  const k = (kind && validKinds.includes(kind.toLowerCase())) ? kind.toLowerCase() as WorldKind : "thing";
-
-  // Determine containment: explicit location_type, or infer from the parent's kind.
-  let locationType: "room" | "container" | "supporter" | "vehicle" | null = location ? "room" : null;
-  if (location && location_type) {
-    locationType = location_type;
-  } else if (location) {
-    const parent = novel.world.things.get(location.toLowerCase());
-    if (parent && (parent.kind === "container" || parent.kind === "supporter" || parent.kind === "vehicle")) {
-      locationType = parent.kind === "supporter" ? "supporter" : parent.kind === "vehicle" ? "vehicle" : "container";
+    case "remove_room": {
+      requireGM();
+      const novel = requireNovel();
+      const lower = args.name.toLowerCase();
+      if (!novel.world.rooms.has(lower)) return err("NOT_FOUND", `Room '${args.name}' not found.`);
+      worldSnapshot();
+      for (const [tKey, thing] of novel.world.things) {
+        if (thing.location?.toLowerCase() === lower && thing.locationType === "room") novel.world.things.delete(tKey);
+      }
+      for (const [, room] of novel.world.rooms) {
+        for (const [dir, target] of room.exits) {
+          if (target.toLowerCase() === lower) room.exits.delete(dir);
+        }
+      }
+      novel.world.rooms.delete(lower);
+      state.saveNovel(novel);
+      audit("remove_room", { name: args.name });
+      return ok(`Room '${args.name}' and its contents removed.`);
     }
-  }
-
-  const thing: WorldThing = {
-    name,
-    description: description ?? "",
-    kind: k,
-    location: location ?? null,
-    locationType,
-    portable: !fixed && k !== "supporter" && k !== "door" && k !== "vehicle",
-    openable: k === "container" || k === "door" || openable === true,
-    open: false,
-    lockable: k === "container" || k === "door" || lockable === true,
-    locked: locked === true,
-    lit: lit === true,
-    switchable: k === "device" || switchable === true,
-    switched_on: switched_on === true,
-    transparent: transparent === true,
-    readable: readable === true,
-    read_text: read_text ?? null,
-    wearable: wearable === true,
-    edible: edible === true,
-    drinkable: drinkable === true,
-    enterable: enterable === true,
-    climbable: climbable === true,
-    vehiclePassengers: [],
-    worn_by: null,
-    annotations: {},
-  };
-  novel.world.things.set(lower, thing);
-  state.saveNovel(novel);
-  audit("create_thing", { name, kind: k, location, location_type: locationType });
-  return ok(`Thing '${name}' (${k}) created${location ? (locationType === "supporter" ? ` on ${location}` : locationType === "container" ? ` in container ${location}` : ` in ${location}`) : ""}.`);
-});
-
-server.registerTool("remove_thing", {
-  title: "Remove Thing",
-  description: "Remove a thing from the world model, persisting the removal (Game Master only). Use when: deleting an object that no longer exists in the fiction. Do NOT use when: removing a room — use remove_room.",
-  inputSchema: { name: z.string().describe("The thing to remove.") },
-}, async ({ name }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const lower = name.toLowerCase();
-  if (!novel.world.things.has(lower)) return err("NOT_FOUND", `Thing '${name}' not found.`);
-  worldSnapshot();
-  novel.world.things.delete(lower);
-  state.saveNovel(novel);
-  audit("remove_thing", { name });
-  return ok(`Thing '${name}' removed.`);
-});
-
-server.registerTool("create_exit", {
-  title: "Create Exit",
-  description: "Create a directional exit between two rooms, creating the reverse exit implicitly and persisting both (Game Master only). Use when: connecting two locations. Do NOT use when: removing a connection — use remove_exit.",
-  inputSchema: { direction: z.string().describe("The direction from room_a (n/s/e/w/up/down/out or a named direction)."), room_a: z.string().describe("The source room."), room_b: z.string().describe("The destination room.") },
-}, async ({ direction, room_a, room_b }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  worldSnapshot();
-  const dir = direction.toLowerCase();
-  if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction '${direction}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
-
-  const roomA = novel.world.rooms.get(room_a.toLowerCase());
-  const roomB = novel.world.rooms.get(room_b.toLowerCase());
-  if (!roomA) return err("NOT_FOUND", `Room '${room_a}' not found.`);
-  if (!roomB) return err("NOT_FOUND", `Room '${room_b}' not found.`);
-
-  roomA.exits.set(dir as Direction, room_b);
-  roomB.exits.set(oppositeDirection(dir as Direction), room_a);
-  state.saveNovel(novel);
-  audit("create_exit", { direction: dir, room_a, room_b });
-  return ok(`Exit created: ${dir} from ${room_a} to ${room_b}.`);
-});
-
-server.registerTool("remove_exit", {
-  title: "Remove Exit",
-  description: "Remove a directional exit from a room, persisting the removal (Game Master only). Use when: severing a connection between locations. Do NOT use when: creating a connection — use create_exit.",
-  inputSchema: { direction: z.string().describe("The direction of the exit to remove."), room: z.string().describe("The room the exit belongs to.") },
-}, async ({ direction, room: roomName }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  worldSnapshot();
-  const dir = direction.toLowerCase();
-  if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction.`);
-
-  const room = novel.world.rooms.get(roomName.toLowerCase());
-  if (!room) return err("NOT_FOUND", `Room '${roomName}' not found.`);
-  if (!room.exits.has(dir as Direction)) return err("NOT_FOUND", `No ${dir} exit from '${roomName}'.`);
-
-  room.exits.delete(dir as Direction);
-  state.saveNovel(novel);
-  audit("remove_exit", { direction: dir, room: roomName });
-  return ok(`Exit ${dir} from '${roomName}' removed.`);
-});
-
-server.registerTool("convert_source", {
-  title: "Convert Source",
-  description: "Parse hybrid world-model assertions and populate the Novel's world model (Game Master only, empty world model only). Use when: importing a large room/thing map from prose or structured text. Do NOT use when: adding a single room or thing — use create_room or create_thing.",
-  inputSchema: { source: z.string().describe("Hybrid world-model assertions in prose or structured text.") },
-}, async ({ source }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  worldSnapshot();
-
-  if (novel.world.rooms.size > 0) {
-    return err("STATE_CONFLICT", "World model already populated. Use CRUD tools to modify, or create a new novel.");
-  }
-
-  const { world, result } = convertSource(source, novel.world);
-  novel.world = world;
-  state.saveNovel(novel);
-  audit("convert_source", { rooms: result.rooms, things: result.things, exits: result.exits });
-
-  let msg = `[OK] World model populated: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.`;
-  msg += ` Linked annotations — encounters: ${result.annotations.encounters}, NPCs: ${result.annotations.npcs}, traps: ${result.annotations.traps}, lore: ${result.annotations.lore}.`;
-
-  if (result.warnings.length > 0) {
-    msg += `\n\nWarnings:`;
-    for (const w of result.warnings) {
-      msg += `\nLine ${w.line}: ${w.message}`;
+    case "create_thing": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const lower = args.name.toLowerCase();
+      if (novel.world.things.has(lower)) return err("STATE_CONFLICT", `Thing '${args.name}' already exists.`);
+      const validKinds = ["thing", "container", "supporter", "door", "device", "vehicle", "person", "backdrop", "region"];
+      const k = (args.kind && validKinds.includes(args.kind.toLowerCase())) ? args.kind.toLowerCase() as WorldKind : "thing";
+      let locationType: "room" | "container" | "supporter" | "vehicle" | null = args.location ? "room" : null;
+      if (args.location && args.location_type) {
+        locationType = args.location_type;
+      } else if (args.location) {
+        const parent = novel.world.things.get(args.location.toLowerCase());
+        if (parent && (parent.kind === "container" || parent.kind === "supporter" || parent.kind === "vehicle")) {
+          locationType = parent.kind === "supporter" ? "supporter" : parent.kind === "vehicle" ? "vehicle" : "container";
+        }
+      }
+      const thing: WorldThing = {
+        name: args.name, description: args.description ?? "", kind: k,
+        location: args.location ?? null, locationType,
+        portable: !args.fixed && k !== "supporter" && k !== "door" && k !== "vehicle",
+        openable: k === "container" || k === "door" || args.openable === true,
+        open: false,
+        lockable: k === "container" || k === "door" || args.lockable === true,
+        locked: args.locked === true,
+        lit: args.lit === true,
+        switchable: k === "device" || args.switchable === true,
+        switched_on: args.switched_on === true,
+        transparent: args.transparent === true,
+        readable: args.readable === true,
+        read_text: args.read_text ?? null,
+        wearable: args.wearable === true,
+        edible: args.edible === true,
+        drinkable: args.drinkable === true,
+        enterable: args.enterable === true,
+        climbable: args.climbable === true,
+        vehiclePassengers: [], worn_by: null, annotations: {},
+      };
+      novel.world.things.set(lower, thing);
+      state.saveNovel(novel);
+      audit("create_thing", { name: args.name, kind: k, location: args.location, location_type: locationType });
+      return ok(`Thing '${args.name}' (${k}) created${args.location ? (locationType === "supporter" ? ` on ${args.location}` : locationType === "container" ? ` in container ${args.location}` : ` in ${args.location}`) : ""}.`);
     }
+    case "update_thing": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const thing = novel.world.things.get(args.name.toLowerCase());
+      if (!thing) return err("NOT_FOUND", `Thing '${args.name}' not found.`);
+      const boolFields = ["fixed", "openable", "lockable", "locked", "lit", "switchable", "switched_on", "transparent", "readable", "wearable", "edible", "drinkable", "enterable", "climbable"];
+      for (const f of boolFields) if (args[f] !== undefined) (thing as any)[f] = args[f];
+      if (args.description !== undefined) thing.description = args.description;
+      if (args.location !== undefined) thing.location = args.location;
+      state.saveNovel(novel);
+      audit("update_thing", { name: args.name });
+      return ok(`Thing '${args.name}' updated.`);
+    }
+    case "remove_thing": {
+      requireGM();
+      const novel = requireNovel();
+      const lower = args.name.toLowerCase();
+      if (!novel.world.things.has(lower)) return err("NOT_FOUND", `Thing '${args.name}' not found.`);
+      worldSnapshot();
+      novel.world.things.delete(lower);
+      state.saveNovel(novel);
+      audit("remove_thing", { name: args.name });
+      return ok(`Thing '${args.name}' removed.`);
+    }
+    case "create_exit": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const dir = args.direction.toLowerCase();
+      if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction '${args.direction}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
+      const roomA = novel.world.rooms.get(args.room_a.toLowerCase());
+      const roomB = novel.world.rooms.get(args.room_b.toLowerCase());
+      if (!roomA) return err("NOT_FOUND", `Room '${args.room_a}' not found.`);
+      if (!roomB) return err("NOT_FOUND", `Room '${args.room_b}' not found.`);
+      roomA.exits.set(dir as Direction, args.room_b);
+      roomB.exits.set(oppositeDirection(dir as Direction), args.room_a);
+      state.saveNovel(novel);
+      audit("create_exit", { direction: dir, room_a: args.room_a, room_b: args.room_b });
+      return ok(`Exit created: ${dir} from ${args.room_a} to ${args.room_b}.`);
+    }
+    case "remove_exit": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      const dir = args.direction.toLowerCase();
+      if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction.`);
+      const room = novel.world.rooms.get(args.room.toLowerCase());
+      if (!room) return err("NOT_FOUND", `Room '${args.room}' not found.`);
+      if (!room.exits.has(dir as Direction)) return err("NOT_FOUND", `No ${dir} exit from '${args.room}'.`);
+      room.exits.delete(dir as Direction);
+      state.saveNovel(novel);
+      audit("remove_exit", { direction: dir, room: args.room });
+      return ok(`Exit ${dir} from '${args.room}' removed.`);
+    }
+    case "convert": {
+      requireGM();
+      const novel = requireNovel();
+      worldSnapshot();
+      if (novel.world.rooms.size > 0) {
+        return err("STATE_CONFLICT", "World model already populated. Use CRUD actions to modify, or create a new novel.");
+      }
+      const { world, result } = convertSource(args.source, novel.world);
+      novel.world = world;
+      state.saveNovel(novel);
+      audit("convert_source", { rooms: result.rooms, things: result.things, exits: result.exits });
+      let msg = `[OK] World model populated: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.`;
+      msg += ` Linked annotations — encounters: ${result.annotations.encounters}, NPCs: ${result.annotations.npcs}, traps: ${result.annotations.traps}, lore: ${result.annotations.lore}.`;
+      if (result.warnings.length > 0) {
+        msg += `\n\nWarnings:`;
+        for (const w of result.warnings) msg += `\nLine ${w.line}: ${w.message}`;
+      }
+      return raw(msg);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown world action '${args.action}'.`);
   }
-
-  return raw(msg);
 });
 
 // --- resolve_intent (REQ-323, §5.12) ---
@@ -2542,108 +2550,85 @@ function composeRoomContext(room: WorldRoom, novel: NovelState, world: WorldMode
   };
 }
 
-server.registerTool("resolve_intent", {
-  title: "Resolve Intent",
-  description: "Resolve a natural-language spatial intent against the world model without mutating state. Use when: a player or the AI narrator needs to determine the outcome of a movement or inspection against the world model. Do NOT use when: you are the Game Master inspecting the model directly — use the parser command tool for that.",
-  inputSchema: { intent: z.string().describe("The natural-language spatial intent to resolve (e.g. 'go north', 'open the door').") },
-}, async ({ intent }: any) => {
-  const badge = getBadge();
-  if (badge === "player") {
-    return err("FORBIDDEN", "resolve_intent is not callable by the Player badge. Player spatial intents are resolved by the AI narrator. Corrective action: switch badge or direct intents through the narrator.");
-  }
-  requireNotObserver();
-  const novel = requireNovel();
-  const result = resolveIntentWorld(intent, novel);
-  return raw(JSON.stringify(result, null, 2));
-});
-
 // --- Combat (GM, auto-advance in ruleset-free mode) ---
 
-server.registerTool("init_combat", {
-  title: "Initiate Combat",
-  description: "Start a combat encounter with participants and optional dangers, persisting the combat state (Game Master only). Use when: initiating a fight. Do NOT use when: progressing an active fight — use advance_combat.",
-  inputSchema: { participants: z.array(z.string()).describe("Entity identifiers participating in combat."), dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional().describe("Optional non-entity combatants with armor class, hit points, and initiative bonus."), seed: z.string().optional().describe("Optional deterministic seed for initiative and rolls.") },
-}, async ({ participants, dangers, seed }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  // REQ-203 — combat-init guard: init_combat while combat is active returns
-  // [STATE_CONFLICT]; no combat state modified.
-  if (novel.combat && novel.combat.active) {
-    return err("STATE_CONFLICT", "Combat already active — call `end_combat` first.");
+// Combat (REQ-203, REQ-204, REQ-311) — consolidated init/advance/end/participant/status surface.
+server.registerTool("combat", {
+  title: "Combat",
+  description: "Manage combat encounters in the active Novel. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use condition (action: apply).",
+  inputSchema: {
+    action: z.enum(["init", "advance", "end", "add_participant", "remove_participant", "status"]).describe("init, advance, end, add_participant, remove_participant, or status."),
+    participants: z.array(z.string()).optional().describe("Entity identifiers participating (init)."),
+    dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional().describe("Optional non-entity combatants (init)."),
+    seed: z.string().optional().describe("Optional deterministic seed (init)."),
+    outcome: z.string().optional().describe("Optional text describing how combat ended (end)."),
+    participant_id: z.string().optional().describe("Entity identifier (add_participant/remove_participant)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "init": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      if (novel.combat && novel.combat.active) {
+        return err("STATE_CONFLICT", "Combat already active — call `end_combat` first.");
+      }
+      const valid = new Set([...novel.entities.keys(), ...novel.npcs.keys()]);
+      const unresolved = (args.participants ?? []).filter((p: string) => !valid.has(p));
+      if (unresolved.length > 0) {
+        return err("NOT_FOUND", `Participants not found: ${unresolved.join(", ")}. Valid entity/NPC IDs: ${[...valid].join(", ") || "(none)"}.`);
+      }
+      const combat = state.initCombat(novel, args.participants ?? [], args.dangers ?? [], args.seed);
+      state.saveNovel(novel);
+      return ok(`Combat started. Round ${combat.round}, ${combat.turn_order.length} participants. Turn: ${combat.turn_order[0]} (auto-advance mode).`);
+    }
+    case "advance": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const combat = state.advanceCombat(novel);
+      const currentName = combat.turn_order[combat.current_turn];
+      if (novel.npcs.has(currentName)) {
+        const active = state.getActiveEntity();
+        recordNpcInteraction(novel, currentName, active?.name ?? "the party", `engaged in combat (round ${combat.round})`, "hostile");
+        recordCampaignMemory(novel, "npcs", `${currentName} engaged in combat (round ${combat.round})`);
+      }
+      state.saveNovel(novel);
+      return ok(`Turn: ${currentName} — Round ${combat.round}, Turn ${combat.current_turn + 1}/${combat.turn_order.length}. [AUTO]`);
+    }
+    case "end": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const rounds = novel.combat?.round ?? 0;
+      state.endCombat(novel, args.outcome ?? "Combat ended.");
+      state.saveNovel(novel);
+      return ok(`Combat ended after ${rounds} rounds${args.outcome ? `. Outcome: ${args.outcome}` : "."}`);
+    }
+    case "add_participant": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const combat = state.addCombatParticipant(novel, args.participant_id);
+      state.saveNovel(novel);
+      return ok(`'${args.participant_id}' added to combat.`);
+    }
+    case "remove_participant": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const result = state.removeCombatParticipant(novel, args.participant_id);
+      state.saveNovel(novel);
+      if (result.ended) return ok("Combat ended — all participants removed.");
+      return ok(`'${args.participant_id}' removed from combat.`);
+    }
+    case "status": {
+      const novel = requireNovel();
+      return raw(JSON.stringify(novel.combat ?? { active: false }, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown combat action '${args.action}'. Valid actions: init, advance, end, add_participant, remove_participant, status.`);
   }
-  // REQ-204 — participant validation before any combat state is constructed;
-  // unresolvable IDs return [NOT_FOUND] enumerating them and valid IDs.
-  const valid = new Set([...novel.entities.keys(), ...novel.npcs.keys()]);
-  const unresolved = (participants ?? []).filter((p: string) => !valid.has(p));
-  if (unresolved.length > 0) {
-    return err("NOT_FOUND", `Participants not found: ${unresolved.join(", ")}. Valid entity/NPC IDs: ${[...valid].join(", ") || "(none)"}.`);
-  }
-  const combat = state.initCombat(novel, participants ?? [], dangers ?? [], seed);
-  state.saveNovel(novel);
-  return ok(`Combat started. Round ${combat.round}, ${combat.turn_order.length} participants. Turn: ${combat.turn_order[0]} (auto-advance mode).`);
-});
-
-server.registerTool("advance_combat", {
-  title: "Advance Combat",
-  description: "Advance combat to the next turn, applying round effects and persisting the change (Game Master only). Use when: moving the active fight forward one turn. Do NOT use when: starting or ending combat — use init_combat or end_combat.",
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const combat = state.advanceCombat(novel);
-  // REQ-311 — NPC memory: an NPC participant engaged in combat accumulates a
-  // witnessed interaction and shifts hostile toward the active entity.
-  const currentName = combat.turn_order[combat.current_turn];
-  if (novel.npcs.has(currentName)) {
-    const active = state.getActiveEntity();
-    recordNpcInteraction(novel, currentName, active?.name ?? "the party", `engaged in combat (round ${combat.round})`, "hostile");
-    recordCampaignMemory(novel, "npcs", `${currentName} engaged in combat (round ${combat.round})`);
-  }
-  state.saveNovel(novel);
-  return ok(`Turn: ${currentName} — Round ${combat.round}, Turn ${combat.current_turn + 1}/${combat.turn_order.length}. [AUTO]`);
-});
-
-server.registerTool("end_combat", {
-  title: "End Combat",
-  description: "End the active combat encounter, clearing combat state and persisting it (Game Master only). Use when: the fight is resolved. Do NOT use when: advancing the fight — use advance_combat.",
-  inputSchema: { outcome: z.string().optional().describe("Optional text describing how the combat ended.") },
-}, async ({ outcome }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const rounds = novel.combat?.round ?? 0;
-  state.endCombat(novel, outcome ?? "Combat ended.");
-  state.saveNovel(novel);
-  return ok(`Combat ended after ${rounds} rounds${outcome ? `. Outcome: ${outcome}` : "."}`);
-});
-
-server.registerTool("add_combat_participant", {
-  title: "Add Combat Participant",
-  description: "Add a participant to the active combat, persisting the roster change (Game Master only). Use when: a new combatant joins mid-fight. Do NOT use when: removing a combatant — use remove_combat_participant.",
-  inputSchema: { participant_id: z.string().describe("The entity identifier to add to combat.") },
-}, async ({ participant_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const combat = state.addCombatParticipant(novel, participant_id);
-  state.saveNovel(novel);
-  return ok(`'${participant_id}' added to combat.`);
-});
-
-server.registerTool("remove_combat_participant", {
-  title: "Remove Combat Participant",
-  description: "Remove a participant from the active combat, persisting the roster change (Game Master only). Use when: a combatant flees or is removed. Do NOT use when: adding a combatant — use add_combat_participant.",
-  inputSchema: { participant_id: z.string().describe("The participant to remove from combat.") },
-}, async ({ participant_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const result = state.removeCombatParticipant(novel, participant_id);
-  state.saveNovel(novel);
-  if (result.ended) return ok("Combat ended — all participants removed.");
-  return ok(`'${participant_id}' removed from combat.`);
 });
 
 // --- Narrative (GM) ---
@@ -2781,283 +2766,311 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
   }
 }
 
-server.registerTool("set_scene_state", {
-  title: "Set Scene State",
-  description: "Set the scene description, location, time of day, atmosphere, and scene type, persisting them (Game Master only). Use when: the fiction moves to a new scene. Do NOT use when: setting the narrative directive — use set_narrative_directive.",
+// Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
+// consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
+server.registerTool("scene", {
+  title: "Scene",
+  description: "Manage the active scene and its narrative framing. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use story (action: record).",
   inputSchema: {
-    description: z.string().describe("The scene description."),
-    location: z.string().optional().describe("Optional scene location."),
-    time_of_day: z.string().optional().describe("Optional time of day."),
-    atmosphere: z.string().optional().describe("Optional atmosphere."),
-    // REQ-087 — scene type tagging: scene_type accepts a single tag or an array
-    // from the canonical catalog (social/exploration/neutral; combat is a
-    // resolution mode, added automatically on init_combat).
-    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional().describe("A scene-type tag or array of tags from combat/social/exploration/neutral."),
-    beat: z.enum(BEAT_VALUES).optional().describe("Optional story-beat tag."),
-    skip_transition_hook: z.boolean().optional().describe("When true, skip the scene-transition hook."),
-    // REQ-250 — adventure scene waypoint: heading anchor from the adventure
-    // structural index; empty/null clears; unknown anchors → [NOT_FOUND].
-    adventure_scene: z.string().nullable().optional().describe("Optional adventure-scene waypoint anchor; empty or null clears it."),
-    // REQ-252 — narrative fast-forward: skip intervening time with a bridging
-    // summary, countdown adjustments, and NPC changes.
+    action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
+    description: z.string().optional().describe("Scene description (set)."),
+    location: z.string().optional().describe("Scene location (set)."),
+    time_of_day: z.string().optional().describe("Time of day (set)."),
+    atmosphere: z.string().optional().describe("Atmosphere (set)."),
+    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional().describe("Scene-type tag or array (set)."),
+    beat: z.enum(BEAT_VALUES).optional().describe("Story-beat tag (set)."),
+    skip_transition_hook: z.boolean().optional().describe("Skip the scene-transition hook (set)."),
+    adventure_scene: z.string().nullable().optional().describe("Adventure-scene waypoint anchor; empty or null clears (set)."),
     fast_forward: z.object({
       interval: z.string().describe("The time interval to skip."),
-      changes: z.array(z.object({ npc_id: z.string().describe("The NPC to change."), location: z.string().optional().describe("New location."), disposition: z.string().optional().describe("New disposition."), condition: z.string().optional().describe("New condition.") })).optional().describe("Optional NPC changes during the skip."),
-      skip_countdowns: z.boolean().optional().describe("When true, do not advance countdowns during the skip."),
-    }).optional().describe("Optional fast-forward: skip intervening time with a bridging summary, countdown adjustments, and NPC changes."),
+      changes: z.array(z.object({ npc_id: z.string(), location: z.string().optional(), disposition: z.string().optional(), condition: z.string().optional() })).optional().describe("NPC changes during the skip."),
+      skip_countdowns: z.boolean().optional().describe("Do not advance countdowns during the skip."),
+    }).optional().describe("Narrative fast-forward (set)."),
+    directive: z.string().optional().describe("Narrative directive (directive)."),
+    entity_ids: z.array(z.string()).optional().describe("Entities present (presence)."),
+    level: z.enum(["full", "mechanical_prompt", "manual"]).optional().describe("Autonomy level (autonomy)."),
+    confirmation: z.enum(["auto", "confirm", "prompt"]).optional().describe("Confirmation mode (autonomy)."),
+    safety: z.enum(["safe", "moderate", "hardcore"]).optional().describe("Safety tier (autonomy)."),
+    creativity: z.enum(["predictable", "standard", "chaotic"]).optional().describe("Creativity (autonomy)."),
+    prompt: z.string().optional().describe("Choice prompt (choices)."),
+    choices: z.array(z.object({ id: z.string(), label: z.string(), description: z.string().optional() })).optional().describe("List of choices (choices)."),
+    allow_freeform: z.boolean().optional().describe("Allow free-form response (choices)."),
+    context: z.record(z.string(), z.any()).optional().describe("Context for the choice (choices)."),
+    question: z.string().optional().describe("Question to resolve (oracle)."),
+    likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional().describe("Likelihood tier (oracle)."),
+    seed: z.string().optional().describe("Deterministic seed (oracle)."),
   },
-}, async ({ description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-
-  // REQ-342 — derive the scene description from world-model state when `location`
-  // resolves and no explicit description is supplied.
-  const derived = !description && location ? deriveSceneDescription(location, novel) : null;
-  const effectiveDescription = description || derived || "";
-
-  const isTransition = novel.scene_description !== "" && novel.scene_description !== effectiveDescription;
-
-  if (novel.scene_description) {
-    const historyEntry: any = {
-      timestamp: new Date().toISOString(),
-      description: novel.scene_description,
-      location: novel.scene_location,
-      time_of_day: novel.scene_time_of_day,
-      atmosphere: novel.scene_atmosphere,
-      beat: currentBeat(novel),
-    };
-    if (novel.scene_description !== effectiveDescription) {
-      novel.scene_history.push(historyEntry);
-    }
-  }
-  novel.scene_description = effectiveDescription;
-  novel.scene_location = location;
-  novel.scene_time_of_day = time_of_day;
-  novel.scene_atmosphere = atmosphere;
-  if (scene_type !== undefined) {
-    novel.scene_type = Array.isArray(scene_type) ? scene_type : [scene_type];
-  }
-
-  // REQ-155 — sticky counter decay: sticky lore entries decay by one when the
-  // new scene text no longer matches their triggers; re-match resets the
-  // counter; entries at zero are deactivated in the next briefing assembly.
-  const sceneLower = effectiveDescription.toLowerCase();
-  for (const [, entry] of novel.lore) {
-    if (!entry.enabled) continue;
-    const matched = entry.triggers.some((t) => sceneLower.includes(t.toLowerCase()));
-    if (matched) {
-      entry.sticky_remaining = entry.sticky;
-    } else if (entry.sticky_remaining > 0) {
-      entry.sticky_remaining--;
-      if (entry.sticky_remaining <= 0) entry.enabled = false;
-    }
-  }
-
-  // REQ-250 — adventure scene waypoint: set/clear the waypoint anchor; unknown
-  // anchors return [NOT_FOUND] with nearby scene names enumerated.
-  if (adventure_scene !== undefined) {
-    if (adventure_scene === "" || adventure_scene === null) {
-      novel.adventure_scene_waypoint = null;
-    } else {
-      const scenes = (novel.adventure_index?.locations ?? []).map((l: any) => l.name);
-      if (!scenes.includes(adventure_scene)) {
-        const nearby = scenes.slice(0, 8).join(", ") || "(none)";
-        return err("NOT_FOUND", `Adventure scene '${adventure_scene}' not found in the structural index. Nearby scenes: ${nearby}.`);
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward } = args;
+      const derived = !description && location ? deriveSceneDescription(location, novel) : null;
+      const effectiveDescription = description || derived || "";
+      const isTransition = novel.scene_description !== "" && novel.scene_description !== effectiveDescription;
+      if (novel.scene_description) {
+        const historyEntry: any = {
+          timestamp: new Date().toISOString(),
+          description: novel.scene_description, location: novel.scene_location,
+          time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere,
+          beat: currentBeat(novel),
+        };
+        if (novel.scene_description !== effectiveDescription) novel.scene_history.push(historyEntry);
       }
-      novel.adventure_scene_waypoint = adventure_scene;
-    }
-  }
-
-  // REQ-252 — narrative fast-forward: advance narrative countdowns by the
-  // declared interval, apply declared NPC changes, record a [fast-forward]
-  // audit bridging summary. skip_countdowns preserves countdown state.
-  if (fast_forward) {
-    const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [] };
-    if (!fast_forward.skip_countdowns) {
-      for (const [name, cd] of [...novel.countdowns.entries()]) {
-        if (cd.type === "narrative") {
-          const decrement = Math.max(1, Math.round(Number((fast_forward.interval.match(/\d+/) ?? ["1"])[0]) || 1));
-          cd.ticks -= decrement;
-          ff.countdown_adjustments.push({ name, ticks: cd.ticks });
-          if (cd.ticks <= 0) { novel.countdowns.delete(name); ff.countdown_adjustments.push({ name, fired: true }); }
+      novel.scene_description = effectiveDescription;
+      novel.scene_location = location;
+      novel.scene_time_of_day = time_of_day;
+      novel.scene_atmosphere = atmosphere;
+      if (scene_type !== undefined) novel.scene_type = Array.isArray(scene_type) ? scene_type : [scene_type];
+      const sceneLower = effectiveDescription.toLowerCase();
+      for (const [, entry] of novel.lore) {
+        if (!entry.enabled) continue;
+        const matched = entry.triggers.some((t) => sceneLower.includes(t.toLowerCase()));
+        if (matched) entry.sticky_remaining = entry.sticky;
+        else if (entry.sticky_remaining > 0) { entry.sticky_remaining--; if (entry.sticky_remaining <= 0) entry.enabled = false; }
+      }
+      if (adventure_scene !== undefined) {
+        if (adventure_scene === "" || adventure_scene === null) novel.adventure_scene_waypoint = null;
+        else {
+          const scenes = (novel.adventure_index?.locations ?? []).map((l: any) => l.name);
+          if (!scenes.includes(adventure_scene)) return err("NOT_FOUND", `Adventure scene '${adventure_scene}' not found in the structural index. Nearby scenes: ${scenes.slice(0, 8).join(", ") || "(none)"}.`);
+          novel.adventure_scene_waypoint = adventure_scene;
         }
       }
-    }
-    for (const change of fast_forward.changes ?? []) {
-      const npc = novel.npcs.get(change.npc_id);
-      if (npc) {
-        if (change.location !== undefined) npc.location = change.location;
-        if (change.disposition !== undefined) npc.disposition = change.disposition;
-        if (change.condition !== undefined && !npc.conditions.includes(change.condition)) npc.conditions.push(change.condition);
-        ff.npc_changes.push({ npc_id: change.npc_id, location: change.location, disposition: change.disposition });
+      if (fast_forward) {
+        const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [] };
+        if (!fast_forward.skip_countdowns) {
+          for (const [name, cd] of [...novel.countdowns.entries()]) {
+            if (cd.type === "narrative") {
+              const decrement = Math.max(1, Math.round(Number((fast_forward.interval.match(/\d+/) ?? ["1"])[0]) || 1));
+              cd.ticks -= decrement;
+              ff.countdown_adjustments.push({ name, ticks: cd.ticks });
+              if (cd.ticks <= 0) { novel.countdowns.delete(name); ff.countdown_adjustments.push({ name, fired: true }); }
+            }
+          }
+        }
+        for (const change of fast_forward.changes ?? []) {
+          const npc = novel.npcs.get(change.npc_id);
+          if (npc) {
+            if (change.location !== undefined) npc.location = change.location;
+            if (change.disposition !== undefined) npc.disposition = change.disposition;
+            if (change.condition !== undefined && !npc.conditions.includes(change.condition)) npc.conditions.push(change.condition);
+            ff.npc_changes.push({ npc_id: change.npc_id, location: change.location, disposition: change.disposition });
+          }
+        }
+        audit("fast-forward", { interval: fast_forward.interval, ...ff }, "[fast-forward]");
       }
-    }
-    audit("fast-forward", { interval: fast_forward.interval, ...ff }, "[fast-forward]");
-  }
-
-  // REQ-335 — record the transition into story_beats, then advance the beat.
-  if (beat !== undefined) {
-    recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60));
-    novel.scene_beat = beat;
-  }
-
-  // Auto-update active entity position if location or description matches a world-model room (REQ-326)
-  const sceneRoomName = location || effectiveDescription;
-  if (sceneRoomName) {
-    const matchRoom = [...novel.world.rooms.entries()].find(([, r]) =>
-      sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()));
-    if (matchRoom) {
-      const entity = state.getActiveEntity();
-      if (entity) {
-        entity.current_room = matchRoom[1].name;
+      if (beat !== undefined) { recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60)); novel.scene_beat = beat; }
+      const sceneRoomName = location || effectiveDescription;
+      if (sceneRoomName) {
+        const matchRoom = [...novel.world.rooms.entries()].find(([, r]) => sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()));
+        if (matchRoom) { const entity = state.getActiveEntity(); if (entity) entity.current_room = matchRoom[1].name; }
       }
+      if (isTransition && !skip_transition_hook) {
+        audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
+        advanceSceneTransitionCountdowns(novel);
+        factionAutonomousAdvance(novel);
+        resetPacing(novel);
+        if (novel.auto_record) recordStoryMoment(novel, effectiveDescription, location ?? null);
+      }
+      state.recordMutation(novel, "set_scene_state", "scene");
+      state.saveNovel(novel);
+      audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
+      const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
+      return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
     }
-  }
-
-  // REQ-125 — scene transition hook: audit + countdown/faction advancement.
-  if (isTransition && !skip_transition_hook) {
-    audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
-    advanceSceneTransitionCountdowns(novel); // REQ-353
-    factionAutonomousAdvance(novel); // REQ-338
-    resetPacing(novel); // REQ-336
-    // REQ-405 — auto-moment on transitions unless disabled or skipped.
-    if (novel.auto_record) {
-      recordStoryMoment(novel, effectiveDescription, location ?? null);
+    case "directive": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      novel.narrative_directive = args.directive;
+      state.saveNovel(novel);
+      return ok(`Narrative directive set.`);
     }
+    case "presence": {
+      requireGM();
+      const novel = requireNovel();
+      novel.characters_present_ids = args.entity_ids;
+      state.saveNovel(novel);
+      return ok(`Party presence set: ${args.entity_ids.join(", ") || "(none)"}.`);
+    }
+    case "autonomy": {
+      requireGM();
+      const novel = requireNovel();
+      const auto = novel.autonomy;
+      const { level, confirmation, safety, creativity } = args;
+      if (safety && safety !== "safe" && safety !== auto.safety && !auto.confirmed_safety_tiers.includes(safety)) {
+        novel.pending_workflow = { decision: `safety_escalation:${safety}`, snapshot: state.captureWorkflowSnapshot(novel) };
+        state.saveNovel(novel);
+        const severity = safety === "hardcore"
+          ? "warning: disengaging safety protocols permits permanent character death with no warnings"
+          : "caution: raising safety to 'moderate' permits character death with warnings";
+        return needInput(`Safety escalation advisory — ${severity}. Respond with 'confirm' to raise the safety tier, or 'decline' to leave the current tier (${auto.safety}).`);
+      }
+      if (level) auto.level = level;
+      if (confirmation) auto.confirmation = confirmation;
+      if (creativity) auto.creativity = creativity;
+      if (safety) { auto.safety = safety; if (!auto.confirmed_safety_tiers.includes(safety)) auto.confirmed_safety_tiers.push(safety); }
+      state.saveNovel(novel);
+      audit("set_autonomy", { level, confirmation, safety, creativity });
+      const a = novel.autonomy;
+      return ok(`Autonomy set — level: ${a.level}, confirmation: ${a.confirmation}, safety: ${a.safety}, creativity: ${a.creativity}`);
+    }
+    case "choices": {
+      requireGM();
+      const novel = requireNovel();
+      if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+      novel.pending_workflow = {
+        decision: "present_choices",
+        snapshot: state.captureWorkflowSnapshot(novel),
+        payload: { prompt: args.prompt, choices: args.choices, allow_freeform: args.allow_freeform, context: args.context },
+      };
+      state.saveNovel(novel);
+      const opts = args.choices.map((c: any) => `  **${c.id}** — ${c.label}${c.description ? `: ${c.description}` : ""}`).join("\n");
+      return needInput(`Decision: -present_choices-\nQuestion: ${args.prompt}\n\nOptions:\n${opts}${args.allow_freeform ? "\n\nYou may also respond with a freeform answer." : ""}`);
+    }
+    case "oracle": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const thresholds: Record<string, number> = { almost_certain: 11, likely: 26, "50_50": 51, unlikely: 76, small_chance: 91 };
+      const band = args.likelihood ?? "50_50";
+      const target = thresholds[band] ?? 51;
+      const roll = args.seed ? createRng(args.seed).roll(100) : sessionRoll(100);
+      const yes = roll >= target;
+      const isDoubles = roll % 11 === 0;
+      const marker = isDoubles ? (yes ? "[EXCEPTIONAL_YES]" : "[EXCEPTIONAL_NO]") : (yes ? "[YES]" : "[NO]");
+      audit("ask_oracle", { question: args.question, likelihood: band, seed: args.seed });
+      novel.uncommitted_rolls.push({ roll: `${roll}/100 → ${marker}`, suggested_tool: "story (action: record)", at: new Date().toISOString() });
+      if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
+      state.saveNovel(novel);
+      let flavor = "";
+      if (!isDoubles && Math.abs(target - roll) <= 5) flavor = " (barely)";
+      else if (!isDoubles && Math.abs(target - roll) >= 30) flavor = " (decisively)";
+      return ok(`Question: "${args.question}"\nLikelihood: ${band} (roll ≥ ${target})\nRoll: ${roll}/100 → ${marker}${flavor}`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown scene action '${args.action}'. Valid actions: set, directive, presence, autonomy, choices, oracle.`);
   }
-
-  state.recordMutation(novel, "set_scene_state", "scene");
-  state.saveNovel(novel);
-  audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
-  // REQ-255b — boundary collision advisory (operation already applied).
-  const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
-  return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
-});
-
-server.registerTool("set_narrative_directive", {
-  title: "Set Narrative Directive",
-  description: "Set the overarching narrative directive for the current scene, persisting it (Game Master only). Use when: steering tone or scene focus. Do NOT use when: setting scene location or description — use set_scene_state.",
-  inputSchema: { directive: z.string().describe("The overarching narrative directive for the current scene.") },
-}, async ({ directive }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  novel.narrative_directive = directive;
-  state.saveNovel(novel);
-  return ok(`Narrative directive set.`);
 });
 
 // --- NPCs (GM) ---
 
-server.registerTool("create_npc", {
-  title: "Create NPC",
-  description: "Create a named NPC with optional description, disposition, location, and goals, persisting it to the Novel (Game Master only). Use when: introducing a non-player character. Do NOT use when: editing an NPC — use update_npc.",
+// NPC (REQ-119, REQ-122, REQ-123, REQ-124, REQ-156, REQ-327) — consolidated create/update/remove/list/get surface.
+server.registerTool("npc", {
+  title: "NPC",
+  description: "Manage non-player characters in the active Novel. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use character (action: create/import/sheet).",
   inputSchema: {
-    name: z.string().describe("The NPC name."),
+    action: z.enum(["create", "update", "remove", "list", "get"]).describe("create, update, remove, list, or get."),
+    name: z.string().optional().describe("NPC name (create)."),
+    npc_id: z.string().optional().describe("NPC identifier (update/remove/get)."),
     description: z.string().optional().describe("Optional description."),
     disposition: z.string().optional().describe("Optional disposition."),
     location: z.string().optional().describe("Optional location."),
     goals: z.string().optional().describe("Optional goals."),
-    // REQ-119 — optional ruleset stat-block reference.
-    ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference."),
+    ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference (create)."),
   },
-}, async ({ name, description, disposition, location, goals, ruleset_reference }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const id = `npc_${Date.now().toString(36)}`;
-  const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
-  // REQ-119 — NPC stat block reference: when a ruleset entry matches the
-  // reference, populate the NPC's stat fields from its baseline; caller-supplied
-  // fields override; an unknown reference returns [NOT_FOUND] with valid names.
-  if (ruleset_reference) {
-    const slug = novel.ruleset ?? null;
-    if (slug && rulesets.isInstalled(slug)) {
-      const model = rulesets.hydrate(slug).model as any;
-      const pools = { ...(model.monsters ?? {}), ...(model.npcs ?? {}), ...(model.concepts ?? {}) };
-      const hit = Object.values(pools).find((e: any) => (e.name ?? "").toLowerCase() === String(ruleset_reference).toLowerCase())
-        ?? Object.values(pools).find((e: any) => e.id === String(ruleset_reference).toLowerCase());
-      if (hit) {
-        const { name: _n, ...stats } = hit as any;
-        npc.stats = { ...stats };
-        npc.ruleset_reference = ruleset_reference;
-      } else {
-        const valid = Object.keys(pools);
-        return err("NOT_FOUND", `Ruleset reference '${ruleset_reference}' not found. Valid references: ${valid.slice(0, 25).join(", ") || "(none)"}.`);
+}, async (args: any) => {
+  switch (args.action) {
+    case "create": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { name, description, disposition, location, goals, ruleset_reference } = args;
+      const id = `npc_${Date.now().toString(36)}`;
+      const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
+      // REQ-119 — NPC stat block reference.
+      if (ruleset_reference) {
+        const slug = novel.ruleset ?? null;
+        if (slug && rulesets.isInstalled(slug)) {
+          const model = rulesets.hydrate(slug).model as any;
+          const pools = { ...(model.monsters ?? {}), ...(model.npcs ?? {}), ...(model.concepts ?? {}) };
+          const hit = Object.values(pools).find((e: any) => (e.name ?? "").toLowerCase() === String(ruleset_reference).toLowerCase())
+            ?? Object.values(pools).find((e: any) => e.id === String(ruleset_reference).toLowerCase());
+          if (hit) {
+            const { name: _n, ...stats } = hit as any;
+            npc.stats = { ...stats };
+            npc.ruleset_reference = ruleset_reference;
+          } else {
+            const valid = Object.keys(pools);
+            return err("NOT_FOUND", `Ruleset reference '${ruleset_reference}' not found. Valid references: ${valid.slice(0, 25).join(", ") || "(none)"}.`);
+          }
+        } else {
+          return err("NOT_FOUND", "No ruleset bound to the active Novel — ruleset_reference requires a bound ruleset.");
+        }
       }
-    } else {
-      return err("NOT_FOUND", "No ruleset bound to the active Novel — ruleset_reference requires a bound ruleset.");
+      if (goals) npc.personality = { goals };
+      novel.npcs.set(id, npc);
+      // REQ-327 — NPC-world coupling.
+      const roomMatch = [...novel.world.rooms.values()].find((r) => location && r.name.toLowerCase() === location.toLowerCase());
+      if (roomMatch) npc.room_id = roomMatch.name.toLowerCase();
+      // REQ-310 — campaign memory.
+      recordCampaignMemory(novel, "npcs", `NPC ${name} created (${id})`);
+      state.recordMutation(novel, "create_npc", "npc");
+      state.saveNovel(novel);
+      audit("create_npc", { name, id, ruleset_reference });
+      return ok(`NPC '${name}' created (${id}).`);
     }
+    case "update": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { npc_id, name, description, disposition, location, goals } = args;
+      const npc = novel.npcs.get(npc_id);
+      if (!npc) return err("NOT_FOUND", `NPC '${npc_id}' not found.`);
+      if (name !== undefined) npc.name = name;
+      if (description !== undefined) npc.description = description;
+      if (disposition !== undefined) npc.disposition = disposition;
+      if (location !== undefined) npc.location = location;
+      if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
+      state.saveNovel(novel);
+      audit("update_npc", { npc_id });
+      return ok(`NPC '${npc_id}' updated.`);
+    }
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      if (!novel.npcs.has(args.npc_id)) return err("NOT_FOUND", `NPC '${args.npc_id}' not found.`);
+      novel.npcs.delete(args.npc_id);
+      state.saveNovel(novel);
+      audit("remove_npc", { npc_id: args.npc_id });
+      return ok(`NPC '${args.npc_id}' removed.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows = [...novel.npcs.values()].map((n: any) => isGM ? n : { id: n.id, name: n.name, disposition: n.disposition ?? "neutral", location: n.location ?? null });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    case "get": {
+      const novel = requireNovel();
+      const npc = novel.npcs.get(args.npc_id);
+      if (!npc) return err("NOT_FOUND", `NPC '${args.npc_id}' not found.`);
+      return raw(JSON.stringify(npc, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown npc action '${args.action}'. Valid actions: create, update, remove, list, get.`);
   }
-  if (goals) npc.personality = { goals };
-  novel.npcs.set(id, npc);
-  // REQ-327 — NPC-world coupling: an NPC whose location fuzzy-matches a room
-  // name is registered in that room; look/inspection lists it among present
-  // entities; update_npc re-registers on location change.
-  const roomMatch = [...novel.world.rooms.values()].find((r) => location && r.name.toLowerCase() === location.toLowerCase());
-  if (roomMatch) npc.room_id = roomMatch.name.toLowerCase();
-  // REQ-310 — campaign memory: NPC creation is an engine-recorded fact.
-  recordCampaignMemory(novel, "npcs", `NPC ${name} created (${id})`);
-  state.recordMutation(novel, "create_npc", "npc");
-  state.saveNovel(novel);
-  audit("create_npc", { name, id, ruleset_reference });
-  return ok(`NPC '${name}' created (${id}).`);
-});
-
-server.registerTool("update_npc", {
-  title: "Update NPC",
-  description: "Update an existing NPC's name, description, disposition, location, or goals, persisting the change (Game Master only). Use when: revising a non-player character. Do NOT use when: creating an NPC — use create_npc.",
-  // REQ-123 — builder-defined NPC stat fields: fields are builder-determined
-  // from the ruleset's stat conventions; every field optional except name.
-  inputSchema: { npc_id: z.string().describe("The NPC identifier."), name: z.string().optional().describe("Optional new name."), description: z.string().optional().describe("Optional description."), disposition: z.string().optional().describe("Optional disposition."), location: z.string().optional().describe("Optional location."), goals: z.string().optional().describe("Optional goals.") },
-}, async ({ npc_id, name, description, disposition, location, goals }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const npc = novel.npcs.get(npc_id);
-  if (!npc) return err("NOT_FOUND", `NPC '${npc_id}' not found.`);
-  if (name !== undefined) npc.name = name;
-  if (description !== undefined) npc.description = description;
-  if (disposition !== undefined) npc.disposition = disposition;
-  if (location !== undefined) npc.location = location;
-  if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
-  state.saveNovel(novel);
-  audit("update_npc", { npc_id });
-  return ok(`NPC '${npc_id}' updated.`);
-});
-
-server.registerTool("remove_npc", {
-  title: "Remove NPC",
-  description: "Remove an NPC from the Novel, persisting the removal (Game Master only). Use when: a non-player character leaves the story. Do NOT use when: removing a player entity — use remove_entity.",
-  inputSchema: { npc_id: z.string().describe("The NPC to remove.") },
-}, async ({ npc_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  if (!novel.npcs.has(npc_id)) return err("NOT_FOUND", `NPC '${npc_id}' not found.`);
-  novel.npcs.delete(npc_id);
-  state.saveNovel(novel);
-  audit("remove_npc", { npc_id });
-  return ok(`NPC '${npc_id}' removed.`);
 });
 
 // --- Countdowns (GM) ---
 
-server.registerTool("set_countdown", {
-  title: "Set Countdown",
-  description: "Set a countdown timer with ticks, type, scope, direction, and optional world-model triggers, persisting it (Game Master only). Use when: starting a clock or timer. Do NOT use when: advancing a clock — use advance_countdown.",
+// Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
+server.registerTool("countdown", {
+  title: "Countdown",
+  description: "Manage countdown timers in the active Novel. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use vow (action: milestone).",
   inputSchema: {
-    name: z.string().describe("The countdown name."),
-    ticks: z.number().min(1).describe("Starting number of ticks (minimum 1)."),
-    type: z.enum(["round", "narrative"]).optional().describe("round or narrative."),
-    scope: z.string().optional().describe("Optional scope name."),
-    direction: z.string().optional().describe("Optional direction: increment or decrement."),
-    on_scene_transition: z.boolean().optional().describe("When true, advance on each scene transition."),
-    // REQ-329 — world-model coupling triggers (on_room_enter/on_thing_take/
-    // on_door_open). Any match advances one tick; supplements normal advancement.
-    triggers: z.array(z.string()).optional().describe("Optional world-model triggers (on_room_enter/on_thing_take/on_door_open)."),
-    // REQ-368 — world-model effect coupling applied when the countdown fires.
+    action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
+    name: z.string().optional().describe("Countdown name (set/advance/remove)."),
+    ticks: z.number().min(1).optional().describe("Starting ticks (set)."),
+    type: z.enum(["round", "narrative"]).optional().describe("round or narrative (set)."),
+    scope: z.string().optional().describe("Optional scope name (set)."),
+    direction: z.string().optional().describe("Optional direction: increment or decrement (set)."),
+    on_scene_transition: z.boolean().optional().describe("When true, advance on each scene transition (set)."),
+    triggers: z.array(z.string()).optional().describe("Optional world-model triggers (set)."),
     world_effect: z.object({
       type: z.enum(["describe", "property", "exit"]).describe("The effect kind."),
       target: z.string().describe("The effect target."),
@@ -3065,247 +3078,268 @@ server.registerTool("set_countdown", {
       destination: z.string().optional().describe("Optional destination (for exits)."),
       property: z.string().optional().describe("Optional property (for property effects)."),
       value: z.string().optional().describe("Optional value (for property effects)."),
-    }).optional().describe("Optional world-model effect applied when the countdown fires."),
+    }).optional().describe("Optional world-model effect applied when the countdown fires (set)."),
   },
-}, async ({ name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers, world_effect });
-  state.recordMutation(novel, "set_countdown", "countdown");
-  state.saveNovel(novel);
-  audit("set_countdown", { name, ticks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
-  return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
-});
-
-server.registerTool("advance_countdown", {
-  title: "Advance Countdown",
-  description: "Advance a countdown timer by one tick, firing it when it reaches its end (Game Master only). Use when: the fiction moves a clock forward. Do NOT use when: creating or removing a clock — use set_countdown or remove_countdown.",
-  inputSchema: { name: z.string().describe("The countdown to advance.") },
-}, async ({ name }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const cd = novel.countdowns.get(name);
-  if (!cd) return err("NOT_FOUND", `Countdown '${name}' not found.`);
-  cd.ticks--;
-  if (cd.ticks <= 0) {
-    novel.countdowns.delete(name);
-    // REQ-368 — countdown-world effect coupling on fire.
-    if ((cd as any).world_effect) {
-      const eff = (cd as any).world_effect;
-      const applied = applyWorldEffect(novel, eff);
-      audit("countdown_effect", { countdown: name, effect: eff, applied: applied?.applied ?? false, warning: applied?.warning ?? null }, applied?.warning ? "[WARNING]" : undefined);
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect } = args;
+      novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers, world_effect });
+      state.recordMutation(novel, "set_countdown", "countdown");
+      state.saveNovel(novel);
+      audit("set_countdown", { name, ticks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
+      return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
     }
-    // REQ-358 — countdown fire shifts disposition of NPCs whose location matches
-    // the countdown scope toward the countdown direction (hostile/benign).
-    const direction = cd.direction?.toLowerCase() ?? "";
-    const toward = direction.includes("hostile") ? "hostile" : direction.includes("benign") ? "friendly" : null;
-    if (toward && cd.scope) {
-      for (const [, npc] of novel.npcs) {
-        if (npc.location && npc.location.toLowerCase() === cd.scope!.toLowerCase()) {
-          const prev = npc.disposition ?? "neutral";
-          npc.disposition = shiftDisposition(prev, toward);
-          audit("countdown-disposition", { npc: npc.id, countdown: name, from: prev, to: npc.disposition });
+    case "advance": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const cd = novel.countdowns.get(args.name);
+      if (!cd) return err("NOT_FOUND", `Countdown '${args.name}' not found.`);
+      cd.ticks--;
+      if (cd.ticks <= 0) {
+        novel.countdowns.delete(args.name);
+        if ((cd as any).world_effect) {
+          const eff = (cd as any).world_effect;
+          const applied = applyWorldEffect(novel, eff);
+          audit("countdown_effect", { countdown: args.name, effect: eff, applied: applied?.applied ?? false, warning: applied?.warning ?? null }, applied?.warning ? "[WARNING]" : undefined);
         }
+        const direction = cd.direction?.toLowerCase() ?? "";
+        const toward = direction.includes("hostile") ? "hostile" : direction.includes("benign") ? "friendly" : null;
+        if (toward && cd.scope) {
+          for (const [, npc] of novel.npcs) {
+            if (npc.location && npc.location.toLowerCase() === cd.scope!.toLowerCase()) {
+              const prev = npc.disposition ?? "neutral";
+              npc.disposition = shiftDisposition(prev, toward);
+              audit("countdown-disposition", { npc: npc.id, countdown: args.name, from: prev, to: npc.disposition });
+            }
+          }
+        }
+        audit("countdown_expired", { name: args.name });
+        state.saveNovel(novel);
+        return ok(`Countdown '${args.name}' expired. Recorded in audit log.`);
       }
+      state.saveNovel(novel);
+      audit("advance_countdown", { name: args.name, remaining: cd.ticks });
+      return ok(`Countdown ${args.name}: ${cd.ticks} ticks remaining.`);
     }
-    audit("countdown_expired", { name });
-    state.saveNovel(novel);
-    return ok(`Countdown '${name}' expired. Recorded in audit log.`);
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      if (!novel.countdowns.has(args.name)) return err("NOT_FOUND", `Countdown '${args.name}' not found.`);
+      novel.countdowns.delete(args.name);
+      state.saveNovel(novel);
+      audit("remove_countdown", { name: args.name });
+      return ok(`Countdown '${args.name}' removed.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows = [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total, type: cd.type, ...(isGM ? { scope: cd.scope, direction: cd.direction } : {}) }));
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown countdown action '${args.action}'. Valid actions: set, advance, remove, list.`);
   }
-  state.saveNovel(novel);
-  audit("advance_countdown", { name, remaining: cd.ticks });
-  return ok(`Countdown ${name}: ${cd.ticks} ticks remaining.`);
-});
-
-server.registerTool("remove_countdown", {
-  title: "Remove Countdown",
-  description: "Remove a countdown timer, persisting the removal (Game Master only). Use when: a clock is no longer relevant. Do NOT use when: advancing a clock — use advance_countdown.",
-  inputSchema: { name: z.string().describe("The countdown to remove.") },
-}, async ({ name }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  if (!novel.countdowns.has(name)) return err("NOT_FOUND", `Countdown '${name}' not found.`);
-  novel.countdowns.delete(name);
-  state.saveNovel(novel);
-  audit("remove_countdown", { name });
-  return ok(`Countdown '${name}' removed.`);
 });
 
 // --- Lore (GM) ---
 
-server.registerTool("set_lore_entry", {
-  title: "Set Lore Entry",
-  description: "Create a lore entry with content, triggers, badge scope, priority, and group for the active Novel (Game Master only). Use when: recording world facts the narrator should recall. Do NOT use when: recording a story beat — use record_story.",
+// Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
+server.registerTool("lore", {
+  title: "Lore",
+  description: "Manage the active Novel's lore entries (world facts the narrator recalls). Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use story (action: record).",
   inputSchema: {
-    key: z.string().describe("The lore key."),
-    content: z.string().describe("The lore content."),
-    triggers: z.array(z.string()).optional().describe("Optional recall triggers."),
-    badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."),
-    priority: z.number().optional().describe("Optional priority."),
-    sticky: z.number().optional().describe("Optional sticky weight."),
-    group: z.string().optional().describe("Optional group name."),
-    // REQ-328 — lore-world coupling: world-model target (room/thing/exit ref).
-    world_target: z.string().optional().describe("Optional world-model target reference."),
+    action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge"]).describe("set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge."),
+    key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
+    content: z.string().optional().describe("Lore content (set/update)."),
+    triggers: z.array(z.string()).optional().describe("Optional recall triggers (set/update)."),
+    badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared (set/update)."),
+    priority: z.number().optional().describe("Optional priority (set/update)."),
+    sticky: z.number().optional().describe("Optional sticky weight (set/update)."),
+    group: z.string().nullable().optional().describe("Group name, or null to clear (set/update/group)."),
+    world_target: z.string().optional().describe("Optional world-model target reference (set/set_secret)."),
+    entity_id: z.string().optional().describe("Entity to reveal to / whose knowledge to read (reveal/knowledge)."),
+    format: z.string().optional().describe("Optional output format (export)."),
+    data: z.string().optional().describe("JSON or Markdown lorebook data (import)."),
+    mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace (import)."),
   },
-}, async ({ key, content, triggers, badge_scope, priority, sticky, group, world_target }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entry: LoreEntry = {
-    key,
-    content,
-    triggers: triggers ?? [],
-    badge_scope: badge_scope ?? "game_master",
-    priority: priority ?? 0,
-    sticky: sticky ?? 0,
-    sticky_remaining: sticky ?? 0,
-    enabled: true,
-    group,
-    world_target,
-  };
-  novel.lore.set(key, entry);
-  state.saveNovel(novel);
-  audit("set_lore_entry", { key });
-  return ok(`Lore entry '${key}' created.`);
-});
-
-server.registerTool("update_lore_entry", {
-  title: "Update Lore Entry",
-  description: "Update fields of an existing lore entry, persisting the change (Game Master only). Use when: revising a world fact. Do NOT use when: creating a lore entry — use set_lore_entry.",
-  inputSchema: { key: z.string().describe("The lore key to update."), content: z.string().optional().describe("Optional new content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."), priority: z.number().optional().describe("Optional priority."), sticky: z.number().optional().describe("Optional sticky weight."), group: z.string().nullable().optional().describe("Optional group name, or null to clear.") },
-}, async ({ key, content, triggers, badge_scope, priority, sticky, group }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entry = novel.lore.get(key);
-  if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
-  if (content !== undefined) entry.content = content;
-  if (triggers !== undefined) entry.triggers = triggers;
-  if (badge_scope !== undefined) entry.badge_scope = badge_scope;
-  if (priority !== undefined) entry.priority = priority;
-  if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
-  if (group !== undefined) { if (group === null) delete entry.group; else entry.group = group; }
-  state.saveNovel(novel);
-  return ok(`Lore entry '${key}' updated.`);
-});
-
-server.registerTool("remove_lore_entry", {
-  title: "Remove Lore Entry",
-  description: "Remove a lore entry from the Novel, persisting the removal (Game Master only). Use when: a world fact is obsolete. Do NOT use when: hiding a lore entry without deleting it — use toggle_lore_entry.",
-  inputSchema: { key: z.string().describe("The lore key to remove.") },
-}, async ({ key }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  if (!novel.lore.has(key)) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
-  novel.lore.delete(key);
-  state.saveNovel(novel);
-  return ok(`Lore entry '${key}' removed.`);
-});
-
-server.registerTool("toggle_lore_entry", {
-  title: "Toggle Lore Entry",
-  description: "Enable or disable a lore entry without deleting it, persisting the toggle (Game Master only). Use when: temporarily hiding a world fact. Do NOT use when: deleting a lore entry — use remove_lore_entry.",
-  inputSchema: { key: z.string().describe("The lore key to toggle.") },
-}, async ({ key }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entry = novel.lore.get(key);
-  if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
-  entry.enabled = !entry.enabled;
-  state.saveNovel(novel);
-  return ok(`Lore entry '${key}' ${entry.enabled ? "enabled" : "disabled"}.`);
-});
-
-server.registerTool("set_lore_group", {
-  title: "Set Lore Group",
-  description: "Assign or remove a lore entry from a named group, persisting the grouping (Game Master only). Use when: organizing lore by theme or faction. Do NOT use when: creating a lore entry — use set_lore_entry.",
-  inputSchema: { key: z.string().describe("The lore key."), group: z.string().nullable().describe("The group name, or null to remove from its group.") },
-}, async ({ key, group }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entry = novel.lore.get(key);
-  if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
-  if (group === null || group === undefined) delete entry.group;
-  else entry.group = group;
-  state.saveNovel(novel);
-  return ok(`Lore entry '${key}' group ${group ? `set to '${group}'` : "removed"}.`);
-});
-
-server.registerTool("suggest_lore", {
-  title: "Suggest Lore",
-  description: "Suggest lore entries from enrichment templates based on the current scene, without persisting them (Game Master only). Use when: the GM wants candidate world facts to adopt. Do NOT use when: creating a lore entry directly — use set_lore_entry.",
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const novel = requireNovel();
-  const templates = state.enrichmentManifest?.lore_templates ?? [];
-  if (templates.length === 0) return ok("No lore templates available (enrichment not loaded).");
-  const sample = templates.slice(0, 3).map((t: any) => `- ${t.content?.substring(0, 120)}${(t.content?.length ?? 0) > 120 ? "..." : ""}`);
-  return raw(sample.join("\n"));
-});
-
-server.registerTool("export_lorebook", {
-  title: "Export Lorebook",
-  description: "Export the Novel's lore entries in interchange format for backup or transfer (Game Master only). Use when: moving lore between Novels. Do NOT use when: importing lore — use import_lorebook.",
-  // REQ-094 — lorebook interchange: lore-only export/import with merge, replace,
-  // and dry-run modes; round-trip preserves lore metadata (Appendix L).
-  // REQ-425b — interchange surfaces accept only json/markdown; html is a
-  // presentation-only format and returns [INVALID_INPUT] enumerating the set.
-  inputSchema: { format: z.string().optional().describe("Optional output format.") },
-}, async ({ format: fmt }: any) => {
-  requireGM();
-  if (fmt && !INTERCHANGE_FORMATS.includes(fmt)) {
-    return err("INVALID_INPUT", `Unsupported format '${fmt}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
-  }
-  const novel = requireNovel();
-  const entries = [...novel.lore.values()];
-  if (fmt === "markdown") {
-    let md = "# Lorebook\n\n";
-    for (const e of entries) {
-      md += `## ${e.key}\n${e.content}\n_triggers: ${e.triggers.join(", ")}_\n\n`;
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { key, content, triggers, badge_scope, priority, sticky, group, world_target } = args;
+      const entry: LoreEntry = {
+        key, content,
+        triggers: triggers ?? [],
+        badge_scope: badge_scope ?? "game_master",
+        priority: priority ?? 0,
+        sticky: sticky ?? 0,
+        sticky_remaining: sticky ?? 0,
+        enabled: true,
+        group,
+        world_target,
+      };
+      novel.lore.set(key, entry);
+      state.saveNovel(novel);
+      audit("set_lore_entry", { key });
+      return ok(`Lore entry '${key}' created.`);
     }
-    return raw(md);
-  }
-  return raw(JSON.stringify(entries.map(e => ({
-    key: e.key, content: e.content, triggers: e.triggers,
-    badge_scope: e.badge_scope, priority: e.priority, sticky: e.sticky,
-    enabled: e.enabled, group: e.group,
-  })), null, 2));
-});
-
-server.registerTool("import_lorebook", {
-  title: "Import Lorebook",
-  description: "Import lore entries from JSON or Markdown in dry-run, merge, or replace mode (Game Master only). Use when: loading a lorebook. Do NOT use when: exporting lore — use export_lorebook.",
-  inputSchema: { data: z.string().describe("JSON or Markdown lorebook data."), mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace.") },
-}, async ({ data, mode }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const m = mode ?? "dry-run";
-  try {
-    const parsed = JSON.parse(data);
-    if (!Array.isArray(parsed)) return err("INVALID_INPUT", "Expected an array of lore entries.");
-    if (m === "dry-run") {
-      return ok(`Dry-run: ${parsed.length} lore entries would be imported.`);
+    case "update": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const { key, content, triggers, badge_scope, priority, sticky, group } = args;
+      const entry = novel.lore.get(key);
+      if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
+      if (content !== undefined) entry.content = content;
+      if (triggers !== undefined) entry.triggers = triggers;
+      if (badge_scope !== undefined) entry.badge_scope = badge_scope;
+      if (priority !== undefined) entry.priority = priority;
+      if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
+      if (group !== undefined) { if (group === null) delete entry.group; else entry.group = group; }
+      state.saveNovel(novel);
+      return ok(`Lore entry '${key}' updated.`);
     }
-    if (m === "replace") novel.lore.clear();
-    for (const e of parsed) {
-      novel.lore.set(e.key, {
-        key: e.key, content: e.content, triggers: e.triggers ?? [],
-        badge_scope: e.badge_scope ?? "game_master", priority: e.priority ?? 0,
-        sticky: e.sticky ?? 0, sticky_remaining: e.sticky ?? 0,
-        enabled: e.enabled ?? true, group: e.group,
-      });
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      if (!novel.lore.has(args.key)) return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      novel.lore.delete(args.key);
+      state.saveNovel(novel);
+      return ok(`Lore entry '${args.key}' removed.`);
     }
-    state.saveNovel(novel);
-    return ok(`Imported ${parsed.length} lore entries (${m} mode).`);
-  } catch {
-    return err("INVALID_INPUT", "Could not parse lorebook data. Provide valid JSON array.");
+    case "toggle": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const entry = novel.lore.get(args.key);
+      if (!entry) return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      entry.enabled = !entry.enabled;
+      state.saveNovel(novel);
+      return ok(`Lore entry '${args.key}' ${entry.enabled ? "enabled" : "disabled"}.`);
+    }
+    case "group": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const entry = novel.lore.get(args.key);
+      if (!entry) return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      if (args.group === null || args.group === undefined) delete entry.group;
+      else entry.group = args.group;
+      state.saveNovel(novel);
+      return ok(`Lore entry '${args.key}' group ${args.group ? `set to '${args.group}'` : "removed"}.`);
+    }
+    case "suggest": {
+      requireGM();
+      const novel = requireNovel();
+      const templates = state.enrichmentManifest?.lore_templates ?? [];
+      if (templates.length === 0) return ok("No lore templates available (enrichment not loaded).");
+      const sample = templates.slice(0, 3).map((t: any) => `- ${t.content?.substring(0, 120)}${(t.content?.length ?? 0) > 120 ? "..." : ""}`);
+      return raw(sample.join("\n"));
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows = [...novel.lore.values()].map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    case "get": {
+      const novel = requireNovel();
+      const entry = novel.lore.get(args.key);
+      if (!entry) return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      return raw(JSON.stringify(entry, null, 2));
+    }
+    case "export": {
+      requireGM();
+      const novel = requireNovel();
+      if (args.format && !INTERCHANGE_FORMATS.includes(args.format)) {
+        return err("INVALID_INPUT", `Unsupported format '${args.format}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
+      }
+      const entries = [...novel.lore.values()];
+      if (args.format === "markdown") {
+        let md = "# Lorebook\n\n";
+        for (const e of entries) {
+          md += `## ${e.key}\n${e.content}\n_triggers: ${e.triggers.join(", ")}_\n\n`;
+        }
+        return raw(md);
+      }
+      return raw(JSON.stringify(entries.map(e => ({
+        key: e.key, content: e.content, triggers: e.triggers,
+        badge_scope: e.badge_scope, priority: e.priority, sticky: e.sticky,
+        enabled: e.enabled, group: e.group,
+      })), null, 2));
+    }
+    case "import": {
+      requireGM();
+      const novel = requireNovel();
+      const m = args.mode ?? "dry-run";
+      try {
+        const parsed = JSON.parse(args.data);
+        if (!Array.isArray(parsed)) return err("INVALID_INPUT", "Expected an array of lore entries.");
+        if (m === "dry-run") {
+          return ok(`Dry-run: ${parsed.length} lore entries would be imported.`);
+        }
+        if (m === "replace") novel.lore.clear();
+        for (const e of parsed) {
+          novel.lore.set(e.key, {
+            key: e.key, content: e.content, triggers: e.triggers ?? [],
+            badge_scope: e.badge_scope ?? "game_master", priority: e.priority ?? 0,
+            sticky: e.sticky ?? 0, sticky_remaining: e.sticky ?? 0,
+            enabled: e.enabled ?? true, group: e.group,
+          });
+        }
+        state.saveNovel(novel);
+        return ok(`Imported ${parsed.length} lore entries (${m} mode).`);
+      } catch {
+        return err("INVALID_INPUT", "Could not parse lorebook data. Provide valid JSON array.");
+      }
+    }
+    case "set_secret": {
+      requireGM();
+      const novel = requireNovel();
+      if (novel.secrets.some(s => s.key === args.key)) return err("STATE_CONFLICT", `Secret '${args.key}' already exists.`);
+      novel.secrets.push({ key: args.key, content: args.content, triggers: args.triggers ?? [], badge_scope: args.badge_scope ?? "game_master", known_by: [], world_target: args.world_target });
+      state.saveNovel(novel);
+      return ok(`Secret '${args.key}' created.`);
+    }
+    case "reveal": {
+      requireGM();
+      const novel = requireNovel();
+      const secret = novel.secrets.find(s => s.key === args.key);
+      if (!secret) return err("NOT_FOUND", `Secret '${args.key}' not found.`);
+      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      if (!secret.known_by.includes(args.entity_id)) secret.known_by.push(args.entity_id);
+      state.saveNovel(novel);
+      return ok(`Secret '${args.key}' revealed to '${args.entity_id}'.`);
+    }
+    case "secret_list": {
+      requireGM();
+      const novel = requireNovel();
+      return raw(JSON.stringify(novel.secrets.map(s => ({ key: s.key, content: s.content, known_by: s.known_by, badge_scope: s.badge_scope })), null, 2));
+    }
+    case "knowledge": {
+      requireGM();
+      const novel = requireNovel();
+      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      const known = novel.secrets.filter(s => s.known_by.includes(args.entity_id));
+      if (args.key) {
+        const s = known.find(s => s.key === args.key);
+        return raw(JSON.stringify(s ?? { key: args.key, known: false }));
+      }
+      return raw(JSON.stringify(known.map(s => ({ key: s.key, content: s.content }))));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown lore action '${args.action}'. Valid actions: set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, knowledge.`);
   }
 });
 
@@ -3324,810 +3358,429 @@ function conditionCatalogue(novel: NovelState): string[] {
   }
   return BASE_CONDITIONS;
 }
-server.registerTool("apply_condition", {
-  title: "Apply Condition",
-  description: "Apply a condition to an entity, persisting it to the Novel. Use when: an entity gains a mechanical or narrative status. Do NOT use when: clearing a condition — use remove_condition.",
-  inputSchema: { entity_id: z.string().describe("The entity to affect."), condition: z.string().describe("The condition name."), rounds: z.number().optional().describe("Optional duration in rounds.") },
-}, async ({ entity_id, condition, rounds }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entity = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  // REQ-217a — validate against the indexed condition list.
-  const catalogue = conditionCatalogue(novel);
-  if (!catalogue.includes(condition)) {
-    return err("INVALID_INPUT", `Unknown condition '${condition}'. Valid conditions: ${catalogue.join(", ")}.`);
+// Condition (REQ-217) — consolidated apply/remove/list surface.
+server.registerTool("condition", {
+  title: "Condition",
+  description: "Manage mechanical or narrative conditions on entities. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use combat (action: init/advance).",
+  inputSchema: {
+    action: z.enum(["apply", "remove", "list"]).describe("apply, remove, or list."),
+    entity_id: z.string().optional().describe("The entity to affect (apply/remove)."),
+    condition: z.string().optional().describe("The condition name (apply/remove)."),
+    rounds: z.number().optional().describe("Optional duration in rounds (apply)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "apply": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const entity = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
+      if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      const catalogue = conditionCatalogue(novel);
+      if (!catalogue.includes(args.condition)) {
+        return err("INVALID_INPUT", `Unknown condition '${args.condition}'. Valid conditions: ${catalogue.join(", ")}.`);
+      }
+      if (!entity.conditions) entity.conditions = [];
+      if (!entity.condition_rounds) entity.condition_rounds = {};
+      if (entity.conditions.includes(args.condition)) {
+        return warn("Condition already active.");
+      }
+      entity.conditions.push(args.condition);
+      if (args.rounds) entity.condition_rounds[args.condition] = args.rounds;
+      state.saveNovel(novel);
+      return ok(`'${args.condition}' applied to '${args.entity_id}'${args.rounds ? ` for ${args.rounds} rounds` : ""}.`);
+    }
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const entity = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
+      if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      if (!entity.conditions) return warn("Condition not present.");
+      if (!entity.conditions.includes(args.condition)) return warn("Condition not present.");
+      entity.conditions = entity.conditions.filter((c: string) => c !== args.condition);
+      delete entity.condition_rounds[args.condition];
+      state.saveNovel(novel);
+      return ok(`'${args.condition}' removed from '${args.entity_id}'.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows: any[] = [];
+      for (const [id, e] of novel.entities) if ((e as any).conditions?.length) rows.push({ entity_id: id, conditions: (e as any).conditions, ...(isGM ? { rounds: (e as any).condition_rounds } : {}) });
+      for (const [id, n] of novel.npcs) if ((n as any).conditions?.length) rows.push({ entity_id: id, conditions: (n as any).conditions, ...(isGM ? { rounds: (n as any).condition_rounds } : {}) });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown condition action '${args.action}'. Valid actions: apply, remove, list.`);
   }
-  if (!entity.conditions) entity.conditions = [];
-  if (!entity.condition_rounds) entity.condition_rounds = {};
-  // REQ-217b — duplicate application returns [WARNING], no state change.
-  if (entity.conditions.includes(condition)) {
-    return warn("Condition already active.");
-  }
-  entity.conditions.push(condition);
-  if (rounds) entity.condition_rounds[condition] = rounds;
-  state.saveNovel(novel);
-  return ok(`'${condition}' applied to '${entity_id}'${rounds ? ` for ${rounds} rounds` : ""}.`);
-});
-
-server.registerTool("remove_condition", {
-  title: "Remove Condition",
-  description: "Remove a condition from an entity, persisting the change. Use when: a status ends or is cured. Do NOT use when: applying a condition — use apply_condition.",
-  inputSchema: { entity_id: z.string().describe("The entity to affect."), condition: z.string().describe("The condition to remove.") },
-}, async ({ entity_id, condition }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novelSnapshot();
-  const entity = novel.entities.get(entity_id) ?? novel.npcs.get(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  if (!entity.conditions) return warn("Condition not present.");
-  if (!entity.conditions.includes(condition)) return warn("Condition not present.");
-  entity.conditions = entity.conditions.filter((c: string) => c !== condition);
-  delete entity.condition_rounds[condition];
-  state.saveNovel(novel);
-  return ok(`'${condition}' removed from '${entity_id}'.`);
 });
 
 // --- Factions (GM) ---
 
-server.registerTool("create_faction", {
-  title: "Create Faction",
-  description: "Create a named faction with goals, resources, and a progress clock, persisting it (Game Master only). Use when: introducing an organization. Do NOT use when: editing a faction — use update_faction.",
-  inputSchema: { name: z.string().describe("The faction name."), description: z.string().optional().describe("Optional description."), goals: z.array(z.string()).optional().describe("Optional goals."), resources: z.string().optional().describe("Optional resources."), territory: z.array(z.string()).optional().describe("Optional territory names.") },
-}, async ({ name, description, goals, resources, territory }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (novel.factions.some(f => f.name === name)) return err("STATE_CONFLICT", `Faction '${name}' already exists.`);
-  const faction = {
-    id: `faction_${Date.now().toString(36)}`,
-    name, description: description ?? "", goals: goals ?? [], resources: resources ?? "", clock: 0, clock_max: 10, status: "neutral",
-    territory: territory ?? undefined,
-  };
-  novel.factions.push(faction);
-  state.saveNovel(novel);
-  audit("create_faction", { name, description, goals, territory });
-  return ok(`Faction '${name}' created (${faction.id}).`);
-});
-
-server.registerTool("update_faction", {
-  title: "Update Faction",
-  description: "Update a faction's fields, persisting the change (Game Master only). Use when: revising an organization. Do NOT use when: creating a faction — use create_faction.",
-  inputSchema: { faction_id: z.string().describe("The faction identifier."), description: z.string().optional().describe("Optional description."), goals: z.array(z.string()).optional().describe("Optional goals."), resources: z.string().optional().describe("Optional resources."), territory: z.array(z.string()).optional().describe("Optional territory names.") },
-}, async ({ faction_id, ...fields }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const faction = novel.factions.find(f => f.id === faction_id);
-  if (!faction) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
-  Object.assign(faction, fields);
-  state.saveNovel(novel);
-  return ok(`Faction '${faction.name}' updated.`);
-});
-
-server.registerTool("remove_faction", {
-  title: "Remove Faction",
-  description: "Remove a faction and its progress clock, persisting the removal (Game Master only). Use when: an organization leaves the story. Do NOT use when: editing a faction — use update_faction.",
-  inputSchema: { faction_id: z.string().describe("The faction to remove.") },
-}, async ({ faction_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const idx = novel.factions.findIndex(f => f.id === faction_id);
-  if (idx === -1) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
-  const name = novel.factions[idx].name;
-  novel.factions.splice(idx, 1);
-  state.saveNovel(novel);
-  audit("remove_faction", { faction_id });
-  return ok(`Faction '${name}' removed.`);
-});
-
-// --- Secrets (GM) ---
-
-server.registerTool("set_secret", {
-  title: "Set Secret",
-  description: "Create a GM-only secret lore entry that becomes visible to an entity only after reveal_secret (Game Master only). Use when: recording hidden information. Do NOT use when: creating public lore — use set_lore_entry.",
-  inputSchema: { key: z.string().describe("The secret key."), content: z.string().describe("The secret content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."), world_target: z.string().optional().describe("Optional world-model target.") },
-}, async ({ key, content, triggers, badge_scope, world_target }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (novel.secrets.some(s => s.key === key)) return err("STATE_CONFLICT", `Secret '${key}' already exists.`);
-  novel.secrets.push({ key, content, triggers: triggers ?? [], badge_scope: badge_scope ?? "game_master", known_by: [], world_target });
-  state.saveNovel(novel);
-  return ok(`Secret '${key}' created.`);
-});
-
-server.registerTool("reveal_secret", {
-  title: "Reveal Secret",
-  description: "Reveal a secret to a specific entity, persisting that entity's knowledge (Game Master only). Use when: a character learns hidden information. Do NOT use when: creating a secret — use set_secret.",
-  inputSchema: { key: z.string().describe("The secret to reveal."), entity_id: z.string().describe("The entity to reveal it to.") },
-}, async ({ key, entity_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const secret = novel.secrets.find(s => s.key === key);
-  if (!secret) return err("NOT_FOUND", `Secret '${key}' not found.`);
-  if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  if (!secret.known_by.includes(entity_id)) secret.known_by.push(entity_id);
-  state.saveNovel(novel);
-  return ok(`Secret '${key}' revealed to '${entity_id}'.`);
-});
-
-server.registerTool("get_knowledge", {
-  title: "Get Knowledge",
-  description: "Return which secrets an entity currently knows (Game Master only). Use when: checking what a character has learned. Do NOT use when: revealing a secret — use reveal_secret.",
-  inputSchema: { entity_id: z.string().describe("The entity whose knowledge to read."), key: z.string().optional().describe("Optional secret key filter.") },
-}, async ({ entity_id, key }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  const known = novel.secrets.filter(s => s.known_by.includes(entity_id));
-  if (key) {
-    const s = known.find(s => s.key === key);
-    return raw(JSON.stringify(s ?? { key, known: false }));
-  }
-  return raw(JSON.stringify(known.map(s => ({ key: s.key, content: s.content }))));
-});
-
-// --- Relationships (GM) ---
-
-server.registerTool("set_relationship", {
-  title: "Set Relationship",
-  description: "Set a directed relationship (ally, rival, neutral, mentor, dependent, suspicious) between entities, NPCs, or factions, persisting it (Game Master only). Use when: recording how two parties relate. Do NOT use when: listing relationships — use get_relationships.",
-  inputSchema: { entity_a: z.string().describe("The source entity."), entity_b: z.string().describe("The target entity."), type: z.enum(["ally", "rival", "neutral", "mentor", "dependent", "suspicious"]).describe("Relationship type."), value: z.number().optional().describe("Optional relationship strength."), description: z.string().optional().describe("Optional description.") },
-}, async ({ entity_a, entity_b, type, value, description }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novel.relationships.push({ entity_a, entity_b, type, value, description });
-  state.saveNovel(novel);
-  return ok(`Relationship set: ${entity_a} -> ${entity_b} (${type}).`);
-});
-
-server.registerTool("get_relationships", {
-  title: "Get Relationships",
-  description: "Return all incoming and outgoing relationships for an entity (Game Master only). Use when: reviewing how a character is connected. Do NOT use when: setting a relationship — use set_relationship.",
-  inputSchema: { entity_id: z.string().describe("The entity whose relationships to list.") },
-}, async ({ entity_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const outgoing = novel.relationships.filter(r => r.entity_a === entity_id);
-  const incoming = novel.relationships.filter(r => r.entity_b === entity_id);
-  return raw(JSON.stringify({ outgoing, incoming }, null, 2));
-});
-
-// --- Vows (GM) ---
-
-server.registerTool("set_vow", {
-  title: "Set Vow",
-  description: "Track a narrative vow, quest, or obligation with milestones, persisting it (Game Master only). Use when: the story commits a character to a goal. Do NOT use when: advancing a vow — use mark_milestone.",
-  inputSchema: { name: z.string().describe("The vow name."), description: z.string().describe("The vow description."), parties: z.array(z.string()).describe("Parties bound by the vow."), difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).describe("troublesome, dangerous, formidable, extreme, or epic."), scope: z.enum(["gm", "shared", "faction", "party"]).optional().describe("gm, shared, faction, or party.") },
-}, async ({ name, description, parties, difficulty, scope }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (novel.vows.some(v => v.name === name)) return err("STATE_CONFLICT", `Vow '${name}' already exists.`);
-  novel.vows.push({
-    name, description, parties, difficulty: difficulty as any, scope: scope ?? "shared",
-    milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty] ?? 10, state: "active",
-  });
-  // REQ-322 — vow-countdown coupling: offer a countdown creation suggestion
-  // (vow:<vow_name>, tick count = milestone total) surfaced in narrative_threads;
-  // the GM accepts via respond.
-  if (!novel.countdowns.has(`vow:${name}`)) {
-    novel.pending_vow_countdown_suggestion = {
-      vow_name: name,
-      countdown_name: `vow:${name}`,
-      tick_count: DIFFICULTY_TRACKS[difficulty] ?? 10,
-      scope: scope ?? "shared",
-    };
-  }
-  state.recordMutation(novel, "set_vow", "vow");
-  state.saveNovel(novel);
-  return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones). A linked countdown suggestion is available in badge_briefing — respond \`accept\` to create it.`);
-});
-
-server.registerTool("mark_milestone", {
-  title: "Mark Milestone",
-  description: "Advance a vow's progress by one milestone, persisting it (Game Master only). Use when: the character makes progress. Do NOT use when: closing a vow — use resolve_vow.",
-  inputSchema: { vow_name: z.string().describe("The vow to advance.") },
-}, async ({ vow_name }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const vow = novel.vows.find(v => v.name === vow_name);
-  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
-  vow.milestones++;
-  // REQ-322 — vow-countdown coupling: advancing a vow advances its linked
-  // countdown by one tick; a filled countdown makes the vow resolvable.
-  const linked = novel.countdowns.get(`vow:${vow_name}`);
-  if (linked) {
-    linked.ticks += 1;
-    if (linked.ticks >= linked.total) {
-      novel.countdowns.delete(`vow:${vow_name}`);
-      audit("vow_countdown_filled", { vow_name, countdown: `vow:${vow_name}` });
+// Faction (REQ-338, REQ-364) — consolidated create/update/remove/list surface.
+server.registerTool("faction", {
+  title: "Faction",
+  description: "Manage organizations in the active Novel. Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use world (action: create_room).",
+  inputSchema: {
+    action: z.enum(["create", "update", "remove", "list"]).describe("create, update, remove, or list."),
+    name: z.string().optional().describe("Faction name (create)."),
+    faction_id: z.string().optional().describe("Faction identifier (update/remove)."),
+    description: z.string().optional().describe("Optional description."),
+    goals: z.array(z.string()).optional().describe("Optional goals."),
+    resources: z.string().optional().describe("Optional resources."),
+    territory: z.array(z.string()).optional().describe("Optional territory names."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "create": {
+      requireGM();
+      const novel = requireNovel();
+      const { name, description, goals, resources, territory } = args;
+      if (novel.factions.some(f => f.name === name)) return err("STATE_CONFLICT", `Faction '${name}' already exists.`);
+      const faction = {
+        id: `faction_${Date.now().toString(36)}`,
+        name, description: description ?? "", goals: goals ?? [], resources: resources ?? "", clock: 0, clock_max: 10, status: "neutral",
+        territory: territory ?? undefined,
+      };
+      novel.factions.push(faction);
+      state.saveNovel(novel);
+      audit("create_faction", { name, description, goals, territory });
+      return ok(`Faction '${name}' created (${faction.id}).`);
     }
-    state.saveNovel(novel);
+    case "update": {
+      requireGM();
+      const novel = requireNovel();
+      const { faction_id, ...fields } = args;
+      const faction = novel.factions.find(f => f.id === faction_id);
+      if (!faction) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
+      Object.assign(faction, fields);
+      state.saveNovel(novel);
+      return ok(`Faction '${faction.name}' updated.`);
+    }
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      const idx = novel.factions.findIndex(f => f.id === args.faction_id);
+      if (idx === -1) return err("NOT_FOUND", `Faction '${args.faction_id}' not found.`);
+      const name = novel.factions[idx].name;
+      novel.factions.splice(idx, 1);
+      state.saveNovel(novel);
+      audit("remove_faction", { faction_id: args.faction_id });
+      return ok(`Faction '${name}' removed.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows = novel.factions.map((f) => isGM ? f : { id: f.id, name: f.name, description: f.description });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown faction action '${args.action}'. Valid actions: create, update, remove, list.`);
   }
-  state.saveNovel(novel);
-  return ok(`Vow '${vow_name}' progress: ${vow.milestones}/${vow.rank_track} milestones.${linked ? ` Linked countdown at ${linked.ticks}/${linked.total}.` : ""}`);
 });
 
-server.registerTool("resolve_vow", {
-  title: "Resolve Vow",
-  description: "Close a completed vow with an outcome and consequences, persisting it (Game Master only). Use when: the goal is achieved. Do NOT use when: abandoning a vow — use forsake_vow.",
-  inputSchema: { vow_name: z.string().describe("The vow to close."), outcome: z.string().describe("The resolution outcome."), consequences: z.string().optional().describe("Optional consequences.") },
-}, async ({ vow_name, outcome, consequences }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const vow = novel.vows.find(v => v.name === vow_name);
-  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
-  vow.state = "resolved";
-  vow.outcome = outcome;
-  vow.consequences = consequences;
-  state.saveNovel(novel);
-  return ok(`Vow '${vow_name}' resolved.`);
-});
-
-server.registerTool("forsake_vow", {
-  title: "Forsake Vow",
-  description: "Abandon a vow with a reason, persisting the abandonment (Game Master only). Use when: the character gives up. Do NOT use when: completing a vow — use resolve_vow.",
-  inputSchema: { vow_name: z.string().describe("The vow to abandon."), reason: z.string().describe("The reason for abandoning.") },
-}, async ({ vow_name, reason }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const vow = novel.vows.find(v => v.name === vow_name);
-  if (!vow) return err("NOT_FOUND", `Vow '${vow_name}' not found.`);
-  vow.state = "forsaken";
-  vow.reason = reason;
-  state.saveNovel(novel);
-  return ok(`Vow '${vow_name}' forsaken.`);
-});
-
-// REQ-333 — story journal to lore promotion: promote a `revelation`/`moment`
-// entry into a lore entry (non-destructive; decisions/consequences are
-// immutable → [RULE_VIOLATION]; existing key → [STATE_CONFLICT]).
-server.registerTool("promote_story_to_lore", {
-  title: "Promote Story to Lore",
-  description: "Promote a story journal entry into a lore entry, persisting it (Game Master only). Use when: a story moment becomes a durable world fact. Do NOT use when: recording a new story beat — use record_story.",
-  inputSchema: { index: z.number().describe("The story journal index to promote."), key: z.string().optional().describe("Optional lore key.") },
-}, async ({ index, key }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const entry = novel.story_journal[index];
-  if (!entry) return err("NOT_FOUND", `Story journal entry ${index} not found.`);
-  if (entry.type === "decision" || entry.type === "consequence") {
-    return err("RULE_VIOLATION", `A ${entry.type} entry is immutable and cannot be promoted.`);
+// Relationship (REQ-236) — consolidated set/get surface.
+server.registerTool("relationship", {
+  title: "Relationship",
+  description: "Manage directed relationships between entities, NPCs, or factions. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use faction (action: update).",
+  inputSchema: {
+    action: z.enum(["set", "get"]).describe("set or get."),
+    entity_a: z.string().optional().describe("The source entity (set)."),
+    entity_b: z.string().optional().describe("The target entity (set)."),
+    type: z.enum(["ally", "rival", "neutral", "mentor", "dependent", "suspicious"]).optional().describe("Relationship type (set)."),
+    value: z.number().optional().describe("Optional relationship strength (set)."),
+    description: z.string().optional().describe("Optional description (set)."),
+    entity_id: z.string().optional().describe("Entity whose relationships to list (get)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const novel = requireNovel();
+      novel.relationships.push({ entity_a: args.entity_a, entity_b: args.entity_b, type: args.type, value: args.value, description: args.description });
+      state.saveNovel(novel);
+      return ok(`Relationship set: ${args.entity_a} -> ${args.entity_b} (${args.type}).`);
+    }
+    case "get": {
+      requireGM();
+      const novel = requireNovel();
+      const outgoing = novel.relationships.filter(r => r.entity_a === args.entity_id);
+      const incoming = novel.relationships.filter(r => r.entity_b === args.entity_id);
+      return raw(JSON.stringify({ outgoing, incoming }, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown relationship action '${args.action}'. Valid actions: set, get.`);
   }
-  const derivedKey = entry.entry.toLowerCase().split(/\s+/).slice(0, 6).join("-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
-  const targetKey = key ?? (derivedKey || "promoted");
-  if (novel.lore.has(targetKey)) {
-    return err("STATE_CONFLICT", `Lore entry '${targetKey}' already exists. Corrective action: supply a distinct key parameter.`);
+});
+
+// Vow (REQ-322, REQ-358) — consolidated set/milestone/resolve/forsake/list surface.
+server.registerTool("vow", {
+  title: "Vow",
+  description: "Track narrative vows, quests, and obligations with milestones. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use countdown (action: set).",
+  inputSchema: {
+    action: z.enum(["set", "milestone", "resolve", "forsake", "list"]).describe("set, milestone, resolve, forsake, or list."),
+    name: z.string().optional().describe("Vow name (set)."),
+    vow_name: z.string().optional().describe("Vow name (milestone/resolve/forsake)."),
+    description: z.string().optional().describe("Vow description (set)."),
+    parties: z.array(z.string()).optional().describe("Parties bound by the vow (set)."),
+    difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).optional().describe("troublesome, dangerous, formidable, extreme, or epic (set)."),
+    scope: z.enum(["gm", "shared", "faction", "party"]).optional().describe("gm, shared, faction, or party (set)."),
+    outcome: z.string().optional().describe("The resolution outcome (resolve)."),
+    consequences: z.string().optional().describe("Optional consequences (resolve)."),
+    reason: z.string().optional().describe("The reason for abandoning (forsake)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const novel = requireNovel();
+      const { name, description, parties, difficulty, scope } = args;
+      if (novel.vows.some(v => v.name === name)) return err("STATE_CONFLICT", `Vow '${name}' already exists.`);
+      novel.vows.push({
+        name, description, parties, difficulty: difficulty as any, scope: scope ?? "shared",
+        milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty] ?? 10, state: "active",
+      });
+      if (!novel.countdowns.has(`vow:${name}`)) {
+        novel.pending_vow_countdown_suggestion = {
+          vow_name: name,
+          countdown_name: `vow:${name}`,
+          tick_count: DIFFICULTY_TRACKS[difficulty] ?? 10,
+          scope: scope ?? "shared",
+        };
+      }
+      state.recordMutation(novel, "set_vow", "vow");
+      state.saveNovel(novel);
+      return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones). A linked countdown suggestion is available in badge_briefing — respond \`accept\` to create it.`);
+    }
+    case "milestone": {
+      requireGM();
+      const novel = requireNovel();
+      const vow = novel.vows.find(v => v.name === args.vow_name);
+      if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      vow.milestones++;
+      const linked = novel.countdowns.get(`vow:${args.vow_name}`);
+      if (linked) {
+        linked.ticks += 1;
+        if (linked.ticks >= linked.total) {
+          novel.countdowns.delete(`vow:${args.vow_name}`);
+          audit("vow_countdown_filled", { vow_name: args.vow_name, countdown: `vow:${args.vow_name}` });
+        }
+        state.saveNovel(novel);
+      }
+      state.saveNovel(novel);
+      return ok(`Vow '${args.vow_name}' progress: ${vow.milestones}/${vow.rank_track} milestones.${linked ? ` Linked countdown at ${linked.ticks}/${linked.total}.` : ""}`);
+    }
+    case "resolve": {
+      requireGM();
+      const novel = requireNovel();
+      const vow = novel.vows.find(v => v.name === args.vow_name);
+      if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      vow.state = "resolved";
+      vow.outcome = args.outcome;
+      vow.consequences = args.consequences;
+      state.saveNovel(novel);
+      return ok(`Vow '${args.vow_name}' resolved.`);
+    }
+    case "forsake": {
+      requireGM();
+      const novel = requireNovel();
+      const vow = novel.vows.find(v => v.name === args.vow_name);
+      if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      vow.state = "forsaken";
+      vow.reason = args.reason;
+      state.saveNovel(novel);
+      return ok(`Vow '${args.vow_name}' forsaken.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const rows = novel.vows.map((v) => isGM ? v : { name: v.name, state: v.state, milestones: v.milestones });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown vow action '${args.action}'. Valid actions: set, milestone, resolve, forsake, list.`);
   }
-  novel.lore.set(targetKey, {
-    key: targetKey, content: entry.entry,
-    triggers: (entry.entry.match(/[A-Z][a-z]+/g) ?? []).slice(0, 5).map((w: string) => w.toLowerCase()),
-    badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
-    source: `story_journal:${index}`,
-  });
-  state.recordMutation(novel, "promote_story_to_lore", "journal");
-  state.saveNovel(novel);
-  audit("promote_story_to_lore", { index, key: targetKey, type: entry.type });
-  return ok(`Story journal entry ${index} promoted to lore entry '${targetKey}'.`);
 });
 
-// --- Story Journal (GM) ---
-
-server.registerTool("record_story", {
-  title: "Record Story",
-  description: "Record a narrative memory (decision, moment, revelation, bond, or consequence) in the story journal (Game Master only). Use when: capturing a story beat. Do NOT use when: recording a durable world fact — use set_lore_entry.",
-  inputSchema: { type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).describe("The story entry type."), entry: z.string().describe("The story entry text.") },
-}, async ({ type, entry }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const index = novel.story_journal.length;
-  // REQ-331 — story journal-world coupling: when the current scene is coupled
-  // to a world-model room (location matches a room), auto-populate room_id and
-  // annotate the scene_anchor with the room name.
-  const sceneLoc = novel.scene_location ?? "";
-  const matchRoom = [...novel.world.rooms.values()].find((r) => sceneLoc.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(sceneLoc.toLowerCase()));
-  const roomId = matchRoom ? matchRoom.name.toLowerCase() : undefined;
-  novel.story_journal.push({
-    index, type, entry,
-    scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
-    entity_ids: [],
-    timestamp: new Date().toISOString(),
-    room_id: roomId,
-  });
-  state.recordMutation(novel, "record_story", "journal");
-  state.saveNovel(novel);
-  return ok(`Story entry #${index} recorded (${type}).`);
-});
-
-server.registerTool("update_story", {
-  title: "Update Story",
-  description: "Edit a story journal entry by index; decision and consequence entries are immutable (Game Master only). Use when: correcting a recorded memory. Do NOT use when: deleting an entry — use remove_story.",
-  inputSchema: { index: z.number().min(0).describe("The story entry index."), type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Optional new type."), entry: z.string().optional().describe("Optional new entry text.") },
-}, async ({ index, type, entry }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (index >= novel.story_journal.length) return err("NOT_FOUND", `Story entry #${index} not found.`);
-  const story = novel.story_journal[index];
-  if (story.type === "decision" || story.type === "consequence") return err("STATE_CONFLICT", `${story.type} entries are immutable.`);
-  if (type) story.type = type;
-  if (entry) story.entry = entry;
-  state.saveNovel(novel);
-  return ok(`Story entry #${index} updated.`);
-});
-
-server.registerTool("remove_story", {
-  title: "Remove Story",
-  description: "Delete a story journal entry by index, persisting the removal (Game Master only). Use when: removing a mistaken memory. Do NOT use when: editing an entry — use update_story.",
-  inputSchema: { index: z.number().min(0).describe("The story entry index to remove.") },
-}, async ({ index }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (index >= novel.story_journal.length) return err("NOT_FOUND", `Story entry #${index} not found.`);
-  novel.story_journal.splice(index, 1);
-  state.saveNovel(novel);
-  return ok(`Story entry #${index} removed.`);
-});
-
-server.registerTool("list_stories", {
-  title: "List Stories",
-  description: "List story journal entries with an optional type filter and pagination (Game Master only). Use when: reviewing the story so far. Do NOT use when: recording a new entry — use record_story.",
-  inputSchema: { filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Optional type filter."), offset: z.number().min(0).optional().describe("Optional pagination offset."), limit: z.number().min(0).optional().describe("Optional page size."), ...detailZod },
-}, async ({ filter, offset, limit, detail }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  let entries = [...novel.story_journal];
-  if (filter) entries = entries.filter(e => e.type === filter);
-  if (offset) entries = entries.slice(offset);
-  if (limit) entries = entries.slice(0, limit);
-  if (wantsDetail(detail)) return raw(JSON.stringify(entries, null, 2));
-  return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
+// Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
+server.registerTool("story", {
+  title: "Story",
+  description: "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use lore (action: set).",
+  inputSchema: {
+    action: z.enum(["record", "update", "remove", "list", "promote"]).describe("record, update, remove, list, or promote."),
+    type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Story entry type (record/update)."),
+    entry: z.string().optional().describe("Story entry text (record/update)."),
+    index: z.number().min(0).optional().describe("Story entry index (update/remove/promote)."),
+    filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Optional type filter (list)."),
+    offset: z.number().min(0).optional().describe("Optional pagination offset (list)."),
+    limit: z.number().min(0).optional().describe("Optional page size (list)."),
+    key: z.string().optional().describe("Optional lore key (promote)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "record": {
+      requireGM();
+      const novel = requireNovel();
+      const { type, entry } = args;
+      const index = novel.story_journal.length;
+      // REQ-331 — story journal-world coupling.
+      const sceneLoc = novel.scene_location ?? "";
+      const matchRoom = [...novel.world.rooms.values()].find((r) => sceneLoc.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(sceneLoc.toLowerCase()));
+      const roomId = matchRoom ? matchRoom.name.toLowerCase() : undefined;
+      novel.story_journal.push({
+        index, type, entry,
+        scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
+        entity_ids: [],
+        timestamp: new Date().toISOString(),
+        room_id: roomId,
+      });
+      state.recordMutation(novel, "record_story", "journal");
+      state.saveNovel(novel);
+      return ok(`Story entry #${index} recorded (${type}).`);
+    }
+    case "update": {
+      requireGM();
+      const novel = requireNovel();
+      const { index, type, entry } = args;
+      if (index >= novel.story_journal.length) return err("NOT_FOUND", `Story entry #${index} not found.`);
+      const story = novel.story_journal[index];
+      if (story.type === "decision" || story.type === "consequence") return err("STATE_CONFLICT", `${story.type} entries are immutable.`);
+      if (type) story.type = type;
+      if (entry) story.entry = entry;
+      state.saveNovel(novel);
+      return ok(`Story entry #${index} updated.`);
+    }
+    case "remove": {
+      requireGM();
+      const novel = requireNovel();
+      if (args.index >= novel.story_journal.length) return err("NOT_FOUND", `Story entry #${args.index} not found.`);
+      novel.story_journal.splice(args.index, 1);
+      state.saveNovel(novel);
+      return ok(`Story entry #${args.index} removed.`);
+    }
+    case "list": {
+      requireGM();
+      const novel = requireNovel();
+      let entries = [...novel.story_journal];
+      if (args.filter) entries = entries.filter(e => e.type === args.filter);
+      if (args.offset) entries = entries.slice(args.offset);
+      if (args.limit) entries = entries.slice(0, args.limit);
+      if (wantsDetail(args.detail)) return raw(JSON.stringify(entries, null, 2));
+      return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
+    }
+    case "promote": {
+      requireGM();
+      const novel = requireNovel();
+      const entry = novel.story_journal[args.index];
+      if (!entry) return err("NOT_FOUND", `Story journal entry ${args.index} not found.`);
+      if (entry.type === "decision" || entry.type === "consequence") {
+        return err("RULE_VIOLATION", `A ${entry.type} entry is immutable and cannot be promoted.`);
+      }
+      const derivedKey = entry.entry.toLowerCase().split(/\s+/).slice(0, 6).join("-").replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+      const targetKey = args.key ?? (derivedKey || "promoted");
+      if (novel.lore.has(targetKey)) {
+        return err("STATE_CONFLICT", `Lore entry '${targetKey}' already exists. Corrective action: supply a distinct key parameter.`);
+      }
+      novel.lore.set(targetKey, {
+        key: targetKey, content: entry.entry,
+        triggers: (entry.entry.match(/[A-Z][a-z]+/g) ?? []).slice(0, 5).map((w: string) => w.toLowerCase()),
+        badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
+        source: `story_journal:${args.index}`,
+      });
+      state.recordMutation(novel, "promote_story_to_lore", "journal");
+      state.saveNovel(novel);
+      audit("promote_story_to_lore", { index: args.index, key: targetKey, type: entry.type });
+      return ok(`Story journal entry ${args.index} promoted to lore entry '${targetKey}'.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown story action '${args.action}'. Valid actions: record, update, remove, list, promote.`);
+  }
 });
 
 // --- Notes ---
 
-server.registerTool("set_note", {
-  title: "Set Note",
-  description: "Create or update a key-value note, badge-scoped to game_master (default), player, or shared. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use set_lore_entry.",
-  inputSchema: { key: z.string().describe("The note key."), content: z.string().describe("The note content."), badge_scope: z.enum(["game_master", "player", "shared"]).optional().describe("game_master, player, or shared.") },
-}, async ({ key, content, badge_scope }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  const existing = novel.notes.find(n => n.key === key);
-  // Default scope is game_master (REQ-242); the Player badge cannot write GM-scoped notes.
-  const scope = badge_scope ?? "game_master";
-  if (novel.badge === "player" && scope === "game_master") {
-    return err("FORBIDDEN", "The Player badge cannot write a game_master-scoped note.");
-  }
-  if (existing) {
-    if (novel.badge === "player" && existing.badge_scope === "game_master") {
-      return err("FORBIDDEN", "The Player badge cannot modify a game_master-scoped note.");
-    }
-    existing.content = content;
-    existing.badge_scope = scope;
-  } else {
-    novel.notes.push({ key, content, badge_scope: scope });
-  }
-  state.recordMutation(novel, "set_note", "note");
-  state.saveNovel(novel);
-  return ok(`Note '${key}' set.`);
-});
-
-server.registerTool("remove_note", {
-  title: "Remove Note",
-  description: "Remove a note by key; the caller's badge must own the note's scope. Use when: discarding scratch state. Do NOT use when: creating a note — use set_note.",
-  inputSchema: { key: z.string().describe("The note key to remove.") },
-}, async ({ key }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  const idx = novel.notes.findIndex(n => n.key === key);
-  if (idx === -1) return err("NOT_FOUND", `Note '${key}' not found.`);
-  const note = novel.notes[idx];
-  if (novel.badge === "player" && note.badge_scope === "game_master") {
-    return err("FORBIDDEN", "The Player badge cannot remove a game_master-scoped note.");
-  }
-  novel.notes.splice(idx, 1);
-  state.saveNovel(novel);
-  return ok(`Note '${key}' removed.`);
-});
-
-server.registerTool("list_notes", {
-  title: "List Notes",
-  description: "List all notes with a 100-character preview, badge-filtered to the caller's scope. Use when: reviewing stored scratch state. Do NOT use when: setting a note — use set_note.",
-  inputSchema: {},
-}, async () => {
-  const novel = requireNovel();
-  const badge = novel.badge;
-  const filtered = badge === "game_master" || badge === "none" ? novel.notes
-    : novel.notes.filter(n => n.badge_scope !== "game_master");
-  return raw(JSON.stringify(filtered.map(n => ({ key: n.key, badge_scope: n.badge_scope, preview: n.content.substring(0, 100) })), null, 2));
-});
-
-// --- Server Notes (GM) ---
-
-server.registerTool("set_server_note", {
-  title: "Set Server Note",
-  description: "Create or update a server-level note that survives Novels and rebuilds (Game Master only). Use when: storing cross-Novel scratch state. Do NOT use when: storing Novel-scoped notes — use set_note.",
-  inputSchema: { key: z.string().describe("The note key."), content: z.string().describe("The note content."), narrative_tag: z.enum(["campaign_bible", "house_rules", "lore_seed", "session_reminder"]).optional().describe("Optional narrative tag: campaign_bible, house_rules, lore_seed, or session_reminder.") },
-}, async ({ key, content, narrative_tag }: any) => {
-  requireGM();
-  state.serverNotes.set(key, { content, narrative_tag });
-  state.saveServerNotes();
-  return ok(`Server note '${key}' set.`);
-});
-
-server.registerTool("remove_server_note", {
-  title: "Remove Server Note",
-  description: "Remove a server-level note, persisting the removal (Game Master only). Use when: discarding cross-Novel scratch state. Do NOT use when: creating a server note — use set_server_note.",
-  inputSchema: { key: z.string().describe("The server note key to remove.") },
-}, async ({ key }: any) => {
-  requireGM();
-  if (!state.serverNotes.has(key)) return err("NOT_FOUND", `Server note '${key}' not found.`);
-  state.serverNotes.delete(key);
-  state.saveServerNotes();
-  return ok(`Server note '${key}' removed.`);
-});
-
-server.registerTool("list_server_notes", {
-  title: "List Server Notes",
-  description: "List all server-level notes (Game Master only). Use when: reviewing cross-Novel scratch state. Do NOT use when: listing Novel-scoped notes — use list_notes.",
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const notes = Object.fromEntries(state.serverNotes);
-  return raw(JSON.stringify(notes, null, 2));
-});
-
-// --- Pause/Resume (GM) ---
-
-server.registerTool("set_pause_context", {
-  title: "Set Pause Context",
-  description: "Save GM context for session resumption, persisting it (Game Master only). Use when: ending a session with notes for the next. Do NOT use when: reading saved context — use get_pause_context.",
-  inputSchema: { current_scene: z.string().optional().describe("Optional current-scene summary."), immediate_situation: z.string().optional().describe("Optional immediate situation."), pending_player_action: z.string().optional().describe("Optional pending player action."), short_term_plans: z.string().optional().describe("Optional short-term plans."), long_term_plans: z.string().optional().describe("Optional long-term plans."), player_goals: z.string().optional().describe("Optional player goals.") },
-}, async (fields: any) => {
-  requireGM();
-  const novel = requireNovel();
-  // Auto-capture derived context (REQ-232): faction clocks, countdown positions,
-  // NPC dispositions, relationships, recent story entries, and active vows.
-  const f = {
-    ...fields,
-    faction_clocks: novel.factions.map(x => ({ name: x.name, clock: x.clock, clock_max: x.clock_max, status: x.status })),
-    countdown_positions: [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total })),
-    npc_dispositions: [...novel.npcs.values()].map(n => ({ name: n.name, disposition: n.disposition, location: n.location })),
-    relationships: novel.relationships,
-    story_context: novel.story_journal.slice(-3).map(s => s.entry),
-    active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
-  };
-  novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
-  // REQ-403 — committing the pause context records the state write, clearing drift.
-  state.recordMutation(novel, "set_pause_context", "context");
-  state.saveNovel(novel);
-  return ok("Pause context saved.");
-});
-
-server.registerTool("get_pause_context", {
-  title: "Get Pause Context",
-  description: "Return the saved GM context plus a Novel state summary for session resumption. Use when: resuming after a break. Do NOT use when: saving context — use set_pause_context.",
-  inputSchema: {},
-}, async () => {
-  const novel = requireNovel();
-  return raw(JSON.stringify({
-    gm_context: novel.gm_context,
-    novel_slug: novel.slug,
-    scene: novel.scene_description,
-    world_rooms: novel.world.rooms.size,
-    npcs: novel.npcs.size,
-    active_vows: novel.vows.filter(v => v.state === "active"),
-  }, null, 2));
-});
-
-// --- Checkpoints (GM) ---
-
-server.registerTool("set_checkpoint", {
-  title: "Set Checkpoint",
-  description: "Save a named checkpoint of the full Novel state, persisting it (Game Master only). Use when: marking a returnable point in the story. Do NOT use when: restoring a checkpoint — use restore_checkpoint.",
-  inputSchema: { label: z.string().describe("The checkpoint label.") },
-}, async ({ label }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novel.checkpoints.push({ label, timestamp: new Date().toISOString(), state: JSON.parse(JSON.stringify(novelToJSONState(novel))) });
-  state.saveNovel(novel);
-  return ok(`Checkpoint '${label}' saved.`);
-});
-
-server.registerTool("list_checkpoints", {
-  title: "List Checkpoints",
-  description: "List all checkpoints for the active Novel (Game Master only). Use when: reviewing available return points. Do NOT use when: creating a checkpoint — use set_checkpoint.",
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const novel = requireNovel();
-  return raw(JSON.stringify(novel.checkpoints.map(c => ({ label: c.label, timestamp: c.timestamp })), null, 2));
-});
-
-server.registerTool("restore_checkpoint", {
-  title: "Restore Checkpoint",
-  description: "Restore a checkpoint after a confirmation workflow, replacing the Novel state (Game Master only). Use when: returning to a prior point. Do NOT use when: saving a checkpoint — use set_checkpoint.",
-  inputSchema: { label: z.string().describe("The checkpoint to restore.") },
-}, async ({ label }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
-  const cp = novel.checkpoints.find(c => c.label === label);
-  if (!cp) return err("NOT_FOUND", `Checkpoint '${label}' not found.`);
-  novel.pending_workflow = {
-    decision: `restore_checkpoint:${label}`,
-    snapshot: state.captureWorkflowSnapshot(novel),
-    payload: { label, state: cp.state },
-  };
-  state.saveNovel(novel);
-  return needInput(`Decision: -restore_checkpoint-
-Question: Restore checkpoint "${label}"? This reverts the Novel to that snapshot.
-Options: yes, cancel`);
-});
-
-server.registerTool("remove_checkpoint", {
-  title: "Remove Checkpoint",
-  description: "Remove a named checkpoint, persisting the removal (Game Master only). Use when: discarding a return point. Do NOT use when: restoring a checkpoint — use restore_checkpoint.",
-  inputSchema: { label: z.string().describe("The checkpoint to remove.") },
-}, async ({ label }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const idx = novel.checkpoints.findIndex(c => c.label === label);
-  if (idx === -1) return err("NOT_FOUND", `Checkpoint '${label}' not found.`);
-  novel.checkpoints.splice(idx, 1);
-  state.saveNovel(novel);
-  return ok(`Checkpoint '${label}' removed.`);
-});
-
-// --- Novel Lifecycle additions (GM) ---
-
-server.registerTool("rename_novel", {
-  title: "Rename Novel",
-  description: "Rename the active Novel on disk, persisting the change (Game Master only). Use when: correcting the Novel's name. Do NOT use when: switching to another Novel — use switch_novel.",
-  inputSchema: { new_slug: z.string().describe("The new Novel slug.") },
-}, async ({ new_slug }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const oldSlug = novel.slug;
-  const newSlug = new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  // Delete old file, save at new path.
-  const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
-  if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
-  const oldBak = oldFile + ".bak";
-  if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
-  state.renameNovel(novel, newSlug);
-  return ok(`Novel renamed to '${novel.slug}'.`);
-});
-
-// REQ-259 — Update Novel description: sets/replaces/clears the active Novel's
-// description, surfaced in novel_info and badge_briefing.
-server.registerTool("update_novel_description", {
-  title: "Update Novel Description",
-  description: "Set or replace the active Novel's description; an empty string clears it (Game Master only). Use when: summarizing the campaign premise. Do NOT use when: setting the genre — use set_genre.",
-  inputSchema: { description: z.string().describe("The new Novel description; empty clears it.") },
-}, async ({ description }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novel.description = description ?? "";
-  state.saveNovel(novel);
-  audit("update_novel_description", { description: (description ?? "").substring(0, 120) });
-  return ok(description ? `Novel description updated.` : "Novel description cleared.");
-});
-
-server.registerTool("list_novels", {
-  title: "List Novels",
-  description: "List all Novels on disk with metadata, always callable. Use when: discovering available save files. Do NOT use when: inspecting one Novel — use novel_info.",
-  inputSchema: { ...detailZod, filter: z.enum(["active", "archived", "all"]).optional().describe("Optional filter: active, archived, or all.") },
-}, async ({ detail, filter }: any) => {
-  const arch = state.archivedNovels();
-  const archivedSlugs = new Set(arch.map((a) => a.slug));
-  const active = [...state.novels.entries()].filter(([, n]) => !archivedSlugs.has(n.slug));
-  const mode = filter ?? "active";
-  const rows = mode === "archived"
-    ? arch
-    : active.filter(([, n]) => (mode === "all" ? true : !archivedSlugs.has(n.slug))).map(([slug, n]) => {
-      if (wantsDetail(detail)) {
-        return { slug, name: n.name, entities: n.entities.size, npcs: n.npcs.size, lore: n.lore.size, world_rooms: n.world.rooms.size, modified: n.metadata.modified };
+// Note (REQ-242, REQ-285) — consolidated set/remove/list surface.
+server.registerTool("note", {
+  title: "Note",
+  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use lore (action: set).",
+  inputSchema: {
+    action: z.enum(["set", "remove", "list", "set_server", "remove_server", "list_server"]).describe("set, remove, list, set_server, remove_server, or list_server."),
+    key: z.string().optional().describe("The note key (set/remove/set_server/remove_server)."),
+    content: z.string().optional().describe("The note content (set/set_server)."),
+    badge_scope: z.enum(["game_master", "player", "shared"]).optional().describe("game_master, player, or shared (set)."),
+    narrative_tag: z.enum(["campaign_bible", "house_rules", "lore_seed", "session_reminder"]).optional().describe("Optional narrative tag (set_server)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const existing = novel.notes.find(n => n.key === args.key);
+      const scope = args.badge_scope ?? "game_master";
+      if (novel.badge === "player" && scope === "game_master") {
+        return err("FORBIDDEN", "The Player badge cannot write a game_master-scoped note.");
       }
-      return { slug, name: n.name, entities: n.entities.size, modified: n.metadata.modified };
-    });
-  return raw(JSON.stringify(rows, null, 2));
-});
-
-// REQ-334 — archive/unarchive Novel (Game Master only).
-server.registerTool("archive_novel", {
-  title: "Archive Novel",
-  description: "Move a Novel to the long-term read-only archive (Game Master only). Use when: retiring a finished campaign. Do NOT use when: restoring an archived Novel — use unarchive_novel.",
-  inputSchema: { slug: z.string().describe("The Novel slug to archive.") },
-}, async ({ slug }: any) => {
-  requireGM();
-  if (state.activeNovelId === slug) state.activeNovelId = null;
-  const result = state.archiveNovel(slug);
-  audit("archive_novel", { slug });
-  return ok(`Novel '${slug}' archived (read-only).`);
-});
-
-server.registerTool("unarchive_novel", {
-  title: "Unarchive Novel",
-  description: "Restore an archived Novel to active status (Game Master only). Use when: reviving a retired campaign. Do NOT use when: archiving a Novel — use archive_novel.",
-  inputSchema: { slug: z.string().describe("The Novel slug to restore.") },
-}, async ({ slug }: any) => {
-  requireGM();
-  const novel = state.unarchiveNovel(slug);
-  audit("unarchive_novel", { slug });
-  return ok(`Novel '${slug}' restored from archive.`);
-});
-
-server.registerTool("novel_info", {
-  title: "Novel Info",
-  description: "Return extended metadata for a Novel, always callable. Use when: inspecting a Novel's settings and stats. Do NOT use when: listing all Novels — use list_novels.",
-  inputSchema: { slug: z.string().optional().describe("Optional Novel slug; defaults to the active Novel.") },
-}, async ({ slug }: any) => {
-  const novel = slug ? state.novels.get(slug) : state.activeNovel;
-  if (!novel) return err("NOT_FOUND", `Novel '${slug || "none"}' not found.`);
-  return raw(JSON.stringify({
-    slug: novel.slug, name: novel.name, ruleset: novel.ruleset, description: novel.description, genre: novel.genre,
-    entities: novel.entities.size, npcs: novel.npcs.size, lore: novel.lore.size,
-    world_rooms: novel.world.rooms.size, world_things: novel.world.things.size,
-    factions: novel.factions.length, vows: novel.vows.length,
-    scene: novel.scene_description ? novel.scene_description.substring(0, 100) : null,
-    created: novel.metadata.created, modified: novel.metadata.modified,
-    // REQ-332 — codex provenance: every Codex-sourced artifact.
-    codex_sources: novel.codex_sources ?? [],
-  }, null, 2));
-});
-
-// REQ-294 — set_genre: set the active Novel's canonical genre tag.
-const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
-server.registerTool("set_genre", {
-  title: "Set Genre",
-  description: "Set the active Novel's genre tag from the fixed catalog (noir, high_fantasy, sword_and_sorcery, sci_fi_horror, cosmic_horror, historical, western, modern, cyberpunk) (Game Master only). Use when: declaring the campaign's genre. Do NOT use when: setting the Novel description — use update_novel_description.",
-  inputSchema: { genre: z.string().describe("The genre tag from the fixed catalog.") },
-}, async ({ genre }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (!GENRE_CATALOG.includes(genre)) {
-    return err("INVALID_INPUT", `Unknown genre '${genre}'. Valid: ${GENRE_CATALOG.join(", ")}.`);
+      if (existing) {
+        if (novel.badge === "player" && existing.badge_scope === "game_master") {
+          return err("FORBIDDEN", "The Player badge cannot modify a game_master-scoped note.");
+        }
+        existing.content = args.content;
+        existing.badge_scope = scope;
+      } else {
+        novel.notes.push({ key: args.key, content: args.content, badge_scope: scope });
+      }
+      state.recordMutation(novel, "set_note", "note");
+      state.saveNovel(novel);
+      return ok(`Note '${args.key}' set.`);
+    }
+    case "remove": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const idx = novel.notes.findIndex(n => n.key === args.key);
+      if (idx === -1) return err("NOT_FOUND", `Note '${args.key}' not found.`);
+      const note = novel.notes[idx];
+      if (novel.badge === "player" && note.badge_scope === "game_master") {
+        return err("FORBIDDEN", "The Player badge cannot remove a game_master-scoped note.");
+      }
+      novel.notes.splice(idx, 1);
+      state.saveNovel(novel);
+      return ok(`Note '${args.key}' removed.`);
+    }
+    case "list": {
+      const novel = requireNovel();
+      const badge = novel.badge;
+      const filtered = badge === "game_master" || badge === "none" ? novel.notes
+        : novel.notes.filter(n => n.badge_scope !== "game_master");
+      return raw(JSON.stringify(filtered.map(n => ({ key: n.key, badge_scope: n.badge_scope, preview: n.content.substring(0, 100) })), null, 2));
+    }
+    case "set_server": {
+      requireGM();
+      state.serverNotes.set(args.key, { content: args.content, narrative_tag: args.narrative_tag });
+      state.saveServerNotes();
+      return ok(`Server note '${args.key}' set.`);
+    }
+    case "remove_server": {
+      requireGM();
+      if (!state.serverNotes.has(args.key)) return err("NOT_FOUND", `Server note '${args.key}' not found.`);
+      state.serverNotes.delete(args.key);
+      state.saveServerNotes();
+      return ok(`Server note '${args.key}' removed.`);
+    }
+    case "list_server": {
+      requireGM();
+      const notes = Object.fromEntries(state.serverNotes);
+      return raw(JSON.stringify(notes, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown note action '${args.action}'. Valid actions: set, remove, list, set_server, remove_server, list_server.`);
   }
-  novel.genre = genre;
-  state.saveNovel(novel);
-  audit("set_genre", { genre });
-  return ok(`Genre set to '${genre}'.`);
-});
-
-server.registerTool("clone_novel", {
-  title: "Clone Novel",
-  description: "Create an independent copy of a Novel, persisting the copy (Game Master only). Use when: branching the story or testing an alternative. Do NOT use when: renaming a Novel — use rename_novel.",
-  inputSchema: { source_slug: z.string().describe("The Novel to copy."), new_name: z.string().describe("The name for the copy."), trim_audit_sessions: z.number().min(0).optional().describe("Optional number of recent audit sessions to keep.") },
-}, async ({ source_slug, new_name }: any) => {
-  requireGM();
-  const source = state.novels.get(source_slug);
-  if (!source) return err("NOT_FOUND", `Source novel '${source_slug}' not found.`);
-  const slug = new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const clone = JSON.parse(JSON.stringify(novelToJSONState(source)));
-  clone.slug = slug;
-  clone.name = new_name;
-  clone.metadata.created = new Date().toISOString();
-  clone.metadata.modified = new Date().toISOString();
-  const novel = loadNovelFromStateData(clone);
-  state.novels.set(slug, novel);
-  state.saveNovel(novel);
-  return ok(`Cloned '${source_slug}' as '${slug}'.`);
-});
-
-// --- Entity Management ---
-
-server.registerTool("remove_entity", {
-  title: "Remove Entity",
-  description: "Remove an entity from the active Novel, persisting the removal (Game Master only). Use when: a character permanently leaves. Do NOT use when: removing an NPC — use remove_npc.",
-  // REQ-176 — entity removal: clears the active-entity field when the removed
-  // entity was active; party://current excludes removed entities; roster
-  // baseline unaffected (re-import creates a fresh copy). Player → [FORBIDDEN].
-  inputSchema: { entity_id: z.string().describe("The entity to remove.") },
-}, async ({ entity_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (!novel.entities.has(entity_id)) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  novel.entities.delete(entity_id);
-  if (novel.active_entity_id === entity_id) novel.active_entity_id = null;
-  state.saveNovel(novel);
-  return ok(`Entity '${entity_id}' removed.`);
-});
-
-server.registerTool("remove_roster_character", {
-  title: "Remove Roster Character",
-  description: "Remove a character from the roster, persisting the removal (Game Master only). Use when: discarding a staged character. Do NOT use when: listing roster characters — use list_roster_characters.",
-  // REQ-177 — roster entity removal: removes from roster:// only; Novel copies
-  // survive independently; Player → [FORBIDDEN]; absent → [NOT_FOUND] with
-  // valid roster IDs enumerated.
-  inputSchema: { roster_id: z.string().describe("The roster character to remove.") },
-}, async ({ roster_id }: any) => {
-  requireGM();
-  if (!state.roster.has(roster_id)) return err("NOT_FOUND", `Roster character '${roster_id}' not found.`);
-  state.roster.delete(roster_id);
-  state.saveRoster();
-  return ok(`Roster character '${roster_id}' removed.`);
-});
-
-server.registerTool("list_roster_characters", {
-  title: "List Roster Characters",
-  description: "List all characters in the persistent roster. Use when: discovering staged characters to import. Do NOT use when: importing a roster character — use import_character.",
-  // REQ-178 — roster listing: any-badge, structured (id/name), empty-state
-  // marker when the roster is empty; novel_setup sources its list from here.
-  inputSchema: {},
-}, async () => {
-  const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name }));
-  if (chars.length === 0) return ok("Roster is empty — no characters staged yet.");
-  return raw(JSON.stringify(chars, null, 2));
 });
 
 // --- Special tools ---
-
-server.registerTool("toggle_action_patterns", {
-  title: "Toggle Action Patterns",
-  description: "Toggle enrich-derived action patterns on or off for the active Novel (Game Master only). Use when: enabling or disabling suggested actions. Do NOT use when: setting autonomy — use set_autonomy.",
-  // REQ-115 — action pattern activation: flips the Novel-scoped boolean; when
-  // enabled, synthesis patterns supplement suggest_actions; pure-resolution.
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const novel = requireNovel();
-  novel.action_patterns_enabled = !novel.action_patterns_enabled;
-  state.saveNovel(novel);
-  return ok(`Action patterns ${novel.action_patterns_enabled ? "enabled" : "disabled"}.`);
-});
-
-server.registerTool("present_choices", {
-  title: "Present Choices",
-  description: "Present structured choice prompts to the player, resolved later via respond (Game Master only). Use when: offering the player a decision. Do NOT use when: resolving an open decision — use respond.",
-  inputSchema: { prompt: z.string().describe("The choice prompt."), choices: z.array(z.object({ id: z.string(), label: z.string(), description: z.string().optional() })).describe("The list of choices."), allow_freeform: z.boolean().optional().describe("When true, allow a free-form response."), context: z.record(z.string(), z.any()).optional().describe("Optional context for the choice.") },
-}, async ({ prompt, choices, allow_freeform, context }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  // REQ-191 — options render as display-label pairs: `**<kebab-id>** — <label>`.
-  if (novel.pending_workflow) {
-    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
-  }
-  novel.pending_workflow = {
-    decision: "present_choices",
-    snapshot: state.captureWorkflowSnapshot(novel),
-    payload: { prompt, choices, allow_freeform, context },
-  };
-  state.saveNovel(novel);
-  const opts = choices.map((c: any) => `  **${c.id}** — ${c.label}${c.description ? `: ${c.description}` : ""}`).join("\n");
-  return needInput(`Decision: -present_choices-\nQuestion: ${prompt}\n\nOptions:\n${opts}${allow_freeform ? "\n\nYou may also respond with a freeform answer." : ""}`);
-});
-
-server.registerTool("ask_oracle", {
-  title: "Ask Oracle",
-  description: "Resolve uncertainty with a deterministic d100 roll against the Ask-the-Oracle ladder (almost_certain, likely, 50_50, unlikely, small_chance), callable by Player and Game Master. Use when: the rules or fiction leave an outcome open. Do NOT use when: rolling on a fixed table — use roll_on_table.",
-  inputSchema: { question: z.string().describe("The question to resolve."), likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional().describe("almost_certain, likely, 50_50, unlikely, or small_chance."), seed: z.string().optional().describe("Optional deterministic seed.") },
-}, async ({ question, likelihood, seed }: any) => {
-  requireNotObserver();
-  const novel = requireNovel();
-  // Ask-the-Oracle ladder (REQ-291): each tier is a d100 target the roll must
-  // meet or exceed for a YES. Omitted likelihood defaults to 50_50.
-  const thresholds: Record<string, number> = { almost_certain: 11, likely: 26, "50_50": 51, unlikely: 76, small_chance: 91 };
-  const band = likelihood ?? "50_50";
-  const target = thresholds[band] ?? 51;
-  // Seeded draw uses an isolated Rng (REQ-050b); otherwise the session PRNG.
-  const roll = seed ? createRng(seed).roll(100) : sessionRoll(100);
-  const yes = roll >= target;
-  // Doubles on the d100 (11, 22, …, 99) produce an exceptional result (REQ-291).
-  const isDoubles = roll % 11 === 0;
-  const marker = isDoubles
-    ? (yes ? "[EXCEPTIONAL_YES]" : "[EXCEPTIONAL_NO]")
-    : (yes ? "[YES]" : "[NO]");
-  audit("ask_oracle", { question, likelihood: band, seed });
-  // REQ-404 — roll-to-commit coupling: a significant roll flags an
-  // uncommitted-roll marker cleared by the next state write.
-  novel.uncommitted_rolls.push({ roll: `${roll}/100 → ${marker}`, suggested_tool: "record_story", at: new Date().toISOString() });
-  if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
-  state.saveNovel(novel);
-  let flavor = "";
-  if (!isDoubles && Math.abs(target - roll) <= 5) flavor = " (barely)";
-  else if (!isDoubles && Math.abs(target - roll) >= 30) flavor = " (decisively)";
-  return ok(`Question: "${question}"\nLikelihood: ${band} (roll ≥ ${target})\nRoll: ${roll}/100 → ${marker}${flavor}`);
-});
 
 // ── Serialization helpers (used by checkpoint/export) ──────────────
 
@@ -4236,75 +3889,122 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 // --- Guidance (GM) ---
 
-server.registerTool("set_verbosity", {
-  title: "Set Output Verbosity",
-  description: "Set the session output verbosity to normal (full entries) or terse (minimum mechanical content), callable by both badges. Use when: the caller wants shorter or fuller replies. Do NOT use when: setting briefing section order — use set_briefing_order.",
-  // REQ-253 — tool-output verbosity control: session-scoped mode, discarded on
-  // connection close; reported in spec_health.
-  inputSchema: { mode: z.enum(["normal", "terse"]).describe("normal or terse.") },
-}, async ({ mode }: any) => {
-  outputVerbosity = mode;
-  return ok(`Output verbosity set to '${mode}'.`);
-});
-
-server.registerTool("set_briefing_order", {
-  title: "Set Briefing Order",
-  description: "Reorder sections of badge_briefing, persisting the order (Game Master only). Use when: customizing what the briefing emphasizes. Do NOT use when: setting verbosity — use set_verbosity.",
-  inputSchema: { sections: z.array(z.string()).describe("The ordered list of briefing sections.") },
-}, async ({ sections }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  // REQ-082/186 — section token validation: unknown tokens return
-  // [INVALID_INPUT] with valid tokens enumerated.
-  const VALID_TOKENS = ["scene_state", "entities", "combat_state", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
-  if (sections.length > 0) {
-    const unknown = sections.filter((s: string) => !VALID_TOKENS.includes(s));
-    if (unknown.length > 0) {
-      return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
+// Session (REQ-025, REQ-072, REQ-082, REQ-086, REQ-173, REQ-174, REQ-175, REQ-186, REQ-253, REQ-279) — consolidated recap/verbosity/
+// briefing_order/compress/health surface.
+server.registerTool("session", {
+  title: "Session",
+  description: "Manage session-level surfaces and diagnostics. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), or reporting server health (health). Do NOT use when: recording story content — use story (action: record).",
+  inputSchema: {
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health"]).describe("recap, verbosity, briefing_order, compress, or health."),
+    mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
+    sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
+    max_entries: z.number().optional().describe("Maximum audit entries (compress)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "verbosity": {
+      outputVerbosity = args.mode;
+      return ok(`Output verbosity set to '${args.mode}'.`);
     }
+    case "briefing_order": {
+      requireGM();
+      const novel = requireNovel();
+      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
+      if (args.sections.length > 0) {
+        const unknown = args.sections.filter((s: string) => !VALID_TOKENS.includes(s));
+        if (unknown.length > 0) return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
+      }
+      novel.briefing_order = args.sections;
+      state.saveNovel(novel);
+      return ok(`Briefing order set to: ${args.sections.join(", ")}.`);
+    }
+    case "compress": {
+      const novel = requireNovel();
+      const max = args.max_entries ?? 20;
+      if (max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+      const recent = novel.audit_log.slice(-max);
+      const isGM = novel.badge === "game_master";
+      const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
+      if (filtered.length === 0) return ok("Compressed audit log (summarize into a single paragraph):\n(no entries)");
+      const lines = filtered.map(e => {
+        const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
+        const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
+        return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
+      });
+      return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+    }
+    case "recap": {
+      const novel = requireNovel();
+      const entity = state.getActiveEntity();
+      const parts: string[] = [];
+      const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
+      for (const s of recent) parts.push(s.entry);
+      for (const [, npc] of novel.npcs) {
+        if (npc.disposition && npc.disposition !== "neutral") parts.push(`${npc.name} is ${npc.disposition}`);
+      }
+      if (novel.narrative_directive) parts.push(`the current focus is: ${novel.narrative_directive}`);
+      for (const [name, cd] of novel.countdowns) {
+        if (cd.ticks > 0) parts.push(`the ${name} completes in ${cd.ticks} more tick${cd.ticks === 1 ? "" : "s"}`);
+      }
+      for (const v of novel.vows) {
+        if (v.state === "active") parts.push(`the vow to ${v.name} has ${v.milestones} milestones done`);
+      }
+      const narrative_orientation = parts.length > 0
+        ? parts.join("; ") + "."
+        : "[No narrative history yet — your story begins here.]";
+      let recap = `narrative_orientation: ${narrative_orientation}`;
+      recap += `\nconnections: ${novel.connection_counter ?? 0}`;
+      const significantRolls = novel.audit_log.filter((e) => e.tool.includes("roll") && !e.tool.includes("table") && e.args).slice(-5);
+      if (significantRolls.length > 0) {
+        recap += `\nsignificant_rolls: ${significantRolls.map((e) => `${e.tool}`).join(", ")}`;
+      }
+      const initIdx = novel.audit_log.findIndex((e) => e.tool === "init_combat");
+      const endCount = novel.audit_log.filter((e) => e.tool === "end_combat").length;
+      const advCount = novel.audit_log.filter((e) => e.tool === "advance_combat").length;
+      const confrontations_completed = endCount;
+      const confrontation_pending = novel.combat?.active ? `round ${novel.combat.round}, ${novel.combat.turn_order.length} participants` : null;
+      recap += `\nconfrontations_completed: ${confrontations_completed}${initIdx >= 0 ? ` (${advCount} combat advances)` : ""}${confrontation_pending ? `\nconfrontation_pending: ${confrontation_pending}` : ""}`;
+      recap += `\nActive Novel: ${novel.name} (${novel.slug})`;
+      if (novel.scene_description) {
+        recap += `\nScene: ${novel.scene_description}${novel.scene_location ? ` — ${novel.scene_location}` : ""}`;
+      }
+      recap += state.combatReport(novel);
+      if (novel.world.rooms.size > 0) {
+        recap += `\n\nWorld model: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things.`;
+      }
+      if (entity) {
+        recap += `\n\nActive entity: ${entity.name}${entity.current_room ? ` in ${entity.current_room}` : ""}`;
+        if (entity.inventory.length > 0) {
+          recap += ` — holding: ${entity.inventory.join(", ")}`;
+        }
+      }
+      const activeCountdowns = [...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0);
+      if (activeCountdowns.length > 0) {
+        recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${cd.ticks}/${cd.total})`).join(", ")}`;
+      }
+      const enabledLore = [...novel.lore.values()].filter(l => l.enabled);
+      if (enabledLore.length > 0) {
+        recap += `\nLore entries: ${enabledLore.length} active.`;
+      }
+      if (novel.session_no_mutation_windows.length > 0) {
+        recap += `\n[session-no-mutations] sessions with zero state writes: ${novel.session_no_mutation_windows.join(", ")}`;
+      }
+      if (state.stateDriftActive(novel)) {
+        recap += `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
+      }
+      if (novel.uncommitted_rolls.length > 0) {
+        for (const r of novel.uncommitted_rolls) {
+          recap += `\n[uncommitted-roll] roll "${r.roll}" has no following state write — commit with ${r.suggested_tool}.`;
+        }
+      }
+      return ok(recap);
+    }
+    case "health": {
+      return raw(JSON.stringify(buildSpecHealth(), null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health.`);
   }
-  novel.briefing_order = sections;
-  state.saveNovel(novel);
-  return ok(`Briefing order set to: ${sections.join(", ")}.`);
-});
-
-server.registerTool("compress_audit", {
-  title: "Compress Audit Log",
-  description: "Return a Markdown prompt compressing recent audit entries, callable by both badges. Use when: the caller needs a compact history. Do NOT use when: permanently compacting the audit log — use compact_audit_log.",
-  // REQ-086 — audit compression: header line + one line per entry in
-  // `[timestamp] [badge] tool_name — output_prefix` (or [BOUNDARY_VIOLATION]);
-  // pure-generation, badge-filtered; max_entries ≤ 0 → [INVALID_INPUT].
-  inputSchema: { max_entries: z.number().optional().describe("Optional maximum number of entries.") },
-}, async ({ max_entries }: any) => {
-  const novel = requireNovel();
-  const max = max_entries ?? 20;
-  if (max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
-  const recent = novel.audit_log.slice(-max);
-  const isGM = novel.badge === "game_master";
-  const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
-  if (filtered.length === 0) return ok("Compressed audit log (summarize into a single paragraph):\n(no entries)");
-  const lines = filtered.map(e => {
-    const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
-    const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
-    return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
-  });
-  return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
-});
-
-// compact_audit_log: legacy alias for compress_audit (REQ-086).
-server.registerTool("compact_audit_log", {
-  title: "Compact Audit Log",
-  description: "Alias for compress_audit: permanently compacts the audit log. Use when: reducing stored audit size. Do NOT use when: generating a compression prompt — use compress_audit.",
-  inputSchema: { max_entries: z.number().optional().describe("Optional maximum number of entries.") },
-}, async ({ max_entries }: any) => {
-  const novel = requireNovel();
-  const max = max_entries ?? 20;
-  const recent = novel.audit_log.slice(-max);
-  const isGM = novel.badge === "game_master";
-  const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
-  if (filtered.length === 0) return ok("No audit entries.");
-  const lines = filtered.map(e => `${e.timestamp.split("T")[1]?.substring(0, 8) || "?"} [${e.badge ?? "·"}] ${e.tool} → ${e.output_prefix || ""}`);
-  return raw(`## Audit (last ${filtered.length} entries)\n${lines.join("\n")}`);
 });
 
 // Slug-ify a free-text premise into a stable identifier for adventure storage
@@ -4332,273 +4032,204 @@ function assessGenerationGuard(input: string): string | null {
 // from Synthesis adventure_advice templates / scenario_starters / table
 // expansions. `target` selects novel (default when a Novel is active), codex
 // (default otherwise), or both. No Novel is required for the codex target.
-server.registerTool("generate_adventure", {
-  title: "Generate Adventure",
-  description: "Generate an adventure scaffold from a premise, targeting the Novel, the codex, or both (Game Master only). Use when: the GM wants a new adventure outline. Do NOT use when: generating a single scene — use generate_encounter.",
-  // REQ-132 — adventure generation lifecycle: transient Novel-scoped artifact
-  // surfaced at adventure://generated/<anchor>, replaced on regeneration,
-  // discarded by end_novel, never persisted to TTRPG_ADVENTURE.
-  inputSchema: { premise: z.string().describe("The adventure premise."), target: z.enum(["novel", "codex", "both"]).optional().describe("novel, codex, or both.") },
-}, async ({ premise, target }: any) => {
-  requireGM();
-  const novel = state.activeNovel;
-  const slug = slugifyPremise(premise);
-  const tgt = target ?? (novel ? "novel" : "codex");
-
-  // REQ-251 — generation intent guard: assess the premise before producing
-  // output for harm, power-inversion ("create an adversary capable of defeating
-  // <entity>"), and mechanics-fabrication requests. `!force` overrides with an
-  // audited [generation-guard-overridden] entry.
-  const guardConcern = assessGenerationGuard(premise);
-  if (guardConcern) {
-    const forced = premise.trim().startsWith("!force");
-    if (!forced) {
-      return warn(`Generation guard: ${guardConcern} Please clarify or modify the premise (prefix with !force to override).`);
+// Adventure (REQ-090, REQ-091, REQ-132, REQ-229, REQ-247, REQ-251, REQ-292, REQ-295) — consolidated generate/generate_encounter/load/list surface.
+server.registerTool("adventure", {
+  title: "Adventure",
+  description: "Generate, load, or list adventure content. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use story (action: record).",
+  inputSchema: {
+    action: z.enum(["generate", "generate_encounter", "load", "list"]).describe("generate, generate_encounter, load, or list."),
+    premise: z.string().optional().describe("Adventure premise (generate)."),
+    target: z.enum(["novel", "codex", "both"]).optional().describe("novel, codex, or both (generate)."),
+    context: z.string().optional().describe("Scene context (generate_encounter)."),
+    slug: z.string().optional().describe("Adventure module slug (load)."),
+    filter: z.string().optional().describe("Optional genre filter (list)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "generate": {
+      requireGM();
+      const novel = state.activeNovel;
+      const slug = slugifyPremise(args.premise);
+      const tgt = args.target ?? (novel ? "novel" : "codex");
+      const guardConcern = assessGenerationGuard(args.premise);
+      if (guardConcern) {
+        const forced = args.premise.trim().startsWith("!force");
+        if (!forced) return warn(`Generation guard: ${guardConcern} Please clarify or modify the premise (prefix with !force to override).`);
+        audit("generation-guard-overridden", { premise: args.premise.slice(0, 80), concern: guardConcern });
+      }
+      const advice = state.enrichmentManifest?.adventure_advice ?? DEFAULT_ENRICHMENT.adventure_advice;
+      const templates = advice.templates ?? [];
+      const starters = advice.scenario_starters ?? [];
+      const tableExpansions = advice.table_expansions ?? [];
+      const rng = createRng(`adventure:${slug}:${args.premise}`);
+      const settingPool = ["a windswept ruin", "a crowded market square", "a flooded crypt", "a crumbling keep", "a mist-shrouded harbor", "a forgotten library", "a frost-bitten watchtower", "a labyrinth of salt caves"];
+      const horrorPool = ["something moved in the dark", "the air smells of copper", "a distant bell tolls once", "footprints stop halfway across the floor", "a child's toy lies abandoned", "the walls are too warm"];
+      const puzzlePool = ["a locked door with no keyhole", "an inscription in a dead script", "three levers and one warning", "a scale that demands a matching weight", "a mural whose figures are missing", "a door that opens only when it rains"];
+      const npcPool = ["the reticent caretaker", "a guild mouthpiece with divided loyalties", "an exile who knows the truth", "a fence with a price on integrity", "the last custodian of the old faith", "a rival who wants the prize first"];
+      const locCount = Math.min(6, 2 + (rng.roll(5) - 1));
+      const locations: { heading: string; flavor: string }[] = [];
+      for (let i = 0; i < locCount; i++) {
+        const setting = settingPool[rng.roll(settingPool.length) - 1];
+        const horror = horrorPool[rng.roll(horrorPool.length) - 1];
+        const puzzle = puzzlePool[rng.roll(puzzlePool.length) - 1];
+        locations.push({ heading: `Location ${i + 1}: ${setting}`, flavor: `${horror}. ${puzzle}.` });
+      }
+      const npcSuggestions = [...npcPool].sort(() => rng.roll(2) - 1).slice(0, 3);
+      const encounterSeed = tableExpansions.length > 0 ? (tableExpansions[rng.roll(tableExpansions.length) - 1] as any).content : "the rival faction arrives as the characters reach the final location";
+      const starter = starters.length > 0 ? (starters[rng.roll(starters.length) - 1] as any).content : "";
+      const template = templates.length > 0 ? (templates[rng.roll(templates.length) - 1] as any).source_url : "synthesis://adventure_advice";
+      const scaffold: any = {
+        title: args.premise.trim(), slug,
+        overview: `Overview (GM-only): ${starter || "A open-ended adventure scaffold keyed to the premise."} Template source: ${template}.`,
+        hook: `${locations[0]?.heading ?? "A starting scene"} draws the characters in — ${locations[0]?.flavor ?? ""}`,
+        locations, npc_suggestions: npcSuggestions, encounter_seeds: [encounterSeed],
+        genre_tags: novel?.genre ? [novel.genre] : [], generated_at: new Date().toISOString(), source: "generated",
+      };
+      const results: string[] = [];
+      if (tgt === "codex" || tgt === "both") {
+        const id = `adventure_${slug}`;
+        const existing = state.codex.get(id);
+        const entry: any = {
+          id, kind: "adventure", name: slug, content: { ...scaffold, suggested_beats: scaffold.locations.map((l: any) => ({ beat: "setup", scene_preview: l.heading })) },
+          description: args.premise.trim(), tags: scaffold.genre_tags,
+          visibility: existing?.visibility ?? "library", imported_at: existing?.imported_at ?? new Date().toISOString(), codex_modified_at: new Date().toISOString(),
+        };
+        state.codex.set(id, entry);
+        state.saveCodex();
+        results.push(`Codex adventure '${id}' stored`);
+      }
+      if (tgt === "novel" || tgt === "both") {
+        if (!novel) return err("INVALID_INPUT", "No active Novel — use target:'codex' without a Novel, or create a Novel first.");
+        novelSnapshot();
+        novel.generated_adventure = scaffold;
+        novel.adventure_index = {
+          premise: args.premise.trim(), hooks: [scaffold.hook],
+          npcs: npcSuggestions.map((n) => ({ name: n })), locations: locations.map((l) => ({ name: l.heading, description: l.flavor })), factions: [],
+        };
+        novel.adventure_set = true;
+        state.saveNovel(novel);
+        audit("generate_adventure", { premise: args.premise, target: tgt, slug });
+        results.push(`Novel adventure scaffold stored (adventure://generated/${slug})`);
+      }
+      return ok(`Adventure "${args.premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}\n\n${results.join("\n")}`);
     }
-    audit("generation-guard-overridden", { premise: premise.slice(0, 80), concern: guardConcern });
+    case "generate_encounter": {
+      requireGM();
+      const novel = requireNovel();
+      const ctx = String(args.context).trim();
+      const guardConcern = assessGenerationGuard(ctx);
+      if (guardConcern) {
+        const forced = ctx.trim().startsWith("!force");
+        if (!forced) return warn(`Generation guard: ${guardConcern} Please clarify or modify the context (prefix with !force to override).`);
+        audit("generation-guard-overridden", { context: ctx.slice(0, 80), concern: guardConcern });
+      }
+      const rng = createRng(`encounter:${ctx}`);
+      const monsterPool = ["a lone sentinel", "a pack of shadow hounds", "an armored enforcer with a debt", "a shrieking flock", "a stone golem misfiring its wards"];
+      const complicationPool = ["the ground collapses underfoot", "a third party arrives mid-fight", "the objective is trapped", "reinforcements are on the way", "the environment is flammable"];
+      const genre = novel.genre ?? null;
+      const includeAll = ctx.trim().startsWith("!include_all");
+      const slug = novel.ruleset ?? null;
+      let genreEntries: any[] = [];
+      if (slug && rulesets.isInstalled(slug)) {
+        const model = rulesets.hydrate(slug).model as any;
+        const tables = model.generation_tables ?? {};
+        genreEntries = Object.entries(tables)
+          .filter(([, t]: [string, any]) => {
+            const tags = t?.genre_tags ?? [];
+            if (tags.length === 0) return false;
+            if (includeAll) return true;
+            return genre ? tags.includes(genre) : true;
+          })
+          .map(([name, t]) => ({ name, ...(t as any) }));
+      }
+      let monster = monsterPool[rng.roll(monsterPool.length) - 1];
+      if (genreEntries.length > 0) {
+        const pick = genreEntries[rng.roll(genreEntries.length) - 1];
+        monster = pick?.ranges?.[0]?.result ?? pick?.name ?? monster;
+      }
+      const complication = complicationPool[rng.roll(complicationPool.length) - 1];
+      novelSnapshot();
+      const sceneDesc = `${ctx} — ${monster} blocks the way.`;
+      novel.scene_description = sceneDesc;
+      novel.scene_location = ctx;
+      novel.scene_type = [...new Set([...(novel.scene_type ?? []), "combat" as const])];
+      const npcId = `npc_${Date.now().toString(36)}`;
+      const npc: any = { id: npcId, name: monster, description: `Encountered during: ${ctx}`, disposition: "hostile", location: ctx, conditions: [], condition_rounds: {} };
+      novel.npcs.set(npcId, npc);
+      const loreKey = `complication_${slugifyPremise(ctx)}`;
+      novel.lore.set(loreKey, { key: loreKey, content: complication, triggers: [ctx], badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true });
+      state.saveNovel(novel);
+      audit("generate_encounter", { context: ctx, npc_id: npcId, lore_key: loreKey });
+      return ok(`Encounter generated (atomic batch, single undo target):\n\n**Scene:** ${sceneDesc}\n\n**NPC:** ${monster} (${npcId}, hostile)\n\n**Complication:** ${complication}\n\nUndo rolls back the scene, NPC, and lore entry together.`);
+    }
+    case "load": {
+      requireGM();
+      const novel = requireNovel();
+      const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+      const filePath = path.join(adventureDir, `${args.slug}.md`);
+      if (!fs.existsSync(filePath)) return err("NOT_FOUND", `Adventure '${args.slug}' not found at ${filePath}.`);
+      const content = fs.readFileSync(filePath, "utf-8");
+      const headings = content.match(/^#{2,3} .+$/gm) ?? [];
+      const npcRefs: string[] = [];
+      const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
+      if (m) for (const line of m.slice(0, 10)) npcRefs.push(line.replace(/\*\*/g, "").trim());
+      const locHeadings = headings.filter((h) => !/(roll|check|save|attack|damage)/i.test(h)).slice(0, 20).map((h) => h.replace(/^#{2,3}\s+/, ""));
+      const sceneCount = locHeadings.length;
+      novel.adventure_index = {
+        premise: (content.match(/## Premise\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").trim() || `Adventure: ${args.slug}`,
+        hooks: content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/) ? [content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)![1].trim()] : [],
+        npcs: npcRefs.map((n) => ({ name: n })),
+        locations: locHeadings.map((l) => ({ name: l, description: "" })),
+        factions: (content.match(/## Factions\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").split("\n").filter((l) => l.trim().length > 2 && !l.startsWith("#")).map((l) => ({ name: l.trim() })),
+        scene_count: sceneCount,
+      };
+      const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
+      if (worldMatch) {
+        const { world, result } = convertSource(worldMatch[1], novel.world);
+        novel.world = world;
+        novel.adventure_slug = args.slug;
+        novel.adventure_set = true;
+        state.saveNovel(novel);
+        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things });
+        const synthVoice = (state.enrichmentManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
+        const synthLore = (state.enrichmentManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
+        const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
+        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}`);
+      }
+      novel.adventure_slug = args.slug;
+      novel.adventure_set = true;
+      state.saveNovel(novel);
+      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0 });
+      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).`);
+    }
+    case "list": {
+      const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+      let files: string[] = [];
+      try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
+      if (files.length === 0) return ok("[No adventure modules found.]");
+      const badge = getBadge();
+      const isGM = badge === "game_master" || badge === "none";
+      const entries = files.map((f) => {
+        const slug = f.replace(/\.md$/, "");
+        const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
+        const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
+        const preview = content.match(/## (?:Premise|Adventure Hook)\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim().split(/\s+/).slice(0, 30).join(" ") ?? "";
+        const genreTags: string[] = [];
+        const gm = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "";
+        const genre = gm.match(/genre[:\s]+([a-z_]+)/i)?.[1];
+        if (genre) genreTags.push(genre);
+        const roomCount = (content.match(/^### .+$/gm) ?? []).length;
+        const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
+        const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
+        const stat = fs.statSync(path.join(adventureDir, f));
+        return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString() };
+      }).filter((e) => !args.filter || e.genre_tags.includes(args.filter) || isGM);
+      const visible = isGM ? entries : entries.filter((e) => e.preview);
+      return raw(JSON.stringify(visible, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown adventure action '${args.action}'. Valid actions: generate, generate_encounter, load, list.`);
   }
-
-  const advice = state.enrichmentManifest?.adventure_advice ?? DEFAULT_ENRICHMENT.adventure_advice;
-  const templates = advice.templates ?? [];
-  const starters = advice.scenario_starters ?? [];
-  const tableExpansions = advice.table_expansions ?? [];
-
-  const rng = createRng(`adventure:${slug}:${premise}`);
-
-  // Location flavor pools (REQ-090: table-rolled flavor — setting, horror,
-  // puzzle). Drawn deterministically so regeneration with the same premise
-  // replaces the prior scaffold with an identical one.
-  const settingPool = ["a windswept ruin", "a crowded market square", "a flooded crypt", "a crumbling keep", "a mist-shrouded harbor", "a forgotten library", "a frost-bitten watchtower", "a labyrinth of salt caves"];
-  const horrorPool = ["something moved in the dark", "the air smells of copper", "a distant bell tolls once", "footprints stop halfway across the floor", "a child's toy lies abandoned", "the walls are too warm"];
-  const puzzlePool = ["a locked door with no keyhole", "an inscription in a dead script", "three levers and one warning", "a scale that demands a matching weight", "a mural whose figures are missing", "a door that opens only when it rains"];
-  const npcPool = ["the reticent caretaker", "a guild mouthpiece with divided loyalties", "an exile who knows the truth", "a fence with a price on integrity", "the last custodian of the old faith", "a rival who wants the prize first"];
-
-  const locCount = Math.min(6, 2 + (rng.roll(5) - 1));
-  const locations: { heading: string; flavor: string }[] = [];
-  for (let i = 0; i < locCount; i++) {
-    const setting = settingPool[rng.roll(settingPool.length) - 1];
-    const horror = horrorPool[rng.roll(horrorPool.length) - 1];
-    const puzzle = puzzlePool[rng.roll(puzzlePool.length) - 1];
-    locations.push({ heading: `Location ${i + 1}: ${setting}`, flavor: `${horror}. ${puzzle}.` });
-  }
-  const npcSuggestions = [...npcPool].sort(() => rng.roll(2) - 1).slice(0, 3);
-  const encounterSeed = tableExpansions.length > 0
-    ? (tableExpansions[rng.roll(tableExpansions.length) - 1] as any).content
-    : "the rival faction arrives as the characters reach the final location";
-  const starter = starters.length > 0 ? (starters[rng.roll(starters.length) - 1] as any).content : "";
-  const template = templates.length > 0 ? (templates[rng.roll(templates.length) - 1] as any).source_url : "synthesis://adventure_advice";
-
-  const scaffold: any = {
-    title: premise.trim(),
-    slug,
-    overview: `Overview (GM-only): ${starter || "A open-ended adventure scaffold keyed to the premise."} Template source: ${template}.`,
-    hook: `${locations[0]?.heading ?? "A starting scene"} draws the characters in — ${locations[0]?.flavor ?? ""}`,
-    locations,
-    npc_suggestions: npcSuggestions,
-    encounter_seeds: [encounterSeed],
-    genre_tags: novel?.genre ? [novel.genre] : [],
-    generated_at: new Date().toISOString(),
-    source: "generated",
-  };
-
-  const results: string[] = [];
-
-  if (tgt === "codex" || tgt === "both") {
-    const id = `adventure_${slug}`;
-    const existing = state.codex.get(id);
-    const entry: any = {
-      id, kind: "adventure", name: slug, content: { ...scaffold, suggested_beats: scaffold.locations.map((l: any) => ({ beat: "setup", scene_preview: l.heading })) },
-      description: premise.trim(),
-      tags: scaffold.genre_tags,
-      visibility: existing?.visibility ?? "library",
-      imported_at: existing?.imported_at ?? new Date().toISOString(),
-      codex_modified_at: new Date().toISOString(),
-    };
-    state.codex.set(id, entry);
-    state.saveCodex();
-    results.push(`Codex adventure '${id}' stored`);
-  }
-
-  if (tgt === "novel" || tgt === "both") {
-    if (!novel) return err("INVALID_INPUT", "No active Novel — use target:'codex' without a Novel, or create a Novel first.");
-    novelSnapshot();
-    novel.generated_adventure = scaffold;
-    novel.adventure_index = {
-      premise: premise.trim(),
-      hooks: [scaffold.hook],
-      npcs: npcSuggestions.map((n) => ({ name: n })),
-      locations: locations.map((l) => ({ name: l.heading, description: l.flavor })),
-      factions: [],
-    };
-    novel.adventure_set = true;
-    state.saveNovel(novel);
-    audit("generate_adventure", { premise, target: tgt, slug });
-    results.push(`Novel adventure scaffold stored (adventure://generated/${slug})`);
-  }
-
-  return ok(`Adventure "${premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}\n\n${results.join("\n")}`);
-});
-
-// REQ-091 — generate_encounter(context). Produces a scene description, an NPC
-// stat block, and a complication lore entry as one atomic batch with a single
-// undo target. Player badge → [FORBIDDEN].
-server.registerTool("generate_encounter", {
-  title: "Generate Encounter",
-  description: "Generate a scene, NPC, and lore entry from context (Game Master only). Use when: the GM wants an encounter on demand. Do NOT use when: generating a full adventure — use generate_adventure.",
-  inputSchema: { context: z.string().describe("The scene context to generate from.") },
-}, async ({ context }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const ctx = String(context).trim();
-  // REQ-251 — generation intent guard (see generate_adventure for the guard).
-  const guardConcern = assessGenerationGuard(ctx);
-  if (guardConcern) {
-    const forced = ctx.trim().startsWith("!force");
-    if (!forced) return warn(`Generation guard: ${guardConcern} Please clarify or modify the context (prefix with !force to override).`);
-    audit("generation-guard-overridden", { context: ctx.slice(0, 80), concern: guardConcern });
-  }
-  const rng = createRng(`encounter:${ctx}`);
-
-  const monsterPool = ["a lone sentinel", "a pack of shadow hounds", "an armored enforcer with a debt", "a shrieking flock", "a stone golem misfiring its wards"];
-  const complicationPool = ["the ground collapses underfoot", "a third party arrives mid-fight", "the objective is trapped", "reinforcements are on the way", "the environment is flammable"];
-
-  // REQ-295 — genre-filtered generation: prefer genre-tagged ruleset
-  // generation tables/entries; draw untagged/universal only when genre-matching
-  // content is exhausted; non-matching genres excluded unless `!include_all`.
-  const genre = novel.genre ?? null;
-  const includeAll = ctx.trim().startsWith("!include_all");
-  const slug = novel.ruleset ?? null;
-  let genreEntries: any[] = [];
-  if (slug && rulesets.isInstalled(slug)) {
-    const model = rulesets.hydrate(slug).model as any;
-    const tables = model.generation_tables ?? {};
-    genreEntries = Object.entries(tables)
-      .filter(([, t]: [string, any]) => {
-        const tags = t?.genre_tags ?? [];
-        if (tags.length === 0) return false; // universal — used only when genre pool exhausted
-        if (includeAll) return true;
-        return genre ? tags.includes(genre) : true;
-      })
-      .map(([name, t]) => ({ name, ...(t as any) }));
-  }
-  let monster = monsterPool[rng.roll(monsterPool.length) - 1];
-  if (genreEntries.length > 0) {
-    const pick = genreEntries[rng.roll(genreEntries.length) - 1];
-    monster = pick?.ranges?.[0]?.result ?? pick?.name ?? monster;
-  }
-  const complication = complicationPool[rng.roll(complicationPool.length) - 1];
-
-  // Single undo target for the whole batch (REQ-091b).
-  novelSnapshot();
-
-  const sceneDesc = `${ctx} — ${monster} blocks the way.`;
-  novel.scene_description = sceneDesc;
-  novel.scene_location = ctx;
-  novel.scene_type = [...new Set([...(novel.scene_type ?? []), "combat" as const])];
-
-  const npcId = `npc_${Date.now().toString(36)}`;
-  const npc: any = { id: npcId, name: monster, description: `Encountered during: ${ctx}`, disposition: "hostile", location: ctx, conditions: [], condition_rounds: {} };
-  novel.npcs.set(npcId, npc);
-
-  const loreKey = `complication_${slugifyPremise(ctx)}`;
-  novel.lore.set(loreKey, {
-    key: loreKey, content: complication,
-    triggers: [ctx], badge_scope: "game_master",
-    priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
-  });
-
-  state.saveNovel(novel);
-  audit("generate_encounter", { context: ctx, npc_id: npcId, lore_key: loreKey });
-
-  return ok(`Encounter generated (atomic batch, single undo target):\n\n**Scene:** ${sceneDesc}\n\n**NPC:** ${monster} (${npcId}, hostile)\n\n**Complication:** ${complication}\n\nUndo rolls back the scene, NPC, and lore entry together.`);
-});
-
-server.registerTool("load_adventure", {
-  title: "Load Adventure",
-  description: "Load an adventure module, persisting it as the active adventure (Game Master only). Use when: starting a prepared adventure. Do NOT use when: listing adventures — use list_adventures.",
-  inputSchema: { slug: z.string().describe("The adventure module slug to load.") },
-}, async ({ slug }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-  const filePath = path.join(adventureDir, `${slug}.md`);
-  if (!fs.existsSync(filePath)) return err("NOT_FOUND", `Adventure '${slug}' not found at ${filePath}.`);
-  const content = fs.readFileSync(filePath, "utf-8");
-  // REQ-247 — structural extraction on load: headings become the structural
-  // index; bolded names with stats become NPC references; scene headings
-  // become locations. Populates adventure_index for the overview/navigation
-  // resources (REQ-248/249) and the scene waypoint (REQ-250).
-  const headings = content.match(/^#{2,3} .+$/gm) ?? [];
-  const npcRefs: string[] = [];
-  const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
-  if (m) for (const line of m.slice(0, 10)) npcRefs.push(line.replace(/\*\*/g, "").trim());
-  const locHeadings = headings.filter((h) => !/(roll|check|save|attack|damage)/i.test(h)).slice(0, 20).map((h) => h.replace(/^#{2,3}\s+/, ""));
-  const sceneCount = locHeadings.length;
-  novel.adventure_index = {
-    premise: (content.match(/## Premise\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").trim() || `Adventure: ${slug}`,
-    hooks: content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/) ? [content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)![1].trim()] : [],
-    npcs: npcRefs.map((n) => ({ name: n })),
-    locations: locHeadings.map((l) => ({ name: l, description: "" })),
-    factions: (content.match(/## Factions\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").split("\n").filter((l) => l.trim().length > 2 && !l.startsWith("#")).map((l) => ({ name: l.trim() })),
-    scene_count: sceneCount,
-  };
-  // Parse ## World section if present
-  const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
-  if (worldMatch) {
-    const { world, result } = convertSource(worldMatch[1], novel.world);
-    novel.world = world;
-    novel.adventure_slug = slug;
-    novel.adventure_set = true;
-    state.saveNovel(novel);
-    audit("load_adventure", { slug, rooms: result.rooms, things: result.things });
-    // REQ-229 — adventure synthesis linkage: report match counts in the load
-    // response after world-model population; omitted when nothing matches.
-    const synthVoice = (state.enrichmentManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
-    const synthLore = (state.enrichmentManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
-    const aug = synthVoice > 0 || synthLore > 0
-      ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.`
-      : "";
-    return ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}`);
-  }
-  novel.adventure_slug = slug;
-  novel.adventure_set = true;
-  state.saveNovel(novel);
-  audit("load_adventure", { slug, rooms: 0, things: 0 });
-  return ok(`Adventure '${slug}' loaded (no world-model section found — flat prose only).`);
-});
-
-// REQ-292 — adventure catalog: list_adventures returns metadata for every
-// adventure module in TTRPG_ADVENTURE (slug, title, preview, genre_tags,
-// room_count, npc_count, complexity, last_modified); filter by genre tag;
-// empty-state when no modules; badge-filtered.
-server.registerTool("list_adventures", {
-  title: "List Adventures",
-  description: "List adventure modules with metadata, always callable. Use when: discovering available adventures. Do NOT use when: loading an adventure — use load_adventure.",
-  inputSchema: { filter: z.string().optional().describe("Optional filter.") },
-}, async ({ filter }: any) => {
-  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-  let files: string[] = [];
-  try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
-  if (files.length === 0) return ok("[No adventure modules found.]");
-  const badge = getBadge();
-  const isGM = badge === "game_master" || badge === "none";
-  const entries = files.map((f) => {
-    const slug = f.replace(/\.md$/, "");
-    const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
-    const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
-    const preview = content.match(/## (?:Premise|Adventure Hook)\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim().split(/\s+/).slice(0, 30).join(" ") ?? "";
-    const genreTags: string[] = [];
-    const gm = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "";
-    const genre = gm.match(/genre[:\s]+([a-z_]+)/i)?.[1];
-    if (genre) genreTags.push(genre);
-    const roomCount = (content.match(/^### .+$/gm) ?? []).length;
-    const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
-    const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
-    const stat = fs.statSync(path.join(adventureDir, f));
-    return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString() };
-  }).filter((e) => !filter || e.genre_tags.includes(filter) || isGM);
-  const visible = isGM ? entries : entries.filter((e) => e.preview); // player-visible when a shared hook exists
-  return raw(JSON.stringify(visible, null, 2));
 });
 
 // REQ-170 — adventure discovery surface: adventures:// lists indexed adventure
@@ -4654,565 +4285,496 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 
 // --- Session ---
 
-// REQ-072 — session_recap summarizes recent session activity.
-server.registerTool("session_recap", {
-  title: "Session Recap",
-  description: "Summarize recent session activity into a recap. Use when: reviewing what happened this session. Do NOT use when: reading the story journal in detail — use list_stories.",
-  inputSchema: {},
-}, async () => {
-  const novel = requireNovel();
-  const entity = state.getActiveEntity();
-
-  // REQ-279 — narrative_orientation: a plain-English "Previously on…" paragraph
-  // synthesized from the last 3 decision/bond journal entries, non-default NPC
-  // dispositions, the narrative directive, active countdowns, and active vows.
-  // Empty-state marker when nothing has happened yet.
-  const parts: string[] = [];
-  const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
-  for (const s of recent) parts.push(s.entry);
-  for (const [, npc] of novel.npcs) {
-    if (npc.disposition && npc.disposition !== "neutral") parts.push(`${npc.name} is ${npc.disposition}`);
-  }
-  if (novel.narrative_directive) parts.push(`the current focus is: ${novel.narrative_directive}`);
-  for (const [name, cd] of novel.countdowns) {
-    if (cd.ticks > 0) parts.push(`the ${name} completes in ${cd.ticks} more tick${cd.ticks === 1 ? "" : "s"}`);
-  }
-  for (const v of novel.vows) {
-    if (v.state === "active") parts.push(`the vow to ${v.name} has ${v.milestones} milestones done`);
-  }
-  const narrative_orientation = parts.length > 0
-    ? parts.join("; ") + "."
-    : "[No narrative history yet — your story begins here.]";
-
-  let recap = `narrative_orientation: ${narrative_orientation}`;
-  // REQ-173 — connection counter: number of session connections this Novel.
-  recap += `\nconnections: ${novel.connection_counter ?? 0}`;
-  // REQ-174 — significant rolls: dice-resolution audit entries with an entity
-  // participant, listed chronologically (tool, entity, faces).
-  const significantRolls = novel.audit_log.filter((e) => e.tool.includes("roll") && !e.tool.includes("table") && e.args).slice(-5);
-  if (significantRolls.length > 0) {
-    recap += `\nsignificant_rolls: ${significantRolls.map((e) => `${e.tool}`).join(", ")}`;
-  }
-  // REQ-175 — confrontation summaries derived from init_combat/advance_combat/
-  // end_combat audit entries.
-  const initIdx = novel.audit_log.findIndex((e) => e.tool === "init_combat");
-  const endCount = novel.audit_log.filter((e) => e.tool === "end_combat").length;
-  const advCount = novel.audit_log.filter((e) => e.tool === "advance_combat").length;
-  const confrontations_completed = endCount;
-  const confrontation_pending = novel.combat?.active ? `round ${novel.combat.round}, ${novel.combat.turn_order.length} participants` : null;
-  recap += `\nconfrontations_completed: ${confrontations_completed}${initIdx >= 0 ? ` (${advCount} combat advances)` : ""}${confrontation_pending ? `\nconfrontation_pending: ${confrontation_pending}` : ""}`;
-  recap += `\nActive Novel: ${novel.name} (${novel.slug})`;
-  if (novel.scene_description) {
-    recap += `\nScene: ${novel.scene_description}${novel.scene_location ? ` — ${novel.scene_location}` : ""}`;
-  }
-  recap += state.combatReport(novel);
-
-  if (novel.world.rooms.size > 0) {
-    recap += `\n\nWorld model: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things.`;
-  }
-
-  if (entity) {
-    recap += `\n\nActive entity: ${entity.name}${entity.current_room ? ` in ${entity.current_room}` : ""}`;
-    if (entity.inventory.length > 0) {
-      recap += ` — holding: ${entity.inventory.join(", ")}`;
-    }
-  }
-
-  const activeCountdowns = [...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0);
-  if (activeCountdowns.length > 0) {
-    recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${cd.ticks}/${cd.total})`).join(", ")}`;
-  }
-
-  const enabledLore = [...novel.lore.values()].filter(l => l.enabled);
-  if (enabledLore.length > 0) {
-    recap += `\nLore entries: ${enabledLore.length} active.`;
-  }
-
-  // §5.19 guardrail markers (REQ-402/403/404) — observational, never block.
-  if (novel.session_no_mutation_windows.length > 0) {
-    recap += `\n[session-no-mutations] sessions with zero state writes: ${novel.session_no_mutation_windows.join(", ")}`;
-  }
-  if (state.stateDriftActive(novel)) {
-    recap += `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
-  }
-  if (novel.uncommitted_rolls.length > 0) {
-    for (const r of novel.uncommitted_rolls) {
-      recap += `\n[uncommitted-roll] roll "${r.roll}" has no following state write — commit with ${r.suggested_tool}.`;
-    }
-  }
-
-  return ok(recap);
-});
-
 // --- Novel Lifecycle ---
 
-server.registerTool("create_novel", {
-  title: "Create Novel",
-  description: "Create a named Novel that persists to disk. Use when: starting a new campaign. Do NOT use when: resuming an existing Novel — use resume_novel.",
-  inputSchema: { name: z.string().describe("The Novel name."), ruleset: z.string().optional().describe("Optional ruleset slug."), genre: z.string().optional().describe("Optional genre."), description: z.string().optional().describe("Optional description."), codex_adventure: z.string().optional().describe("Optional codex adventure to seed from.") },
-}, async ({ name, ruleset, genre, description, codex_adventure }: any) => {
-  requireNotObserver();
-  if (ruleset && !rulesets.isInstalled(ruleset)) {
-    return err("INVALID_INPUT", `Ruleset '${ruleset}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
-  }
-  const novel = state.createNovel(name, ruleset ?? null);
-  // REQ-294 — genre declaration: the Novel carries a canonical-genre `genre`
-  // field surfaced in novel_info, spec_health.active_genre, and badge_briefing.
-  if (genre) novel.genre = genre;
-  if (description) novel.description = description;
-  // REQ-352 — codex adventure beat sequences: pre-populate story_beats from the
-  // adventure entry's suggested_beats with [adventure-scaffold] annotation.
-  if (codex_adventure) {
-    const entry = state.codex.get(codex_adventure);
-    if (!entry) return err("NOT_FOUND", `Codex adventure '${codex_adventure}' not found.`);
-    if (entry.kind !== "adventure") return err("NOT_FOUND", `Codex entry '${codex_adventure}' is not of kind 'adventure'.`);
-    const suggested = (entry.content as any)?.suggested_beats;
-    if (Array.isArray(suggested)) {
-      for (const sb of suggested) {
-        novel.story_beats.push({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" });
+// Novel lifecycle (REQ-041, REQ-088, REQ-094, REQ-096, REQ-232, REQ-259, REQ-294, REQ-332, REQ-334, REQ-352, REQ-402, REQ-403) — consolidated
+// create/resume/switch/end/export/import/rename/description/list/archive/
+// unarchive/info/genre/clone surface.
+const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
+server.registerTool("novel", {
+  title: "Novel",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, save_context, get_context, or checkpoint. Use when: handling a campaign's lifecycle, interchange, or return points. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.).",
+  inputSchema: {
+    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
+    name: z.string().optional().describe("Novel name (create)."),
+    slug: z.string().optional().describe("Novel slug (resume/switch/archive/unarchive/info)."),
+    source_slug: z.string().optional().describe("Novel to copy (clone)."),
+    new_name: z.string().optional().describe("Name for the copy (clone)."),
+    new_slug: z.string().optional().describe("New slug (rename)."),
+    ruleset: z.string().optional().describe("Ruleset slug (create)."),
+    genre: z.string().optional().describe("Genre tag (create/genre)."),
+    description: z.string().optional().describe("Description (create/description)."),
+    codex_adventure: z.string().optional().describe("Codex adventure to seed from (create)."),
+    format: z.string().optional().describe("Output format (export)."),
+    scope: z.string().optional().describe("Export scope (export)."),
+    data: z.string().optional().describe("Exported Novel JSON (import)."),
+    mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace (import)."),
+    strict: z.boolean().optional().describe("Fail on any cross-reference mismatch (import)."),
+    filter: z.enum(["active", "archived", "all"]).optional().describe("active, archived, or all (list)."),
+    detail: z.boolean().optional().describe("Return full metadata (list)."),
+    current_scene: z.string().optional().describe("Current-scene summary (save_context)."),
+    immediate_situation: z.string().optional().describe("Immediate situation (save_context)."),
+    pending_player_action: z.string().optional().describe("Pending player action (save_context)."),
+    short_term_plans: z.string().optional().describe("Short-term plans (save_context)."),
+    long_term_plans: z.string().optional().describe("Long-term plans (save_context)."),
+    player_goals: z.string().optional().describe("Player goals (save_context)."),
+    label: z.string().optional().describe("Checkpoint label (checkpoint_set/list/restore/remove)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "create": {
+      requireNotObserver();
+      const { name, ruleset, genre, description, codex_adventure } = args;
+      if (ruleset && !rulesets.isInstalled(ruleset)) {
+        return err("INVALID_INPUT", `Ruleset '${ruleset}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
       }
-      novel.adventure_set = true;
-    }
-  }
-  if (genre || description || codex_adventure) state.saveNovel(novel);
-  if (ruleset) { try { rulesets.hydrate(ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); } }
-  return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}${genre ? `, genre: ${genre}` : ""}
+      const novel = state.createNovel(name, ruleset ?? null);
+      if (genre) novel.genre = genre;
+      if (description) novel.description = description;
+      if (codex_adventure) {
+        const entry = state.codex.get(codex_adventure);
+        if (!entry) return err("NOT_FOUND", `Codex adventure '${codex_adventure}' not found.`);
+        if (entry.kind !== "adventure") return err("NOT_FOUND", `Codex entry '${codex_adventure}' is not of kind 'adventure'.`);
+        const suggested = (entry.content as any)?.suggested_beats;
+        if (Array.isArray(suggested)) {
+          for (const sb of suggested) novel.story_beats.push({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" });
+          novel.adventure_set = true;
+        }
+      }
+      if (genre || description || codex_adventure) state.saveNovel(novel);
+      if (ruleset) { try { rulesets.hydrate(ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); } }
+      return ok(`Novel created: ${novel.slug} (novel://current)${ruleset ? `, ruleset: ${ruleset}` : ""}${genre ? `, genre: ${genre}` : ""}
 
 Next step: run the novel_setup guide to add characters, choose a story source, and hold a session zero before play.`);
-});
-
-server.registerTool("resume_novel", {
-  title: "Resume Novel",
-  description: "Resume a previously created Novel from disk, making it the active Novel. Use when: continuing an existing campaign. Do NOT use when: creating a new Novel — use create_novel.",
-  inputSchema: { slug: z.string().describe("The Novel slug to resume.") },
-}, async ({ slug }: any) => {
-  // REQ-402 — resuming closes the prior session window; a window with zero
-  // state writes is surfaced as [session-no-mutations].
-  if (state.activeNovel) {
-    const sessionId = process.env.TTRPG_SESSION_ID ?? state.activeNovel.metadata.session_count.toString();
-    state.closeSessionWindow(state.activeNovel, sessionId);
-  }
-  const novel = state.resumeNovel(slug);
-  novel.metadata.session_count += 1;
-  state.saveNovel(novel);
-  if (novel.ruleset) {
-    if (!rulesets.isInstalled(novel.ruleset)) {
-      return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
     }
-    try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
-  }
-  return ok(`Novel resumed: ${novel.name} (${novel.slug})`);
-});
-
-server.registerTool("switch_novel", {
-  title: "Switch Novel",
-  description: "Switch the active Novel for this connection, always callable. Use when: changing which save file the session works on. Do NOT use when: ending a Novel — use end_novel.",
-  inputSchema: { slug: z.string().describe("The Novel slug to switch to.") },
-}, async ({ slug }: any) => {
-  // REQ-403b — TTRPG_STATE_GATE=block refuses to leave a drifting Novel.
-  const active = state.activeNovel;
-  if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
-    return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with set_pause_context or session_recap before switching.");
-  }
-  // REQ-402 — switching closes the prior session window.
-  if (active) {
-    const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
-    state.closeSessionWindow(active, sessionId);
-  }
-  const novel = state.switchNovel(slug);
-  if (novel.ruleset) {
-    if (!rulesets.isInstalled(novel.ruleset)) {
-      return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+    case "resume": {
+      if (state.activeNovel) {
+        const sessionId = process.env.TTRPG_SESSION_ID ?? state.activeNovel.metadata.session_count.toString();
+        state.closeSessionWindow(state.activeNovel, sessionId);
+      }
+      const novel = state.resumeNovel(args.slug);
+      novel.metadata.session_count += 1;
+      state.saveNovel(novel);
+      if (novel.ruleset) {
+        if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+        try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
+      }
+      return ok(`Novel resumed: ${novel.name} (${novel.slug})`);
     }
-    try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
-  }
-  return ok(`Switched to novel: ${novel.name} (${novel.slug})`);
-});
-
-server.registerTool("end_novel", {
-  title: "End Novel",
-  description: "End the current Novel, deactivating the badge and removing the save file after a confirmation workflow. Use when: concluding a campaign. Do NOT use when: merely switching Novels — use switch_novel.",
-  inputSchema: {},
-}, async () => {
-  requireNotObserver();
-  const novel = requireNovel();
-  if (novel.pending_workflow) {
-    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
-  }
-  // REQ-403b — TTRPG_STATE_GATE=block refuses to end a drifting Novel.
-  if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
-    return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with set_pause_context or session_recap before ending.");
-  }
-  novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
-  state.saveNovel(novel);
-  return needInput(`Decision: -end_novel-confirm
+    case "switch": {
+      const active = state.activeNovel;
+      if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with novel (action: save_context) or session (action: recap) before switching.");
+      }
+      if (active) {
+        const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
+        state.closeSessionWindow(active, sessionId);
+      }
+      const novel = state.switchNovel(args.slug);
+      if (novel.ruleset) {
+        if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+        try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
+      }
+      return ok(`Switched to novel: ${novel.name} (${novel.slug})`);
+    }
+    case "end": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+      if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with novel (action: save_context) or session (action: recap) before ending.");
+      }
+      novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
+      state.saveNovel(novel);
+      return needInput(`Decision: -end_novel-confirm
 Question: End Novel "${novel.name}"?
 Options: yes, cancel`);
-});
-
-server.registerTool("export_novel", {
-  title: "Export Novel",
-  description: "Export the active Novel in interchange format for backup or transfer (Game Master only). Use when: moving a Novel between servers. Do NOT use when: importing a Novel — use import_novel.",
-  inputSchema: { format: z.string().optional().describe("Optional output format."), scope: z.string().optional().describe("Optional export scope.") },
-}, async ({ format: fmt, scope }: any) => {
-  requireGM();
-  // REQ-425b — interchange surfaces accept only json/markdown; html returns
-  // [INVALID_INPUT] enumerating the set (presentation-only, not round-trippable).
-  if (fmt && !INTERCHANGE_FORMATS.includes(fmt)) {
-    return err("INVALID_INPUT", `Unsupported format '${fmt}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
-  }
-  const novel = requireNovel();
-  if (fmt === "markdown") {
-    let md = `# ${novel.name}\n\n`;
-    md += `## World\n`;
-    for (const [, room] of novel.world.rooms) {
-      md += `${room.name} is a room. "${room.description}"\n`;
-      for (const [dir, target] of room.exits) {
-        md += `${dir} of ${room.name} is ${target}.\n`;
-      }
     }
-    for (const [, thing] of novel.world.things) {
-      if (thing.kind !== "thing") {
-        md += `${thing.name} is a ${thing.kind}. "${thing.description}"\n`;
+    case "export": {
+      requireGM();
+      if (args.format && !INTERCHANGE_FORMATS.includes(args.format)) {
+        return err("INVALID_INPUT", `Unsupported format '${args.format}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
       }
-      md += `${thing.name} is in ${thing.location}.\n`;
-      if (!thing.portable) md += `${thing.name} is fixed.\n`;
-      if (thing.openable && thing.open) md += `${thing.name} is open.\n`;
-      if (thing.locked) md += `${thing.name} is locked.\n`;
-    }
-    return raw(md);
-  }
-  // Full-self-contained interchange per Annex Q / REQ-096. The `novel` key
-  // carries the complete serialized state (including actual world rooms/things,
-  // entities, npcs, countdowns, audit log, checkpoints, notes, vows), so a
-  // replace-import round-trip is lossless.
-  const full = exportNovelJSON(novel);
-  const data: any = {
-    format_version: 2,
-    manifest: {
-      novel_format_version: 2,
-      server_spec_version: state.buildFingerprint.specVersion,
-      ruleset_hash: novel.ruleset ?? null,
-      builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
-      adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
-      adventures_embedded: false,
-      property_groups_present: [
-        "slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows",
-      ],
-      waiver_dependent_mechanics: [],
-    },
-    novel: full,
-  };
-  // scope filtering (REQ-096b): retain only the payload described by scope.
-  const SCOPE_KEYS: Record<string, string[]> = {
-    full: [],
-    state_only: ["audit_log", "checkpoints", "undo_stacks", "redo_stacks"],
-    lore: [],
-    world_model: [],
-    npcs: [],
-    factions: [],
-    secrets: [],
-    relationships: [],
-    gm_context: [],
-    notes: [],
-    story_journal: [],
-    scene_history: [],
-  };
-  if (scope && scope !== "full") {
-    // scope keys describe the ONLY tier(s) to keep; everything else is stripped.
-    const keep: Record<string, string[]> = {
-      lore: ["lore"],
-      world_model: ["world"],
-      npcs: ["npcs"],
-      factions: ["factions"],
-      secrets: ["secrets"],
-      relationships: ["relationships"],
-      gm_context: ["gm_context"],
-      notes: ["notes"],
-      story_journal: ["story_journal"],
-      scene_history: ["scene_history"],
-    };
-    const keys = keep[scope] ?? [];
-    for (const k of Object.keys(data.novel)) {
-      if (!["slug", "name", "ruleset", "genre", "description", "metadata"].includes(k) && !keys.includes(k)) {
-        delete data.novel[k];
+      const novel = requireNovel();
+      if (args.format === "markdown") {
+        let md = `# ${novel.name}\n\n## World\n`;
+        for (const [, room] of novel.world.rooms) {
+          md += `${room.name} is a room. "${room.description}"\n`;
+          for (const [dir, target] of room.exits) md += `${dir} of ${room.name} is ${target}.\n`;
+        }
+        for (const [, thing] of novel.world.things) {
+          if (thing.kind !== "thing") md += `${thing.name} is a ${thing.kind}. "${thing.description}"\n`;
+          md += `${thing.name} is in ${thing.location}.\n`;
+          if (!thing.portable) md += `${thing.name} is fixed.\n`;
+          if (thing.openable && thing.open) md += `${thing.name} is open.\n`;
+          if (thing.locked) md += `${thing.name} is locked.\n`;
+        }
+        return raw(md);
       }
-    }
-  }
-  return raw(JSON.stringify(data, null, 2));
-});
-
-server.registerTool("import_novel", {
-  title: "Import Novel",
-  description: "Import a previously exported Novel in dry-run, merge, or replace mode (Game Master only). Use when: loading a Novel from interchange format. Do NOT use when: exporting a Novel — use export_novel.",
-  inputSchema: { data: z.string().describe("The exported Novel JSON."), mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace."), strict: z.boolean().optional().describe("When true, fail on any cross-reference mismatch.") },
-}, async ({ data, mode, strict }: any) => {
-  requireGM();
-  const m = mode ?? "dry-run";
-  const strictMode = strict === true;
-  let parsed: any;
-  try {
-    parsed = JSON.parse(data);
-  } catch {
-    return err("INVALID_INPUT", "Could not parse novel data.");
-  }
-  // Accept the interchange envelope ({ format_version, manifest, novel }) or a
-  // flat legacy payload. The `novel` key is authoritative when present.
-  const flat = parsed && parsed.novel && typeof parsed.novel === "object" ? parsed.novel : parsed;
-  const manifest = parsed && parsed.manifest && typeof parsed.manifest === "object" ? parsed.manifest : null;
-
-  // Cross-reference validation (REQ-096d1). Collects failures with item paths.
-  const failures: string[] = [];
-  const validateRefs = (src: any) => {
-    const entityIds = new Set<string>(Object.keys(src.entities ?? {}));
-    const npcIds = new Set<string>(src.npcs ? Object.keys(src.npcs) : (src.npcs ?? []).map((n: any) => n.id));
-    const factionNames = new Set<string>((src.factions ?? []).map((f: any) => f.name));
-    for (const [key, e] of Object.entries(src.lore ?? {})) {
-      for (const t of ((e as any).triggers ?? [])) {
-        if (typeof t === "string" && /^(npc|entity):/.test(t)) {
-          const id = t.split(":")[1];
-          if (!npcIds.has(id) && !entityIds.has(id)) failures.push(`lore.${key}.triggers: ${t} references missing npc/entity`);
+      const full = exportNovelJSON(novel);
+      const data: any = {
+        format_version: 2,
+        manifest: {
+          novel_format_version: 2,
+          server_spec_version: state.buildFingerprint.specVersion,
+          ruleset_hash: novel.ruleset ?? null,
+          builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
+          adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
+          adventures_embedded: false,
+          property_groups_present: ["slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows"],
+          waiver_dependent_mechanics: [],
+        },
+        novel: full,
+      };
+      if (args.scope && args.scope !== "full") {
+        const keep: Record<string, string[]> = {
+          lore: ["lore"], world_model: ["world"], npcs: ["npcs"], factions: ["factions"], secrets: ["secrets"],
+          relationships: ["relationships"], gm_context: ["gm_context"], notes: ["notes"],
+          story_journal: ["story_journal"], scene_history: ["scene_history"],
+        };
+        const keys = keep[args.scope] ?? [];
+        for (const k of Object.keys(data.novel)) {
+          if (!["slug", "name", "ruleset", "genre", "description", "metadata"].includes(k) && !keys.includes(k)) {
+            delete data.novel[k];
+          }
         }
       }
+      return raw(JSON.stringify(data, null, 2));
     }
-    for (const th of (src.gm_context?.active_threads ?? [])) {
-      for (const f of (th.faction_refs ?? [])) {
-        if (!factionNames.has(f)) failures.push(`gm_context.active_threads: faction ${f} not present`);
-      }
-    }
-    for (const rel of (src.relationships ?? [])) {
-      for (const t of [rel.source, rel.target]) {
-        if (t && !entityIds.has(t) && !npcIds.has(t) && !factionNames.has(t)) failures.push(`relationships: ${t} not present`);
-      }
-    }
-    const rooms = new Set<string>(Object.keys(src.world?.rooms ?? {}));
-    for (const [, room] of Object.entries(src.world?.rooms ?? {})) {
-      for (const target of Object.values((room as any).exits ?? {})) {
-        if (typeof target === "string" && !rooms.has(target)) failures.push(`world.rooms.${(room as any).name}.exits: ${target} not present`);
-      }
-    }
-    const cdNames = new Set<string>(Object.keys(src.countdowns ?? {}));
-    for (const [name, cd] of Object.entries(src.countdowns ?? {})) {
-      for (const c of (cd as any).clocks ?? []) {
-        for (const o of [...(c.opposes ?? []), ...(c.unlocks ?? [])]) {
-          if (!cdNames.has(o)) failures.push(`countdowns.${name}.clock: references ${o} not present`);
+    case "import": {
+      requireGM();
+      const m = args.mode ?? "dry-run";
+      const strictMode = args.strict === true;
+      let parsed: any;
+      try { parsed = JSON.parse(args.data); } catch { return err("INVALID_INPUT", "Could not parse novel data."); }
+      const flat = parsed && parsed.novel && typeof parsed.novel === "object" ? parsed.novel : parsed;
+      const manifest = parsed && parsed.manifest && typeof parsed.manifest === "object" ? parsed.manifest : null;
+      const failures: string[] = [];
+      const validateRefs = (src: any) => {
+        const entityIds = new Set<string>(Object.keys(src.entities ?? {}));
+        const npcIds = new Set<string>(src.npcs ? Object.keys(src.npcs) : (src.npcs ?? []).map((n: any) => n.id));
+        const factionNames = new Set<string>((src.factions ?? []).map((f: any) => f.name));
+        for (const [key, e] of Object.entries(src.lore ?? {})) {
+          for (const t of ((e as any).triggers ?? [])) {
+            if (typeof t === "string" && /^(npc|entity):/.test(t)) {
+              const id = t.split(":")[1];
+              if (!npcIds.has(id) && !entityIds.has(id)) failures.push(`lore.${key}.triggers: ${t} references missing npc/entity`);
+            }
+          }
         }
+        for (const th of (src.gm_context?.active_threads ?? [])) {
+          for (const f of (th.faction_refs ?? [])) if (!factionNames.has(f)) failures.push(`gm_context.active_threads: faction ${f} not present`);
+        }
+        for (const rel of (src.relationships ?? [])) {
+          for (const t of [rel.source, rel.target]) if (t && !entityIds.has(t) && !npcIds.has(t) && !factionNames.has(t)) failures.push(`relationships: ${t} not present`);
+        }
+        const rooms = new Set<string>(Object.keys(src.world?.rooms ?? {}));
+        for (const [, room] of Object.entries(src.world?.rooms ?? {})) {
+          for (const target of Object.values((room as any).exits ?? {})) if (typeof target === "string" && !rooms.has(target)) failures.push(`world.rooms.${(room as any).name}.exits: ${target} not present`);
+        }
+        const cdNames = new Set<string>(Object.keys(src.countdowns ?? {}));
+        for (const [name, cd] of Object.entries(src.countdowns ?? {})) {
+          for (const c of (cd as any).clocks ?? []) {
+            for (const o of [...(c.opposes ?? []), ...(c.unlocks ?? [])]) if (!cdNames.has(o)) failures.push(`countdowns.${name}.clock: references ${o} not present`);
+          }
+        }
+      };
+      validateRefs(flat);
+      const name = flat.name ?? manifest?.name ?? "unknown";
+      const slug = flat.slug ?? manifest?.slug ?? "—";
+      if (m === "dry-run") {
+        if (failures.length > 0) {
+          const report = `Dry-run: novel '${name}' (${slug}) — ${failures.length} reference failure(s):\n${failures.map(f => `  - ${f}`).join("\n")}`;
+          if (strictMode) return raw(`{"isError": false, "report": ${JSON.stringify(report)}}`);
+          return raw(report);
+        }
+        return ok(`Dry-run: novel '${name}' (${slug}) would be imported (valid manifest, no reference failures).`);
       }
+      const novel = requireNovel();
+      if (failures.length > 0) {
+        if (strictMode) return err("STATE_CONFLICT", `Import blocked by validation failures:\n${failures.map(f => `  - ${f}`).join("\n")}`);
+      }
+      if (m === "replace") {
+        const imported = importNovelJSON(flat);
+        applyNovelState(novel, imported);
+      } else if (m === "merge") {
+        const imported = importNovelJSON(flat);
+        for (const [id, ent] of imported.entities) if (!novel.entities.has(id)) novel.entities.set(id, ent);
+        for (const [id, npc] of imported.npcs) if (!novel.npcs.has(id)) novel.npcs.set(id, npc);
+        for (const [key, entry] of imported.lore) if (!novel.lore.has(key)) novel.lore.set(key, entry);
+        for (const c of imported.countdowns) if (!novel.countdowns.has(c[0])) novel.countdowns.set(c[0], c[1]);
+        for (const f of imported.factions) if (!novel.factions.some(x => x.name === f.name)) novel.factions.push(f);
+      }
+      state.saveNovel(novel);
+      if (failures.length > 0) return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}`);
+      return ok(`Novel '${name}' imported (${m} mode).`);
     }
-  };
-  validateRefs(flat);
-
-  const name = flat.name ?? manifest?.name ?? "unknown";
-  const slug = flat.slug ?? manifest?.slug ?? "—";
-
-  if (m === "dry-run") {
-    if (failures.length > 0) {
-      const report = `Dry-run: novel '${name}' (${slug}) — ${failures.length} reference failure(s):\n${failures.map(f => `  - ${f}`).join("\n")}`;
-      if (strictMode) return raw(`{"isError": false, "report": ${JSON.stringify(report)}}`);
-      return raw(report);
+    case "rename": {
+      requireGM();
+      const novel = requireNovel();
+      const oldSlug = novel.slug;
+      const newSlug = args.new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
+      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+      const oldBak = oldFile + ".bak";
+      if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
+      state.renameNovel(novel, newSlug);
+      return ok(`Novel renamed to '${novel.slug}'.`);
     }
-    return ok(`Dry-run: novel '${name}' (${slug}) would be imported (valid manifest, no reference failures).`);
-  }
-
-  const novel = requireNovel();
-
-  if (failures.length > 0) {
-    if (strictMode) {
-      return err("STATE_CONFLICT", `Import blocked by validation failures:\n${failures.map(f => `  - ${f}`).join("\n")}`);
+    case "description": {
+      requireGM();
+      const novel = requireNovel();
+      novel.description = args.description ?? "";
+      state.saveNovel(novel);
+      audit("update_novel_description", { description: (args.description ?? "").substring(0, 120) });
+      return ok(args.description ? `Novel description updated.` : "Novel description cleared.");
     }
-    // Non-strict: surface as warnings but proceed.
+    case "list": {
+      const arch = state.archivedNovels();
+      const archivedSlugs = new Set(arch.map((a) => a.slug));
+      const active = [...state.novels.entries()].filter(([, n]) => !archivedSlugs.has(n.slug));
+      const mode = args.filter ?? "active";
+      const rows = mode === "archived"
+        ? arch
+        : active.filter(([, n]) => (mode === "all" ? true : !archivedSlugs.has(n.slug))).map(([slug, n]) => {
+            if (args.detail) return { slug, name: n.name, entities: n.entities.size, npcs: n.npcs.size, lore: n.lore.size, world_rooms: n.world.rooms.size, modified: n.metadata.modified };
+            return { slug, name: n.name, entities: n.entities.size, modified: n.metadata.modified };
+          });
+      return raw(JSON.stringify(rows, null, 2));
+    }
+    case "archive": {
+      requireGM();
+      if (state.activeNovelId === args.slug) state.activeNovelId = null;
+      state.archiveNovel(args.slug);
+      audit("archive_novel", { slug: args.slug });
+      return ok(`Novel '${args.slug}' archived (read-only).`);
+    }
+    case "unarchive": {
+      requireGM();
+      state.unarchiveNovel(args.slug);
+      audit("unarchive_novel", { slug: args.slug });
+      return ok(`Novel '${args.slug}' restored from archive.`);
+    }
+    case "info": {
+      const novel = args.slug ? state.novels.get(args.slug) : state.activeNovel;
+      if (!novel) return err("NOT_FOUND", `Novel '${args.slug || "none"}' not found.`);
+      return raw(JSON.stringify({
+        slug: novel.slug, name: novel.name, ruleset: novel.ruleset, description: novel.description, genre: novel.genre,
+        entities: novel.entities.size, npcs: novel.npcs.size, lore: novel.lore.size,
+        world_rooms: novel.world.rooms.size, world_things: novel.world.things.size,
+        factions: novel.factions.length, vows: novel.vows.length,
+        scene: novel.scene_description ? novel.scene_description.substring(0, 100) : null,
+        created: novel.metadata.created, modified: novel.metadata.modified,
+        codex_sources: novel.codex_sources ?? [],
+      }, null, 2));
+    }
+    case "genre": {
+      requireGM();
+      const novel = requireNovel();
+      if (!GENRE_CATALOG.includes(args.genre)) return err("INVALID_INPUT", `Unknown genre '${args.genre}'. Valid: ${GENRE_CATALOG.join(", ")}.`);
+      novel.genre = args.genre;
+      state.saveNovel(novel);
+      audit("set_genre", { genre: args.genre });
+      return ok(`Genre set to '${args.genre}'.`);
+    }
+    case "clone": {
+      requireGM();
+      const source = state.novels.get(args.source_slug);
+      if (!source) return err("NOT_FOUND", `Source novel '${args.source_slug}' not found.`);
+      const slug = args.new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const clone = JSON.parse(JSON.stringify(novelToJSONState(source)));
+      clone.slug = slug;
+      clone.name = args.new_name;
+      clone.metadata.created = new Date().toISOString();
+      clone.metadata.modified = new Date().toISOString();
+      const novel = loadNovelFromStateData(clone);
+      state.novels.set(slug, novel);
+      state.saveNovel(novel);
+      return ok(`Cloned '${args.source_slug}' as '${slug}'.`);
+    }
+    case "save_context": {
+      requireGM();
+      const novel = requireNovel();
+      const f = {
+        current_scene: args.current_scene, immediate_situation: args.immediate_situation,
+        pending_player_action: args.pending_player_action, short_term_plans: args.short_term_plans,
+        long_term_plans: args.long_term_plans, player_goals: args.player_goals,
+        faction_clocks: novel.factions.map(x => ({ name: x.name, clock: x.clock, clock_max: x.clock_max, status: x.status })),
+        countdown_positions: [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total })),
+        npc_dispositions: [...novel.npcs.values()].map(n => ({ name: n.name, disposition: n.disposition, location: n.location })),
+        relationships: novel.relationships,
+        story_context: novel.story_journal.slice(-3).map(s => s.entry),
+        active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
+      };
+      novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
+      state.recordMutation(novel, "set_pause_context", "context");
+      state.saveNovel(novel);
+      return ok("Pause context saved.");
+    }
+    case "get_context": {
+      const novel = requireNovel();
+      return raw(JSON.stringify({
+        gm_context: novel.gm_context,
+        novel_slug: novel.slug,
+        scene: novel.scene_description,
+        world_rooms: novel.world.rooms.size,
+        npcs: novel.npcs.size,
+        active_vows: novel.vows.filter(v => v.state === "active"),
+      }, null, 2));
+    }
+    case "checkpoint_set": {
+      requireGM();
+      const novel = requireNovel();
+      novel.checkpoints.push({ label: args.label, timestamp: new Date().toISOString(), state: JSON.parse(JSON.stringify(novelToJSONState(novel))) });
+      state.saveNovel(novel);
+      return ok(`Checkpoint '${args.label}' saved.`);
+    }
+    case "checkpoint_list": {
+      requireGM();
+      const novel = requireNovel();
+      return raw(JSON.stringify(novel.checkpoints.map(c => ({ label: c.label, timestamp: c.timestamp })), null, 2));
+    }
+    case "checkpoint_restore": {
+      requireGM();
+      const novel = requireNovel();
+      if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+      const cp = novel.checkpoints.find(c => c.label === args.label);
+      if (!cp) return err("NOT_FOUND", `Checkpoint '${args.label}' not found.`);
+      novel.pending_workflow = {
+        decision: `restore_checkpoint:${args.label}`,
+        snapshot: state.captureWorkflowSnapshot(novel),
+        payload: { label: args.label, state: cp.state },
+      };
+      state.saveNovel(novel);
+      return needInput(`Decision: -restore_checkpoint-
+Question: Restore checkpoint "${args.label}"? This reverts the Novel to that snapshot.
+Options: yes, cancel`);
+    }
+    case "checkpoint_remove": {
+      requireGM();
+      const novel = requireNovel();
+      const idx = novel.checkpoints.findIndex(c => c.label === args.label);
+      if (idx === -1) return err("NOT_FOUND", `Checkpoint '${args.label}' not found.`);
+      novel.checkpoints.splice(idx, 1);
+      state.saveNovel(novel);
+      return ok(`Checkpoint '${args.label}' removed.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown novel action '${args.action}'.`);
   }
-
-  if (m === "replace") {
-    const imported = importNovelJSON(flat);
-    applyNovelState(novel, imported);
-  } else if (m === "merge") {
-    // Merge entities, NPCs, and lore by id/key, skipping duplicates (REQ-096f).
-    const imported = importNovelJSON(flat);
-    for (const [id, ent] of imported.entities) if (!novel.entities.has(id)) novel.entities.set(id, ent);
-    for (const [id, npc] of imported.npcs) if (!novel.npcs.has(id)) novel.npcs.set(id, npc);
-    for (const [key, entry] of imported.lore) if (!novel.lore.has(key)) novel.lore.set(key, entry);
-    for (const c of imported.countdowns) if (!novel.countdowns.has(c[0])) novel.countdowns.set(c[0], c[1]);
-    for (const f of imported.factions) if (!novel.factions.some(x => x.name === f.name)) novel.factions.push(f);
-  }
-
-  state.saveNovel(novel);
-  if (failures.length > 0) {
-    return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}`);
-  }
-  return ok(`Novel '${name}' imported (${m} mode).`);
-});
-
-// --- Enrichment ---
-
-server.registerTool("revert_synthesis", {
-  title: "Revert Synthesis",
-  description: "Remove all synthesis state, restoring pre-synthesis server state (Game Master only). Use when: discarding generated synthesis content wholesale. Do NOT use when: deactivating a single item — use deactivate_synthesis_item.",
-  inputSchema: {},
-}, async () => {
-  requireGM();
-  const novel = requireNovel();
-  state.enriched = false;
-  state.enrichmentManifest = null;
-  state.saveNovel(novel);
-  return ok("Enrichment state reverted. Server state restored to pre-enrich baseline.");
 });
 
 // --- Anchor-only tools (ruleset-free, REQ-218) ---
 
-server.registerTool("search_rules", {
-  title: "Search Rules",
-  description: "Search the active ruleset's index for matching terms, returning empty when no ruleset is bound. Use when: looking up a rule, item, or concept in the ruleset. Do NOT use when: the Novel is ruleset-free — use suggest_actions or spec_health.",
-  inputSchema: { query: z.string().describe("The search query."), max_results: z.number().optional().describe("Optional maximum number of results.") },
-}, async ({ query, max_results }: any) => {
-  const novel = state.activeNovel;
-  const slug = novel?.ruleset ?? null;
-  if (slug && rulesets.isInstalled(slug)) {
-    const hits = rulesets.search(slug, String(query), max_results ?? 10);
-    if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${query}'.`);
-    // REQ-061 source quoting + REQ-280 source_anchor per result; REQ-113 —
-    // count reporting; REQ-004 — truncation of oversized payloads.
-    const total = rulesets.search(slug, String(query), 100000).length;
-    const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2) + sourceBlock(h)).join("\n");
-    return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
-  }
-  if (rulesets.installedSlugs().length > 0) {
-    return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via bind_novel_ruleset, or create a Novel with create_novel(ruleset: "...").`);
-  }
-  return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
-});
-
-server.registerTool("install_ruleset", {
-  title: "Install Ruleset",
-  description: "Install a ruleset package from a files bundle, persisting it to the install directory (Game Master or Editor only). Use when: adding a ruleset to the host. Do NOT use when: removing a ruleset — use remove_ruleset.",
-  inputSchema: { slug: z.string().describe("The ruleset slug."), manifest: z.any().describe("The package manifest."), index: z.any().optional().describe("Optional search index."), model: z.any().optional().describe("Optional extraction model."), tools: z.any().optional().describe("Optional tool schemas."), resources: z.any().optional().describe("Optional resources."), prompts: z.any().optional().describe("Optional prompts.") },
+// Ruleset (REQ-057, REQ-058, REQ-059, REQ-216, REQ-218, REQ-379, REQ-390, REQ-391) — consolidated search/install/
+// remove/list/bind surface.
+server.registerTool("ruleset", {
+  title: "Ruleset",
+  description: "Manage ruleset packages and lookup. Use when: searching a bound ruleset's index, or installing, removing, listing, or binding a ruleset. Do NOT use when: the Novel is ruleset-free — use command (action: suggest) or session (action: health).",
+  inputSchema: {
+    action: z.enum(["search", "install", "remove", "list", "bind", "roll"]).describe("search, install, remove, list, bind, or roll."),
+    query: z.string().optional().describe("Search query (search)."),
+    max_results: z.number().optional().describe("Maximum results (search)."),
+    slug: z.string().optional().describe("Ruleset slug (install/remove/bind)."),
+    manifest: z.any().optional().describe("Package manifest (install)."),
+    index: z.any().optional().describe("Search index (install)."),
+    model: z.any().optional().describe("Extraction model (install)."),
+    tools: z.any().optional().describe("Tool schemas (install)."),
+    resources: z.any().optional().describe("Resources (install)."),
+    prompts: z.any().optional().describe("Prompts (install)."),
+    table: z.string().optional().describe("Generation table to roll on (roll)."),
+    seed: z.string().optional().describe("Deterministic seed (roll)."),
+  },
 }, async (args: any) => {
-  requireGM();
-  try {
-    const pkg = rulesets.installPackage(args.slug, {
-      manifest: args.manifest,
-      index: args.index ?? [],
-      model: args.model ?? {},
-      tools: args.tools ?? [],
-      resources: args.resources ?? [],
-      prompts: args.prompts ?? [],
-    });
-    return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
-  } catch (e: any) {
-    return err("STATE_CONFLICT", e.message);
-  }
-});
-
-server.registerTool("remove_ruleset", {
-  title: "Remove Ruleset",
-  description: "Remove an installed ruleset package, deregistering its tools, resources, and prompts (Game Master or Editor only). Use when: uninstalling a ruleset. Do NOT use when: listing rulesets — use list_rulesets.",
-  inputSchema: { slug: z.string().describe("The ruleset slug to remove.") },
-}, async ({ slug }: any) => {
-  requireGM();
-  const novel = state.activeNovel;
-  if (novel && novel.ruleset === slug) {
-    return err("STATE_CONFLICT", `Cannot remove ruleset '${slug}' while Novel '${novel.slug}' is bound to it.`);
-  }
-  try {
-    rulesets.removePackage(slug);
-    return ok(`Ruleset '${slug}' removed.`);
-  } catch (e: any) {
-    return err("STATE_CONFLICT", e.message);
-  }
-});
-
-server.registerTool("list_rulesets", {
-  title: "List Rulesets",
-  description: "List installed ruleset packages with loaded-versus-installed state. Use when: reviewing which rulesets the host knows. Do NOT use when: installing a ruleset — use install_ruleset.",
-  // REQ-391 — scoped tool listing: default surface is active Novel's ruleset
-  // tools plus infrastructure; list_rulesets exposes per-package state without
-  // forcing hydration of inactive packages (REQ-390 lazy hydration).
-  inputSchema: {},
-}, async () => {
-  const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
-    slug: pkg.slug,
-    name: pkg.manifest.name,
-    host_version: pkg.manifest.host_version,
-    built_at: pkg.manifest.built_at,
-    state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
-  }));
-  return raw(JSON.stringify(list, null, 2));
-});
-
-server.registerTool("bind_novel_ruleset", {
-  title: "Bind Novel Ruleset",
-  description: "Bind the active ruleset-free Novel to an installed ruleset, a one-way, audited migration (Game Master or Editor only). Use when: adding mechanical rules to a freeform Novel. Do NOT use when: removing a ruleset — use remove_ruleset.",
-  inputSchema: { slug: z.string().describe("The installed ruleset slug to bind.") },
-}, async ({ slug }: any) => {
-  requireGM();
-  if (!rulesets.isInstalled(slug)) {
-    return err("INVALID_INPUT", `Ruleset '${slug}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
-  }
-  try {
-    const novel = state.bindNovelRuleset(slug);
-    rulesets.hydrate(slug);
-    return ok(`Novel '${novel.slug}' bound to ruleset '${slug}'.`);
-  } catch (e: any) {
-    return err("STATE_CONFLICT", e.message);
-  }
-});
-
-server.registerTool("suggest_actions", {
-  title: "Suggest Actions",
-  description: "Map player intent to world-model tool invocations, omitting mechanical suggestions in ruleset-free mode. Use when: translating natural-language intent into concrete tool calls. Do NOT use when: resolving a spatial action directly — use command or resolve_intent.",
-  inputSchema: { intent: z.string().describe("The player intent to map to tool calls."), entity_id: z.string().optional().describe("Optional entity context.") },
-}, async ({ intent, entity_id }: any) => {
-  const novel = requireNovel();
-  const entity = entity_id ? novel.entities.get(entity_id) : state.getActiveEntity();
-  const name = entity?.name ?? "entity";
-  // On ruleset-bound Novels the Player spatial intent routes through
-  // resolve_intent (REQ-309b); the parser is never surfaced to the Player.
-  const rulesetBound = !!novel.ruleset;
-  const badge = getBadge();
-  const useResolveIntent = rulesetBound && badge !== "game_master";
-  const spatialTool = useResolveIntent ? "resolve_intent" : "command";
-  const intentLower = intent.toLowerCase();
-
-  // REQ-343 — unified intent resolution grouped by domain: mechanical, spatial, social.
-  const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
-
-  if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
-    domains.spatial.push(`${spatialTool}("look")`, `command("examine <thing>")`);
-  }
-  if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel") || intentLower.includes("sneak")) {
-    domains.spatial.push(`${spatialTool}("go <direction>")`);
-  }
-  if (intentLower.includes("take") || intentLower.includes("grab") || intentLower.includes("get")) {
-    domains.spatial.push(`command("take <thing>")`);
-  }
-  if (intentLower.includes("open") || intentLower.includes("unlock")) {
-    domains.spatial.push(`command("open <door>")`);
-  }
-  if (intentLower.includes("fight") || intentLower.includes("attack")) {
-    domains.mechanical.push("init_combat (GM only, auto-advance mode)");
-  }
-  // Social intents — persuasion, convincing, negotiation; resolved against NPC
-  // dispositions and the caller entity's relationships (REQ-343c).
-  if (intentLower.includes("convince") || intentLower.includes("persuade") || intentLower.includes("talk") || intentLower.includes("negotiate") || intentLower.includes("intimidate")) {
-    for (const [, npc] of novel.npcs) {
-      domains.social.push(`${npc.name} (disposition: ${npc.disposition ?? "neutral"}) — skill check with persuasion`);
+  switch (args.action) {
+    case "search": {
+      const novel = state.activeNovel;
+      const slug = novel?.ruleset ?? null;
+      if (slug && rulesets.isInstalled(slug)) {
+        const hits = rulesets.search(slug, String(args.query), args.max_results ?? 10);
+        if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
+        const total = rulesets.search(slug, String(args.query), 100000).length;
+        const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2) + sourceBlock(h)).join("\n");
+        return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
+      }
+      if (rulesets.installedSlugs().length > 0) {
+        return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via ruleset (action: bind), or create a Novel with novel (action: create, ruleset: "...").`);
+      }
+      return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
     }
-    for (const r of novel.relationships) {
-      if (r.entity_a === (entity?.id ?? "") || r.entity_b === (entity?.id ?? "")) {
-        domains.social.push(`relationship (${r.type}) with ${r.entity_a === entity?.id ? r.entity_b : r.entity_a}`);
+    case "install": {
+      requireGM();
+      try {
+        const pkg = rulesets.installPackage(args.slug, {
+          manifest: args.manifest, index: args.index ?? [], model: args.model ?? {},
+          tools: args.tools ?? [], resources: args.resources ?? [], prompts: args.prompts ?? [],
+        });
+        return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
+      } catch (e: any) {
+        return err("STATE_CONFLICT", e.message);
       }
     }
+    case "remove": {
+      requireGM();
+      const novel = state.activeNovel;
+      if (novel && novel.ruleset === args.slug) {
+        return err("STATE_CONFLICT", `Cannot remove ruleset '${args.slug}' while Novel '${novel.slug}' is bound to it.`);
+      }
+      try {
+        rulesets.removePackage(args.slug);
+        return ok(`Ruleset '${args.slug}' removed.`);
+      } catch (e: any) {
+        return err("STATE_CONFLICT", e.message);
+      }
+    }
+    case "list": {
+      const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
+        slug: pkg.slug, name: pkg.manifest.name, host_version: pkg.manifest.host_version,
+        built_at: pkg.manifest.built_at, state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
+      }));
+      return raw(JSON.stringify(list, null, 2));
+    }
+    case "bind": {
+      requireGM();
+      if (!rulesets.isInstalled(args.slug)) {
+        return err("INVALID_INPUT", `Ruleset '${args.slug}' is not installed. Valid rulesets: ${rulesets.installedSlugs().join(", ") || "(none)"}.`);
+      }
+      try {
+        const novel = state.bindNovelRuleset(args.slug);
+        rulesets.hydrate(args.slug);
+        return ok(`Novel '${novel.slug}' bound to ruleset '${args.slug}'.`);
+      } catch (e: any) {
+        return err("STATE_CONFLICT", e.message);
+      }
+    }
+    case "roll": {
+      const novel = state.activeNovel;
+      const slug = novel?.ruleset ?? null;
+      if (!slug || !rulesets.isInstalled(slug)) {
+        return err("NOT_FOUND", "No random generation tables in this ruleset (ruleset-free). Corrective action: bind a ruleset whose package defines generation tables.");
+      }
+      const model = rulesets.hydrate(slug).model as any;
+      const tables = model.generation_tables ?? {};
+      const key = Object.keys(tables).find(k => k.toLowerCase() === String(args.table).toLowerCase());
+      if (!key) {
+        const valid = Object.keys(tables);
+        return err("NOT_FOUND", `Table '${args.table}' not found. Valid tables: ${valid.join(", ") || "(none)"}.`);
+      }
+      const entry = tables[key];
+      if (entry?.badge_scope === "game_master" && getBadge() === "player") {
+        return err("FORBIDDEN", `Table '${key}' is Game Master only. Corrective action: use badge_briefing to list tables your badge can access, or switch badges with set_badge.`);
+      }
+      const rng = args.seed ? createRng(args.seed) : createRng(String(sessionRoll(1000000000)));
+      const roll = entry.dice_expression ? rollDice(entry.dice_expression, String(rng.roll(1000000000))).total : rng.roll(100);
+      const range = (entry.ranges ?? []).find((r: any) => roll >= r.min && roll <= r.max);
+      if (!range) {
+        return warn(`Roll ${roll} on ${entry.dice_expression ?? "d100"} matched no range in table '${key}'.`);
+      }
+      return ok(`Table: ${key}\nDice: ${entry.dice_expression ?? "d100"}\nRoll: ${roll}\nRange: ${range.min}-${range.max}\nResult: ${range.result}`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown ruleset action '${args.action}'. Valid actions: search, install, remove, list, bind, roll.`);
   }
-
-  if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
-    domains.spatial.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
-  }
-
-  const blocks: string[] = [];
-  if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
-  if (domains.spatial.length) blocks.push(`Spatial:\n${domains.spatial.map((s) => `  - ${s}`).join("\n")}`);
-  if (domains.social.length) blocks.push(`Social:\n${domains.social.map((s) => `  - ${s}`).join("\n")}`);
-  return ok(`Actions for ${name}:\n${blocks.join("\n")}`);
 });
 
 // REQ-022 resource URI catalog — presence is reported against this fixed list.
@@ -5257,12 +4819,10 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "constraints://active", title: "Constraint Overrides" },
 ];
 
-// REQ-025 — spec_health reports build health, indexed counts, and URI completeness.
-server.registerTool("spec_health", {
-  title: "Spec Health",
-  description: "Report build health, indexed counts, and resource URI completeness derived from live registrations. Use when: diagnosing server or ruleset state. Do NOT use when: searching ruleset content — use search_rules.",
-  inputSchema: {},
-}, async () => {
+// REQ-025 — spec health reports build health, indexed counts, and URI completeness.
+// Extracted as a named function so the consolidated `session` tool's `health`
+// action reuses it directly.
+function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
   const isGM = badge === "game_master" || badge === "none";
@@ -5396,10 +4956,20 @@ server.registerTool("spec_health", {
       data_corruption: "online",
       unrecoverable_crash: isGM ? "unverified" : undefined,
     },
-    // REQ-408, REQ-410, REQ-411, REQ-409 — token/efficiency contracts.
+    // REQ-408 (amended), REQ-410, REQ-411, REQ-409 — token/efficiency contracts.
+    // Per-action ceiling (REQ-413): action-discriminator tools are evaluated on
+    // their required-per-action parameters, not the union of optional fields.
     parameter_ceiling: PARAMETER_CEILING,
-    parameter_ceiling_exceeded: Object.values(cachedMetadata().toolParameterCounts).some((n) => n > PARAMETER_CEILING),
+    parameter_ceiling_exceeded: (() => {
+      const meta = cachedMetadata();
+      for (const [name, count] of Object.entries(meta.toolParameterCounts)) {
+        const effective = meta.actionToolNames.has(name) ? (meta.toolRequiredParamCounts[name] ?? count) : count;
+        if (effective > PARAMETER_CEILING) return true;
+      }
+      return false;
+    })(),
     tool_parameter_counts: cachedMetadata().toolParameterCounts,
+    tool_required_param_counts: cachedMetadata().toolRequiredParamCounts,
     tools_list_bytes: cachedMetadata().toolsListBytes,
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
@@ -5470,8 +5040,8 @@ server.registerTool("spec_health", {
     } catch { /* ignore unreadable fingerprint */ }
   }
 
-  return raw(JSON.stringify(health, null, 2));
-});
+  return health;
+}
 
 // ── Resources ──────────────────────────────────────────────────────
 
@@ -5961,151 +5531,125 @@ server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel
 
 // ── Additional tools (REQ-307, REQ-213/214, REQ-321, REQ-103, REQ-239) ──
 
-server.registerTool("set_party_presence", {
-  title: "Set Party Presence",
-  description: "Declare which entities are present in the current scene. Use when: the GM needs to override party presence without altering other scene fields. Do NOT use when: setting scene description — use set_scene_state.",
-  inputSchema: { entity_ids: z.array(z.string()).describe("The entities present in the current scene."), location: z.string().optional().describe("Optional location override.") },
-}, async ({ entity_ids, location }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  novel.characters_present_ids = entity_ids;
-  state.saveNovel(novel);
-  return ok(`Party presence set: ${entity_ids.join(", ") || "(none)"}.`);
-});
-
 // REQ-212/213 — generation-table rolling against the bound ruleset's weighted tables.
-server.registerTool("roll_on_table", {
-  title: "Roll On Table",
-  description: "Roll on a generation table from the bound ruleset. Use when: resolving a random-generation table (names, treasure, events). Do NOT use when: resolving a fixed lookup — use a lookup tool.",
-  inputSchema: { table: z.string().describe("The generation table to roll on."), seed: z.string().optional().describe("Optional deterministic seed.") },
-}, async ({ table, seed }: any) => {
-  const novel = state.activeNovel;
-  const slug = novel?.ruleset ?? null;
-  if (!slug || !rulesets.isInstalled(slug)) {
-    return err("NOT_FOUND", "No random generation tables in this ruleset (ruleset-free). Corrective action: bind a ruleset whose package defines generation tables.");
-  }
-  const model = rulesets.hydrate(slug).model as any;
-  const tables = model.generation_tables ?? {};
-  const key = Object.keys(tables).find(k => k.toLowerCase() === String(table).toLowerCase());
-  if (!key) {
-    const valid = Object.keys(tables);
-    return err("NOT_FOUND", `Table '${table}' not found. Valid tables: ${valid.join(", ") || "(none)"}.`);
-  }
-  const entry = tables[key];
-  // REQ-216 — generation table badge filtering: tables with `badge_scope:
-  // "game_master"` return [FORBIDDEN] under the Player badge, enumerating the
-  // table name without revealing content, directing to badge_briefing for a
-  // non-revealing list of accessible tables.
-  if (entry?.badge_scope === "game_master" && getBadge() === "player") {
-    return err("FORBIDDEN", `Table '${key}' is Game Master only. Corrective action: use badge_briefing to list tables your badge can access, or switch badges with set_badge.`);
-  }
-  const rng = seed ? createRng(seed) : createRng(String(sessionRoll(1000000000)));
-  const roll = entry.dice_expression ? rollDice(entry.dice_expression, String(rng.roll(1000000000))).total : rng.roll(100);
-  const range = (entry.ranges ?? []).find((r: any) => roll >= r.min && roll <= r.max);
-  if (!range) {
-    return warn(`Roll ${roll} on ${entry.dice_expression ?? "d100"} matched no range in table '${key}'.`);
-  }
-  return ok(`Table: ${key}\nDice: ${entry.dice_expression ?? "d100"}\nRoll: ${roll}\nRange: ${range.min}-${range.max}\nResult: ${range.result}`);
-});
-
-// Codex tools (REQ-321)
-server.registerTool("codex_set", {
-  title: "Set Codex Entry",
-  description: "Create or update a typed codex entry that persists across Novels. Use when: storing reusable content (NPCs, factions, rooms, spells, etc.) for later import. Do NOT use when: storing Novel-scoped content — use set_lore_entry or set_note.",
-  inputSchema: { kind: z.string().describe("The codex entry kind."), name: z.string().describe("The entry name."), content: z.any().describe("The entry content."), description: z.string().optional().describe("Optional description."), tags: z.array(z.string()).optional().describe("Optional tags."), visibility: z.enum(["library", "shared", "private"]).optional().describe("library, shared, or private.") },
-}, async ({ kind, name, content, description, tags, visibility }: any) => {
-  requireGM();
-  const id = `${kind.toLowerCase()}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
-  const now = new Date().toISOString();
-  const existing = state.codex.get(id);
-  const entry: any = {
-    id, kind, name, content,
-    description: description ?? existing?.description,
-    tags: tags ?? existing?.tags ?? [],
-    visibility: visibility ?? existing?.visibility ?? "library",
-    imported_at: existing?.imported_at ?? now,
-    codex_modified_at: now,
-  };
-  state.codex.set(id, entry);
-  state.saveCodex();
-  return ok(`Codex entry '${id}' stored (visibility: ${entry.visibility}).`);
-});
-
-server.registerTool("codex_list", {
-  title: "List Codex Entries",
-  description: "List codex entries by kind, badge-filtered by visibility. Use when: discovering reusable content to import. Do NOT use when: listing Novel entities — use list_notes or list_stories.",
-  inputSchema: { kind: z.string().optional().describe("Optional kind filter.") },
-}, async ({ kind }: any) => {
-  const badge = getBadge();
-  let entries = [...state.codex.values()];
-  if (kind) entries = entries.filter(e => e.kind === kind);
-  entries = entries.filter(e => badge === "game_master" || badge === "none" || e.visibility === "shared" || e.visibility === "library");
-  return raw(JSON.stringify(entries.map(e => ({ id: e.id, kind: e.kind, name: e.name, visibility: e.visibility, tags: e.tags })), null, 2));
-});
-
-// REQ-347 — voice feedback codex capture: store an entity's corrected voice
-// profile as a `voice_profile` Codex entry.
-server.registerTool("codex_capture", {
-  title: "Capture to Codex",
-  description: "Capture an entity's voice profile to the Codex. Use when: persisting a character's corrected voice across Novels. Do NOT use when: storing Novel-scoped lore — use set_lore_entry.",
-  inputSchema: { kind: z.enum(["voice_profile"]).describe("The codex kind (voice_profile)."), entity_id: z.string().describe("The entity whose voice to capture."), update_source: z.boolean().optional().describe("When true, update the source entity too.") },
-}, async ({ kind, entity_id, update_source }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const entity = novel.entities.get(entity_id);
-  if (!entity) return err("NOT_FOUND", `Entity '${entity_id}' not found.`);
-  const id = `voice_profile_${entity_id.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
-  const corrected = (entity.voice_examples ?? []).filter((v: any) => v.tag === "player-corrected").map((v: any) => ({ corrected_text: v.dialogue, context: v.context }));
-  const entry: any = {
-    id, kind: "voice_profile", name: entity.name,
-    content: { corrected_text: corrected, original_text: [], source_novel: novel.slug, background: entity.personality?.background },
-    visibility: "library",
-    imported_at: new Date().toISOString(), codex_modified_at: new Date().toISOString(),
-    update_source: !!update_source,
-  };
-  state.codex.set(id, entry);
-  state.saveCodex();
-  return ok(`Voice profile '${id}' captured to Codex.`);
-});
-
-// REQ-347/352 — import a Codex entry into the active Novel.
-server.registerTool("codex_import", {
-  title: "Import from Codex",
-  description: "Import a Codex entry into the active Novel. Use when: pulling reusable content (voice profiles, adventures) in. Do NOT use when: reading the Codex — use codex_list.",
-  inputSchema: { entry_id: z.string().describe("The codex entry identifier to import.") },
-}, async ({ entry_id }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const entry = state.codex.get(entry_id);
-  if (!entry) return err("NOT_FOUND", `Codex entry '${entry_id}' not found.`);
-  const now = new Date().toISOString();
-  // REQ-332 — codex provenance: track every Codex-sourced artifact with the
-  // entry id, import timestamp, and the entry's codex_modified_at at import.
-  const provenance = { id: entry.id, kind: entry.kind, imported_at: now, codex_modified_at: entry.codex_modified_at ?? now };
-  if (entry.kind === "voice_profile") {
-    const name = (entry.name ?? entry_id).toLowerCase();
-    const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || novel.entities.get(id)!.name.toLowerCase() === name) ?? [...novel.entities.keys()].find((id) => id.includes(entry_id.replace("voice_profile_", "")));
-    if (targetId) {
-      const target = novel.entities.get(targetId)!;
-      if (!target.voice_examples) target.voice_examples = [];
-      for (const v of (entry.content as any)?.corrected_text ?? []) {
-        target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
+// Codex (REQ-321, REQ-332, REQ-347, REQ-352) — consolidated tool with an `action` discriminator covering
+// the full persisted-object lifecycle: set (create/update), list, get, capture,
+// import, and delete. Replaces the former codex_set/codex_list/codex_capture/
+// codex_import tools and adds the spec-required codex_info/codex_delete surface
+// (REQ-321 completeness; previously a gap flagged by the coverage audit).
+server.registerTool("codex", {
+  title: "Codex",
+  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use lore (action: set) or note (action: set).",
+  inputSchema: {
+    action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (voice profile), import (into active Novel), or delete."),
+    kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
+    name: z.string().optional().describe("Entry name (for set)."),
+    entry_id: z.string().optional().describe("Entry identifier (for get/import/delete)."),
+    content: z.any().optional().describe("Entry content (for set)."),
+    description: z.string().optional().describe("Optional description (for set)."),
+    tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
+    visibility: z.enum(["library", "shared", "private"]).optional().describe("library, shared, or private (for set)."),
+    entity_id: z.string().optional().describe("Entity whose voice to capture (for capture)."),
+    update_source: z.boolean().optional().describe("When true, update the source entity too (for capture)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "set": {
+      requireGM();
+      const { kind, name, content, description, tags, visibility } = args;
+      const id = `${String(kind).toLowerCase()}_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+      const now = new Date().toISOString();
+      const existing = state.codex.get(id);
+      const entry: any = {
+        id, kind, name, content,
+        description: description ?? existing?.description,
+        tags: tags ?? existing?.tags ?? [],
+        visibility: visibility ?? existing?.visibility ?? "library",
+        imported_at: existing?.imported_at ?? now,
+        codex_modified_at: now,
+      };
+      state.codex.set(id, entry);
+      state.saveCodex();
+      return ok(`Codex entry '${id}' stored (visibility: ${entry.visibility}).`);
+    }
+    case "list": {
+      const badge = getBadge();
+      let entries = [...state.codex.values()];
+      if (args.kind) entries = entries.filter((e: any) => e.kind === args.kind);
+      entries = entries.filter((e: any) => badge === "game_master" || badge === "none" || e.visibility === "shared" || e.visibility === "library");
+      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, visibility: e.visibility, tags: e.tags })), null, 2));
+    }
+    case "get": {
+      const entry = state.codex.get(args.entry_id);
+      if (!entry) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
+      return raw(JSON.stringify(entry, null, 2));
+    }
+    case "capture": {
+      // REQ-347 — voice feedback codex capture: store an entity's corrected
+      // voice profile as a `voice_profile` Codex entry.
+      requireGM();
+      const novel = requireNovel();
+      const entity = novel.entities.get(args.entity_id);
+      if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      const id = `voice_profile_${String(args.entity_id).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+      const corrected = (entity.voice_examples ?? []).filter((v: any) => v.tag === "player-corrected").map((v: any) => ({ corrected_text: v.dialogue, context: v.context }));
+      const entry: any = {
+        id, kind: "voice_profile", name: entity.name,
+        content: { corrected_text: corrected, original_text: [], source_novel: novel.slug, background: entity.personality?.background },
+        visibility: "library",
+        imported_at: new Date().toISOString(), codex_modified_at: new Date().toISOString(),
+        update_source: !!args.update_source,
+      };
+      state.codex.set(id, entry);
+      state.saveCodex();
+      return ok(`Voice profile '${id}' captured to Codex.`);
+    }
+    case "import": {
+      // REQ-347/352 — import a Codex entry into the active Novel.
+      requireGM();
+      const novel = requireNovel();
+      const entry = state.codex.get(args.entry_id);
+      if (!entry) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
+      const now = new Date().toISOString();
+      // REQ-332 — codex provenance: track every Codex-sourced artifact with the
+      // entry id, import timestamp, and the entry's codex_modified_at at import.
+      const provenance = { id: entry.id, kind: entry.kind, imported_at: now, codex_modified_at: entry.codex_modified_at ?? now };
+      if (entry.kind === "voice_profile") {
+        const name = (entry.name ?? args.entry_id).toLowerCase();
+        const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || novel.entities.get(id)!.name.toLowerCase() === name) ?? [...novel.entities.keys()].find((id) => id.includes(String(args.entry_id).replace("voice_profile_", "")));
+        if (targetId) {
+          const target = novel.entities.get(targetId)!;
+          if (!target.voice_examples) target.voice_examples = [];
+          for (const v of (entry.content as any)?.corrected_text ?? []) {
+            target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
+          }
+          target.codex_source = provenance;
+        }
+      } else if (entry.kind === "adventure") {
+        const suggested = (entry.content as any)?.suggested_beats;
+        if (Array.isArray(suggested)) {
+          novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const, codex_source: provenance })));
+          novel.adventure_set = true;
+        }
       }
-      target.codex_source = provenance;
+      if (!novel.codex_sources) novel.codex_sources = [];
+      const existingIdx = novel.codex_sources.findIndex((s) => s.id === entry.id);
+      if (existingIdx >= 0) novel.codex_sources[existingIdx] = provenance;
+      else novel.codex_sources.push(provenance);
+      state.saveNovel(novel);
+      return ok(`Codex entry '${args.entry_id}' imported.`);
     }
-  } else if (entry.kind === "adventure") {
-    const suggested = (entry.content as any)?.suggested_beats;
-    if (Array.isArray(suggested)) {
-      novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const, codex_source: provenance })));
-      novel.adventure_set = true;
+    case "delete": {
+      // REQ-321 — codex_delete: remove a Codex entry (previously absent).
+      requireGM();
+      if (!state.codex.has(args.entry_id)) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
+      state.codex.delete(args.entry_id);
+      state.saveCodex();
+      return ok(`Codex entry '${args.entry_id}' deleted.`);
     }
+    default:
+      return err("INVALID_INPUT", `Unknown codex action '${args.action}'. Valid actions: set, list, get, capture, import, delete.`);
   }
-  if (!novel.codex_sources) novel.codex_sources = [];
-  const existingIdx = novel.codex_sources.findIndex((s) => s.id === entry.id);
-  if (existingIdx >= 0) novel.codex_sources[existingIdx] = provenance;
-  else novel.codex_sources.push(provenance);
-  state.saveNovel(novel);
-  return ok(`Codex entry '${entry_id}' imported.`);
 });
 
 // Synthesis tools (REQ-103, REQ-260-263)
@@ -6113,140 +5657,132 @@ server.registerTool("codex_import", {
 // player-facing module subset; active immediately; per-module cap of 15;
 // private scope supported; GM cannot modify them.
 const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementary_guidance", "narrative_voices", "lore_templates"];
-server.registerTool("player_synthesize", {
-  title: "Player Synthesize",
-  description: "Create a player-authored synthesis item (Player badge only), persisting it to the Novel. Use when: the player wants to add their own lore or voice content. Do NOT use when: the GM is synthesizing — use synthesize.",
-  inputSchema: { module: z.string().describe("The synthesis module."), key: z.string().describe("The item key."), content: z.string().describe("The item content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["shared", "player"]).optional().describe("shared or player.") },
-}, async ({ module, key, content, triggers, badge_scope }: any) => {
-  requirePlayer();
-  const novel = requireNovel();
-  if (!PLAYER_SYNTH_MODULES.includes(module)) return err("INVALID_INPUT", `Module '${module}' is not a player synthesis module. Valid: ${PLAYER_SYNTH_MODULES.join(", ")}.`);
-  novel.player_synthesis = novel.player_synthesis ?? {};
-  const items = novel.player_synthesis[module] ?? [];
-  if (items.length >= 15) return err("STATE_CONFLICT", "Player synthesis per-module cap (15) reached.");
-  if (items.some((i: any) => i.key === key)) return err("STATE_CONFLICT", `Item '${key}' already exists in module '${module}'.`);
-  items.push({ key, content, triggers, badge_scope: badge_scope ?? "shared", created_at: new Date().toISOString() });
-  novel.player_synthesis[module] = items;
-  state.saveNovel(novel);
-  audit("player_synthesize", { module, key });
-  return ok(`Player synthesis item '${key}' created in '${module}' (active immediately).`);
-});
-
-server.registerTool("player_remove_synthesis", {
-  title: "Player Remove Synthesis",
-  description: "Remove a player-authored synthesis item (Player badge only), persisting the removal. Use when: the player discards their own synthesis content. Do NOT use when: deactivating an item without deleting it — use deactivate_synthesis_item.",
-  inputSchema: { module: z.string().describe("The synthesis module."), key: z.string().describe("The item key to remove.") },
-}, async ({ module, key }: any) => {
-  requirePlayer();
-  const novel = requireNovel();
-  const items = (novel.player_synthesis ?? {})[module] ?? [];
-  const idx = items.findIndex((i: any) => i.key === key);
-  if (idx === -1) return err("RULE_VIOLATION", `Item '${key}' is not a player-authored item in '${module}'.`);
-  items.splice(idx, 1);
-  novel.player_synthesis[module] = items;
-  state.saveNovel(novel);
-  return ok(`Player synthesis item '${key}' removed.`);
-});
-
-server.registerTool("player_list_synthesis", {
-  title: "Player List Synthesis",
-  description: "List player-authored synthesis items (Player badge only). Use when: reviewing the player's own synthesis content. Do NOT use when: listing all synthesis items — use list_synthesis_items.",
-  inputSchema: { module: z.string().optional().describe("Optional module filter.") },
-}, async ({ module }: any) => {
-  requirePlayer();
-  const novel = requireNovel();
-  const ps = novel.player_synthesis ?? {};
-  const flat = Object.entries(ps).flatMap(([m, items]) => (module && m !== module ? [] : (items as any[]).map((i) => ({ module: m, key: i.key, preview: i.content.slice(0, 60), scope: i.badge_scope, activated: true }))));
-  if (flat.length === 0) return ok("[No player synthesis items.]");
-  return raw(JSON.stringify(flat, null, 2));
-});
-
-server.registerTool("synthesize", {
-  title: "Synthesize",
-  description: "Run synthesis against the active Novel's state and vendor content. Use when: generating voice examples, lore templates, and action patterns from Novel and vendor sources. Do NOT use when: editing mechanical fields — synthesis is additive only.",
-  // REQ-262 — synthesis tool: Novel-state analysis producing [supplementary]
-  // items with novel:// source URIs; fingerprint staleness + force bypass.
-  // REQ-264 — confidence model: explicit-field items carry MEDIUM, inferred
-  // items LOW, tagged [supplementary] [MEDIUM|LOW].
-  inputSchema: { force: z.boolean().optional().describe("When true, re-run synthesis even if unchanged.") },
-}, async ({ force }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (state.enriched && !force) {
-    return ok(`Synthesis up to date (${state.enrichmentManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
+// Synthesis (REQ-103, REQ-115, REQ-231, REQ-260, REQ-261, REQ-262, REQ-263, REQ-264) — consolidated run/revert/list/activate/
+// deactivate/toggle/player_add/player_remove/player_list surface.
+server.registerTool("synthesis", {
+  title: "Synthesis",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other enrichment). Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use codex (action: list).",
+  inputSchema: {
+    action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, or player_list."),
+    module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list)."),
+    key: z.union([z.string(), z.number()]).optional().describe("Item key (activate: number; player_add/player_remove: string)."),
+    content: z.string().optional().describe("Item content (player_add)."),
+    triggers: z.array(z.string()).optional().describe("Recall triggers (player_add)."),
+    badge_scope: z.enum(["shared", "player"]).optional().describe("shared or player (player_add)."),
+    enabled: z.boolean().optional().describe("Enable or disable (toggle)."),
+    force: z.boolean().optional().describe("Re-run even if unchanged (run)."),
+    detail: z.boolean().optional().describe("Return full entries (list)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "run": {
+      requireGM();
+      const novel = requireNovel();
+      if (state.enriched && !args.force) {
+        return ok(`Synthesis up to date (${state.enrichmentManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
+      }
+      state.enriched = true;
+      state.enrichmentManifest = DEFAULT_ENRICHMENT;
+      state.saveNovel(novel);
+      const counts = synthesisModuleCounts();
+      return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
+    }
+    case "revert": {
+      requireGM();
+      const novel = requireNovel();
+      state.enriched = false;
+      state.enrichmentManifest = null;
+      state.saveNovel(novel);
+      return ok("Enrichment state reverted. Server state restored to pre-enrich baseline.");
+    }
+    case "list": {
+      const manifest = state.enrichmentManifest;
+      if (!manifest) return ok("No synthesis items (synthesis not run).");
+      const all = [
+        ...(manifest.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest.lore_templates ?? []).map((i: any) => ({ module: "lore_templates", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest.action_patterns ?? []).map((i: any) => ({ module: "action_patterns", tag: i.tag ?? "vendor", content: i.intent, badge_scope: "game_master" })),
+        ...(manifest.supplementary_guidance ?? []).map((i: any) => ({ module: "supplementary_guidance", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
+      ];
+      const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
+      if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
+      const summary = filtered.map((i: any) => ({ module: i.module, tag: i.tag, badge_scope: i.badge_scope, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+      return raw(JSON.stringify(summary, null, 2));
+    }
+    case "activate": {
+      requireGM();
+      const novel = requireNovel();
+      if (!state.enriched) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run synthesis (action: run) first.");
+      const activated = novel.synthesis_activated ?? {};
+      activated[args.module] = args.key;
+      novel.synthesis_activated = activated;
+      state.saveNovel(novel);
+      return ok(`Synthesis module '${args.module}' activated (${args.key} items).`);
+    }
+    case "deactivate": {
+      requireGM();
+      const novel = requireNovel();
+      const activated = novel.synthesis_activated ?? {};
+      delete activated[args.module];
+      novel.synthesis_activated = activated;
+      state.saveNovel(novel);
+      return ok(`Synthesis module '${args.module}' deactivated.`);
+    }
+    case "toggle": {
+      requireGM();
+      const novel = requireNovel();
+      const MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
+      if (!MODULES.includes(args.module)) return err("INVALID_INPUT", `Unknown synthesis module '${args.module}'. Valid modules: ${MODULES.join(", ")}.`);
+      const m = novel.synthesis_module_enabled ?? {};
+      if (args.enabled) m[args.module] = true; else delete m[args.module];
+      novel.synthesis_module_enabled = m;
+      state.saveNovel(novel);
+      return ok(`Synthesis module '${args.module}' ${args.enabled ? "enabled" : "disabled"}.`);
+    }
+    case "player_add": {
+      requirePlayer();
+      const novel = requireNovel();
+      if (!PLAYER_SYNTH_MODULES.includes(args.module)) return err("INVALID_INPUT", `Module '${args.module}' is not a player synthesis module. Valid: ${PLAYER_SYNTH_MODULES.join(", ")}.`);
+      novel.player_synthesis = novel.player_synthesis ?? {};
+      const items = novel.player_synthesis[args.module] ?? [];
+      if (items.length >= 15) return err("STATE_CONFLICT", "Player synthesis per-module cap (15) reached.");
+      if (items.some((i: any) => i.key === args.key)) return err("STATE_CONFLICT", `Item '${args.key}' already exists in module '${args.module}'.`);
+      items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString() });
+      novel.player_synthesis[args.module] = items;
+      state.saveNovel(novel);
+      audit("player_synthesize", { module: args.module, key: args.key });
+      return ok(`Player synthesis item '${args.key}' created in '${args.module}' (active immediately).`);
+    }
+    case "player_remove": {
+      requirePlayer();
+      const novel = requireNovel();
+      const items = (novel.player_synthesis ?? {})[args.module] ?? [];
+      const idx = items.findIndex((i: any) => i.key === args.key);
+      if (idx === -1) return err("RULE_VIOLATION", `Item '${args.key}' is not a player-authored item in '${args.module}'.`);
+      items.splice(idx, 1);
+      novel.player_synthesis[args.module] = items;
+      state.saveNovel(novel);
+      return ok(`Player synthesis item '${args.key}' removed.`);
+    }
+    case "player_list": {
+      requirePlayer();
+      const novel = requireNovel();
+      const ps = novel.player_synthesis ?? {};
+      const flat = Object.entries(ps).flatMap(([m, items]) => (args.module && m !== args.module ? [] : (items as any[]).map((i) => ({ module: m, key: i.key, preview: i.content.slice(0, 60), scope: i.badge_scope, activated: true }))));
+      if (flat.length === 0) return ok("[No player synthesis items.]");
+      return raw(JSON.stringify(flat, null, 2));
+    }
+    case "toggle_action": {
+      requireGM();
+      const novel = requireNovel();
+      novel.action_patterns_enabled = !novel.action_patterns_enabled;
+      state.saveNovel(novel);
+      return ok(`Action patterns ${novel.action_patterns_enabled ? "enabled" : "disabled"}.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown synthesis action '${args.action}'.`);
   }
-  state.enriched = true;
-  state.enrichmentManifest = DEFAULT_ENRICHMENT;
-  state.saveNovel(novel);
-  const counts = synthesisModuleCounts();
-  return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
-});
-
-server.registerTool("list_synthesis_items", {
-  title: "List Synthesis Items",
-  description: "List synthesis items by module and tier. Use when: reviewing available synthesis content. Do NOT use when: browsing the codex — use codex_list.",
-  inputSchema: { module: z.string().optional().describe("Optional module filter."), ...detailZod },
-}, async ({ module, detail }: any) => {
-  const manifest = state.enrichmentManifest;
-  if (!manifest) return ok("No synthesis items (synthesis not run).");
-  const all = [
-    ...(manifest.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-    ...(manifest.lore_templates ?? []).map((i: any) => ({ module: "lore_templates", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-    ...(manifest.action_patterns ?? []).map((i: any) => ({ module: "action_patterns", tag: i.tag ?? "vendor", content: i.intent, badge_scope: "game_master" })),
-    ...(manifest.supplementary_guidance ?? []).map((i: any) => ({ module: "supplementary_guidance", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-    ...(manifest.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
-  ];
-  const filtered = module ? all.filter((i: any) => i.module === module) : all;
-  if (wantsDetail(detail)) return raw(JSON.stringify(filtered, null, 2));
-  const summary = filtered.map((i: any) => ({ module: i.module, tag: i.tag, badge_scope: i.badge_scope, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
-  return raw(JSON.stringify(summary, null, 2));
-});
-
-server.registerTool("activate_synthesis_item", {
-  title: "Activate Synthesis Item",
-  description: "Activate a synthesis item for the active Novel. Use when: incorporating synthesis content into play. Do NOT use when: deactivating — use deactivate_synthesis_item.",
-  inputSchema: { module: z.string().describe("The synthesis module."), key: z.number().describe("The item key to activate.") },
-}, async ({ module, key }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  if (!state.enriched) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run synthesize first.");
-  const activated = novel.synthesis_activated ?? {};
-  activated[module] = key;
-  novel.synthesis_activated = activated;
-  state.saveNovel(novel);
-  return ok(`Synthesis module '${module}' activated (${key} items).`);
-});
-
-server.registerTool("deactivate_synthesis_item", {
-  title: "Deactivate Synthesis Item",
-  description: "Deactivate a synthesis item for the active Novel. Use when: removing a synthesis item from play without deleting it. Do NOT use when: removing Ruleset Wisdom — use revert_synthesis.",
-  inputSchema: { module: z.string().describe("The synthesis module to deactivate.") },
-}, async ({ module }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  const activated = novel.synthesis_activated ?? {};
-  delete activated[module];
-  novel.synthesis_activated = activated;
-  state.saveNovel(novel);
-  return ok(`Synthesis module '${module}' deactivated.`);
-});
-
-server.registerTool("toggle_synthesis_module", {
-  title: "Toggle Synthesis Module",
-  description: "Enable or disable a synthesis module for the active Novel. Use when: controlling whether a module's content appears in surfaces. Do NOT use when: activating a single item — use activate_synthesis_item.",
-  inputSchema: { module: z.string().describe("The synthesis module."), enabled: z.boolean().describe("Whether to enable or disable it.") },
-}, async ({ module, enabled }: any) => {
-  requireGM();
-  const novel = requireNovel();
-  // REQ-231 — per-module synthesis toggle: module name validated; disabling
-  // suppresses items from all surfaces, items persist, re-enable restores.
-  const MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
-  if (!MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${MODULES.join(", ")}.`);
-  const m = novel.synthesis_module_enabled ?? {};
-  if (enabled) m[module] = true; else delete m[module];
-  novel.synthesis_module_enabled = m;
-  state.saveNovel(novel);
-  return ok(`Synthesis module '${module}' ${enabled ? "enabled" : "disabled"}.`);
 });
 
 
@@ -6296,7 +5832,7 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   if (!novel) {
     const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
     const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
-    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or create_novel to set up a new campaign.` } }] };
+    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or novel (action: create) to set up a new campaign.` } }] };
   }
 
   const badge = novel.badge;
@@ -6513,7 +6049,7 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
     if (badge === "game_master") {
       // REQ-400 — State-Persistence Directive (never-truncated tier).
       briefing += `\n\n### State persistence
-Commit every narratable change to state in the same turn you narrate it — scene changes (set_scene_state), mechanical outcomes (countdowns, conditions), disposition shifts (update_npc), and story beats (record_story).`;
+Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), and story beats (story, action: record).`;
 
       // REQ-401 — state_ledger decision-critical token (never-truncated).
       const ledgerLines = [
@@ -6530,7 +6066,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
     // REQ-407 — persist-tools never truncated: the GM scene-typed tool
       // section always lists the core state-persistence tools regardless of
       // scene type (scene, journal, countdown, note, personality, NPC, vow).
-      briefing += `\n\n### Persistence tools\nset_scene_state · record_story · set_countdown · set_note · set_personality · create_npc · set_vow`;
+      briefing += `\n\n### Persistence tools\nscene (set) · story (record) · countdown (set) · note (set) · character (personality) · npc (create) · vow (set)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.
@@ -6793,12 +6329,12 @@ from the live registry, not hardcoded strings.
 
 ## Intent to Tool Mapping
 
-- **Spatial / movement / inspection**: ${rulesetBound ? "resolve_intent, command (GM)" : "command (parser)"}
-- **Character creation / advancement**: create_character, import_character, set_active_entity
-- **Combat**: init_combat, advance_combat, end_combat
-- **World building**: ${catalog("world", ["convert_source", "create_room", "create_thing", "create_exit"])}
-- **Narrative / scene**: ${catalog("narrative", ["set_scene_state", "record_story", "set_narrative_directive"])}
-- **Lookup**: ${catalog("lookup", ["search_rules", "spec_health", "suggest_actions"])}
+- **Spatial / movement / inspection**: ${rulesetBound ? "command (action: resolve), command (GM)" : "command (parser)"}
+- **Character creation / advancement**: character (create/import/sheet/set_active)
+- **Combat**: combat (init/advance/end)
+- **World building**: world (create_room/create_thing/create_exit/convert)
+- **Narrative / scene**: scene (set/directive), story (record)
+- **Lookup**: ruleset (search), session (health), command (suggest)
 
 Select the tool whose registered action classification matches the intent.`;
   return { messages: [{ role: "user", content: { type: "text" as const, text } }] };

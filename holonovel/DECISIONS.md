@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 0dfc5b09b2167289de96d49da8aa115a99865f8d8869a72720831d79e1598a35
+**Spec hash:** afbd3e672981db2d321164344d3ae3f7e7003d685cc59656dbfb70cdb7792360
+
+### Holonovel Spec Update — 2026-09-02 (server-wide action-discriminator tool surface)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — REQ-408 amended (tool parameter ceiling evaluated per action for action-discriminator tools, not the union of optional fields) + new REQ-429 (server-wide action-discriminator surface: ≤25-tool catalog, one tool per persisted entity type, list/get/info/status/knowledge per type) + T477 rewritten + new T511. Implementation (`holonovel/src/index.ts`): consolidated the 127-tool surface to 25 action-discriminator tools (character, npc, world, combat, condition, faction, vow, countdown, relationship, lore, story, note, codex, novel, adventure, synthesis, ruleset, scene, session, command, help + set_badge/respond/undo/redo), folding the former per-operation tools (create_npc→npc create, set_lore_entry→lore set, session_recap/spec_health→session, resolve_intent/suggest_actions→command, secret→lore set_secret/reveal/knowledge, server_note→note set_server, pause/checkpoint→novel, roll_on_table→ruleset roll, toggle_action_patterns→synthesis toggle_action, etc.); added codex get/delete and update_room/update_thing (completeness); `spec_health` reports per-action `parameter_ceiling_exceeded` + `tool_required_param_counts`. Rewrote all twelve holonovel test harnesses to the new tool names. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 281, E 110); `validate:sdd --impl-audit=strict` 0 errors; typecheck 0 errors; `holonovel` test:all green (342 tests incl. new T511); live `tools/list` = 25 tools; `parameter_ceiling_exceeded` false under per-action rule |
 
 ### Holonovel Spec Update — 2026-09-02 (tool-definition quality + registry-published distribution)
 

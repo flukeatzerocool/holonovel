@@ -82,10 +82,10 @@ async function main() {
     const proc = await boot();
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await call(proc, "create_novel", { name: "gen", description: "generation test" });
+    await call(proc, "novel", { action: "create",  name: "gen", description: "generation test" });
 
     await test("T75: generate_adventure produces a full scaffold (title, overview, hook, locations, npcs, seeds)", async () => {
-      const out = await call(proc, "generate_adventure", { premise: "The goblin king demands tribute" });
+      const out = await call(proc, "adventure", { action: "generate",  premise: "The goblin king demands tribute" });
       assertContains(out, "goblin king demands tribute");
       assertContains(out, "Overview");
       assertContains(out, "Hook");
@@ -95,22 +95,22 @@ async function main() {
     });
 
     await test("T75: generated adventure is stored on the active Novel", async () => {
-      const ex = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      const ex = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
       if (!ex.novel.generated_adventure) throw new Error("generated_adventure not stored on Novel");
       assertContains(JSON.stringify(ex.novel.generated_adventure), "goblin king");
     });
 
     await test("T75: regenerate with same premise replaces (deterministic)", async () => {
-      const a = await call(proc, "generate_adventure", { premise: "The dragon hoard" });
-      const b = await call(proc, "generate_adventure", { premise: "The dragon hoard" });
+      const a = await call(proc, "adventure", { action: "generate",  premise: "The dragon hoard" });
+      const b = await call(proc, "adventure", { action: "generate",  premise: "The dragon hoard" });
       if (a !== b) throw new Error("identical premise should yield identical scaffold (regeneration replaces)");
     });
 
     await test("T367: generate_adventure target=codex with no Novel active", async () => {
-      await call(proc, "end_novel", { dispose: "yes" });
-      const out = await call(proc, "generate_adventure", { premise: "The dragon hoard", target: "codex" });
+      await call(proc, "novel", { action: "end",  dispose: "yes" });
+      const out = await call(proc, "adventure", { action: "generate",  premise: "The dragon hoard", target: "codex" });
       assertContains(out, "Codex adventure");
-      const list = JSON.parse(await call(proc, "codex_list", { kind: "adventure" }));
+      const list = JSON.parse(await call(proc, "codex", { action: "list",  kind: "adventure" }));
       if (!Array.isArray(list) || !list.some((e: any) => e.kind === "adventure")) throw new Error(`expected codex adventure entry, got ${JSON.stringify(list)}`);
     });
 
@@ -118,7 +118,7 @@ async function main() {
       await kill(proc);
       const proc2 = await boot();
       await call(proc2, "set_badge", { badge: "game_master" });
-      const list = JSON.parse(await call(proc2, "codex_list", { kind: "adventure" }));
+      const list = JSON.parse(await call(proc2, "codex", { action: "list",  kind: "adventure" }));
       if (!Array.isArray(list) || !list.some((e: any) => e.kind === "adventure")) throw new Error("codex adventure did not survive restart");
       await kill(proc2);
     });
@@ -127,10 +127,10 @@ async function main() {
   {
     const proc = await boot();
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "create_novel", { name: "enc", description: "encounter test" });
+    await call(proc, "novel", { action: "create",  name: "enc", description: "encounter test" });
 
     await test("T76: generate_encounter produces scene + NPC + lore as a batch", async () => {
-      const out = await call(proc, "generate_encounter", { context: "dark alley" });
+      const out = await call(proc, "adventure", { action: "generate_encounter",  context: "dark alley" });
       assertContains(out, "Scene");
       assertContains(out, "NPC");
       assertContains(out, "Complication");
@@ -138,7 +138,7 @@ async function main() {
     });
 
     await test("T76: the batch created an NPC and a lore entry", async () => {
-      const ex = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      const ex = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
       const npcCount = Object.keys(ex.novel.npcs).length;
       const loreKeys = Object.keys(ex.novel.lore);
       if (npcCount < 1) throw new Error(`expected >=1 NPC, got ${npcCount}`);
@@ -146,19 +146,19 @@ async function main() {
     });
 
     await test("T76: undo rolls back scene + NPC + lore as one target", async () => {
-      const exBefore = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      const exBefore = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
       const npcsBefore = Object.keys(exBefore.novel.npcs).length;
       const loreBefore = Object.keys(exBefore.novel.lore).length;
-      await call(proc, "generate_encounter", { context: "second alley" });
+      await call(proc, "adventure", { action: "generate_encounter",  context: "second alley" });
       await call(proc, "undo", {});
-      const exAfter = JSON.parse(await call(proc, "export_novel", { format: "json" }));
+      const exAfter = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
       if (Object.keys(exAfter.novel.npcs).length !== npcsBefore) throw new Error(`undo did not restore npc count (${npcsBefore} → ${Object.keys(exAfter.novel.npcs).length})`);
       if (Object.keys(exAfter.novel.lore).length !== loreBefore) throw new Error(`undo did not restore lore count (${loreBefore} → ${Object.keys(exAfter.novel.lore).length})`);
     });
 
     await test("T76: Player badge attempt returns [FORBIDDEN]", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const out = await call(proc, "generate_encounter", { context: "lamp" });
+      const out = await call(proc, "adventure", { action: "generate_encounter",  context: "lamp" });
       assertContains(out, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
     });

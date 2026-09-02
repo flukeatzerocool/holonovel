@@ -523,13 +523,8 @@ live `tools/list` registry.
 _Check:_ T3, T35.
 
 **REQ-408 — Tool parameter ceiling.**
-No advertised tool SHALL expose more parameters than a ceiling recorded at build time in
-DECISIONS.md; inputs beyond the ceiling move to a refinement or retrieval call rather than
-inflating a single definition. The ceiling applies to infrastructure and ruleset-derived
-tools alike, and the per-tool parameter count SHALL be recoverable from `spec_health`.
-*Acceptance criterion:* No advertised tool exceeds the recorded ceiling; a tool whose
-operation needs more inputs splits into a compact entry call plus a refinement path;
-`spec_health` exposes each tool's parameter count. _Check:_ T477.
+No advertised tool SHALL expose more parameters than a ceiling recorded at build time in DECISIONS.md; inputs beyond the ceiling move to a refinement or retrieval call. For an action-discriminator tool (REQ-413), the ceiling is evaluated per action — against what a single action requires, not the union of optional fields. The ceiling applies to infrastructure and ruleset-derived tools alike; per-tool and per-action counts SHALL be recoverable from `spec_health`.
+*Acceptance criterion:* No tool exceeds the recorded ceiling (per-action for action-discriminator tools); an operation needing more inputs splits into a compact entry call plus a refinement path; `spec_health` reports per-tool and per-action parameter counts. _Check:_ T477.
 
 **REQ-413 — Action-discriminator tool surface.**
 When the builder determines that a group of operations shares a domain but not a common
@@ -3617,6 +3612,9 @@ The distribution SHALL expose a documented entry point — `migrate-user-data` �
 
 **REQ-428 — Registry-published distribution.**
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
+
+**REQ-429 — Server-wide action-discriminator surface.**
+The server SHALL expose one action-discriminator tool per persisted entity type (REQ-413) instead of a sibling tool per operation. The registered catalog SHALL stay within a recorded budget of at most twenty-five tools. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on its entity tool. Tool names SHALL be uniform, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` returns at most twenty-five tools, and every persisted type has read and enumeration actions. _Check:_ T511.
 
 ### 5.19 State Persistence Guardrails
 

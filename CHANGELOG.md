@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-02 — Server-wide action-discriminator tool surface
+
+- Consolidated the 127-tool server surface to 25 action-discriminator tools —
+  one per persisted entity type — for a 5/5 Glama TDQS tool-count score:
+  `character`, `npc`, `world`, `combat`, `condition`, `faction`, `vow`,
+  `countdown`, `relationship`, `lore`, `story`, `note`, `codex`, `novel`,
+  `adventure`, `synthesis`, `ruleset`, `scene`, `session`, `command`, `help`,
+  plus `set_badge`/`respond`/`undo`/`redo`. Former per-operation tools fold in
+  as actions (e.g. `create_npc`→`npc` create, `set_lore_entry`→`lore` set,
+  `session_recap`/`spec_health`→`session`, `resolve_intent`/`suggest_actions`→
+  `command`, `secret`→`lore`, `server_note`→`note`, `pause`/`checkpoint`→
+  `novel`, `roll_on_table`→`ruleset`, `toggle_action_patterns`→`synthesis`).
+- Added the missing completeness surfaces: `codex` get/delete,
+  `world` update_room/update_thing, and list/get/status/knowledge actions for
+  every persisted type.
+- Amended REQ-408: the tool parameter ceiling is now evaluated per action for
+  action-discriminator tools (REQ-413), not the union of optional fields;
+  `spec_health` reports per-action `parameter_ceiling_exceeded` and
+  `tool_required_param_counts`. Added REQ-429 (server-wide action-discriminator
+  surface, ≤25-tool budget) + T511; rewrote T477.
+- Rewrote all twelve `holonovel/scripts` test harnesses to the new tool names;
+  added the T511 catalog assertion to `test-tool-definitions.ts`.
+
 ## 2026-09-02 — Tool-definition quality + registry-published distribution
 
 - Added REQ-427 (tool parameter semantics): every advertised tool SHALL describe
