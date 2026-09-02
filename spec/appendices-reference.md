@@ -1118,6 +1118,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-426b | Tool-UI linkage (Part b) | 2026-09-01 |
 | REQ-426c | MCP Apps capability negotiation (Part c) | 2026-09-01 |
 | REQ-426d | UI resource security (Part d) | 2026-09-01 |
+| REQ-427 | Tool parameter semantics | 2026-09-02 |
+| REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1645,6 +1647,8 @@ diet.
 | T506 | Automated | Ruleset-declared format: install a fixture package declaring an additional format — assert it renders on package-defined surfaces, appears in the surface's `[INVALID_INPUT]` enumeration and in `spec_health`; request an undeclared format — assert `[INVALID_INPUT]`. | REQ-425d |
 | T507 | Automated | MCP Apps UI surface: negotiate the extension — assert `ui://` templates for stat-block, codex, lore, and Novel surfaces return `text/html;profile=mcp-app` matching the artifact's `html` render; `character_sheet` result carries `ui://` linkage metadata; every `ui://` resource declares no external origins in CSP metadata. | REQ-426a, REQ-426b, REQ-426c, REQ-426d |
 | T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
+| T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
+| T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 
 ---
 

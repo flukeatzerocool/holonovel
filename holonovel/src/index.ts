@@ -76,7 +76,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.09.01",
+  version: "2026.09.02",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -499,7 +499,10 @@ function terseOutput(tool: string, args: any, normal: string, terse: string): an
 
 // REQ-409 — normalize the per-call detail request: absent → summary (lean
 // default); explicit `true` → full entries; explicit `false` → summary.
-const detailZod = { detail: z.boolean().optional() };
+// REQ-427 — every advertised input parameter carries a JSON Schema description
+// (verified by T509); REQ-024 — three-clause tool descriptions ("Use when" /
+// "Do NOT use when").
+const detailZod = { detail: z.boolean().optional().describe("When true, return full schema and description instead of a summary.") };
 function wantsDetail(detail?: boolean): boolean {
   return detail === true;
 }
@@ -1267,8 +1270,8 @@ function badgeLabel(badge: Badge): string {
 // context; REQ-305 — observer mode: read-only spectator, AI plays both roles.
 server.registerTool("set_badge", {
   title: "Set Active Badge",
-  description: "Switch active badge: player, game_master, observer, or none (Editor). Always callable.",
-  inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]) },
+  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond.",
+  inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]).describe("The badge to activate: player, game_master, observer, or none (Editor).") },
 }, async ({ badge }) => {
   const novel = state.activeNovel;
   if (novel) {
@@ -1292,8 +1295,8 @@ function canon(text: string): string {
 
 server.registerTool("respond", {
   title: "Respond to Workflow Decision",
-  description: "Respond to a pending workflow decision.",
-  inputSchema: { decision: z.string(), option: z.string() },
+  description: "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
+  inputSchema: { decision: z.string().describe("The canonical decision text the workflow is waiting on."), option: z.string().describe("The chosen option, or 'cancel' to abort the workflow and restore its snapshot.") },
 }, async ({ decision, option }) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1512,7 +1515,7 @@ function kwMatch(canonicalDecision: string, keywords: string[]): boolean {
 
 server.registerTool("undo", {
   title: "Undo",
-  description: "Undo the most recent mutation. Restores previous snapshot.",
+  description: "Undo the most recent state mutation, restoring the prior per-badge snapshot. Use when: reverting a mistaken or unwanted change. Do NOT use when: re-applying an undone change — use redo.",
   inputSchema: {},
 }, async () => {
   requireNotObserver();
@@ -1526,7 +1529,7 @@ server.registerTool("undo", {
 
 server.registerTool("redo", {
   title: "Redo",
-  description: "Redo the most recently undone mutation.",
+  description: "Re-apply the most recently undone mutation, restoring the per-badge snapshot that undo removed. Use when: an undo was issued by mistake and the change should be restored. Do NOT use when: reverting a new change — use undo.",
   inputSchema: {},
 }, async () => {
   requireNotObserver();
@@ -1540,8 +1543,8 @@ server.registerTool("redo", {
 
 server.registerTool("help", {
   title: "Help and Tool Discovery",
-  description: "Show available commands and tools. Accepts optional query for focused search.",
-  inputSchema: { query: z.string().optional() },
+  description: "Show the available tools grouped by category, badge-filtered for the active badge. Use when: the caller needs to discover what tools exist or find one by keyword. Do NOT use when: reading the current badge's guidance — use the badge_briefing prompt.",
+  inputSchema: { query: z.string().optional().describe("Optional search term matched against tool name, description, and title.") },
 }, async ({ query }: any) => {
   // REQ-024 — tool documentation: tools carry a human title and descriptions
   // using the ruleset's own terms; full descriptions remain at resources/read.
@@ -1614,8 +1617,8 @@ server.registerTool("help", {
 
 server.registerTool("set_help_category", {
   title: "Set Help Category Override",
-  description: "Override the builder-assigned category for a tool. Game Master only. Set category to empty string or null to restore defaults.",
-  inputSchema: { tool_name: z.string(), category: z.string().nullable() },
+  description: "Override the builder-assigned category a tool appears under in help output, persisted to the Novel (Game Master only). Use when: reorganizing the tool catalog for a session. Do NOT use when: setting briefing section order — use set_briefing_order.",
+  inputSchema: { tool_name: z.string().describe("The registered tool name to reassign."), category: z.string().nullable().describe("The new category label, or null/empty to restore the builder default.") },
 }, async ({ tool_name, category }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -1708,30 +1711,10 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 
 server.registerTool("create_character", {
    title: "Create Character",
-   description: "Create a character. Quick-create: pass name, species, classes. Step-by-step: call with no params to begin a guided [NEED_INPUT] workflow.",
+   description: "Create a character via quick-create (name, species, classes) or a guided [NEED_INPUT] step-by-step workflow when called without a name, persisting the entity to the Novel. Use when: introducing a new player character or NPC. Do NOT use when: modifying an existing entity — use set_personality, set_voice_examples, or set_active_entity.",
    // REQ-408 — parameter ceiling (8): compact entry (name + identity + source)
    // with mechanical and personality detail grouped into refinement objects.
-   inputSchema: {
-     name: z.string().optional(),
-     species: z.string().optional(),
-     classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional(),
-     stat_method: z.string().optional(),
-     seed: z.string().optional(),
-     stage_to_roster: z.boolean().optional(),
-     personality: z.object({
-       description: z.string().optional(),
-       voice: z.string().optional(),
-       background: z.string().optional(),
-       goals: z.string().optional(),
-     }).optional(),
-     details: z.object({
-       ability_scores: z.union([z.string(), z.array(z.number())]).optional(),
-       skills: z.union([z.string(), z.array(z.string())]).optional(),
-       feats: z.union([z.string(), z.array(z.string())]).optional(),
-       talents: z.union([z.string(), z.array(z.string())]).optional(),
-       equipment: z.union([z.string(), z.array(z.string())]).optional(),
-     }).optional(),
-   },
+   inputSchema: { name: z.string().optional().describe("The character's name; omit to begin the step-by-step creation workflow."), species: z.string().optional().describe("The species name; required for quick-create."), classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional().describe("Class levels as 'Class 5 / Other 2' or an array of {className, levels}."), stat_method: z.string().optional().describe("The stat-generation method; defaults to the ruleset's first method."), seed: z.string().optional().describe("Deterministic seed for ability-score generation."), stage_to_roster: z.boolean().optional().describe("When true, also stage the entity into the persistent roster."), personality: z.object({ description: z.string().optional().describe("Narrative description."), voice: z.string().optional().describe("Voice and speech pattern."), background: z.string().optional().describe("Backstory."), goals: z.string().optional().describe("Character goals.") }).optional().describe("Grouped personality fields."), details: z.object({ ability_scores: z.union([z.string(), z.array(z.number())]).optional().describe("Ability scores as '15 14 13 12 10 8' or an array."), skills: z.union([z.string(), z.array(z.string())]).optional().describe("Trained skills."), feats: z.union([z.string(), z.array(z.string())]).optional().describe("Feats."), talents: z.union([z.string(), z.array(z.string())]).optional().describe("Talents."), equipment: z.union([z.string(), z.array(z.string())]).optional().describe("Starting equipment.") }).optional().describe("Grouped mechanical details.") },
 }, async ({ name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment }: any) => {
     // Legacy-tolerant normalization: accept the grouped objects or their
     // top-level spellings interchangeably.
@@ -1839,8 +1822,8 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
 
 server.registerTool("stage_character", {
   title: "Stage Character to Roster",
-  description: "Stage an existing novel entity into the persistent roster for later import.",
-  inputSchema: { entity_id: z.string().optional() },
+  description: "Stage an existing Novel entity into the persistent roster, so it survives the Novel and can be imported elsewhere. Use when: persisting a character for reuse in another Novel. Do NOT use when: importing a roster character into the Novel — use import_character.",
+  inputSchema: { entity_id: z.string().optional().describe("The entity to stage; defaults to the active entity.") },
 }, async ({ entity_id }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1854,8 +1837,8 @@ server.registerTool("stage_character", {
 
 server.registerTool("import_character", {
   title: "Import Character",
-  description: "Import a roster character into the active novel.",
-  inputSchema: { roster_id: z.string() },
+  description: "Import a roster character into the active Novel, copying name, personality, voice examples, and inventory. Use when: bringing a staged character into play. Do NOT use when: persisting a Novel entity to the roster — use stage_character.",
+  inputSchema: { roster_id: z.string().describe("The roster identifier to import.") },
 }, async ({ roster_id }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1868,16 +1851,13 @@ server.registerTool("import_character", {
 
 server.registerTool("character_sheet", {
   title: "Character Sheet",
-  description: "Render a character sheet for an entity. Formats: markdown (default), json, html, ascii.",
+  description: "Render a character sheet for an entity or NPC in markdown (default), json, html, or ascii. Use when: the caller needs the full mechanical or profile view of a character. Do NOT use when: creating or editing a character — use create_character or set_personality.",
   // REQ-120 — NPC rendering via the same sheet mechanism; REQ-124 — NPC damage
   // resolution targets NPCs by identifier; REQ-129 — property group cardinality.
   // REQ-425a/b — the `format` selector is drawn from the output format catalog
   // (STATBLOCK_FORMATS) and validated at call time; REQ-426b — the result
   // carries `ui://` linkage metadata when the Apps extension is negotiated.
-  inputSchema: {
-    entity_id: z.string().optional(),
-    format: z.string().optional(),
-  },
+  inputSchema: { entity_id: z.string().optional().describe("The entity or NPC to render; defaults to the active entity."), format: z.string().optional().describe("Output format: markdown (default), json, html, or ascii.") },
 }, async ({ entity_id, format }: any) => {
   const entity = resolveEntityOrNpc(entity_id);
   if (!entity) return err("NOT_FOUND", `Entity or NPC '${entity_id || "none"}' not found. Corrective action: list entities with party://current or NPCs with npcs://.`);
@@ -1898,8 +1878,8 @@ server.registerTool("character_sheet", {
 
 server.registerTool("set_active_entity", {
   title: "Set Active Entity",
-  description: "Set the currently active entity.",
-  inputSchema: { entity_id: z.string(), pov: z.enum(["character", "omniscient"]).optional() },
+  description: "Set the currently active entity and, optionally, the point-of-view mode (character or omniscient), persisting the choice to the Novel. Use when: switching which character the Player inhabits. Do NOT use when: changing the acting badge — use set_badge.",
+  inputSchema: { entity_id: z.string().describe("The entity to make active."), pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode for the active entity.") },
 }, async ({ entity_id, pov }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1912,19 +1892,13 @@ server.registerTool("set_active_entity", {
 
 server.registerTool("set_personality", {
   title: "Set Entity or NPC Personality",
-  description: "Set narrative personality fields for an entity or NPC.",
+  description: "Set narrative personality fields for an entity or NPC, persisting the most recent write across all read surfaces. Use when: defining how a character speaks, thinks, or what they want. Do NOT use when: setting dialogue examples — use set_voice_examples.",
   // REQ-127 — ruleset-native personality mapping (set_personality description
   // references ruleset-native construct names when a ruleset defines them);
   // REQ-165 — entity ownership gating (Player for own entities, GM for all);
   // REQ-166 — personality briefing rendering (fields surfaced in badge_briefing
   // alongside stats); REQ-122 — NPC narrative fields (NPC identifiers accepted).
-  inputSchema: {
-    entity_id: z.string(),
-    description: z.string().optional(),
-    voice: z.string().optional(),
-    background: z.string().optional(),
-    goals: z.string().optional(),
-  },
+  inputSchema: { entity_id: z.string().describe("The entity or NPC to update."), description: z.string().optional().describe("Narrative description."), voice: z.string().optional().describe("Voice and speech pattern."), background: z.string().optional().describe("Backstory."), goals: z.string().optional().describe("Character goals.") },
 }, async ({ entity_id, description, voice, background, goals }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1951,13 +1925,10 @@ server.registerTool("set_personality", {
 
 server.registerTool("set_voice_examples", {
   title: "Set Voice Examples",
-  description: "Set voice and dialogue examples for an entity or NPC.",
+  description: "Set voice and dialogue examples for an entity or NPC, rendered ahead of trait descriptions to show rather than tell. Use when: giving the narrator concrete lines to imitate. Do NOT use when: setting abstract personality traits — use set_personality.",
   // REQ-126 — voice examples render ahead of trait descriptions in prompts
   // (show-don't-tell); REQ-077f — the primary dialogue-consistency mechanism.
-  inputSchema: {
-    entity_id: z.string(),
-    examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })),
-  },
+  inputSchema: { entity_id: z.string().describe("The entity or NPC to update."), examples: z.array(z.object({ context: z.string().describe("When the line was spoken."), dialogue: z.string().describe("The example line."), tag: z.string().optional().describe("Optional tag.") })).describe("Voice and dialogue examples.") },
 }, async ({ entity_id, examples }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -1972,11 +1943,8 @@ server.registerTool("set_voice_examples", {
 // REQ-069 — player feedback signal to the GM.
 server.registerTool("player_signal", {
   title: "Player Signal",
-  description: "Send a narrative signal from the player to the GM.",
-  inputSchema: {
-    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]),
-    value: z.string(),
-  },
+  description: "Send a narrative feedback signal from the Player to the GM (Player badge only), recording it to the Novel and correcting the entity's voice examples when the signal is voice_feedback. Use when: the player wants to steer pacing, difficulty, tone, focus, or set a boundary. Do NOT use when: making a game action — use command or a mechanical tool.",
+  inputSchema: { signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).describe("The feedback category."), value: z.string().describe("The feedback text.") },
 }, async ({ signal, value }: any) => {
   requirePlayer();
   const novel = requireNovel();
@@ -2005,13 +1973,8 @@ server.registerTool("player_signal", {
 
 server.registerTool("set_autonomy", {
   title: "Adjustable Autonomy",
-  description: "Set the AI autonomy sliders for the active Novel. level: full/mechanical_prompt/manual; confirmation: auto/confirm/prompt; safety: safe/moderate/hardcore; creativity: predictable/standard/chaotic. Game Master only.",
-  inputSchema: {
-    level: z.enum(["full", "mechanical_prompt", "manual"]).optional(),
-    confirmation: z.enum(["auto", "confirm", "prompt"]).optional(),
-    safety: z.enum(["safe", "moderate", "hardcore"]).optional(),
-    creativity: z.enum(["predictable", "standard", "chaotic"]).optional(),
-  },
+  description: "Set the AI autonomy sliders for the active Novel (level, confirmation, safety, creativity), persisting them and escalating safety raises through a confirmation workflow (Game Master only). Use when: tuning how much the AI auto-plays. Do NOT use when: switching the acting badge — use set_badge.",
+  inputSchema: { level: z.enum(["full", "mechanical_prompt", "manual"]).optional().describe("How much the AI auto-plays: full, mechanical_prompt, or manual."), confirmation: z.enum(["auto", "confirm", "prompt"]).optional().describe("When the AI asks before acting: auto, confirm, or prompt."), safety: z.enum(["safe", "moderate", "hardcore"]).optional().describe("Safety tier: safe, moderate, or hardcore."), creativity: z.enum(["predictable", "standard", "chaotic"]).optional().describe("Creativity: predictable, standard, or chaotic.") },
 }, async ({ level, confirmation, safety, creativity }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2133,8 +2096,8 @@ function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room"
 
 server.registerTool("command", {
   title: "Parser Command",
-  description: "Execute a natural-language parser command against the world model. Use for navigation (go, n/s/e/w), inspection (look, examine), object interaction (take, drop, open, close), inventory, and wait.",
-  inputSchema: { command: z.string() },
+  description: "Execute a natural-language parser command against the world model, mutating it for navigation, inspection, object interaction, inventory, and wait. Use when: a player or narrator takes a physical action in the world. Do NOT use when: checking the outcome of an action without mutating state — use resolve_intent.",
+  inputSchema: { command: z.string().describe("The natural-language command, e.g. 'go north', 'look', 'take torch', 'open door'.") },
 }, async ({ command }: any) => {
   const novel = requireNovel();
   // REQ-197 — description mode commands are always recognized verbs.
@@ -2288,11 +2251,8 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 
 server.registerTool("create_room", {
   title: "Create Room",
-  description: "Create a new room in the world model. Game Master only.",
-  inputSchema: {
-    name: z.string(),
-    description: z.string().optional(),
-  },
+  description: "Create a new room in the world model, persisting it to the Novel save file (Game Master only). Use when: the GM needs to add a location to the world model. Do NOT use when: adding a thing or an exit — use create_thing or create_exit.",
+  inputSchema: { name: z.string().describe("The room name."), description: z.string().optional().describe("Optional room description.") },
 }, async ({ name, description }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2314,8 +2274,8 @@ server.registerTool("create_room", {
 
 server.registerTool("remove_room", {
   title: "Remove Room",
-  description: "Remove a room and its contained things and exits. Game Master only.",
-  inputSchema: { name: z.string() },
+  description: "Remove a room along with its contained things and exits, persisting the removal (Game Master only). Use when: deleting a location that is no longer needed. Do NOT use when: removing a single thing or exit — use remove_thing or remove_exit.",
+  inputSchema: { name: z.string().describe("The room to remove.") },
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2343,29 +2303,8 @@ server.registerTool("remove_room", {
 
 server.registerTool("create_thing", {
   title: "Create Thing",
-  description: "Create a new thing in the world model. Game Master only.",
-  inputSchema: {
-    name: z.string(),
-    kind: z.string().optional(),
-    description: z.string().optional(),
-    location: z.string().optional(),
-    location_type: z.enum(["room", "container", "supporter"]).optional(),
-    fixed: z.boolean().optional(),
-    openable: z.boolean().optional(),
-    lockable: z.boolean().optional(),
-    locked: z.boolean().optional(),
-    lit: z.boolean().optional(),
-    switched_on: z.boolean().optional(),
-    switchable: z.boolean().optional(),
-    transparent: z.boolean().optional(),
-    readable: z.boolean().optional(),
-    read_text: z.string().optional(),
-    wearable: z.boolean().optional(),
-    edible: z.boolean().optional(),
-    drinkable: z.boolean().optional(),
-    enterable: z.boolean().optional(),
-    climbable: z.boolean().optional(),
-  },
+  description: "Create a new thing in the world model with an optional kind, container, and properties, persisting it (Game Master only). Use when: the GM needs to place an object, door, or device. Do NOT use when: adding a room — use create_room.",
+  inputSchema: { name: z.string().describe("The thing name."), kind: z.string().optional().describe("Optional kind from the hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region)."), description: z.string().optional().describe("Optional description."), location: z.string().optional().describe("Optional containing room or thing name."), location_type: z.enum(["room", "container", "supporter"]).optional().describe("Where the thing is placed: room, container, or supporter."), fixed: z.boolean().optional().describe("When true the thing cannot be taken."), openable: z.boolean().optional().describe("When true the thing can be opened."), lockable: z.boolean().optional().describe("When true the thing can be locked."), locked: z.boolean().optional().describe("When true the thing starts locked."), lit: z.boolean().optional().describe("When true the thing is lit."), switched_on: z.boolean().optional().describe("When true the thing is switched on."), switchable: z.boolean().optional().describe("When true the thing can be switched."), transparent: z.boolean().optional().describe("When true the thing is transparent."), readable: z.boolean().optional().describe("When true the thing can be read."), read_text: z.string().optional().describe("Text revealed when the thing is read."), wearable: z.boolean().optional().describe("When true the thing can be worn."), edible: z.boolean().optional().describe("When true the thing can be eaten."), drinkable: z.boolean().optional().describe("When true the thing can be drunk."), enterable: z.boolean().optional().describe("When true the thing can be entered."), climbable: z.boolean().optional().describe("When true the thing can be climbed.") },
 }, async ({ name, kind, description, location, location_type, fixed, openable, lockable, locked, lit, switched_on, switchable, transparent, readable, read_text, wearable, edible, drinkable, enterable, climbable }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2421,8 +2360,8 @@ server.registerTool("create_thing", {
 
 server.registerTool("remove_thing", {
   title: "Remove Thing",
-  description: "Remove a thing from the world model. Game Master only.",
-  inputSchema: { name: z.string() },
+  description: "Remove a thing from the world model, persisting the removal (Game Master only). Use when: deleting an object that no longer exists in the fiction. Do NOT use when: removing a room — use remove_room.",
+  inputSchema: { name: z.string().describe("The thing to remove.") },
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2437,12 +2376,8 @@ server.registerTool("remove_thing", {
 
 server.registerTool("create_exit", {
   title: "Create Exit",
-  description: "Create a directional exit between two rooms. Reverse exit created implicitly. Game Master only.",
-  inputSchema: {
-    direction: z.string(),
-    room_a: z.string(),
-    room_b: z.string(),
-  },
+  description: "Create a directional exit between two rooms, creating the reverse exit implicitly and persisting both (Game Master only). Use when: connecting two locations. Do NOT use when: removing a connection — use remove_exit.",
+  inputSchema: { direction: z.string().describe("The direction from room_a (n/s/e/w/up/down/out or a named direction)."), room_a: z.string().describe("The source room."), room_b: z.string().describe("The destination room.") },
 }, async ({ direction, room_a, room_b }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2464,11 +2399,8 @@ server.registerTool("create_exit", {
 
 server.registerTool("remove_exit", {
   title: "Remove Exit",
-  description: "Remove a directional exit from a room. Game Master only.",
-  inputSchema: {
-    direction: z.string(),
-    room: z.string(),
-  },
+  description: "Remove a directional exit from a room, persisting the removal (Game Master only). Use when: severing a connection between locations. Do NOT use when: creating a connection — use create_exit.",
+  inputSchema: { direction: z.string().describe("The direction of the exit to remove."), room: z.string().describe("The room the exit belongs to.") },
 }, async ({ direction, room: roomName }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2488,8 +2420,8 @@ server.registerTool("remove_exit", {
 
 server.registerTool("convert_source", {
   title: "Convert Source",
-  description: "Parse hybrid world-model assertions and populate the Novel's world model. Game Master only. Only on an empty world model.",
-  inputSchema: { source: z.string() },
+  description: "Parse hybrid world-model assertions and populate the Novel's world model (Game Master only, empty world model only). Use when: importing a large room/thing map from prose or structured text. Do NOT use when: adding a single room or thing — use create_room or create_thing.",
+  inputSchema: { source: z.string().describe("Hybrid world-model assertions in prose or structured text.") },
 }, async ({ source }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2613,7 +2545,7 @@ function composeRoomContext(room: WorldRoom, novel: NovelState, world: WorldMode
 server.registerTool("resolve_intent", {
   title: "Resolve Intent",
   description: "Resolve a natural-language spatial intent against the world model without mutating state. Use when: a player or the AI narrator needs to determine the outcome of a movement or inspection against the world model. Do NOT use when: you are the Game Master inspecting the model directly — use the parser command tool for that.",
-  inputSchema: { intent: z.string() },
+  inputSchema: { intent: z.string().describe("The natural-language spatial intent to resolve (e.g. 'go north', 'open the door').") },
 }, async ({ intent }: any) => {
   const badge = getBadge();
   if (badge === "player") {
@@ -2629,12 +2561,8 @@ server.registerTool("resolve_intent", {
 
 server.registerTool("init_combat", {
   title: "Initiate Combat",
-  description: "Start a combat encounter. Game Master only. In ruleset-free mode, all participants auto-advance.",
-  inputSchema: {
-    participants: z.array(z.string()),
-    dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional(),
-    seed: z.string().optional(),
-  },
+  description: "Start a combat encounter with participants and optional dangers, persisting the combat state (Game Master only). Use when: initiating a fight. Do NOT use when: progressing an active fight — use advance_combat.",
+  inputSchema: { participants: z.array(z.string()).describe("Entity identifiers participating in combat."), dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional().describe("Optional non-entity combatants with armor class, hit points, and initiative bonus."), seed: z.string().optional().describe("Optional deterministic seed for initiative and rolls.") },
 }, async ({ participants, dangers, seed }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2658,7 +2586,7 @@ server.registerTool("init_combat", {
 
 server.registerTool("advance_combat", {
   title: "Advance Combat",
-  description: "Advance to the next turn in combat. Game Master only.",
+  description: "Advance combat to the next turn, applying round effects and persisting the change (Game Master only). Use when: moving the active fight forward one turn. Do NOT use when: starting or ending combat — use init_combat or end_combat.",
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -2679,8 +2607,8 @@ server.registerTool("advance_combat", {
 
 server.registerTool("end_combat", {
   title: "End Combat",
-  description: "End the active combat encounter. Game Master only.",
-  inputSchema: { outcome: z.string().optional() },
+  description: "End the active combat encounter, clearing combat state and persisting it (Game Master only). Use when: the fight is resolved. Do NOT use when: advancing the fight — use advance_combat.",
+  inputSchema: { outcome: z.string().optional().describe("Optional text describing how the combat ended.") },
 }, async ({ outcome }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2693,8 +2621,8 @@ server.registerTool("end_combat", {
 
 server.registerTool("add_combat_participant", {
   title: "Add Combat Participant",
-  description: "Add a participant to active combat. Game Master only.",
-  inputSchema: { participant_id: z.string() },
+  description: "Add a participant to the active combat, persisting the roster change (Game Master only). Use when: a new combatant joins mid-fight. Do NOT use when: removing a combatant — use remove_combat_participant.",
+  inputSchema: { participant_id: z.string().describe("The entity identifier to add to combat.") },
 }, async ({ participant_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2706,8 +2634,8 @@ server.registerTool("add_combat_participant", {
 
 server.registerTool("remove_combat_participant", {
   title: "Remove Combat Participant",
-  description: "Remove a participant from active combat. Game Master only.",
-  inputSchema: { participant_id: z.string() },
+  description: "Remove a participant from the active combat, persisting the roster change (Game Master only). Use when: a combatant flees or is removed. Do NOT use when: adding a combatant — use add_combat_participant.",
+  inputSchema: { participant_id: z.string().describe("The participant to remove from combat.") },
 }, async ({ participant_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -2855,28 +2783,28 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 
 server.registerTool("set_scene_state", {
   title: "Set Scene State",
-  description: "Set the scene description and location. Game Master only.",
+  description: "Set the scene description, location, time of day, atmosphere, and scene type, persisting them (Game Master only). Use when: the fiction moves to a new scene. Do NOT use when: setting the narrative directive — use set_narrative_directive.",
   inputSchema: {
-    description: z.string(),
-    location: z.string().optional(),
-    time_of_day: z.string().optional(),
-    atmosphere: z.string().optional(),
+    description: z.string().describe("The scene description."),
+    location: z.string().optional().describe("Optional scene location."),
+    time_of_day: z.string().optional().describe("Optional time of day."),
+    atmosphere: z.string().optional().describe("Optional atmosphere."),
     // REQ-087 — scene type tagging: scene_type accepts a single tag or an array
     // from the canonical catalog (social/exploration/neutral; combat is a
     // resolution mode, added automatically on init_combat).
-    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional(),
-    beat: z.enum(BEAT_VALUES).optional(),
-    skip_transition_hook: z.boolean().optional(),
+    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional().describe("A scene-type tag or array of tags from combat/social/exploration/neutral."),
+    beat: z.enum(BEAT_VALUES).optional().describe("Optional story-beat tag."),
+    skip_transition_hook: z.boolean().optional().describe("When true, skip the scene-transition hook."),
     // REQ-250 — adventure scene waypoint: heading anchor from the adventure
     // structural index; empty/null clears; unknown anchors → [NOT_FOUND].
-    adventure_scene: z.string().nullable().optional(),
+    adventure_scene: z.string().nullable().optional().describe("Optional adventure-scene waypoint anchor; empty or null clears it."),
     // REQ-252 — narrative fast-forward: skip intervening time with a bridging
     // summary, countdown adjustments, and NPC changes.
     fast_forward: z.object({
-      interval: z.string(),
-      changes: z.array(z.object({ npc_id: z.string(), location: z.string().optional(), disposition: z.string().optional(), condition: z.string().optional() })).optional(),
-      skip_countdowns: z.boolean().optional(),
-    }).optional(),
+      interval: z.string().describe("The time interval to skip."),
+      changes: z.array(z.object({ npc_id: z.string().describe("The NPC to change."), location: z.string().optional().describe("New location."), disposition: z.string().optional().describe("New disposition."), condition: z.string().optional().describe("New condition.") })).optional().describe("Optional NPC changes during the skip."),
+      skip_countdowns: z.boolean().optional().describe("When true, do not advance countdowns during the skip."),
+    }).optional().describe("Optional fast-forward: skip intervening time with a bridging summary, countdown adjustments, and NPC changes."),
   },
 }, async ({ description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward }: any) => {
   requireGM();
@@ -3009,8 +2937,8 @@ server.registerTool("set_scene_state", {
 
 server.registerTool("set_narrative_directive", {
   title: "Set Narrative Directive",
-  description: "Set overarching narrative directive for the current scene. Game Master only.",
-  inputSchema: { directive: z.string() },
+  description: "Set the overarching narrative directive for the current scene, persisting it (Game Master only). Use when: steering tone or scene focus. Do NOT use when: setting scene location or description — use set_scene_state.",
+  inputSchema: { directive: z.string().describe("The overarching narrative directive for the current scene.") },
 }, async ({ directive }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3024,15 +2952,15 @@ server.registerTool("set_narrative_directive", {
 
 server.registerTool("create_npc", {
   title: "Create NPC",
-  description: "Create a named NPC with optional description and narrative fields. Game Master only.",
+  description: "Create a named NPC with optional description, disposition, location, and goals, persisting it to the Novel (Game Master only). Use when: introducing a non-player character. Do NOT use when: editing an NPC — use update_npc.",
   inputSchema: {
-    name: z.string(),
-    description: z.string().optional(),
-    disposition: z.string().optional(),
-    location: z.string().optional(),
-    goals: z.string().optional(),
+    name: z.string().describe("The NPC name."),
+    description: z.string().optional().describe("Optional description."),
+    disposition: z.string().optional().describe("Optional disposition."),
+    location: z.string().optional().describe("Optional location."),
+    goals: z.string().optional().describe("Optional goals."),
     // REQ-119 — optional ruleset stat-block reference.
-    ruleset_reference: z.string().optional(),
+    ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference."),
   },
 }, async ({ name, description, disposition, location, goals, ruleset_reference }: any) => {
   requireGM();
@@ -3079,17 +3007,10 @@ server.registerTool("create_npc", {
 
 server.registerTool("update_npc", {
   title: "Update NPC",
-  description: "Update an existing NPC's fields. Game Master only.",
+  description: "Update an existing NPC's name, description, disposition, location, or goals, persisting the change (Game Master only). Use when: revising a non-player character. Do NOT use when: creating an NPC — use create_npc.",
   // REQ-123 — builder-defined NPC stat fields: fields are builder-determined
   // from the ruleset's stat conventions; every field optional except name.
-  inputSchema: {
-    npc_id: z.string(),
-    name: z.string().optional(),
-    description: z.string().optional(),
-    disposition: z.string().optional(),
-    location: z.string().optional(),
-    goals: z.string().optional(),
-  },
+  inputSchema: { npc_id: z.string().describe("The NPC identifier."), name: z.string().optional().describe("Optional new name."), description: z.string().optional().describe("Optional description."), disposition: z.string().optional().describe("Optional disposition."), location: z.string().optional().describe("Optional location."), goals: z.string().optional().describe("Optional goals.") },
 }, async ({ npc_id, name, description, disposition, location, goals }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3108,8 +3029,8 @@ server.registerTool("update_npc", {
 
 server.registerTool("remove_npc", {
   title: "Remove NPC",
-  description: "Remove an NPC from the novel. Game Master only.",
-  inputSchema: { npc_id: z.string() },
+  description: "Remove an NPC from the Novel, persisting the removal (Game Master only). Use when: a non-player character leaves the story. Do NOT use when: removing a player entity — use remove_entity.",
+  inputSchema: { npc_id: z.string().describe("The NPC to remove.") },
 }, async ({ npc_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3125,26 +3046,26 @@ server.registerTool("remove_npc", {
 
 server.registerTool("set_countdown", {
   title: "Set Countdown",
-  description: "Set a countdown timer. Game Master only.",
+  description: "Set a countdown timer with ticks, type, scope, direction, and optional world-model triggers, persisting it (Game Master only). Use when: starting a clock or timer. Do NOT use when: advancing a clock — use advance_countdown.",
   inputSchema: {
-    name: z.string(),
-    ticks: z.number().min(1),
-    type: z.enum(["round", "narrative"]).optional(),
-    scope: z.string().optional(),
-    direction: z.string().optional(),
-    on_scene_transition: z.boolean().optional(),
+    name: z.string().describe("The countdown name."),
+    ticks: z.number().min(1).describe("Starting number of ticks (minimum 1)."),
+    type: z.enum(["round", "narrative"]).optional().describe("round or narrative."),
+    scope: z.string().optional().describe("Optional scope name."),
+    direction: z.string().optional().describe("Optional direction: increment or decrement."),
+    on_scene_transition: z.boolean().optional().describe("When true, advance on each scene transition."),
     // REQ-329 — world-model coupling triggers (on_room_enter/on_thing_take/
     // on_door_open). Any match advances one tick; supplements normal advancement.
-    triggers: z.array(z.string()).optional(),
+    triggers: z.array(z.string()).optional().describe("Optional world-model triggers (on_room_enter/on_thing_take/on_door_open)."),
     // REQ-368 — world-model effect coupling applied when the countdown fires.
     world_effect: z.object({
-      type: z.enum(["describe", "property", "exit"]),
-      target: z.string(),
-      direction: z.string().optional(),
-      destination: z.string().optional(),
-      property: z.string().optional(),
-      value: z.string().optional(),
-    }).optional(),
+      type: z.enum(["describe", "property", "exit"]).describe("The effect kind."),
+      target: z.string().describe("The effect target."),
+      direction: z.string().optional().describe("Optional direction (for exits)."),
+      destination: z.string().optional().describe("Optional destination (for exits)."),
+      property: z.string().optional().describe("Optional property (for property effects)."),
+      value: z.string().optional().describe("Optional value (for property effects)."),
+    }).optional().describe("Optional world-model effect applied when the countdown fires."),
   },
 }, async ({ name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect }: any) => {
   requireGM();
@@ -3159,8 +3080,8 @@ server.registerTool("set_countdown", {
 
 server.registerTool("advance_countdown", {
   title: "Advance Countdown",
-  description: "Advance a countdown timer by one tick. Game Master only.",
-  inputSchema: { name: z.string() },
+  description: "Advance a countdown timer by one tick, firing it when it reaches its end (Game Master only). Use when: the fiction moves a clock forward. Do NOT use when: creating or removing a clock — use set_countdown or remove_countdown.",
+  inputSchema: { name: z.string().describe("The countdown to advance.") },
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3200,8 +3121,8 @@ server.registerTool("advance_countdown", {
 
 server.registerTool("remove_countdown", {
   title: "Remove Countdown",
-  description: "Remove a countdown timer. Game Master only.",
-  inputSchema: { name: z.string() },
+  description: "Remove a countdown timer, persisting the removal (Game Master only). Use when: a clock is no longer relevant. Do NOT use when: advancing a clock — use advance_countdown.",
+  inputSchema: { name: z.string().describe("The countdown to remove.") },
 }, async ({ name }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3217,17 +3138,17 @@ server.registerTool("remove_countdown", {
 
 server.registerTool("set_lore_entry", {
   title: "Set Lore Entry",
-  description: "Log a lore entry for the current novel. Game Master only.",
+  description: "Create a lore entry with content, triggers, badge scope, priority, and group for the active Novel (Game Master only). Use when: recording world facts the narrator should recall. Do NOT use when: recording a story beat — use record_story.",
   inputSchema: {
-    key: z.string(),
-    content: z.string(),
-    triggers: z.array(z.string()).optional(),
-    badge_scope: z.enum(["game_master", "shared"]).optional(),
-    priority: z.number().optional(),
-    sticky: z.number().optional(),
-    group: z.string().optional(),
+    key: z.string().describe("The lore key."),
+    content: z.string().describe("The lore content."),
+    triggers: z.array(z.string()).optional().describe("Optional recall triggers."),
+    badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."),
+    priority: z.number().optional().describe("Optional priority."),
+    sticky: z.number().optional().describe("Optional sticky weight."),
+    group: z.string().optional().describe("Optional group name."),
     // REQ-328 — lore-world coupling: world-model target (room/thing/exit ref).
-    world_target: z.string().optional(),
+    world_target: z.string().optional().describe("Optional world-model target reference."),
   },
 }, async ({ key, content, triggers, badge_scope, priority, sticky, group, world_target }: any) => {
   requireGM();
@@ -3253,16 +3174,8 @@ server.registerTool("set_lore_entry", {
 
 server.registerTool("update_lore_entry", {
   title: "Update Lore Entry",
-  description: "Update fields of an existing lore entry. Game Master only.",
-  inputSchema: {
-    key: z.string(),
-    content: z.string().optional(),
-    triggers: z.array(z.string()).optional(),
-    badge_scope: z.enum(["game_master", "shared"]).optional(),
-    priority: z.number().optional(),
-    sticky: z.number().optional(),
-    group: z.string().nullable().optional(),
-  },
+  description: "Update fields of an existing lore entry, persisting the change (Game Master only). Use when: revising a world fact. Do NOT use when: creating a lore entry — use set_lore_entry.",
+  inputSchema: { key: z.string().describe("The lore key to update."), content: z.string().optional().describe("Optional new content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."), priority: z.number().optional().describe("Optional priority."), sticky: z.number().optional().describe("Optional sticky weight."), group: z.string().nullable().optional().describe("Optional group name, or null to clear.") },
 }, async ({ key, content, triggers, badge_scope, priority, sticky, group }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3281,8 +3194,8 @@ server.registerTool("update_lore_entry", {
 
 server.registerTool("remove_lore_entry", {
   title: "Remove Lore Entry",
-  description: "Remove a lore entry. Game Master only.",
-  inputSchema: { key: z.string() },
+  description: "Remove a lore entry from the Novel, persisting the removal (Game Master only). Use when: a world fact is obsolete. Do NOT use when: hiding a lore entry without deleting it — use toggle_lore_entry.",
+  inputSchema: { key: z.string().describe("The lore key to remove.") },
 }, async ({ key }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3295,8 +3208,8 @@ server.registerTool("remove_lore_entry", {
 
 server.registerTool("toggle_lore_entry", {
   title: "Toggle Lore Entry",
-  description: "Enable or disable a lore entry. Game Master only.",
-  inputSchema: { key: z.string() },
+  description: "Enable or disable a lore entry without deleting it, persisting the toggle (Game Master only). Use when: temporarily hiding a world fact. Do NOT use when: deleting a lore entry — use remove_lore_entry.",
+  inputSchema: { key: z.string().describe("The lore key to toggle.") },
 }, async ({ key }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3310,8 +3223,8 @@ server.registerTool("toggle_lore_entry", {
 
 server.registerTool("set_lore_group", {
   title: "Set Lore Group",
-  description: "Assign or remove a lore entry from a named group. Game Master only.",
-  inputSchema: { key: z.string(), group: z.string().nullable() },
+  description: "Assign or remove a lore entry from a named group, persisting the grouping (Game Master only). Use when: organizing lore by theme or faction. Do NOT use when: creating a lore entry — use set_lore_entry.",
+  inputSchema: { key: z.string().describe("The lore key."), group: z.string().nullable().describe("The group name, or null to remove from its group.") },
 }, async ({ key, group }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3326,7 +3239,7 @@ server.registerTool("set_lore_group", {
 
 server.registerTool("suggest_lore", {
   title: "Suggest Lore",
-  description: "Suggest lore entries from enrichment templates based on current scene. Game Master only.",
+  description: "Suggest lore entries from enrichment templates based on the current scene, without persisting them (Game Master only). Use when: the GM wants candidate world facts to adopt. Do NOT use when: creating a lore entry directly — use set_lore_entry.",
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -3339,12 +3252,12 @@ server.registerTool("suggest_lore", {
 
 server.registerTool("export_lorebook", {
   title: "Export Lorebook",
-  description: "Export novel lore entries in interchange format. Game Master only.",
+  description: "Export the Novel's lore entries in interchange format for backup or transfer (Game Master only). Use when: moving lore between Novels. Do NOT use when: importing lore — use import_lorebook.",
   // REQ-094 — lorebook interchange: lore-only export/import with merge, replace,
   // and dry-run modes; round-trip preserves lore metadata (Appendix L).
   // REQ-425b — interchange surfaces accept only json/markdown; html is a
   // presentation-only format and returns [INVALID_INPUT] enumerating the set.
-  inputSchema: { format: z.string().optional() },
+  inputSchema: { format: z.string().optional().describe("Optional output format.") },
 }, async ({ format: fmt }: any) => {
   requireGM();
   if (fmt && !INTERCHANGE_FORMATS.includes(fmt)) {
@@ -3368,11 +3281,8 @@ server.registerTool("export_lorebook", {
 
 server.registerTool("import_lorebook", {
   title: "Import Lorebook",
-  description: "Import lore entries from JSON or Markdown. Modes: dry-run, merge, or replace. Game Master only.",
-  inputSchema: {
-    data: z.string(),
-    mode: z.enum(["dry-run", "merge", "replace"]).optional(),
-  },
+  description: "Import lore entries from JSON or Markdown in dry-run, merge, or replace mode (Game Master only). Use when: loading a lorebook. Do NOT use when: exporting lore — use export_lorebook.",
+  inputSchema: { data: z.string().describe("JSON or Markdown lorebook data."), mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace.") },
 }, async ({ data, mode }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3416,8 +3326,8 @@ function conditionCatalogue(novel: NovelState): string[] {
 }
 server.registerTool("apply_condition", {
   title: "Apply Condition",
-  description: "Apply a condition to an entity.",
-  inputSchema: { entity_id: z.string(), condition: z.string(), rounds: z.number().optional() },
+  description: "Apply a condition to an entity, persisting it to the Novel. Use when: an entity gains a mechanical or narrative status. Do NOT use when: clearing a condition — use remove_condition.",
+  inputSchema: { entity_id: z.string().describe("The entity to affect."), condition: z.string().describe("The condition name."), rounds: z.number().optional().describe("Optional duration in rounds.") },
 }, async ({ entity_id, condition, rounds }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3443,8 +3353,8 @@ server.registerTool("apply_condition", {
 
 server.registerTool("remove_condition", {
   title: "Remove Condition",
-  description: "Remove a condition from an entity.",
-  inputSchema: { entity_id: z.string(), condition: z.string() },
+  description: "Remove a condition from an entity, persisting the change. Use when: a status ends or is cured. Do NOT use when: applying a condition — use apply_condition.",
+  inputSchema: { entity_id: z.string().describe("The entity to affect."), condition: z.string().describe("The condition to remove.") },
 }, async ({ entity_id, condition }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3463,8 +3373,8 @@ server.registerTool("remove_condition", {
 
 server.registerTool("create_faction", {
   title: "Create Faction",
-  description: "Create a named faction with goals, resources, and a progress clock. Game Master only.",
-  inputSchema: { name: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional(), territory: z.array(z.string()).optional() },
+  description: "Create a named faction with goals, resources, and a progress clock, persisting it (Game Master only). Use when: introducing an organization. Do NOT use when: editing a faction — use update_faction.",
+  inputSchema: { name: z.string().describe("The faction name."), description: z.string().optional().describe("Optional description."), goals: z.array(z.string()).optional().describe("Optional goals."), resources: z.string().optional().describe("Optional resources."), territory: z.array(z.string()).optional().describe("Optional territory names.") },
 }, async ({ name, description, goals, resources, territory }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3482,8 +3392,8 @@ server.registerTool("create_faction", {
 
 server.registerTool("update_faction", {
   title: "Update Faction",
-  description: "Update a faction's fields. Game Master only.",
-  inputSchema: { faction_id: z.string(), description: z.string().optional(), goals: z.array(z.string()).optional(), resources: z.string().optional(), territory: z.array(z.string()).optional() },
+  description: "Update a faction's fields, persisting the change (Game Master only). Use when: revising an organization. Do NOT use when: creating a faction — use create_faction.",
+  inputSchema: { faction_id: z.string().describe("The faction identifier."), description: z.string().optional().describe("Optional description."), goals: z.array(z.string()).optional().describe("Optional goals."), resources: z.string().optional().describe("Optional resources."), territory: z.array(z.string()).optional().describe("Optional territory names.") },
 }, async ({ faction_id, ...fields }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3496,8 +3406,8 @@ server.registerTool("update_faction", {
 
 server.registerTool("remove_faction", {
   title: "Remove Faction",
-  description: "Remove a faction and its clock. Game Master only.",
-  inputSchema: { faction_id: z.string() },
+  description: "Remove a faction and its progress clock, persisting the removal (Game Master only). Use when: an organization leaves the story. Do NOT use when: editing a faction — use update_faction.",
+  inputSchema: { faction_id: z.string().describe("The faction to remove.") },
 }, async ({ faction_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3514,8 +3424,8 @@ server.registerTool("remove_faction", {
 
 server.registerTool("set_secret", {
   title: "Set Secret",
-  description: "Create a secret lore entry. GM-only; visible to entities after reveal_secret. Game Master only.",
-  inputSchema: { key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["game_master", "shared"]).optional(), world_target: z.string().optional() },
+  description: "Create a GM-only secret lore entry that becomes visible to an entity only after reveal_secret (Game Master only). Use when: recording hidden information. Do NOT use when: creating public lore — use set_lore_entry.",
+  inputSchema: { key: z.string().describe("The secret key."), content: z.string().describe("The secret content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared."), world_target: z.string().optional().describe("Optional world-model target.") },
 }, async ({ key, content, triggers, badge_scope, world_target }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3527,8 +3437,8 @@ server.registerTool("set_secret", {
 
 server.registerTool("reveal_secret", {
   title: "Reveal Secret",
-  description: "Make a secret known to a specific entity. Game Master only.",
-  inputSchema: { key: z.string(), entity_id: z.string() },
+  description: "Reveal a secret to a specific entity, persisting that entity's knowledge (Game Master only). Use when: a character learns hidden information. Do NOT use when: creating a secret — use set_secret.",
+  inputSchema: { key: z.string().describe("The secret to reveal."), entity_id: z.string().describe("The entity to reveal it to.") },
 }, async ({ key, entity_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3542,8 +3452,8 @@ server.registerTool("reveal_secret", {
 
 server.registerTool("get_knowledge", {
   title: "Get Knowledge",
-  description: "Return what secrets an entity knows. Game Master only.",
-  inputSchema: { entity_id: z.string(), key: z.string().optional() },
+  description: "Return which secrets an entity currently knows (Game Master only). Use when: checking what a character has learned. Do NOT use when: revealing a secret — use reveal_secret.",
+  inputSchema: { entity_id: z.string().describe("The entity whose knowledge to read."), key: z.string().optional().describe("Optional secret key filter.") },
 }, async ({ entity_id, key }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3560,8 +3470,8 @@ server.registerTool("get_knowledge", {
 
 server.registerTool("set_relationship", {
   title: "Set Relationship",
-  description: "Set a directed relationship between entities, NPCs, or factions. Types: ally, rival, neutral, mentor, dependent, suspicious. Game Master only.",
-  inputSchema: { entity_a: z.string(), entity_b: z.string(), type: z.enum(["ally", "rival", "neutral", "mentor", "dependent", "suspicious"]), value: z.number().optional(), description: z.string().optional() },
+  description: "Set a directed relationship (ally, rival, neutral, mentor, dependent, suspicious) between entities, NPCs, or factions, persisting it (Game Master only). Use when: recording how two parties relate. Do NOT use when: listing relationships — use get_relationships.",
+  inputSchema: { entity_a: z.string().describe("The source entity."), entity_b: z.string().describe("The target entity."), type: z.enum(["ally", "rival", "neutral", "mentor", "dependent", "suspicious"]).describe("Relationship type."), value: z.number().optional().describe("Optional relationship strength."), description: z.string().optional().describe("Optional description.") },
 }, async ({ entity_a, entity_b, type, value, description }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3572,8 +3482,8 @@ server.registerTool("set_relationship", {
 
 server.registerTool("get_relationships", {
   title: "Get Relationships",
-  description: "Return all relationships (incoming and outgoing) for an entity. Game Master only.",
-  inputSchema: { entity_id: z.string() },
+  description: "Return all incoming and outgoing relationships for an entity (Game Master only). Use when: reviewing how a character is connected. Do NOT use when: setting a relationship — use set_relationship.",
+  inputSchema: { entity_id: z.string().describe("The entity whose relationships to list.") },
 }, async ({ entity_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3586,8 +3496,8 @@ server.registerTool("get_relationships", {
 
 server.registerTool("set_vow", {
   title: "Set Vow",
-  description: "Track a narrative vow, quest, or obligation. Game Master only.",
-  inputSchema: { name: z.string(), description: z.string(), parties: z.array(z.string()), difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]), scope: z.enum(["gm", "shared", "faction", "party"]).optional() },
+  description: "Track a narrative vow, quest, or obligation with milestones, persisting it (Game Master only). Use when: the story commits a character to a goal. Do NOT use when: advancing a vow — use mark_milestone.",
+  inputSchema: { name: z.string().describe("The vow name."), description: z.string().describe("The vow description."), parties: z.array(z.string()).describe("Parties bound by the vow."), difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).describe("troublesome, dangerous, formidable, extreme, or epic."), scope: z.enum(["gm", "shared", "faction", "party"]).optional().describe("gm, shared, faction, or party.") },
 }, async ({ name, description, parties, difficulty, scope }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3614,8 +3524,8 @@ server.registerTool("set_vow", {
 
 server.registerTool("mark_milestone", {
   title: "Mark Milestone",
-  description: "Advance a vow's progress by one milestone. Game Master only.",
-  inputSchema: { vow_name: z.string() },
+  description: "Advance a vow's progress by one milestone, persisting it (Game Master only). Use when: the character makes progress. Do NOT use when: closing a vow — use resolve_vow.",
+  inputSchema: { vow_name: z.string().describe("The vow to advance.") },
 }, async ({ vow_name }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3639,8 +3549,8 @@ server.registerTool("mark_milestone", {
 
 server.registerTool("resolve_vow", {
   title: "Resolve Vow",
-  description: "Close a completed vow with outcome and consequences. Game Master only.",
-  inputSchema: { vow_name: z.string(), outcome: z.string(), consequences: z.string().optional() },
+  description: "Close a completed vow with an outcome and consequences, persisting it (Game Master only). Use when: the goal is achieved. Do NOT use when: abandoning a vow — use forsake_vow.",
+  inputSchema: { vow_name: z.string().describe("The vow to close."), outcome: z.string().describe("The resolution outcome."), consequences: z.string().optional().describe("Optional consequences.") },
 }, async ({ vow_name, outcome, consequences }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3655,8 +3565,8 @@ server.registerTool("resolve_vow", {
 
 server.registerTool("forsake_vow", {
   title: "Forsake Vow",
-  description: "Abandon a vow with a reason. Game Master only.",
-  inputSchema: { vow_name: z.string(), reason: z.string() },
+  description: "Abandon a vow with a reason, persisting the abandonment (Game Master only). Use when: the character gives up. Do NOT use when: completing a vow — use resolve_vow.",
+  inputSchema: { vow_name: z.string().describe("The vow to abandon."), reason: z.string().describe("The reason for abandoning.") },
 }, async ({ vow_name, reason }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3673,8 +3583,8 @@ server.registerTool("forsake_vow", {
 // immutable → [RULE_VIOLATION]; existing key → [STATE_CONFLICT]).
 server.registerTool("promote_story_to_lore", {
   title: "Promote Story to Lore",
-  description: "Promote a story journal entry into a lore entry. Game Master only.",
-  inputSchema: { index: z.number(), key: z.string().optional() },
+  description: "Promote a story journal entry into a lore entry, persisting it (Game Master only). Use when: a story moment becomes a durable world fact. Do NOT use when: recording a new story beat — use record_story.",
+  inputSchema: { index: z.number().describe("The story journal index to promote."), key: z.string().optional().describe("Optional lore key.") },
 }, async ({ index, key }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3704,8 +3614,8 @@ server.registerTool("promote_story_to_lore", {
 
 server.registerTool("record_story", {
   title: "Record Story",
-  description: "Record a narrative memory in the story journal. Types: decision, moment, revelation, bond, consequence. Game Master only.",
-  inputSchema: { type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]), entry: z.string() },
+  description: "Record a narrative memory (decision, moment, revelation, bond, or consequence) in the story journal (Game Master only). Use when: capturing a story beat. Do NOT use when: recording a durable world fact — use set_lore_entry.",
+  inputSchema: { type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).describe("The story entry type."), entry: z.string().describe("The story entry text.") },
 }, async ({ type, entry }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3730,8 +3640,8 @@ server.registerTool("record_story", {
 
 server.registerTool("update_story", {
   title: "Update Story",
-  description: "Edit a story journal entry by index. Decision and consequence entries are immutable. Game Master only.",
-  inputSchema: { index: z.number().min(0), type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(), entry: z.string().optional() },
+  description: "Edit a story journal entry by index; decision and consequence entries are immutable (Game Master only). Use when: correcting a recorded memory. Do NOT use when: deleting an entry — use remove_story.",
+  inputSchema: { index: z.number().min(0).describe("The story entry index."), type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Optional new type."), entry: z.string().optional().describe("Optional new entry text.") },
 }, async ({ index, type, entry }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3746,8 +3656,8 @@ server.registerTool("update_story", {
 
 server.registerTool("remove_story", {
   title: "Remove Story",
-  description: "Delete a story journal entry by index. Game Master only.",
-  inputSchema: { index: z.number().min(0) },
+  description: "Delete a story journal entry by index, persisting the removal (Game Master only). Use when: removing a mistaken memory. Do NOT use when: editing an entry — use update_story.",
+  inputSchema: { index: z.number().min(0).describe("The story entry index to remove.") },
 }, async ({ index }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3759,8 +3669,8 @@ server.registerTool("remove_story", {
 
 server.registerTool("list_stories", {
   title: "List Stories",
-  description: "List story journal entries with optional type filter and pagination. Game Master only.",
-  inputSchema: { filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional(), offset: z.number().min(0).optional(), limit: z.number().min(0).optional(), ...detailZod },
+  description: "List story journal entries with an optional type filter and pagination (Game Master only). Use when: reviewing the story so far. Do NOT use when: recording a new entry — use record_story.",
+  inputSchema: { filter: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Optional type filter."), offset: z.number().min(0).optional().describe("Optional pagination offset."), limit: z.number().min(0).optional().describe("Optional page size."), ...detailZod },
 }, async ({ filter, offset, limit, detail }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3776,8 +3686,8 @@ server.registerTool("list_stories", {
 
 server.registerTool("set_note", {
   title: "Set Note",
-  description: "Create or update a key-value note. Badge-scoped: game_master (default), player, or shared.",
-  inputSchema: { key: z.string(), content: z.string(), badge_scope: z.enum(["game_master", "player", "shared"]).optional() },
+  description: "Create or update a key-value note, badge-scoped to game_master (default), player, or shared. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use set_lore_entry.",
+  inputSchema: { key: z.string().describe("The note key."), content: z.string().describe("The note content."), badge_scope: z.enum(["game_master", "player", "shared"]).optional().describe("game_master, player, or shared.") },
 }, async ({ key, content, badge_scope }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -3803,8 +3713,8 @@ server.registerTool("set_note", {
 
 server.registerTool("remove_note", {
   title: "Remove Note",
-  description: "Remove a note by key. Badge-scoped: caller's badge must own the scope.",
-  inputSchema: { key: z.string() },
+  description: "Remove a note by key; the caller's badge must own the note's scope. Use when: discarding scratch state. Do NOT use when: creating a note — use set_note.",
+  inputSchema: { key: z.string().describe("The note key to remove.") },
 }, async ({ key }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -3821,7 +3731,7 @@ server.registerTool("remove_note", {
 
 server.registerTool("list_notes", {
   title: "List Notes",
-  description: "List all notes (100-character preview), badge-filtered.",
+  description: "List all notes with a 100-character preview, badge-filtered to the caller's scope. Use when: reviewing stored scratch state. Do NOT use when: setting a note — use set_note.",
   inputSchema: {},
 }, async () => {
   const novel = requireNovel();
@@ -3835,8 +3745,8 @@ server.registerTool("list_notes", {
 
 server.registerTool("set_server_note", {
   title: "Set Server Note",
-  description: "Create or update a server-level note. Game Master only.",
-  inputSchema: { key: z.string(), content: z.string(), narrative_tag: z.enum(["campaign_bible", "house_rules", "lore_seed", "session_reminder"]).optional() },
+  description: "Create or update a server-level note that survives Novels and rebuilds (Game Master only). Use when: storing cross-Novel scratch state. Do NOT use when: storing Novel-scoped notes — use set_note.",
+  inputSchema: { key: z.string().describe("The note key."), content: z.string().describe("The note content."), narrative_tag: z.enum(["campaign_bible", "house_rules", "lore_seed", "session_reminder"]).optional().describe("Optional narrative tag: campaign_bible, house_rules, lore_seed, or session_reminder.") },
 }, async ({ key, content, narrative_tag }: any) => {
   requireGM();
   state.serverNotes.set(key, { content, narrative_tag });
@@ -3846,8 +3756,8 @@ server.registerTool("set_server_note", {
 
 server.registerTool("remove_server_note", {
   title: "Remove Server Note",
-  description: "Remove a server-level note. Game Master only.",
-  inputSchema: { key: z.string() },
+  description: "Remove a server-level note, persisting the removal (Game Master only). Use when: discarding cross-Novel scratch state. Do NOT use when: creating a server note — use set_server_note.",
+  inputSchema: { key: z.string().describe("The server note key to remove.") },
 }, async ({ key }: any) => {
   requireGM();
   if (!state.serverNotes.has(key)) return err("NOT_FOUND", `Server note '${key}' not found.`);
@@ -3858,7 +3768,7 @@ server.registerTool("remove_server_note", {
 
 server.registerTool("list_server_notes", {
   title: "List Server Notes",
-  description: "List all server-level notes. Game Master only.",
+  description: "List all server-level notes (Game Master only). Use when: reviewing cross-Novel scratch state. Do NOT use when: listing Novel-scoped notes — use list_notes.",
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -3870,8 +3780,8 @@ server.registerTool("list_server_notes", {
 
 server.registerTool("set_pause_context", {
   title: "Set Pause Context",
-  description: "Save GM context for session resumption. Game Master only.",
-  inputSchema: { current_scene: z.string().optional(), immediate_situation: z.string().optional(), pending_player_action: z.string().optional(), short_term_plans: z.string().optional(), long_term_plans: z.string().optional(), player_goals: z.string().optional() },
+  description: "Save GM context for session resumption, persisting it (Game Master only). Use when: ending a session with notes for the next. Do NOT use when: reading saved context — use get_pause_context.",
+  inputSchema: { current_scene: z.string().optional().describe("Optional current-scene summary."), immediate_situation: z.string().optional().describe("Optional immediate situation."), pending_player_action: z.string().optional().describe("Optional pending player action."), short_term_plans: z.string().optional().describe("Optional short-term plans."), long_term_plans: z.string().optional().describe("Optional long-term plans."), player_goals: z.string().optional().describe("Optional player goals.") },
 }, async (fields: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3895,7 +3805,7 @@ server.registerTool("set_pause_context", {
 
 server.registerTool("get_pause_context", {
   title: "Get Pause Context",
-  description: "Return the saved GM context plus Novel state summary for session resumption.",
+  description: "Return the saved GM context plus a Novel state summary for session resumption. Use when: resuming after a break. Do NOT use when: saving context — use set_pause_context.",
   inputSchema: {},
 }, async () => {
   const novel = requireNovel();
@@ -3913,8 +3823,8 @@ server.registerTool("get_pause_context", {
 
 server.registerTool("set_checkpoint", {
   title: "Set Checkpoint",
-  description: "Save a named checkpoint of the full Novel state. Game Master only.",
-  inputSchema: { label: z.string() },
+  description: "Save a named checkpoint of the full Novel state, persisting it (Game Master only). Use when: marking a returnable point in the story. Do NOT use when: restoring a checkpoint — use restore_checkpoint.",
+  inputSchema: { label: z.string().describe("The checkpoint label.") },
 }, async ({ label }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3925,7 +3835,7 @@ server.registerTool("set_checkpoint", {
 
 server.registerTool("list_checkpoints", {
   title: "List Checkpoints",
-  description: "List all checkpoints for the active Novel. Game Master only.",
+  description: "List all checkpoints for the active Novel (Game Master only). Use when: reviewing available return points. Do NOT use when: creating a checkpoint — use set_checkpoint.",
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -3935,8 +3845,8 @@ server.registerTool("list_checkpoints", {
 
 server.registerTool("restore_checkpoint", {
   title: "Restore Checkpoint",
-  description: "Restore a checkpoint (confirmation required). Game Master only.",
-  inputSchema: { label: z.string() },
+  description: "Restore a checkpoint after a confirmation workflow, replacing the Novel state (Game Master only). Use when: returning to a prior point. Do NOT use when: saving a checkpoint — use set_checkpoint.",
+  inputSchema: { label: z.string().describe("The checkpoint to restore.") },
 }, async ({ label }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3956,8 +3866,8 @@ Options: yes, cancel`);
 
 server.registerTool("remove_checkpoint", {
   title: "Remove Checkpoint",
-  description: "Remove a named checkpoint. Game Master only.",
-  inputSchema: { label: z.string() },
+  description: "Remove a named checkpoint, persisting the removal (Game Master only). Use when: discarding a return point. Do NOT use when: restoring a checkpoint — use restore_checkpoint.",
+  inputSchema: { label: z.string().describe("The checkpoint to remove.") },
 }, async ({ label }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3972,8 +3882,8 @@ server.registerTool("remove_checkpoint", {
 
 server.registerTool("rename_novel", {
   title: "Rename Novel",
-  description: "Rename the active Novel on disk. Game Master only.",
-  inputSchema: { new_slug: z.string() },
+  description: "Rename the active Novel on disk, persisting the change (Game Master only). Use when: correcting the Novel's name. Do NOT use when: switching to another Novel — use switch_novel.",
+  inputSchema: { new_slug: z.string().describe("The new Novel slug.") },
 }, async ({ new_slug }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -3992,8 +3902,8 @@ server.registerTool("rename_novel", {
 // description, surfaced in novel_info and badge_briefing.
 server.registerTool("update_novel_description", {
   title: "Update Novel Description",
-  description: "Set or replace the active Novel's description. An empty string clears it. Game Master only.",
-  inputSchema: { description: z.string() },
+  description: "Set or replace the active Novel's description; an empty string clears it (Game Master only). Use when: summarizing the campaign premise. Do NOT use when: setting the genre — use set_genre.",
+  inputSchema: { description: z.string().describe("The new Novel description; empty clears it.") },
 }, async ({ description }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4005,8 +3915,8 @@ server.registerTool("update_novel_description", {
 
 server.registerTool("list_novels", {
   title: "List Novels",
-  description: "List all Novels on disk with metadata. Always callable.",
-  inputSchema: { ...detailZod, filter: z.enum(["active", "archived", "all"]).optional() },
+  description: "List all Novels on disk with metadata, always callable. Use when: discovering available save files. Do NOT use when: inspecting one Novel — use novel_info.",
+  inputSchema: { ...detailZod, filter: z.enum(["active", "archived", "all"]).optional().describe("Optional filter: active, archived, or all.") },
 }, async ({ detail, filter }: any) => {
   const arch = state.archivedNovels();
   const archivedSlugs = new Set(arch.map((a) => a.slug));
@@ -4026,8 +3936,8 @@ server.registerTool("list_novels", {
 // REQ-334 — archive/unarchive Novel (Game Master only).
 server.registerTool("archive_novel", {
   title: "Archive Novel",
-  description: "Move a Novel to the long-term archive (read-only). Game Master only.",
-  inputSchema: { slug: z.string() },
+  description: "Move a Novel to the long-term read-only archive (Game Master only). Use when: retiring a finished campaign. Do NOT use when: restoring an archived Novel — use unarchive_novel.",
+  inputSchema: { slug: z.string().describe("The Novel slug to archive.") },
 }, async ({ slug }: any) => {
   requireGM();
   if (state.activeNovelId === slug) state.activeNovelId = null;
@@ -4038,8 +3948,8 @@ server.registerTool("archive_novel", {
 
 server.registerTool("unarchive_novel", {
   title: "Unarchive Novel",
-  description: "Restore an archived Novel to active status. Game Master only.",
-  inputSchema: { slug: z.string() },
+  description: "Restore an archived Novel to active status (Game Master only). Use when: reviving a retired campaign. Do NOT use when: archiving a Novel — use archive_novel.",
+  inputSchema: { slug: z.string().describe("The Novel slug to restore.") },
 }, async ({ slug }: any) => {
   requireGM();
   const novel = state.unarchiveNovel(slug);
@@ -4049,8 +3959,8 @@ server.registerTool("unarchive_novel", {
 
 server.registerTool("novel_info", {
   title: "Novel Info",
-  description: "Return extended metadata for a Novel. Always callable.",
-  inputSchema: { slug: z.string().optional() },
+  description: "Return extended metadata for a Novel, always callable. Use when: inspecting a Novel's settings and stats. Do NOT use when: listing all Novels — use list_novels.",
+  inputSchema: { slug: z.string().optional().describe("Optional Novel slug; defaults to the active Novel.") },
 }, async ({ slug }: any) => {
   const novel = slug ? state.novels.get(slug) : state.activeNovel;
   if (!novel) return err("NOT_FOUND", `Novel '${slug || "none"}' not found.`);
@@ -4070,8 +3980,8 @@ server.registerTool("novel_info", {
 const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
 server.registerTool("set_genre", {
   title: "Set Genre",
-  description: "Set the active Novel's genre tag. Game Master only. Valid: noir, high_fantasy, sword_and_sorcery, sci_fi_horror, cosmic_horror, historical, western, modern, cyberpunk.",
-  inputSchema: { genre: z.string() },
+  description: "Set the active Novel's genre tag from the fixed catalog (noir, high_fantasy, sword_and_sorcery, sci_fi_horror, cosmic_horror, historical, western, modern, cyberpunk) (Game Master only). Use when: declaring the campaign's genre. Do NOT use when: setting the Novel description — use update_novel_description.",
+  inputSchema: { genre: z.string().describe("The genre tag from the fixed catalog.") },
 }, async ({ genre }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4086,8 +3996,8 @@ server.registerTool("set_genre", {
 
 server.registerTool("clone_novel", {
   title: "Clone Novel",
-  description: "Create an independent copy of a Novel. Game Master only.",
-  inputSchema: { source_slug: z.string(), new_name: z.string(), trim_audit_sessions: z.number().min(0).optional() },
+  description: "Create an independent copy of a Novel, persisting the copy (Game Master only). Use when: branching the story or testing an alternative. Do NOT use when: renaming a Novel — use rename_novel.",
+  inputSchema: { source_slug: z.string().describe("The Novel to copy."), new_name: z.string().describe("The name for the copy."), trim_audit_sessions: z.number().min(0).optional().describe("Optional number of recent audit sessions to keep.") },
 }, async ({ source_slug, new_name }: any) => {
   requireGM();
   const source = state.novels.get(source_slug);
@@ -4108,11 +4018,11 @@ server.registerTool("clone_novel", {
 
 server.registerTool("remove_entity", {
   title: "Remove Entity",
-  description: "Remove an entity from the active Novel. Game Master only.",
+  description: "Remove an entity from the active Novel, persisting the removal (Game Master only). Use when: a character permanently leaves. Do NOT use when: removing an NPC — use remove_npc.",
   // REQ-176 — entity removal: clears the active-entity field when the removed
   // entity was active; party://current excludes removed entities; roster
   // baseline unaffected (re-import creates a fresh copy). Player → [FORBIDDEN].
-  inputSchema: { entity_id: z.string() },
+  inputSchema: { entity_id: z.string().describe("The entity to remove.") },
 }, async ({ entity_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4125,11 +4035,11 @@ server.registerTool("remove_entity", {
 
 server.registerTool("remove_roster_character", {
   title: "Remove Roster Character",
-  description: "Remove a character from the roster. Game Master only.",
+  description: "Remove a character from the roster, persisting the removal (Game Master only). Use when: discarding a staged character. Do NOT use when: listing roster characters — use list_roster_characters.",
   // REQ-177 — roster entity removal: removes from roster:// only; Novel copies
   // survive independently; Player → [FORBIDDEN]; absent → [NOT_FOUND] with
   // valid roster IDs enumerated.
-  inputSchema: { roster_id: z.string() },
+  inputSchema: { roster_id: z.string().describe("The roster character to remove.") },
 }, async ({ roster_id }: any) => {
   requireGM();
   if (!state.roster.has(roster_id)) return err("NOT_FOUND", `Roster character '${roster_id}' not found.`);
@@ -4140,7 +4050,7 @@ server.registerTool("remove_roster_character", {
 
 server.registerTool("list_roster_characters", {
   title: "List Roster Characters",
-  description: "List all characters in the roster.",
+  description: "List all characters in the persistent roster. Use when: discovering staged characters to import. Do NOT use when: importing a roster character — use import_character.",
   // REQ-178 — roster listing: any-badge, structured (id/name), empty-state
   // marker when the roster is empty; novel_setup sources its list from here.
   inputSchema: {},
@@ -4154,7 +4064,7 @@ server.registerTool("list_roster_characters", {
 
 server.registerTool("toggle_action_patterns", {
   title: "Toggle Action Patterns",
-  description: "Toggle enrich-derived action patterns on or off for the active Novel. Game Master only.",
+  description: "Toggle enrich-derived action patterns on or off for the active Novel (Game Master only). Use when: enabling or disabling suggested actions. Do NOT use when: setting autonomy — use set_autonomy.",
   // REQ-115 — action pattern activation: flips the Novel-scoped boolean; when
   // enabled, synthesis patterns supplement suggest_actions; pure-resolution.
   inputSchema: {},
@@ -4168,13 +4078,8 @@ server.registerTool("toggle_action_patterns", {
 
 server.registerTool("present_choices", {
   title: "Present Choices",
-  description: "Present structured choice prompts to the player. Resolved via respond. Game Master only.",
-  inputSchema: {
-    prompt: z.string(),
-    choices: z.array(z.object({ id: z.string(), label: z.string(), description: z.string().optional() })),
-    allow_freeform: z.boolean().optional(),
-    context: z.record(z.string(), z.any()).optional(),
-  },
+  description: "Present structured choice prompts to the player, resolved later via respond (Game Master only). Use when: offering the player a decision. Do NOT use when: resolving an open decision — use respond.",
+  inputSchema: { prompt: z.string().describe("The choice prompt."), choices: z.array(z.object({ id: z.string(), label: z.string(), description: z.string().optional() })).describe("The list of choices."), allow_freeform: z.boolean().optional().describe("When true, allow a free-form response."), context: z.record(z.string(), z.any()).optional().describe("Optional context for the choice.") },
 }, async ({ prompt, choices, allow_freeform, context }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4194,8 +4099,8 @@ server.registerTool("present_choices", {
 
 server.registerTool("ask_oracle", {
   title: "Ask Oracle",
-  description: "Resolve uncertainty with a d100 roll against the Ask-the-Oracle ladder: almost_certain (≥11), likely (≥26), 50_50 (≥51), unlikely (≥76), small_chance (≥91). Defaults to 50_50 when likelihood is omitted. Callable by Player and Game Master.",
-  inputSchema: { question: z.string(), likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional(), seed: z.string().optional() },
+  description: "Resolve uncertainty with a deterministic d100 roll against the Ask-the-Oracle ladder (almost_certain, likely, 50_50, unlikely, small_chance), callable by Player and Game Master. Use when: the rules or fiction leave an outcome open. Do NOT use when: rolling on a fixed table — use roll_on_table.",
+  inputSchema: { question: z.string().describe("The question to resolve."), likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional().describe("almost_certain, likely, 50_50, unlikely, or small_chance."), seed: z.string().optional().describe("Optional deterministic seed.") },
 }, async ({ question, likelihood, seed }: any) => {
   requireNotObserver();
   const novel = requireNovel();
@@ -4333,10 +4238,10 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 server.registerTool("set_verbosity", {
   title: "Set Output Verbosity",
-  description: "Set the session output verbosity mode: normal (full entries) or terse (minimum mechanical content). Callable by both badges.",
+  description: "Set the session output verbosity to normal (full entries) or terse (minimum mechanical content), callable by both badges. Use when: the caller wants shorter or fuller replies. Do NOT use when: setting briefing section order — use set_briefing_order.",
   // REQ-253 — tool-output verbosity control: session-scoped mode, discarded on
   // connection close; reported in spec_health.
-  inputSchema: { mode: z.enum(["normal", "terse"]) },
+  inputSchema: { mode: z.enum(["normal", "terse"]).describe("normal or terse.") },
 }, async ({ mode }: any) => {
   outputVerbosity = mode;
   return ok(`Output verbosity set to '${mode}'.`);
@@ -4344,8 +4249,8 @@ server.registerTool("set_verbosity", {
 
 server.registerTool("set_briefing_order", {
   title: "Set Briefing Order",
-  description: "Reorder sections of badge_briefing. Game Master only.",
-  inputSchema: { sections: z.array(z.string()) },
+  description: "Reorder sections of badge_briefing, persisting the order (Game Master only). Use when: customizing what the briefing emphasizes. Do NOT use when: setting verbosity — use set_verbosity.",
+  inputSchema: { sections: z.array(z.string()).describe("The ordered list of briefing sections.") },
 }, async ({ sections }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4365,11 +4270,11 @@ server.registerTool("set_briefing_order", {
 
 server.registerTool("compress_audit", {
   title: "Compress Audit Log",
-  description: "Return a Markdown prompt compressing recent audit entries. Callable by both badges.",
+  description: "Return a Markdown prompt compressing recent audit entries, callable by both badges. Use when: the caller needs a compact history. Do NOT use when: permanently compacting the audit log — use compact_audit_log.",
   // REQ-086 — audit compression: header line + one line per entry in
   // `[timestamp] [badge] tool_name — output_prefix` (or [BOUNDARY_VIOLATION]);
   // pure-generation, badge-filtered; max_entries ≤ 0 → [INVALID_INPUT].
-  inputSchema: { max_entries: z.number().optional() },
+  inputSchema: { max_entries: z.number().optional().describe("Optional maximum number of entries.") },
 }, async ({ max_entries }: any) => {
   const novel = requireNovel();
   const max = max_entries ?? 20;
@@ -4389,8 +4294,8 @@ server.registerTool("compress_audit", {
 // compact_audit_log: legacy alias for compress_audit (REQ-086).
 server.registerTool("compact_audit_log", {
   title: "Compact Audit Log",
-  description: "Alias for compress_audit.",
-  inputSchema: { max_entries: z.number().optional() },
+  description: "Alias for compress_audit: permanently compacts the audit log. Use when: reducing stored audit size. Do NOT use when: generating a compression prompt — use compress_audit.",
+  inputSchema: { max_entries: z.number().optional().describe("Optional maximum number of entries.") },
 }, async ({ max_entries }: any) => {
   const novel = requireNovel();
   const max = max_entries ?? 20;
@@ -4429,14 +4334,11 @@ function assessGenerationGuard(input: string): string | null {
 // (default otherwise), or both. No Novel is required for the codex target.
 server.registerTool("generate_adventure", {
   title: "Generate Adventure",
-  description: "Generate an adventure scaffold from a premise. Game Master only.",
+  description: "Generate an adventure scaffold from a premise, targeting the Novel, the codex, or both (Game Master only). Use when: the GM wants a new adventure outline. Do NOT use when: generating a single scene — use generate_encounter.",
   // REQ-132 — adventure generation lifecycle: transient Novel-scoped artifact
   // surfaced at adventure://generated/<anchor>, replaced on regeneration,
   // discarded by end_novel, never persisted to TTRPG_ADVENTURE.
-  inputSchema: {
-    premise: z.string(),
-    target: z.enum(["novel", "codex", "both"]).optional(),
-  },
+  inputSchema: { premise: z.string().describe("The adventure premise."), target: z.enum(["novel", "codex", "both"]).optional().describe("novel, codex, or both.") },
 }, async ({ premise, target }: any) => {
   requireGM();
   const novel = state.activeNovel;
@@ -4542,8 +4444,8 @@ server.registerTool("generate_adventure", {
 // undo target. Player badge → [FORBIDDEN].
 server.registerTool("generate_encounter", {
   title: "Generate Encounter",
-  description: "Generate a scene + NPC + lore entry from context. Game Master only.",
-  inputSchema: { context: z.string() },
+  description: "Generate a scene, NPC, and lore entry from context (Game Master only). Use when: the GM wants an encounter on demand. Do NOT use when: generating a full adventure — use generate_adventure.",
+  inputSchema: { context: z.string().describe("The scene context to generate from.") },
 }, async ({ context }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4613,8 +4515,8 @@ server.registerTool("generate_encounter", {
 
 server.registerTool("load_adventure", {
   title: "Load Adventure",
-  description: "Load an adventure module. Game Master only.",
-  inputSchema: { slug: z.string() },
+  description: "Load an adventure module, persisting it as the active adventure (Game Master only). Use when: starting a prepared adventure. Do NOT use when: listing adventures — use list_adventures.",
+  inputSchema: { slug: z.string().describe("The adventure module slug to load.") },
 }, async ({ slug }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -4671,8 +4573,8 @@ server.registerTool("load_adventure", {
 // empty-state when no modules; badge-filtered.
 server.registerTool("list_adventures", {
   title: "List Adventures",
-  description: "List adventure modules with metadata. Always callable.",
-  inputSchema: { filter: z.string().optional() },
+  description: "List adventure modules with metadata, always callable. Use when: discovering available adventures. Do NOT use when: loading an adventure — use load_adventure.",
+  inputSchema: { filter: z.string().optional().describe("Optional filter.") },
 }, async ({ filter }: any) => {
   const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
   let files: string[] = [];
@@ -4755,7 +4657,7 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 // REQ-072 — session_recap summarizes recent session activity.
 server.registerTool("session_recap", {
   title: "Session Recap",
-  description: "Summarize recent session activity.",
+  description: "Summarize recent session activity into a recap. Use when: reviewing what happened this session. Do NOT use when: reading the story journal in detail — use list_stories.",
   inputSchema: {},
 }, async () => {
   const novel = requireNovel();
@@ -4846,8 +4748,8 @@ server.registerTool("session_recap", {
 
 server.registerTool("create_novel", {
   title: "Create Novel",
-  description: "Create a named novel. Novel persists to disk.",
-  inputSchema: { name: z.string(), ruleset: z.string().optional(), genre: z.string().optional(), description: z.string().optional(), codex_adventure: z.string().optional() },
+  description: "Create a named Novel that persists to disk. Use when: starting a new campaign. Do NOT use when: resuming an existing Novel — use resume_novel.",
+  inputSchema: { name: z.string().describe("The Novel name."), ruleset: z.string().optional().describe("Optional ruleset slug."), genre: z.string().optional().describe("Optional genre."), description: z.string().optional().describe("Optional description."), codex_adventure: z.string().optional().describe("Optional codex adventure to seed from.") },
 }, async ({ name, ruleset, genre, description, codex_adventure }: any) => {
   requireNotObserver();
   if (ruleset && !rulesets.isInstalled(ruleset)) {
@@ -4881,8 +4783,8 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
 
 server.registerTool("resume_novel", {
   title: "Resume Novel",
-  description: "Resume a previously created novel from disk.",
-  inputSchema: { slug: z.string() },
+  description: "Resume a previously created Novel from disk, making it the active Novel. Use when: continuing an existing campaign. Do NOT use when: creating a new Novel — use create_novel.",
+  inputSchema: { slug: z.string().describe("The Novel slug to resume.") },
 }, async ({ slug }: any) => {
   // REQ-402 — resuming closes the prior session window; a window with zero
   // state writes is surfaced as [session-no-mutations].
@@ -4904,8 +4806,8 @@ server.registerTool("resume_novel", {
 
 server.registerTool("switch_novel", {
   title: "Switch Novel",
-  description: "Switch the active novel for this connection. Always callable.",
-  inputSchema: { slug: z.string() },
+  description: "Switch the active Novel for this connection, always callable. Use when: changing which save file the session works on. Do NOT use when: ending a Novel — use end_novel.",
+  inputSchema: { slug: z.string().describe("The Novel slug to switch to.") },
 }, async ({ slug }: any) => {
   // REQ-403b — TTRPG_STATE_GATE=block refuses to leave a drifting Novel.
   const active = state.activeNovel;
@@ -4929,7 +4831,7 @@ server.registerTool("switch_novel", {
 
 server.registerTool("end_novel", {
   title: "End Novel",
-  description: "End the current novel. Deactivates badge, removes save file.",
+  description: "End the current Novel, deactivating the badge and removing the save file after a confirmation workflow. Use when: concluding a campaign. Do NOT use when: merely switching Novels — use switch_novel.",
   inputSchema: {},
 }, async () => {
   requireNotObserver();
@@ -4950,8 +4852,8 @@ Options: yes, cancel`);
 
 server.registerTool("export_novel", {
   title: "Export Novel",
-  description: "Export the active novel in interchange format. Game Master only.",
-  inputSchema: { format: z.string().optional(), scope: z.string().optional() },
+  description: "Export the active Novel in interchange format for backup or transfer (Game Master only). Use when: moving a Novel between servers. Do NOT use when: importing a Novel — use import_novel.",
+  inputSchema: { format: z.string().optional().describe("Optional output format."), scope: z.string().optional().describe("Optional export scope.") },
 }, async ({ format: fmt, scope }: any) => {
   requireGM();
   // REQ-425b — interchange surfaces accept only json/markdown; html returns
@@ -5042,12 +4944,8 @@ server.registerTool("export_novel", {
 
 server.registerTool("import_novel", {
   title: "Import Novel",
-  description: "Import a previously exported novel. Game Master only.",
-  inputSchema: {
-    data: z.string(),
-    mode: z.enum(["dry-run", "merge", "replace"]).optional(),
-    strict: z.boolean().optional(),
-  },
+  description: "Import a previously exported Novel in dry-run, merge, or replace mode (Game Master only). Use when: loading a Novel from interchange format. Do NOT use when: exporting a Novel — use export_novel.",
+  inputSchema: { data: z.string().describe("The exported Novel JSON."), mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace."), strict: z.boolean().optional().describe("When true, fail on any cross-reference mismatch.") },
 }, async ({ data, mode, strict }: any) => {
   requireGM();
   const m = mode ?? "dry-run";
@@ -5149,7 +5047,7 @@ server.registerTool("import_novel", {
 
 server.registerTool("revert_synthesis", {
   title: "Revert Synthesis",
-  description: "Remove all synthesis state, restoring pre-synthesis server state. Game Master only.",
+  description: "Remove all synthesis state, restoring pre-synthesis server state (Game Master only). Use when: discarding generated synthesis content wholesale. Do NOT use when: deactivating a single item — use deactivate_synthesis_item.",
   inputSchema: {},
 }, async () => {
   requireGM();
@@ -5164,8 +5062,8 @@ server.registerTool("revert_synthesis", {
 
 server.registerTool("search_rules", {
   title: "Search Rules",
-  description: "Search the active ruleset's index for matching terms. Empty when no ruleset is bound.",
-  inputSchema: { query: z.string(), max_results: z.number().optional() },
+  description: "Search the active ruleset's index for matching terms, returning empty when no ruleset is bound. Use when: looking up a rule, item, or concept in the ruleset. Do NOT use when: the Novel is ruleset-free — use suggest_actions or spec_health.",
+  inputSchema: { query: z.string().describe("The search query."), max_results: z.number().optional().describe("Optional maximum number of results.") },
 }, async ({ query, max_results }: any) => {
   const novel = state.activeNovel;
   const slug = novel?.ruleset ?? null;
@@ -5186,16 +5084,8 @@ server.registerTool("search_rules", {
 
 server.registerTool("install_ruleset", {
   title: "Install Ruleset",
-  description: "Install a ruleset package from a files bundle. Game Master or Editor only.",
-  inputSchema: {
-    slug: z.string(),
-    manifest: z.any(),
-    index: z.any().optional(),
-    model: z.any().optional(),
-    tools: z.any().optional(),
-    resources: z.any().optional(),
-    prompts: z.any().optional(),
-  },
+  description: "Install a ruleset package from a files bundle, persisting it to the install directory (Game Master or Editor only). Use when: adding a ruleset to the host. Do NOT use when: removing a ruleset — use remove_ruleset.",
+  inputSchema: { slug: z.string().describe("The ruleset slug."), manifest: z.any().describe("The package manifest."), index: z.any().optional().describe("Optional search index."), model: z.any().optional().describe("Optional extraction model."), tools: z.any().optional().describe("Optional tool schemas."), resources: z.any().optional().describe("Optional resources."), prompts: z.any().optional().describe("Optional prompts.") },
 }, async (args: any) => {
   requireGM();
   try {
@@ -5215,8 +5105,8 @@ server.registerTool("install_ruleset", {
 
 server.registerTool("remove_ruleset", {
   title: "Remove Ruleset",
-  description: "Remove an installed ruleset package. Game Master or Editor only.",
-  inputSchema: { slug: z.string() },
+  description: "Remove an installed ruleset package, deregistering its tools, resources, and prompts (Game Master or Editor only). Use when: uninstalling a ruleset. Do NOT use when: listing rulesets — use list_rulesets.",
+  inputSchema: { slug: z.string().describe("The ruleset slug to remove.") },
 }, async ({ slug }: any) => {
   requireGM();
   const novel = state.activeNovel;
@@ -5233,7 +5123,7 @@ server.registerTool("remove_ruleset", {
 
 server.registerTool("list_rulesets", {
   title: "List Rulesets",
-  description: "List installed ruleset packages with loaded-versus-installed state.",
+  description: "List installed ruleset packages with loaded-versus-installed state. Use when: reviewing which rulesets the host knows. Do NOT use when: installing a ruleset — use install_ruleset.",
   // REQ-391 — scoped tool listing: default surface is active Novel's ruleset
   // tools plus infrastructure; list_rulesets exposes per-package state without
   // forcing hydration of inactive packages (REQ-390 lazy hydration).
@@ -5251,8 +5141,8 @@ server.registerTool("list_rulesets", {
 
 server.registerTool("bind_novel_ruleset", {
   title: "Bind Novel Ruleset",
-  description: "Bind the active ruleset-free Novel to an installed ruleset. Game Master or Editor only; one-way and audited.",
-  inputSchema: { slug: z.string() },
+  description: "Bind the active ruleset-free Novel to an installed ruleset, a one-way, audited migration (Game Master or Editor only). Use when: adding mechanical rules to a freeform Novel. Do NOT use when: removing a ruleset — use remove_ruleset.",
+  inputSchema: { slug: z.string().describe("The installed ruleset slug to bind.") },
 }, async ({ slug }: any) => {
   requireGM();
   if (!rulesets.isInstalled(slug)) {
@@ -5269,8 +5159,8 @@ server.registerTool("bind_novel_ruleset", {
 
 server.registerTool("suggest_actions", {
   title: "Suggest Actions",
-  description: "Map player intent to world-model tool invocations. No mechanical suggestions in ruleset-free mode.",
-  inputSchema: { intent: z.string(), entity_id: z.string().optional() },
+  description: "Map player intent to world-model tool invocations, omitting mechanical suggestions in ruleset-free mode. Use when: translating natural-language intent into concrete tool calls. Do NOT use when: resolving a spatial action directly — use command or resolve_intent.",
+  inputSchema: { intent: z.string().describe("The player intent to map to tool calls."), entity_id: z.string().optional().describe("Optional entity context.") },
 }, async ({ intent, entity_id }: any) => {
   const novel = requireNovel();
   const entity = entity_id ? novel.entities.get(entity_id) : state.getActiveEntity();
@@ -5370,7 +5260,7 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
 // REQ-025 — spec_health reports build health, indexed counts, and URI completeness.
 server.registerTool("spec_health", {
   title: "Spec Health",
-  description: "Report build health, indexed counts, and resource URI completeness.",
+  description: "Report build health, indexed counts, and resource URI completeness derived from live registrations. Use when: diagnosing server or ruleset state. Do NOT use when: searching ruleset content — use search_rules.",
   inputSchema: {},
 }, async () => {
   const novel = state.activeNovel;
@@ -6074,7 +5964,7 @@ server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel
 server.registerTool("set_party_presence", {
   title: "Set Party Presence",
   description: "Declare which entities are present in the current scene. Use when: the GM needs to override party presence without altering other scene fields. Do NOT use when: setting scene description — use set_scene_state.",
-  inputSchema: { entity_ids: z.array(z.string()), location: z.string().optional() },
+  inputSchema: { entity_ids: z.array(z.string()).describe("The entities present in the current scene."), location: z.string().optional().describe("Optional location override.") },
 }, async ({ entity_ids, location }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6087,7 +5977,7 @@ server.registerTool("set_party_presence", {
 server.registerTool("roll_on_table", {
   title: "Roll On Table",
   description: "Roll on a generation table from the bound ruleset. Use when: resolving a random-generation table (names, treasure, events). Do NOT use when: resolving a fixed lookup — use a lookup tool.",
-  inputSchema: { table: z.string(), seed: z.string().optional() },
+  inputSchema: { table: z.string().describe("The generation table to roll on."), seed: z.string().optional().describe("Optional deterministic seed.") },
 }, async ({ table, seed }: any) => {
   const novel = state.activeNovel;
   const slug = novel?.ruleset ?? null;
@@ -6122,14 +6012,7 @@ server.registerTool("roll_on_table", {
 server.registerTool("codex_set", {
   title: "Set Codex Entry",
   description: "Create or update a typed codex entry that persists across Novels. Use when: storing reusable content (NPCs, factions, rooms, spells, etc.) for later import. Do NOT use when: storing Novel-scoped content — use set_lore_entry or set_note.",
-  inputSchema: {
-    kind: z.string(),
-    name: z.string(),
-    content: z.any(),
-    description: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    visibility: z.enum(["library", "shared", "private"]).optional(),
-  },
+  inputSchema: { kind: z.string().describe("The codex entry kind."), name: z.string().describe("The entry name."), content: z.any().describe("The entry content."), description: z.string().optional().describe("Optional description."), tags: z.array(z.string()).optional().describe("Optional tags."), visibility: z.enum(["library", "shared", "private"]).optional().describe("library, shared, or private.") },
 }, async ({ kind, name, content, description, tags, visibility }: any) => {
   requireGM();
   const id = `${kind.toLowerCase()}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
@@ -6151,7 +6034,7 @@ server.registerTool("codex_set", {
 server.registerTool("codex_list", {
   title: "List Codex Entries",
   description: "List codex entries by kind, badge-filtered by visibility. Use when: discovering reusable content to import. Do NOT use when: listing Novel entities — use list_notes or list_stories.",
-  inputSchema: { kind: z.string().optional() },
+  inputSchema: { kind: z.string().optional().describe("Optional kind filter.") },
 }, async ({ kind }: any) => {
   const badge = getBadge();
   let entries = [...state.codex.values()];
@@ -6165,7 +6048,7 @@ server.registerTool("codex_list", {
 server.registerTool("codex_capture", {
   title: "Capture to Codex",
   description: "Capture an entity's voice profile to the Codex. Use when: persisting a character's corrected voice across Novels. Do NOT use when: storing Novel-scoped lore — use set_lore_entry.",
-  inputSchema: { kind: z.enum(["voice_profile"]), entity_id: z.string(), update_source: z.boolean().optional() },
+  inputSchema: { kind: z.enum(["voice_profile"]).describe("The codex kind (voice_profile)."), entity_id: z.string().describe("The entity whose voice to capture."), update_source: z.boolean().optional().describe("When true, update the source entity too.") },
 }, async ({ kind, entity_id, update_source }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6189,7 +6072,7 @@ server.registerTool("codex_capture", {
 server.registerTool("codex_import", {
   title: "Import from Codex",
   description: "Import a Codex entry into the active Novel. Use when: pulling reusable content (voice profiles, adventures) in. Do NOT use when: reading the Codex — use codex_list.",
-  inputSchema: { entry_id: z.string() },
+  inputSchema: { entry_id: z.string().describe("The codex entry identifier to import.") },
 }, async ({ entry_id }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6232,8 +6115,8 @@ server.registerTool("codex_import", {
 const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementary_guidance", "narrative_voices", "lore_templates"];
 server.registerTool("player_synthesize", {
   title: "Player Synthesize",
-  description: "Create a player-authored synthesis item. Player badge only.",
-  inputSchema: { module: z.string(), key: z.string(), content: z.string(), triggers: z.array(z.string()).optional(), badge_scope: z.enum(["shared", "player"]).optional() },
+  description: "Create a player-authored synthesis item (Player badge only), persisting it to the Novel. Use when: the player wants to add their own lore or voice content. Do NOT use when: the GM is synthesizing — use synthesize.",
+  inputSchema: { module: z.string().describe("The synthesis module."), key: z.string().describe("The item key."), content: z.string().describe("The item content."), triggers: z.array(z.string()).optional().describe("Optional recall triggers."), badge_scope: z.enum(["shared", "player"]).optional().describe("shared or player.") },
 }, async ({ module, key, content, triggers, badge_scope }: any) => {
   requirePlayer();
   const novel = requireNovel();
@@ -6251,8 +6134,8 @@ server.registerTool("player_synthesize", {
 
 server.registerTool("player_remove_synthesis", {
   title: "Player Remove Synthesis",
-  description: "Remove a player-authored synthesis item. Player badge only.",
-  inputSchema: { module: z.string(), key: z.string() },
+  description: "Remove a player-authored synthesis item (Player badge only), persisting the removal. Use when: the player discards their own synthesis content. Do NOT use when: deactivating an item without deleting it — use deactivate_synthesis_item.",
+  inputSchema: { module: z.string().describe("The synthesis module."), key: z.string().describe("The item key to remove.") },
 }, async ({ module, key }: any) => {
   requirePlayer();
   const novel = requireNovel();
@@ -6267,8 +6150,8 @@ server.registerTool("player_remove_synthesis", {
 
 server.registerTool("player_list_synthesis", {
   title: "Player List Synthesis",
-  description: "List player-authored synthesis items. Player badge only.",
-  inputSchema: { module: z.string().optional() },
+  description: "List player-authored synthesis items (Player badge only). Use when: reviewing the player's own synthesis content. Do NOT use when: listing all synthesis items — use list_synthesis_items.",
+  inputSchema: { module: z.string().optional().describe("Optional module filter.") },
 }, async ({ module }: any) => {
   requirePlayer();
   const novel = requireNovel();
@@ -6285,7 +6168,7 @@ server.registerTool("synthesize", {
   // items with novel:// source URIs; fingerprint staleness + force bypass.
   // REQ-264 — confidence model: explicit-field items carry MEDIUM, inferred
   // items LOW, tagged [supplementary] [MEDIUM|LOW].
-  inputSchema: { force: z.boolean().optional() },
+  inputSchema: { force: z.boolean().optional().describe("When true, re-run synthesis even if unchanged.") },
 }, async ({ force }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6302,7 +6185,7 @@ server.registerTool("synthesize", {
 server.registerTool("list_synthesis_items", {
   title: "List Synthesis Items",
   description: "List synthesis items by module and tier. Use when: reviewing available synthesis content. Do NOT use when: browsing the codex — use codex_list.",
-  inputSchema: { module: z.string().optional(), ...detailZod },
+  inputSchema: { module: z.string().optional().describe("Optional module filter."), ...detailZod },
 }, async ({ module, detail }: any) => {
   const manifest = state.enrichmentManifest;
   if (!manifest) return ok("No synthesis items (synthesis not run).");
@@ -6322,7 +6205,7 @@ server.registerTool("list_synthesis_items", {
 server.registerTool("activate_synthesis_item", {
   title: "Activate Synthesis Item",
   description: "Activate a synthesis item for the active Novel. Use when: incorporating synthesis content into play. Do NOT use when: deactivating — use deactivate_synthesis_item.",
-  inputSchema: { module: z.string(), key: z.number() },
+  inputSchema: { module: z.string().describe("The synthesis module."), key: z.number().describe("The item key to activate.") },
 }, async ({ module, key }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6337,7 +6220,7 @@ server.registerTool("activate_synthesis_item", {
 server.registerTool("deactivate_synthesis_item", {
   title: "Deactivate Synthesis Item",
   description: "Deactivate a synthesis item for the active Novel. Use when: removing a synthesis item from play without deleting it. Do NOT use when: removing Ruleset Wisdom — use revert_synthesis.",
-  inputSchema: { module: z.string() },
+  inputSchema: { module: z.string().describe("The synthesis module to deactivate.") },
 }, async ({ module }: any) => {
   requireGM();
   const novel = requireNovel();
@@ -6351,7 +6234,7 @@ server.registerTool("deactivate_synthesis_item", {
 server.registerTool("toggle_synthesis_module", {
   title: "Toggle Synthesis Module",
   description: "Enable or disable a synthesis module for the active Novel. Use when: controlling whether a module's content appears in surfaces. Do NOT use when: activating a single item — use activate_synthesis_item.",
-  inputSchema: { module: z.string(), enabled: z.boolean() },
+  inputSchema: { module: z.string().describe("The synthesis module."), enabled: z.boolean().describe("Whether to enable or disable it.") },
 }, async ({ module, enabled }: any) => {
   requireGM();
   const novel = requireNovel();

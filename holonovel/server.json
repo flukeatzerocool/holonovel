@@ -7,13 +7,13 @@
     "source": "github",
     "subfolder": "holonovel"
   },
-  "version": "2026.8.22",
+  "version": "2026.9.2",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "holonovel",
-      "version": "2026.8.22",
+      "version": "2026.9.2",
       "transport": {
         "type": "stdio"
       }

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-02 — Tool-definition quality + registry-published distribution
+
+- Added REQ-427 (tool parameter semantics): every advertised tool SHALL describe
+  each input parameter in its JSON Schema — meaning, allowed values, and default —
+  so callers can invoke it without external documentation (T509).
+- Added REQ-428 (registry-published distribution): the distribution SHALL build a
+  container image and maintain a `server.json` whose version matches the
+  npm-canonical host version, and SHALL fail closed on a missing or mismatched
+  manifest (T510).
+- Implementation (`holonovel/src/index.ts`): rewrote all 127 tool descriptions to
+  the REQ-024 three-clause structure ("Use when" / "Do NOT use when") and added
+  `.describe()` to 282 input parameters.
+- Fixed the MCP registry publish pipeline (`.github/workflows/publish.yml`):
+  `mcp-publisher` takes `server.json` as a positional argument, so `--file=` was
+  silently ignored; added a `validate` gate and canonical-version injection.
+- `scripts/version-check.ts` now guards `holonovel/server.json` version against
+  the npm-canonical host version; `holonovel/server.json` synced to `2026.9.1`.
+- Added `holonovel/Dockerfile` + `.dockerignore` (containerized distribution),
+  root `glama.json` (maintainers), and `holonovel/scripts/test-tool-definitions.ts`
+  (T509/T510), wired into `test:all`.
+
 ## 2026-09-01 — Output format catalog + MCP Apps UI surface
 
 - Added REQ-425a–d (output format catalog): every user-requestable artifact

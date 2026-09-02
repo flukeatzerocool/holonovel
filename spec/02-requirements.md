@@ -611,6 +611,10 @@ Every tool carries a `title` field with the ruleset's own term for that action. 
 
 **REQ-024b — Tool documentation (Part b).**
 Descriptions longer than three sentences are truncated in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
+
+**REQ-427 — Tool parameter semantics.**
+Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
+
 **REQ-025a — spec_health (Part a).**
 A `spec_health` tool reports build-health metrics derived from live registrations at call time — not from hardcoded numeric literals.
 
@@ -3610,6 +3614,9 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 
 **REQ-424 — User-data migration entry point.**
 The distribution SHALL expose a documented entry point — `migrate-user-data` — that lists artifacts whose data-format fingerprint (REQ-423) differs from the host's current value or is absent and, when explicitly invoked, re-stamps each through the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults per REQ-065. The default invocation SHALL be a dry run with no side effects. A migration that fails before completing SHALL leave the original artifact unchanged and name the artifact. *Acceptance criterion:* the default invocation changes nothing; an explicit run re-stamps stale artifacts; re-export after migration is unchanged. _Check:_ T502.
+
+**REQ-428 — Registry-published distribution.**
+The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 ### 5.19 State Persistence Guardrails
 
