@@ -116,8 +116,9 @@ README DESIGN:
   Contribute (§4).
     One h3 subsection — Improve the spec. No introductory prose under
     the h2. Prerequisite sentence, four-row commands table, closing
-    assemble sentence, canonical-origin note. No duplicated instructions
-    from §1. License footer follows immediately — no heading.
+    assemble sentence, canonical-origin note, project-wiki link. No
+    duplicated instructions from §1. License footer follows immediately
+    — no heading.
 
   License footer.
     Three attribution lines: MIT, sources (Inform, four narrative
@@ -402,6 +403,8 @@ Edit files in `spec/`. Run `npm run assemble` before committing. Do not edit
 `holonovel.md` directly — it is generated from `spec/` source files.
 
 Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel). This GitHub repository is a read-only mirror.
+
+Guides for players, Game Masters, and builders live in the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki).
 
 License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
 if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
