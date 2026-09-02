@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-02 — Link the project wiki from the README
+
+- Added a link to the Holonovel wiki (player, Game Master, and builder
+  guides) in the README's Contribute section, and documented the placement in
+  the README DESIGN comment.
+
 ## 2026-09-02 — Reconcile the never-implemented remove_synthesis_item operation
 
 - Reconciled REQ-260 with the implemented synthesis surface: removed the
