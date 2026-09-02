@@ -2,6 +2,15 @@
 
 **Spec hash:** 456f43bd6d2b69f867dc9e6541eb4135022be0363d8e4b7e33a2a4a6c39edc5d
 
+### Holonovel Spec Update — 2026-09-02 (container distribution via Glama admin build spec)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | housekeeping (no normative change) — REQ-428's container-image path moved from the repo `Dockerfile` (removed) to the Glama-hosted admin build spec. Verified Glama does not read repo Dockerfiles: it generates its own debian+node+uv image (clone into `/app`) and applies admin-configured build steps + CMD arguments (Glama release docs; corroborated by a documented third-party Node config). Glama admin build spec (`…/admin/dockerfile`): build steps `npm --prefix holonovel ci`, `npm --prefix holonovel run build`; CMD args `node` / `holonovel/dist/index.js`; env schema `TTRPG_DATA_DIR=/data`; Node 20. Deleted `holonovel/Dockerfile` + `.dockerignore`. `server.json` version unchanged. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors; Glama build test passes with the admin build spec (no `ERR_MODULE_NOT_FOUND`); grep sweep — no `Dockerfile` references outside CHANGELOG/DECISIONS history |
+
 ### Holonovel Spec Update — 2026-09-02 (reconcile remove_synthesis_item)
 
 | Field | Value |

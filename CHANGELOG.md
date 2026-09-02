@@ -71,9 +71,10 @@
   silently ignored; added a `validate` gate and canonical-version injection.
 - `scripts/version-check.ts` now guards `holonovel/server.json` version against
   the npm-canonical host version; `holonovel/server.json` synced to `2026.9.1`.
-- Added `holonovel/Dockerfile` + `.dockerignore` (containerized distribution),
-  root `glama.json` (maintainers), and `holonovel/scripts/test-tool-definitions.ts`
-  (T509/T510), wired into `test:all`.
+- Containerized distribution moved to the Glama admin build spec (Glama does not
+  read repo Dockerfiles): removed `holonovel/Dockerfile` + `.dockerignore`; recorded
+  the admin build steps/CMD in DECISIONS.md. Added root `glama.json` (maintainers)
+  and `holonovel/scripts/test-tool-definitions.ts` (T509/T510), wired into `test:all`.
 - Removed the newsletter cron workflow (`.github/workflows/newsletter.yml`) to stop
   weekly divergence of the GitHub `main` branch; full newsletter retirement is
   scheduled on the roadmap.
