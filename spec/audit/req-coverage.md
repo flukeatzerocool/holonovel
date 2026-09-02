@@ -290,7 +290,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-320 | Narrative-intent parser verbs (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T365 | — |
 | REQ-321 | Codex (Part a) (16 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T397, T402, S17 | — |
 | REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T369 | — |
-| REQ-323 | resolve_intent tool (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
+| REQ-323 | command resolve action (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
 | REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | T371 | — |
 | REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T372 | — |
 | REQ-326 | Scene-world coupling (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T373 | — |
@@ -352,7 +352,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
 | REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
 | REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-385 | suggest_actions cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
 | REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
 | REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T450 | — |

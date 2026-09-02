@@ -59,13 +59,13 @@ exercises: status prefix
 and `isError` semantics (REQ-001), required fields in order, die values pinned
 by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
 (REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
-session_recap correctness (REQ-072), and undo round-trip (REQ-041). Wording is
+session (action: recap) correctness (REQ-072), and undo round-trip (REQ-041). Wording is
 not asserted. Assertion boundary: status prefixes, `isError` flags, required
 fields in `spec_health` output, die values, badge gating decisions, and
 structural completeness (every transcript interaction produces an assertable
 result — `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`) SHALL
-be asserted exactly. Natural-language prose in `set_scene_state`,
-`session_recap`, narrative tool output, and error corrective-action text SHALL
+be asserted exactly. Natural-language prose in `scene (action: set)`,
+`session (action: recap)`, narrative tool output, and error corrective-action text SHALL
 be checked for structural presence (the field exists and is non-empty) but not
 for exact wording.
 
@@ -115,8 +115,8 @@ synthesis workflow (§11) completes, verify: all synthesis items carry a source
 tag (`[supplementary]` or `[player]`); Ruleset Wisdom items the host carries
 (`[vendor]`-tagged per §11.4) survive server rebuild with unchanged ruleset
 hash; deactivated items are
-absent from `badge_briefing` and `suggest_actions` output; `synthesis://status`
-reports correct per-module active/inactive counts; `revert_synthesis` removes all
+absent from `badge_briefing` and `command (action: suggest)` output; `synthesis://status`
+reports correct per-module active/inactive counts; `synthesis (action: revert)` removes all
 `[supplementary]` items while preserving Ruleset Wisdom and `[player]`
 items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract.
 Non-blocking failures are recorded as accepted limitations with re-activation
@@ -141,10 +141,10 @@ condition.
 
 | Badge                       | Behavior                                                                       | Expected result                                                                                                                         | Example invocation                                                                                                             |
 | ----------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Power Gamer                   | Stacks non-stacking bonuses                                                    | `[ERROR] [RULE_VIOLATION]`, or `[PARTIAL]` with explanation                                                                             | As Player, calls `apply_condition` with a condition already active on the target entity.                                          |
+| Power Gamer                   | Stacks non-stacking bonuses                                                    | `[ERROR] [RULE_VIOLATION]`, or `[PARTIAL]` with explanation                                                                             | As Player, calls `condition (action: apply)` with a condition already active on the target entity.                                          |
 | New Player                    | Calls a tool with missing or vague parameters                                  | `[ERROR] [INVALID_INPUT]` with a helpful correction                                                                                     | Calls `roll_skill_check` with `skill:""` (empty string).                                                                          |
-| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           | As Player badge, calls `init_combat`.                                                                                          |
-| Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        | Calls `search_rules` on a topic the ruleset defines in two conflicting sections.                                                  |
+| Curious Player                | Invokes a GM-only tool                                                    | `[ERROR] [FORBIDDEN]` stating the restriction                                                                                           | As Player badge, calls `combat (action: init)`.                                                                                          |
+| Rules Lawyer                  | Cites ambiguous wording to demand an outcome                                   | `[PARTIAL]` explaining the conflict and citing both texts, or `[OK]` returning the raw rule text                                        | Calls `ruleset (action: search)` on a topic the ruleset defines in two conflicting sections.                                                  |
 | Forgetful Player              | Misspells a bounded-domain parameter (a table or move name)                    | `[ERROR] [NOT_FOUND]` enumerating the session-visible valid values                                                                      | Calls `lookup_spell` with `name:"firebal"` (Levenshtein 1 from "fireball").                                                       |
 | Forgetful Player (save alias) | Calls `make_save` with the short form `fear` when the sheet shows `Fear Save`  | `[OK]` because short-form aliases are normalized; or `[ERROR] [NOT_FOUND]` with valid values if the save is truly missing               | Calls `roll_save` with `save:"fear"` when the entity's schema shows `"fear_save"`.                                               |
 
@@ -167,7 +167,7 @@ step on a host with at least two ruleset packages loaded. The workflow SHALL ver
    `[OK]`. Switch to a Novel bound to ruleset B. Assert the reverse — ruleset
    A tool fails, ruleset B tool succeeds.
 
-2. **Search isolation.** `search_rules("core mechanic")` under a ruleset A
+2. **Search isolation.** `ruleset (action: search, "core mechanic")` under a ruleset A
    Novel returns A-ruleset results only. Under a ruleset B Novel, returns
    B-ruleset results only. Assert no result carries a source anchor from the
    wrong ruleset.
@@ -178,12 +178,12 @@ step on a host with at least two ruleset packages loaded. The workflow SHALL ver
    the ruleset-B entry in B's Novel.
 
 4. **Import rejection.** Export a ruleset-A Novel. Build a new host
-   that does not include ruleset A. Attempt to `import_novel` — assert
+   that does not include ruleset A. Attempt to `novel (action: import)` — assert
    `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
 
 5. **Cross-ruleset Novel switching.** Create Novel A (ruleset A). Create
    Novel B (ruleset B). Call a ruleset-A dice-resolution tool — assert `[OK]`.
-   `switch_novel` to Novel B. Call the same ruleset-A tool — assert per
+   `novel (action: switch)` to Novel B. Call the same ruleset-A tool — assert per
    REQ-381. Call a ruleset-B dice-resolution tool — assert `[OK]`. Verify
    Novel A's state is unchanged on disk.
 
@@ -195,15 +195,15 @@ step on a host with at least two ruleset packages loaded. The workflow SHALL ver
    registered name. Assert every tool's `ruleset` annotation is either a
    known slug or `null`.
 
-8. **Codex isolation.** Call `codex_capture("npc", name)` from a ruleset-A
+8. **Codex isolation.** Call `codex (action: capture, "npc", name)` from a ruleset-A
    Novel — assert the created entry carries `ruleset` set to ruleset A's slug.
-   Call `codex_import` of that entry into a ruleset-B Novel — assert
+   Call `codex (action: import)` of that entry into a ruleset-B Novel — assert
    `[ERROR] [STATE_CONFLICT]` naming both rulesets.
 
-9. **Load-time namespacing audit.** After each `install_ruleset`, assert every
+9. **Load-time namespacing audit.** After each `ruleset (action: install)`, assert every
    tool registered from the package carries the correct `<slug>_` prefix and
    `ruleset` annotation; assert no infrastructure tool was re-registered; assert
-   `remove_ruleset` deregisters all of the package's tools and prompts while no
+   `ruleset (action: remove)` deregisters all of the package's tools and prompts while no
    bound Novel is active.
 
 G8 SHALL produce a pass/fail evidence record. A failure in any step blocks the
