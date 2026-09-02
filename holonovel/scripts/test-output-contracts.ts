@@ -20,6 +20,10 @@ let msgId = 0; const pending = new Map(); let buffer = "";
 function send(proc: any, msg: any) { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
 async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
+// REQ-426c — boot with the MCP Apps extension negotiated (io.modelcontextprotocol/ui).
+async function bootApps(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: { extensions: { "io.modelcontextprotocol/ui": {} } }, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
+async function callRaw(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); return r.result ?? {}; }
+async function readRaw(proc: any, uri: string) { const r = await send(proc, { method: "resources/read", params: { uri } }); return r.result ?? {}; }
 async function call(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function proto(proc: any, method: string, params: any) {
   const r = await send(proc, { method, params });
@@ -994,6 +998,101 @@ async function main() {
     await call(p, "create_character", {});
     const h = JSON.parse(await call(p, "spec_health", {}));
     if (!("pending_workflow" in h)) throw new Error("REQ-193 staleness surface");
+    passed++;
+    await kill(p);
+  });
+
+  // ── Wave 12: output format catalog (REQ-425) + MCP Apps UI surface (REQ-426) ──
+  await test("T505/REQ-425: output format catalog uniformity + validation", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w12a" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Fen", description: "scarred" });
+    const entity_id = "character_01";
+    // markdown default
+    const mdDefault = await call(p, "character_sheet", { entity_id });
+    assertContains(mdDefault, "## Fen", "T505 character_sheet markdown default");
+    // json structured
+    const j = await call(p, "character_sheet", { entity_id, format: "json" });
+    const parsed = JSON.parse(j);
+    if (parsed.name !== "Fen") throw new Error("T505 json name mismatch");
+    // html presentational
+    const html = await call(p, "character_sheet", { entity_id, format: "html" });
+    assertContains(html, "<h2>", "T505 character_sheet html");
+    // ascii
+    const ascii = await call(p, "character_sheet", { entity_id, format: "ascii" });
+    assertContains(ascii, "Fen", "T505 character_sheet ascii");
+    // unsupported format -> INVALID_INPUT with enumeration
+    const bad = await call(p, "character_sheet", { entity_id, format: "pdf" });
+    assertContains(bad, "[INVALID_INPUT]", "T505 unsupported format rejects");
+    assertContains(bad, "Supported formats", "T505 unsupported format enumerates");
+    // resource ?format= markdown/json/html + byte-consistency via same renderer
+    await call(p, "create_npc", { name: "Goblin" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const npc_id = Object.keys(npcs)[0];
+    const npcMd = await proto(p, "resources/read", { uri: `npc://${npc_id}` });
+    assertContains(npcMd, "## Goblin", "T505 npc resource markdown default");
+    const npcHtml = await proto(p, "resources/read", { uri: `npc://${npc_id}?format=html` });
+    assertContains(npcHtml, "<h2>", "T505 npc resource html");
+    // codex + lore resources honor the catalog
+    await call(p, "codex_set", { kind: "npc", name: "Blacksmith", content: { ac: 14 } });
+    const codexHtml = await proto(p, "resources/read", { uri: "codex://npc_blacksmith?format=html" });
+    assertContains(codexHtml, "<h2>", "T505 codex resource html");
+    await call(p, "set_lore_entry", { key: "treaty", content: "A border treaty." });
+    const loreJson = await proto(p, "resources/read", { uri: "lore://treaty?format=json" });
+    assertContains(loreJson, "border treaty", "T505 lore resource json");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T506/REQ-425d: ruleset-declared format registry surfaced in spec_health", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w12b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const h = JSON.parse(await call(p, "spec_health", {}));
+    const of = h.output_formats;
+    if (!of || !Array.isArray(of.declared)) throw new Error("T506 output_formats.declared missing");
+    if (!Array.isArray(of.universal) || !of.universal.includes("html")) throw new Error("T506 universal html missing");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T507/REQ-426: MCP Apps ui:// surface (negotiated)", async () => {
+    const p = await bootApps();
+    await call(p, "create_novel", { name: "w12c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Fen" });
+    const entity_id = "character_01";
+    // tool result carries ui:// linkage metadata (REQ-426b)
+    const r = await callRaw(p, "character_sheet", { entity_id });
+    const item = (r.content ?? [])[0] ?? {};
+    if (item._meta?.ui?.resourceUri !== `ui://character-sheet/${entity_id}`) throw new Error("T507 character_sheet ui linkage missing");
+    // ui:// resource served as text/html;profile=mcp-app with restrictive CSP (REQ-426a/d)
+    const res = await readRaw(p, `ui://character-sheet/${entity_id}`);
+    const c = (res.contents ?? [])[0];
+    if (!c || c.mimeType !== "text/html;profile=mcp-app") throw new Error("T507 ui mimeType mismatch: " + c?.mimeType);
+    if (!(c.text ?? "").includes("<h2>")) throw new Error("T507 ui html body missing");
+    const csp = c._meta?.ui?.csp;
+    if (!csp || (csp.connectDomains ?? []).length !== 0) throw new Error("T507 ui CSP must declare no external origins");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T508/REQ-426c: fallback without negotiation", async () => {
+    const p = await boot();
+    await call(p, "create_novel", { name: "w12d" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "create_character", { name: "Fen" });
+    const entity_id = "character_01";
+    // tool result has no ui linkage metadata when the client did not negotiate
+    const r = await callRaw(p, "character_sheet", { entity_id });
+    const item = (r.content ?? [])[0] ?? {};
+    if (item._meta?.ui?.resourceUri !== undefined) throw new Error("T508 unexpected ui linkage");
+    // ui:// read returns a plain-text fallback, not HTML
+    const res = await readRaw(p, `ui://character-sheet/${entity_id}`);
+    const c = (res.contents ?? [])[0];
+    if (c?.mimeType === "text/html;profile=mcp-app") throw new Error("T508 ui served HTML without negotiation");
+    assertContains(c?.text ?? "", "MCP Apps extension", "T508 fallback notice");
     passed++;
     await kill(p);
   });

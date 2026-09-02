@@ -644,6 +644,18 @@ Tool-level errors (all `[ERROR]` responses with a category from REQ-002) use `is
 **REQ-001b2 — Error boundary (Part b2).**
 A conformant server never emits a protocol-level error with a REQ-002 category string embedded. *Acceptance criterion:* A tool called with a structurally invalid parameter returns an SDK-level `-32602` response before the handler — this response does not contain `[ERROR] [INVALID_INPUT]` or a REQ-002 category. A tool called with a semantically invalid parameter returns a result with `isError: true` and `[ERROR] [INVALID_INPUT]`. _Check:_ T180.
 
+**REQ-425a — Output format catalog (Part a).**
+Every user-requestable artifact surface — a tool or resource that returns a content artifact — SHALL accept an optional format selector drawn from the output format catalog (Appendix T.1). When the selector is omitted, the surface renders the catalog default. *Acceptance criterion:* Each universal catalog format requested on a content surface returns that artifact's content in the requested format. _Check:_ T505.
+
+**REQ-425b — Output format validation (Part b).**
+A requested format the surface does not support SHALL return `[INVALID_INPUT]` enumerating the formats the surface supports, filtered by badge per REQ-002. The enumeration SHALL derive from the catalog at call time per REQ-059. *Acceptance criterion:* Requesting a notation format on a stat-block surface returns `[INVALID_INPUT]` naming the supported formats; a Player badge enumeration excludes GM-only formats. _Check:_ T505.
+
+**REQ-425c — Output format consistency (Part c).**
+The same artifact rendered in the same format SHALL be byte-identical across every surface. Where an interchange schema exists (Appendix L, Appendix Q), the `json` render SHALL match it, so an interchange export and the corresponding resource render agree. *Acceptance criterion:* `novel://current?format=json` equals `export_novel(format="json")`; `character_sheet` and `npc://<id>` agree in every catalog format. _Check:_ T505.
+
+**REQ-425d — Ruleset-declared formats (Part d).**
+A ruleset package MAY declare additional format identifiers in the catalog (Appendix T.1); a declared format renders on the surfaces the package defines and SHALL appear in those surfaces' enumerations and in `spec_health`. *Acceptance criterion:* A fixture package declaring a format renders it on its surfaces and lists it; an undeclared format returns `[INVALID_INPUT]`. _Check:_ T506.
+
 ### 5.2 Extraction and Confidence
 
 During Discovery (§6.3), mechanical coupling metadata — which mechanics produce
@@ -1015,6 +1027,19 @@ THE server SHALL provide a `graph://novel` resource returning the Novel's entity
 
 **REQ-296b — Knowledge-graph resource (Part b).**
 When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has no briefing presence per §5.10. *Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with 1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM badge includes entities, NPCs with relationships, lore_connections, secrets, and factions. _Check:_ T341.
+
+**REQ-426a — MCP Apps UI resource surface (Part a).**
+The server SHALL expose interactive HTML views of user-requestable artifacts as UI resources under the `ui://` scheme, per the MCP Apps extension, served with the `text/html;profile=mcp-app` MIME type. Each UI resource SHALL render the same artifact as its `html` catalog format (REQ-425) and SHALL declare no external origins in its UI metadata. *Acceptance criterion:* `resources/list` exposes `ui://` templates for stat-block, codex, lore, and Novel surfaces, each returning `text/html;profile=mcp-app` content matching the artifact's `html` render. _Check:_ T507.
+
+**REQ-426b — Tool-UI linkage (Part b).**
+A content tool SHALL reference the UI resource for the artifact it returns through tool-result metadata, so a negotiating host can present the interactive view. *Acceptance criterion:* `character_sheet` output carries metadata pointing to its `ui://` resource. _Check:_ T507.
+
+**REQ-426c — MCP Apps capability negotiation (Part c).**
+The server SHALL declare the MCP Apps extension capability during initialization. When a client does not negotiate the extension, `ui://` resources and linkage metadata SHALL be absent and text surfaces SHALL serve unchanged. *Acceptance criterion:* A negotiating client receives `ui://` resources and linkage metadata; a non-negotiating client sees neither and all text output is unchanged. _Check:_ T507.
+
+**REQ-426d — UI resource security (Part d).**
+UI resources SHALL be static, self-contained HTML with no external network origins; the server SHALL declare restrictive CSP metadata and SHALL NOT embed credentials. *Acceptance criterion:* every `ui://` resource's UI metadata declares no external origins. _Check:_ T507.
+
 **REQ-023a — Prompts (Part a).**
 The server provides prompts covering multi-step workflows, badge briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel setup (REQ-089). Tool-use intent mapping is handled by the `suggest_actions` tool (REQ-084) rather than a prompt — a dedicated prompt for this function is redundant. The remaining intent-mapping prompt (`run_workflow`) derives its tool associations from the registered tool catalog and the ruleset extraction model's action classifications (REQ-015) — not from hardcoded keyword strings that assume a specific ruleset's terminology.
 
@@ -4531,8 +4556,13 @@ finding. The server is built in six steps, each with an acceptance check:
 | 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 | 7     | Package: emit a declarative ruleset package (model, index, tool schemas, resources, prompts, hash, version manifest) per ruleset (REQ-389) | G8 pass, per-ruleset G2 replay after package load in the host |
 
-The `character_sheet` tool supports both `markdown` (default) and `ascii` renderers.
-Both formats are Build baselines.
+The server renders user-requestable artifacts through the output format catalog
+(Appendix T.1). The `markdown`, `json`, and `html` formats are mandatory Build
+baselines on every artifact surface; `ascii` is a mandatory baseline on
+stat-block surfaces; `lonelog` and ruleset-declared formats are optional. The
+`character_sheet` tool SHALL support `markdown` (default), `json`, `html`, and
+`ascii`. Interactive `ui://` surfaces (REQ-426a) are an optional negotiated
+extension, not a baseline.
 
 For Step 1, the holonovel scaffold provides the MCP skeleton with badge gating
 helpers, state management, macros, and world-model layer (rooms,
@@ -7758,6 +7788,10 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   `prompts/get` returns exactly one user-role message (REQ-023).
 - All operations function with networking disabled (REQ-051).
 - Conformance runs exercise both gated states (no badge / full access, Player badge / gated) per REQ-031, REQ-066.
+- MCP Apps (REQ-426): when the extension is negotiated, `ui://` resources are
+  advertised in `resources/list` and served as `text/html;profile=mcp-app` with
+  no external origins in UI metadata; a client that does not negotiate the
+  extension sees no `ui://` resources and unchanged text output (REQ-426c).
 
 ---
 
@@ -8782,6 +8816,14 @@ date-stamps matching CHANGELOG entries.
 | REQ-422 | Ruleset update entry point | 2026-08-30 |
 | REQ-423 | User-data format fingerprint | 2026-08-30 |
 | REQ-424 | User-data migration entry point | 2026-08-30 |
+| REQ-425a | Output format catalog (Part a) | 2026-09-01 |
+| REQ-425b | Output format validation (Part b) | 2026-09-01 |
+| REQ-425c | Output format consistency (Part c) | 2026-09-01 |
+| REQ-425d | Ruleset-declared formats (Part d) | 2026-09-01 |
+| REQ-426a | MCP Apps UI resource surface (Part a) | 2026-09-01 |
+| REQ-426b | Tool-UI linkage (Part b) | 2026-09-01 |
+| REQ-426c | MCP Apps capability negotiation (Part c) | 2026-09-01 |
+| REQ-426d | UI resource security (Part d) | 2026-09-01 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9305,6 +9347,10 @@ diet.
 | T502 | Automated | Migration entry point: run `migrate-user-data` in default mode — assert no side effects and a report of what would change; run with the explicit migrate flag — assert stale artifacts are re-stamped with the current fingerprint and re-export after migration is unchanged; a migration that fails mid-round-trip leaves the original artifact unchanged and names it. | REQ-424 |
 | T503 | Automated | Legacy-artifact transition: install a package whose manifest lacks a `package_format` fingerprint — assert it is flagged stale (rebuild-recommended) and not hard-blocked; write a Novel lacking a `data_format` stamp — assert it is flagged `[data-stale]` and loads. | REQ-420, REQ-423 |
 | T504 | Automated | Migration failure preservation: corrupt a stale artifact so its round-trip re-serialize fails — assert `migrate-user-data` aborts that artifact without replacing it and reports the failure naming the artifact. | REQ-424 |
+| T505 | Automated | Output format catalog: for each artifact kind (stat block, codex entry, lore entry, session recap, adventure content, knowledge graph, Novel metadata) request every mandatory format via both the tool and the resource surface — assert the default is `markdown`, each requested format returns the artifact's content, the same artifact and format is byte-identical across surfaces, and `json` matches the applicable interchange schema. Request a notation format on a stat-block surface — assert `[INVALID_INPUT]` enumerating the supported formats, badge-filtered. | REQ-425a, REQ-425b, REQ-425c |
+| T506 | Automated | Ruleset-declared format: install a fixture package declaring an additional format — assert it renders on package-defined surfaces, appears in the surface's `[INVALID_INPUT]` enumeration and in `spec_health`; request an undeclared format — assert `[INVALID_INPUT]`. | REQ-425d |
+| T507 | Automated | MCP Apps UI surface: negotiate the extension — assert `ui://` templates for stat-block, codex, lore, and Novel surfaces return `text/html;profile=mcp-app` matching the artifact's `html` render; `character_sheet` result carries `ui://` linkage metadata; every `ui://` resource declares no external origins in CSP metadata. | REQ-426a, REQ-426b, REQ-426c, REQ-426d |
+| T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
 
 ---
 
@@ -10566,6 +10612,26 @@ DECISIONS.md. Help category names are advisory — the GM may override them
 (REQ-067) — but the infrastructure classification is immutable.
 
 _Verify:_ T3, T5, T32, T33.
+
+### T.1 Output Format Catalog
+
+The catalog enumerates the output formats a server may render and the
+surfaces that support them. A surface is a tool or resource that returns a
+user-requestable content artifact. The default format is `markdown`; every
+surface SHALL support every format marked mandatory for its role.
+
+| Format | Role | Semantics | Surfaces | Baseline |
+|---|---|---|---|---|
+| `markdown` | Presentation | Default human-readable render, the canonical text baseline | All artifact surfaces | Mandatory |
+| `json` | Interchange | Structured serialization, schema-faithful to Appendix L/Q where one exists, round-trippable through the matching import path | All artifact surfaces | Mandatory |
+| `html` | Presentation | Presentational `text/html` markup for browser and MCP-app display; interactive `ui://` views (REQ-426a) when the extension is negotiated | All artifact surfaces | Mandatory |
+| `ascii` | Presentation | Compact plain-text render free of Markdown markup | Stat-block surfaces | Mandatory |
+| `lonelog` | Notation | Session-notation render (REQ-072) | Session and audit surfaces | Optional |
+| `<ruleset-declared>` | — | A format a ruleset package declares for the surfaces it defines | Package-defined surfaces | Optional |
+
+Presentation formats (`html`, `ascii`, `lonelog`) are not interchange formats
+and are not importable; requesting one on an interchange-only surface returns
+`[INVALID_INPUT]` per REQ-425b. _Verify:_ T505, T506, T507.
 
 ---
 

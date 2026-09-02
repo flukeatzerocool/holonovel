@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 38ac21694ddd8dca3c57414df9a19a92a9c2f6000a468cd022ab297d64a65d69
+**Spec hash:** 36945745fc9d064fc5fc8793f3c0b7090fcf0d9598b61d19bc303fabe4666982
+
+### Holonovel Spec Update — 2026-09-01 (output format catalog + MCP Apps UI surface)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — REQ-425a–d (output format catalog: uniform `format` selector across artifact surfaces, markdown/json/html universal, ascii/lonelog scoped, ruleset-declared formats) + REQ-426a–d (MCP Apps UI surface: `ui://` resources served `text/html;profile=mcp-app` with restrictive CSP, tool-result `ui://` linkage, capability negotiation) + Appendix T.1 catalog + Appendix D conformance clause + tests T505–T508. Implementation: shared format catalog + renderer in `index.ts`; `character_sheet` gains `json`/`html` formats; `?format=` on `npc://{id}`, `lore://{key}`, `codex://{id}`; four `ui://` resources with negotiation gate; `html` rejected on interchange exports; `spec_health` reports `output_formats` + `mcp_apps`. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 2→0, B 0, C 277→279, E 109); typecheck 0 errors (root + holonovel); holonovel harnesses all green (test-output-contracts 186, gauntlet, backfill, narrative, persistence, workflow, character-creation, adventure, fingerprints, g7) |
 
 ### Holonovel Spec Update — 2026-08-30 (§5.18 fingerprint evidence + Appendix M coverage-class convention)
 
@@ -414,7 +423,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.08.30 |
+| Spec version | 2026.09.01 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |
