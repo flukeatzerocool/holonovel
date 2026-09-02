@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 4db5c90134497939cce6e990b893a7ae35402357c209111f4990385dda312d33
+**Spec hash:** 456f43bd6d2b69f867dc9e6541eb4135022be0363d8e4b7e33a2a4a6c39edc5d
 
 ### Holonovel Spec Update — 2026-09-02 (reconcile remove_synthesis_item)
 
