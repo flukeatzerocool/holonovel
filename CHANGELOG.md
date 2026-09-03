@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-03 — Data-retention and consolidation tooling
+
+- Added `holonovel/scripts/consolidate-novels.ts` — reports (and with
+  `--import`, copies) Novels from legacy data directories into the canonical
+  Novel registry, supporting server retirement without losing saves.
+- Added `holonovel/scripts/retention-prune.ts` — dry-run/prune maintenance for
+  bounded runtime data: `.trash/` entries older than 90 days, crash snapshots
+  (`.corrupt*.bak`) older than 14 days (newest kept per Novel), and
+  `rulesets-backup-*` generations beyond the newest 2. Never touches live
+  Novels, their `.bak` siblings, or `archive/`.
+- Documented the retire-by-migrate-or-trash convention in `holonovel/AGENTS.md`.
+
 ## 2026-09-03 — Hydrate the Novel registry from disk at startup
 
 - `novel list` (and its predecessor `list_novels`) previously returned an
