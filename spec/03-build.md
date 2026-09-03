@@ -493,7 +493,13 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
    no infrastructure tool is duplicated into the package; (c) no two tools within the
    package share a registered name after prefixing; (d) the `ruleset_prefix_map`
-   matches the B1 slug-to-path mapping. A violation is a
+   matches the B1 slug-to-path mapping; (e) every ruleset-derived tool schema carries
+   a REQ-024a title in the ruleset's own terms, a three-clause description, and a
+   REQ-427 description on every input parameter; (f) no ruleset-derived tool exceeds
+   the REQ-408 parameter ceiling; (g) the tool set honors REQ-021 surface economy and
+   REQ-413 action-discriminator consolidation — sibling-tool proliferation is a
+   packaging defect; (h) every tool description fits the REQ-392 budget and states
+   its ruleset scope. A violation is a
    packaging defect that SHALL be resolved before handoff.
 
 5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden

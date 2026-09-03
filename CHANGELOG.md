@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-03 — Ruleset tool-quality conformance (REQ-430)
+
+- Added REQ-430: every tool schema a ruleset package ships SHALL satisfy the
+  REQ-024a title and three-clause description and the REQ-427 per-parameter
+  description; the host SHALL validate installed package tool schemas at load,
+  keep non-conformant tools registered but flagged in
+  `spec_health.ruleset_package_alerts` (naming slug, tool, and defect) without
+  blocking load, and report conformant vs non-conformant counts in
+  `spec_health.ruleset_tool_quality` (T512).
+- Extended the §6.4.2 Package-step isolation audit with items (e)–(h): ruleset
+  tool schemas must carry REQ-024a titles and three-clause descriptions, REQ-427
+  parameter descriptions, respect the REQ-408 parameter ceiling, honor the
+  REQ-021/413 surface economy (no sibling-tool proliferation), and fit the
+  REQ-392 description budget — a violation is a packaging defect blocking
+  handoff. This embeds the Glama TDQS standards (Purpose Clarity, Usage
+  Guidelines, Behavioral Transparency, Parameter Semantics, Conciseness,
+  Contextual Completeness) into the ruleset-build path, so tools created when a
+  user adds a ruleset are held to the same standard as the host's own tools.
+- Implementation (`holonovel/src/rulesets.ts`, `holonovel/src/index.ts`):
+  `validateToolSchema` runs at hydration; `spec_health` surfaces `[tool-quality]`
+  alerts and conformant/non-conformant counts.
+- Harness (`holonovel/scripts/test-tool-definitions.ts`) grows T512 (a
+  non-conformant tool is flagged, a conformant rebuild clears the flag); the
+  wave1test fixture tools in `test-output-contracts.ts` were upgraded to
+  conformant schemas so the shared fixture is no longer the anti-pattern.
+- Package-format fingerprint advanced (REQ-420 — §5.17 and §6.4.2 changed):
+  existing packages flag `[package-incompatible]` until rebuilt via
+  `update-rulesets`.
+
 ## 2026-09-03 — Refresh fingerprint baseline when implementation advances without a spec delta
 
 - `push-pipeline.sh` deploy verification (REQ-418) failed with a false
