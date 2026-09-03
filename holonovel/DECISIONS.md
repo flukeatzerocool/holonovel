@@ -468,7 +468,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.02 |
+| Spec version | 2026.09.03 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

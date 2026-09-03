@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-03 — Hydrate the Novel registry from disk at startup
+
+- `novel list` (and its predecessor `list_novels`) previously returned an
+  empty list after every server restart because the in-memory Novel registry
+  was only populated by resume/create/clone/import. The server now scans the
+  `novels/` directory at boot and loads every save file (falling back to its
+  `.bak` on a checksum mismatch), so listing reflects disk without requiring
+  each Novel to be resumed first. (REQ-065)
+
 ## 2026-09-02 — Link the project wiki from the README
 
 - Added a link to the Holonovel wiki (player, Game Master, and builder

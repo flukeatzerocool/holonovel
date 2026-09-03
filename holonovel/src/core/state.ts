@@ -776,6 +776,51 @@ export class StateManager {
     return novel;
   }
 
+  // REQ-065 — hydrate the in-memory Novel registry from the on-disk novels/
+  // directory at startup so list_novels reflects disk without an explicit
+  // resume. Loads each save file (falling back to its .bak on a checksum
+  // mismatch) without activating a Novel, auditing, or bumping session count.
+  hydrateNovelsFromDisk(): void {
+    const dir = path.join(this.stateDir, "novels");
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return; // no novels dir yet — nothing to hydrate
+    }
+    for (const file of entries) {
+      if (!file.endsWith(".json")) continue; // skip .bak / .corrupt / .tmp
+      const slug = file.slice(0, -".json".length);
+      if (this.novels.has(slug)) continue;
+      const filePath = path.join(dir, file);
+      let data: any;
+      try {
+        data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      } catch {
+        continue; // unreadable file — explicit resume will surface the error
+      }
+      if (data._checksum) {
+        const payload = { ...data };
+        delete (payload as any)._checksum;
+        const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+        if (computed !== data._checksum) {
+          const bakPath = filePath + ".bak";
+          try {
+            if (!fs.existsSync(bakPath)) continue;
+            data = JSON.parse(fs.readFileSync(bakPath, "utf-8"));
+          } catch {
+            continue;
+          }
+        }
+      }
+      try {
+        this.novels.set(slug, this.loadNovelFromData(data));
+      } catch {
+        continue; // data-format migration failure — skip rather than crash boot
+      }
+    }
+  }
+
   private loadNovelFromData(data: any): NovelState {
     // REQ-423 — a Novel written under a prior (or absent) data-format
     // fingerprint is flagged [data-stale]; it still loads per REQ-065.
