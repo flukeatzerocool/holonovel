@@ -2,6 +2,15 @@
 
 **Spec hash:** 456f43bd6d2b69f867dc9e6541eb4135022be0363d8e4b7e33a2a4a6c39edc5d
 
+### Holonovel Server Change — 2026-09-03 (Novel registry hydration hardening)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — REQ-065 registry hydration now keys by each Novel's internal slug (deterministic order, canonical-filename preference on duplicate slugs), so `list`/`info`/`create`/`switch`/`archive`/`rename` agree even for misnamed save files. `rename` (REQ-256/T315) and `clone` (REQ-240/T278) now refuse an existing target slug with `[STATE_CONFLICT]` instead of overwriting the save. Backup-restore `state_regression` (REQ-406) is computed by one shared helper used by both resume and hydration. Corrupted Novels are recorded and surfaced in `spec_health.data_health.corrupted` (REQ-001a/T175). REQ-088 `TTRPG_NOVEL` startup auto-load implemented (resume-or-create; a corrupt file reports to stderr + spec_health and leaves no Novel active). Decision recorded: hydration is not a "connection" to a Novel, so it deliberately does not advance the REQ-193a/224a workflow-staleness counter. |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; test:all green (test-persistence 21 incl. T159 + slug-key block, test-persistence-guardrails 11 incl. T175, fingerprints/backfill/narrative/adventure/workflow/character-creation/output-contracts/gauntlet/g7/tool-definitions all green); check:fast 0 errors (bucket A 0, B 0, C 281, E 110) |
+
 ### Holonovel Spec Update — 2026-09-02 (container distribution via Glama admin build spec)
 
 | Field | Value |

@@ -551,6 +551,33 @@ for (const slug of eagerSlugs) {
   }
 }
 
+// ── REQ-088 — TTRPG_NOVEL startup auto-load ────────────────────────
+// Activate (resume-or-create) the named Novel before any tool call is
+// serviced. On a corrupt or otherwise failed activation, report to stderr and
+// spec_health (via corruptData) and proceed with no Novel active — never
+// silently swallow, and never overwrite an existing (possibly corrupt) save.
+const startupNovel = process.env.TTRPG_NOVEL;
+if (startupNovel) {
+  const slug = startupNovel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  try {
+    const filePath = path.join(DATA_DIR, "novels", `${slug}.json`);
+    if (fs.existsSync(filePath)) {
+      const novel = state.resumeNovel(slug);
+      if (novel.ruleset) {
+        if (!rulesets.isInstalled(novel.ruleset)) {
+          throw new Error(`Novel '${slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
+        }
+        rulesets.hydrate(novel.ruleset);
+      }
+    } else {
+      state.createNovel(startupNovel);
+    }
+  } catch (e) {
+    state.corruptData.set(slug, `TTRPG_NOVEL activation failed: ${(e as Error).message}`);
+    process.stderr.write(`[holonovel] TTRPG_NOVEL='${startupNovel}' activation failed: ${(e as Error).message}\n`);
+  }
+}
+
 // Convert a JSON-Schema-style inputSchema (as shipped by a package's tools.json)
 // into a Zod raw shape registerTool accepts (REQ-389 — schemas-as-data).
 function jsonSchemaToZod(schema: any): any {
@@ -4515,11 +4542,17 @@ Options: yes, cancel`);
       const novel = requireNovel();
       const oldSlug = novel.slug;
       const newSlug = args.new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
-      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
-      const oldBak = oldFile + ".bak";
-      if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
+      // renameNovel guards against a target-slug collision (REQ-256) before
+      // mutating state; only after it succeeds do we remove the old save file,
+      // so a rejected rename leaves disk intact. A no-op same-slug rename keeps
+      // the file.
       state.renameNovel(novel, newSlug);
+      if (newSlug !== oldSlug) {
+        const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
+        if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+        const oldBak = oldFile + ".bak";
+        if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
+      }
       return ok(`Novel renamed to '${novel.slug}'.`);
     }
     case "description": {
@@ -4583,6 +4616,11 @@ Options: yes, cancel`);
       const source = state.novels.get(args.source_slug);
       if (!source) return err("NOT_FOUND", `Source novel '${args.source_slug}' not found.`);
       const slug = args.new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      // REQ-240 — refuse a clone onto an existing slug rather than silently
+      // overwriting the target's save file.
+      if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
+        return err("STATE_CONFLICT", `Novel '${slug}' already exists.`);
+      }
       const clone = JSON.parse(JSON.stringify(novelToJSONState(source)));
       clone.slug = slug;
       clone.name = args.new_name;
@@ -4875,9 +4913,10 @@ function buildSpecHealth(): Record<string, unknown> {
     ruleset_prefix_map: isGM ? rulesets.prefixMap() : undefined,
     // REQ-420 — incompatible packages, held inactive (REQ-393).
     ruleset_package_alerts: isGM ? rulesets.incompatibleSlugs() : undefined,
-    // REQ-423 — [data-stale] artifacts, advisory (never block loading).
+    // REQ-423 — [data-stale] artifacts, advisory (never block loading);
+    // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM
-      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData) }
+      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData) }
       : undefined,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
