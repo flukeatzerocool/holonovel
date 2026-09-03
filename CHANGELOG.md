@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-03 — Newsletter removal + repo cleanup
+
+- Removed the newsletter subsystem: `newsletter/`, `scripts/newsletter-digest.ts`,
+  `scripts/newsletter-push.ts`, `scripts/spec-health-trends.ts`, the
+  `newsletter`/`newsletter-push`/`spec-health-trends` npm scripts, and the
+  AGENTS.md + README references. The GitHub Actions cron
+  (`.github/workflows/newsletter.yml`) was already removed (2026-09-02).
+- Clarified the README remote framing: GitHub is a push-only mirror (synced by
+  `scripts/push-pipeline.sh`) that also hosts the npm/MCP-registry publish CI
+  (`.github/workflows/publish.yml`).
+- Repo cleanup: removed the empty repository-root `narrative_world_model/`
+  leftover directory tree; confirmed `plans/` holds only its tracked README and
+  every remaining script is wired to a consumer.
+
 ## 2026-09-03 — Rotating backup chain (REQ-238) + startup auto-load by internal slug
 
 - Implemented REQ-238 rotating backup chain: `saveNovel` rotates

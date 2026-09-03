@@ -12,7 +12,6 @@
     "validate:fast": "npx tsx scripts/validate.ts --sdd-strict --quick --no-proofread",
     "fmea": "npx tsx scripts/fmea.ts",
     "graph-deps": "npx tsx scripts/graph-deps.ts",
-    "spec-health-trends": "npx tsx scripts/spec-health-trends.ts",
     "typecheck": "npx tsc --noEmit",
     "validate-readme": "npx tsx scripts/validate-readme.ts",
     "detect-dupes": "npx tsx scripts/detect-near-dupes.ts",
@@ -30,8 +29,6 @@
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",
     "version-bump": "npx tsx scripts/version-bump.ts",
     "version-check": "npx tsx scripts/version-check.ts",
-    "newsletter": "npx tsx scripts/newsletter-digest.ts",
-    "newsletter-push": "npx tsx scripts/newsletter-push.ts",
     "refresh-properties": "npx tsx scripts/cross-property-couple.ts",
     "spec-delta": "npx tsx scripts/spec-delta.ts"
   },

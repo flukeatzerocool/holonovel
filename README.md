@@ -397,12 +397,11 @@ npm install && npm run check   # lint + validate + assumption audit + ambiguity
 | `npm run fmea` | REQ-level failure mode and effects |
 | `npm run validate --traceability` | Full REQ↔test↔workflow traceability |
 | `npm run graph-deps` | REQ dependency graph (DOT/Graphviz) |
-| `npm run spec-health-trends` | REQ count, test count, cross-ref density |
 
 Edit files in `spec/`. Run `npm run assemble` before committing. Do not edit
 `holonovel.md` directly — it is generated from `spec/` source files.
 
-Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel). This GitHub repository is a read-only mirror.
+Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel). This GitHub repository is a push-only mirror (synced by `scripts/push-pipeline.sh`) that also hosts the npm and MCP-registry publish workflow (`.github/workflows/publish.yml`).
 
 Guides for players, Game Masters, and builders live in the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki).
 
