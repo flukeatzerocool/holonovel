@@ -140,7 +140,26 @@ console.log(`Current spec hash: ${currentHash}`);
 console.log(`Stored spec hash:  ${storedHash ?? "(none)"}`);
 
 if (storedHash && currentHash === storedHash) {
-  console.log("\nSpec unchanged — no update needed.");
+  // Spec unchanged. If the implementation advanced anyway (direct commits, or
+  // a build without a spec delta), refresh the stored baseline so deploy
+  // verification (REQ-418) and scoping (REQ-314) compare against current code.
+  // REQ-313c requires every component hash to be updated on every build.
+  let currentFingerprints: Fingerprints;
+  try {
+    currentFingerprints = loadCurrent(serverDir);
+  } catch {
+    console.error("ERROR: Could not compute current fingerprints from the source tree");
+    process.exit(1);
+  }
+  const delta = compareFingerprints(currentFingerprints, previous?.fingerprints);
+  if (delta.changedCount > 0 && !checkOnly) {
+    reconcile(currentHash, currentFingerprints);
+    console.log(`\nSpec unchanged but implementation fingerprints changed (${delta.changed.join(", ")}): baseline refreshed (REQ-313c).`);
+  } else if (delta.changedCount > 0) {
+    console.log(`\nSpec unchanged; implementation fingerprints changed (${delta.changed.join(", ")}): check mode, no write.`);
+  } else {
+    console.log("\nSpec unchanged — no update needed.");
+  }
   process.exit(0);
 }
 
