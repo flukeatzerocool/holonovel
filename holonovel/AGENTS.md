@@ -107,3 +107,20 @@ This server ships in one repo but runs in two locations:
    files between the two repos.
 4. Ruleset packages (e.g. `dnd5e`) live only in the deployed instance's
    install directory — keep them out of the workspace git tree (REQ-395a).
+
+## Retiring a server (data preservation)
+
+When a server generation is retired, its `.holonovel-state/` data is user
+campaigns, not build output. **Retire by migrate-or-trash, never hard-delete:**
+
+1. Consolidate first — run
+   `npx tsx scripts/consolidate-novels.ts --data-dir <canonical> --scan-dir <legacy>/novels`
+   and import any Novels not already present in the canonical dir.
+2. Move the legacy state dir to the OS Trash rather than `rm -rf`, so the
+   Novels remain recoverable if step 1 missed something.
+3. Prune bounded runtime junk (crash snapshots, old ruleset backups) with
+   `npx tsx scripts/retention-prune.ts --data-dir <canonical> --prune`.
+
+This is the process that would have preserved the `mothership-holonovel`
+campaign "Another Bug Hunt"; its state dir was hard-deleted on retirement and
+the save file had to be reconstructed from the session transcript.
