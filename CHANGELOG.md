@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-03 — Rotating backup chain (REQ-238) + startup auto-load by internal slug
+
+- Implemented REQ-238 rotating backup chain: `saveNovel` rotates
+  `<slug>.json.bak.1..N` (configured via `TTRPG_NOVEL_BACKUP_COUNT`, default 1
+  = prior single-backup behavior), and load restores from the first parseable
+  backup with a valid checksum, recording the winning index in a
+  `[restored-from-backup]` audit entry (T276). Resume and hydration share one
+  restore helper; `state_regression` gains a `backup_index` field (REQ-406).
+- Backup-aware lifecycle: `novel end` moves the whole chain to `.trash/`;
+  archive/unarchive move `.bak.N` alongside; rename renames `.bak.N` to match
+  (REQ-256a); `consolidate-novels.ts` copies the full chain.
+- The first save after a backup restore skips copying the (corrupt/stale)
+  on-disk primary into `.bak.1`, so a good backup is never overwritten and
+  corruption is never propagated into the rotated chain.
+- REQ-088 startup auto-load now resolves `TTRPG_NOVEL` by internal slug against
+  the hydrated registry (REQ-065), so a save file whose name diverges from its
+  internal slug auto-loads without a second file read; corrupt/mismatched files
+  still report to stderr + `spec_health` and leave no Novel active.
+- Tests: `test-persistence.ts` grows the full T276 rotation scenario (rotate →
+  corrupt primary + `.bak.1` → restore from `.bak.2` → end-to-trash) and a
+  misnamed-file startup-activation case; legacy `.bak` restore (T475) retained.
+
 ## 2026-09-03 — Ruleset tool-quality conformance (REQ-430)
 
 - Added REQ-430: every tool schema a ruleset package ships SHALL satisfy the

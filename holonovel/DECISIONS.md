@@ -20,6 +20,15 @@
 | Reused | spec, extraction, lockfile |
 | Verification | typecheck 0 errors; test:all green (test-persistence 21 incl. T159 + slug-key block, test-persistence-guardrails 11 incl. T175, fingerprints/backfill/narrative/adventure/workflow/character-creation/output-contracts/gauntlet/g7/tool-definitions all green); check:fast 0 errors (bucket A 0, B 0, C 281, E 110) |
 
+### Holonovel Server Change — 2026-09-03 (rotating backup chain + startup auto-load by internal slug)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — REQ-238 rotating backup chain implemented in `saveNovel`: backups rotate as `<slug>.json.bak.1..N` (configured via `TTRPG_NOVEL_BACKUP_COUNT`, default 1 = prior single-backup behavior). Restore (resume + hydration) shares one helper that iterates the chain and accepts a legacy singular `.bak` as the index-1 candidate, picks the first parseable backup with a valid checksum, and records the winning index in a `[restored-from-backup]` audit entry (T276). `state_regression` gains `backup_index` (REQ-406). Lifecycle is backup-aware: `endNovel` moves the whole chain to `.trash/`, archive/unarchive move `.bak.N`, rename renames `.bak.N` (REQ-256a), `consolidate-novels.ts` copies the chain. The first save after a backup restore skips copying the (corrupt/stale) on-disk primary into `.bak.1`, so a good backup is never overwritten and corruption is never propagated. REQ-088 `TTRPG_NOVEL` startup auto-load resolves by internal slug against the hydrated registry (REQ-065), so a save file whose name diverges from its internal slug auto-loads without a second read; corrupt/mismatched files still report to stderr + spec_health and leave no Novel active. Decision recorded: `TTRPG_NOVEL` names the internal slug, not the filename. |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; test:all green (test-persistence 25 incl. full T276 rotation + misnamed startup activation, test-persistence-guardrails 11 incl. T475 legacy-.bak restore, workflow/character-creation/fingerprints/output-contracts/gauntlet/backfill/narrative/adventure/g7/tool-definitions all green); root assemble + check:fast 0 errors (bucket A 0, B 0, C 282, E 110) |
+
 ### Holonovel Spec Update — 2026-09-02 (container distribution via Glama admin build spec)
 
 | Field | Value |

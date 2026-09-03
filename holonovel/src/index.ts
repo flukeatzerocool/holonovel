@@ -553,22 +553,29 @@ for (const slug of eagerSlugs) {
 
 // ── REQ-088 — TTRPG_NOVEL startup auto-load ────────────────────────
 // Activate (resume-or-create) the named Novel before any tool call is
-// serviced. On a corrupt or otherwise failed activation, report to stderr and
-// spec_health (via corruptData) and proceed with no Novel active — never
-// silently swallow, and never overwrite an existing (possibly corrupt) save.
+// serviced. Resolution is by *internal slug* against the hydrated registry
+// (REQ-065), so a save file whose name diverges from its internal slug is
+// still auto-loadable. On a corrupt or otherwise failed activation, report to
+// stderr and spec_health (via corruptData) and proceed with no Novel active —
+// never silently swallow, and never overwrite an existing (possibly corrupt)
+// save.
 const startupNovel = process.env.TTRPG_NOVEL;
 if (startupNovel) {
   const slug = startupNovel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   try {
-    const filePath = path.join(DATA_DIR, "novels", `${slug}.json`);
-    if (fs.existsSync(filePath)) {
-      const novel = state.resumeNovel(slug);
+    if (state.novels.has(slug)) {
+      const novel = state.activateHydratedNovel(slug);
       if (novel.ruleset) {
         if (!rulesets.isInstalled(novel.ruleset)) {
           throw new Error(`Novel '${slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
         }
         rulesets.hydrate(novel.ruleset);
       }
+    } else if (fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
+      // A save file exists but did not hydrate under this slug — corrupt, or
+      // its internal slug diverges from the filename. Refuse to activate or
+      // overwrite (REQ-088h1).
+      throw new Error(`save file '${slug}.json' exists but did not hydrate under slug '${slug}' (corrupt or mismatched internal slug).`);
     } else {
       state.createNovel(startupNovel);
     }
@@ -4550,8 +4557,17 @@ Options: yes, cancel`);
       if (newSlug !== oldSlug) {
         const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
         if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
-        const oldBak = oldFile + ".bak";
-        if (fs.existsSync(oldBak)) fs.unlinkSync(oldBak);
+        // REQ-256a — rename the backup chain (`.bak.N` + legacy `.bak`) to match
+        // the new slug rather than dropping the history.
+        const base = `${oldSlug}.json`;
+        for (const entry of fs.readdirSync(path.join(DATA_DIR, "novels"))) {
+          if (entry === `${base}.bak` || entry.startsWith(`${base}.bak.`)) {
+            const suffix = entry.slice(base.length);
+            const dest = path.join(DATA_DIR, "novels", `${newSlug}.json${suffix}`);
+            if (fs.existsSync(dest)) fs.unlinkSync(dest);
+            fs.renameSync(path.join(DATA_DIR, "novels", entry), dest);
+          }
+        }
       }
       return ok(`Novel renamed to '${novel.slug}'.`);
     }

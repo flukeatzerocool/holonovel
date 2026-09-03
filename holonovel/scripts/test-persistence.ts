@@ -7,7 +7,7 @@
 // round-trip, backup rotation, clone, hydration keying, and health reporting.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -296,6 +296,19 @@ async function main() {
     });
     await kill(proc);
 
+    // T159d — a save file whose filename diverges from its internal slug is
+    // auto-loadable at startup when TTRPG_NOVEL names the internal slug
+    // (map-based activation, REQ-088/REQ-065).
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "real-slug" });
+    await test("T159/REQ-088: TTRPG_NOVEL activates a misnamed save by internal slug", async () => {
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      if (health.active_novel !== "real-slug") throw new Error(`misnamed startup novel not active: ${health.active_novel}`);
+    });
+    await kill(proc);
+    if (existsSync(join(dir, "novels", "real-slug.json"))) {
+      throw new Error("map activation created a second save file instead of activating the misnamed one");
+    }
+
     // T159a — resume an existing Novel at startup.
     writeFileSync(join(dir, "novels", "auto-slug.json"), JSON.stringify({ slug: "auto-slug", name: "auto-slug", badge: "game_master", metadata: meta }));
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "auto-slug" });
@@ -334,6 +347,69 @@ async function main() {
       await kill(p);
     });
 
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // ── REQ-238/T276: rotating backup chain restore ──────────────────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-rotation-test-"));
+    const novelsDir = join(dir, "novels");
+    mkdirSync(novelsDir, { recursive: true });
+
+    // Boot with rotation enabled, create + mutate to build the chain.
+    let proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_BACKUP_COUNT: "3", TTRPG_NOVEL: "rot" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    for (let i = 0; i < 12; i++) await call(proc, "note", { action: "set",  key: `n${i}`, content: `c${i}` });
+
+    await test("T276/REQ-238: rotation produces .bak.1/.bak.2/.bak.3 with descending mtimes", async () => {
+      for (const idx of [1, 2, 3]) {
+        if (!existsSync(join(novelsDir, `rot.json.bak.${idx}`))) throw new Error(`missing rot.json.bak.${idx}`);
+      }
+      const m1 = statSync(join(novelsDir, "rot.json.bak.1")).mtimeMs;
+      const m2 = statSync(join(novelsDir, "rot.json.bak.2")).mtimeMs;
+      const m3 = statSync(join(novelsDir, "rot.json.bak.3")).mtimeMs;
+      if (!(m1 > m2 && m2 > m3)) throw new Error(`backup mtimes not descending: ${m1} ${m2} ${m3}`);
+    });
+    await kill(proc);
+
+    // Corrupt the primary and .bak.1 (bad checksums), leaving .bak.2 valid.
+    const corruptChecksum = (p: string) => {
+      const data = JSON.parse(readFileSync(p, "utf-8"));
+      data._checksum = "deadbeef0000000000000000000000000000000000000000000000000000";
+      writeFileSync(p, JSON.stringify(data));
+    };
+    corruptChecksum(join(novelsDir, "rot.json"));
+    corruptChecksum(join(novelsDir, "rot.json.bak.1"));
+
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_BACKUP_COUNT: "3", TTRPG_NOVEL: "rot" });
+    await test("T276/REQ-238: corrupt primary + .bak.1 restores from .bak.2 with audited index", async () => {
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      if (health.active_novel !== "rot") throw new Error(`restored startup novel not active: ${health.active_novel}`);
+      // Force a save so the restored state (with its resume audit entry) lands
+      // on disk, then inspect the audit log directly.
+      await call(proc, "note", { action: "set",  key: "after-restore", content: "ok" });
+      const onDisk = JSON.parse(readFileSync(join(novelsDir, "rot.json"), "utf-8"));
+      const entry = (onDisk.audit_log ?? []).find((e: any) => e.tool === "resume_novel" && e.args && e.args.includes("restored_from_backup"));
+      if (!entry) throw new Error("no [restored-from-backup] audit entry");
+      if (!entry.args.includes('"restored_from_backup":2')) throw new Error(`audit did not name backup index 2: ${entry.args}`);
+    });
+
+    // End the Novel: the primary and all backups must move to .trash/.
+    await test("T276/REQ-238: novel end moves primary + all backups to trash", async () => {
+      const confirm = await call(proc, "novel", { action: "end" });
+      assertContains(confirm, "[NEED_INPUT]");
+      await call(proc, "respond", { decision: "end novel", option: "yes" });
+      if (existsSync(join(novelsDir, "rot.json"))) throw new Error("primary not removed from novels dir");
+      for (const idx of [1, 2, 3]) {
+        if (existsSync(join(novelsDir, `rot.json.bak.${idx}`))) throw new Error(`backup .bak.${idx} not removed from novels dir`);
+      }
+      const trashDir = join(dir, ".trash");
+      if (!existsSync(trashDir)) throw new Error("no .trash dir after end");
+      const trashed = readdirSync(trashDir).filter((f) => f.startsWith("rot-"));
+      // Primary + three backups = at least four trashed files.
+      if (trashed.length < 4) throw new Error(`expected >= 4 trashed files, got ${trashed.length}: ${trashed.join(", ")}`);
+    });
+    await kill(proc);
     rmSync(dir, { recursive: true, force: true });
   }
 
