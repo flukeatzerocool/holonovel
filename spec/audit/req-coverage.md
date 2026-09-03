@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-02
+Generated: 2026-09-03
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -397,4 +397,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-427 | Tool parameter semantics | 5.3 Tools, Resources, and Lookups | C | T509 | — |
 | REQ-428 | Registry-published distribution | 5.18 Workflow Entry Points | E | T510 | — |
 | REQ-429 | Server-wide action-discriminator surface | 5.18 Workflow Entry Points | C | T511 | — |
+| REQ-430 | Ruleset tool-quality conformance | 5.17 Ruleset Packages | C | T512 | — |
 

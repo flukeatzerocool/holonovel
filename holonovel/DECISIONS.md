@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 456f43bd6d2b69f867dc9e6541eb4135022be0363d8e4b7e33a2a4a6c39edc5d
+**Spec hash:** 01dee31d4c5da0dce328b2a1fb0e70340cfe17fc898ccd5cab8664e15447d329
+
+### Holonovel Spec Update — 2026-09-03 (ruleset tool-quality conformance)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — new REQ-430 (ruleset tool-quality conformance: package tool schemas SHALL satisfy the REQ-024a title and three-clause description and the REQ-427 per-parameter description; the host validates tool schemas at load, keeps non-conformant tools registered but flagged in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts in `spec_health.ruleset_tool_quality`) + §6.4.2 Package-step isolation audit extended with items (e)–(h) (REQ-024a/427 title/description/parameter conformance, REQ-408 ceiling, REQ-021/413 surface economy, REQ-392 description budget) + Appendix A REQ-430 row + T512 + coverage register (REQ-430 → bucket C). Implementation (`holonovel/src/rulesets.ts`, `holonovel/src/index.ts`): `validateToolSchema` + per-package tool-quality results computed at hydration. `holonovel/scripts/test-tool-definitions.ts` grows T512; the wave1test fixture tools in `test-output-contracts.ts` upgraded to conformant schemas. Package-format fingerprint advanced `35131fb5…` → `815c4c87…` (REQ-420) — installed packages flag `[package-incompatible]` until rebuilt via `update-rulesets`. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 282, E 110); build-order complete (package_format regenerated); typecheck 0 errors (root + holonovel); holonovel test:all green incl. new T512 (tool-definitions 6/6, output-contracts 186/186) |
 
 ### Holonovel Server Change — 2026-09-03 (Novel registry hydration hardening)
 

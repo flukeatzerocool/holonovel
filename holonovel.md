@@ -3988,6 +3988,9 @@ A package whose declared content hash does not match its contents SHALL be rejec
 **REQ-389c — Ruleset install surface (Part c).**
 `ruleset (action: install)` SHALL validate slug uniqueness and package-format compatibility (REQ-420) before activation; `ruleset (action: remove)` SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel is bound to its slug. `ruleset (action: list)` SHALL report each installed package with installed-versus-loaded state. All three are Game Master or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible package-format fingerprint fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `ruleset (action: list)` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
 
+**REQ-430 — Ruleset tool-quality conformance.**
+Every tool schema shipped in a ruleset package SHALL satisfy the tool-documentation contracts of REQ-024a (title, three-clause description) and REQ-427 (per-parameter description); a schema lacking any of these is a package defect (REQ-389). The host SHALL validate each installed package's tool schemas at load, keep non-conformant tools registered but flagged, and surface each in `spec_health` under `ruleset_package_alerts` naming the slug, tool, and defect, without blocking package loading. `spec_health` SHALL report conformant and non-conformant ruleset-derived tool counts. *Acceptance criterion:* a package whose `lookup_spell` schema omits a parameter description loads with that tool flagged in `spec_health`; after a conformant rebuild the flag clears. _Check:_ T512.
+
 **REQ-390a — Lazy ruleset hydration (Part a).**
 On startup the host SHALL scan the install directory, validate package integrity and version compatibility, and record installed-package metadata. Search-index loading, tool registration, and model hydration for an installed package SHALL be deferred until a Novel bound to that ruleset is first activated. A tool call for an installed-but-not-yet-hydrated ruleset SHALL return `[ERROR] [STATE_CONFLICT]` directing first activation of a Novel bound to that slug.
 
@@ -4622,7 +4625,13 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
    no infrastructure tool is duplicated into the package; (c) no two tools within the
    package share a registered name after prefixing; (d) the `ruleset_prefix_map`
-   matches the B1 slug-to-path mapping. A violation is a
+   matches the B1 slug-to-path mapping; (e) every ruleset-derived tool schema carries
+   a REQ-024a title in the ruleset's own terms, a three-clause description, and a
+   REQ-427 description on every input parameter; (f) no ruleset-derived tool exceeds
+   the REQ-408 parameter ceiling; (g) the tool set honors REQ-021 surface economy and
+   REQ-413 action-discriminator consolidation — sibling-tool proliferation is a
+   packaging defect; (h) every tool description fits the REQ-392 budget and states
+   its ruleset scope. A violation is a
    packaging defect that SHALL be resolved before handoff.
 
 5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden
@@ -8833,6 +8842,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-427 | Tool parameter semantics | 2026-09-02 |
 | REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-429 | Server-wide action-discriminator surface | 2026-09-02 |
+| REQ-430 | Ruleset tool-quality conformance | 2026-09-03 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9363,6 +9373,7 @@ diet.
 | T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 | T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
+| T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
 
 ---
 

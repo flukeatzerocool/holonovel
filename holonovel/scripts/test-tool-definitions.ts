@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Tool-definition quality harness (REQ-427, REQ-024), registry-published
-// distribution guard (REQ-428), and server-wide action-discriminator surface
-// guard (REQ-429). Exercises T509, T510, and T511.
+// distribution guard (REQ-428), server-wide action-discriminator surface
+// guard (REQ-429), and ruleset tool-quality conformance guard (REQ-430).
+// Exercises T509, T510, T511, and T512.
 //
 // T509 (REQ-427 + REQ-024): boots a ruleset-free host and asserts every
 // registered tool's description carries the three-clause structure (summary,
@@ -16,13 +17,20 @@
 // tools, one per persisted entity type, and that every persisted type carries
 // a list/get/info/status/knowledge action on its entity tool.
 //
+// T512 (REQ-430): seeds a fixture package with one conformant and one
+// non-conformant tool schema, and asserts the host registers both, flags the
+// non-conformant one in spec_health.ruleset_package_alerts naming slug/tool/
+// defect, reports conformant/non-conformant counts, and clears the flag after
+// a conformant rebuild.
+//
 // Exit codes: 0 = pass, 1 = one or more assertions failed.
 
 import { spawn, spawnSync, ChildProcess } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
+import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 
 const ROOT = join(import.meta.dirname!, "..", "..");
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -73,6 +81,52 @@ async function boot(): Promise<ChildProcess> {
   proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   await new Promise((r) => setTimeout(r, 250));
   return proc;
+}
+
+async function call(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<string> {
+  const resp = await send(proc, { method: "tools/call", params: { name, arguments: args } });
+  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
+  const content = resp.result?.content ?? [];
+  return content.map((c: any) => (c?.text ?? "")).join("\n");
+}
+
+// REQ-430 — seed a fixture package under the data dir before boot. The content
+// hash matches the host's algorithm (sha256 over the five canonical files in
+// order), so the package passes integrity validation.
+function packageContentHash(index: any[], model: any, tools: any[], resources: any[], prompts: any[]): string {
+  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
+  const h = createHash("sha256");
+  for (const obj of [index, model, tools, resources, prompts]) h.update(canonical(obj));
+  return h.digest("hex");
+}
+
+function seedTQPackage(tools: any[]): void {
+  const dir = join(DATA_DIR, "rulesets", "tqtest");
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const index: any[] = [];
+  const model: Record<string, any> = {};
+  const resources: any[] = [];
+  const prompts: any[] = [];
+  const manifest = {
+    slug: "tqtest",
+    name: "Tool Quality Test",
+    host_version: "0.0.0",
+    package_format: PACKAGE_FORMAT,
+    content_hash: packageContentHash(index, model, tools, resources, prompts),
+    built_at: new Date().toISOString(),
+    counts: {},
+  };
+  for (const [name, obj] of Object.entries({
+    "manifest.json": manifest,
+    "index.json": index,
+    "model.json": model,
+    "tools.json": tools,
+    "resources.json": resources,
+    "prompts.json": prompts,
+  })) {
+    writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
+  }
 }
 
 function npmCanonical(v: string): string {
@@ -139,6 +193,58 @@ async function main() {
   });
   console.log(`    (${toolsWithDescription}/${tools.length} tools conformant; ${describedParams} parameters described)`);
   proc.kill("SIGKILL");
+
+  // ── T512 ────────────────────────────────────────────────────────────
+  const badLookup = {
+    name: "bad_lookup", title: "",
+    description: "Look up.",
+    kind: "lookup", collection: "concepts",
+    inputSchema: { type: "object", properties: { key: { type: "string" } } },
+  };
+  const goodRoll = {
+    name: "good_roll", title: "Roll Check",
+    description: "Roll a check. Use when: resolving a check. Do NOT use when: looking things up.",
+    kind: "roll",
+    inputSchema: { type: "object", properties: { dice: { type: "string", description: "Dice notation, e.g. 1d20." } } },
+  };
+
+  seedTQPackage([badLookup, goodRoll]);
+  const proc2 = await boot();
+  const list2 = await send(proc2, { method: "tools/list", params: { scope: "all" } });
+  const names2 = new Set(((list2.result?.tools ?? []) as any[]).map((t: any) => t.name));
+  const health = JSON.parse(await call(proc2, "session", { action: "health" }));
+
+  await test("T512/REQ-430: non-conformant ruleset tool flagged in spec_health without blocking registration", () => {
+    assert(names2.has("tqtest_bad_lookup"), "bad_lookup tool not registered");
+    assert(names2.has("tqtest_good_roll"), "good_roll tool not registered");
+    const alerts: any[] = health.ruleset_package_alerts ?? [];
+    const tq = alerts.filter((a) => String(a.reason ?? "").startsWith("[tool-quality]"));
+    const bad = tq.find((a) => String(a.reason).includes("bad_lookup"));
+    if (!bad) throw new Error(`bad_lookup not flagged: ${JSON.stringify(tq)}`);
+    if (!String(bad.reason).includes("missing")) throw new Error(`flag lacks a defect: ${JSON.stringify(bad)}`);
+    const counts = health.ruleset_tool_quality;
+    if (!counts || counts.conformant !== 1 || counts.non_conformant !== 1) {
+      throw new Error(`unexpected tool-quality counts: ${JSON.stringify(counts)}`);
+    }
+  });
+  proc2.kill("SIGKILL");
+
+  // Re-seed conformant (fix the bad tool) and assert the flag clears.
+  seedTQPackage([
+    { ...badLookup, title: "Bad Lookup Fixed", description: "Look up. Use when: needing an entry. Do NOT use when: rolling.", inputSchema: { type: "object", properties: { key: { type: "string", description: "The entry key." } } } },
+    goodRoll,
+  ]);
+  const proc3 = await boot();
+  const health3 = JSON.parse(await call(proc3, "session", { action: "health" }));
+  await test("T512/REQ-430: conformant rebuild clears the tool-quality flag", () => {
+    const counts = health3.ruleset_tool_quality;
+    if (!counts || counts.conformant !== 2 || counts.non_conformant !== 0) {
+      throw new Error(`flag did not clear: ${JSON.stringify(counts)}`);
+    }
+    const tq = (health3.ruleset_package_alerts ?? []).filter((a: any) => String(a.reason ?? "").startsWith("[tool-quality]"));
+    if (tq.length !== 0) throw new Error(`residual tool-quality alerts: ${JSON.stringify(tq)}`);
+  });
+  proc3.kill("SIGKILL");
 
   // ── T510 ────────────────────────────────────────────────────────────
   const pkgJson = JSON.parse(readFileSync(join(ROOT, "holonovel", "package.json"), "utf-8"));

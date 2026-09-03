@@ -111,6 +111,27 @@ export function rollDice(notation: string, seed?: string): RollResult {
   return { total, dice, modifier, notation: notation.trim() };
 }
 
+// REQ-430 — ruleset tool-quality conformance: every package tool schema SHALL
+// carry a title, a three-clause description (REQ-024a), and a description on
+// every input parameter (REQ-427). Returns the list of defects (empty = conformant).
+export function validateToolSchema(schema: RulesetToolSchema): string[] {
+  const defects: string[] = [];
+  if (!schema.title || String(schema.title).trim() === "") defects.push("missing title");
+  const desc = String(schema.description ?? "");
+  if (!desc.includes("Use when")) defects.push("description missing 'Use when'");
+  if (!desc.includes("Do NOT use")) defects.push("description missing 'Do NOT use'");
+  const props = schema?.inputSchema?.properties;
+  if (props && typeof props === "object") {
+    for (const [key, value] of Object.entries(props)) {
+      const p = value as any;
+      if (!p || typeof p.description !== "string" || p.description.trim() === "") {
+        defects.push(`parameter '${key}' missing description`);
+      }
+    }
+  }
+  return defects;
+}
+
 // REQ-389 — declarative ruleset packages (six JSON files, content-hash
 // validated); REQ-390 — lazy hydration on first use, eager via TTRPG_RULESETS;
 // REQ-393 — update preservation: packages revalidate against the host's current
@@ -121,6 +142,9 @@ export class RulesetManager {
   private installed = new Map<string, RulesetManifest>();
   private incompatible = new Map<string, { slug: string; reason: string }>();
   private hydrated = new Map<string, RulesetPackage>();
+  // REQ-430 — per-package tool-quality results computed at hydration: the count
+  // of conformant tool schemas and the list of non-conformant ones with defects.
+  private toolQuality = new Map<string, { conformant: number; alerts: { tool: string; defects: string[] }[] }>();
 
   constructor(installDir: string) {
     this.installDir = installDir;
@@ -134,6 +158,7 @@ export class RulesetManager {
   scan(): string[] {
     this.installed.clear();
     this.incompatible.clear();
+    this.toolQuality.clear();
     const errors: string[] = [];
     if (!fs.existsSync(this.installDir)) return errors;
     const entries = fs.readdirSync(this.installDir, { withFileTypes: true });
@@ -179,6 +204,27 @@ export class RulesetManager {
     return [...this.incompatible.values()];
   }
 
+  // REQ-430 — non-conformant ruleset-derived tools, surfaced in spec_health
+  // naming slug, tool, and defects. Only hydrated packages are validated
+  // (validation happens at load, i.e. at hydration).
+  toolQualityAlerts(): { slug: string; tool: string; defects: string[] }[] {
+    const out: { slug: string; tool: string; defects: string[] }[] = [];
+    for (const [slug, q] of this.toolQuality) {
+      for (const a of q.alerts) out.push({ slug, tool: a.tool, defects: a.defects });
+    }
+    return out;
+  }
+
+  toolQualityCounts(): { conformant: number; non_conformant: number } {
+    let conformant = 0;
+    let nonConformant = 0;
+    for (const q of this.toolQuality.values()) {
+      conformant += q.conformant;
+      nonConformant += q.alerts.length;
+    }
+    return { conformant, non_conformant: nonConformant };
+  }
+
   isInstalled(slug: string): boolean {
     return this.installed.has(slug);
   }
@@ -221,6 +267,16 @@ export class RulesetManager {
     }
     const pkg: RulesetPackage = { slug, manifest, index, model, tools, resources, prompts };
     this.hydrated.set(slug, pkg);
+    // REQ-430 — validate tool schemas at load; non-conformant tools stay
+    // registered but are flagged in spec_health (never block package loading).
+    const alerts: { tool: string; defects: string[] }[] = [];
+    let conformant = 0;
+    for (const schema of pkg.tools) {
+      const defects = validateToolSchema(schema);
+      if (defects.length === 0) conformant++;
+      else alerts.push({ tool: schema.name, defects });
+    }
+    this.toolQuality.set(slug, { conformant, alerts });
     return pkg;
   }
 
@@ -297,5 +353,6 @@ export class RulesetManager {
     fs.rmSync(dir, { recursive: true, force: true });
     this.installed.delete(slug);
     this.hydrated.delete(slug);
+    this.toolQuality.delete(slug);
   }
 }

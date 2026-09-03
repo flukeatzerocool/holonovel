@@ -4911,8 +4911,16 @@ function buildSpecHealth(): Record<string, unknown> {
     rulesets_installed: rulesets.installedSlugs().length,
     rulesets_hydrated: rulesets.installedSlugs().filter((s) => rulesets.isHydrated(s)).length,
     ruleset_prefix_map: isGM ? rulesets.prefixMap() : undefined,
-    // REQ-420 — incompatible packages, held inactive (REQ-393).
-    ruleset_package_alerts: isGM ? rulesets.incompatibleSlugs() : undefined,
+    // REQ-420 — incompatible packages, held inactive (REQ-393);
+    // REQ-430 — non-conformant ruleset-derived tools, flagged (never blocked).
+    ruleset_package_alerts: isGM
+      ? [
+          ...rulesets.incompatibleSlugs(),
+          ...rulesets.toolQualityAlerts().map((a) => ({ slug: a.slug, reason: `[tool-quality] ${a.tool}: ${a.defects.join("; ")}` })),
+        ]
+      : undefined,
+    // REQ-430 — conformant vs non-conformant ruleset-derived tool counts.
+    ruleset_tool_quality: isGM ? rulesets.toolQualityCounts() : undefined,
     // REQ-423 — [data-stale] artifacts, advisory (never block loading);
     // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM

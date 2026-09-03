@@ -1121,6 +1121,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-427 | Tool parameter semantics | 2026-09-02 |
 | REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-429 | Server-wide action-discriminator surface | 2026-09-02 |
+| REQ-430 | Ruleset tool-quality conformance | 2026-09-03 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1651,6 +1652,7 @@ diet.
 | T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 | T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
+| T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
 
 ---
 
