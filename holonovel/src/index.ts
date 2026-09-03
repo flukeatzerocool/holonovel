@@ -69,6 +69,7 @@ const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rules
 const state = new StateManager(DATA_DIR);
 state.loadRoster();
 state.loadServerNotes();
+state.hydrateNovelsFromDisk();
 state.buildFingerprint.specHash = SPEC_HASH;
 state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
@@ -76,7 +77,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.09.02",
+  version: "2026.09.03",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
