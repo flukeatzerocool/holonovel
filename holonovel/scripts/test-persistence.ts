@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Novel persistence and transport conformance harness (§5.9 — REQ-089/093/095/
-// 096/097/238/240/256/257/258). Exercises the Appendix F tests T74, T78, T99,
-// T100, T101, T160, T276, T278, T281, T315, T316, T317 against a live server:
-// lifecycle, switching, rename, listing, metadata, interchange round-trip,
-// backup rotation, clone, and health reporting.
+// 096/097/238/240/256/257/258, plus REQ-065 hydration keying and REQ-088
+// startup auto-load). Exercises the Appendix F tests T74, T78, T99,
+// T100, T101, T159, T160, T276, T278, T281, T315, T316, T317 against a live
+// server: lifecycle, switching, rename, listing, metadata, interchange
+// round-trip, backup rotation, clone, hydration keying, and health reporting.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -119,6 +120,19 @@ async function main() {
       const list = await call(proc, "novel", { action: "list" });
       assertContains(list, "fork");
       assertContains(list, "renamed");
+    });
+
+    await test("T315/T278: rename and clone onto an existing slug return [STATE_CONFLICT]", async () => {
+      // rename active "renamed" onto existing "fork" must refuse (REQ-256).
+      const renameConflict = await call(proc, "novel", { action: "rename",  new_slug: "fork" });
+      assertContains(renameConflict, "[STATE_CONFLICT]");
+      const info = JSON.parse(await call(proc, "novel", { action: "info" }));
+      if (info.slug !== "renamed") throw new Error(`rename conflict altered active slug: ${info.slug}`);
+      // clone "renamed" onto existing "fork" must refuse (REQ-240).
+      const cloneConflict = await call(proc, "novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
+      assertContains(cloneConflict, "[STATE_CONFLICT]");
+      const still = await call(proc, "novel", { action: "info",  slug: "fork" });
+      assertContains(still, "fork");
     });
 
     await test("T100/T281/T096: export produces a valid interchange manifest; import validates", async () => {
@@ -256,6 +270,71 @@ async function main() {
     });
 
     await kill(proc);
+  }
+
+  // ── REQ-065 hydration keying + REQ-088 startup auto-load ─────────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-hydration-test-"));
+    mkdirSync(join(dir, "novels"), { recursive: true });
+    const meta = { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0 };
+
+    // B — a save file whose filename diverges from its internal slug.
+    writeFileSync(join(dir, "novels", "misnamed.json"), JSON.stringify({ slug: "real-slug", name: "real-slug", badge: "game_master", metadata: meta }));
+
+    let proc = await boot({ TTRPG_DATA_DIR: dir });
+    await test("B/REQ-065: hydration keys the registry by internal slug, not filename", async () => {
+      const list = await call(proc, "novel", { action: "list" });
+      assertContains(list, "real-slug");
+      const info = JSON.parse(await call(proc, "novel", { action: "info",  slug: "real-slug" }));
+      if (info.slug !== "real-slug") throw new Error("info by internal slug did not resolve");
+      const dup = await call(proc, "novel", { action: "create",  name: "Real Slug" });
+      assertContains(dup, "[STATE_CONFLICT]");
+      await call(proc, "novel", { action: "switch",  slug: "real-slug" });
+      const list2 = JSON.parse(await call(proc, "novel", { action: "list" }));
+      const matches = list2.filter((r: any) => r.slug === "real-slug").length;
+      if (matches !== 1) throw new Error(`real-slug listed ${matches} times`);
+    });
+    await kill(proc);
+
+    // T159a — resume an existing Novel at startup.
+    writeFileSync(join(dir, "novels", "auto-slug.json"), JSON.stringify({ slug: "auto-slug", name: "auto-slug", badge: "game_master", metadata: meta }));
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "auto-slug" });
+    await test("T159/REQ-088: TTRPG_NOVEL resumes an existing Novel before any tool call", async () => {
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      if (health.active_novel !== "auto-slug") throw new Error(`startup novel not active: ${health.active_novel}`);
+    });
+    await kill(proc);
+
+    // T159b — create a missing Novel at startup.
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "brand-new" });
+    await test("T159/REQ-088: TTRPG_NOVEL creates a missing Novel before any tool call", async () => {
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      if (health.active_novel !== "brand-new") throw new Error(`created startup novel not active: ${health.active_novel}`);
+    });
+    await kill(proc);
+
+    // T159c — corrupt file: error to stderr + spec_health, no active Novel.
+    writeFileSync(join(dir, "novels", "bad.json"), "{ not valid json ");
+    await test("T159/REQ-088: corrupt TTRPG_NOVEL reports to stderr + spec_health, no active Novel", async () => {
+      const p = spawn("npx", ["tsx", SERVER_SCRIPT], {
+        env: { ...process.env, TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "bad" },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let errBuf = "";
+      p.stderr!.on("data", (d: Buffer) => { errBuf += d.toString(); });
+      attach(p);
+      await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "persistence-test", version: "1.0.0" } } });
+      p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+      await new Promise((r) => setTimeout(r, 250));
+      const health = JSON.parse(await call(p, "session", { action: "health" }));
+      if (health.active_novel !== null) throw new Error(`corrupt startup novel became active: ${health.active_novel}`);
+      const corrupted = Object.keys(health.data_health?.corrupted ?? {});
+      if (!corrupted.includes("bad")) throw new Error(`corrupted slug not surfaced: ${JSON.stringify(health.data_health)}`);
+      if (!errBuf.toLowerCase().includes("activation failed")) throw new Error(`stderr did not report activation failure: ${errBuf}`);
+      await kill(p);
+    });
+
+    rmSync(dir, { recursive: true, force: true });
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

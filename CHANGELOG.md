@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-03 — Novel registry hydration hardening
+
+- The startup Novel registry is now keyed by each save's internal slug rather
+  than its filename, so listing, info, creation, switching, archiving, and
+  renaming all agree even when a save file has been copied or renamed.
+  (REQ-065)
+- Renaming or cloning a Novel onto a slug that already exists now returns
+  `[STATE_CONFLICT]` instead of silently overwriting the target save.
+  (REQ-256, REQ-240)
+- Corrupted save files are no longer skipped silently: they surface as a
+  warning in the health report. (REQ-001a)
+- `TTRPG_NOVEL` now activates (resumes or creates) the named campaign at
+  startup, reporting a corrupt file to the health report instead of failing
+  silently. (REQ-088)
+
 ## 2026-09-03 — Fix backfill harness reboot after Novel-registry hydration
 
 - The conformance backfill harness's workflow-staleness test (T266) rebooted

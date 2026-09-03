@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // §5.19 State Persistence Guardrails conformance harness (REQ-400 through
-// REQ-407). Exercises T469–T476 (persistence directive, state_ledger token,
-// session no-mutation detection, state-drift gate, roll-to-commit coupling,
-// auto-moment on transitions, backup regression visibility, persist-tools).
+// REQ-407, plus REQ-001a corruption reporting). Exercises T469–T476 and T175
+// (persistence directive, state_ledger token, session no-mutation detection,
+// state-drift gate, roll-to-commit coupling, auto-moment on transitions,
+// backup regression visibility, persist-tools, corruption surfacing).
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
@@ -213,6 +214,21 @@ async function main() {
       assertContains(b, "state-regression");
     });
     await kill(proc);
+  }
+
+  // ── REQ-001a/T175: corrupted Novel surfaced as [WARNING] in spec_health ──
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-corrupt-skip-"));
+    mkdirSync(join(dir, "novels"), { recursive: true });
+    writeFileSync(join(dir, "novels", "corrupt-skip.json"), "{ not valid json ");
+    const proc = await boot({ TTRPG_DATA_DIR: dir });
+    await test("T175/REQ-001a: corrupt novel on disk surfaces in spec_health.data_health.corrupted", async () => {
+      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const corrupted = Object.keys(health.data_health?.corrupted ?? {});
+      if (!corrupted.includes("corrupt-skip")) throw new Error(`corrupt-skip not surfaced: ${JSON.stringify(health.data_health)}`);
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -552,6 +552,10 @@ export class StateManager {
   // persisted artifacts whose fingerprint differs (flagged [data-stale]).
   readonly dataFormat = DATA_FORMAT;
   staleData = new Map<string, string>();
+  // REQ-001a — Novels whose save file could not be loaded at hydration or
+  // resume (unparseable JSON, checksum mismatch, or data-migration failure),
+  // surfaced as a [WARNING] in spec_health.data_health.corrupted.
+  corruptData = new Map<string, string>();
 
   private npcCounter = 0;
   private entityCounter = 0;
@@ -737,6 +741,17 @@ export class StateManager {
     return novel;
   }
 
+  // REQ-406 — compute the content regression incurred by a backup restore:
+  // the audit-log entries and wall-clock age lost relative to the corrupted
+  // primary. Shared by resumeNovel and hydrateNovelsFromDisk so the two paths
+  // report identical state_regression values.
+  private computeStateRegression(data: any, bakData: any): { audit_gap: number; timestamp_gap_ms: number } {
+    const auditGap = (data.audit_log?.length ?? 0) - (bakData.audit_log?.length ?? 0);
+    const tsGap = (new Date((data.metadata?.modified ?? bakData.metadata?.modified) ?? new Date()).getTime())
+      - new Date(bakData.metadata?.modified ?? new Date()).getTime();
+    return { audit_gap: Math.max(0, auditGap), timestamp_gap_ms: Math.max(0, tsGap) };
+  }
+
   resumeNovel(slug: string): NovelState {
     const filePath = path.join(this.stateDir, "novels", `${slug}.json`);
     if (!fs.existsSync(filePath)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
@@ -755,15 +770,13 @@ export class StateManager {
           const bakData = JSON.parse(bakRaw);
           const loaded = this.loadNovelFromData(bakData);
           // REQ-406 — surface the backup-restore content regression.
-          const auditGap = (data.audit_log?.length ?? 0) - (bakData.audit_log?.length ?? 0);
-          const tsGap = (new Date((data.metadata?.modified ?? bakData.metadata?.modified) ?? new Date()).getTime())
-            - new Date(bakData.metadata?.modified ?? new Date()).getTime();
-          loaded.state_regression = { audit_gap: Math.max(0, auditGap), timestamp_gap_ms: Math.max(0, tsGap), recorded_at: new Date().toISOString() };
+          loaded.state_regression = { ...this.computeStateRegression(data, bakData), recorded_at: new Date().toISOString() };
           this.novels.set(slug, loaded);
           this.activeNovelId = slug;
           this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: true });
           return loaded;
         }
+        this.corruptData.set(slug, "checksum mismatch, no valid backup");
         throw new Error(`[STATE_CONFLICT] Novel '${slug}' is corrupted (checksum mismatch).`);
       }
     }
@@ -780,6 +793,16 @@ export class StateManager {
   // directory at startup so list_novels reflects disk without an explicit
   // resume. Loads each save file (falling back to its .bak on a checksum
   // mismatch) without activating a Novel, auditing, or bumping session count.
+  //
+  // Keying note: the registry is keyed by each Novel's *internal* slug (from
+  // data.slug, falling back to the filename), so list/info/create/switch/
+  // archive/rename/resume all agree even when a save file's name diverges from
+  // its slug (e.g. a file copied in by consolidate-novels.ts). Duplicate
+  // internal slugs resolve deterministically: the canonical `<slug>.json`
+  // filename wins; otherwise the first file in sorted order is kept.
+  //
+  // REQ-193a/REQ-224a — hydration is not a "connection" to a Novel, so it
+  // deliberately does NOT advance the pending-workflow staleness counter.
   hydrateNovelsFromDisk(): void {
     const dir = path.join(this.stateDir, "novels");
     let entries: string[];
@@ -788,36 +811,69 @@ export class StateManager {
     } catch {
       return; // no novels dir yet — nothing to hydrate
     }
+    entries = entries.filter((f) => f.endsWith(".json")).sort();
+    const canonicalKeys = new Set<string>();
     for (const file of entries) {
-      if (!file.endsWith(".json")) continue; // skip .bak / .corrupt / .tmp
-      const slug = file.slice(0, -".json".length);
-      if (this.novels.has(slug)) continue;
+      const fileSlug = file.slice(0, -".json".length);
       const filePath = path.join(dir, file);
       let data: any;
       try {
         data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       } catch {
-        continue; // unreadable file — explicit resume will surface the error
+        this.corruptData.set(fileSlug, "unparseable JSON");
+        process.stderr.write(`[holonovel] hydration: skipped unparseable novel file '${file}'.\n`);
+        continue;
       }
+      let restoredFromBackup = false;
+      let bakData: any = null;
+      const primaryData = data;
       if (data._checksum) {
         const payload = { ...data };
         delete (payload as any)._checksum;
         const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
         if (computed !== data._checksum) {
           const bakPath = filePath + ".bak";
-          try {
-            if (!fs.existsSync(bakPath)) continue;
-            data = JSON.parse(fs.readFileSync(bakPath, "utf-8"));
-          } catch {
+          if (fs.existsSync(bakPath)) {
+            try {
+              bakData = JSON.parse(fs.readFileSync(bakPath, "utf-8"));
+              data = bakData;
+              restoredFromBackup = true;
+            } catch {
+              this.corruptData.set(fileSlug, "checksum mismatch, unparseable backup");
+              process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (unreadable .bak).\n`);
+              continue;
+            }
+          } else {
+            this.corruptData.set(fileSlug, "checksum mismatch, no backup");
+            process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (no .bak).\n`);
             continue;
           }
         }
       }
+      let novel: NovelState;
       try {
-        this.novels.set(slug, this.loadNovelFromData(data));
-      } catch {
-        continue; // data-format migration failure — skip rather than crash boot
+        novel = this.loadNovelFromData(data);
+      } catch (e) {
+        this.corruptData.set(fileSlug, `load failed: ${(e as Error).message}`);
+        process.stderr.write(`[holonovel] hydration: skipped novel '${file}' (${(e as Error).message}).\n`);
+        continue;
       }
+      if (restoredFromBackup && bakData) {
+        novel.state_regression = { ...this.computeStateRegression(primaryData, bakData), recorded_at: new Date().toISOString() };
+      }
+      const key = novel.slug || fileSlug;
+      if (this.novels.has(key)) {
+        const candidateCanonical = fileSlug === key;
+        const existingCanonical = canonicalKeys.has(key);
+        if (candidateCanonical && !existingCanonical) {
+          this.novels.set(key, novel); // canonical filename displaces a misnamed copy
+          canonicalKeys.add(key);
+        }
+        process.stderr.write(`[holonovel] hydration: duplicate slug '${key}' — skipped '${file}'.\n`);
+        continue;
+      }
+      this.novels.set(key, novel);
+      if (fileSlug === key) canonicalKeys.add(key);
     }
   }
 
@@ -930,6 +986,11 @@ export class StateManager {
 
   renameNovel(novel: NovelState, newSlug: string): NovelState {
     const oldSlug = novel.slug;
+    // REQ-256 — refuse a rename onto an existing slug (in-memory or on disk)
+    // rather than silently overwriting the target's save file.
+    if (newSlug !== oldSlug && (this.novels.has(newSlug) || fs.existsSync(path.join(this.stateDir, "novels", `${newSlug}.json`)))) {
+      throw new Error(`[STATE_CONFLICT] Novel '${newSlug}' already exists.`);
+    }
     novel.slug = newSlug;
     novel.name = newSlug;
     this.novels.delete(oldSlug);
