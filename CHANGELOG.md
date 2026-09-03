@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-03 — Refresh fingerprint baseline when implementation advances without a spec delta
+
+- `push-pipeline.sh` deploy verification (REQ-418) failed with a false
+  "fingerprints MISMATCH" when the server implementation changed but the spec
+  hash did not: `update-server.ts` exited early on an unchanged spec hash
+  without refreshing the stored fingerprint baseline, leaving it stale. It now
+  reconciles the baseline whenever implementation fingerprints advance
+  independently of the spec (REQ-313c), keeping deploy verification and
+  partial-rebuild scoping (REQ-314) aligned with current code.
+
 ## 2026-09-03 — Novel registry hydration hardening
 
 - The startup Novel registry is now keyed by each save's internal slug rather
