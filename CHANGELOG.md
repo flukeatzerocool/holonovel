@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-03 — Fix backfill harness reboot after Novel-registry hydration
+
+- The conformance backfill harness's workflow-staleness test (T266) rebooted
+  the server and re-created `bf4` via `novel create`, which now conflicts with
+  the hydrated on-disk registry (REQ-065) and left no active Novel, cascading
+  into seven downstream failures. The test now starts a fresh Novel after the
+  reboot so the remaining cases run against a clean slate.
+
 ## 2026-09-03 — Data-retention and consolidation tooling
 
 - Added `holonovel/scripts/consolidate-novels.ts` — reports (and with

@@ -537,9 +537,12 @@ async function main() {
       const health = JSON.parse(await call(proc2, "session", { action: "health" }));
       if (!health.pending_workflow) throw new Error("pending_workflow not surfaced");
       await kill(proc2);
-      // Reboot a fresh proc for the remaining tests in this block.
+      // Reboot a fresh proc for the remaining tests in this block. bf4 was
+      // persisted (with its pending workflow) and is hydrated from disk at
+      // boot, so `create bf4` would conflict — start a fresh Novel instead so
+      // the remaining tests run against a clean slate (REQ-423 hydration).
       proc = await boot();
-      await call(proc, "novel", { action: "create",  name: "bf4" });
+      await call(proc, "novel", { action: "create",  name: "bf5" });
       await call(proc, "set_badge", { badge: "game_master" });
       return;
     });
