@@ -5,8 +5,9 @@
  *
  * Scans one or more legacy `novels/` directories and lists every `<slug>.json`
  * save file that is absent from the canonical data dir's `novels/` directory.
- * With `--import`, missing Novels (and their `.bak` sibling) are copied into
- * the canonical dir; existing slugs are never overwritten. This supports the
+ * With `--import`, missing Novels (and their backup chain — `.bak` and
+ * `.bak.N`) are copied into the canonical dir; existing slugs are never
+ * overwritten. This supports the
  * retire-by-migrate-or-trash convention: when a server generation is retired,
  * its Novels are consolidated before the legacy state dir is deleted.
  *
@@ -24,7 +25,7 @@ interface Candidate {
   sourceDir: string;
   slug: string;
   fileName: string;
-  bakName: string | null;
+  bakNames: string[];
   bytes: number;
 }
 
@@ -102,12 +103,13 @@ function main(): void {
       if (!file.endsWith(".json")) continue;
       const slug = file.slice(0, -".json".length);
       if (existing.has(file)) continue;
-      const bakName = existsSync(join(scanDir, file + ".bak")) ? file + ".bak" : null;
+      // Copy the whole backup chain (`.bak` and `.bak.N`) alongside the primary.
+      const bakNames = files.filter((f) => f === `${file}.bak` || f.startsWith(`${file}.bak.`));
       candidates.push({
         sourceDir: scanDir,
         slug,
         fileName: file,
-        bakName,
+        bakNames,
         bytes: statSync(join(scanDir, file)).size,
       });
     }
@@ -125,7 +127,9 @@ function main(): void {
       try {
         mkdirSync(targetDir, { recursive: true });
         copyFileSync(join(c.sourceDir, c.fileName), join(targetDir, c.fileName));
-        if (c.bakName) copyFileSync(join(c.sourceDir, c.bakName), join(targetDir, c.bakName));
+        for (const bak of c.bakNames) {
+          copyFileSync(join(c.sourceDir, bak), join(targetDir, bak));
+        }
       } catch (err) {
         console.error(`FATAL: import failed for ${c.slug}: ${(err as Error).message}`);
         process.exit(2);

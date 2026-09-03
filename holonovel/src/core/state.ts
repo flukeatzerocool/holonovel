@@ -414,7 +414,7 @@ export interface NovelState {
   // §5.19 State Persistence Guardrails (REQ-400 through REQ-407)
   auto_record: boolean; // REQ-405 — auto-moment on transitions
   session_no_mutation_windows: string[]; // REQ-402 — sessions closed with zero mutations
-  state_regression: { audit_gap: number; timestamp_gap_ms: number; recorded_at: string } | null; // REQ-406
+  state_regression: { audit_gap: number; timestamp_gap_ms: number; recorded_at: string; backup_index?: number } | null; // REQ-406/REQ-238
   last_mutation_at: string | null; // REQ-401/403 — timestamp of last state write
   mutation_counts_by_group: Record<string, number>; // REQ-401 — per-group counts this session
   uncommitted_rolls: Array<{ roll: string; suggested_tool: string; at: string }>; // REQ-404
@@ -556,6 +556,11 @@ export class StateManager {
   // resume (unparseable JSON, checksum mismatch, or data-migration failure),
   // surfaced as a [WARNING] in spec_health.data_health.corrupted.
   corruptData = new Map<string, string>();
+  // REQ-238 — slugs loaded from a backup this session. The first save after a
+  // backup restore skips copying the (corrupt/stale) on-disk primary into
+  // `.bak.1`, so a good backup is never overwritten and corruption is never
+  // propagated into the rotated chain.
+  private restoredThisSession = new Set<string>();
 
   private npcCounter = 0;
   private entityCounter = 0;
@@ -752,39 +757,72 @@ export class StateManager {
     return { audit_gap: Math.max(0, auditGap), timestamp_gap_ms: Math.max(0, tsGap) };
   }
 
+  // REQ-092 — a payload's checksum is valid when absent (legacy writes) or when
+  // it matches the recomputed hash of the payload excluding the checksum field.
+  private hasValidChecksum(data: any): boolean {
+    if (!data._checksum) return true;
+    const payload = { ...data };
+    delete (payload as any)._checksum;
+    const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    return computed === data._checksum;
+  }
+
   resumeNovel(slug: string): NovelState {
     const filePath = path.join(this.stateDir, "novels", `${slug}.json`);
     if (!fs.existsSync(filePath)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
 
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const data = JSON.parse(raw);
+    let data: any;
+    let primaryData: any = null;
+    try {
+      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      primaryData = data;
+    } catch {
+      data = null; // structurally corrupt primary — fall through to backup restore
+    }
 
-    if (data._checksum) {
-      const payload = { ...data };
-      delete (payload as any)._checksum;
-      const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-      if (computed !== data._checksum) {
-        const bakPath = filePath + ".bak";
-        if (fs.existsSync(bakPath)) {
-          const bakRaw = fs.readFileSync(bakPath, "utf-8");
-          const bakData = JSON.parse(bakRaw);
-          const loaded = this.loadNovelFromData(bakData);
-          // REQ-406 — surface the backup-restore content regression.
-          loaded.state_regression = { ...this.computeStateRegression(data, bakData), recorded_at: new Date().toISOString() };
-          this.novels.set(slug, loaded);
-          this.activeNovelId = slug;
-          this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: true });
-          return loaded;
-        }
-        this.corruptData.set(slug, "checksum mismatch, no valid backup");
-        throw new Error(`[STATE_CONFLICT] Novel '${slug}' is corrupted (checksum mismatch).`);
+    // REQ-238a — restore triggers on a structural JSON error or a checksum
+    // mismatch (REQ-092); the first valid backup wins and its index is audited.
+    if (data === null || !this.hasValidChecksum(data)) {
+      const restored = this.restoreFromBackups(filePath);
+      if (restored) {
+        const loaded = this.loadNovelFromData(restored.data);
+        // REQ-406 — surface the backup-restore content regression.
+        loaded.state_regression = {
+          ...this.computeStateRegression(primaryData ?? restored.data, restored.data),
+          backup_index: restored.index,
+          recorded_at: new Date().toISOString(),
+        };
+        this.novels.set(slug, loaded);
+        this.activeNovelId = slug;
+        this.restoredThisSession.add(slug);
+        this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: restored.index });
+        return loaded;
       }
+      this.corruptData.set(slug, "corrupt primary, no valid backup");
+      throw new Error(`[STATE_CONFLICT] Novel '${slug}' is corrupted.`);
     }
 
     const novel = this.loadNovelFromData(data);
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
     this.audit(novel, novel.badge, "resume_novel", { slug });
+    this.checkWorkflowStaleness(novel);
+    return novel;
+  }
+
+  // REQ-088 — activate an already-hydrated Novel by its internal slug (registry
+  // key). Used by the TTRPG_NOVEL startup auto-load so a save file whose name
+  // diverges from its internal slug is activated without a second file read.
+  // Audits the resume and, when hydration restored from a backup, emits the
+  // `[restored-from-backup]` entry naming the backup index (REQ-238/T276).
+  activateHydratedNovel(slug: string): NovelState {
+    const novel = this.novels.get(slug);
+    if (!novel) throw new Error(`[STATE_CONFLICT] Novel '${slug}' is not hydrated.`);
+    this.activeNovelId = slug;
+    const restoredIndex = novel.state_regression?.backup_index ?? null;
+    this.audit(novel, novel.badge, "resume_novel", restoredIndex !== null
+      ? { slug, restored_from_backup: restoredIndex }
+      : { slug });
     this.checkWorkflowStaleness(novel);
     return novel;
   }
@@ -817,38 +855,26 @@ export class StateManager {
       const fileSlug = file.slice(0, -".json".length);
       const filePath = path.join(dir, file);
       let data: any;
+      let primaryData: any = null;
       try {
         data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        primaryData = data;
       } catch {
-        this.corruptData.set(fileSlug, "unparseable JSON");
-        process.stderr.write(`[holonovel] hydration: skipped unparseable novel file '${file}'.\n`);
-        continue;
+        data = null; // structurally corrupt primary — fall through to backup restore
       }
-      let restoredFromBackup = false;
-      let bakData: any = null;
-      const primaryData = data;
-      if (data._checksum) {
-        const payload = { ...data };
-        delete (payload as any)._checksum;
-        const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-        if (computed !== data._checksum) {
-          const bakPath = filePath + ".bak";
-          if (fs.existsSync(bakPath)) {
-            try {
-              bakData = JSON.parse(fs.readFileSync(bakPath, "utf-8"));
-              data = bakData;
-              restoredFromBackup = true;
-            } catch {
-              this.corruptData.set(fileSlug, "checksum mismatch, unparseable backup");
-              process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (unreadable .bak).\n`);
-              continue;
-            }
-          } else {
-            this.corruptData.set(fileSlug, "checksum mismatch, no backup");
-            process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (no .bak).\n`);
-            continue;
-          }
+      let restoredIndex: number | null = null;
+      // REQ-238a — a structural JSON error or checksum mismatch triggers the
+      // rotated-backup restore chain; no valid backup → the corrupt-novel path.
+      if (data === null || !this.hasValidChecksum(data)) {
+        const restored = this.restoreFromBackups(filePath);
+        if (!restored) {
+          const reason = data === null ? "unparseable JSON, no valid backup" : "checksum mismatch, no valid backup";
+          this.corruptData.set(fileSlug, reason);
+          process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (${reason}).\n`);
+          continue;
         }
+        data = restored.data;
+        restoredIndex = restored.index;
       }
       let novel: NovelState;
       try {
@@ -858,8 +884,13 @@ export class StateManager {
         process.stderr.write(`[holonovel] hydration: skipped novel '${file}' (${(e as Error).message}).\n`);
         continue;
       }
-      if (restoredFromBackup && bakData) {
-        novel.state_regression = { ...this.computeStateRegression(primaryData, bakData), recorded_at: new Date().toISOString() };
+      if (restoredIndex !== null) {
+        novel.state_regression = {
+          ...this.computeStateRegression(primaryData ?? data, data),
+          backup_index: restoredIndex,
+          recorded_at: new Date().toISOString(),
+        };
+        this.restoredThisSession.add(novel.slug);
       }
       const key = novel.slug || fileSlug;
       if (this.novels.has(key)) {
@@ -1009,12 +1040,14 @@ export class StateManager {
     const trashDir = path.join(this.stateDir, ".trash");
     fs.mkdirSync(trashDir, { recursive: true });
     const novelFile = path.join(this.stateDir, "novels", `${novel.slug}.json`);
-    const bakFile = novelFile + ".bak";
     if (fs.existsSync(novelFile)) {
       fs.renameSync(novelFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json`));
     }
-    if (fs.existsSync(bakFile)) {
-      fs.renameSync(bakFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json.bak`));
+    // REQ-238b — move the whole backup chain (`.bak.N` + legacy `.bak`) to trash
+    // alongside the primary so no orphaned backups survive an ended Novel.
+    for (const bakPath of this.backupFilesOnDisk(novelFile)) {
+      const suffix = bakPath.slice(novelFile.length);
+      fs.renameSync(bakPath, path.join(trashDir, `${novel.slug}-${Date.now()}.json${suffix}`));
     }
     const archiveDir = path.join(this.stateDir, "archive");
     if (fs.existsSync(archiveDir)) {
@@ -1042,8 +1075,13 @@ export class StateManager {
     const target = path.join(archiveDir, `${slug}.json`);
     if (fs.existsSync(target)) fs.unlinkSync(target);
     fs.renameSync(novelFile, target);
-    const bak = novelFile + ".bak";
-    if (fs.existsSync(bak)) fs.renameSync(bak, target + ".bak");
+    // REQ-334 — move the backup chain alongside the archived primary.
+    for (const bakPath of this.backupFilesOnDisk(novelFile)) {
+      const suffix = bakPath.slice(novelFile.length);
+      const dest = target + suffix;
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+      fs.renameSync(bakPath, dest);
+    }
     this.novels.delete(slug);
     if (this.activeNovelId === slug) this.activeNovelId = null;
     return { archived: true, at: new Date().toISOString() };
@@ -1057,8 +1095,13 @@ export class StateManager {
     const target = path.join(novelsDir, `${slug}.json`);
     if (fs.existsSync(target)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' already exists as active.`);
     fs.renameSync(archiveFile, target);
-    const bak = archiveFile + ".bak";
-    if (fs.existsSync(bak)) fs.renameSync(bak, target + ".bak");
+    // REQ-334 — restore the backup chain alongside the unarchived primary.
+    for (const bakPath of this.backupFilesOnDisk(archiveFile)) {
+      const suffix = bakPath.slice(archiveFile.length);
+      const dest = target + suffix;
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+      fs.renameSync(bakPath, dest);
+    }
     return this.resumeNovel(slug);
   }
 
@@ -1536,12 +1579,66 @@ ${turnOrder}`;
 
   // ── Persistence ───────────────────────────────────────────────
 
+  // REQ-238 — the number of rotated backups retained per Novel, configured via
+  // TTRPG_NOVEL_BACKUP_COUNT (minimum 1; unset defaults to 1 = current behavior).
+  private backupCount(): number {
+    const raw = parseInt(process.env.TTRPG_NOVEL_BACKUP_COUNT ?? "1", 10);
+    return Number.isFinite(raw) && raw >= 1 ? raw : 1;
+  }
+
+  // REQ-238 — ordered restore candidates: `.bak.1..N` (newest first), then a
+  // legacy singular `.bak` (pre-rotation saves) accepted as the index-1 candidate.
+  private backupCandidates(filePath: string): { path: string; index: number }[] {
+    const candidates: { path: string; index: number }[] = [];
+    for (let i = 1; i <= this.backupCount(); i++) candidates.push({ path: `${filePath}.bak.${i}`, index: i });
+    candidates.push({ path: `${filePath}.bak`, index: 1 });
+    return candidates;
+  }
+
+  // REQ-238/REQ-092 — restore from the first parseable backup with a valid
+  // checksum. Returns the winning data plus its backup index, or null when no
+  // candidate is usable (REQ-238b hands off to the existing recovery path).
+  private restoreFromBackups(filePath: string): { data: any; index: number } | null {
+    for (const cand of this.backupCandidates(filePath)) {
+      if (!fs.existsSync(cand.path)) continue;
+      try {
+        const raw = fs.readFileSync(cand.path, "utf-8");
+        const data = JSON.parse(raw);
+        if (!this.hasValidChecksum(data)) continue;
+        return { data, index: cand.index };
+      } catch {
+        continue; // structurally corrupt or unreadable candidate — try the next
+      }
+    }
+    return null;
+  }
+
+  // REQ-238 — enumerate every backup file on disk for a primary file path: the
+  // rotated `<file>.bak.N` chain plus the legacy singular `<file>.bak`.
+  private backupFilesOnDisk(filePath: string): string[] {
+    const dir = path.dirname(filePath);
+    const base = path.basename(filePath);
+    const legacy = `${base}.bak`;
+    const prefix = `${base}.bak.`;
+    const found: string[] = [];
+    let entries: string[] = [];
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return found;
+    }
+    for (const e of entries) {
+      if (e === legacy || e.startsWith(prefix)) found.push(path.join(dir, e));
+    }
+    return found.sort();
+  }
+
   saveNovel(novel: NovelState): void {
     const dir = path.join(this.stateDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
     const filePath = path.join(dir, `${novel.slug}.json`);
     const tmpPath = filePath + `.${process.pid}-${Date.now()}.tmp`;
-    const bakPath = filePath + ".bak";
+    const count = this.backupCount();
 
     novel.metadata.modified = new Date().toISOString();
 
@@ -1570,8 +1667,28 @@ ${turnOrder}`;
     payload._checksum = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 
     const out = JSON.stringify(payload, null, 2);
-    if (fs.existsSync(filePath)) {
-      fs.copyFileSync(filePath, bakPath);
+    // REQ-238 — rotate the backup chain before committing the new primary:
+    // `.bak.N-1` → `.bak.N`, … `.bak.1` → `.bak.2`, then the previous primary
+    // becomes `.bak.1`. count=1 writes only `.bak.1` (the previous primary).
+    if (count > 1) {
+      for (let i = count - 1; i >= 1; i--) {
+        const from = `${filePath}.bak.${i}`;
+        const to = `${filePath}.bak.${i + 1}`;
+        if (fs.existsSync(from)) {
+          if (fs.existsSync(to)) fs.unlinkSync(to);
+          fs.renameSync(from, to);
+        }
+      }
+    }
+    if (fs.existsSync(filePath) && !this.restoredThisSession.delete(novel.slug)) {
+      fs.copyFileSync(filePath, `${filePath}.bak.1`);
+    }
+    // Prune backups beyond the configured chain (e.g. TTRPG_NOVEL_BACKUP_COUNT
+    // lowered between runs); breaks immediately when no stale index remains.
+    for (let i = count + 1; ; i++) {
+      const stale = `${filePath}.bak.${i}`;
+      if (!fs.existsSync(stale)) break;
+      fs.unlinkSync(stale);
     }
     const fd = fs.openSync(tmpPath, "w");
     fs.writeFileSync(fd, out, "utf-8");
