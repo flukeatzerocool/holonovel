@@ -211,8 +211,10 @@ Your Holodeck.
 ### Install
 
 The base server — a world-model MCP with rooms, things, exits, parser commands,
-and narrative tools. Install it, then install any number of ruleset packages —
-each drops in alongside the base and never modifies it. Node.js 20+ required.
+narrative tools, and out-of-the-box mechanics from Fate, Ironsworn, and Blades in
+the Dark (Fudge dice, momentum, and stress tracks, no ruleset required). Install
+it, then install any number of ruleset packages — each drops in alongside the
+base and never modifies it. Node.js 20+ required.
 
 ```sh
 cd holonovel

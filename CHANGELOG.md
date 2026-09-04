@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-04 — Integration repair: manifests, coupling, and base-capability classification
+
+- The §5 section map — the per-section REQ index — is rebuilt from actual
+  REQ-to-section membership, restoring 98 previously unlisted REQs, and is now
+  mechanically verified: `validate` fails assembly when a section or REQ is
+  missing from the map. (REQ-370)
+- Coupling-table property tokens must now resolve to a §7.7 property group or
+  alias; an unresolvable token is an error rather than a warning. "NPC Mind" and
+  the two `command (action: …)` tokens were registered so existing rows pass the
+  stricter check. (REQ-370)
+- `TTRPG_NPC_MIND` gains the natural-language access path its "couples per P45"
+  annotation promised: the P45 rule now names "NPCs think for themselves", a
+  "Narrative Directive → NPC Mind" coupling row was added, and a new check
+  verifies every behavioral-config annotation against a matching §7.7.1a row.
+  (REQ-081, REQ-339d; §4 Standing Rule 11)
+- Host base capabilities — Fate, Ironsworn, and Forged in the Dark state — are
+  classified explicitly: §7.7.0 declares them a self-contained non-coupling
+  surface rather than leaving them unclassified beside the 30 property groups.
+  (REQ-434–443, REQ-370)
+- The §6.6 Pattern Buffer coverage map regains three REQs (adventure discovery
+  and drift detection, roster removal) that the stale section map had hidden.
+- The data-format fingerprint advances because §7.7 changed — deployed Novels
+  flag `[data-stale]` until re-stamped by `migrate-user-data`; loading is
+  unaffected. (REQ-423)
+- Maintainer orientation synced: `holonovel/AGENTS.md` lists the 28-tool surface
+  including the base-capability tools, T511 asserts the doc stays in sync, and
+  the pre-commit checklist plus Appendix M gain the delta-integration items that
+  would have caught this drift.
+
 ## 2026-09-04 — Ironsworn + Forged in the Dark base capabilities
 
 - Ironsworn completes its base-capability adoption alongside vows and the

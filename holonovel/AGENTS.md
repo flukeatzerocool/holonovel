@@ -30,12 +30,12 @@ src/enrichment.ts       Enrichment manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole enrichment source.
         ↓
-src/index.ts            McpServer: 25 action-discriminator tools, ~22 resources, 5 prompts.
+src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
 ```
 
-## Tool Surface (25 tools)
+## Tool Surface (28 tools)
 
 - **Badges & Workflow:** set_badge, respond, undo, redo, help
 - **character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
@@ -57,7 +57,10 @@ src/index.ts            McpServer: 25 action-discriminator tools, ~22 resources,
 - **synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — enrichment content
 - **ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
 - **scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
-- **session** (action: recap/verbosity/briefing_order/compress/health) — session recap, verbosity, briefing order, audit compression, and the `spec_health` report
+- **session** (action: recap/verbosity/briefing_order/compress/health/subscribe) — session recap, verbosity, briefing order, audit compression, event subscriptions, and the `spec_health` report
+- **fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
+- **ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
+- **forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
 
 ## Running
 

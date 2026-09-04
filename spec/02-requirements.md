@@ -6,26 +6,29 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
-| 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411, 413–415 |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
-| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
-| 5.6     | State, Lifecycle, Entities, and Adventure Content                 | 040–041, 043–044, 065, 069, 072–077, 073a, 073c, 076a–076b, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a–233b, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 312, 312a–312d, 409–410, 416–417  |
-| 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a–084b, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–246, 246a–246b, 260–266, 328, 333 |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
-| 5.11    | Ruleset-Free Build Mode               | 218–219                                             |
-| 5.12 | Narrative Architecture | 335–366 |
-| 5.13 | Holodeck | 369–371, 374–376 |
-| 5.14 | Content Sources | 372–373 |
-| 5.15    | Mechanical Coupling                  | 377–378                                             |
-| 5.16    | Multi-Ruleset Build                  | 379–387                                             |
-| 5.17    | Ruleset Packages                     | 389–393                                             |
-| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  |
-| 5.19    | State Persistence Guardrails         | 400–407                                             |
-| 5.20    | Narrative Turn Conventions           | 412                                                 |
+| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427 |
+| 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
+| 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
+| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433 |
+| 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334 |
+| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
+| 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
+| 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
+| 5.13   | Holodeck                                                | 369–371, 374–376 |
+| 5.14   | Content Sources                                         | 372, 373 |
+| 5.15   | Mechanical Coupling                                     | 377, 378 |
+| 5.16   | Multi-Ruleset Build                                     | 379–387 |
+| 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429 |
+| 5.19   | State Persistence Guardrails                            | 400–407 |
+| 5.20   | Narrative Turn Conventions                              | 412 |
+| 5.21   | Fate Base Capabilities                                  | 434–437 |
+| 5.22   | Ironsworn Base Capabilities                             | 438–440 |
+| 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 
 ### 5.1 Output and Error Contracts
 

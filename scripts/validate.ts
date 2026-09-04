@@ -869,8 +869,11 @@ function checkCouplingCompleteness(text: string): string[] {
     "Undo/Redo/Badge": ["Session"],
     suggest_actions: ["Ruleset Wisdom"],
     resolve_intent: ["Decision"],
+    "command (action: suggest)": ["Ruleset Wisdom"],
+    "command (action: resolve)": ["Decision"],
     "Pacing Window": ["Temporal"],
     "NPC Autonomy": ["Entity-bearing"],
+    "NPC Mind": ["Entity-bearing"],
     "Constraint Overrides": ["Decision"],
     "Player Signal": ["Session"],
   };
@@ -992,7 +995,7 @@ function checkCouplingCompleteness(text: string): string[] {
     const srcArch = resolveArchetypes(parts[0]);
     const tgtArch = resolveArchetypes(parts[1]);
     if (!srcArch || !tgtArch) {
-      issues.push(`WARNING: Coupling row "${row.pair}" has an unresolvable property token`);
+      issues.push(`ERROR: Coupling row "${row.pair}" has an unresolvable property token`);
       continue;
     }
     const union = new Set([...srcArch, ...tgtArch]);
@@ -1009,6 +1012,102 @@ function checkCouplingCompleteness(text: string): string[] {
   console.log(`\nCoupling derivation: ${populatedRules}/${patternRules.size} pattern rules have ≥1 coupling row`);
   if (orphanedRules > 0) console.log(`  ${orphanedRules} orphaned pattern rule(s) with zero coupling rows`);
   else console.log("PASS: All pattern rules have ≥1 coupling row");
+  return issues;
+}
+
+// §5 section-map completeness: every §5.x heading has a row, and every REQ's
+// base ID appears in its section's row (explicit, sub-part, or via range).
+function checkSectionIndexCompleteness(text: string): string[] {
+  const issues: string[] = [];
+  const tableStart = text.indexOf("| §       | Title");
+  if (tableStart === -1) { issues.push("ERROR: §5 section map not found"); return issues; }
+  const tableEnd = text.indexOf("\n### 5.1", tableStart);
+  if (tableEnd === -1) { issues.push("ERROR: §5.1 heading not found after section map"); return issues; }
+  const tableText = text.slice(tableStart, tableEnd);
+
+  const rowBases = new Map<string, Set<string>>();
+  for (const line of tableText.split("\n")) {
+    const secMatch = line.match(/^\|\s*(5\.\d+)\s*\|/);
+    if (!secMatch) continue;
+    const sec = secMatch[1];
+    const bases = new Set<string>();
+    for (const m of line.matchAll(/(\d{3}[a-z0-9]*)(?:\s*–\s*(\d{3}[a-z0-9]*))?/g)) {
+      const a = m[1];
+      const b = m[2];
+      if (b) {
+        const an = a.slice(0, 3);
+        const bn = b.slice(0, 3);
+        const aNum = parseInt(an);
+        const bNum = parseInt(bn);
+        if (!isNaN(aNum) && !isNaN(bNum) && /^\d{3}$/.test(a) && /^\d{3}$/.test(b)) {
+          for (let n = Math.min(aNum, bNum); n <= Math.max(aNum, bNum); n++) bases.add(String(n).padStart(3, "0"));
+        } else {
+          bases.add(an);
+          bases.add(bn);
+        }
+      } else {
+        bases.add(a.slice(0, 3));
+      }
+    }
+    rowBases.set(sec, bases);
+  }
+
+  const headings: { sec: string; pos: number }[] = [];
+  for (const m of text.matchAll(/^### (5\.\d+)\b/gm)) headings.push({ sec: m[1], pos: m.index! });
+  const endMarker = text.indexOf("#### End of requirements");
+  const finalEnd = endMarker === -1 ? text.length : endMarker;
+
+  for (let i = 0; i < headings.length; i++) {
+    const { sec, pos } = headings[i];
+    const rowSet = rowBases.get(sec);
+    if (!rowSet) { issues.push(`ERROR: §${sec} has no row in the §5 section map`); continue; }
+    const spanEnd = i + 1 < headings.length ? headings[i + 1].pos : finalEnd;
+    const span = text.slice(pos, spanEnd);
+    for (const rm of span.matchAll(/\*\*REQ-(\d{3}[a-z0-9]*)\s*—/g)) {
+      const base = rm[1].slice(0, 3);
+      if (!rowSet.has(base)) issues.push(`ERROR: REQ-${rm[1]} in §${sec} missing from the §5 section map row`);
+    }
+  }
+
+  for (const sec of rowBases.keys()) {
+    if (!headings.some((h) => h.sec === sec)) issues.push(`ERROR: §5 section map row '${sec}' has no matching heading`);
+  }
+
+  return issues;
+}
+
+// §7.6 behavioral-config annotations must name a P-rule that a §7.7.1a
+// coupling row both cites and ties to the same variable (Standing Rule 11).
+function checkConfigCouplingAnnotations(text: string): string[] {
+  const issues: string[] = [];
+  const cfgStart = text.indexOf("### 7.6 Configuration surface");
+  if (cfgStart === -1) { issues.push("ERROR: §7.6 Configuration surface not found"); return issues; }
+  const cfgEnd = text.indexOf("### 7.7 State model", cfgStart);
+  if (cfgEnd === -1) { issues.push("ERROR: §7.7 State model not found after §7.6"); return issues; }
+  const cfgText = text.slice(cfgStart, cfgEnd);
+
+  const couplingStart = text.indexOf("##### 7.7.1a Active couplings");
+  const couplingEndMarker = text.indexOf("##### 7.7.1b", couplingStart);
+  const couplingText = couplingStart === -1 ? "" : text.slice(couplingStart, couplingEndMarker === -1 ? text.length : couplingEndMarker);
+
+  const configAliases: Record<string, string[]> = { TTRPG_AUTONOMY: ["scene (action: autonomy)"] };
+
+  for (const line of cfgText.split("\n")) {
+    const m = line.match(/^\|\s*`(TTRPG_\w+)`\s*\|/);
+    if (!m) continue;
+    const variable = m[1];
+    if (!line.includes("Behavioral")) continue;
+    const couples = line.match(/couples per\s+(?:§7\.7\.1a\s+)?([P\d\s/]+)/);
+    if (!couples) continue;
+    const rules = [...couples[1].matchAll(/P\d+/g)].map((r) => r[0]);
+    if (rules.length === 0) continue;
+    const names = configAliases[variable] ?? [variable];
+    for (const rule of rules) {
+      const found = couplingText.split("\n").some((l) => l.includes(`| ${rule} |`) && names.some((n) => l.includes(n)));
+      if (!found) issues.push(`ERROR: §7.6 ${variable} annotated "couples per ${rule}" but no §7.7.1a row cites ${rule} and names ${variable}`);
+    }
+  }
+
   return issues;
 }
 
@@ -1616,6 +1715,24 @@ function main(): void {
     if (couplingIssues.length > 0) {
       console.log("\n=== COUPLING COMPLETENESS ===\n");
       for (const issue of couplingIssues) {
+        if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
+        else { console.log(issue); warnings++; }
+      }
+    }
+
+    const indexIssues = checkSectionIndexCompleteness(text);
+    if (indexIssues.length > 0) {
+      console.log("\n=== §5 SECTION MAP COMPLETENESS ===\n");
+      for (const issue of indexIssues) {
+        if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
+        else { console.log(issue); warnings++; }
+      }
+    }
+
+    const configAnnotationIssues = checkConfigCouplingAnnotations(text);
+    if (configAnnotationIssues.length > 0) {
+      console.log("\n=== CONFIG COUPLING ANNOTATIONS ===\n");
+      for (const issue of configAnnotationIssues) {
         if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
         else { console.log(issue); warnings++; }
       }
