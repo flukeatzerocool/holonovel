@@ -1,6 +1,6 @@
 {
   "name": "holonovel",
-  "version": "2026.09.03",
+  "version": "2026.09.04",
   "description": "Holonovel MCP server — world-model base for tabletop RPG play. Provides core scaffold (state management, badge gating, macros, enrichment) and world-model layer (rooms, things, exits, parser commands, kind hierarchy). Consumed by TTRPG servers as a build-time dependency.",
   "type": "module",
   "main": "dist/index.js",
@@ -39,7 +39,8 @@
     "test:adventure": "tsx scripts/test-adventure.ts",
     "test:g7": "tsx scripts/test-g7.ts",
     "test:tool-definitions": "tsx scripts/test-tool-definitions.ts",
-    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:gauntlet && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions"
+    "test:competitive-gaps": "tsx scripts/test-competitive-gaps.ts",
+    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:gauntlet && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps"
   },
   "keywords": [
     "inform",

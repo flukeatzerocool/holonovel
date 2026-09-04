@@ -200,6 +200,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-022b | Resources (Part b) | 2026-08-11 |
 | REQ-296a | Knowledge-graph resource (Part a) | 2026-08-11 |
 | REQ-296b | Knowledge-graph resource (Part b) | 2026-08-11 |
+| REQ-296c | Knowledge-graph resource (Part c) | 2026-09-04 |
 | REQ-023a | Prompts (Part a) | 2026-08-11 |
 | REQ-023b | Prompts (Part b) | 2026-08-11 |
 | REQ-024a | Tool documentation (Part a) | 2026-08-11 |
@@ -264,7 +265,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-183a | Live-index-derived error enumerations (Part a) | 2026-08-11 |
 | REQ-183b | Live-index-derived error enumerations (Part b) | 2026-08-11 |
 | REQ-323a | command resolve action (Part a) | 2026-08-11 |
-| REQ-323b | command resolve action (Part b) | 2026-08-11 |
+| REQ-323b | command resolve action (Part b) | 2026-09-04 |
 | REQ-056 | Advancement workflow | 2026-08-11 |
 | REQ-042a | Workflow decisions (Part a) | 2026-08-11 |
 | REQ-042b | Workflow decisions (Part b) | 2026-08-11 |
@@ -401,6 +402,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-072e | Session recap (Part e) | 2026-08-11 |
 | REQ-072f | Session recap (Part f) | 2026-08-11 |
 | REQ-072g | Session recap format (Part g) | 2026-08-11 |
+| REQ-072h | Session recap (Part h) | 2026-09-04 |
 | REQ-279a | Narrative orientation (Part a) | 2026-08-11 |
 | REQ-279b | Narrative orientation (Part b) | 2026-08-11 |
 | REQ-279c | Narrative orientation (Part c) | 2026-08-11 |
@@ -435,6 +437,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-075c | Named-NPC state (Part c) | 2026-08-11 |
 | REQ-075d | Named-NPC state (Part d) | 2026-08-11 |
 | REQ-075e | Named-NPC state (Part e) | 2026-08-11 |
+| REQ-075f | Named-NPC state (Part f) | 2026-09-04 |
 | REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
 | REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
 | REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
@@ -956,6 +959,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-339a | NPC goal pursuit (Part a) | 2026-08-11 |
 | REQ-339b | NPC goal pursuit (Part b) | 2026-08-11 |
 | REQ-339c | NPC goal pursuit (Part c) | 2026-08-11 |
+| REQ-339d | NPC goal pursuit (Part d) | 2026-09-04 |
 | REQ-348a | Faction-NPC goal coordination (Part a) | 2026-08-11 |
 | REQ-348b | Faction-NPC goal coordination (Part b) | 2026-08-11 |
 | REQ-348c | Faction-NPC goal coordination (Part c) | 2026-08-11 |
@@ -1122,6 +1126,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-429 | Server-wide action-discriminator surface | 2026-09-02 |
 | REQ-430 | Ruleset tool-quality conformance | 2026-09-03 |
+| REQ-431a | Procedural world generation (Part a) | 2026-09-04 |
+| REQ-431b | Procedural world generation (Part b) | 2026-09-04 |
+| REQ-431c | Procedural world generation (Part c) | 2026-09-04 |
+| REQ-432a | Vendor ruleset package certification (Part a) | 2026-09-04 |
+| REQ-432b | Vendor ruleset package certification (Part b) | 2026-09-04 |
+| REQ-433a | Event notification surface (Part a) | 2026-09-04 |
+| REQ-433b | Event notification surface (Part b) | 2026-09-04 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1653,6 +1664,13 @@ diet.
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 | T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
 | T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
+| T513 | Automated | NPC mind field exclusion: create an NPC with a populated `mind` object (private_journal, directive, auto_play) — assert `badge_briefing`, `npc://<id>`, and `session (action: recap)` render no mind content under the Player badge and full mind content under the Game Master badge; export → import round-trip preserves the mind object. | REQ-075f |
+| T514 | Automated | NPC mind auto-apply: with `TTRPG_NPC_MIND=on`, an NPC with a populated `directive` surfaces an `auto-apply` option alongside accept/defer/dismiss; selecting it applies the state change and records an `[npc-mind]` audit entry; with the variable off the option is absent. | REQ-339d |
+| T515 | Automated | Procedural world generation: on a table-bearing ruleset, `world (action: generate, seed="42")` produces a batch under `TTRPG_WORLD_GEN_MAX_ROOMS` offered as a workflow decision; applying creates the rooms; the same seed reproduces the same world; a table-less ruleset returns the content-absent message; Player badge returns `[FORBIDDEN]`. | REQ-431 |
+| T516 | Automated | Knowledge-graph projections: a Novel with two factions, a member NPC, and two connected rooms returns distinct `political`, `timeline`, and `geography` projections from `graph://novel`; the Player badge receives filtered projections; an absent or unrecognized projection returns the default adjacency list. | REQ-296 |
+| T517 | Automated | Vendor package certification: a fixture package whose manifest names an Appendix U license surfaces `licensed` and `source_license` in `ruleset (action: list)`; a package with a missing license row is flagged `[license-unattributed]` in `spec_health` and held inactive. | REQ-432 |
+| T518 | Automated | Player-safe recap GM channel: `session (action: recap, gm_notes=...)` returns the notes under the Game Master badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. | REQ-072 |
+| T519 | Automated | Event notification surface: after `session (action: subscribe, topics=["countdown_fire"])`, advancing a countdown to fire produces a server-to-client notification echoing the audit entry; a Player-badge connection subscribed to `audit_delta` receives only Player-visible entries; restart clears subscriptions. | REQ-433 |
 
 ---
 

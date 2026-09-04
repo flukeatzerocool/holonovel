@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 01dee31d4c5da0dce328b2a1fb0e70340cfe17fc898ccd5cab8664e15447d329
+**Spec hash:** 7ce10c2d19e03414c8da98fc2fc288754d1b7c68af57c6d0a72755fdde4f1954
+
+### Holonovel Spec Update — 2026-09-04 (competitive-gap feature wave)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — six features from the Glama competitor review: NPC mind (REQ-075f GM-only `mind` object with private journal/directive/auto-play stripped from Player surfaces; REQ-339d `auto-apply` option under `TTRPG_NPC_MIND`), procedural world generation (REQ-431 `world (action: generate)` — deterministic table-driven scaffold as an apply/discard workflow decision, bounded by `TTRPG_WORLD_GEN_MAX_ROOMS`), knowledge-graph projections (REQ-296c `graph://novel/{projection}` political/timeline/geography), vendor ruleset package certification (REQ-432 `source_license` manifest field; unrecorded licenses held inactive with `[license-unattributed]`), player-safe recap GM channel (REQ-072h `gm_notes`), and the event notification surface (REQ-433 `session (action: subscribe)` with `audit_delta`/`countdown_fire`/`lore_trigger`/`scene_transition` topics over server-to-client notifications; REQ-323b out-of-scope clause amended). Config surface grows `TTRPG_NPC_MIND` + `TTRPG_WORLD_GEN_MAX_ROOMS` (§7.6) and a P30 coupling row. Tests T513–T519 + Appendix E/F rows. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 285, E 110); build-order complete (package_format `8be21bb3…`); typecheck 0 errors (root + holonovel); holonovel test:all green incl. new test-competitive-gaps (12/12) |
 
 ### Holonovel Spec Update — 2026-09-03 (ruleset tool-quality conformance)
 
@@ -495,7 +504,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.03 |
+| Spec version | 2026.09.04 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

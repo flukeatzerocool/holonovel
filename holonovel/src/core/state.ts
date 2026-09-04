@@ -104,6 +104,9 @@ location?: string;
   room_id?: string;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
+  // REQ-075f — NPC mind: GM-only journal/directive/auto_play, excluded from
+  // every Player-badge surface.
+  mind?: { private_journal?: string[]; directive?: string; auto_play?: boolean };
   conditions: string[];
   condition_rounds: Record<string, number>;
   // REQ-311 — per-NPC memory model: witnessed events, per-entity contact

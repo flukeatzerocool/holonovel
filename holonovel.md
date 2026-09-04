@@ -1024,6 +1024,10 @@ THE server SHALL provide a `graph://novel` resource returning the Novel's entity
 **REQ-296b — Knowledge-graph resource (Part b).**
 When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has no briefing presence per §5.10. *Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with 1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM badge includes entities, NPCs with relationships, lore_connections, secrets, and factions. _Check:_ T341.
 
+**REQ-296c — Knowledge-graph resource (Part c).**
+`graph://novel` SHALL accept an optional `projection` query selecting a filtered view: `political` (factions, memberships, and relationships among factions and NPCs), `timeline` (entities and relationships ordered by most recent scene or journal timestamps), or `geography` (rooms with located NPCs, things, and exits). An absent or unrecognized projection SHALL return the current adjacency list. Badge filtering SHALL apply unchanged to every projection.
+*Acceptance criterion:* a Novel with two factions, a member NPC, and two connected rooms returns distinct political, timeline, and geography views; the Player badge receives filtered projections. _Check:_ T516.
+
 **REQ-426a — MCP Apps UI resource surface (Part a).**
 The server SHALL expose interactive HTML views of user-requestable artifacts as UI resources under the `ui://` scheme, per the MCP Apps extension, served with the `text/html;profile=mcp-app` MIME type. Each UI resource SHALL render the same artifact as its `html` catalog format (REQ-425) and SHALL declare no external origins in its UI metadata. *Acceptance criterion:* `resources/list` exposes `ui://` templates for stat-block, codex, lore, and Novel surfaces, each returning `text/html;profile=mcp-app` content matching the artifact's `html` render. _Check:_ T507.
 
@@ -1285,7 +1289,7 @@ Tool implementations that enumerate valid values from a static list rather than 
 THE server SHALL register a `command (action: resolve)` tool that resolves a natural-language spatial intent against the world model without mutating state. Resolution proceeds in three phases: constraint check, override check, and scene composition. Return values are defined in Appendix O. The tool is callable by the AI narrator and Game Master/ Observer badges. Player badge calls SHALL return `[FORBIDDEN]`. When the world model is unpopulated, `command (action: resolve)` SHALL return `status: "no_world_model"`. *Acceptance criterion:* `command (action: resolve, "go north")` against a populated map with a north exit returns `resolved` with destination room context.
 
 **REQ-323b — command resolve action (Part b).**
-Against a wall returns `blocked` with the constraint named. Player badge returns `[FORBIDDEN]`. _Check:_ T367. *Out of scope:* real-time collaboration tools, streaming resource endpoints, tools that modify the ruleset source, and MCP protocol features beyond the standard tool/resource/prompt surface.
+Against a wall returns `blocked` with the constraint named. Player badge returns `[FORBIDDEN]`. _Check:_ T367. *Out of scope:* real-time collaboration tools and tools that modify the ruleset source. Server-to-client notifications are governed by REQ-433.
 
 ### 5.4 Decision workflows
 
@@ -1795,6 +1799,10 @@ Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]` with t
 **REQ-072g — Session recap format (Part g).**
 `session (action: recap)` SHALL accept an optional `format` parameter: `"markdown"` (default, current behavior) or `"lonelog"` — structured in Lonelog notation: `###` scene headers, `@` entity actions, `=>` narrative outcomes, `?` GM-decision equivalents, `d:` resolved mechanics. `session (action: compress)` SHALL accept the same `format` parameter to produce compressed entries in the requested notation. Each audit entry (REQ-040) SHALL gain an optional `notation` field storing the Lonelog representation alongside the raw audit data. *Acceptance criterion:* `session (action: recap, format="lonelog")` produces output in Lonelog notation; `session (action: compress, format="lonelog")` produces compressed Lonelog entries; audit entries contain the `notation` field. _Check:_ T272.
 
+**REQ-072h — Session recap (Part h).**
+`session (action: recap)` SHALL accept an optional `gm_notes` free-text field, populated by the caller and returned only to the Game Master badge. The field SHALL be structurally excluded from Player-badge output and SHALL never be merged with player-visible fields. `narrative_orientation` SHALL derive from `shared`-scope and revealed content only; when all source data is GM-only, the Player-badge field SHALL render the empty-state marker.
+*Acceptance criterion:* a recap carrying `gm_notes` returns them under the GM badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. _Check:_ T518.
+
 **REQ-279a — Narrative orientation (Part a).**
 `session (action: recap)` SHALL include a `narrative_orientation` field — a prose paragraph (2–4 sentences) derived from the active Novel state. The paragraph SHALL synthesis (action: run): (a) the last 3 story journal entries of type `decision` or `bond` (REQ-246); (b) active NPC dispositions that differ from their creation default; (c) the current narrative directive (REQ-081); (d) active countdown names and remaining ticks in narrative form ("The ritual completes in 2 rounds"); and (e) active vow names and milestone counts when vow tracking is populated (REQ-289).
 
@@ -1897,6 +1905,9 @@ An NPC not seen in 5 or more sessions SHALL carry a `[distant]` marker in `badge
 
 **REQ-075e — Named-NPC state (Part e).**
 An NPC not seen in 5 sessions carries `[distant]`. `session (action: recap)` includes an NPC relationship heatmap with session and scene counts. _Check:_ T56.
+**REQ-075f — Named-NPC state (Part f).**
+Every NPC MAY carry a GM-only `mind` object holding `private_journal` (a free-text array appended automatically by the server on significant interactions per REQ-311), `directive` (a narrator-facing instruction describing how to play the NPC — goals, mannerisms, decision tendencies), and `auto_play` (a boolean flag). Mind content SHALL be excluded from every Player-badge surface, including `badge_briefing`, `npc://<id>`, and `session (action: recap)`. Mind content persists with the Novel and SHALL be included in `novel (action: export)` full scope. Setting or clearing mind fields is Game Master only.
+*Acceptance criterion:* an NPC with a populated mind renders no mind content under the Player badge; GM surfaces include it; export/import round-trip preserves it. _Check:_ T513.
 **REQ-119a — NPC stat block reference (Part a).**
 `npc (action: create)` accepts an optional ruleset reference — the name of a monster, NPC template, or stat block entry from the indexed ruleset. When a reference matches a ruleset entry, the builder populates the NPC's stat fields from that entry's baseline values as defined by the ruleset. Any caller-supplied stat fields override the referenced values.
 
@@ -2517,6 +2528,13 @@ locally.
 produces the same result as when connected — zero outbound requests appear
 in network monitoring.
 _Check:_ Appendix D; G4.
+
+**REQ-433a — Event notification surface (Part a).**
+The server SHALL provide `session (action: subscribe, topics[])` — Game Master only, session-scoped, dropped on connection close — accepting `audit_delta`, `countdown_fire`, `lore_trigger`, and `scene_transition` topics. Subscribing SHALL NOT create multi-connection badge synchronization (REQ-030 unchanged). Notifications SHALL be read-only echoes of already-recorded audit events — they carry no new state, and their absence SHALL NOT alter tool results.
+
+**REQ-433b — Event notification surface (Part b).**
+A subscribed connection SHALL receive a server-to-client notification for each recorded event matching a subscribed topic, payload structured per the audit entry (REQ-040). A Player-badge connection SHALL receive no notification carrying GM-only content. A connection subscribing to nothing receives no notifications. Subscriptions SHALL NOT persist across restart.
+*Acceptance criterion:* after subscribing to `countdown_fire`, advancing a countdown to fire produces a notification echoing the audit entry; a Player-badge connection subscribed to `audit_delta` receives only Player-visible entries; restart clears subscriptions. _Check:_ T519.
 
 **REQ-052 — Path containment.** The server reads files only from the configured ruleset
 directory, its own installation directory, and the state directory. Path-traversal and
@@ -3480,6 +3498,16 @@ Novel. Unrecognized assertion patterns SHALL produce not-implemented warnings
 but SHALL NOT block recognized assertions.
 _Check:_ T244.
 
+**REQ-431a — Procedural world generation (Part a).**
+The server SHALL provide `world (action: generate, seed?, options?)` — Game Master only — building a world-model scaffold from the ruleset's generation tables (REQ-213) and kind contracts (REQ-200). The tool SHALL produce rooms, things, exits, and properties as declarative assertions (Appendix K) in one atomic batch, submitted as a workflow decision (REQ-042) with `apply` and `discard` options. The draw sequence SHALL use the deterministic PRNG (REQ-050); the same seed with the same tables SHALL produce the same world across restarts.
+
+**REQ-431b — Procedural world generation (Part b).**
+`world (action: generate)` SHALL NOT fabricate mechanics — it instantiates only what generation tables and kind contracts define. A ruleset registering no generation tables SHALL return the content-absent message per REQ-214. Ruleset-free builds SHALL register the tool with an empty domain and return the same message. Player badge calls SHALL return `[FORBIDDEN]`.
+
+**REQ-431c — Procedural world generation (Part c).**
+The tool SHALL bound output by a configurable room cap (`TTRPG_WORLD_GEN_MAX_ROOMS`, default 20). Generated worlds SHALL respect world-model validation — exits reference generated rooms only; containment follows kind contracts.
+*Acceptance criterion:* `world (action: generate, seed="42")` on a table-bearing ruleset produces a batch under the cap offered as a decision; applying creates the rooms; the same seed reproduces them; a table-less ruleset returns the content-absent message. _Check:_ T515.
+
 **REQ-202a — World-model resources (Part a).**
 URIs for the world-model tier: `room://<id>` (room name, description, visible things, exits), `thing://<id>` (thing name, description, location, properties), `world://map` (all rooms with exit connections — a navigable graph), `world://kinds` (kind hierarchy, property contracts, and parser command catalog from the `holonovel` package (B10)).
 
@@ -3674,6 +3702,9 @@ Deferred suggestions SHALL re-appear at every subsequent scene transition until 
 
 **REQ-339c — NPC goal pursuit (Part c).**
 Accept it — assert the described state change applies, suggestion does not re-appear. Defer — assert it re-appears at next transition. Dismiss — assert it does not re-appear. `TTRPG_NPC_AUTONOMY=off` — assert no suggestions. _Check:_ T389.
+**REQ-339d — NPC goal pursuit (Part d).**
+WHEN `TTRPG_NPC_MIND=on` and an NPC carries a populated `directive` (REQ-075f), the goal-pursuit suggestion SHALL offer `auto-apply` alongside `accept`, `defer`, and `dismiss`. `auto-apply` SHALL apply the described state change immediately and SHALL direct the narrator to play the NPC from the directive and mind journal on later initiative turns. The change SHALL be audit-logged as `[npc-mind]`. `auto-apply` SHALL NOT appear when `TTRPG_NPC_MIND=off`; mind-driven behavior SHALL NOT fabricate mechanics — effects resolve through existing ruleset tools per REQ-050.
+*Acceptance criterion:* with `TTRPG_NPC_MIND=on`, a directive-carrying NPC surfaces `auto-apply`; selecting it applies the change with an `[npc-mind]` entry; with the variable off the option is absent. _Check:_ T514.
 **REQ-348a — Faction-NPC goal coordination (Part a).**
 When a faction clock receives an autonomous tick per REQ-338, the server SHALL compare the faction's goal description against each NPC's `goals` field. If a faction clock advancement represents an outcome that overlaps with an NPC's current goal — the faction name or goal text intersects the NPC's goal text — the NPC goal pursuit suggestion for that NPC SHALL be suppressed for that scene transition. The suppression SHALL be recorded in the audit log as `[faction-npc-coordination]` with the faction ID, NPC ID, and suppressed goal text.
 
@@ -3990,6 +4021,13 @@ A package whose declared content hash does not match its contents SHALL be rejec
 
 **REQ-430 — Ruleset tool-quality conformance.**
 Every tool schema shipped in a ruleset package SHALL satisfy the tool-documentation contracts of REQ-024a (title, three-clause description) and REQ-427 (per-parameter description); a schema lacking any of these is a package defect (REQ-389). The host SHALL validate each installed package's tool schemas at load, keep non-conformant tools registered but flagged, and surface each in `spec_health` under `ruleset_package_alerts` naming the slug, tool, and defect, without blocking package loading. `spec_health` SHALL report conformant and non-conformant ruleset-derived tool counts. *Acceptance criterion:* a package whose `lookup_spell` schema omits a parameter description loads with that tool flagged in `spec_health`; after a conformant rebuild the flag clears. _Check:_ T512.
+
+**REQ-432a — Vendor ruleset package certification (Part a).**
+A ruleset package built from a content source recorded in Appendix U SHALL ship a `source_license` field in its version manifest naming the license and the Appendix U row. `build-ruleset` SHALL populate the field from the source registry (REQ-421). The host SHALL surface `licensed` and `source_license` in `ruleset (action: list)` output.
+
+**REQ-432b — Vendor ruleset package certification (Part b).**
+A vendor package whose license is not recorded in Appendix U SHALL be flagged `[license-unattributed]` in `spec_health` and held inactive.
+*Acceptance criterion:* a fixture package whose manifest names an Appendix U license lists it in `ruleset (action: list)`; a package with a missing license row is flagged and held inactive; the handoff license footer (H11) renders vendor packages. _Check:_ T517.
 
 **REQ-390a — Lazy ruleset hydration (Part a).**
 On startup the host SHALL scan the install directory, validate package integrity and version compatibility, and record installed-package metadata. Search-index loading, tool registration, and model hydration for an installed package SHALL be deferred until a Novel bound to that ruleset is first activated. A tool call for an installed-but-not-yet-hydrated ruleset SHALL return `[ERROR] [STATE_CONFLICT]` directing first activation of a Novel bound to that slug.
@@ -6197,6 +6235,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
+| `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `session (action: compress)` archives older entries |
@@ -6211,6 +6250,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
+| `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral. |
@@ -6463,6 +6503,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Faction → Autonomous Countdown | P4 | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | The clock runs while the story plays — factions advance autonomously | — | Mechanical | REQ-338 |
 | Autonomous Countdown → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Faction momentum coordinates with character purpose — overlapping goals suppress NPC pursuit | — | Mechanical | REQ-338, REQ-339, REQ-348 |
 | NPC → World in Motion | P30 | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Character purpose drives the story forward — NPC goals surface as narrative suggestions | — | Narrative | REQ-339, REQ-233a |
+| NPC Mind → World in Motion | P30 | NPCs carrying a populated `mind.directive` (REQ-075f) surface an `auto-apply` option alongside accept/defer/dismiss when `TTRPG_NPC_MIND=on` | Character purpose drives the story forward — NPC directives enable auto-applied goal pursuit | — | Mechanical | REQ-339d, REQ-075f |
 | Countdown → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | What happens becomes what's remembered — absent-player countdown fire produces discovered consequences | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
 | Countdown → Lore | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
@@ -7921,6 +7962,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-022b | Resources (Part b) | 2026-08-11 |
 | REQ-296a | Knowledge-graph resource (Part a) | 2026-08-11 |
 | REQ-296b | Knowledge-graph resource (Part b) | 2026-08-11 |
+| REQ-296c | Knowledge-graph resource (Part c) | 2026-09-04 |
 | REQ-023a | Prompts (Part a) | 2026-08-11 |
 | REQ-023b | Prompts (Part b) | 2026-08-11 |
 | REQ-024a | Tool documentation (Part a) | 2026-08-11 |
@@ -7985,7 +8027,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-183a | Live-index-derived error enumerations (Part a) | 2026-08-11 |
 | REQ-183b | Live-index-derived error enumerations (Part b) | 2026-08-11 |
 | REQ-323a | command resolve action (Part a) | 2026-08-11 |
-| REQ-323b | command resolve action (Part b) | 2026-08-11 |
+| REQ-323b | command resolve action (Part b) | 2026-09-04 |
 | REQ-056 | Advancement workflow | 2026-08-11 |
 | REQ-042a | Workflow decisions (Part a) | 2026-08-11 |
 | REQ-042b | Workflow decisions (Part b) | 2026-08-11 |
@@ -8122,6 +8164,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-072e | Session recap (Part e) | 2026-08-11 |
 | REQ-072f | Session recap (Part f) | 2026-08-11 |
 | REQ-072g | Session recap format (Part g) | 2026-08-11 |
+| REQ-072h | Session recap (Part h) | 2026-09-04 |
 | REQ-279a | Narrative orientation (Part a) | 2026-08-11 |
 | REQ-279b | Narrative orientation (Part b) | 2026-08-11 |
 | REQ-279c | Narrative orientation (Part c) | 2026-08-11 |
@@ -8156,6 +8199,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-075c | Named-NPC state (Part c) | 2026-08-11 |
 | REQ-075d | Named-NPC state (Part d) | 2026-08-11 |
 | REQ-075e | Named-NPC state (Part e) | 2026-08-11 |
+| REQ-075f | Named-NPC state (Part f) | 2026-09-04 |
 | REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
 | REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
 | REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
@@ -8677,6 +8721,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-339a | NPC goal pursuit (Part a) | 2026-08-11 |
 | REQ-339b | NPC goal pursuit (Part b) | 2026-08-11 |
 | REQ-339c | NPC goal pursuit (Part c) | 2026-08-11 |
+| REQ-339d | NPC goal pursuit (Part d) | 2026-09-04 |
 | REQ-348a | Faction-NPC goal coordination (Part a) | 2026-08-11 |
 | REQ-348b | Faction-NPC goal coordination (Part b) | 2026-08-11 |
 | REQ-348c | Faction-NPC goal coordination (Part c) | 2026-08-11 |
@@ -8843,6 +8888,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-428 | Registry-published distribution | 2026-09-02 |
 | REQ-429 | Server-wide action-discriminator surface | 2026-09-02 |
 | REQ-430 | Ruleset tool-quality conformance | 2026-09-03 |
+| REQ-431a | Procedural world generation (Part a) | 2026-09-04 |
+| REQ-431b | Procedural world generation (Part b) | 2026-09-04 |
+| REQ-431c | Procedural world generation (Part c) | 2026-09-04 |
+| REQ-432a | Vendor ruleset package certification (Part a) | 2026-09-04 |
+| REQ-432b | Vendor ruleset package certification (Part b) | 2026-09-04 |
+| REQ-433a | Event notification surface (Part a) | 2026-09-04 |
+| REQ-433b | Event notification surface (Part b) | 2026-09-04 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9374,6 +9426,13 @@ diet.
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
 | T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
 | T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
+| T513 | Automated | NPC mind field exclusion: create an NPC with a populated `mind` object (private_journal, directive, auto_play) — assert `badge_briefing`, `npc://<id>`, and `session (action: recap)` render no mind content under the Player badge and full mind content under the Game Master badge; export → import round-trip preserves the mind object. | REQ-075f |
+| T514 | Automated | NPC mind auto-apply: with `TTRPG_NPC_MIND=on`, an NPC with a populated `directive` surfaces an `auto-apply` option alongside accept/defer/dismiss; selecting it applies the state change and records an `[npc-mind]` audit entry; with the variable off the option is absent. | REQ-339d |
+| T515 | Automated | Procedural world generation: on a table-bearing ruleset, `world (action: generate, seed="42")` produces a batch under `TTRPG_WORLD_GEN_MAX_ROOMS` offered as a workflow decision; applying creates the rooms; the same seed reproduces the same world; a table-less ruleset returns the content-absent message; Player badge returns `[FORBIDDEN]`. | REQ-431 |
+| T516 | Automated | Knowledge-graph projections: a Novel with two factions, a member NPC, and two connected rooms returns distinct `political`, `timeline`, and `geography` projections from `graph://novel`; the Player badge receives filtered projections; an absent or unrecognized projection returns the default adjacency list. | REQ-296 |
+| T517 | Automated | Vendor package certification: a fixture package whose manifest names an Appendix U license surfaces `licensed` and `source_license` in `ruleset (action: list)`; a package with a missing license row is flagged `[license-unattributed]` in `spec_health` and held inactive. | REQ-432 |
+| T518 | Automated | Player-safe recap GM channel: `session (action: recap, gm_notes=...)` returns the notes under the Game Master badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. | REQ-072 |
+| T519 | Automated | Event notification surface: after `session (action: subscribe, topics=["countdown_fire"])`, advancing a countdown to fire produces a server-to-client notification echoing the audit entry; a Player-badge connection subscribed to `audit_delta` receives only Player-visible entries; restart clears subscriptions. | REQ-433 |
 
 ---
 

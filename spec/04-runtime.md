@@ -136,6 +136,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
+| `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `session (action: compress)` archives older entries |
@@ -150,6 +151,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
+| `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral. |
@@ -402,6 +404,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Faction → Autonomous Countdown | P4 | Faction clocks advance an autonomous tick per `TTRPG_FACTION_AUTONOMY_INTERVAL` transitions; pending-fire countdowns surface as workflow decisions | The clock runs while the story plays — factions advance autonomously | — | Mechanical | REQ-338 |
 | Autonomous Countdown → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Faction momentum coordinates with character purpose — overlapping goals suppress NPC pursuit | — | Mechanical | REQ-338, REQ-339, REQ-348 |
 | NPC → World in Motion | P30 | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Character purpose drives the story forward — NPC goals surface as narrative suggestions | — | Narrative | REQ-339, REQ-233a |
+| NPC Mind → World in Motion | P30 | NPCs carrying a populated `mind.directive` (REQ-075f) surface an `auto-apply` option alongside accept/defer/dismiss when `TTRPG_NPC_MIND=on` | Character purpose drives the story forward — NPC directives enable auto-applied goal pursuit | — | Mechanical | REQ-339d, REQ-075f |
 | Countdown → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | What happens becomes what's remembered — absent-player countdown fire produces discovered consequences | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
 | Countdown → Lore | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |

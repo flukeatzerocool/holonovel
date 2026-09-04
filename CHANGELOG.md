@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-04 — Competitive-gap feature wave
+
+- NPCs now carry a Game-Master-only "mind" — a private journal, a play
+  directive, and an auto-play flag — that is stripped from every
+  Player-badge surface. With `TTRPG_NPC_MIND` on, goal-pursuit suggestions
+  gain an `auto-apply` option that applies the change and lets the narrator
+  play the NPC from its directive. (REQ-075f, REQ-339d)
+- `world (action: generate)` builds a deterministic, table-driven room
+  scaffold from the bound ruleset's generation tables, offered as an
+  apply/discard workflow decision. (REQ-431)
+- `graph://novel` now accepts `political`, `timeline`, and `geography`
+  projection views alongside the default adjacency list. (REQ-296c)
+- Ruleset packages built from Appendix U content sources record a
+  `source_license`; vendor packages declaring an unrecorded license are
+  flagged and held inactive. (REQ-432)
+- `session (action: recap)` accepts GM-only notes that are structurally
+  excluded from Player output. (REQ-072h)
+- `session (action: subscribe)` streams read-only event notifications
+  (`audit_delta`, `countdown_fire`, `lore_trigger`, `scene_transition`) over
+  the MCP server-to-client notification surface, for live front-ends such as
+  a companion table UI. (REQ-433)
+
 ## 2026-09-03 — Newsletter removal + repo cleanup
 
 - Removed the newsletter subsystem: `newsletter/`, `scripts/newsletter-digest.ts`,
