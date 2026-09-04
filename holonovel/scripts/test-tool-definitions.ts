@@ -164,6 +164,10 @@ async function main() {
         assert(actionEnum.includes(a), `${name} action enum missing '${a}'`);
       }
     }
+
+    // Docs-as-code: the maintainer orientation must reflect the live surface.
+    const agentsMd = readFileSync(join(ROOT, "holonovel", "AGENTS.md"), "utf-8");
+    assert(agentsMd.includes("28 action-discriminator tools"), "holonovel/AGENTS.md drifted from the 28-tool surface");
   });
 
   let toolsWithDescription = 0;

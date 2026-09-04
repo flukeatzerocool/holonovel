@@ -244,5 +244,16 @@ remaining items before committing:
 - [ ] Renamed headings or appendices are followed by a spec-wide grep
       for stale references
 - [ ] Gate/workflow references use `GN` form (not "Gate N") outside §8
+- [ ] The §5 section map lists every REQ in its section (verified by
+      `validate:sdd`; `check:fast` skips this)
+- [ ] build-phase-map file-index counts (subsections, appendices) match the
+      current spec
+- [ ] New coupling rows cite property tokens that resolve to §7.7 property
+      groups or the alias map; behavioral-config annotations name a P-rule
+      backed by a §7.7.1a row naming that config
+- [ ] New Novel-persisted state is a §7.7 property group or a declared
+      non-coupling surface (Appendix M)
+- [ ] `holonovel/AGENTS.md` tool-surface list and counts match `tools/list`
+- [ ] README license footer lists any newly borrowed mechanics source
 
 Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).

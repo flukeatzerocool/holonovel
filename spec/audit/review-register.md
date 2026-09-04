@@ -8,6 +8,24 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **SR-1 — §5 index table drift** (integration review, 2026-09-04): §5 section
+  map rebuilt from actual REQ→section membership (98 missing REQs across
+  §5.1–5.9 plus rows 5.21–5.23), and `validate.ts` now enforces completeness
+  (`checkSectionIndexCompleteness`).
+- **SR-2 — coupling row unresolvable token** (integration review): "NPC Mind"
+  and the two `command (action: …)` tokens registered as aliases;
+  `validate.ts` promotes unresolvable property tokens from warning to error.
+- **SR-3 — TTRPG_NPC_MIND coupling mislabel + missing Session-source path**:
+  P45 now names the NPC-mind keyword ("NPCs think for themselves"), a
+  "Narrative Directive → NPC Mind" coupling row was added, and
+  `checkConfigCouplingAnnotations` verifies behavioral-config annotations.
+- **SR-4 — base capabilities outside the Holodeck model**: §7.7.0 now
+  declares host base-capability state a self-contained non-coupling surface
+  (escape hatch: future cross-property base capabilities register per REQ-370).
+  Option A (declare non-coupling) chosen over wiring in property groups.
+- **SR-5 — build-phase-map subsection count**: corrected 20 → 23.
+- **SR-6 — holonovel/AGENTS.md tool-surface drift**: rewritten for the
+  28-tool surface; T511 harness asserts the count.
 - **F1 — term-fixing grammar in §5.2** (prior AAR): fixed.
 - **F2/F3 — REQ-096/090/091 erroneous-citation and registration drift**:
   fixed.
@@ -42,6 +60,15 @@ the tracking surfaces for the coverage backlog.
 
 ## Closed-P3 (recorded, no action)
 
+- **Uncoupled behavioral configs** (integration review, 2026-09-04):
+  TTRPG_WORLD_PROMINENCE, TTRPG_CLIMAX_ACCELERATION, TTRPG_MAX_AVAILABLE_ACTIONS,
+  TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS,
+  TTRPG_NOVEL_PREVIEW_CHARS, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE,
+  TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER are annotated behavioral with no
+  §7.7.1a coupling row — pre-existing and tolerated by T450's `uncoupled` report;
+  no demonstrated failure.
+- **REQ-388/T450 (holodeck_config discovery) implementation gap** — bucket-E
+  intended gap, owed by tooling; unchanged by this wave.
 - **Redo-stack snapshot validator guard** — no demonstrated recurrence beyond
   the two fixed tools; reopen if a later bug demonstrates the class.
 - **§6.6 REQ→S-ID cross-check validator** — the register correctly surfaced

@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** a34b112bc4f1044f03914ad32f49df4cd8db535dca3b40b372ce1a8c4ae42aad
+**Spec hash:** b67ef1a76aa71e824523ae8de941f72c9558834763999850a1facc3aa7cd6833
+
+### Holonovel Spec Update — 2026-09-04 (integration repair)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + tooling — integration repair of the 2026-09-03/04 wave: the §5 section map rebuilt from actual REQ→section membership (98 restored REQs, rows 5.21–5.23 added) and mechanically verified; coupling-token resolution tightened (aliases for "NPC Mind" + `command (action: …)`, unresolvable tokens promoted warning→error); TTRPG_NPC_MIND's "couples per P45" annotation made true (P45 names "NPCs think for themselves"; new "Narrative Directive → NPC Mind" row; behavioral-config annotations verified by a new check); §7.7.0 classifies host base capabilities (REQ-434–443) as a self-contained non-coupling surface; §6.6 Pattern Buffer map regains REQ-170/172/177; build-phase-map count corrected 20→23; `holonovel/AGENTS.md` rewritten for the 28-tool surface (T511 asserts sync); Appendix M + pre-commit checklist gain delta-integration items. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 295, E 110); full `check` 0 errors (validate:sdd 0 errors/1222 proofreading warnings, validate-readme 0 errors, script-discipline PASS); build-order complete (package_format unchanged `8be21bb3…`, data_format advanced `b8c8751f…` → `ee985fb7781f…`); root typecheck 0 errors; holonovel test:all green (220 assertions incl. T511 28-tool + AGENTS.md sync, T513–T529) |
+| Follow-up | deployed instance: run `migrate-user-data` to re-stamp Novels written under the prior data-format fingerprint (inert `[data-stale]` flags until then, REQ-423) |
 
 ### Holonovel Spec Update — 2026-09-04 (Ironsworn + Forged in the Dark base capabilities)
 

@@ -255,6 +255,16 @@ a property group, that property group's archetype pattern rules dictate all
 downstream couplings. Adventure-specific coupling rows in §7.7.1 are `[none]` —
 the couplings already exist through the populated properties' own archetypes.
 
+**Host base capabilities.** Host-level base-capability state — Fate aspects,
+Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,
+and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, and
+downtime (REQ-441–443) — persists with the Novel (REQ-092) but is not a Novel
+property group and has no coupling rows in §7.7.1. Base-capability state is
+self-contained: it mutates only through its own tool actions and does not
+couple to any property group. A future base capability that defines
+cross-property effects SHALL register as a property group with archetypes and
+coupling rows per REQ-370.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |
@@ -326,7 +336,7 @@ fuzzy, or semantic matching.
 | P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 | P43 | Session → Temporal | Player pacing signals adjust the pacing window — a signal value requesting faster pacing reduces the window threshold; slower pacing increases it | Mechanical | The operator controls the story's rhythm |
 | P44 | Session → Temporal | GM narrative directives containing pacing keywords adjust the pacing window threshold — directives requesting faster pacing reduce it, slower pacing increase it | Mechanical | The GM sets the story's tempo |
-| P45 | Session → Entity-bearing | GM directives containing autonomy keywords toggle NPC autonomous behavior — "NPCs act independently" enables TTRPG_NPC_AUTONOMY, "characters drive themselves" enables autonomy; directive text evaluated at resolution time | Mechanical | The GM delegates character control |
+| P45 | Session → Entity-bearing | GM directives containing autonomy keywords toggle NPC autonomous behavior — "NPCs act independently" enables TTRPG_NPC_AUTONOMY, "characters drive themselves" enables autonomy, "NPCs think for themselves" enables TTRPG_NPC_MIND; directive text evaluated at resolution time | Mechanical | The GM delegates character control |
 | P46 | Session → Narrative-memory | GM directives containing reactivity keywords toggle world-in-motion generation — "the world reacts" enables TTRPG_WORLD_REACTIVITY, "living world" enables both reactivity and NPC autonomy | Mechanical | The world comes alive on command |
 | P47 | Session → Ruleset Wisdom | GM directives containing synthesis keywords map to synthesis module activation — "use voice patterns" activates voice_examples, "activate lore templates" activates lore_templates, "add flavor" sets TTRPG_SYNTHESIS_AUTO_TRIGGER to on_scene_change | Mechanical | The GM activates story flavor in plain English |
 | P48 | Relational → Entity-bearing | Relationship type flips (ally↔rival↔hostile) drive entity disposition shifts for both involved entities | Mechanical | Betrayal changes how the cast behaves — when two characters become rivals, their dispositions shift accordingly |
@@ -433,6 +443,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Player Signal → Pacing Window | P43 | `character (action: signal, "pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | The operator controls the story's rhythm — player pacing signals adjust the window | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → NPC Mind | P45 | Directive text containing NPC-mind keywords ("NPCs think for themselves") enables TTRPG_NPC_MIND; directive text containing disabling keywords disables it | The GM delegates character thought — directive mind keywords toggle NPC auto-play | GM-only | Mechanical | REQ-081, REQ-339d |
 | Narrative Directive → Autonomy `[non-property]` | P45 | Directive autonomy keywords also map to `scene (action: autonomy)` sliders — "play it safe" sets `safety=safe`, "hardcore mode" sets `safety=hardcore` — text evaluated at resolution time | The operator tunes the AI's grip in plain English | GM-only | Mechanical | REQ-081, REQ-306 |
 | Narrative Directive → World in Motion | P46 | Directive text containing reactivity keywords ("the world reacts", "living world", "active factions") enables TTRPG_WORLD_REACTIVITY; disabling keywords disable it | The world comes alive on command — directive reactivity keywords enable world reactivity | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → Synthesis | P47 | Directive text containing synthesis keywords ("use voice patterns", "activate lore templates", "use action patterns", "add flavor") maps to the corresponding synthesis module or auto-trigger activation | The GM activates story flavor in plain English — directive keywords map to synthesis modules | GM-only | Mechanical | REQ-081, REQ-260 |

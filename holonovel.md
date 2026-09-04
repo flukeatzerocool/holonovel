@@ -446,26 +446,29 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
-| 5.1     | Output and Error Contracts          | 001–004, 001a–001b, 002a–002c, 004a, 060–062, 064, 070–071, 101, 113, 118, 179, 184, 194, 277, 280 |
-| 5.2     | Extraction and Confidence           | 010–018, 099, 102, 111, 147, 153–154, 207, 209–212, 214–215, 225, 272, 302, 315, 324, 354 |
-| 5.3     | Tools, Resources, and Lookups       | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138–139, 160, 161–164, 169, 182–183, 187, 278, 296, 323, 408, 411, 413–415 |
-| 5.4     | Decision Workflows                  | 042, 056, 104, 140, 151–152, 190–193, 224, 235       |
-| 5.5     | Badges and Access                   | 030–032, 066, 109, 133–137, 148–150, 159, 216, 220, 223, 281, 286, 304–306, 306f–306g |
-| 5.6     | State, Lifecycle, Entities, and Adventure Content                 | 040–041, 043–044, 065, 069, 072–077, 073a, 073c, 076a–076b, 079, 116, 119–124, 126–129, 132, 156, 203–206, 217, 221, 229, 232–233, 233a–233b, 234, 236–237, 239, 241–242, 247–250, 252, 255, 285, 307–308, 311, 321–322, 329–332 |
-| 5.7     | Determinism, Safety, and Performance | 050–055, 100, 157, 251, 253, 269, 312, 312a–312d, 409–410, 416–417  |
-| 5.8     | Synthesis, Lore, and Macros          | 080–087, 084a–084b, 103, 114–115, 125, 130, 155, 158, 226–228, 230–231, 234, 243–246, 246a–246b, 260–266, 328, 333 |
-| 5.9     | Novel Persistence and Transport       | 088–098, 117, 131, 238, 240, 256–259, 334           |
-| 5.10    | World-Model Layer                     | 195–202, 222, 283–284, 309, 316–320, 325–327, 367–368        |
-| 5.11    | Ruleset-Free Build Mode               | 218–219                                             |
-| 5.12 | Narrative Architecture | 335–366 |
-| 5.13 | Holodeck | 369–371, 374–376 |
-| 5.14 | Content Sources | 372–373 |
-| 5.15    | Mechanical Coupling                  | 377–378                                             |
-| 5.16    | Multi-Ruleset Build                  | 379–387                                             |
-| 5.17    | Ruleset Packages                     | 389–393                                             |
-| 5.18    | Workflow Entry Points                | 395a–395b, 396–398                                  |
-| 5.19    | State Persistence Guardrails         | 400–407                                             |
-| 5.20    | Narrative Turn Conventions           | 412                                                 |
+| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427 |
+| 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
+| 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
+| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433 |
+| 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334 |
+| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
+| 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
+| 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
+| 5.13   | Holodeck                                                | 369–371, 374–376 |
+| 5.14   | Content Sources                                         | 372, 373 |
+| 5.15   | Mechanical Coupling                                     | 377, 378 |
+| 5.16   | Multi-Ruleset Build                                     | 379–387 |
+| 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429 |
+| 5.19   | State Persistence Guardrails                            | 400–407 |
+| 5.20   | Narrative Turn Conventions                              | 412 |
+| 5.21   | Fate Base Capabilities                                  | 434–437 |
+| 5.22   | Ironsworn Base Capabilities                             | 438–440 |
+| 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 
 ### 5.1 Output and Error Contracts
 
@@ -5569,6 +5572,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-072 | S21, S28 | Session recap (incl. Lonelog) |
 | REQ-073 | S16, S23 | Countdowns (incl. clock taxonomy) |
 | REQ-074 | S17, S19 | Multi-entity support |
+| REQ-177 | S17 | Roster entity removal |
 | REQ-075 | S16 | Named-NPC state |
 | REQ-076 | S16, S17 | Scene-state ledger |
 | REQ-076a | S16 | Structured scene fields |
@@ -5588,6 +5592,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-255 | S16, S19 | Boundary signal propagation |
 | REQ-129 | S16 | Property group cardinality |
 | REQ-132 | S18 | Adventure generation lifecycle |
+| REQ-170 | S18 | Adventure discovery surface |
+| REQ-172 | S18 | Adventure content drift detection |
 | REQ-156 | S16 | Countdown persistence |
 | REQ-203 | S15 | Corrupted state recovery |
 | REQ-204 | S15 | State directory isolation |
@@ -6380,6 +6386,16 @@ a property group, that property group's archetype pattern rules dictate all
 downstream couplings. Adventure-specific coupling rows in §7.7.1 are `[none]` —
 the couplings already exist through the populated properties' own archetypes.
 
+**Host base capabilities.** Host-level base-capability state — Fate aspects,
+Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,
+and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, and
+downtime (REQ-441–443) — persists with the Novel (REQ-092) but is not a Novel
+property group and has no coupling rows in §7.7.1. Base-capability state is
+self-contained: it mutates only through its own tool actions and does not
+couple to any property group. A future base capability that defines
+cross-property effects SHALL register as a property group with archetypes and
+coupling rows per REQ-370.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |
@@ -6451,7 +6467,7 @@ fuzzy, or semantic matching.
 | P42 | Entity-bearing → Scene-anchored | Entity-bearing presence registers in Scene-anchored descriptions — NPCs entering a room surface in the scene's `characters_present` field | Mechanical | Characters define the scene |
 | P43 | Session → Temporal | Player pacing signals adjust the pacing window — a signal value requesting faster pacing reduces the window threshold; slower pacing increases it | Mechanical | The operator controls the story's rhythm |
 | P44 | Session → Temporal | GM narrative directives containing pacing keywords adjust the pacing window threshold — directives requesting faster pacing reduce it, slower pacing increase it | Mechanical | The GM sets the story's tempo |
-| P45 | Session → Entity-bearing | GM directives containing autonomy keywords toggle NPC autonomous behavior — "NPCs act independently" enables TTRPG_NPC_AUTONOMY, "characters drive themselves" enables autonomy; directive text evaluated at resolution time | Mechanical | The GM delegates character control |
+| P45 | Session → Entity-bearing | GM directives containing autonomy keywords toggle NPC autonomous behavior — "NPCs act independently" enables TTRPG_NPC_AUTONOMY, "characters drive themselves" enables autonomy, "NPCs think for themselves" enables TTRPG_NPC_MIND; directive text evaluated at resolution time | Mechanical | The GM delegates character control |
 | P46 | Session → Narrative-memory | GM directives containing reactivity keywords toggle world-in-motion generation — "the world reacts" enables TTRPG_WORLD_REACTIVITY, "living world" enables both reactivity and NPC autonomy | Mechanical | The world comes alive on command |
 | P47 | Session → Ruleset Wisdom | GM directives containing synthesis keywords map to synthesis module activation — "use voice patterns" activates voice_examples, "activate lore templates" activates lore_templates, "add flavor" sets TTRPG_SYNTHESIS_AUTO_TRIGGER to on_scene_change | Mechanical | The GM activates story flavor in plain English |
 | P48 | Relational → Entity-bearing | Relationship type flips (ally↔rival↔hostile) drive entity disposition shifts for both involved entities | Mechanical | Betrayal changes how the cast behaves — when two characters become rivals, their dispositions shift accordingly |
@@ -6558,6 +6574,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Player Signal → Pacing Window | P43 | `character (action: signal, "pace", "faster")` reduces TTRPG_PACING_WINDOW; "slower" increases it; "normal" restores default | The operator controls the story's rhythm — player pacing signals adjust the window | Session-scoped (write); GM-visible (read via spec_health) | Mechanical | REQ-069 |
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
+| Narrative Directive → NPC Mind | P45 | Directive text containing NPC-mind keywords ("NPCs think for themselves") enables TTRPG_NPC_MIND; directive text containing disabling keywords disables it | The GM delegates character thought — directive mind keywords toggle NPC auto-play | GM-only | Mechanical | REQ-081, REQ-339d |
 | Narrative Directive → Autonomy `[non-property]` | P45 | Directive autonomy keywords also map to `scene (action: autonomy)` sliders — "play it safe" sets `safety=safe`, "hardcore mode" sets `safety=hardcore` — text evaluated at resolution time | The operator tunes the AI's grip in plain English | GM-only | Mechanical | REQ-081, REQ-306 |
 | Narrative Directive → World in Motion | P46 | Directive text containing reactivity keywords ("the world reacts", "living world", "active factions") enables TTRPG_WORLD_REACTIVITY; disabling keywords disable it | The world comes alive on command — directive reactivity keywords enable world reactivity | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → Synthesis | P47 | Directive text containing synthesis keywords ("use voice patterns", "activate lore templates", "use action patterns", "add flavor") maps to the corresponding synthesis module or auto-trigger activation | The GM activates story flavor in plain English — directive keywords map to synthesis modules | GM-only | Mechanical | REQ-081, REQ-260 |
@@ -9407,7 +9424,7 @@ diet.
 | T418 | Automated | Property propagation: create world model with rooms. Call `world (action: convert, "An iron chest is a container. It is in the Entrance Chamber. A glass jar is a container. It is transparent. It is in the iron chest. A glowing lantern is in the glass jar. It is lit. It is switched on.")`. Assert `command("look")` — lantern NOT visible (opaque outer chest blocks glass jar regardless). Remove chest from chain, place jar directly in room — assert `command("look")` shows "a glowing lantern (inside the glass jar)". Call `command("switch off lantern")` — assert `command("look")` shows "a dark lantern (inside the glass jar)". Create vehicle in dark cave with `lit: true` — assert `command("enter boat")` and `command("look")` shows lit interior. Create vehicle with `lit: false` — assert interior inherits dark from cave. | REQ-367 |
 | T419 | Automated | Countdown-world effect coupling: create world model with room Cellar. Call `countdown (action: set, "flood", 3, type="narrative", world_effect={type:"describe", target:"cellar", value:"Knee-deep water fills the cellar, rising fast."})`. Advance three narrative ticks — assert countdown fires, cellar.description equals new text, prior description in undo stack. Call `undo` — assert prior description restored. Create countdown with `world_effect.type="property", target="lantern_01", property="lit", value=false` — fire — assert lantern no longer lit. Create countdown with `world_effect.type="exit", target="cellar", action="create", direction="north", destination="cave"` — fire — assert north exit created. Create countdown targeting room that is deleted before fire — assert `[WARNING] target missing — effect not applied` in audit log, countdown removed from active. | REQ-368 |
 | T420 | Automated | Holodeck archetype verification: parse Novel properties table (§7.7), assert every property group has ≥1 archetype tag from the defined set (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical, or `[content source]`). Assert every active coupling row in §7.7.1a cites a pattern rule in the Pattern Rule column (P1–P54 or `—` for uncategorized couplings). Assert no coupling row cites an undefined pattern rule. Assert every property group's archetypes are used by ≥1 coupling row (no orphaned archetype assignments). | REQ-369 |
-| T421 | Automated | Coupling derivation: parse §7.7.1a coupling rows, assert every coupling row cites a pattern rule whose source and target archetypes are covered (order-insensitive) by the row's property-group archetypes. Parse §7.7.0 pattern rules (P1–P54), assert every pattern rule has ≥1 coupling row in §7.7.1a. Assert §7.7.1b no longer uses a completeness register — replaced by derivation contract. Assert `[non-property]` rows are exempt from archetype matching but count toward their rule's coverage. Assert `npm run validate` exits non-zero when a pattern rule has zero coupling rows. Assert `npm run validate` exits non-zero when a coupling row cites a mismatched archetype rule. | REQ-370 |
+| T421 | Automated | Coupling derivation: parse §7.7.1a coupling rows, assert every coupling row cites a pattern rule whose source and target archetypes are covered (order-insensitive) by the row's property-group archetypes. Parse §7.7.0 pattern rules (P1–P54), assert every pattern rule has ≥1 coupling row in §7.7.1a. Assert §7.7.1b no longer uses a completeness register — replaced by derivation contract. Assert `[non-property]` rows are exempt from archetype matching but count toward their rule's coverage. Assert `npm run validate` exits non-zero when a pattern rule has zero coupling rows. Assert `npm run validate` exits non-zero when a coupling row cites a mismatched archetype rule. Assert `npm run validate` exits non-zero when a coupling row cites a property token that resolves to no property group or alias. | REQ-370 |
 | T422 | Automated | Ruleset Wisdom as rendered reality: build a host carrying vendor Ruleset Wisdom (§11.4). Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `synthesis (action: activate)` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `synthesis (action: deactivate)` on a Wisdom item — assert the coupled behavior ceases. Call `synthesis (action: revert)` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T423 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `synthesis (action: list)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary-gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T424 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
@@ -9436,7 +9453,7 @@ diet.
 | T447 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
 | T448 | Automated | Codex ruleset annotation: assert `codex (action: list, ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `codex (action: list, ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `codex (action: import)` of D&D spell codex entry into Starfinder Novel is rejected. Assert `codex (action: capture, "npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `codex (action: list, ruleset="starfinder")`; assert `codex (action: import)` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
 | T449 | Automated | G8 isolation workflow: run all nine G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
-| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call session (action: health) — assert holodeck_config.behavioral_coupled ≥ 3, natural_language_paths includes pacing_window → "character (action: signal, pace, faster/slower)", npc_autonomy → "scene (action: directive, 'NPCs act independently')", world_reactivity → "scene (action: directive, 'the world reacts')". Assert uncoupled array contains any behavioral variables without coupling rows. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) absent from behavioral counts. Set TTRPG_WORLD_REACTIVITY to a value with no coupling row — assert variable appears in uncoupled. | REQ-388, REQ-069, REQ-081 |
+| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call session (action: health) — assert holodeck_config.behavioral_coupled ≥ 3, natural_language_paths includes pacing_window → "character (action: signal, pace, faster/slower)", npc_autonomy → "scene (action: directive, 'NPCs act independently')", npc_mind → "scene (action: directive, 'NPCs think for themselves')", world_reactivity → "scene (action: directive, 'the world reacts')". Assert uncoupled array contains any behavioral variables without coupling rows. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) absent from behavioral counts. Set TTRPG_WORLD_REACTIVITY to a value with no coupling row — assert variable appears in uncoupled. | REQ-388, REQ-069, REQ-081 |
 | T451 | Automated | Binding migration: create a ruleset-free Novel, install a ruleset package, call `ruleset (action: bind)` — assert the Novel gains the slug's tools and the transition is audited. Assert `ruleset (action: bind)` on a Novel already bound to a different slug returns `[ERROR] [STATE_CONFLICT]`. Assert `novel (action: resume)` restores the migrated binding. | REQ-380c |
 | T452 | Automated | Package format integrity: build a package via the Package step, load it into a host — assert `ruleset (action: search)`, lookups, and dice tools serve with no source-Markdown file access. Corrupt the package manifest's content hash — assert the host rejects the package by slug, reports expected/received hashes in `spec_health`, and continues serving other packages. | REQ-389 |
 | T453 | Automated | Install surface: `ruleset (action: install)` with a duplicate slug or incompatible host version fails naming the reason; `ruleset (action: remove)` with a bound Novel active returns `[ERROR] [STATE_CONFLICT]`; `ruleset (action: list)` distinguishes loaded from installed-but-idle packages. Assert all three are audited. | REQ-389c |
@@ -9973,6 +9990,9 @@ build artifact — it is a spec-maintainer reference.
 - [ ] Content sources: new content source type assigned property-group population mappings;
       downstream couplings covered by populated properties' archetype rules; no new coupling
       rows needed in §7.7.1
+- [ ] New Novel-persisted state: registered as a §7.7 property group with archetypes and
+      coupling rows per REQ-370, or declared a self-contained non-coupling surface in §7.7.0
+      with the future-cross-property escape hatch (REQ-434–443 precedent)
 - [ ] Holodeck config alignment: every behavioral configuration introduced by this REQ
       has a coupling row in §7.7.1a with a Session-archetype source (character (action: signal) or
       scene (action: directive)). System configuration is annotated as non-behavioral

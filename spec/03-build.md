@@ -1373,6 +1373,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-072 | S21, S28 | Session recap (incl. Lonelog) |
 | REQ-073 | S16, S23 | Countdowns (incl. clock taxonomy) |
 | REQ-074 | S17, S19 | Multi-entity support |
+| REQ-177 | S17 | Roster entity removal |
 | REQ-075 | S16 | Named-NPC state |
 | REQ-076 | S16, S17 | Scene-state ledger |
 | REQ-076a | S16 | Structured scene fields |
@@ -1392,6 +1393,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-255 | S16, S19 | Boundary signal propagation |
 | REQ-129 | S16 | Property group cardinality |
 | REQ-132 | S18 | Adventure generation lifecycle |
+| REQ-170 | S18 | Adventure discovery surface |
+| REQ-172 | S18 | Adventure content drift detection |
 | REQ-156 | S16 | Countdown persistence |
 | REQ-203 | S15 | Corrupted state recovery |
 | REQ-204 | S15 | State directory isolation |
