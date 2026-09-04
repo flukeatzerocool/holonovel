@@ -65,11 +65,19 @@ SERVERS=($(node -e "process.stdout.write(require('./scripts/lib/servers.json').j
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
 # can restore them (tracked files are reverted via `git checkout -- .`).
+# refresh-properties also rewrites wiki pages in the separate wiki repo
+# (.holonovel-state/wiki/.git, pushed by step 8) — snapshot those .md pages too
+# so a --dry-run restores the wiki working tree to its pre-run bytes.
 STATE_SNAPSHOT="$(mktemp -d)"
 snapshot_state() {
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     if [[ -f "$f" ]]; then cp "$f" "$STATE_SNAPSHOT/$(basename "$f")"; fi
   done
+  if [[ -d ".holonovel-state/wiki" ]]; then
+    for f in .holonovel-state/wiki/*.md; do
+      [[ -f "$f" ]] && cp "$f" "$STATE_SNAPSHOT/wiki-$(basename "$f")"
+    done
+  fi
 }
 restore_state() {
   git checkout -- . 2>/dev/null || true
@@ -77,6 +85,12 @@ restore_state() {
     local b="$(basename "$f")"
     if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
   done
+  if [[ -d ".holonovel-state/wiki" ]]; then
+    for f in .holonovel-state/wiki/*.md; do
+      local b="wiki-$(basename "$f")"
+      if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
+    done
+  fi
   rm -rf "$STATE_SNAPSHOT"
 }
 
