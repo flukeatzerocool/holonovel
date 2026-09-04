@@ -4095,7 +4095,7 @@ The distribution SHALL expose a documented entry point — `migrate-user-data` �
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 **REQ-429 — Server-wide action-discriminator surface.**
-The server SHALL expose one action-discriminator tool per persisted entity type (REQ-413) instead of a sibling tool per operation. The registered catalog SHALL stay within a recorded budget of at most twenty-six tools. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on its entity tool. Tool names SHALL be uniform, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` returns at most twenty-six tools, and every persisted type has read and enumeration actions. _Check:_ T511.
+The server SHALL expose one action-discriminator tool per persisted entity type (REQ-413) instead of a sibling tool per operation. The registered catalog SHALL stay within a recorded budget of at most twenty-eight tools. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on its entity tool. Tool names SHALL be uniform, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` returns at most twenty-eight tools, and every persisted type has read and enumeration actions. _Check:_ T511.
 
 ### 5.19 State Persistence Guardrails
 
@@ -4173,6 +4173,22 @@ those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
 **REQ-436 — Fate points.** `fate (action: fate_point)` SHALL spend, grant, refresh, and list Fate points per character, keyed by entity identifier. A character's Fate points start at a refresh value of three and SHALL NOT fall below zero on a spend; spending below zero is refused. Refreshing SHALL return the character to the refresh value. Spend, grant, and refresh are Game Master operations; listing SHALL be readable by any badge. Fate points persist with the Novel. *Acceptance criterion:* spending one Fate point on an entity reduces three to two; a spend exceeding the balance is refused; a refresh returns three. _Check:_ T522.
 
 **REQ-437 — Stress and consequences.** `fate (action: stress)` SHALL mark, clear, and list physical and mental stress plus consequences per character. Marking SHALL record a number of shifts against a physical or mental track and SHALL record a consequence — mild, moderate, or severe — when declared; clearing SHALL empty a named track or consequence slot. Listing SHALL report each entity's physical stress, mental stress, and consequence slots and is readable by any badge. Mark and clear are Game Master operations; stress persists with the Novel. *Acceptance criterion:* marking two physical stress on an entity reports a two-box track; marking a moderate consequence records it; clearing a track empties it. _Check:_ T523.
+
+### 5.22 Ironsworn Base Capabilities
+
+**REQ-438 — Ironsworn momentum.** `ironsworn (action: momentum)` SHALL set, gain, lose, reset, and list momentum — a per-character resource in the range −6 to +10 that defaults to +2. Setting, gaining, losing, and resetting are Game Master operations; listing SHALL be readable by any badge. Momentum SHALL be clamped to the −6..+10 range on every write. Momentum persists with the Novel (REQ-092). *Acceptance criterion:* setting momentum to 5 then gaining 1 and losing 2 reports 4; resetting returns 2; a set above 10 clamps to 10. _Check:_ T524.
+
+**REQ-439 — Ironsworn move framework.** `ironsworn (action: move)` SHALL resolve the Ironsworn action roll — an action die (d6) plus a stat-and-bonus `adds` modifier, compared against two challenge dice (d10). The result SHALL report the action die, the challenge dice, and a band — Strong hit when the action score beats both challenge dice, Weak hit when it beats exactly one, and Miss otherwise. With `burn` set, the action score SHALL be replaced by the burning entity's current momentum (REQ-438), after which momentum resets to its default. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded move reports an action die, two challenge dice, and a hit band; the same seed reproduces the same band. _Check:_ T525.
+
+**REQ-440 — Ironsworn progress tracks.** `ironsworn (action: progress)` SHALL create, mark, test, and list generic progress tracks. Creating requires a `name` and a `rank` (troublesome, dangerous, formidable, extreme, or epic) and opens a ten-box track; marking adds `ticks` boxes clamped to ten; testing compares the filled boxes against two challenge dice (d10) and reports Strong hit, Weak hit, or Miss. Create, mark, and test are Game Master operations; listing SHALL be readable by any badge. Progress tracks persist with the Novel. *Acceptance criterion:* creating a dangerous track, marking two boxes, and testing reports the boxes, the challenge dice, and a band. _Check:_ T526.
+
+### 5.23 Forged in the Dark Base Capabilities
+
+**REQ-441 — Action roll with position and effect.** `forged (action: action_roll)` SHALL resolve the Forged in the Dark action roll — a pool of `dice` d6s (default two; a zero-dice pool rolls two d6 and keeps the lower), taking the highest. The result SHALL report the dice, the highest, a `position` (controlled, risky, or desperate; default risky), an `effect` (limited, standard, or great; default standard), and a band — Critical success on a 6, Partial success on 4–5, and Miss on 1–3. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded roll with three dice reports the position, effect, highest die, and a band; the same seed reproduces the same result. _Check:_ T527.
+
+**REQ-442 — Stress, trauma, and resistance.** `forged (action: stress)` SHALL mark, clear, resist, and list stress — a per-character track from 0 to 8. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets to 0. Resisting SHALL spend `cost` stress (default two) to reduce a named consequence and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking two stress reports a two-box track; a resist spends two; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
+
+**REQ-443 — Downtime.** `forged (action: downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes (default two); indulging a vice SHALL clear stress to 0. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking three stress reduces the track; indulging a vice clears it to 0. _Check:_ T529.
 
 #### End of requirements
 
@@ -8909,6 +8925,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-435 | Fate aspects | 2026-09-04 |
 | REQ-436 | Fate points | 2026-09-04 |
 | REQ-437 | Stress and consequences | 2026-09-04 |
+| REQ-438 | Ironsworn momentum | 2026-09-04 |
+| REQ-439 | Ironsworn move framework | 2026-09-04 |
+| REQ-440 | Ironsworn progress tracks | 2026-09-04 |
+| REQ-441 | Action roll with position and effect | 2026-09-04 |
+| REQ-442 | Stress, trauma, and resistance | 2026-09-04 |
+| REQ-443 | Downtime | 2026-09-04 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9438,7 +9460,7 @@ diet.
 | T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
 | T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
-| T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-six tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-six-tool budget. | REQ-429 |
+| T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-eight tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-eight-tool budget. | REQ-429 |
 | T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
 | T513 | Automated | NPC mind field exclusion: create an NPC with a populated `mind` object (private_journal, directive, auto_play) — assert `badge_briefing`, `npc://<id>`, and `session (action: recap)` render no mind content under the Player badge and full mind content under the Game Master badge; export → import round-trip preserves the mind object. | REQ-075f |
 | T514 | Automated | NPC mind auto-apply: with `TTRPG_NPC_MIND=on`, an NPC with a populated `directive` surfaces an `auto-apply` option alongside accept/defer/dismiss; selecting it applies the state change and records an `[npc-mind]` audit entry; with the variable off the option is absent. | REQ-339d |
@@ -9451,6 +9473,12 @@ diet.
 | T521 | Automated | Fate aspects: create a scene aspect then list it — assert it appears; invoke it with an entity holding Fate points — assert one Fate point is consumed; invoke it with zero Fate points — assert `[RULE_VIOLATION]`. | REQ-435 |
 | T522 | Automated | Fate points: spend one Fate point on an entity — assert the balance drops from three to two; spend more than the balance — assert refused; refresh — assert the balance returns to three; list — assert the entity appears. | REQ-436 |
 | T523 | Automated | Stress and consequences: mark two physical stress — assert a two-box track; mark a moderate consequence — assert it is recorded; list — assert physical and the consequence appear; clear a track — assert it empties. | REQ-437 |
+| T524 | Automated | Ironsworn momentum: set momentum to 5, gain 1, lose 2 — assert 4; reset — assert 2; set above the maximum — assert the value clamps to 10. | REQ-438 |
+| T525 | Automated | Ironsworn move framework: call `ironsworn (action: move, name="Face Danger", adds=2, seed="42")` — assert an action die, two challenge dice, and a Strong hit, Weak hit, or Miss band; assert the same seed reproduces identical results. | REQ-439 |
+| T526 | Automated | Ironsworn progress tracks: create a dangerous track, mark two boxes, and test — assert the boxes, challenge dice, and a hit band; list — assert the track appears. | REQ-440 |
+| T527 | Automated | Forged action roll: call `forged (action: action_roll, dice=3, position="risky", effect="standard", seed="42")` — assert position, effect, the highest die, and a band; assert the same seed reproduces identical results. | REQ-441 |
+| T528 | Automated | Forged stress and resistance: mark two stress — assert a two-box track; resist for two — assert four; fill the track — assert a trauma is recorded and stress resets; resist past the track — assert `[RULE_VIOLATION]`. | REQ-442 |
+| T529 | Automated | Forged downtime: mark three stress, recover two — assert one remains; indulge a vice — assert stress clears to 0. | REQ-443 |
 
 ---
 
@@ -10676,9 +10704,16 @@ license.
   `small_chance` likelihood bands with their d100 thresholds (11/26/51/76/91)
   and the doubles-to-exceptional rule — retained from Ironsworn's oracle move
   (REQ-291).
+- **Momentum**, the **action-roll move** (d6 action die plus adds against two
+  d10 challenge dice), and **progress tracks** — retained from Ironsworn's core
+  resolution; surfaced in Holonovel as the `ironsworn` tool (REQ-438, REQ-439,
+  REQ-440).
 - **Clocks** (progress/faction clocks) — retained from Blades in the Dark's
   clock system; surfaced in Holonovel as countdowns (REQ-073, REQ-233,
   REQ-338).
+- **Action rolls with position/effect**, **stress/trauma and resistance**, and
+  **downtime** — retained from Blades in the Dark's Forged in the Dark system;
+  surfaced in Holonovel as the `forged` tool (REQ-441, REQ-442, REQ-443).
 - **Fudge dice**, **aspects**, **Fate points**, and **stress/consequences** —
   retained from Fate Core's four actions and the Fudge dice ladder; surfaced
   in Holonovel as the `fate` tool (REQ-434, REQ-435, REQ-436, REQ-437).

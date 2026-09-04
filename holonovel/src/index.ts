@@ -15,7 +15,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX } from "./core/state.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -91,7 +91,7 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
 // violation_type: boundary) in the Novel audit log before propagating.
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
-// entity type within a twenty-six-tool budget; every persisted type has a
+// entity type within a twenty-eight-tool budget; every persisted type has a
 // list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -1084,6 +1084,8 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Vows": ["vow"],
   "Countdowns": ["countdown"],
   "Fate": ["fate"],
+  "Ironsworn": ["ironsworn"],
+  "Forged in the Dark": ["forged"],
   "Lore": ["lore"],
   "Story Journal": ["story"],
   "Notes": ["note"],
@@ -1097,7 +1099,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 const GMToolsSet = new Set([
   "scene", "combat", "condition", "npc", "faction", "relationship", "vow",
   "countdown", "lore", "story", "note", "world", "adventure", "novel",
-  "synthesis", "codex", "ruleset", "session", "fate",
+  "synthesis", "codex", "ruleset", "session", "fate", "ironsworn", "forged",
 ]);
 
 function isGMTool(name: string): boolean {
@@ -3898,6 +3900,234 @@ server.registerTool("fate", {
   }
 });
 
+// Ironsworn (REQ-438 through REQ-440) — momentum, the action-roll move
+// framework, and progress tracks. Base capability, ruleset: null.
+server.registerTool("ironsworn", {
+  title: "Ironsworn",
+  description: "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use vow (action: set).",
+  inputSchema: {
+    action: z.enum(["momentum", "move", "progress"]).describe("momentum, move, or progress."),
+    op: z.string().optional().describe("Sub-operation: momentum (set, gain, lose, reset, list), progress (create, mark, test, list)."),
+    entity_id: z.string().optional().describe("Entity or NPC id (momentum, move burn)."),
+    amount: z.number().optional().describe("Amount to set/gain/lose (momentum); defaults to 1."),
+    name: z.string().optional().describe("Move name (move) or progress-track name (progress)."),
+    adds: z.number().optional().describe("Stat and bonuses added to the action die (move)."),
+    burn: z.boolean().optional().describe("Burn momentum to replace the action score (move)."),
+    rank: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).optional().describe("Progress-track rank (progress)."),
+    ticks: z.number().optional().describe("Progress to mark (progress); defaults to 1."),
+    seed: z.string().optional().describe("Deterministic seed (move, progress test)."),
+  },
+}, async (args: any) => {
+  const rng = args.seed !== undefined ? createRng(args.seed) : null;
+  const draw = (sides: number): number => (rng ? rng.roll(sides) : sessionRoll(sides));
+  const isGM = () => { const b = getBadge(); return b === "game_master" || b === "none"; };
+  const bandFor = (score: number, c1: number, c2: number): string => {
+    const beats = (n: number) => score > n;
+    const strong = beats(c1) && beats(c2);
+    const weak = (beats(c1) && !beats(c2)) || (!beats(c1) && beats(c2));
+    return strong ? "Strong hit" : weak ? "Weak hit" : "Miss";
+  };
+  switch (args.action) {
+    case "momentum": {
+      // REQ-438 — momentum.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") {
+        const rows = Object.entries(novel.ironsworn.momentum).map(([id, m]) => ({ entity_id: id, momentum: m }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      requireGM();
+      novelSnapshot();
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      const current = novel.ironsworn.momentum[entity_id] ?? IRONSWORN_MOMENTUM_DEFAULT;
+      const amount = Number(args.amount ?? 1);
+      const clamp = (n: number) => Math.max(IRONSWORN_MOMENTUM_MIN, Math.min(IRONSWORN_MOMENTUM_MAX, n));
+      if (op === "set") {
+        novel.ironsworn.momentum[entity_id] = clamp(amount);
+        state.recordMutation(novel, "set_momentum", "ironsworn");
+        return ok(`'${entity_id}' momentum set to ${clamp(amount)}.`);
+      }
+      if (op === "gain") {
+        novel.ironsworn.momentum[entity_id] = clamp(current + amount);
+        state.recordMutation(novel, "gain_momentum", "ironsworn");
+        return ok(`'${entity_id}' momentum now ${clamp(current + amount)}.`);
+      }
+      if (op === "lose") {
+        novel.ironsworn.momentum[entity_id] = clamp(current - amount);
+        state.recordMutation(novel, "lose_momentum", "ironsworn");
+        return ok(`'${entity_id}' momentum now ${clamp(current - amount)}.`);
+      }
+      if (op === "reset") {
+        novel.ironsworn.momentum[entity_id] = IRONSWORN_MOMENTUM_DEFAULT;
+        state.recordMutation(novel, "reset_momentum", "ironsworn");
+        return ok(`'${entity_id}' momentum reset to ${IRONSWORN_MOMENTUM_DEFAULT}.`);
+      }
+      return err("INVALID_INPUT", `Unknown momentum op '${op}'. Valid ops: set, gain, lose, reset, list.`);
+    }
+    case "move": {
+      // REQ-439 — move framework.
+      const novel = requireNovel();
+      const adds = Number(args.adds ?? 0);
+      const actionDie = draw(6);
+      const c1 = draw(10);
+      const c2 = draw(10);
+      let actionScore = actionDie + adds;
+      let burned = false;
+      if (args.burn) {
+        const entity_id = String(args.entity_id ?? "");
+        if (!entity_id) return err("INVALID_INPUT", "entity_id is required to burn momentum.");
+        actionScore = novel.ironsworn.momentum[entity_id] ?? IRONSWORN_MOMENTUM_DEFAULT;
+        novel.ironsworn.momentum[entity_id] = IRONSWORN_MOMENTUM_DEFAULT;
+        burned = true;
+        state.recordMutation(novel, "burn_momentum", "ironsworn");
+      }
+      const band = bandFor(actionScore, c1, c2);
+      return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}`);
+    }
+    case "progress": {
+      // REQ-440 — progress tracks.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") return raw(JSON.stringify(novel.ironsworn.progress_tracks, null, 2));
+      requireGM();
+      novelSnapshot();
+      const name = String(args.name ?? "").trim();
+      if (op === "create") {
+        if (!name) return err("INVALID_INPUT", "Progress-track name is required to create.");
+        const rank = args.rank ?? "dangerous";
+        if (novel.ironsworn.progress_tracks.some((t) => t.name === name)) return err("STATE_CONFLICT", `Progress track '${name}' already exists.`);
+        novel.ironsworn.progress_tracks.push({ name, rank, ticks: 0 });
+        state.recordMutation(novel, "create_progress", "ironsworn");
+        return ok(`Progress track '${name}' created (${rank}, ${IRONSWORN_TRACK_BOXES} boxes).`);
+      }
+      const track = novel.ironsworn.progress_tracks.find((t) => t.name === name);
+      if (!track) return err("NOT_FOUND", `Progress track '${name}' not found.`);
+      if (op === "mark") {
+        track.ticks = Math.min(IRONSWORN_TRACK_BOXES, track.ticks + Number(args.ticks ?? 1));
+        state.recordMutation(novel, "mark_progress", "ironsworn");
+        return ok(`Progress track '${name}' at ${track.ticks}/${IRONSWORN_TRACK_BOXES} boxes.`);
+      }
+      if (op === "test") {
+        const c1 = draw(10);
+        const c2 = draw(10);
+        return ok(`Progress test '${name}': ${track.ticks} boxes vs ${c1}, ${c2}\n${bandFor(track.ticks, c1, c2)}`);
+      }
+      return err("INVALID_INPUT", `Unknown progress op '${op}'. Valid ops: create, mark, test, list.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown ironsworn action '${args.action}'. Valid actions: momentum, move, progress.`);
+  }
+});
+
+// Forged in the Dark (REQ-441 through REQ-443) — action rolls with position
+// and effect, stress/trauma with resistance, and downtime. Base capability.
+server.registerTool("forged", {
+  title: "Forged in the Dark",
+  description: "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use countdown (action: set).",
+  inputSchema: {
+    action: z.enum(["action_roll", "stress", "downtime"]).describe("action_roll, stress, or downtime."),
+    op: z.string().optional().describe("Sub-operation: stress (mark, clear, resist, list), downtime (recover, indulge_vice, list)."),
+    name: z.string().optional().describe("Action name (action_roll) or consequence label (stress resist)."),
+    dice: z.number().optional().describe("Dice pool size (action_roll); defaults to 2."),
+    position: z.enum(["controlled", "risky", "desperate"]).optional().describe("Position (action_roll); defaults to risky."),
+    effect: z.enum(["limited", "standard", "great"]).optional().describe("Effect (action_roll); defaults to standard."),
+    entity_id: z.string().optional().describe("Entity or NPC id (stress/downtime)."),
+    amount: z.number().optional().describe("Stress to mark or clear (stress/downtime); defaults to 1."),
+    cost: z.number().optional().describe("Stress cost to resist (stress); defaults to 2."),
+    seed: z.string().optional().describe("Deterministic seed (action_roll)."),
+  },
+}, async (args: any) => {
+  const rng = args.seed !== undefined ? createRng(args.seed) : null;
+  const draw = (sides: number): number => (rng ? rng.roll(sides) : sessionRoll(sides));
+  const isGM = () => { const b = getBadge(); return b === "game_master" || b === "none"; };
+  switch (args.action) {
+    case "action_roll": {
+      // REQ-441 — action roll with position/effect.
+      requireNovel();
+      const dice = Math.max(0, Number(args.dice ?? 2));
+      const position = args.position ?? "risky";
+      const effect = args.effect ?? "standard";
+      let rolls: number[];
+      if (dice === 0) {
+        rolls = [Math.min(draw(6), draw(6))];
+      } else {
+        rolls = [];
+        for (let i = 0; i < dice; i++) rolls.push(draw(6));
+      }
+      const highest = Math.max(...rolls);
+      const band = highest >= 6 ? "Critical success" : highest >= 4 ? "Partial success" : "Miss";
+      return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}`);
+    }
+    case "stress": {
+      // REQ-442 — stress/trauma + resistance.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") {
+        const rows = Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      requireGM();
+      novelSnapshot();
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [] });
+      if (op === "mark") {
+        const amount = Number(args.amount ?? 1);
+        char.stress += amount;
+        if (char.stress >= FORGED_STRESS_MAX) {
+          char.trauma.push(args.name ?? "trauma");
+          char.stress = 0;
+          state.recordMutation(novel, "mark_stress_forged", "forged");
+          return ok(`'${entity_id}' filled their stress track and gained trauma [${char.trauma.join(", ")}]; stress reset to 0.`);
+        }
+        state.recordMutation(novel, "mark_stress_forged", "forged");
+        return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
+      }
+      if (op === "clear") {
+        char.stress = Math.max(0, char.stress - Number(args.amount ?? 1));
+        state.recordMutation(novel, "clear_stress_forged", "forged");
+        return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
+      }
+      if (op === "resist") {
+        const cost = Number(args.cost ?? 2);
+        if (char.stress + cost > FORGED_STRESS_MAX) return err("RULE_VIOLATION", `'${entity_id}' has ${char.stress} stress; resisting would exceed ${FORGED_STRESS_MAX}.`);
+        char.stress += cost;
+        state.recordMutation(novel, "resist_forged", "forged");
+        return ok(`'${entity_id}' resisted '${args.name ?? "the consequence"}' for ${cost} stress (now ${char.stress}/${FORGED_STRESS_MAX}).`);
+      }
+      return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, resist, list.`);
+    }
+    case "downtime": {
+      // REQ-443 — downtime recovery.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") {
+        const rows = Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      requireGM();
+      novelSnapshot();
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [] });
+      if (op === "recover") {
+        char.stress = Math.max(0, char.stress - Number(args.amount ?? 2));
+        state.recordMutation(novel, "recover_forged", "forged");
+        return ok(`'${entity_id}' recovered; stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
+      }
+      if (op === "indulge_vice") {
+        char.stress = 0;
+        state.recordMutation(novel, "indulge_vice_forged", "forged");
+        return ok(`'${entity_id}' indulged their vice; stress cleared to 0.`);
+      }
+      return err("INVALID_INPUT", `Unknown downtime op '${op}'. Valid ops: recover, indulge_vice, list.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown forged action '${args.action}'. Valid actions: action_roll, stress, downtime.`);
+  }
+});
+
 // Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
 server.registerTool("story", {
   title: "Story",
@@ -4170,6 +4400,8 @@ function loadNovelFromStateData(data: any): NovelState {
     player_synthesis: data.player_synthesis ?? {},
     campaign_memory: data.campaign_memory ?? [],
     fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
+    ironsworn: { momentum: data.ironsworn?.momentum ?? {}, progress_tracks: data.ironsworn?.progress_tracks ?? [] },
+    forged: { characters: data.forged?.characters ?? {} },
   };
 }
 

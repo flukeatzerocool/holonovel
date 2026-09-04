@@ -405,4 +405,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-435 | Fate aspects | 5.21 Fate Base Capabilities | C | T521 | — |
 | REQ-436 | Fate points | 5.21 Fate Base Capabilities | C | T522 | — |
 | REQ-437 | Stress and consequences | 5.21 Fate Base Capabilities | C | T523 | — |
+| REQ-438 | Ironsworn momentum | 5.22 Ironsworn Base Capabilities | C | T524 | — |
+| REQ-439 | Ironsworn move framework | 5.22 Ironsworn Base Capabilities | C | T525 | — |
+| REQ-440 | Ironsworn progress tracks | 5.22 Ironsworn Base Capabilities | C | T526 | — |
+| REQ-441 | Action roll with position and effect | 5.23 Forged in the Dark Base Capabilities | C | T527 | — |
+| REQ-442 | Stress, trauma, and resistance | 5.23 Forged in the Dark Base Capabilities | C | T528 | — |
+| REQ-443 | Downtime | 5.23 Forged in the Dark Base Capabilities | C | T529 | — |
 

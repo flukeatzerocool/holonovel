@@ -41,7 +41,9 @@
     "test:tool-definitions": "tsx scripts/test-tool-definitions.ts",
     "test:competitive-gaps": "tsx scripts/test-competitive-gaps.ts",
     "test:fate": "tsx scripts/test-fate.ts",
-    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:gauntlet && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate"
+    "test:ironsworn": "tsx scripts/test-ironsworn.ts",
+    "test:forged": "tsx scripts/test-forged.ts",
+    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:gauntlet && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate && npm run test:ironsworn && npm run test:forged"
   },
   "keywords": [
     "inform",

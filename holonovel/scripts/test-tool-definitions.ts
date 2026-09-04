@@ -13,7 +13,7 @@
 // equal the npm-canonical host version, and that the root version-check gate
 // passes against the committed manifest.
 //
-// T511 (REQ-429): asserts the registered tool catalog is at most twenty-six
+// T511 (REQ-429): asserts the registered tool catalog is at most twenty-eight
 // tools, one per persisted entity type, and that every persisted type carries
 // a list/get/info/status/knowledge action on its entity tool.
 //
@@ -140,12 +140,12 @@ async function main() {
   const proc = await boot();
   const listResp = await send(proc, { method: "tools/list", params: {} });
   const tools: any[] = listResp.result?.tools ?? [];
-  assert(tools.length === 26, `expected the consolidated 26-tool surface, got ${tools.length}`);
+  assert(tools.length === 28, `expected the consolidated 28-tool surface, got ${tools.length}`);
 
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
-  await test("T511/REQ-429: server-wide action-discriminator surface within a 26-tool budget", () => {
+  await test("T511/REQ-429: server-wide action-discriminator surface within a 28-tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["novel", "character", "npc", "world", "faction", "vow", "countdown", "lore", "story", "note", "codex", "combat", "condition", "relationship", "fate"];
+    const requiredEntityTools = ["novel", "character", "npc", "world", "faction", "vow", "countdown", "lore", "story", "note", "codex", "combat", "condition", "relationship", "fate", "ironsworn", "forged"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
@@ -154,6 +154,7 @@ async function main() {
       world: ["create_room"], faction: ["list"], vow: ["list"], countdown: ["list"],
       lore: ["list", "get"], story: ["list"], note: ["list"], codex: ["list", "get"],
       combat: ["status"], condition: ["list"], relationship: ["get"], fate: ["roll", "aspect", "fate_point", "stress"],
+      ironsworn: ["momentum", "move", "progress"], forged: ["action_roll", "stress", "downtime"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
       const tool = tools.find((t) => t.name === name);

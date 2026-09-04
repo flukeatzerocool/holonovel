@@ -309,6 +309,48 @@ export function normalizeFateState(raw: unknown): FateState {
   };
 }
 
+// REQ-438/439/440 — Ironsworn base capabilities: per-character momentum
+// (−6..+10, default +2) and generic progress tracks (10 boxes per rank).
+export interface IronswornProgressTrack {
+  name: string;
+  rank: "troublesome" | "dangerous" | "formidable" | "extreme" | "epic";
+  ticks: number;
+}
+export interface IronswornState {
+  momentum: Record<string, number>;
+  progress_tracks: IronswornProgressTrack[];
+}
+export const IRONSWORN_MOMENTUM_DEFAULT = 2;
+export const IRONSWORN_MOMENTUM_MIN = -6;
+export const IRONSWORN_MOMENTUM_MAX = 10;
+export const IRONSWORN_TRACK_BOXES = 10;
+
+export function normalizeIronswornState(raw: unknown): IronswornState {
+  const r = (raw ?? {}) as Record<string, any>;
+  return {
+    momentum: (r.momentum && typeof r.momentum === "object") ? r.momentum : {},
+    progress_tracks: Array.isArray(r.progress_tracks) ? r.progress_tracks : [],
+  };
+}
+
+// REQ-441/442/443 — Forged in the Dark base capabilities: per-character
+// stress (0..8) and trauma, with resistance and downtime recovery.
+export interface ForgedCharacterState {
+  stress: number;
+  trauma: string[];
+}
+export interface ForgedState {
+  characters: Record<string, ForgedCharacterState>;
+}
+export const FORGED_STRESS_MAX = 8;
+
+export function normalizeForgedState(raw: unknown): ForgedState {
+  const r = (raw ?? {}) as Record<string, any>;
+  return {
+    characters: (r.characters && typeof r.characters === "object") ? r.characters : {},
+  };
+}
+
 // Pre-workflow snapshot (REQ-042b): captured when a tool raises [NEED_INPUT],
 // persisted with the pending decision, and restored on respond(cancel) or
 // staleness auto-cancel. `state` is a novelToSnapshotJSON clone (undo/redo
@@ -470,6 +512,10 @@ export interface NovelState {
   codex_sources: Array<{ id: string; kind: string; imported_at: string; codex_modified_at: string }>;
   // REQ-435/436/437 — Fate base capabilities.
   fate: FateState;
+  // REQ-438/439/440 — Ironsworn base capabilities.
+  ironsworn: IronswornState;
+  // REQ-441/442/443 — Forged in the Dark base capabilities.
+  forged: ForgedState;
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -747,6 +793,8 @@ export class StateManager {
       pending_vow_countdown_suggestion: null,
       codex_sources: [],
       fate: { aspects: [], fate_points: {}, stress: {} },
+      ironsworn: { momentum: {}, progress_tracks: [] },
+      forged: { characters: {} },
     };
 
     this.novels.set(slug, novel);
@@ -1026,6 +1074,8 @@ export class StateManager {
       pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
       codex_sources: data.codex_sources ?? [],
       fate: normalizeFateState(data.fate),
+      ironsworn: normalizeIronswornState(data.ironsworn),
+      forged: normalizeForgedState(data.forged),
     };
     return novel;
   }
@@ -1946,6 +1996,8 @@ function novelToJSON(novel: NovelState): any {
     uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
     fate: novel.fate,
+    ironsworn: novel.ironsworn,
+    forged: novel.forged,
   };
 }
 
@@ -2055,6 +2107,8 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
     codex_sources: data.codex_sources ?? [],
     fate: normalizeFateState(data.fate),
+    ironsworn: normalizeIronswornState(data.ironsworn),
+    forged: normalizeForgedState(data.forged),
   };
 }
 
@@ -2141,4 +2195,6 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.uncommitted_rolls = source.uncommitted_rolls;
   target.metadata = source.metadata;
   target.fate = source.fate;
+  target.ironsworn = source.ironsworn;
+  target.forged = source.forged;
 }

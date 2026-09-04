@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-04 — Ironsworn + Forged in the Dark base capabilities
+
+- Ironsworn completes its base-capability adoption alongside vows and the
+  oracle: an `ironsworn` tool ships momentum, the action-roll move framework
+  (action die vs two challenge dice), and progress tracks. (REQ-438, REQ-439,
+  REQ-440)
+- Blades in the Dark completes its base-capability adoption alongside clocks:
+  a `forged` tool ships action rolls with position/effect, stress/trauma with
+  resistance, and downtime recovery. (REQ-441, REQ-442, REQ-443)
+- The tool budget grows from 26 to 28, and the README license footer records
+  the previously omitted Ironsworn SRD (CC BY 4.0, Shawn Tomkin). (REQ-429)
+
 ## 2026-09-04 — Fate base capabilities
 
 - Fate joins Ironsworn (vows, oracle) and Blades in the Dark (clocks) as a
