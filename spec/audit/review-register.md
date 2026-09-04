@@ -60,6 +60,13 @@ the tracking surfaces for the coverage backlog.
 
 ## Closed-P3 (recorded, no action)
 
+- **DECISIONS.md gate-classification table absent** (content-integration scan,
+  2026-09-04): REQ-137a contracts a gate-classification table enumerating every
+  tool, but DECISIONS.md carries no such table and T151 has no harness
+  implementation (REQ-137 is bucket-E builder-side, mapped to S6). No
+  demonstrated failure — server badge gating is verified elsewhere (T148, the
+  backfill badge block). Recorded; reopen only if a badge-gating drift is
+  demonstrated.
 - **Uncoupled behavioral configs** (integration review, 2026-09-04):
   TTRPG_WORLD_PROMINENCE, TTRPG_CLIMAX_ACCELERATION, TTRPG_MAX_AVAILABLE_ACTIONS,
   TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS,

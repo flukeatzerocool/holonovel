@@ -268,6 +268,13 @@ include property-group state. A future base capability that defines
 cross-property effects SHALL register as a property group with archetypes and
 coupling rows per REQ-370.
 
+**NPC mind.** NPC mind state (REQ-075f) — the per-NPC GM-only private
+journal, directive, and auto-play flag — is Novel-tier state on the same
+footing as property groups: copy, snapshot, archive, and interchange
+operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
+include property-group state. Mind content is GM-only per REQ-075f and SHALL
+be stripped from every Player-badge surface.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |

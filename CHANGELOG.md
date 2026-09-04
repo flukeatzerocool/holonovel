@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-04 — Content-integration completion: audit, NPC-mind lifecycle, recap/guardrail surfaces
+
+- Base-capability mutations and rolls are now audited (REQ-040a): every
+  `fate`/`ironsworn`/`forged` mutating op and roll action records an audit
+  entry, so `audit://novel`, `session (action: compress)`, and `audit_delta`
+  subscriptions no longer miss base-capability play. (REQ-040, REQ-434–443)
+- NPC mind is contracted as Novel-tier state on the same footing as base
+  capabilities: a §7.7.0 class-contract sentence plus enumeration clauses in
+  the clone/checkpoint/archive REQ bodies (REQ-240a, REQ-241a, REQ-334b,
+  REQ-075f); T278/T279/T381 now exercise NPC-mind preservation. (REQ-075f)
+- The significant-roll criterion (REQ-174a) and the roll-to-commit marker
+  (REQ-404) now name the base-capability dice-resolution actions; a
+  consequence-carrying `fate`/`ironsworn`/`forged` roll surfaces an
+  `[uncommitted-roll]` marker naming the commit tool. (REQ-174, REQ-404)
+- The §5.19 persistence directive and never-truncated tool list (REQ-400,
+  REQ-407) now include the base-capability state tools. (REQ-400, REQ-407)
+- Appendix M and the pre-commit checklist gain the delta-integration items for
+  audit wiring, significant-roll tracking, guardrail enumerations, and
+  gate-classification. Recorded in the review register: the DECISIONS.md
+  gate-classification table (REQ-137a) is absent and T151 is unimplemented —
+  Closed-P3.
+- The data-format fingerprint advances because the hashed contract sections
+  changed; deployed Novels flag `[data-stale]` until re-stamped by
+  `migrate-user-data`. (REQ-423)
+
 ## 2026-09-04 — Novel save-file integration repair
 
 - Host base-capability state (Fate, Ironsworn, Forged — REQ-434–443) is now

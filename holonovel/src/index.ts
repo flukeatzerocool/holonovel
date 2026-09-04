@@ -3775,7 +3775,7 @@ server.registerTool("fate", {
   switch (args.action) {
     case "roll": {
       // REQ-434 — Fudge dice: dF notation, transparency, per-call seed.
-      requireNovel();
+      const novel = requireNovel();
       const notation = String(args.dice ?? "4dF");
       const extra = Number(args.modifier ?? 0);
       const difficulty = Number(args.difficulty ?? 0);
@@ -3788,6 +3788,12 @@ server.registerTool("fate", {
         : r.total === difficulty ? "Tie"
         : "Fail";
       const sign = extra > 0 ? "+" : "−";
+      audit("fate_roll", { notation: r.notation, skill: args.skill ?? null, difficulty, total: r.total, ladder });
+      if (difficulty > 0 || args.skill) {
+        novel.uncommitted_rolls.push({ roll: `${label} → ${ladder}`, suggested_tool: "fate (action: stress)", at: new Date().toISOString() });
+        if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
+        state.saveNovel(novel);
+      }
       return ok(`${label} (${r.notation}${extra !== 0 ? ` ${sign} ${Math.abs(extra)}` : ""}) vs ${difficulty}\nfaces [ ${faces} ]  total ${r.total}  modifier ${sign}${Math.abs(extra)}\n${ladder}`);
     }
     case "aspect": {
@@ -3812,6 +3818,7 @@ server.registerTool("fate", {
         if (idx === -1) return err("NOT_FOUND", `Aspect '${name}' on '${target}' not found.`);
         novel.fate.aspects.splice(idx, 1);
         state.recordMutation(novel, "remove_aspect", "fate");
+        audit("remove_aspect", { name, target });
         return ok(`Aspect '${name}' removed.`);
       }
       const entity_id = String(args.entity_id ?? "");
@@ -3822,12 +3829,14 @@ server.registerTool("fate", {
         if (points < 1) return err("RULE_VIOLATION", `'${entity_id}' has no Fate points to invoke '${name}'.`);
         novel.fate.fate_points[entity_id] = points - 1;
         state.recordMutation(novel, "invoke_aspect", "fate");
+        audit("invoke_aspect", { name, entity_id });
         return ok(`Invoked aspect '${name}' — +2 or a reroll. '${entity_id}' now has ${points - 1} Fate point(s).`);
       }
       if (op === "compel") {
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
         novel.fate.fate_points[entity_id] = points + 1;
         state.recordMutation(novel, "compel_aspect", "fate");
+        audit("compel_aspect", { name, entity_id });
         return ok(`Compelled aspect '${name}' — '${entity_id}' gains one Fate point (now ${points + 1}).`);
       }
       return err("INVALID_INPUT", `Unknown aspect op '${op}'. Valid ops: create, invoke, compel, remove, list.`);
@@ -3850,17 +3859,20 @@ server.registerTool("fate", {
         if (points < amount) return err("RULE_VIOLATION", `'${entity_id}' has ${points} Fate point(s), cannot spend ${amount}.`);
         novel.fate.fate_points[entity_id] = points - amount;
         state.recordMutation(novel, "spend_fate_point", "fate");
+        audit("spend_fate_point", { entity_id, amount });
         return ok(`'${entity_id}' spent ${amount} Fate point(s) (now ${points - amount}).`);
       }
       if (op === "grant") {
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
         novel.fate.fate_points[entity_id] = points + amount;
         state.recordMutation(novel, "grant_fate_point", "fate");
+        audit("grant_fate_point", { entity_id, amount });
         return ok(`'${entity_id}' gained ${amount} Fate point(s) (now ${points + amount}).`);
       }
       if (op === "refresh") {
         novel.fate.fate_points[entity_id] = FATE_REFRESH;
         state.recordMutation(novel, "refresh_fate_point", "fate");
+        audit("refresh_fate_point", { entity_id });
         return ok(`'${entity_id}' refreshed to ${FATE_REFRESH} Fate points.`);
       }
       return err("INVALID_INPUT", `Unknown fate_point op '${op}'. Valid ops: spend, grant, refresh, list.`);
@@ -3883,6 +3895,7 @@ server.registerTool("fate", {
         else if (args.track === "mental") entry.mental += Number(args.shifts ?? 1);
         if (args.consequence) entry.consequences.push(args.consequence);
         state.recordMutation(novel, "mark_stress", "fate");
+        audit("mark_stress", { entity_id, track: args.track, shifts: args.shifts, consequence: args.consequence ?? null });
         return ok(`Stress on '${entity_id}': physical ${entry.physical}, mental ${entry.mental}, consequences [${entry.consequences.join(", ") || "none"}].`);
       }
       if (op === "clear") {
@@ -3891,6 +3904,7 @@ server.registerTool("fate", {
         else if (args.consequence) entry.consequences = entry.consequences.filter((c) => c !== args.consequence);
         else { entry.physical = 0; entry.mental = 0; entry.consequences = []; }
         state.recordMutation(novel, "clear_stress", "fate");
+        audit("clear_stress", { entity_id, track: args.track ?? null, consequence: args.consequence ?? null });
         return ok(`Stress cleared on '${entity_id}': physical ${entry.physical}, mental ${entry.mental}, consequences [${entry.consequences.join(", ") || "none"}].`);
       }
       return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, list.`);
@@ -3946,21 +3960,25 @@ server.registerTool("ironsworn", {
       if (op === "set") {
         novel.ironsworn.momentum[entity_id] = clamp(amount);
         state.recordMutation(novel, "set_momentum", "ironsworn");
+        audit("set_momentum", { entity_id, amount });
         return ok(`'${entity_id}' momentum set to ${clamp(amount)}.`);
       }
       if (op === "gain") {
         novel.ironsworn.momentum[entity_id] = clamp(current + amount);
         state.recordMutation(novel, "gain_momentum", "ironsworn");
+        audit("gain_momentum", { entity_id, amount });
         return ok(`'${entity_id}' momentum now ${clamp(current + amount)}.`);
       }
       if (op === "lose") {
         novel.ironsworn.momentum[entity_id] = clamp(current - amount);
         state.recordMutation(novel, "lose_momentum", "ironsworn");
+        audit("lose_momentum", { entity_id, amount });
         return ok(`'${entity_id}' momentum now ${clamp(current - amount)}.`);
       }
       if (op === "reset") {
         novel.ironsworn.momentum[entity_id] = IRONSWORN_MOMENTUM_DEFAULT;
         state.recordMutation(novel, "reset_momentum", "ironsworn");
+        audit("reset_momentum", { entity_id });
         return ok(`'${entity_id}' momentum reset to ${IRONSWORN_MOMENTUM_DEFAULT}.`);
       }
       return err("INVALID_INPUT", `Unknown momentum op '${op}'. Valid ops: set, gain, lose, reset, list.`);
@@ -3981,8 +3999,13 @@ server.registerTool("ironsworn", {
         novel.ironsworn.momentum[entity_id] = IRONSWORN_MOMENTUM_DEFAULT;
         burned = true;
         state.recordMutation(novel, "burn_momentum", "ironsworn");
+        audit("burn_momentum", { entity_id });
       }
       const band = bandFor(actionScore, c1, c2);
+      audit("ironsworn_move", { name: args.name ?? null, adds, action_die: actionDie, challenge_dice: [c1, c2], band, burned });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "ironsworn (action: progress)", at: new Date().toISOString() });
+      if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
+      state.saveNovel(novel);
       return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}`);
     }
     case "progress": {
@@ -3999,6 +4022,7 @@ server.registerTool("ironsworn", {
         if (novel.ironsworn.progress_tracks.some((t) => t.name === name)) return err("STATE_CONFLICT", `Progress track '${name}' already exists.`);
         novel.ironsworn.progress_tracks.push({ name, rank, ticks: 0 });
         state.recordMutation(novel, "create_progress", "ironsworn");
+        audit("create_progress", { name, rank });
         return ok(`Progress track '${name}' created (${rank}, ${IRONSWORN_TRACK_BOXES} boxes).`);
       }
       const track = novel.ironsworn.progress_tracks.find((t) => t.name === name);
@@ -4006,11 +4030,13 @@ server.registerTool("ironsworn", {
       if (op === "mark") {
         track.ticks = Math.min(IRONSWORN_TRACK_BOXES, track.ticks + Number(args.ticks ?? 1));
         state.recordMutation(novel, "mark_progress", "ironsworn");
+        audit("mark_progress", { name, ticks: Number(args.ticks ?? 1) });
         return ok(`Progress track '${name}' at ${track.ticks}/${IRONSWORN_TRACK_BOXES} boxes.`);
       }
       if (op === "test") {
         const c1 = draw(10);
         const c2 = draw(10);
+        audit("ironsworn_progress_test", { name, boxes: track.ticks, challenge_dice: [c1, c2], band: bandFor(track.ticks, c1, c2) });
         return ok(`Progress test '${name}': ${track.ticks} boxes vs ${c1}, ${c2}\n${bandFor(track.ticks, c1, c2)}`);
       }
       return err("INVALID_INPUT", `Unknown progress op '${op}'. Valid ops: create, mark, test, list.`);
@@ -4044,7 +4070,7 @@ server.registerTool("forged", {
   switch (args.action) {
     case "action_roll": {
       // REQ-441 — action roll with position/effect.
-      requireNovel();
+      const novel = requireNovel();
       const dice = Math.max(0, Number(args.dice ?? 2));
       const position = args.position ?? "risky";
       const effect = args.effect ?? "standard";
@@ -4057,6 +4083,10 @@ server.registerTool("forged", {
       }
       const highest = Math.max(...rolls);
       const band = highest >= 6 ? "Critical success" : highest >= 4 ? "Partial success" : "Miss";
+      audit("forged_action_roll", { name: args.name ?? null, dice: rolls, highest, position, effect, band });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "forged (action: stress)", at: new Date().toISOString() });
+      if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
+      state.saveNovel(novel);
       return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}`);
     }
     case "stress": {
@@ -4079,14 +4109,17 @@ server.registerTool("forged", {
           char.trauma.push(args.name ?? "trauma");
           char.stress = 0;
           state.recordMutation(novel, "mark_stress_forged", "forged");
+          audit("mark_stress_forged", { entity_id, amount, trauma: args.name ?? "trauma" });
           return ok(`'${entity_id}' filled their stress track and gained trauma [${char.trauma.join(", ")}]; stress reset to 0.`);
         }
         state.recordMutation(novel, "mark_stress_forged", "forged");
+        audit("mark_stress_forged", { entity_id, amount });
         return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
       }
       if (op === "clear") {
         char.stress = Math.max(0, char.stress - Number(args.amount ?? 1));
         state.recordMutation(novel, "clear_stress_forged", "forged");
+        audit("clear_stress_forged", { entity_id, amount: Number(args.amount ?? 1) });
         return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
       }
       if (op === "resist") {
@@ -4094,6 +4127,7 @@ server.registerTool("forged", {
         if (char.stress + cost > FORGED_STRESS_MAX) return err("RULE_VIOLATION", `'${entity_id}' has ${char.stress} stress; resisting would exceed ${FORGED_STRESS_MAX}.`);
         char.stress += cost;
         state.recordMutation(novel, "resist_forged", "forged");
+        audit("resist_forged", { entity_id, cost, consequence: args.name ?? null });
         return ok(`'${entity_id}' resisted '${args.name ?? "the consequence"}' for ${cost} stress (now ${char.stress}/${FORGED_STRESS_MAX}).`);
       }
       return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, resist, list.`);
@@ -4114,11 +4148,13 @@ server.registerTool("forged", {
       if (op === "recover") {
         char.stress = Math.max(0, char.stress - Number(args.amount ?? 2));
         state.recordMutation(novel, "recover_forged", "forged");
+        audit("recover_forged", { entity_id, amount: Number(args.amount ?? 2) });
         return ok(`'${entity_id}' recovered; stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
       }
       if (op === "indulge_vice") {
         char.stress = 0;
         state.recordMutation(novel, "indulge_vice_forged", "forged");
+        audit("indulge_vice_forged", { entity_id });
         return ok(`'${entity_id}' indulged their vice; stress cleared to 0.`);
       }
       return err("INVALID_INPUT", `Unknown downtime op '${op}'. Valid ops: recover, indulge_vice, list.`);
@@ -4484,7 +4520,10 @@ server.registerTool("session", {
         : "[No narrative history yet — your story begins here.]";
       let recap = `narrative_orientation: ${narrative_orientation}`;
       recap += `\nconnections: ${novel.connection_counter ?? 0}`;
-      const significantRolls = novel.audit_log.filter((e) => e.tool.includes("roll") && !e.tool.includes("table") && e.args).slice(-5);
+      const significantRollTool = (t: string) =>
+        t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" || t === "forged_action_roll" ||
+        (t.includes("roll") && !t.includes("table"));
+      const significantRolls = novel.audit_log.filter((e) => significantRollTool(e.tool) && e.args).slice(-5);
       if (significantRolls.length > 0) {
         recap += `\nsignificant_rolls: ${significantRolls.map((e) => `${e.tool}`).join(", ")}`;
       }
@@ -6673,7 +6712,7 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
     if (badge === "game_master") {
       // REQ-400 — State-Persistence Directive (never-truncated tier).
       briefing += `\n\n### State persistence
-Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), and story beats (story, action: record).`;
+Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), story beats (story, action: record), and base-capability outcomes (fate, ironsworn, forged).`;
 
       // REQ-401 — state_ledger decision-critical token (never-truncated).
       const ledgerLines = [
@@ -6690,7 +6729,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
     // REQ-407 — persist-tools never truncated: the GM scene-typed tool
       // section always lists the core state-persistence tools regardless of
       // scene type (scene, journal, countdown, note, personality, NPC, vow).
-      briefing += `\n\n### Persistence tools\nscene (set) · story (record) · countdown (set) · note (set) · character (personality) · npc (create) · vow (set)`;
+      briefing += `\n\n### Persistence tools\nscene (set) · story (record) · countdown (set) · note (set) · character (personality) · npc (create) · vow (set) · fate (aspect) · ironsworn (momentum) · forged (stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.

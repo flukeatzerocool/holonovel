@@ -71,6 +71,12 @@ async function newNovel(proc: ChildProcess, name: string): Promise<void> {
   await call(proc, "novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
+async function readResource(proc: ChildProcess, uri: string): Promise<string> {
+  const resp = await send(proc, { method: "resources/read", params: { uri } });
+  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
+  const content = resp.result?.contents ?? [];
+  return content.map((c: any) => (c?.text ?? "")).join("\n");
+}
 
 async function main() {
   console.log("=== Fate base capabilities (T520–T523) ===\n");
@@ -150,6 +156,20 @@ async function main() {
       assertContains(list, "moderate");
       const clear = await call(proc, "fate", { action: "stress", op: "clear", entity_id: "pc_1", track: "physical" });
       assertContains(clear, "physical 0");
+    });
+    proc.kill("SIGKILL");
+  }
+
+  // ── REQ-040a — base-capability mutations and rolls are audited ─────
+  {
+    const proc = await boot();
+    await newNovel(proc, "fate-audit");
+    await test("REQ-040a: base-capability mutations and rolls leave audit entries", async () => {
+      await call(proc, "fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
+      await call(proc, "fate", { action: "roll", skill: "Fight", modifier: 2, difficulty: 2, seed: "42" });
+      const audit = await readResource(proc, "audit://novel");
+      assertContains(audit, "spend_fate_point");
+      assertContains(audit, "fate_roll");
     });
     proc.kill("SIGKILL");
   }

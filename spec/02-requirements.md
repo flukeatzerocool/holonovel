@@ -1375,7 +1375,7 @@ The paragraph SHALL use plain English without tool names, status prefixes, or st
 **REQ-279c — Narrative orientation (Part c).**
 The paragraph is badge-filtered: Player badge sees orientation derived from `shared`-scope lore, own-entity story entries, and player-visible NPC dispositions per REQ-032. *Acceptance criterion:* After a session with a story journal decision, a narrative directive, and an active countdown, `session (action: recap)` returns a `narrative_orientation` field containing a 2–4 sentence prose summary synthesizing all three sources. `session (action: recap)` on a new Novel with no play returns the empty-state marker. _Check:_ T328.
 **REQ-174a — Significant-roll criterion for recap (Part a).**
-`session (action: recap)` purposes when it (a) was produced by a dice-resolution tool (roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage, or ruleset-equivalent), (b) has an entity as participant or attacker, and (c) produced a tool output visible to at least one badge. Pure-generation table rolls (REQ-086), GM-only state queries, and rolls without an entity participant are excluded.
+`session (action: recap)` purposes when it (a) was produced by a dice-resolution tool (roll_save, roll_skill_check, roll_weapon_attack, roll_weapon_damage, or ruleset-equivalent, or a base-capability dice-resolution action per REQ-434, REQ-439, or REQ-441), (b) has an entity as participant or attacker, or carries a mechanical consequence (a difficulty, position and effect, or momentum burn), and (c) produced a tool output visible to at least one badge. Pure-generation table rolls (REQ-086), GM-only state queries, and rolls without an entity participant are excluded.
 
 **REQ-174b — Significant-roll criterion for recap (Part b).**
 The server SHALL track the last N significant rolls per Novel, discarding the oldest when N+1 is reached. `session (action: recap)` SHALL list significant rolls in chronological order with: tool name, entity identifier, die faces, and at most the major outcome (hit/miss/fail/success/damage amount without full transparency replay — the recap is a summary, not a transcript). _Check:_ T213.
@@ -1469,7 +1469,7 @@ An NPC not seen in 5 or more sessions SHALL carry a `[distant]` marker in `badge
 **REQ-075e — Named-NPC state (Part e).**
 An NPC not seen in 5 sessions carries `[distant]`. `session (action: recap)` includes an NPC relationship heatmap with session and scene counts. _Check:_ T56.
 **REQ-075f — Named-NPC state (Part f).**
-Every NPC MAY carry a GM-only `mind` object holding `private_journal` (a free-text array appended automatically by the server on significant interactions per REQ-311), `directive` (a narrator-facing instruction describing how to play the NPC — goals, mannerisms, decision tendencies), and `auto_play` (a boolean flag). Mind content SHALL be excluded from every Player-badge surface, including `badge_briefing`, `npc://<id>`, and `session (action: recap)`. Mind content persists with the Novel and SHALL be included in `novel (action: export)` full scope. Setting or clearing mind fields is Game Master only.
+Every NPC MAY carry a GM-only `mind` object holding `private_journal` (a free-text array auto-appended on significant interactions per REQ-311), `directive` (a narrator-facing instruction — goals, mannerisms, decision tendencies), and `auto_play` (a boolean flag). Mind content SHALL be excluded from every Player-badge surface, including `badge_briefing`, `npc://<id>`, and `session (action: recap)`. Mind content persists with the Novel and SHALL be included in `novel (action: export)` full scope, clone, checkpoints, and archive (REQ-240, REQ-241, REQ-334). Setting or clearing mind fields is Game Master only.
 *Acceptance criterion:* an NPC with a populated mind renders no mind content under the Player badge; GM surfaces include it; export/import round-trip preserves it. _Check:_ T513.
 **REQ-119a — NPC stat block reference (Part a).**
 `npc (action: create)` accepts an optional ruleset reference — the name of a monster, NPC template, or stat block entry from the indexed ruleset. When a reference matches a ruleset entry, the builder populates the NPC's stat fields from that entry's baseline values as defined by the ruleset. Any caller-supplied stat fields override the referenced values.
@@ -1953,7 +1953,7 @@ Compaction is irreversible — confirmation proceeds through a `[NEED_INPUT]` wo
 **REQ-239d — Audit log compaction (Part d).**
 Player badge attempts return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two sessions, `session (action: compress)` archives session 1 — audit log shows only session 2 entries, `audit://novel/archive` returns session 1 summary, `session (action: recap, session_id="s1")` returns the summary, session 2 entries remain live. A third call to `session (action: compress, sessions=2)` retains both sessions 2 and 3. _Check:_ T277.
 **REQ-241a — Checkpoints (Part a).**
-The server SHALL provide checkpoint tools for the active Novel: `novel (action: checkpoint_set, label)` saves a named, persistent snapshot of the full Novel state (all property groups defined in §7.7, host base-capability state, world-model tier, combat state, pending workflows, gm_context, metadata, audit log pointer, and undo stacks). `novel (action: checkpoint_list)` returns all checkpoint labels with ISO 8601 timestamps. `novel (action: checkpoint_restore, label)` reverts the Novel to the checkpoint state — emits a `[NEED_INPUT]` workflow decision with options `yes` and `cancel` (on `yes`: restores the snapshot and records a `[checkpoint-restored]` audit entry; on `cancel`: restores pre-invocation state unchanged). `novel (action: checkpoint_remove, label)` removes one checkpoint.
+The server SHALL provide checkpoint tools for the active Novel: `novel (action: checkpoint_set, label)` saves a named snapshot of the full Novel state (all §7.7 property groups, host base-capability state, NPC mind (REQ-075f), world-model tier, combat state, pending workflows, gm_context, metadata, audit log pointer, and undo stacks). `novel (action: checkpoint_list)` returns checkpoint labels with ISO 8601 timestamps. `novel (action: checkpoint_restore, label)` reverts the Novel to the checkpoint state — emits a `[NEED_INPUT]` workflow decision with options `yes` and `cancel` (on `yes`: restores the snapshot and records a `[checkpoint-restored]` audit entry; on `cancel`: restores pre-invocation state unchanged). `novel (action: checkpoint_remove, label)` removes one checkpoint.
 
 **REQ-241b — Checkpoints (Part b).**
 Checkpoints survive server restarts, Novel switches, and undo/redo cycles — they are independent of undo stacks (REQ-041). Maximum checkpoints per Novel is configured via `TTRPG_MAX_CHECKPOINTS`; when at capacity, `novel (action: checkpoint_set)` discards the oldest. Checkpoints SHALL be stored in the Novel JSON under a `checkpoints` key (array of `{label, timestamp, state}` objects). `novel (action: end)` removes all checkpoints. Checkpoints are NOT included in `novel (action: export)` output by default — an optional `include_checkpoints` parameter on `novel (action: export)` (configurable) controls inclusion.
@@ -2814,7 +2814,7 @@ The server SHALL retain the last N backups of each Novel, configured via `TTRPG_
 **REQ-238b — Backup rotation (Part b).**
 If no backup is parseable, the server follows the existing recovery path (stderr + `[corrupted-novel]` in `spec_health`). `novel (action: end)` moves all backup files to `.trash/` alongside the primary. Setting `TTRPG_NOVEL_BACKUP_COUNT=1` retains only the immediate previous backup. *Acceptance criterion:* After 10 mutations with `TTRPG_NOVEL_BACKUP_COUNT=3`, three rotated backup files exist; corrupting the primary and `.bak.1` triggers restore from `.bak.2`; `novel (action: end)` removes all backups. _Check:_ T276.
 **REQ-240a — Clone Novel (Part a).**
-The server SHALL provide a `novel (action: clone, source_slug, new_name, trim_audit_sessions?)` tool (callable with the Editor badge or Game Master badge). The tool creates an independent copy of the source Novel as a new Novel at `.holonovel-state/novels/<new_slug>.json`. All property groups defined in §7.7 plus host base-capability state (REQ-434–443), the world-model tier, combat state, pending workflows, metadata, audit log, story journal, undo snapshots, and checkpoints (if present, REQ-241) SHALL be copied. Roster references are preserved — cloned entities point to the same roster IDs.
+The server SHALL provide a `novel (action: clone, source_slug, new_name, trim_audit_sessions?)` tool (callable with the Editor badge or Game Master badge). The tool creates an independent copy of the source Novel as a new Novel at `.holonovel-state/novels/<new_slug>.json`. All property groups defined in §7.7 plus host base-capability state (REQ-434–443) and NPC mind state (REQ-075f), the world-model tier, combat state, pending workflows, metadata, audit log, story journal, undo snapshots, and checkpoints (if present, REQ-241) SHALL be copied. Roster references are preserved — cloned entities point to the same roster IDs.
 
 **REQ-240b — Clone Novel (Part b).**
 The cloned Novel's `created_at` timestamp SHALL be the clone time; the clone is not activated — the caller's active Novel is unchanged. Returns `[STATE_CONFLICT]` if the target slug already exists. The optional `trim_audit_sessions` parameter (configurable, default null = full copy) strips audit entries older than N sessions from the clone, keeping only the most recent N sessions' entries (session boundaries determined by `[session-boundary]` markers per REQ-237). A new `clone` audit entry SHALL be recorded in both the source and cloned Novel.
@@ -2825,7 +2825,7 @@ Player badge attempts return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* `nov
 THE server SHALL provide an `novel (action: archive, slug)` tool — Game Master only, Novel must not be active in another connection. Marks the Novel as archived: the Novel file SHALL be moved from `.holonovel-state/novels/<slug>.json` to `.holonovel-state/archive/<slug>.json` with its backup files. The active badge is deactivated; the Novel is no longer active. IF the Novel is active in another connection, THE system SHALL return `[STATE_CONFLICT]`. Archived Novels SHALL be read-only — all mutating tools SHALL return `[STATE_CONFLICT]` with corrective action directing the caller to `novel (action: unarchive)`.
 
 **REQ-334b — Novel archive (Part b).**
-Archive is distinct from trash (REQ-117): archived Novels are long-term reference files, never auto-deleted. `novel (action: list)` SHALL accept an optional `filter` parameter with values `active` (default, excludes archived and trashed), `archived` (archived-only), or `all`. `novel (action: unarchive, slug)` SHALL restore an archived Novel to active status at `.holonovel-state/novels/<slug>.json` with full state preserved — all property groups, host base-capability state (REQ-434–443), and metadata intact. Player badge returns `[FORBIDDEN]`. Archived Novels SHALL surface in `spec_health` under an `archived_novels` key with slug and archive timestamp.
+Archive is distinct from trash (REQ-117): archived Novels are long-term reference files, never auto-deleted. `novel (action: list)` SHALL accept an optional `filter` parameter with values `active` (default, excludes archived and trashed), `archived` (archived-only), or `all`. `novel (action: unarchive, slug)` SHALL restore an archived Novel to active status at `.holonovel-state/novels/<slug>.json` with full state preserved — all property groups, host base-capability state (REQ-434–443), NPC mind state (REQ-075f), and metadata intact. Player badge returns `[FORBIDDEN]`. Archived Novels SHALL surface in `spec_health` under an `archived_novels` key with slug and archive timestamp.
 
 **REQ-334c — Novel archive (Part c).**
 Codex entries captured from an archived Novel via `codex (action: capture)` SHALL preserve their `source_novel` field — the archived Novel remains the provenance reference. *Acceptance criterion:* `novel (action: archive, "my-novel")` moves the file to `.holonovel-state/archive/my-novel.json`; `novel (action: list)` excludes it; `novel (action: list, filter="archived")` includes it with archive timestamp; `novel (action: resume, "my-novel")` returns `[STATE_CONFLICT]`; `novel (action: unarchive, "my-novel")` restores the Novel to active state with all property groups intact. `spec_health.archived_novels` lists the archived slug.
@@ -3667,7 +3667,7 @@ Game Master, `badge_briefing` orientation SHALL include a persistence
 directive instructing the GM to commit state for every narratable change —
 scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073) in the same turn they are narrated. The directive SHALL render in the
+REQ-073), including the base-capability state tools (REQ-434–443), in the same turn they are narrated. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -3701,7 +3701,9 @@ every mode. _Check:_ T472.
 **REQ-404 — Roll-to-commit coupling.** A significant roll (REQ-174) implying
 a mechanical consequence SHALL be followed by a state-committing mutation in
 the same turn; `session (action: recap)` SHALL flag a `[uncommitted-roll]` marker naming
-the roll and the suggested commit tool when no such mutation follows. The
+the roll and the suggested commit tool when no such mutation follows. For
+base-capability rolls (REQ-434, REQ-439, REQ-441), the marker SHALL name the
+committing base-capability action as the suggested commit tool. The
 marker is observational. _Check:_ T473.
 
 **REQ-405 — Auto-moment on transitions.** Every scene transition (REQ-125)
@@ -3720,7 +3722,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools — the scene, story-journal, countdown, note,
-personality, NPC, and vow tools defined in §5 — regardless of scene type, and
+personality, NPC, vow, and base-capability state tools defined in §5 — regardless of scene type, and
 those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
