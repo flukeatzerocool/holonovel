@@ -116,10 +116,16 @@ async function main() {
 
     await test("T278/T240: clone_novel creates an independent copy", async () => {
       await call(proc, "world", { action: "create_thing",  name: "sword", description: "A sharp blade." });
+      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       await call(proc, "novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
       const list = await call(proc, "novel", { action: "list" });
       assertContains(list, "fork");
       assertContains(list, "renamed");
+      await call(proc, "novel", { action: "switch",  slug: "fork" });
+      const forkFate = JSON.parse(await call(proc, "fate", { action: "fate_point",  op: "list" }));
+      const forkPc1 = forkFate.find((f: any) => f.entity_id === "pc_1");
+      if (!forkPc1 || forkPc1.fate_points !== 2) throw new Error(`clone dropped base-capability state: ${JSON.stringify(forkFate)}`);
+      await call(proc, "novel", { action: "switch",  slug: "renamed" });
     });
 
     await test("T315/T278: rename and clone onto an existing slug return [STATE_CONFLICT]", async () => {
@@ -255,6 +261,7 @@ async function main() {
       await call(proc, "novel", { action: "create",  name: "archive-me" });
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "world", { action: "create_room",  name: "archived-room", description: "d" });
+      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       await call(proc, "novel", { action: "archive",  slug: "archive-me" });
       const active = await call(proc, "novel", { action: "list" });
       if (active.includes("archive-me")) throw new Error("archived novel still listed as active");
@@ -267,6 +274,9 @@ async function main() {
       await call(proc, "novel", { action: "unarchive",  slug: "archive-me" });
       const info = JSON.parse(await call(proc, "novel", { action: "info" }));
       if (info.slug !== "archive-me") throw new Error("unarchive did not restore active novel");
+      const fateAfter = JSON.parse(await call(proc, "fate", { action: "fate_point",  op: "list" }));
+      const pc1 = fateAfter.find((f: any) => f.entity_id === "pc_1");
+      if (!pc1 || pc1.fate_points !== 2) throw new Error(`archive/unarchive dropped base-capability state: ${JSON.stringify(fateAfter)}`);
     });
 
     await kill(proc);

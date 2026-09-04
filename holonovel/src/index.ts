@@ -4337,6 +4337,9 @@ function novelToJSONState(novel: NovelState): any {
     mutation_counts_by_group: novel.mutation_counts_by_group,
     uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
+    fate: novel.fate,
+    ironsworn: novel.ironsworn,
+    forged: novel.forged,
   };
 }
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-04 — Novel save-file integration repair
+
+- Host base-capability state (Fate, Ironsworn, Forged — REQ-434–443) is now
+  contracted as Novel-tier state included in `novel (action: clone)`
+  (REQ-240a), checkpoint snapshots (REQ-241a), and archive/unarchive
+  (REQ-334b), via a §7.7.0 class-contract sentence plus REQ-body enumeration
+  clauses; the §7.7 tier table names the base-capability and NPC-mind surfaces.
+- Fixed clone and checkpoint_restore silently dropping base-capability state:
+  the `novelToJSONState` serializer in `holonovel/src/index.ts` was missing
+  `fate`/`ironsworn`/`forged` (persistence and export were unaffected — they
+  already carried the state). T278/T279/T381 harness assertions now exercise
+  base-capability preservation.
+- End-of-life wording reconciled: `novel (action: end)` now consistently
+  "moves to `.trash/` per REQ-117" rather than "removes from disk" (REQ-088d,
+  REQ-092d), and the backup-naming sweep unifies REQ-092b/c/238b on the
+  `.bak.1..N` chain.
+- REQ-423 data-format fingerprint scope widened to §5.6 + §5.21–§5.23 so NPC
+  mind and base-capability shape changes advance the fingerprint.
+- REQ-088f names the `TTRPG_NOVEL` resolution key (internal slug via the
+  REQ-065 registry); REQ-088h2's criterion names the misnamed-file case; T159
+  catalogue row documents it.
+- Constitution Novels row lists archive/unarchive (REQ-334) and genre
+  (REQ-294), replacing the `session (action: compress)` mislabel.
+
 ## 2026-09-04 — Integration repair: manifests, coupling, and base-capability classification
 
 - The §5 section map — the per-section REQ index — is rebuilt from actual
