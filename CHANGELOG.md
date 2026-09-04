@@ -11,8 +11,8 @@
 - Wiki pages now carry `@spec` markers for the spec-derived facts that had gone
   stale: Home (REQ count, gate list, tool/resource/prompt counts), Tools
   (counts), Spec-Contributing (line count, REQ count, gate list), and Glossary
-  (line count); footers and the README "Last updated" date render the version
-  date.
+  (line count); all 23 page footers and the README "Last updated" date render
+  the version date.
 - `Tools.md` catalog corrected to the live surface: added `fate`,
   `ironsworn`, and `forged` tool groups; `world` gained `generate` (REQ-431);
   `session` gained `subscribe` (REQ-433).
