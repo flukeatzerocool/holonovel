@@ -16,10 +16,11 @@
 # the deploy target stale and fails REQ-418.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
 #   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
+#   --no-push    Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -29,18 +30,21 @@ set -euo pipefail
 DRY_RUN=false
 SKIP_CONFIRM=false
 ALLOW_PENDING=false
+NO_PUSH=false
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --yes|-y) SKIP_CONFIRM=true ;;
     --allow-pending) ALLOW_PENDING=true ;;
+    --no-push) NO_PUSH=true ;;
     --help|-h)
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]"
+      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push]"
       echo ""
       echo "  --dry-run        Full pipeline including file writes — skip git commit, push, deploy."
       echo "  --yes (-y)       Skip confirmation prompt before push/deploy."
       echo "  --allow-pending  Override the pending-update block (REQ-394)."
+      echo "  --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy."
       echo "  --help (-h)      Show this message."
       exit 0
       ;;
@@ -201,6 +205,13 @@ if $HAS_COMMIT; then
   Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
+fi
+
+# ── 6b. Early exit on --no-push: local work is done; leave the commit unpushed. ──
+
+if $NO_PUSH; then
+  echo -e "${YELLOW}[NO PUSH] Committed locally. Skipping tag, push, mirror, wiki, and deploy.${NC}"
+  exit 0
 fi
 
 # ── 6a/7. Tag + push origin — run whenever local main has unpushed commits,
