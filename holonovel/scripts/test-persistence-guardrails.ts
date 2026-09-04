@@ -112,7 +112,7 @@ async function main() {
       await call(proc, "scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
-      for (const tool of ["scene (set)", "story (record)", "countdown (set)", "note (set)", "character (personality)", "npc (create)", "vow (set)"]) {
+      for (const tool of ["scene (set)", "story (record)", "countdown (set)", "note (set)", "character (personality)", "npc (create)", "vow (set)", "fate (aspect)", "ironsworn (momentum)", "forged (stress)"]) {
         if (!b.includes(tool)) throw new Error(`missing persist tool ${tool}`);
       }
     });
@@ -122,6 +122,16 @@ async function main() {
       const recap = await call(proc, "session", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
       await call(proc, "note", { action: "set",  key: "commit-note", content: "v" });
+      const recap2 = await call(proc, "session", { action: "recap" });
+      assertNotContains(recap2, "[uncommitted-roll]");
+    });
+
+    await test("T473/REQ-404: base-capability roll names its commit tool", async () => {
+      await call(proc, "forged", { action: "action_roll",  name: "Skirmish", dice: 2, seed: "x1" });
+      const recap = await call(proc, "session", { action: "recap" });
+      assertContains(recap, "[uncommitted-roll]");
+      assertContains(recap, "forged (action: stress)");
+      await call(proc, "forged", { action: "stress",  op: "mark", entity_id: "pc_1", amount: 1 });
       const recap2 = await call(proc, "session", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });

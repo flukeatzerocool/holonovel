@@ -252,7 +252,14 @@ remaining items before committing:
       groups or the alias map; behavioral-config annotations name a P-rule
       backed by a §7.7.1a row naming that config
 - [ ] New Novel-persisted state is a §7.7 property group or a declared
-      non-coupling surface (Appendix M)
+      non-coupling surface (Appendix M); a non-property-group Novel-tier
+      surface is named in the §7.7.0 class contract and the
+      clone/checkpoint/archive enumerations (REQ-240a/241a/334b)
+- [ ] New tools' mutations are audited (REQ-040a), their dice-resolution
+      actions tracked as significant rolls (REQ-174) and covered by the
+      roll-to-commit marker (REQ-404); new state surfaces are named in the
+      §5.19 guardrail enumerations (REQ-400/407); new tools are classified in
+      the DECISIONS.md gate-classification table (REQ-137a)
 - [ ] `holonovel/AGENTS.md` tool-surface list and counts match `tools/list`
 - [ ] README license footer lists any newly borrowed mechanics source
 

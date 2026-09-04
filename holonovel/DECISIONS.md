@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 99c80a9c31a8470565fb4f3a4a7040e537e14184b27df847efabede9c63ab2f0
+**Spec hash:** 456a8c8b7dd08f1b79904341596533d9a56e0b16de8a13b84ed7c3101fc953d2
+
+### Holonovel Spec Update — 2026-09-04 (content-integration completion)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — base-capability and NPC-mind content integrated into the remaining whole-state surfaces. (1) Audit wiring (REQ-040a): every fate/ironsworn/forged mutating op and roll action now records an audit entry, closing the silent gap in `audit://novel`, `session (action: compress)`, and `audit_delta` subscriptions. (2) NPC mind is contracted as Novel-tier state: a §7.7.0 class contract plus enumeration clauses in the clone/checkpoint/archive REQ bodies (REQ-240a/241a/334b/075f); T278/T279/T381 exercise NPC-mind preservation. (3) The significant-roll criterion (REQ-174a) and roll-to-commit marker (REQ-404) now name the base-capability dice-resolution actions, with uncommitted-roll markers pushed per consequence-carrying roll. (4) The §5.19 persistence directive and never-truncated tool list (REQ-400/407) include the base-capability state tools. (5) Appendix M + the pre-commit checklist gain the audit/guardrail/lifecycle delta-integration items. Recorded (not fixed): the DECISIONS.md gate-classification table (REQ-137a) is absent and T151 unimplemented — Closed-P3 in the review register. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 295, E 110); build-order complete (package_format unchanged `8be21bb36555…`, data_format advanced `2ea28e527863…` → `daff3d95da3b…`); root + holonovel typecheck 0 errors; holonovel test:all green (persistence 25/25 incl. NPC-mind clone/archive, backfill 64/64 incl. NPC-mind checkpoint revert, guardrails 12/12 incl. base-capability roll-to-commit + persist-tools, fate 7/7 incl. audit coverage, ironsworn 4/4, forged 5/5, competitive-gaps 12/12, tool-definitions 6/6) |
+| Follow-up | deployed instance: run `migrate-user-data` to re-stamp Novels written under the prior data-format fingerprint (inert `[data-stale]` flags until then, REQ-423) |
 
 ### Holonovel Spec Update — 2026-09-04 (Novel save-file integration)
 
