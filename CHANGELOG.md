@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-04 — Wiki auto-refresh from spec via markers
+
+- The wiki and README footer now refresh from the spec on every
+  `push-pipeline.sh` run: `scripts/cross-property-couple.ts` injection is
+  idempotent (the `<!-- @spec:NAME -->` marker persists and only its value is
+  swapped when it differs), and the property set gained `req_count` (canonical
+  405 base REQs), plus `tool_count`/`resource_count`/`prompt_count` parsed from
+  `holonovel/AGENTS.md`'s T511-gated surface line.
+- Wiki pages now carry `@spec` markers for the spec-derived facts that had gone
+  stale: Home (REQ count, gate list, tool/resource/prompt counts), Tools
+  (counts), Spec-Contributing (line count, REQ count, gate list), and Glossary
+  (line count); footers and the README "Last updated" date render the version
+  date.
+- `Tools.md` catalog corrected to the live surface: added `fate`,
+  `ironsworn`, and `forged` tool groups; `world` gained `generate` (REQ-431);
+  `session` gained `subscribe` (REQ-433).
+- `scripts/push-pipeline.sh` dry-run now snapshots and restores the wiki repo's
+  working tree alongside the tracked state files, so `--dry-run` leaves no wiki
+  edits behind.
+
 ## 2026-09-04 — Content-integration completion: audit, NPC-mind lifecycle, recap/guardrail surfaces
 
 - Base-capability mutations and rolls are now audited (REQ-040a): every

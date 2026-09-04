@@ -411,4 +411,4 @@ License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
 if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
 BitD SRD (CC BY 3.0, John Harper), Ironsworn SRD (CC BY 4.0, Shawn Tomkin),
 Fate SRD (CC BY 3.0, Evil Hat Productions).
-[RSS](https://git.gay/flukeatzerocool/Holonovel). Last updated: 2026-08-29.
+[RSS](https://git.gay/flukeatzerocool/Holonovel). Last updated: <!-- @spec:date -->2026-09-04.
