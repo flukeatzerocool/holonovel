@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** b67ef1a76aa71e824523ae8de941f72c9558834763999850a1facc3aa7cd6833
+**Spec hash:** 99c80a9c31a8470565fb4f3a4a7040e537e14184b27df847efabede9c63ab2f0
+
+### Holonovel Spec Update — 2026-09-04 (Novel save-file integration)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — Novel save-file integration repair (spec-review SR-1…SR-7): host base-capability state (REQ-434–443) is now contracted as Novel-tier state included in clone (REQ-240a), checkpoint snapshots (REQ-241a), archive/unarchive (REQ-334b), and interchange, via a §7.7.0 class-contract sentence plus REQ-body enumeration clauses; the §7.7 tier table names the base-capability and NPC-mind surfaces. The stale `novelToJSONState` serializer in `holonovel/src/index.ts` gained `fate`/`ironsworn`/`forged`, fixing clone and checkpoint_restore silently dropping base-capability state. REQ-088d/092d end-of-life wording reconciled to the `.trash/` retention model (REQ-117, REQ-238); REQ-092b/c + REQ-238b backup naming swept to the `.bak.1..N` chain; REQ-423 data-format fingerprint scope widened to §5.6 + §5.21–§5.23 (NPC-mind and base-capability shapes now advance the fingerprint); REQ-088f names the `TTRPG_NOVEL` resolution key (internal slug via the REQ-065 registry) and REQ-088h2's criterion names the misnamed-file case; the constitution Novels row lists archive/unarchive + genre. Tests T159/T278/T279/T381 catalogue rows and harness assertions now exercise base-capability preservation. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 295, E 110); full `check` 0 errors (validate:sdd 0 errors, validate-readme 0 errors, script-discipline PASS); `validate:sdd --impl-audit=strict` 0 errors; build-order complete (package_format unchanged `8be21bb36555…`, data_format advanced `ee985fb7781f…` → `2ea28e527863…`); holonovel typecheck 0 errors; test:persistence 25/25, test:backfill 64/64 |
+| Follow-up | deployed instance: run `migrate-user-data` to re-stamp Novels written under the prior data-format fingerprint (inert `[data-stale]` flags until then, REQ-423) |
 
 ### Holonovel Spec Update — 2026-09-04 (integration repair)
 
