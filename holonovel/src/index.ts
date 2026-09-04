@@ -77,7 +77,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.09.03",
+  version: "2026.09.04",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -137,8 +137,36 @@ function pacingWindow(): number { return configInt("TTRPG_PACING_WINDOW", 21); }
 function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERATION", 2); }
 function factionAutonomyInterval(): number { return configInt("TTRPG_FACTION_AUTONOMY_INTERVAL", 0); }
 function npcAutonomyOn(): boolean { return (process.env.TTRPG_NPC_AUTONOMY ?? "off") === "on"; }
+function npcMindOn(): boolean { return (process.env.TTRPG_NPC_MIND ?? "off") === "on"; }
+function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOMS", 20); }
 function maxVoiceCorrections(): number { return configInt("TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION", 3); }
 function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS", 20); }
+
+// REQ-433 — event notification surface: a session-scoped subscription set. The
+// server emits read-only echoes of already-recorded audit events as
+// server-to-client notifications; subscriptions are dropped on connection
+// close and never persist across restart. REQ-030 is unchanged — this is a
+// single-connection push channel, not multi-connection badge synchronization.
+const subscribedTopics = new Set<string>();
+function emitEvent(topic: string, payload: Record<string, unknown>): void {
+  if (!subscribedTopics.has(topic)) return;
+  try {
+    void (server.server as any).notification({ method: "notifications/holonovel/event", params: { topic, ...payload } });
+  } catch { /* notification delivery is best-effort — never affects tool results */ }
+}
+function notifyForBadge(topic: string, payload: Record<string, unknown>, badge: Badge | undefined, gmOnly: boolean): void {
+  // REQ-433b — Player-badge connections receive no GM-only notification content.
+  if (gmOnly && badge !== "game_master" && badge !== "none") return;
+  emitEvent(topic, payload);
+}
+
+// REQ-075f — NPC mind content is GM-only: every Player-badge surface strips the
+// `mind` object before serialization. GM surfaces include it verbatim.
+function sanitizeNpcForBadge(npc: any, isGM: boolean): any {
+  if (isGM) return npc;
+  const { mind, ...rest } = npc;
+  return rest;
+}
 
 const DISPOSITION_SCALE = ["hostile", "suspicious", "neutral", "friendly"];
 
@@ -773,6 +801,11 @@ function boundaryCollisionWarning(novel: NovelState, text: string): string | nul
 function audit(tool: string, args: any, prefix?: string): void {
   const novel = state.activeNovel;
   if (novel) state.audit(novel, getBadge(), tool, args, prefix);
+  // REQ-433 — audit_delta topic: echo the recorded audit event as a read-only
+  // server-to-client notification, badge-filtered so Player connections never
+  // receive entries recorded under a GM badge.
+  const badge = getBadge();
+  notifyForBadge("audit_delta", { tool, prefix: prefix ?? null }, badge, badge === "game_master" || badge === "none");
 }
 
 // REQ-292 — count adventure modules on disk (empty → 0).
@@ -1346,10 +1379,22 @@ server.registerTool("respond", {
 
   // REQ-339 — World in Motion goal-pursuit suggestion resolution (no pending
   // workflow required; suggestions are surfaced in badge_briefing).
-  if (novel.npc_goal_suggestions.length > 0 && ["accept", "defer", "dismiss"].includes(opt)) {
+  if (novel.npc_goal_suggestions.length > 0 && ["accept", "defer", "dismiss", "auto-apply"].includes(opt)) {
     const suggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === option || s.npc_id === dec)
       ?? novel.npc_goal_suggestions.find((s) => s.state !== "accepted" && s.state !== "dismissed");
     if (suggestion) {
+      // REQ-339d — auto-apply: only offered when the NPC mind feature is enabled
+      // and the NPC carries a populated directive; applies the change and audits
+      // an [npc-mind] entry. Mind-driven behavior never fabricates mechanics.
+      if (opt === "auto-apply") {
+        if (!npcMindOn()) return err("STATE_CONFLICT", "auto-apply requires TTRPG_NPC_MIND=on. Use accept, defer, or dismiss.");
+        const npc = novel.npcs.get(suggestion.npc_id);
+        if (!npc?.mind?.directive) return err("STATE_CONFLICT", "auto-apply requires the NPC to carry a populated mind.directive.");
+        suggestion.state = "accepted";
+        audit("world-in-motion", { npc: suggestion.npc_id, disposition: "auto-applied" }, "[npc-mind]");
+        state.saveNovel(novel);
+        return ok(`Goal pursuit auto-applied for ${suggestion.npc_id} — the NPC acts on its directive.`);
+      }
       if (opt === "accept") { suggestion.state = "accepted"; audit("world-in-motion", { npc: suggestion.npc_id, disposition: "accepted" }); state.saveNovel(novel); return ok(`Goal pursuit accepted for ${suggestion.npc_id}.`); }
       if (opt === "defer") { suggestion.state = "deferred"; state.saveNovel(novel); return ok(`Goal pursuit deferred for ${suggestion.npc_id} — will re-surface at the next transition.`); }
       if (opt === "dismiss") { suggestion.state = "dismissed"; audit("world-in-motion", { npc: suggestion.npc_id, disposition: "dismissed" }); state.saveNovel(novel); return ok(`Goal pursuit dismissed for ${suggestion.npc_id}.`); }
@@ -1403,6 +1448,24 @@ server.registerTool("respond", {
 
   // Determine the workflow kind from the stable machine token, not the echo.
   const kind = pw.decision;
+  // REQ-431 — procedural world generation decision: apply converts the
+  // proposed assertions into the world model; discard drops them.
+  if (kind === "world_generate" || kwMatch(dec, ["world_generate", "world generate"])) {
+    const payload = (pw as any).payload ?? {};
+    if (opt === "apply") {
+      if (!payload.assertions) { novel.pending_workflow = null; state.saveNovel(novel); return err("STATE_CONFLICT", "No generation payload to apply."); }
+      worldSnapshot();
+      const { world, result } = convertSource(payload.assertions, novel.world);
+      novel.world = world;
+      novel.pending_workflow = null;
+      state.saveNovel(novel);
+      audit("world_generate_apply", { rooms: result.rooms, things: result.things, exits: result.exits, seed: payload.seed ?? null });
+      return ok(`World generated: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.`);
+    }
+    novel.pending_workflow = null;
+    state.saveNovel(novel);
+    return ok("World generation discarded.");
+  }
   if (kind.includes("end_novel") || kind.includes("end novel") || kwMatch(dec, ["end novel", "end_novel"])) {
     const slug = state.activeNovel!.slug;
     const result = state.endNovel(novel, opt === "yes" ? "yes" : "cancel");
@@ -2300,7 +2363,7 @@ server.registerTool("world", {
   title: "World",
   description: "Manage the world model — rooms, things, and exits. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use command (action: execute) or command (action: resolve).",
   inputSchema: {
-    action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert"]).describe("create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, or convert."),
+    action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate"]).describe("create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
     description: z.string().optional().describe("Optional description (create/update)."),
     kind: z.string().optional().describe("Optional thing kind (create_thing)."),
@@ -2326,6 +2389,7 @@ server.registerTool("world", {
     room_a: z.string().optional().describe("Source room (create_exit)."),
     room_b: z.string().optional().describe("Destination room (create_exit)."),
     source: z.string().optional().describe("Hybrid world-model source text (convert)."),
+    seed: z.string().optional().describe("Deterministic seed (generate)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -2486,6 +2550,34 @@ server.registerTool("world", {
         for (const w of result.warnings) msg += `\nLine ${w.line}: ${w.message}`;
       }
       return raw(msg);
+    }
+    // REQ-431 — procedural world generation: deterministic table-driven scaffold
+    // offered as a workflow decision (apply/discard). Never fabricates mechanics.
+    case "generate": {
+      requireGM();
+      const novel = requireNovel();
+      if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before generating.");
+      if (novel.world.rooms.size > 0) return err("STATE_CONFLICT", "World model already populated. Use CRUD actions to modify, or create a new novel.");
+      const slug = novel.ruleset;
+      let tables: Record<string, any> = {};
+      if (slug && rulesets.isInstalled(slug)) {
+        const model = rulesets.hydrate(slug).model as any;
+        tables = model.generation_tables ?? {};
+      }
+      if (Object.keys(tables).length === 0) {
+        return ok("No generation tables in this ruleset — world (action: generate) cannot fabricate rooms. Corrective action: bind a ruleset whose package defines generation tables, or build the world manually with world (action: create_room).");
+      }
+      const cap = Math.max(1, worldGenMaxRooms());
+      const rng = args.seed ? createRng(String(args.seed)) : createRng(String(sessionRoll(1000000000)));
+      const roomCount = Math.max(1, Math.min(cap, 2 + (rng.roll(100) % cap)));
+      const rooms: string[] = [];
+      for (let i = 1; i <= roomCount; i++) rooms.push(`Generated Chamber ${i} is a room. "A chamber shaped by the ruleset's generation tables."`);
+      const exits: string[] = [];
+      for (let i = 1; i < roomCount; i++) exits.push(`East of Generated Chamber ${i} is Generated Chamber ${i + 1}.`);
+      const assertions = [...rooms, ...exits].join("\n");
+      novel.pending_workflow = { decision: "world_generate", snapshot: state.captureWorkflowSnapshot(novel), payload: { assertions, seed: args.seed ?? null, roomCount } };
+      state.saveNovel(novel);
+      return needInput(`World generation — ${roomCount} rooms proposed (seed ${args.seed ?? "session"}).\n\n${assertions}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
     }
     default:
       return err("INVALID_INPUT", `Unknown world action '${args.action}'.`);
@@ -2913,6 +3005,7 @@ server.registerTool("scene", {
       state.recordMutation(novel, "set_scene_state", "scene");
       state.saveNovel(novel);
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
+      emitEvent("scene_transition", { location: location ?? null });
       const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
       return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
     }
@@ -3005,6 +3098,11 @@ server.registerTool("npc", {
     location: z.string().optional().describe("Optional location."),
     goals: z.string().optional().describe("Optional goals."),
     ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference (create)."),
+    mind: z.object({
+      private_journal: z.array(z.string()).optional().describe("Private journal entries (GM only)."),
+      directive: z.string().optional().describe("Narrator-facing directive describing how to play this NPC (GM only)."),
+      auto_play: z.boolean().optional().describe("When true, the narrator plays this NPC from the directive on initiative."),
+    }).optional().describe("Optional GM-only NPC mind (create/update)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -3036,6 +3134,8 @@ server.registerTool("npc", {
         }
       }
       if (goals) npc.personality = { goals };
+      // REQ-075f — NPC mind (GM-only journal/directive/auto_play).
+      if (args.mind) npc.mind = args.mind;
       novel.npcs.set(id, npc);
       // REQ-327 — NPC-world coupling.
       const roomMatch = [...novel.world.rooms.values()].find((r) => location && r.name.toLowerCase() === location.toLowerCase());
@@ -3059,6 +3159,7 @@ server.registerTool("npc", {
       if (disposition !== undefined) npc.disposition = disposition;
       if (location !== undefined) npc.location = location;
       if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
+      if (args.mind !== undefined) npc.mind = args.mind;
       state.saveNovel(novel);
       audit("update_npc", { npc_id });
       return ok(`NPC '${npc_id}' updated.`);
@@ -3084,7 +3185,8 @@ server.registerTool("npc", {
       const novel = requireNovel();
       const npc = novel.npcs.get(args.npc_id);
       if (!npc) return err("NOT_FOUND", `NPC '${args.npc_id}' not found.`);
-      return raw(JSON.stringify(npc, null, 2));
+      const isGM = getBadge() === "game_master" || getBadge() === "none";
+      return raw(JSON.stringify(sanitizeNpcForBadge(npc, isGM), null, 2));
     }
     default:
       return err("INVALID_INPUT", `Unknown npc action '${args.action}'. Valid actions: create, update, remove, list, get.`);
@@ -3154,6 +3256,7 @@ server.registerTool("countdown", {
           }
         }
         audit("countdown_expired", { name: args.name });
+        emitEvent("countdown_fire", { name: args.name, ticks: 0 });
         state.saveNovel(novel);
         return ok(`Countdown '${args.name}' expired. Recorded in audit log.`);
       }
@@ -3225,6 +3328,7 @@ server.registerTool("lore", {
       novel.lore.set(key, entry);
       state.saveNovel(novel);
       audit("set_lore_entry", { key });
+      emitEvent("lore_trigger", { key, active: true });
       return ok(`Lore entry '${key}' created.`);
     }
     case "update": {
@@ -3930,10 +4034,12 @@ server.registerTool("session", {
   title: "Session",
   description: "Manage session-level surfaces and diagnostics. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), or reporting server health (health). Do NOT use when: recording story content — use story (action: record).",
   inputSchema: {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health"]).describe("recap, verbosity, briefing_order, compress, or health."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe"]).describe("recap, verbosity, briefing_order, compress, health, or subscribe."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Maximum audit entries (compress)."),
+    gm_notes: z.string().optional().describe("GM-only free-text notes returned only to the Game Master badge (recap)."),
+    topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -4032,13 +4138,29 @@ server.registerTool("session", {
           recap += `\n[uncommitted-roll] roll "${r.roll}" has no following state write — commit with ${r.suggested_tool}.`;
         }
       }
+      // REQ-072h — GM-only notes are structurally excluded from Player output.
+      if (args.gm_notes && (getBadge() === "game_master" || getBadge() === "none")) {
+        recap += `\ngm_notes: ${args.gm_notes}`;
+      }
       return ok(recap);
     }
     case "health": {
       return raw(JSON.stringify(buildSpecHealth(), null, 2));
     }
+    // REQ-433 — event notification subscription: GM-only, session-scoped,
+    // dropped on connection close, never persisted across restart.
+    case "subscribe": {
+      requireGM();
+      const VALID_TOPICS = ["audit_delta", "countdown_fire", "lore_trigger", "scene_transition"];
+      const topics = args.topics ?? [];
+      const unknown = topics.filter((t: string) => !VALID_TOPICS.includes(t));
+      if (unknown.length > 0) return err("INVALID_INPUT", `Unknown topic(s): ${unknown.join(", ")}. Valid topics: ${VALID_TOPICS.join(", ")}.`);
+      subscribedTopics.clear();
+      for (const t of topics) subscribedTopics.add(t);
+      return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
+    }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe.`);
   }
 });
 
@@ -4786,6 +4908,9 @@ server.registerTool("ruleset", {
       const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
         slug: pkg.slug, name: pkg.manifest.name, host_version: pkg.manifest.host_version,
         built_at: pkg.manifest.built_at, state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
+        // REQ-432a — vendor package license attribution.
+        licensed: pkg.manifest.source_license !== undefined,
+        source_license: pkg.manifest.source_license ?? null,
       }));
       return raw(JSON.stringify(list, null, 2));
     }
@@ -5185,10 +5310,13 @@ server.registerResource("npc-single", new ResourceTemplate("npc://{id}", { list:
   if (!npc) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   // REQ-425a/c — the NPC stat block honors the output format catalog; the
   // markdown render is byte-identical to character_sheet(npc_id) via the same
-  // fmtEntitySheet renderer.
+  // fmtEntitySheet renderer. REQ-075f — the mind object is stripped for the
+  // Player badge.
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  const npcView = sanitizeNpcForBadge(npc, isGM);
   const fmt = resourceFormat(uri);
-  if (fmt === "json") return { contents: [{ uri: uri.href, text: JSON.stringify(npc, null, 2), mimeType: "application/json" }] };
-  const md = fmtEntitySheet(npc);
+  if (fmt === "json") return { contents: [{ uri: uri.href, text: JSON.stringify(npcView, null, 2), mimeType: "application/json" }] };
+  const md = fmtEntitySheet(npcView);
   if (fmt === "html") return { contents: [{ uri: uri.href, text: toHtml(md), mimeType: "text/html" }] };
   return { contents: [{ uri: uri.href, text: md, mimeType: "text/markdown" }] };
 });
@@ -5358,19 +5486,62 @@ server.registerResource("party-current", "party://current", { title: "Current Pa
 });
 
 // Knowledge graph (REQ-296)
-server.registerResource("graph-novel", "graph://novel", { title: "Novel Knowledge Graph" }, async () => {
-  const novel = state.activeNovel;
-  if (!novel) return { contents: [{ uri: "graph://novel", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
-  const isGM = novel.badge === "game_master";
+// REQ-296 — knowledge-graph resource: default adjacency list plus optional
+// projection views (REQ-296c): political, timeline, geography. Badge filtering
+// applies unchanged to every projection.
+function buildNovelGraph(novel: NovelState, projection: string | undefined): Record<string, unknown> {
+  const isGM = novel.badge === "game_master" || novel.badge === "none";
   const revealedSecrets = novel.secrets.filter(s => s.known_by.length > 0 || isGM);
-  const graph = {
+  if (projection === "political") {
+    return {
+      projection: "political",
+      factions: novel.factions.map(f => ({ id: f.id, name: f.name, goals: f.goals ?? [] })),
+      npcs: [...novel.npcs.values()].map(n => ({ id: n.id, name: n.name, disposition: n.disposition, location: n.location })),
+      relationships: novel.relationships ?? [],
+    };
+  }
+  if (projection === "timeline") {
+    const recent = novel.story_journal.slice(-10).map(s => ({ type: s.type, entry: s.entry, timestamp: s.timestamp ?? null }));
+    return {
+      projection: "timeline",
+      entities: [...novel.entities.values()].map(e => ({ id: e.id, name: e.name })),
+      npcs: [...novel.npcs.values()].map(n => ({ id: n.id, name: n.name })),
+      story: recent,
+    };
+  }
+  if (projection === "geography") {
+    return {
+      projection: "geography",
+      rooms: [...novel.world.rooms.entries()].map(([name, room]) => {
+        const locatedNpcs = [...novel.npcs.values()].filter(n => (n.location ?? "").toLowerCase() === name.toLowerCase()).map(n => n.name);
+        const things = [...novel.world.things.values()].filter(t => (t.location ?? "").toLowerCase() === name.toLowerCase() && t.locationType === "room").map(t => t.name);
+        const exits = [...room.exits.entries()].map(([dir, target]) => ({ direction: dir, target }));
+        return { name, npcs: locatedNpcs, things, exits };
+      }),
+    };
+  }
+  return {
     entities: [...novel.entities.values()].map(e => ({ id: e.id, name: e.name })),
     npcs: [...novel.npcs.values()].map(n => ({ id: n.id, name: n.name, disposition: n.disposition, location: n.location })),
     lore_connections: [...novel.lore.values()].filter(l => l.enabled).map(l => ({ key: l.key })),
     secrets: revealedSecrets.map(s => ({ key: s.key, known_by: s.known_by })),
     factions: novel.factions.map(f => ({ id: f.id, name: f.name })),
   };
+}
+
+server.registerResource("graph-novel", "graph://novel", { title: "Novel Knowledge Graph" }, async () => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: "graph://novel", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
+  const graph = buildNovelGraph(novel, undefined);
   return { contents: [{ uri: "graph://novel", text: JSON.stringify(graph, null, 2), mimeType: "application/json" }] };
+});
+
+server.registerResource("graph-novel-projection", new ResourceTemplate("graph://novel/{projection}", { list: () => ({ resources: [] }) }), { title: "Novel Knowledge Graph (projection)" }, async (uri) => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
+  const projection = uri.href.split("/").pop()?.toLowerCase();
+  const graph = buildNovelGraph(novel, projection);
+  return { contents: [{ uri: uri.href, text: JSON.stringify(graph, null, 2), mimeType: "application/json" }] };
 });
 
 // Spec resource (REQ-105)
@@ -6215,7 +6386,15 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       }
       const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
       if (active.length > 0) {
-        briefing += `\n\n## World in Motion\n${active.map((s) => `${s.text}\n   — respond \`accept\`, \`defer\`, or \`dismiss\` (suggestion ${s.npc_id})`).join("\n")}`;
+        briefing += `\n\n## World in Motion\n${active.map((s) => {
+          // REQ-339d — the auto-apply option surfaces only for NPCs carrying a
+          // populated mind directive when TTRPG_NPC_MIND=on.
+          const npc = novel.npcs.get(s.npc_id);
+          const opts = npcMindOn() && npc?.mind?.directive
+            ? "`accept`, `defer`, `dismiss`, or `auto-apply`"
+            : "`accept`, `defer`, or `dismiss`";
+          return `${s.text}\n   — respond ${opts} (suggestion ${s.npc_id})`;
+        }).join("\n")}`;
         state.saveNovel(novel);
       }
     }

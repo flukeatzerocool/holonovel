@@ -24,7 +24,24 @@ export interface RulesetManifest {
   content_hash: string;
   built_at: string;
   counts: Record<string, number>;
+  // REQ-432 — vendor package certification: a package built from an Appendix U
+  // content source records its license here; the host flags any declared
+  // license not present in Appendix U as [license-unattributed].
+  source_license?: string;
 }
+
+// REQ-432 — the Appendix U license values a vendor package may declare. A
+// package declaring a source_license outside this set is held inactive with a
+// [license-unattributed] flag.
+export const APPENDIX_U_LICENSES: ReadonlySet<string> = new Set([
+  "CC BY 4.0",
+  "CC BY 4.0 + OGL 1.0a",
+  "CC BY 3.0",
+  "CC BY-SA 4.0",
+  "Artistic License 2.0",
+  "MIT",
+  "OGL 1.0a",
+]);
 
 export interface RulesetIndexEntry {
   id: string;
@@ -183,6 +200,13 @@ export class RulesetManager {
           // REQ-420 — the flag is surfaced in spec_health naming the slug and
           // both fingerprints, not only on stderr.
           this.incompatible.set(slug, { slug, reason: `[package-incompatible] ${reason}` });
+          errors.push(`${slug}: ${this.incompatible.get(slug)!.reason}`);
+          continue;
+        }
+        // REQ-432b — a vendor package whose declared license is not recorded in
+        // Appendix U is flagged [license-unattributed] and held inactive.
+        if (manifest.source_license !== undefined && !APPENDIX_U_LICENSES.has(manifest.source_license)) {
+          this.incompatible.set(slug, { slug, reason: `[license-unattributed] license '${manifest.source_license}' is not recorded in Appendix U` });
           errors.push(`${slug}: ${this.incompatible.get(slug)!.reason}`);
           continue;
         }
