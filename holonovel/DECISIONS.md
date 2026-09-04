@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 5d02c2b29b9c1d83a243bfec205e0e92046da7e83146aa8e63b5df9d0662c5cd
+**Spec hash:** a34b112bc4f1044f03914ad32f49df4cd8db535dca3b40b372ce1a8c4ae42aad
+
+### Holonovel Spec Update — 2026-09-04 (Ironsworn + Forged in the Dark base capabilities)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — Ironsworn and Blades in the Dark complete their base-capability adoption alongside Fate: new §5.22 Ironsworn Base Capabilities (REQ-438 momentum; REQ-439 move framework — d6 action die plus adds vs two d10 challenge dice; REQ-440 progress tracks) and §5.23 Forged in the Dark Base Capabilities (REQ-441 action roll with position/effect; REQ-442 stress/trauma + resistance; REQ-443 downtime). REQ-429 tool budget 26 → 28 (`ironsworn`, `forged` tools); Appendix P entries for Ironsworn momentum/move/progress and BitD action roll/stress/downtime; Appendix E/F rows REQ-438–443 + T524–T529. Implementation (`holonovel/src`): `ironsworn` and `forged` tools in `index.ts`; `IronswornState` + `ForgedState` + constants in `core/state.ts` persisted with the Novel. README footer gains the Ironsworn SRD row (previously omitted despite vows/oracle being borrowed). |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 295, E 110); full `check` 0 errors; build-order complete (package_format unchanged `8be21bb3…`); typecheck 0 errors (root + holonovel); holonovel test:all green incl. new test-ironsworn (4/4, T524–T526) + test-forged (5/5, T527–T529) and tool-definitions (6/6, 28-tool surface) |
 
 ### Holonovel Spec Update — 2026-09-04 (Fate base capabilities)
 
