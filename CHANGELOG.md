@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-04 — Fate base capabilities
+
+- Fate joins Ironsworn (vows, oracle) and Blades in the Dark (clocks) as a
+  base server capability — a `fate` tool ships Fudge dice rolls (`dF`),
+  aspects, Fate points, and stress/consequences, all persisted with the
+  Novel and independent of any bound ruleset. (REQ-434, REQ-435, REQ-436,
+  REQ-437)
+- The tool budget grows from 25 to 26 to admit the `fate` tool, and the
+  README license footer records the Fate SRD (CC BY 3.0, Evil Hat
+  Productions). (REQ-429)
+
 ## 2026-09-04 — Competitive-gap feature wave
 
 - NPCs now carry a Game-Master-only "mind" — a private journal, a play

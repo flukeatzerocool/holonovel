@@ -105,15 +105,35 @@ export function computeContentHash(
 
 // NdM[+|-X] dice parser. Returns total, per-die results, and modifier.
 // Accepts an optional seed for a deterministic isolated draw (REQ-050).
+// REQ-434 — also accepts Fudge dice: `NdF` (or bare `dF`) rolls N Fudge dice,
+// each face drawn from a d6 and mapped 1–2 → −1, 3–4 → 0, 5–6 → +1.
 export function rollDice(notation: string, seed?: string): RollResult {
-  const m = String(notation).trim().match(/^(\d+)d(\d+)(?:([+-])(\d+))?$/i);
+  const trimmed = String(notation).trim();
+  const fudge = trimmed.match(/^(\d+)?d[fF](?:([+-])(\d+))?$/);
+  if (fudge) {
+    const count = fudge[1] ? parseInt(fudge[1], 10) : 4;
+    if (count < 1 || count > 1000) {
+      throw new Error(`Invalid Fudge dice notation '${trimmed}'.`);
+    }
+    const dice: number[] = [];
+    const rng = seed !== undefined ? createRng(seed) : null;
+    for (let i = 0; i < count; i++) {
+      const face = rng ? rng.roll(6) : sessionRoll(6);
+      dice.push(face <= 2 ? -1 : face <= 4 ? 0 : 1);
+    }
+    const sign = fudge[2] === "-" ? -1 : 1;
+    const modifier = fudge[3] ? sign * parseInt(fudge[3], 10) : 0;
+    const total = dice.reduce((a, b) => a + b, 0) + modifier;
+    return { total, dice, modifier, notation: trimmed };
+  }
+  const m = trimmed.match(/^(\d+)d(\d+)(?:([+-])(\d+))?$/i);
   if (!m) {
-    throw new Error(`Invalid dice notation '${notation}'. Use NdM, e.g. 1d20, 3d6, 4d6+2.`);
+    throw new Error(`Invalid dice notation '${trimmed}'. Use NdM, e.g. 1d20, 3d6, 4d6+2, or dF for Fudge dice.`);
   }
   const count = parseInt(m[1], 10);
   const sides = parseInt(m[2], 10);
   if (count < 1 || count > 1000 || sides < 2 || sides > 100000) {
-    throw new Error(`Dice notation '${notation}' out of range.`);
+    throw new Error(`Dice notation '${trimmed}' out of range.`);
   }
   const dice: number[] = [];
   if (seed !== undefined) {
@@ -125,7 +145,7 @@ export function rollDice(notation: string, seed?: string): RollResult {
   const sign = m[3] === "-" ? -1 : 1;
   const modifier = m[4] ? sign * parseInt(m[4], 10) : 0;
   const total = dice.reduce((a, b) => a + b, 0) + modifier;
-  return { total, dice, modifier, notation: notation.trim() };
+  return { total, dice, modifier, notation: trimmed };
 }
 
 // REQ-430 — ruleset tool-quality conformance: every package tool schema SHALL

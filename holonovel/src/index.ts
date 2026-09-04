@@ -15,7 +15,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH } from "./core/state.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -91,7 +91,7 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
 // violation_type: boundary) in the Novel audit log before propagating.
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
-// entity type within a twenty-five-tool budget; every persisted type has a
+// entity type within a twenty-six-tool budget; every persisted type has a
 // list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -1083,6 +1083,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Relationships": ["relationship"],
   "Vows": ["vow"],
   "Countdowns": ["countdown"],
+  "Fate": ["fate"],
   "Lore": ["lore"],
   "Story Journal": ["story"],
   "Notes": ["note"],
@@ -1096,7 +1097,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 const GMToolsSet = new Set([
   "scene", "combat", "condition", "npc", "faction", "relationship", "vow",
   "countdown", "lore", "story", "note", "world", "adventure", "novel",
-  "synthesis", "codex", "ruleset", "session",
+  "synthesis", "codex", "ruleset", "session", "fate",
 ]);
 
 function isGMTool(name: string): boolean {
@@ -3745,6 +3746,158 @@ server.registerTool("vow", {
   }
 });
 
+// Fate (REQ-434 through REQ-437) — consolidated roll/aspect/fate_point/stress
+// surface. Base capability: Fudge dice, aspects, Fate points, and stress are
+// Holonovel infrastructure (ruleset: null), never contingent on a bound package.
+server.registerTool("fate", {
+  title: "Fate",
+  description: "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or command (action: resolve).",
+  inputSchema: {
+    action: z.enum(["roll", "aspect", "fate_point", "stress"]).describe("roll, aspect, fate_point, or stress."),
+    dice: z.string().optional().describe("Fudge dice notation (roll), e.g. '4dF'; defaults to 4dF."),
+    skill: z.string().optional().describe("Skill name for the roll label (roll)."),
+    modifier: z.number().optional().describe("Skill rating added to the roll (roll)."),
+    difficulty: z.number().optional().describe("Opposition to beat (roll); defaults to 0."),
+    seed: z.string().optional().describe("Deterministic seed (roll)."),
+    op: z.string().optional().describe("Sub-operation: aspect (create, invoke, compel, remove, list), fate_point (spend, grant, refresh, list), or stress (mark, clear, list)."),
+    name: z.string().optional().describe("Aspect name (aspect); consequence label (stress)."),
+    target: z.string().optional().describe("Aspect target: 'scene' or an entity/NPC id (aspect); defaults to 'scene'."),
+    entity_id: z.string().optional().describe("Entity or NPC id (aspect/fate_point/stress)."),
+    amount: z.number().optional().describe("Fate points to spend or grant (fate_point); defaults to 1."),
+    track: z.enum(["physical", "mental"]).optional().describe("Stress track to mark or clear (stress)."),
+    shifts: z.number().optional().describe("Shifts to mark on a stress track (stress); defaults to 1."),
+    consequence: z.enum(["mild", "moderate", "severe"]).optional().describe("Consequence to record or clear (stress)."),
+  },
+}, async (args: any) => {
+  const isGM = () => { const b = getBadge(); return b === "game_master" || b === "none"; };
+  switch (args.action) {
+    case "roll": {
+      // REQ-434 — Fudge dice: dF notation, transparency, per-call seed.
+      requireNovel();
+      const notation = String(args.dice ?? "4dF");
+      const extra = Number(args.modifier ?? 0);
+      const difficulty = Number(args.difficulty ?? 0);
+      const label = args.skill ? `${args.skill} check` : notation;
+      let r = rollDice(notation, args.seed);
+      if (extra !== 0) r = { total: r.total + extra, dice: r.dice, modifier: r.modifier + extra, notation: r.notation };
+      const faces = r.dice.map((d) => (d > 0 ? `+${d}` : `${d}`)).join(" ");
+      const ladder = r.total >= difficulty + 3 ? "Succeed with style"
+        : r.total > difficulty ? "Succeed"
+        : r.total === difficulty ? "Tie"
+        : "Fail";
+      const sign = extra > 0 ? "+" : "−";
+      return ok(`${label} (${r.notation}${extra !== 0 ? ` ${sign} ${Math.abs(extra)}` : ""}) vs ${difficulty}\nfaces [ ${faces} ]  total ${r.total}  modifier ${sign}${Math.abs(extra)}\n${ladder}`);
+    }
+    case "aspect": {
+      // REQ-435 — Fate aspects: create/invoke/compel/remove/list.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") return raw(JSON.stringify(novel.fate.aspects, null, 2));
+      requireGM();
+      novelSnapshot();
+      const name = String(args.name ?? "").trim();
+      const target = String(args.target ?? "scene");
+      if (op === "create") {
+        if (!name) return err("INVALID_INPUT", "Aspect name is required to create an aspect.");
+        if (novel.fate.aspects.some((a) => a.name === name && a.target === target)) return err("STATE_CONFLICT", `Aspect '${name}' already exists on '${target}'.`);
+        novel.fate.aspects.push({ name, target });
+        state.recordMutation(novel, "create_aspect", "fate");
+        audit("create_aspect", { name, target });
+        return ok(`Aspect '${name}' created on '${target}'.`);
+      }
+      if (op === "remove") {
+        const idx = novel.fate.aspects.findIndex((a) => a.name === name && a.target === target);
+        if (idx === -1) return err("NOT_FOUND", `Aspect '${name}' on '${target}' not found.`);
+        novel.fate.aspects.splice(idx, 1);
+        state.recordMutation(novel, "remove_aspect", "fate");
+        return ok(`Aspect '${name}' removed.`);
+      }
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required to invoke or compel an aspect.");
+      if (op === "invoke") {
+        if (!novel.fate.aspects.some((a) => a.name === name)) return err("NOT_FOUND", `Aspect '${name}' not found.`);
+        const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        if (points < 1) return err("RULE_VIOLATION", `'${entity_id}' has no Fate points to invoke '${name}'.`);
+        novel.fate.fate_points[entity_id] = points - 1;
+        state.recordMutation(novel, "invoke_aspect", "fate");
+        return ok(`Invoked aspect '${name}' — +2 or a reroll. '${entity_id}' now has ${points - 1} Fate point(s).`);
+      }
+      if (op === "compel") {
+        const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        novel.fate.fate_points[entity_id] = points + 1;
+        state.recordMutation(novel, "compel_aspect", "fate");
+        return ok(`Compelled aspect '${name}' — '${entity_id}' gains one Fate point (now ${points + 1}).`);
+      }
+      return err("INVALID_INPUT", `Unknown aspect op '${op}'. Valid ops: create, invoke, compel, remove, list.`);
+    }
+    case "fate_point": {
+      // REQ-436 — Fate points: spend/grant/refresh/list per character.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") {
+        const rows = Object.entries(novel.fate.fate_points).map(([id, n]) => ({ entity_id: id, fate_points: n }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      requireGM();
+      novelSnapshot();
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      const amount = Math.max(1, Number(args.amount ?? 1));
+      if (op === "spend") {
+        const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        if (points < amount) return err("RULE_VIOLATION", `'${entity_id}' has ${points} Fate point(s), cannot spend ${amount}.`);
+        novel.fate.fate_points[entity_id] = points - amount;
+        state.recordMutation(novel, "spend_fate_point", "fate");
+        return ok(`'${entity_id}' spent ${amount} Fate point(s) (now ${points - amount}).`);
+      }
+      if (op === "grant") {
+        const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        novel.fate.fate_points[entity_id] = points + amount;
+        state.recordMutation(novel, "grant_fate_point", "fate");
+        return ok(`'${entity_id}' gained ${amount} Fate point(s) (now ${points + amount}).`);
+      }
+      if (op === "refresh") {
+        novel.fate.fate_points[entity_id] = FATE_REFRESH;
+        state.recordMutation(novel, "refresh_fate_point", "fate");
+        return ok(`'${entity_id}' refreshed to ${FATE_REFRESH} Fate points.`);
+      }
+      return err("INVALID_INPUT", `Unknown fate_point op '${op}'. Valid ops: spend, grant, refresh, list.`);
+    }
+    case "stress": {
+      // REQ-437 — stress & consequences: mark/clear/list physical and mental.
+      const novel = requireNovel();
+      const op = args.op ?? "list";
+      if (op === "list") {
+        const rows = Object.entries(novel.fate.stress).map(([id, s]) => ({ entity_id: id, physical: s.physical, mental: s.mental, consequences: s.consequences }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      requireGM();
+      novelSnapshot();
+      const entity_id = String(args.entity_id ?? "");
+      if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      const entry = novel.fate.stress[entity_id] ?? (novel.fate.stress[entity_id] = { physical: 0, mental: 0, consequences: [] });
+      if (op === "mark") {
+        if (args.track === "physical") entry.physical += Number(args.shifts ?? 1);
+        else if (args.track === "mental") entry.mental += Number(args.shifts ?? 1);
+        if (args.consequence) entry.consequences.push(args.consequence);
+        state.recordMutation(novel, "mark_stress", "fate");
+        return ok(`Stress on '${entity_id}': physical ${entry.physical}, mental ${entry.mental}, consequences [${entry.consequences.join(", ") || "none"}].`);
+      }
+      if (op === "clear") {
+        if (args.track === "physical") entry.physical = 0;
+        else if (args.track === "mental") entry.mental = 0;
+        else if (args.consequence) entry.consequences = entry.consequences.filter((c) => c !== args.consequence);
+        else { entry.physical = 0; entry.mental = 0; entry.consequences = []; }
+        state.recordMutation(novel, "clear_stress", "fate");
+        return ok(`Stress cleared on '${entity_id}': physical ${entry.physical}, mental ${entry.mental}, consequences [${entry.consequences.join(", ") || "none"}].`);
+      }
+      return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, list.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown fate action '${args.action}'. Valid actions: roll, aspect, fate_point, stress.`);
+  }
+});
+
 // Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
 server.registerTool("story", {
   title: "Story",
@@ -4016,6 +4169,7 @@ function loadNovelFromStateData(data: any): NovelState {
     codex_sources: data.codex_sources ?? [],
     player_synthesis: data.player_synthesis ?? {},
     campaign_memory: data.campaign_memory ?? [],
+    fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
   };
 }
 

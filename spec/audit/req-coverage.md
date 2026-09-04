@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-03
+Generated: 2026-09-04
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -53,10 +53,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
-| REQ-072 | Session recap (Part a1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261 | — |
+| REQ-072 | Session recap (Part a1) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T518 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T73, T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T130, T409 | — |
+| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T130, T409, T513 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
@@ -265,7 +265,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-292 | Adventure catalog (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T338 | — |
 | REQ-294 | Genre declaration | 5.9 Novel Persistence and Transport | C | T339 | — |
 | REQ-295 | Genre-filtered generation (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T340 | — |
-| REQ-296 | Knowledge-graph resource (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T341 | — |
+| REQ-296 | Knowledge-graph resource (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T341, T516 | — |
 | REQ-299 | Cross-model audit sufficiency | 6.5 Verification and convergence | E | — | — |
 | REQ-300 | Structured failure diagnostics | 6.6 The Pattern Buffer | E | — | — |
 | REQ-301 | Convergence loop audit trail | 6.6 The Pattern Buffer | E | — | — |
@@ -306,7 +306,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-336 | Dramatic pacing signal (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T386, T401 | implemented |
 | REQ-337 | Narrative arc visibility (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T387, T402 | implemented |
 | REQ-338 | Faction autonomous advancement (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T388, T401 | implemented |
-| REQ-339 | NPC goal pursuit (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T389, T401 | implemented |
+| REQ-339 | NPC goal pursuit (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T389, T401, T514 | implemented |
 | REQ-340 | Discovered consequences (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T390, T399 | implemented |
 | REQ-341 | Player-facing spatial surface (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T391 | implemented |
 | REQ-342 | Scene description from world-model state (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T392 | implemented |
@@ -398,4 +398,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-428 | Registry-published distribution | 5.18 Workflow Entry Points | E | T510 | — |
 | REQ-429 | Server-wide action-discriminator surface | 5.18 Workflow Entry Points | C | T511 | — |
 | REQ-430 | Ruleset tool-quality conformance | 5.17 Ruleset Packages | C | T512 | — |
+| REQ-431 | Procedural world generation (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T515 | — |
+| REQ-432 | Vendor ruleset package certification (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T517 | — |
+| REQ-433 | Event notification surface (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T519 | — |
+| REQ-434 | Fudge dice | 5.21 Fate Base Capabilities | C | T520 | — |
+| REQ-435 | Fate aspects | 5.21 Fate Base Capabilities | C | T521 | — |
+| REQ-436 | Fate points | 5.21 Fate Base Capabilities | C | T522 | — |
+| REQ-437 | Stress and consequences | 5.21 Fate Base Capabilities | C | T523 | — |
 

@@ -290,6 +290,25 @@ export interface ConditionState {
   condition_rounds: Record<string, number>;
 }
 
+// REQ-435/436/437 — Fate base capabilities: aspects (scene/entity/npc tags),
+// per-entity Fate points, and per-entity stress + consequences.
+export interface FateState {
+  aspects: Array<{ name: string; target: string }>;
+  fate_points: Record<string, number>;
+  stress: Record<string, { physical: number; mental: number; consequences: string[] }>;
+}
+
+export const FATE_REFRESH = 3;
+
+export function normalizeFateState(raw: unknown): FateState {
+  const r = (raw ?? {}) as Record<string, any>;
+  return {
+    aspects: Array.isArray(r.aspects) ? r.aspects : [],
+    fate_points: (r.fate_points && typeof r.fate_points === "object") ? r.fate_points : {},
+    stress: (r.stress && typeof r.stress === "object") ? r.stress : {},
+  };
+}
+
 // Pre-workflow snapshot (REQ-042b): captured when a tool raises [NEED_INPUT],
 // persisted with the pending decision, and restored on respond(cancel) or
 // staleness auto-cancel. `state` is a novelToSnapshotJSON clone (undo/redo
@@ -449,6 +468,8 @@ export interface NovelState {
   // REQ-332 — codex provenance register for the Novel: every Codex-sourced
   // artifact, with import timestamp and the Codex entry's modified_at.
   codex_sources: Array<{ id: string; kind: string; imported_at: string; codex_modified_at: string }>;
+  // REQ-435/436/437 — Fate base capabilities.
+  fate: FateState;
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -725,6 +746,7 @@ export class StateManager {
       active_session_id: null,
       pending_vow_countdown_suggestion: null,
       codex_sources: [],
+      fate: { aspects: [], fate_points: {}, stress: {} },
     };
 
     this.novels.set(slug, novel);
@@ -1003,6 +1025,7 @@ export class StateManager {
       active_session_id: data.active_session_id ?? null,
       pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
       codex_sources: data.codex_sources ?? [],
+      fate: normalizeFateState(data.fate),
     };
     return novel;
   }
@@ -1922,6 +1945,7 @@ function novelToJSON(novel: NovelState): any {
     mutation_counts_by_group: novel.mutation_counts_by_group,
     uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
+    fate: novel.fate,
   };
 }
 
@@ -2030,6 +2054,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     active_session_id: data.active_session_id ?? null,
     pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
     codex_sources: data.codex_sources ?? [],
+    fate: normalizeFateState(data.fate),
   };
 }
 
@@ -2115,4 +2140,5 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.mutation_counts_by_group = source.mutation_counts_by_group;
   target.uncommitted_rolls = source.uncommitted_rolls;
   target.metadata = source.metadata;
+  target.fate = source.fate;
 }
