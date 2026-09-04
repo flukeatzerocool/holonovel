@@ -1,6 +1,15 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 7ce10c2d19e03414c8da98fc2fc288754d1b7c68af57c6d0a72755fdde4f1954
+**Spec hash:** 5d02c2b29b9c1d83a243bfec205e0e92046da7e83146aa8e63b5df9d0662c5cd
+
+### Holonovel Spec Update — 2026-09-04 (Fate base capabilities)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — Fate adopted as a base server capability (Appendix P borrowed mechanics), matching how Ironsworn (vows/oracle) and BitD (clocks) were retained: new §5.21 Fate Base Capabilities (REQ-434 Fudge dice `dF` notation; REQ-435 aspects; REQ-436 Fate points; REQ-437 stress/consequences). REQ-429 tool budget 25 → 26 (the `fate` tool joins the surface); Appendix E/F rows REQ-434–437 + T520–T523; T511 budget wording. Implementation (`holonovel/src`): `fate` tool (roll/aspect/fate_point/stress) in `index.ts`; `dF` support in `rulesets.ts` rollDice; `FateState` + `FATE_REFRESH` + `normalizeFateState` in `core/state.ts` persisted with the Novel; `fate` added to help categories + GM tool set. README footer gains the Fate SRD row. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 289, E 110); full `check` 0 errors; build-order complete (package_format unchanged `8be21bb3…`); typecheck 0 errors (root + holonovel); holonovel test:all green incl. new test-fate (6/6, T520–T523) and tool-definitions (6/6, 26-tool surface) |
 
 ### Holonovel Spec Update — 2026-09-04 (competitive-gap feature wave)
 

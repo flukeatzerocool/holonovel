@@ -1133,6 +1133,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-432b | Vendor ruleset package certification (Part b) | 2026-09-04 |
 | REQ-433a | Event notification surface (Part a) | 2026-09-04 |
 | REQ-433b | Event notification surface (Part b) | 2026-09-04 |
+| REQ-434 | Fudge dice | 2026-09-04 |
+| REQ-435 | Fate aspects | 2026-09-04 |
+| REQ-436 | Fate points | 2026-09-04 |
+| REQ-437 | Stress and consequences | 2026-09-04 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1662,7 +1666,7 @@ diet.
 | T508 | Automated | Fallback: connect without negotiating — assert no `ui://` resources in `resources/list`, no linkage metadata on tool results, all text output identical to a non-Apps build. | REQ-426c |
 | T509 | Automated | Tool parameter semantics: inspect the input schema of every registered tool — assert each parameter carries a description naming its meaning (and allowed values/default where applicable), and each tool description carries the three-clause structure (summary, "Use when", "Do NOT use when") per REQ-024a. | REQ-427, REQ-024 |
 | T510 | Automated | Registry-published distribution: assert `server.json` version and package version equal the npm-canonical host version; mutate a server.json copy to a mismatched version and assert the version gate fails naming `server.json`. | REQ-428 |
-| T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-five tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-five-tool budget. | REQ-429 |
+| T511 | Automated | Server-wide action-discriminator surface: boot a ruleset-free host and assert `tools/list` exposes at most twenty-six tools, one per persisted entity type; assert every persisted object type (Novel, entity, NPC, room, thing, faction, vow, countdown, secret, condition, combat, lore, story, note, codex, checkpoint) is reachable via a `list`/`get`/`info`/`status`/`knowledge` action on its entity tool; assert `spec_health` reports the catalog count against the twenty-six-tool budget. | REQ-429 |
 | T512 | Automated | Ruleset tool-quality conformance: seed a fixture package with one conformant and one non-conformant tool schema — assert the host registers both, flags the non-conformant tool in `spec_health.ruleset_package_alerts` naming slug/tool/defect, and reports conformant/non-conformant counts; re-seed a conformant rebuild — assert the flag clears. | REQ-430 |
 | T513 | Automated | NPC mind field exclusion: create an NPC with a populated `mind` object (private_journal, directive, auto_play) — assert `badge_briefing`, `npc://<id>`, and `session (action: recap)` render no mind content under the Player badge and full mind content under the Game Master badge; export → import round-trip preserves the mind object. | REQ-075f |
 | T514 | Automated | NPC mind auto-apply: with `TTRPG_NPC_MIND=on`, an NPC with a populated `directive` surfaces an `auto-apply` option alongside accept/defer/dismiss; selecting it applies the state change and records an `[npc-mind]` audit entry; with the variable off the option is absent. | REQ-339d |
@@ -1671,6 +1675,10 @@ diet.
 | T517 | Automated | Vendor package certification: a fixture package whose manifest names an Appendix U license surfaces `licensed` and `source_license` in `ruleset (action: list)`; a package with a missing license row is flagged `[license-unattributed]` in `spec_health` and held inactive. | REQ-432 |
 | T518 | Automated | Player-safe recap GM channel: `session (action: recap, gm_notes=...)` returns the notes under the Game Master badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. | REQ-072 |
 | T519 | Automated | Event notification surface: after `session (action: subscribe, topics=["countdown_fire"])`, advancing a countdown to fire produces a server-to-client notification echoing the audit entry; a Player-badge connection subscribed to `audit_delta` receives only Player-visible entries; restart clears subscriptions. | REQ-433 |
+| T520 | Automated | Fudge dice: call `fate (action: roll, skill="Fight", modifier=2, difficulty=2, seed="42")` — assert four faces each in {−1, 0, +1}, a total, and a ladder band; assert the same seed reproduces identical faces across two calls. | REQ-434 |
+| T521 | Automated | Fate aspects: create a scene aspect then list it — assert it appears; invoke it with an entity holding Fate points — assert one Fate point is consumed; invoke it with zero Fate points — assert `[RULE_VIOLATION]`. | REQ-435 |
+| T522 | Automated | Fate points: spend one Fate point on an entity — assert the balance drops from three to two; spend more than the balance — assert refused; refresh — assert the balance returns to three; list — assert the entity appears. | REQ-436 |
+| T523 | Automated | Stress and consequences: mark two physical stress — assert a two-box track; mark a moderate consequence — assert it is recorded; list — assert physical and the consequence appear; clear a track — assert it empties. | REQ-437 |
 
 ---
 
@@ -2529,6 +2537,9 @@ license.
 - **Clocks** (progress/faction clocks) — retained from Blades in the Dark's
   clock system; surfaced in Holonovel as countdowns (REQ-073, REQ-233,
   REQ-338).
+- **Fudge dice**, **aspects**, **Fate points**, and **stress/consequences** —
+  retained from Fate Core's four actions and the Fudge dice ladder; surfaced
+  in Holonovel as the `fate` tool (REQ-434, REQ-435, REQ-436, REQ-437).
 - **World-model conventions** — the parser verb vocabulary, the thing/
   container/supporter/door/device/vehicle/person/backdrop/region kind hierarchy,
   and the declarative assertion syntax — retained from Graham Nelson's Inform
