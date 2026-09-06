@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.5+§5.7)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across §5.5 Badges and Access and §5.7 Determinism/Safety/Performance: passive → active, >45-word and backtick-merged sentences split with prose leads, slider/field/group enumerations separated per item, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Removed the stray "(added)" annotation from REQ-100d's acceptance-criterion marker. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.5: REQ-133a, REQ-133b, REQ-220a, REQ-220b, REQ-220c, REQ-223a, REQ-223b, REQ-223c, REQ-304a, REQ-306b, REQ-306c, REQ-306g, REQ-109e, REQ-281a, REQ-281b, REQ-286a, REQ-286b, REQ-159a, REQ-159b, REQ-180a, REQ-150b, REQ-211a, REQ-211b, REQ-135b; §5.7: REQ-213c, REQ-291a, REQ-291b, REQ-291c, REQ-157a, REQ-157b, REQ-052, REQ-100d, REQ-417, REQ-055a, REQ-312d2, REQ-253a, REQ-253b, REQ-251a, REQ-251c, REQ-050c, REQ-410 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for §5.5/§5.7 |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.3–5.4 + §5.1–5.2 disposition backfill)
 
 | Field | Value |
