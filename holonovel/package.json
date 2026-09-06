@@ -32,6 +32,7 @@
     "test:fingerprints": "tsx scripts/test-fingerprints.ts",
     "test:output-contracts": "tsx scripts/test-output-contracts.ts",
     "test:gauntlet": "tsx scripts/run_gauntlet.ts",
+    "test:pattern-buffer": "tsx scripts/run_pattern_buffer.ts",
     "test:backfill": "tsx scripts/test-backfill.ts",
     "test:persistence": "tsx scripts/test-persistence.ts",
     "test:persistence-guardrails": "tsx scripts/test-persistence-guardrails.ts",
