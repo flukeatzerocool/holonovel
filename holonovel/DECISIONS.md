@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.11+§5.12)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.11 Ruleset-Free Build Mode and §5.12 Narrative Architecture bodies (ruleset-free build and entity creation, scene beat taxonomy, beat-accelerated countdowns, dramatic pacing, pacing-triggered autonomy, narrative arc visibility, Codex beat sequences, faction/NPC autonomy, goal coordination, discovered consequences, player-facing spatial surface, scene description from world-model state, unified intent resolution, voice example feedback, background-derived knowledge, the coupling advisories REQ-355–365, observer narrative surface, narrative coherence attestation): passive → active, >45-word and backtick-merged sentences split, enumerations separated, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.11: REQ-218b, REQ-219a2, REQ-219b; §5.12: REQ-335b, REQ-338b, REQ-339a, REQ-339d, REQ-340a, REQ-341a, REQ-341b, REQ-341c, REQ-342a, REQ-342b, REQ-343c, REQ-343d, REQ-344a, REQ-345a, REQ-345b, REQ-346a1, REQ-346b, REQ-347a, REQ-348c, REQ-349b, REQ-350b, REQ-351a, REQ-351b, REQ-352a, REQ-355a, REQ-355b, REQ-356a, REQ-357a, REQ-357b, REQ-358b, REQ-359a, REQ-359b, REQ-360a, REQ-360b, REQ-361a, REQ-362a, REQ-362b, REQ-363a, REQ-363b, REQ-364a, REQ-365b, REQ-366a, REQ-366c |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.11+§5.12 REQ set (2 ambiguity items — REQ-348b "normally" and REQ-345b "reasonable" — deferred to the structural increment per plan) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.10)
 
 | Field | Value |

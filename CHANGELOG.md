@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-06 — §5.11+§5.12 clarity pass (Editorial)
+
+- Rewrote the §5.11 Ruleset-Free Build Mode and §5.12 Narrative Architecture
+  normative bodies (ruleset-free build and entity creation, scene beat
+  taxonomy, beat-accelerated countdowns, dramatic pacing, pacing-triggered
+  autonomy, narrative arc visibility, Codex beat sequences, faction and NPC
+  autonomy, goal coordination, discovered consequences, player-facing spatial
+  surface, scene description from world-model state, unified intent
+  resolution, voice example feedback, background-derived knowledge, the
+  coupling advisories REQ-355–365, observer narrative surface, and narrative
+  coherence attestation) for clarity: passive → active, >45-word and
+  backtick-merged sentences split, enumerations separated, condition stacks
+  unpacked, sentence-initial pronouns resolved. No normative change.
+
 ## 2026-09-06 — §5.10 clarity pass (Editorial)
 
 - Rewrote the §5.10 World-Model Layer normative bodies (world-model state
