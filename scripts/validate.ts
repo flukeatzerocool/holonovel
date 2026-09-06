@@ -369,7 +369,6 @@ function checkAssumptions(text: string): string[] {
       const ctx = text.slice(Math.max(0, m.index - 40), m.index + (m[0]?.length ?? 0) + 40).replace(/\n/g, " ");
       if (!/because|rationale|basis|empirical|measured|calibrated/i.test(ctx)) {
         issues.push(`magic number (${label}): "${m[0]}" near: …${ctx}…`);
-        break;
       }
     }
   }
