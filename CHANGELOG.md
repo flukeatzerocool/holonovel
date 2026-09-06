@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-06 — Contract-fingerprint regeneration (package/data format)
+
+- `holonovel/src/generated/contract-fingerprints.ts` regenerated to match the
+  assembled specification — the committed copy had drifted (`cd74fa…`/`daff3d…`
+  vs. current `2e36c2…`/`fbe36d…`), leaving `test-fingerprints` T499/T502
+  red. This flip idles any installed ruleset package built under the prior
+  `PACKAGE_FORMAT` (`[package-incompatible]`, REQ-420) and flags persisted
+  artifacts `[data-stale]` (REQ-423), so it is the hinge for the deployed
+  fleet rebuild.
+
 ## 2026-09-06 — World-model parser tiers (device, vehicle, properties, verbs)
 
 - The reference holonovel parser now implements the standard-tier verb
