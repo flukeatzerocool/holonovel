@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — §5.6 part 3 clarity pass (Editorial)
+
+- Rewrote the final ~86 §5.6 normative bodies (fingerprinting and state
+  integrity, pause/resume context, factions, entity relationships, session
+  segmentation, clock types, audit compaction, checkpoints, notes, server
+  notes, adventure structure extraction and navigation, adventure generation
+  lifecycle, and the Codex family) for clarity: passive → active, >45-word and
+  backtick-merged sentences split with prose leads, field and parameter
+  enumerations separated per item, condition stacks unpacked, sentence-initial
+  pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength,
+  identifiers, acceptance criteria, and `_Check:` citations are unchanged.
+  Cleared ~83 proofreading warnings.
+
 ## 2026-09-06 — §5.6 part 2 clarity pass (Editorial)
 
 - Rewrote the next ~87 §5.6 normative bodies (scene-state ledger, structured

@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 3)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the final ~86 §5.6 bodies (fingerprinting and state integrity, pause/resume context, factions, entity relationships, session segmentation, clock types, audit compaction, checkpoints, notes, server notes, adventure structure extraction/navigation, adventure generation lifecycle, and the Codex family): passive → active, >45-word and backtick-merged sentences split with prose leads, field/parameter enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.6: REQ-044, REQ-065b, REQ-065c, REQ-065d, REQ-065f, REQ-073a1, REQ-132b, REQ-132c, REQ-132e, REQ-171b, REQ-232a, REQ-232b, REQ-232c, REQ-232d, REQ-233b3, REQ-236b, REQ-236c, REQ-237b1, REQ-239b, REQ-241a, REQ-241b, REQ-242a, REQ-242c, REQ-247a, REQ-247b1, REQ-247b2, REQ-247c, REQ-250a, REQ-250c, REQ-285a, REQ-302b, REQ-313b, REQ-314c, REQ-321b, REQ-321c, REQ-321d, REQ-321e, REQ-321f, REQ-321g, REQ-321h, REQ-321i, REQ-321j, REQ-321k, REQ-332a, REQ-332b |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.6 part 3 REQ set |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 2)
 
 | Field | Value |
