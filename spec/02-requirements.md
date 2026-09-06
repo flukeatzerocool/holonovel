@@ -3657,10 +3657,10 @@ The server SHALL expose one action-discriminator tool per persisted entity type 
 
 **REQ-400 — State-Persistence Directive.** When the AI's narrative role is
 Game Master, `badge_briefing` orientation SHALL include a persistence
-directive instructing the GM to commit state for every narratable change —
-scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
+directive instructing the GM to commit state for every narratable change.
+Scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073), including the base-capability state tools (REQ-434–443), in the same turn they are narrated. The directive SHALL render in the
+REQ-073), including the base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -3684,10 +3684,10 @@ committing — and SHALL surface it as a `[state-drift]` marker in `spec_health`
 
 **REQ-403b — State-drift detection (Part b).**
 A `TTRPG_STATE_GATE` setting — `off` (default), `warn`, or `block` — read at
-startup, SHALL control the gate: `off` renders drift markers observationally,
-`warn` appends a prominent warning naming the uncommitted beats and the tools
-to fix them at session close (`novel (action: save_context)`, `session (action: recap)`), and
-`block` returns `[STATE_CONFLICT]` from `novel (action: save_context)`, `novel (action: end)`, and
+startup, SHALL control the gate. The `off` mode renders drift markers observationally.
+The `warn` mode appends a prominent warning naming the uncommitted beats and the tools
+to fix them at session close (specifically `novel (action: save_context)` and `session (action: recap)`). The
+`block` mode returns `[STATE_CONFLICT]` from `novel (action: save_context)`, `novel (action: end)`, and
 `novel (action: switch)` while drift is active. Commit tools SHALL remain callable in
 every mode. _Check:_ T472.
 
@@ -3707,20 +3707,18 @@ default `true`, SHALL enable this behavior; the GM MAY set it `false` to
 restore manual-only recording. _Check:_ T474.
 
 **REQ-406 — Backup-restore regression visibility.** When a Novel loads from a
-backup (REQ-092), `spec_health` SHALL report a `[state-regression]` marker
-carrying the audit-entry-count gap and the timestamp gap between the restored
-state and the corruption event, so recovered content loss is operator-visible.
+backup (REQ-092), `spec_health` SHALL report a `[state-regression]` marker. The marker carries the audit-entry-count gap and the timestamp gap between the restored
+state and the corruption event, so recovered content loss stays operator-visible.
 _Check:_ T475.
 
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
-state-persistence tools — the scene, story-journal, countdown, note,
-personality, NPC, vow, and base-capability state tools defined in §5 — regardless of scene type, and
-those tools SHALL be never-truncated per REQ-135. _Check:_ T476.
+state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
+personality, NPC, vow, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
-**REQ-412 — Turn-handoff directive.** WHEN the AI's narrative role is Game Master and a Player or Observer badge is active, `badge_briefing` orientation SHALL include a turn-handoff directive instructing the narrator to close each narrated turn by inviting the player's next action in plain English — a question or prompt to act, never a tool signature. The directive SHALL render in the never-truncated tier (REQ-135). Under an AI-Player role, the directive SHALL instruct closing turns with an in-character offer that hands initiative back to the human Game Master. *Acceptance criterion:* `badge_briefing` under the GM role includes the turn-handoff directive; under the AI-Player role it instructs handing initiative back. _Check:_ T482.
+**REQ-412 — Turn-handoff directive.** WHEN the AI's narrative role is Game Master and a Player or Observer badge is active, `badge_briefing` orientation SHALL include a turn-handoff directive. The directive instructs the narrator to close each narrated turn by inviting the player's next action in plain English — a question or prompt to act, never a tool signature. The directive SHALL render in the never-truncated tier (REQ-135). Under an AI-Player role, the directive SHALL instruct closing turns with an in-character offer that hands initiative back to the human Game Master. *Acceptance criterion:* `badge_briefing` under the GM role includes the turn-handoff directive; under the AI-Player role it instructs handing initiative back. _Check:_ T482.
 
 ### 5.21 Fate Base Capabilities
 
