@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-06 — §5.3–5.4 clarity pass (Editorial)
+
+- Rewrote the §5.3 Tools/Resources/Lookups and §5.4 Decision workflows
+  normative bodies for clarity: passive → active, sentences over 45 words
+  split (backtick-led enumerations led with prose so they split cleanly),
+  condition-stacked and pronoun-led sentences restructured, and long
+  field-catalog enumerations separated into per-field sentences. No
+  normative change — titles, SHALL/MAY/MUST strength, identifiers,
+  acceptance criteria, and `_Check:` citations are unchanged. Cleared ~64
+  proofreading warnings across the two sections. One warning accepted per
+  DP-3: REQ-162b `MUST pass the Pattern Buffer` (a frozen normative verb).
+
 ## 2026-09-06 — Zero-findings campaign artifacts
 
 - Added `plans/2026-09-06-zero-findings-editorial/` (`plan.md` + `tasks.md`):
