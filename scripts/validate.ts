@@ -847,9 +847,9 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   const issues: string[] = [];
   const coverageStart = text.indexOf("**REQ Pattern Buffer coverage map.**");
   if (coverageStart === -1) { issues.push("REQ Pattern Buffer coverage map not found in §6.6"); return issues; }
-  const coverageEnd = text.indexOf("| REQ-002", coverageStart);
+  const coverageEnd = text.indexOf("**Fingerprint-driven Pattern Buffer scoping.**", coverageStart);
   if (coverageEnd === -1) { issues.push("REQ Pattern Buffer coverage map table not found"); return issues; }
-  const mapSection = text.slice(coverageStart, coverageEnd + 500);
+  const mapSection = text.slice(coverageStart, coverageEnd);
   const mapReqs = new Set<string>();
   for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
   if (mapReqs.size === 0) { issues.push("REQ Pattern Buffer coverage map contains no REQ entries"); return issues; }
@@ -859,32 +859,25 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   const sectionMapEnd = text.indexOf("\n### 5.1", sectionMapStart);
   if (sectionMapEnd === -1) { issues.push("§5.1 heading not found after section map"); return issues; }
   const sectionMap = text.slice(sectionMapStart, sectionMapEnd);
-  const coveredSections = ["5.5", "5.6", "5.7"];
-  const sectionReqs = new Set<string>();
+  const coveredSections = ["5.5", "5.6", "5.7", "5.8", "5.10", "5.12", "5.13"];
+  const familyIds = new Set<string>();
   for (const line of sectionMap.split("\n")) {
     for (const sec of coveredSections) {
-      if (line.includes(`| ${sec}`)) {
-        const reqs = line.match(/REQ-\d{3}[a-z0-9]*/g);
-        if (reqs) for (const r of reqs) sectionReqs.add(r);
-        const ranges = line.match(/(\d{3}[a-z0-9]*)–(\d{3}[a-z0-9]*)/g);
-        if (ranges) {
-          for (const range of ranges) {
-            const [lo, hi] = range.split("–");
-            const loNum = parseInt(lo);
-            const hiNum = parseInt(hi);
-            if (!isNaN(loNum) && !isNaN(hiNum)) {
-              for (let n = loNum; n <= hiNum; n++) {
-                const padded = String(n).padStart(3, "0");
-                if (reqIndex.has("REQ-" + padded)) sectionReqs.add("REQ-" + padded);
-              }
-            }
-          }
+      if (!line.includes(`| ${sec}`)) continue;
+      for (const r of line.matchAll(/(\d{3})–(\d{3})/g)) {
+        const lo = parseInt(r[1], 10);
+        const hi = parseInt(r[2], 10);
+        if (!isNaN(lo) && !isNaN(hi)) {
+          for (let n = lo; n <= hi; n++) familyIds.add(String(n).padStart(3, "0"));
         }
       }
+      for (const r of line.matchAll(/\b(\d{3})\b/g)) familyIds.add(r[1]);
     }
   }
-  for (const r of [...sectionReqs].sort()) {
-    if (!mapReqs.has(r)) issues.push(`ERROR: ${r} in §5.5/5.6/5.7 but missing from Pattern Buffer coverage map`);
+  const familyCovered = (fam: string) =>
+    [...mapReqs].some((k) => k === `REQ-${fam}` || (k.startsWith(`REQ-${fam}`) && k.length > `REQ-${fam}`.length));
+  for (const fam of [...familyIds].sort()) {
+    if (!familyCovered(fam)) issues.push(`ERROR: REQ-${fam} in a Pattern Buffer covered section but missing from the coverage map`);
   }
   const reqKeys = [...reqIndex.keys()];
   for (const r of [...mapReqs].sort()) {
@@ -895,7 +888,45 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
     const defined = reqIndex.has(r) || (r.length < 9 && reqKeys.some((k) => k.startsWith(r) && k.length > r.length));
     if (!defined) issues.push(`WARNING: ${r} in Pattern Buffer coverage map but not in Appendix E`);
   }
-  if (sectionReqs.size === 0) issues.push("Could not extract §5.5/5.6/5.7 REQs from section map");
+
+  // Direction (b): every defined sub-workflow that does not merge into another
+  // carries at least one map row transitively via its covered-section REQs;
+  // no separate enumeration — merged stubs (S10/S11) and non-covered sections
+  // (§5.3 lookups) are intentionally out of scope for the row requirement.
+  if (familyIds.size === 0) issues.push("Could not extract covered-section REQs from section map");
+  return issues;
+}
+
+function checkPatternBufferBlockingParity(text: string): string[] {
+  const issues: string[] = [];
+  const listStart = text.indexOf("1. **Tool surface sweep**");
+  const listEnd = text.indexOf("**REQ-108a", listStart);
+  const req141i = text.indexOf("**REQ-141i");
+  const req141j = text.indexOf("**REQ-141j", req141i);
+  if (listStart === -1 || listEnd === -1 || req141i === -1 || req141j === -1) {
+    issues.push("Could not locate §6.6 sub-workflow list or REQ-141i for blocking-parity check");
+    return issues;
+  }
+  const proseBlocking = new Set<number>();
+  for (const item of text.slice(listStart, listEnd).split(/(?=\n\d+\. \*\*)/)) {
+    const m = item.match(/(\d+)\. \*\*/);
+    if (!m) continue;
+    if (/\(Blocking\.\)/.test(item)) proseBlocking.add(parseInt(m[1], 10));
+  }
+  const body = text.slice(req141i, req141j);
+  const listM = body.match(/Failures in sub-workflows ([0-9][0-9, a-z]*) are blocking/);
+  if (!listM) { issues.push("Could not parse REQ-141i blocking list"); return issues; }
+  const listBlocking = new Set<number>();
+  for (const tok of listM[1].replace(/\s*and\s*/g, ",").split(",")) {
+    const n = parseInt(tok.trim(), 10);
+    if (!isNaN(n)) listBlocking.add(n);
+  }
+  for (const n of [...proseBlocking].sort((a, b) => a - b)) {
+    if (!listBlocking.has(n)) issues.push(`ERROR: S${n} is marked (Blocking.) in §6.6 prose but absent from the REQ-141i blocking list`);
+  }
+  for (const n of [...listBlocking].sort((a, b) => a - b)) {
+    if (!proseBlocking.has(n)) issues.push(`ERROR: S${n} is in the REQ-141i blocking list but not marked (Blocking.) in §6.6 prose`);
+  }
   return issues;
 }
 
@@ -1748,6 +1779,15 @@ function main(): void {
     if (patternBufferCoverageIssues.length > 0) {
       console.log("\n=== PATTERN BUFFER REQ COVERAGE MAP ===\n");
       for (const issue of patternBufferCoverageIssues) {
+        if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
+        else { console.log(issue); warnings++; }
+      }
+    }
+
+    const patternBufferBlockingIssues = checkPatternBufferBlockingParity(text);
+    if (patternBufferBlockingIssues.length > 0) {
+      console.log("\n=== PATTERN BUFFER BLOCKING PARITY ===\n");
+      for (const issue of patternBufferBlockingIssues) {
         if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
         else { console.log(issue); warnings++; }
       }

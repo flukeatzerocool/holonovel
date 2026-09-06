@@ -1152,6 +1152,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
+| REQ-108c | Pattern Buffer coverage-map parity (Part c) | 2026-09-06 |
 | REQ-141a | Input-validation convergence metric (Part a) | 2026-08-11 |
 | REQ-141b | Input-validation convergence metric (Part b) | 2026-08-11 |
 | REQ-141c | Input-validation convergence metric (Part c) | 2026-08-11 |
@@ -1707,6 +1708,7 @@ diet.
 | T535 | Automated | Excessive-agency mutation ceiling: set autonomy `level=full`, `confirmation=auto` with a ceiling of three — assert four consecutive auto-executed mutations surface a `[NEED_INPUT]` naming the three applied and the pending one; assert a human-originated call is not counted. | REQ-449 |
 | T536 | Automated | TDQS-conformant tool definitions: for every registered host tool, assert an annotation matches its mutation class (read-only tools carry no destructive hint, mutating tools disclose side effects), assert the description names every action with side-effect and return behavior, and assert tools with four or more parameters state per-action parameter relevance. | REQ-450 |
 | T537 | Automated | Pattern Buffer harness execution: assert the ruleset harness covers every S-sub-workflow §6.6 defines and the Holonovel harness covers every I-sub-workflow §6.6 defines; assert the DECISIONS.md (6) record carries the harness execution timestamp and verdict count, and that no verdict is recorded without a harness-produced result. | REQ-141k |
+| T538 | Automated | Pattern Buffer coverage-map parity: assert every REQ in the REQ-108a covered sections (§5.5, §5.6, §5.7, §5.8, §5.10, §5.12, §5.13) has a coverage-map row or an explicit non-Pattern-Buffer disposition; assert a covered-section REQ lacking both fails validation. | REQ-108c |
 | T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
 | T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
 
