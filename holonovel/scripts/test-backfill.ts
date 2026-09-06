@@ -508,32 +508,67 @@ async function main() {
       assertContains(auto, "[OK] Autonomy set");
     });
 
-    await test("T361/T316: device kind in world kind taxonomy", async () => {
-      const kinds = await readResource(proc, "world://kinds");
-      assertContains(kinds, "device");
-    });
-
-    await test("T362/T317: vehicle kind in world kind taxonomy", async () => {
-      const kinds = await readResource(proc, "world://kinds");
-      assertContains(kinds, "vehicle");
-    });
-
-    await test("T363/T318: extended property contracts — thing with kind + location", async () => {
-      const t = await call(proc, "world", { action: "create_thing",  name: "prop-thing", kind: "supporter", description: "s", location: "kind-room" });
-      assertContains(t, "[OK]");
-    });
-
-    await test("T364/T319: extended parser vocabulary — inventory command", async () => {
+    await test("T361/T316: device lifecycle — switch on/off + RULE_VIOLATION on non-device", async () => {
+      await call(proc, "world", { action: "create_thing",  name: "t361-lantern", kind: "device", lit: true, location: "kind-room" });
+      await call(proc, "world", { action: "create_thing",  name: "t361-rock", kind: "thing", location: "kind-room" });
+      await call(proc, "character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      const inv = await call(proc, "command", { command: "inventory" });
-      assertContains(inv, "[OK]");
+      assertContains(await call(proc, "command", { command: "switch on t361-lantern" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "switch on t361-lantern" }), "[WARNING]");
+      assertContains(await call(proc, "command", { command: "switch off t361-lantern" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "switch on t361-rock" }), "RULE_VIOLATION");
+      assertContains(await call(proc, "command", { command: "switch on missing-thing" }), "NOT_FOUND");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T365/T320: narrative-intent parser verbs — wait command", async () => {
+    await test("T362/T317: vehicle lifecycle — enterable, interior look, exit", async () => {
+      await call(proc, "world", { action: "create_room",  name: "t362-shore", description: "Shore." });
+      await call(proc, "world", { action: "create_exit",  direction: "north", room_a: "kind-room", room_b: "t362-shore" });
+      await call(proc, "world", { action: "create_thing",  name: "t362-raft", kind: "vehicle", enterable: true, description: "A rickety raft.", location: "kind-room" });
+      await call(proc, "world", { action: "create_thing",  name: "t362-rock", kind: "thing", location: "kind-room" });
       await call(proc, "set_badge", { badge: "player" });
-      const wait = await call(proc, "command", { command: "wait" });
-      assertContains(wait, "[OK]");
+      assertContains(await call(proc, "command", { command: "enter t362-raft" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "look" }), "t362-raft");
+      assertContains(await call(proc, "command", { command: "exit" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "enter t362-rock" }), "RULE_VIOLATION");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T363/T318: extended property contracts — wearable/edible/readable flags", async () => {
+      await call(proc, "world", { action: "create_thing",  name: "t363-ring", kind: "thing", wearable: true, location: "kind-room" });
+      await call(proc, "world", { action: "create_thing",  name: "t363-mushroom", kind: "thing", edible: true, location: "kind-room" });
+      await call(proc, "world", { action: "create_thing",  name: "t363-altar", kind: "supporter", readable: true, read_text: "Beware the serpent.", location: "kind-room" });
+      await call(proc, "set_badge", { badge: "player" });
+      await call(proc, "command", { command: "take t363-ring" });
+      assertContains(await call(proc, "command", { command: "wear t363-ring" }), "[OK]");
+      await call(proc, "command", { command: "take t363-mushroom" });
+      assertContains(await call(proc, "command", { command: "eat t363-mushroom" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "read t363-altar" }), "Beware the serpent");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T364/T319: extended parser vocabulary — light/extinguish/listen + help tiers", async () => {
+      await call(proc, "world", { action: "create_thing",  name: "t364-torch", kind: "thing", lit: true, location: "kind-room" });
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "command", { command: "extinguish t364-torch" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "light t364-torch" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "listen" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "touch t364-torch" }), "[OK]");
+      const help = await call(proc, "command", { command: "help" });
+      assertContains(help, "core");
+      assertContains(help, "standard");
+      assertContains(help, "extended");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T365/T320: narrative-intent parser verbs — ask/give/shows", async () => {
+      await call(proc, "npc", { action: "create",  name: "t365-guard", location: "kind-room" });
+      await call(proc, "world", { action: "create_thing",  name: "t365-sword", kind: "thing", location: "kind-room" });
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "command", { command: "ask t365-guard about crypt" }), "[OK]");
+      await call(proc, "command", { command: "take t365-sword" });
+      assertContains(await call(proc, "command", { command: "give t365-sword to t365-guard" }), "[OK]");
+      assertContains(await call(proc, "command", { command: "ask nobody about crypt" }), "[WARNING]");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

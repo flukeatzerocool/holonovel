@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09-06 — World-model parser tiers (device, vehicle, properties, verbs)
+
+- The reference holonovel parser now implements the standard-tier verb
+  vocabulary and the device/vehicle/extended-property mechanics that
+  REQ-316 through REQ-320 specify: `switch on/off`, `wear`/`remove`, `read`,
+  `eat`/`drink`, `climb`, `enter`/`exit`, `sit`/`stand`, `push`/`pull`,
+  `light`/`extinguish`, `listen`/`smell`/`touch`, `insert`, plus the
+  narrative-intent verbs `ask`/`tell`/`give`/`show`/`throw` (Player Intent
+  surfaced in `badge_briefing`) and the `again`/`g` + `it`/`them` session
+  state. (REQ-283, REQ-316, REQ-317, REQ-318, REQ-319, REQ-320)
+- `world (action: convert)` recognizes the extended-property assertions
+  (`It is switchable/switched on/wearable/edible/readable/climbable/
+  transparent/enterable`), `read_text` extraction, and current-thing
+  placement (`It is in <room>.`); vehicles gain `capacity` and an interior. 
+  (REQ-316b, REQ-317c, REQ-318b)
+- Verb coverage tiers are now world-model-aware: `command("help"|"verbs")`
+  and `world://kinds` report core/standard/extended with availability
+  annotation, and `spec_health.parser_verb_coverage` carries per-tier counts.
+  (REQ-283b, REQ-283c)
+- The Inform Gauntlet extends from I1–I13 to I1–I18, adding the five
+  blocking scenarios (device, vehicle, extended properties, extended parser,
+  narrative verbs); the backfill harness upgrades T333/T361–T365 from kind
+  taxonomy placeholders to contract tests.
+- §6.6 documents that the coverage map is REQ-keyed: merged stub
+  sub-workflows (S10, S11) and non-covered sub-workflows (S8, S12) carry no
+  row. `holonovel/AGENTS.md` layer map refreshed to the `src/world/` /
+  `src/core/` layout and the extended parser surface.
+
 ## 2026-09-06 — Pattern Buffer coverage parity
 
 - The §6.6 Pattern Buffer coverage map now maps every REQ in the traceability

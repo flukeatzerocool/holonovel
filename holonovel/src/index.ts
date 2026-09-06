@@ -23,7 +23,7 @@ import {
 import { DEFAULT_ENRICHMENT } from "./core/enrichment.js";
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
-  createEmptyWorldModel, convertSource, worldMap, worldKinds,
+  createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult } from "./world/parser.js";
@@ -554,6 +554,10 @@ let enumerationVerbosity: "summary" | "detail" = "summary";
 let outputVerbosity: "normal" | "terse" = "normal";
 // REQ-197 — room description mode, session-scoped (brief/verbose/normal).
 let roomDescriptionMode: "brief" | "verbose" | "normal" = "normal";
+// REQ-319 — session-local parser state: last command (for `again`/`g`) and the
+// last referenced thing (for `it`/`them` pronoun resolution).
+let lastCommand: string = "";
+let lastReferencedThing: string | null = null;
 function terseMode(terse?: boolean): boolean {
   return terse === true || outputVerbosity === "terse";
 }
@@ -2219,18 +2223,27 @@ server.registerTool("command", {
     if (domains.social.length) blocks.push(`Social:\n${domains.social.map((s) => `  - ${s}`).join("\n")}`);
     return ok(`Actions for ${name}:\n${blocks.join("\n")}`);
   }
-  const command = args.command;
+  let command = args.command;
   const novel = requireNovel();
   // REQ-197 — description mode commands are always recognized verbs.
   const cmdTrim = command.trim().toLowerCase();
   if (cmdTrim === "brief") { roomDescriptionMode = "brief"; state.saveNovel(novel); return ok("Description mode: brief (room name + exits only)."); }
   if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; state.saveNovel(novel); return ok("Description mode: verbose (full descriptions every time)."); }
   if (cmdTrim === "normal") { roomDescriptionMode = "normal"; state.saveNovel(novel); return ok("Description mode: normal (full on first entry)."); }
-  if (cmdTrim === "verbs" || cmdTrim === "help verbs") {
-    // REQ-283 — verb coverage tiers.
-    const core = BASE_PARSER_COMMANDS.map((c) => c.verb);
-    const standard = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert"];
-    return ok(`Verb coverage — core (${core.length}): ${core.join(", ")}\nstandard (${standard.length}): ${standard.join(", ")}\nextended (0): none registered`);
+  if (cmdTrim === "help" || cmdTrim === "verbs" || cmdTrim === "help verbs") {
+    // REQ-283 — command("help") groups verbs by tier; command("verbs") is equivalent.
+    return ok(renderVerbCatalog(novel.world));
+  }
+  // REQ-319 — `again`/`g` repeat the last command; bare `it`/`them` resolve to
+  // the last referenced thing; embedded pronouns substitute it (session-local).
+  if (cmdTrim === "again" || cmdTrim === "g") {
+    if (!lastCommand) return raw(`[WARNING] No previous command to repeat.`);
+    command = lastCommand;
+  } else if (cmdTrim === "it" || cmdTrim === "them") {
+    if (!lastReferencedThing) return raw(`[WARNING] No thing referenced yet.`);
+    command = `examine ${lastReferencedThing}`;
+  } else if (lastReferencedThing && /\b(it|them)\b/i.test(command)) {
+    command = command.replace(/\b(it|them)\b/gi, lastReferencedThing);
   }
   // Ruleset-bound Novels gate the parser to the Game Master (REQ-309); the
   // Player badge routes spatial intent through resolve_intent. Ruleset-free
@@ -2258,6 +2271,51 @@ server.registerTool("command", {
   if (!currentRoom && entity) {
     currentRoom = [...novel.world.rooms.keys()][0];
     entity.current_room = currentRoom;
+  }
+
+  // REQ-320 — narrative-intent verbs route to the GM surface (no simulation).
+  const narrativeResult = handleNarrativeVerb(command, novel, entity, currentRoom);
+  if (narrativeResult) return narrativeResult;
+
+  // REQ-317 — vehicle-aboard handling: look shows the interior, exit returns to
+  // the parked room, and navigation moves the vehicle through the world graph.
+  const inVehicleName = (entity as any)?.in_vehicle;
+  const vehicle = inVehicleName ? novel.world.things.get(String(inVehicleName).toLowerCase()) : undefined;
+  if (inVehicleName && vehicle && entity) {
+    const parkedRoom = vehicle.location;
+    const vt = command.trim().split(/\s+/);
+    const vv = vt[0].toLowerCase();
+    const isExit = vv === "exit" || vv === "out" || (vv === "get" && vt[1] === "out");
+    const dir = (vv === "go" || vv === "walk" || vv === "move") ? vt[1]?.toLowerCase()
+      : (ROOM_DIRECTIONS.includes(vv as any) ? vv : undefined);
+    if (vv === "look") {
+      lastCommand = command;
+      const interior = vehicle.vehicleInterior || vehicle.description || `the interior of the ${vehicle.name}`;
+      return raw(`[OK] ${vehicle.name} (interior)\n${interior}\n\nExits: out.`);
+    }
+    if (isExit) {
+      (entity as any).in_vehicle = undefined;
+      entity.current_room = parkedRoom;
+      vehicle.vehiclePassengers = (vehicle.vehiclePassengers ?? []).filter((p: string) => p !== entity.id);
+      recordVehicleMoment(novel, "exit", vehicle.name, String(parkedRoom ?? ""));
+      state.saveNovel(novel);
+      audit("command", { command, exited_vehicle: vehicle.name });
+      lastCommand = command;
+      return raw(`[OK] You get out of the ${vehicle.name}.`);
+    }
+    if (dir) {
+      const room = parkedRoom ? novel.world.rooms.get(String(parkedRoom).toLowerCase()) : undefined;
+      const target = room?.exits.get(dir as Direction);
+      if (!target) { lastCommand = command; return raw(`[WARNING] You can't go ${dir} from here.`); }
+      vehicle.location = target;
+      vehicle.locationType = "room";
+      entity.current_room = target;
+      advanceWorldTriggeredCountdowns(novel, `room_enter:${String(target).toLowerCase()}`);
+      state.saveNovel(novel);
+      audit("command", { command, vehicle_moved_to: target });
+      lastCommand = command;
+      return raw(`[OK] The ${vehicle.name} moves ${dir}.`);
+    }
   }
 
   const inventory = entity?.inventory ?? [];
@@ -2338,6 +2396,104 @@ server.registerTool("command", {
     }
   }
 
+  // REQ-316 through REQ-319 — side-effect resolution for extended verbs, plus
+  // last-referenced tracking for pronoun resolution.
+  const targetThing = (words: string[]) => {
+    const name = words.join(" ").toLowerCase();
+    return novel.world.things.get(name) ?? findMatchingThing(words.join(" "), novel.world, currentRoom);
+  };
+  if (entity && result.prefix === "OK") {
+    if (verb === "examine" || verb === "x" || verb === "search") {
+      const t = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase()) ?? findMatchingThing(tokens.slice(1).join(" "), novel.world, currentRoom);
+      if (t) lastReferencedThing = t.name;
+    } else if (verb === "switch") {
+      const onOff = tokens[1]?.toLowerCase() === "on";
+      const thing = targetThing(tokens.slice(2));
+      if (thing && thing.switchable) {
+        thing.switched_on = onOff;
+        lastReferencedThing = thing.name;
+        state.saveNovel(novel);
+        audit("command", { command, switched: thing.name, switched_on: onOff });
+      }
+    } else if (verb === "wear") {
+      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+      if (thing && thing.wearable) {
+        thing.worn_by = entity.id || entity.name || "player";
+        lastReferencedThing = thing.name;
+        state.saveNovel(novel);
+        audit("command", { command, wore: thing.name });
+      }
+    } else if (verb === "remove") {
+      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
+      if (thing && thing.wearable) {
+        thing.worn_by = null;
+        lastReferencedThing = thing.name;
+        state.saveNovel(novel);
+        audit("command", { command, removed: thing.name });
+      }
+    } else if (verb === "eat" || verb === "drink") {
+      const lower = tokens.slice(1).join(" ").toLowerCase();
+      const idx = entity.inventory.indexOf(lower);
+      if (idx >= 0) {
+        entity.inventory.splice(idx, 1);
+        const thing = novel.world.things.get(lower);
+        if (thing) { thing.location = null; thing.locationType = null; lastReferencedThing = thing.name; }
+        state.saveNovel(novel);
+        audit("command", { command, consumed: lower });
+      }
+    } else if (verb === "climb") {
+      const thing = targetThing(tokens.slice(1));
+      if (thing && thing.climbable) {
+        lastReferencedThing = thing.name;
+        const room = novel.world.rooms.get((currentRoom ?? "").toLowerCase());
+        const up = room?.exits.get("up") ?? room?.exits.get("climb");
+        if (up) {
+          entity.current_room = up;
+          advanceWorldTriggeredCountdowns(novel, `room_enter:${up.toLowerCase()}`);
+          audit("command", { command, climbed_to: up });
+        }
+        state.saveNovel(novel);
+      }
+    } else if (verb === "enter") {
+      const thing = targetThing(tokens.slice(1));
+      if (thing && thing.enterable) {
+        lastReferencedThing = thing.name;
+        if (thing.kind === "vehicle") {
+          (entity as any).in_vehicle = thing.name;
+          thing.vehiclePassengers = thing.vehiclePassengers ?? [];
+          thing.vehiclePassengers.push(entity.id ?? entity.name);
+          recordVehicleMoment(novel, "enter", thing.name, currentRoom ?? "");
+        }
+        state.saveNovel(novel);
+        audit("command", { command, entered: thing.name });
+      }
+    } else if (verb === "light" || verb === "extinguish") {
+      const thing = targetThing(tokens.slice(1));
+      if (thing) {
+        thing.lit = verb === "light";
+        if (thing.switchable) thing.switched_on = verb === "light";
+        lastReferencedThing = thing.name;
+        state.saveNovel(novel);
+        audit("command", { command, lit: thing.name, on: verb === "light" });
+      }
+    } else if (verb === "sit") {
+      const thing = targetThing(tokens.slice(1));
+      if (thing && thing.kind === "supporter") {
+        (entity as any).sitting = thing.name;
+        lastReferencedThing = thing.name;
+        state.saveNovel(novel);
+        audit("command", { command, sat_on: thing.name });
+      }
+    } else if (verb === "stand") {
+      (entity as any).sitting = undefined;
+      state.saveNovel(novel);
+      audit("command", { command, stood_up: true });
+    }
+  }
+
+  // Track last command for `again`/`g` (REQ-319).
+  lastCommand = command;
+
   // Output
   const prefix = result.prefix === "OK" ? "[OK]" : result.prefix === "WARNING" ? "[WARNING]" : "[ERROR]";
   const code = result.code ? ` [${result.code}]` : "";
@@ -2348,9 +2504,114 @@ server.registerTool("command", {
   return raw(text);
 });
 
+// REQ-283 — render the verb catalog grouped by tier with availability annotation.
+function renderVerbCatalog(world: WorldModel): string {
+  const tiers = verbCatalog(world);
+  const core = tiers.core.map(v => v.verb).join(", ");
+  const standard = tiers.standard.map(v => v.available ? v.verb : `${v.verb} (unavailable)`).join(", ");
+  const extended = tiers.extended.map(v => v.verb).join(", ") || "none registered";
+  return `Verb coverage:\ncore (${tiers.core.length}): ${core}\nstandard (${tiers.standard.length}): ${standard}\nextended (${tiers.extended.length}): ${extended}`;
+}
+
+// REQ-317d — record a vehicle traversal as a story journal moment entry.
+function recordVehicleMoment(novel: any, kind: "enter" | "exit", vehicle: string, room: string): void {
+  const entry: any = {
+    index: novel.story_journal.length,
+    type: "moment",
+    entry: kind === "enter" ? `[vehicle-entry] entered ${vehicle}` : `[vehicle-exit] ${vehicle} returned to ${room}`,
+    scene_anchor: (novel.scene_description ?? "").substring(0, 80),
+    entity_ids: [],
+    timestamp: new Date().toISOString(),
+  };
+  novel.story_journal.push(entry);
+}
+
+// REQ-320 — resolve an NPC by name substring among NPCs whose location matches
+// the current room. Returns the NPC or null.
+function resolveNpcInRoom(novel: any, name: string, roomName: string | null): any | null {
+  const lower = name.toLowerCase();
+  for (const [, npc] of novel.npcs) {
+    const display = (npc.name ?? "").toLowerCase();
+    if (!display.includes(lower)) continue;
+    if (roomName && npc.location && npc.location.toLowerCase() !== roomName.toLowerCase()) continue;
+    return npc;
+  }
+  return null;
+}
+
+// REQ-320 — narrative-intent verbs: record intent to the GM's surface without
+// simulating outcomes. give transfers inventory; throw moves a thing to the
+// room; show/ask/tell record intent only.
+function handleNarrativeVerb(full: string, novel: any, entity: any, currentRoom: string | null): any | null {
+  const tokens = full.trim().split(/\s+/);
+  const verb = tokens[0]?.toLowerCase();
+  if (!["ask", "tell", "give", "show", "throw"].includes(verb)) return null;
+
+  const recordIntent = (intent: string, warning = false) => {
+    novel.player_intents = novel.player_intents ?? [];
+    novel.player_intents.push({ intent, warning, timestamp: new Date().toISOString() });
+    const marker = warning ? "[WARNING]" : "[OK]";
+    return `${marker} ${intent}`;
+  };
+
+  if (verb === "throw") {
+    const thingName = tokens.slice(1).join(" ").replace(/\s+at .+$/, "").trim();
+    const atMatch = full.match(/\sat (.+)$/i);
+    if (!thingName || !atMatch) return raw(`[ERROR] [INVALID_INPUT] Throw what at what?`);
+    const lower = thingName.toLowerCase();
+    const idx = (entity?.inventory ?? []).indexOf(lower);
+    if (idx < 0) return raw(`[ERROR] [NOT_FOUND] You're not carrying '${thingName}'.`);
+    entity.inventory.splice(idx, 1);
+    const thing = novel.world.things.get(lower);
+    if (thing) { thing.location = currentRoom; thing.locationType = "room"; }
+    state.saveNovel(novel);
+    audit("command", { command: full, threw: thingName });
+    return raw(recordIntent(`You throw the ${thingName} at ${atMatch[1].trim()}.`));
+  }
+
+  if (verb === "give") {
+    const toMatch = full.match(/\sto (.+)$/i);
+    const thingName = toMatch ? full.replace(/^give\s+/i, "").replace(/\s+to .+$/i, "").trim() : tokens[1] ?? "";
+    const npcName = toMatch ? toMatch[1].trim() : tokens.slice(2).join(" ");
+    if (!thingName || !npcName) return raw(`[ERROR] [INVALID_INPUT] Give what to whom?`);
+    const lower = thingName.toLowerCase();
+    const thing = novel.world.things.get(lower);
+    if (thing && !thing.portable) return raw(`[ERROR] [RULE_VIOLATION] The ${thing.name} is fixed and cannot be given.`);
+    const idx = (entity?.inventory ?? []).indexOf(lower);
+    if (idx < 0) return raw(`[ERROR] [NOT_FOUND] You're not carrying '${thingName}'.`);
+    const npc = resolveNpcInRoom(novel, npcName, currentRoom) ?? resolveNpcInRoom(novel, npcName, null);
+    entity.inventory.splice(idx, 1);
+    if (thing) { thing.location = null; thing.locationType = null; }
+    state.saveNovel(novel);
+    audit("command", { command: full, gave: thingName, npc: npcName });
+    return raw(recordIntent(`You give the ${thingName} to ${npc ? npc.name : npcName}.`));
+  }
+
+  if (verb === "show") {
+    const toMatch = full.match(/\sto (.+)$/i);
+    const thingName = toMatch ? full.replace(/^show\s+/i, "").replace(/\s+to .+$/i, "").trim() : tokens[1] ?? "";
+    const npcName = toMatch ? toMatch[1].trim() : tokens.slice(2).join(" ");
+    if (!thingName || !npcName) return raw(`[ERROR] [INVALID_INPUT] Show what to whom?`);
+    const npc = resolveNpcInRoom(novel, npcName, currentRoom) ?? resolveNpcInRoom(novel, npcName, null);
+    audit("command", { command: full, showed: thingName, npc: npcName });
+    return raw(recordIntent(`You show the ${thingName} to ${npc ? npc.name : npcName}.`));
+  }
+
+  if (verb === "ask" || verb === "tell") {
+    if (tokens.length < 2) return raw(`[ERROR] [INVALID_INPUT] ${verb === "ask" ? "Ask" : "Tell"} whom?`);
+    const npcName = tokens[1];
+    const npc = resolveNpcInRoom(novel, npcName, currentRoom);
+    const topic = tokens.slice(2).join(" ").replace(/^(about\s+)/i, "");
+    const prose = verb === "ask" ? `You ask ${npc ? npc.name : npcName}${topic ? ` about ${topic}` : ""}.` : `You tell ${npc ? npc.name : npcName}${topic ? ` about ${topic}` : ""}.`;
+    audit("command", { command: full, npc: npcName, topic: topic || null });
+    return raw(recordIntent(prose, !npc));
+  }
+
+  return null;
+}
+
 function findMatchingThing(name: string, world: WorldModel, roomName: string | null): WorldThing | null {
-  const lower = name.toLowerCase().trim();
-  for (const [, thing] of world.things) {
+  const lower = name.toLowerCase().trim();  for (const [, thing] of world.things) {
     if (thing.name.toLowerCase().includes(lower)) {
       const loc = thing.location?.toLowerCase();
       if (loc === roomName?.toLowerCase()) return thing;
@@ -5633,11 +5894,16 @@ function buildSpecHealth(): Record<string, unknown> {
     audit_log_entries: novel ? novel.audit_log.length : 0,
     // REQ-283 — parser verb coverage tiers: core (base vocabulary), standard
     // (IF-community), extended (ruleset-derived). Advisory completeness signal.
-    parser_verb_coverage: {
-      core: BASE_PARSER_COMMANDS.length,
-      standard: BASE_PARSER_COMMANDS.filter((c) => ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert"].includes(c.verb)).length,
-      extended: 0,
-    },
+    parser_verb_coverage: (() => {
+      const tiers = verbCatalog(novel?.world);
+      return {
+        core: tiers.core.length,
+        core_available: tiers.core.filter((v) => v.available).length,
+        standard: tiers.standard.length,
+        standard_available: tiers.standard.filter((v) => v.available).length,
+        extended: tiers.extended.length,
+      };
+    })(),
     // REQ-197 — room description mode (session-scoped).
     description_mode: roomDescriptionMode,
     // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
@@ -6572,6 +6838,12 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
     briefing += `\n**Active entity:** ${entity.name}`;
     if (entity.current_room) briefing += ` — ${entity.current_room}`;
     if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
+  }
+
+  // REQ-320 — Player Intent: recent narrative-intent verbs surfaced for the GM.
+  if (badge === "game_master" && (novel as any).player_intents?.length) {
+    const recent = (novel as any).player_intents.slice(-5).map((p: any) => `${p.warning ? "[WARNING]" : "[OK]"} ${p.intent}`);
+    briefing += `\n\n### Player Intent\n${recent.join("\n")}`;
   }
 
   // REQ-412 — turn-handoff directive. When the AI narrates as Game Master

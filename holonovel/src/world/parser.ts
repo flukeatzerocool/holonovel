@@ -57,6 +57,7 @@ export function dispatchCommand(raw: string, ctx: ParserContext): ParserResult {
     case "take":
     case "get":
     case "pick": {
+      if (verb === "get" && args[0]?.toLowerCase() === "out") return handleExit(ctx);
       if (args[0] === "up" || args[0] === "") return handleGo(args[1] || "", ctx);
       return handleTake(args.join(" "), ctx);
     }
@@ -84,6 +85,29 @@ export function dispatchCommand(raw: string, ctx: ParserContext): ParserResult {
       return handleExamine(args.join(" "), ctx);
     }
     case "wait":    return { prefix: "OK", text: "Time passes." };
+    case "switch": {
+      const onOff = args[0]?.toLowerCase();
+      if (onOff === "on" || onOff === "off") return handleSwitch(onOff, args.slice(1).join(" "), ctx);
+      return { prefix: "ERROR", code: "INVALID_INPUT", text: "Switch what on or off?", correctiveAction: "Try: switch on <device> or switch off <device>." };
+    }
+    case "wear":    return handleWear(args.join(" "), ctx);
+    case "remove":  return handleRemove(args.join(" "), ctx);
+    case "read":    return handleRead(args.join(" "), ctx);
+    case "eat":     return handleConsume("eat", args.join(" "), ctx);
+    case "drink":   return handleConsume("drink", args.join(" "), ctx);
+    case "climb":   return handleClimb(args.join(" "), ctx);
+    case "enter":   return handleEnter(args.join(" "), ctx);
+    case "exit":    return handleExit(ctx);
+    case "sit":     return handleSit(args.join(" "), ctx);
+    case "stand":   return handleStand(ctx);
+    case "push":    return handlePushPull("push", args.join(" "), ctx);
+    case "pull":    return handlePushPull("pull", args.join(" "), ctx);
+    case "light":   return handleLightExtinguish("light", args.join(" "), ctx);
+    case "extinguish": return handleLightExtinguish("extinguish", args.join(" "), ctx);
+    case "listen":  return handleListen(ctx);
+    case "smell":   return handleSmell(ctx);
+    case "touch":   return handleTouch(args.join(" "), ctx);
+    case "insert":  return handleInsert(args.join(" "), ctx);
     default:
       return {
         prefix: "ERROR",
@@ -490,6 +514,165 @@ function handleExamine(target: string, ctx: ParserContext): ParserResult {
   }
 
   return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+}
+
+// ── Extended parser commands (REQ-316 through REQ-320) ────────────
+
+function getReachable(ctx: ParserContext): WorldThing[] {
+  const reachable: WorldThing[] = [...getRoomThings(ctx.currentRoom || "", ctx)];
+  for (const [, thing] of ctx.world.things) {
+    if (!thing.location) continue;
+    const parent = ctx.world.things.get(thing.location.toLowerCase());
+    if (!parent) continue;
+    if (parent.location?.toLowerCase() !== (ctx.currentRoom || "").toLowerCase()) continue;
+    if (thing.locationType === "supporter") reachable.push(thing);
+    else if (thing.locationType === "container" && parent.openable && parent.open) reachable.push(thing);
+  }
+  return reachable;
+}
+
+function resolveReachable(name: string, ctx: ParserContext): WorldThing | undefined {
+  const lower = name.trim().toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  const inv = ctx.world.things.get(lower);
+  if (inv && ctx.inventory.includes(lower)) return inv;
+  const candidates = [...ctx.world.things.values()].filter((t) => {
+    const k = t.name.toLowerCase();
+    return k === lower || k.includes(lower) || lower.includes(k);
+  });
+  const reachable = candidates.filter((t) => {
+    const inRoom = t.location?.toLowerCase() === (ctx.currentRoom || "").toLowerCase();
+    if (inRoom) return true;
+    const parent = t.location ? ctx.world.things.get(t.location.toLowerCase()) : undefined;
+    const onSupporter = t.locationType === "supporter" && parent && parent.location?.toLowerCase() === (ctx.currentRoom || "").toLowerCase();
+    const inOpenContainer = t.locationType === "container" && parent && parent.openable && parent.open && parent.location?.toLowerCase() === (ctx.currentRoom || "").toLowerCase();
+    return onSupporter || inOpenContainer;
+  });
+  return reachable.length === 1 ? reachable[0] : undefined;
+}
+
+function handleSwitch(action: "on" | "off", target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `Switch ${action} what?` };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.switchable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not switchable.`, correctiveAction: "Only devices can be switched." };
+  const want = action === "on";
+  if (thing.switched_on === want) return { prefix: "WARNING", text: `The ${thing.name} is already switched ${action}.` };
+  return { prefix: "OK", text: `You switch ${action} the ${thing.name}.` };
+}
+
+function handleWear(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Wear what?" };
+  const lower = target.toLowerCase();
+  const thing = ctx.world.things.get(lower);
+  if (!thing || !ctx.inventory.includes(lower)) return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
+  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not wearable.` };
+  if (thing.worn_by) return { prefix: "WARNING", text: `The ${thing.name} is already being worn.` };
+  return { prefix: "OK", text: `You wear the ${thing.name}.` };
+}
+
+function handleRemove(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Remove what?" };
+  const thing = ctx.world.things.get(target.toLowerCase());
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not wearable.` };
+  if (!thing.worn_by) return { prefix: "WARNING", text: `You are not wearing the ${thing.name}.` };
+  return { prefix: "OK", text: `You take off the ${thing.name}.` };
+}
+
+function handleRead(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Read what?" };
+  const thing = resolveReachable(target, ctx) ?? ctx.world.things.get(target.toLowerCase());
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.readable && !thing.read_text) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not readable.` };
+  if (thing.read_text) return { prefix: "OK", text: `The ${thing.name} reads: "${thing.read_text}"` };
+  return { prefix: "OK", text: thing.description || `You read the ${thing.name}.` };
+}
+
+function handleConsume(verb: "eat" | "drink", target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `${verb[0].toUpperCase() + verb.slice(1)} what?` };
+  const lower = target.toLowerCase();
+  const thing = ctx.world.things.get(lower);
+  if (!thing || !ctx.inventory.includes(lower)) return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
+  const prop = verb === "eat" ? "edible" : "drinkable";
+  if (!(thing as any)[prop]) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not ${prop}.` };
+  return { prefix: "OK", text: `You ${verb} the ${thing.name}.` };
+}
+
+function handleClimb(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Climb what?" };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.climbable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not climbable.` };
+  return { prefix: "OK", text: `You climb the ${thing.name}.` };
+}
+
+function handleEnter(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Enter what?" };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.enterable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not enterable.` };
+  if (thing.kind === "vehicle" && thing.capacity !== undefined && thing.vehiclePassengers.length >= thing.capacity) {
+    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is full.` };
+  }
+  return { prefix: "OK", text: `You enter the ${thing.name}.` };
+}
+
+function handleExit(ctx: ParserContext): ParserResult {
+  return { prefix: "OK", text: "You get out." };
+}
+
+function handleSit(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Sit on what?" };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (thing.kind !== "supporter") return { prefix: "ERROR", code: "RULE_VIOLATION", text: `You can't sit on the ${thing.name}.` };
+  return { prefix: "OK", text: `You sit on the ${thing.name}.` };
+}
+
+function handleStand(ctx: ParserContext): ParserResult {
+  return { prefix: "OK", text: "You stand up." };
+}
+
+function handlePushPull(verb: "push" | "pull", target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `${verb[0].toUpperCase() + verb.slice(1)} what?` };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (thing.portable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} moves freely — you can't ${verb} it.` };
+  return { prefix: "OK", text: `You ${verb} the ${thing.name}, but it doesn't budge.` };
+}
+
+function handleLightExtinguish(verb: "light" | "extinguish", target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `${verb[0].toUpperCase() + verb.slice(1)} what?` };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  const want = verb === "light";
+  if (want && thing.lit) return { prefix: "WARNING", text: `The ${thing.name} is already lit.` };
+  if (!want && !thing.lit) return { prefix: "WARNING", text: `The ${thing.name} is not lit.` };
+  return { prefix: "OK", text: `You ${verb} the ${thing.name}.` };
+}
+
+function handleListen(ctx: ParserContext): ParserResult {
+  return { prefix: "OK", text: "You listen." };
+}
+
+function handleSmell(ctx: ParserContext): ParserResult {
+  return { prefix: "OK", text: "You smell the air." };
+}
+
+function handleTouch(target: string, ctx: ParserContext): ParserResult {
+  if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Touch what?" };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  return { prefix: "OK", text: `You touch the ${thing.name}.` };
+}
+
+function handleInsert(target: string, ctx: ParserContext): ParserResult {
+  const words = target.split(/\s+/);
+  const inIdx = words.findIndex(a => a === "in" || a === "into");
+  if (inIdx < 0) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Insert what into what?", correctiveAction: "Try: insert <thing> in <container>." };
+  const thingName = words.slice(0, inIdx).join(" ");
+  const containerName = words.slice(inIdx + 1).join(" ");
+  return handlePut(thingName, containerName, ctx);
 }
 
 export function resolveGoMovement(
