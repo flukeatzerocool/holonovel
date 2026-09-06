@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-06 — Validator exhaustiveness follow-through (Editorial)
+
+- Made the assumption-audit magic-number scan exhaustive: removed the
+  per-pattern `break` that reported only the first match. With the earlier
+  precision and table-skip refinements in place, exhaustive reporting
+  surfaces no new findings today and will catch any genuine magic number
+  on a future revision.
+- Corrected the DECISIONS.md REQ-394 note to distinguish the three "MUST"
+  metric-name false positives (REQ-208a/244b/383a) from the genuine
+  RFC-2119 MUST verb in REQ-162b. No normative change.
+
 ## 2026-09-06 — Structural reconciliation (Editorial)
 
 - Refined the validator's mechanical checks to match spec intent: the
