@@ -48,6 +48,14 @@ the tracking surfaces for the coverage backlog.
 
 ## Scheduled-roadmap
 
+- **SR-1 — machine-warning backlog** (full-document spec-review, 2026-09-06):
+  ~1,219 pre-existing machine warnings across the 1,076 REQ bodies. The
+  zero-findings editorial campaign is tracked via
+  `plans/2026-09-06-zero-findings-editorial/` (per user decision — not
+  ROADMAP.md). Validator readability convention applied (prose-only scoring,
+  grade-18 ceiling) and Increment 1 (§5.1–5.2) shipped `662efa1`;
+  1,219 → 857 warnings. Open until increments 2–15 complete.
+
 - **Backlog-clearance program waves 1–11** — the 145 A + 6 B REQs tracked in
   `req-coverage.md`, scheduled as the ROADMAP.md program. Includes:
   - **REQ-408 param-ceiling refactor** (create_character 15 params > ceiling 8)
