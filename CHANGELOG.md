@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer harness (S1–S37 manifest)
+
+- Added `holonovel/scripts/run_pattern_buffer.ts`, the §6.6 Pattern Buffer
+  harness: it enumerates all 37 sub-workflows (S1–S37), executes the
+  server-native ones (S1 tool sweep, S6 cross-badge boundary, S13 novel
+  isolation, S17 lifecycle/persistence) against a live server, records
+  mechanics-fidelity sub-workflows as `skipped — ruleset hash unchanged`
+  (S2/S3/S4/S7/S8/S9), marks merged stubs (S10→S4, S11→S20), and emits the
+  `pattern_buffer_manifest` (H13 handoff artifact) to stdout with `--json`
+  and to a data-dir JSON file. (REQ-108a, §6.6)
+- Wired `test:pattern-buffer` into `holonovel/package.json`; the remaining
+  S-sub-workflows (S5, S12, S14–S16, S18–S37) are enumerated as `follow-on`
+  increments in the manifest, to be filled in bounded future increments.
+
 ## 2026-09-06 — Contract-fingerprint regeneration (package/data format)
 
 - `holonovel/src/generated/contract-fingerprints.ts` regenerated to match the
