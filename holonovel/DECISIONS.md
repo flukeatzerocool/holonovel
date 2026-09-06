@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.8 part 2)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the remaining ~63 §5.8 Synthesis/Lore/Macros bodies (player synthesis, synthesis tool and auto-trigger, confidence model, badge_briefing and dashboard surfaces, rebuild contract, narrative voice profiles, synthesis model and update consistency, status dashboard, per-module toggle, spec-driven-update population, convergence cache key, pre-computed synthesis manifest, macro system, audit compression, scene type tagging, scene transition hook, secrets/knowledge): passive → active, >45-word and backtick-merged sentences split with prose leads, enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. One warning accepted per DP-3: REQ-244b "MUST coverage" (frozen convergence metric name). |
+| Repaired REQ set | §5.8: REQ-086a, REQ-086b, REQ-125a, REQ-130b, REQ-226b, REQ-227a, REQ-228a, REQ-228b, REQ-228c, REQ-230a, REQ-234a, REQ-234b, REQ-234c, REQ-234d, REQ-243a, REQ-243b, REQ-243c, REQ-244a, REQ-244b, REQ-244d, REQ-245a, REQ-245c, REQ-245d, REQ-245e, REQ-261b, REQ-261d, REQ-262a, REQ-263a, REQ-264b, REQ-265b, REQ-265c, REQ-266a |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.8 part 2 REQ set (REQ-226a "or equivalent" deferred to the structural increment per plan; REQ-244b "MUST coverage" accepted per DP-3) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.8 part 1)
 
 | Field | Value |

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-06 — §5.8 part 2 clarity pass (Editorial)
+
+- Rewrote the remaining ~63 §5.8 (Synthesis, Lore, and Macros) normative
+  bodies (player synthesis, synthesis tool and auto-trigger, confidence
+  model, badge_briefing and dashboard surfaces, rebuild contract, narrative
+  voice profiles, synthesis model and update consistency, status dashboard,
+  per-module toggle, spec-driven-update population, convergence cache key,
+  pre-computed synthesis manifest, macro system, audit compression, scene
+  type tagging, scene transition hook, and secrets/knowledge) for clarity:
+  passive → active, >45-word and backtick-merged sentences split with prose
+  leads, enumerations separated per item, condition stacks unpacked,
+  sentence-initial pronouns resolved. No normative change. One warning
+  accepted per DP-3: REQ-244b "MUST coverage" (a frozen convergence metric
+  name).
+
 ## 2026-09-06 — §5.8 part 1 clarity pass (Editorial)
 
 - Rewrote the first ~64 §5.8 (Synthesis, Lore, and Macros) normative bodies
