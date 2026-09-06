@@ -963,7 +963,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S36) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S37) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Pattern Buffer and subsequent re-runs after synthesis
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
@@ -1043,7 +1043,7 @@ four items is incomplete and blocks handoff.
     restore, and pending-workflow drain are validated within the workflow
     validation sub-workflow.
 12. **Roster durability** — roster baselines immutable; re-import produces fresh copy matching baseline. (Blocking.)
-13. **Novel isolation** — entities, adventures, generated content do not leak between Novels.
+13. **Novel isolation** — entities, adventures, generated content do not leak between Novels. (Blocking.)
 14. **Edge cases** — (a) moved to S1 (invalid params validated per category);
     (b) 0 HP triggers ruleset outcome; (c) heal above max
     caps at max; (d) 5 rapid calls complete without timeout/corruption; (e) ambiguous
@@ -1228,12 +1228,29 @@ four items is incomplete and blocks handoff.
     — assert both vow progress and countdown advance. Declare goal on NPC with
     text >20 chars — assert vow-creation suggestion in `narrative_threads` (P20).
     Call `vow (action: forsake)` — assert coupled countdown removed. (Non-blocking.)
+37. **Coupling advisory sweep** — create a countdown with `scope` naming a room. Set a
+    secret whose text overlaps the countdown scope — call `lore (action: reveal)` —
+    assert a countdown-advancement advisory in `narrative_threads` (P19). Add a lore
+    entry with temporal-urgency language — assert a countdown-creation suggestion in
+    `narrative_threads` (P19). Set a vow whose name keyword-matches a lore trigger —
+    assert `[vow-relevant]` lore surfaces (P51). Flip a relationship from `ally` to
+    `rival` with a matching countdown scope — assert a countdown-advancement advisory
+    in `narrative_threads` (P18). Fire the countdown with an NPC whose `location`
+    matches the countdown `scope` — assert the NPC disposition shifts one step toward
+    the countdown `direction` (P15). Set a secret with a `world_target` room — assert
+    `[world-linked]` in `narrative_threads` (P21). Create a faction with a `territory`
+    room and set the scene there — assert `[territorial]` in `narrative_threads` (P22).
+    Set a server note with `narrative_tag` — assert it surfaces in `badge_briefing`;
+    set a server note with temporal-urgency keywords — assert a countdown-creation
+    suggestion in `narrative_threads` (P23, P49). (Non-blocking.)
 
 **REQ-108a — Pattern Buffer traceability (Part a).**
 Every Pattern Buffer sub-workflow exercises each requirement in the covered sections. The covered sections include §5.5 (Badges and Access) and §5.6 (State, Lifecycle, Entities, and Adventure Content). The sections also include §5.7 (Determinism, Safety, and Performance) and §5.8 (Synthesis, Lore, and Macros). The sections also include §5.10 (World-Model Layer), §5.12 (Narrative Architecture), and §5.13 (Holodeck). The coverage also includes the error contracts of REQ-002 (Error taxonomy). The builder records a sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a spec-driven update (REQ-098), the builder re-examines every sub-workflow mapped to it.
 
 **REQ-108b — Pattern Buffer traceability (Part b).**
 Gaps — a REQ in the covered sections with no mapped sub-workflow — go into the log as process-compliance findings and must resolve before handoff. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T107.
+**REQ-108c — Pattern Buffer coverage-map parity (Part c).**
+The §6.6 coverage map SHALL list every REQ in the REQ-108a covered sections. A covered-section REQ with neither a map row nor an explicit non-Pattern-Buffer disposition is a validation error that blocks assembly. *Acceptance criterion:* a covered-section REQ with no map row and no disposition fails validation; a covered-section REQ with an explicit disposition row passes. _Check:_ T538.
 **REQ-141a — Input-validation convergence metric (Part a).**
 The convergence handshake in §6.6 must map Pattern Buffer failures to four convergence metrics. The handshake adds "input-validation gap" to the existing three (MUST-coverage gap, mechanics-fidelity defect, and process-compliance omission). A sub-workflow failure attributable to incorrect input handling — malformed parameters accepted without error, valid inputs rejected, error categories misclassified, or corrective-action text missing — maps to the input-validation metric. The builder re-enters Phase 2 of the convergence loop (§6.5) for only the affected metric.
 
@@ -1342,7 +1359,8 @@ re-runs (§11). The operator MAY disable cascade tracing with
 
 **REQ Pattern Buffer coverage map.** The following table maps every requirement in §5.5
  (Badges and Access), §5.6 (State, Lifecycle, Entities, and Adventure Content), §5.7 (Determinism, Safety, and
-Performance), and REQ-002 (Error taxonomy) to at least one Pattern Buffer sub-workflow
+Performance), §5.8 (Synthesis, Lore, and Macros), §5.10 (World-Model Layer), §5.12 (Narrative Architecture),
+§5.13 (Holodeck), and REQ-002 (Error taxonomy) to at least one Pattern Buffer sub-workflow
 that exercises its contract. This table is normative — it ships with the
 specification and is mechanically verified by `scripts/validate.ts`. When a spec
 revision adds a new REQ to these sections, the maintainer SHALL add at least one
@@ -1495,6 +1513,95 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-371 | S33 | Ruleset Wisdom as rendered reality |
 | REQ-374 | — (convergence Phase 1 metric) | Archetype coverage |
 | REQ-375 | — (convergence Phase 1 metric) | Wisdom mechanical coupling rate |
+| REQ-165 | S16, S19 | Entity ownership personality gating |
+| REQ-166 | S16, S19 | Personality briefing rendering |
+| REQ-167 | S16 | Personality resource URIs |
+| REQ-168 | S21 | Audit resource |
+| REQ-171 | S18 | Adventure content validation |
+| REQ-173 | S22 | Connection counter |
+| REQ-174 | S21, S28 | Significant-roll criterion for recap |
+| REQ-175 | S21 | Confrontation summary derivation |
+| REQ-176 | S17 | Entity removal |
+| REQ-178 | S17 | Roster listing |
+| REQ-180 | S22 | Output truncation budget unit |
+| REQ-211 | S22 | Evidence record field contract |
+| REQ-275 | — (independent verification §10) | Evidence hash commitment |
+| REQ-276 | — (independent verification §10) | Independent verifier model criteria |
+| REQ-281 | S19 | Narrative-threads section token |
+| REQ-286 | S19 | Knowledge-state section token |
+| REQ-252 | S16, S23 | Narrative fast-forward |
+| REQ-279 | S21, S28 | Narrative orientation |
+| REQ-282 | S16, S19 | NPC voice directive |
+| REQ-285 | S23, S24 | Server notes |
+| REQ-289 | S16, S36 | Vow tracking |
+| REQ-292 | S18 | Adventure catalog |
+| REQ-302 | — (convergence Phase 1 metric) | Per-section content hashing |
+| REQ-311 | S16, S34 | NPC memory model |
+| REQ-313 | — (build process §6.7) | Server implementation fingerprinting |
+| REQ-314 | — (build process §6.7) | Fingerprint-driven partial rebuild |
+| REQ-213 | S7 | Weighted table result |
+| REQ-251 | S18 | Generation intent guard |
+| REQ-253 | S24 | Tool-output verbosity control |
+| REQ-273 | — (independent verification §10) | Reproducibility tolerance |
+| REQ-274 | — (independent verification §10) | Verifier confidence score |
+| REQ-291 | S16 | Oracle tool |
+| REQ-312 | S16 | Pre-narration validation |
+| REQ-433 | S24 | Event notification surface |
+| REQ-185 | S19 | Section token vocabulary |
+| REQ-186 | S19 | Section token discoverability |
+| REQ-226 | — (convergence Phase 1 metric) | Narrative voice profile extraction |
+| REQ-227 | S27 | Two-tier synthesis model |
+| REQ-228 | S27 | Synthesis consistency during updates |
+| REQ-230 | S27 | Synthesis status dashboard |
+| REQ-231 | S27 | Per-module synthesis toggle |
+| REQ-234 | S23, S34 | Secrets and knowledge |
+| REQ-243 | S27 | Synthesis population during updates |
+| REQ-244 | — (convergence Phase 1 metric) | Convergence cache key |
+| REQ-245 | — (convergence Phase 1 metric) | Pre-computed synthesis manifest |
+| REQ-246 | S16, S23 | Story journal |
+| REQ-260 | S27 | Granular synthesis activation |
+| REQ-261 | S27 | Player synthesis |
+| REQ-262 | S27 | Novel synthesis tool |
+| REQ-263 | S27 | Novel synthesis run |
+| REQ-264 | S27 | Novel synthesis auto-trigger |
+| REQ-265 | S27 | Synthesis in badge_briefing |
+| REQ-266 | S27 | Novel synthesis confidence |
+| REQ-310 | S16, S21 | Campaign memory |
+| REQ-328 | S16, S32 | Lore-world coupling |
+| REQ-222 | I17 | Parser vocabulary extension |
+| REQ-431 | I5 | Procedural world generation |
+| REQ-335 | S16, S35 | Scene beat taxonomy |
+| REQ-336 | S35 | Dramatic pacing signal |
+| REQ-337 | S16 | Narrative arc visibility |
+| REQ-338 | S23, S35 | Faction autonomous advancement |
+| REQ-339 | S35 | NPC goal pursuit |
+| REQ-340 | S35 | Discovered consequences |
+| REQ-341 | S16, S19 | Player-facing spatial surface |
+| REQ-342 | S16, S32 | Scene description from world model |
+| REQ-343 | S16, S32 | Unified intent resolution |
+| REQ-344 | S16, S28 | Voice example feedback |
+| REQ-345 | S16, S34 | Background-derived knowledge |
+| REQ-346 | — (G7 narrative-coherence attestation) | Narrative coherence attestation |
+| REQ-347 | S16, S28 | Voice feedback codex capture |
+| REQ-348 | S35 | Faction-NPC goal coordination |
+| REQ-349 | S35 | Consequence-to-knowledge coupling |
+| REQ-350 | S16, S32 | Background lore triggering |
+| REQ-351 | S35 | Pacing-triggered autonomy |
+| REQ-352 | S16, S18 | Codex adventure beat sequences |
+| REQ-353 | S16, S35 | Beat-accelerated countdown advancement |
+| REQ-355 | S37 | Secret-countdown coupling |
+| REQ-356 | S37 | Vow-lore coupling |
+| REQ-357 | S32, S36 | Story journal-faction coupling |
+| REQ-358 | S37 | Countdown-NPC disposition coupling |
+| REQ-359 | S37 | Relationship-countdown coupling |
+| REQ-360 | S37 | Lore-countdown coupling |
+| REQ-361 | S36 | NPC-vow coupling |
+| REQ-362 | S36 | Faction-vow coupling |
+| REQ-363 | S37 | Secret-world coupling |
+| REQ-364 | S37 | Faction-world coupling |
+| REQ-365 | S37 | Server notes narrative coupling |
+| REQ-366 | S19 | Observer narrative surface |
+| REQ-376 | — (Holonovel Pattern Buffer traceability) | Holonovel sub-workflow-to-REQ mapping |
 
 **Fingerprint-driven Pattern Buffer scoping.** When neither the ruleset content hash
 (REQ-044) nor the specification content hash (REQ-187) have changed since the
@@ -1512,7 +1619,7 @@ SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
 Sub-workflows whose `surface_hash` matches the prior Pattern Buffer execution SHALL be
 skipped individually — recorded as `cached — surface hash match for S<N>` in
 DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
-The full 36-sub-workflow Pattern Buffer is not required when the
+The full 37-sub-workflow Pattern Buffer is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
 **Sub-workflow segmentation.** A sub-workflow whose structured encoding declares
@@ -1529,7 +1636,7 @@ manifest; unchanged-segment verdicts carry forward from the prior run with
 `cached — segment hash match for S<N>.seg<M>` in DECISIONS.md (6).
 
 A sub-workflow without declared segments SHALL execute in full on every
-selection. The full 36-sub-workflow Pattern Buffer SHALL still execute when the
+selection. The full 37-sub-workflow Pattern Buffer SHALL still execute when the
 ruleset hash or spec version changes — segmentation reduces re-execution cost
 only within a stable-spec/stable-ruleset context where individual surfaces
 change. Sub-workflow segmentation SHALL NOT be used to split blocking
@@ -1549,7 +1656,7 @@ changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
 The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
-intake, forcing all 36 sub-workflows regardless of fingerprint match.
+intake, forcing all 37 sub-workflows regardless of fingerprint match.
 
 #### Holonovel Pattern Buffer
 
@@ -1820,7 +1927,7 @@ _Check:_ T84.
 | Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
 | Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
 | Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 36 sub-workflows, scoped per the §6.6 surface-to-scenario and fingerprint rules) |
+| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 37 sub-workflows, scoped per the §6.6 surface-to-scenario and fingerprint rules) |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. An Editorial disposition records the repaired

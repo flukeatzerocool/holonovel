@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer coverage parity
+
+- The §6.6 Pattern Buffer coverage map now maps every REQ in the traceability
+  covered sections (§5.5, §5.6, §5.7, §5.8, §5.10, §5.12, §5.13), and the
+  validator enforces the mapping as errors instead of the prior warning-only
+  drift. (REQ-108c)
+- Added sub-workflow S37 (coupling advisory sweep) covering the eight
+  coupling REQs that lacked runtime exercise (REQ-355/356/358/359/360/363/
+  364/365), and corrected the Pattern Buffer suite count to 37 sub-workflows.
+- The blocking sub-workflow list is now mechanically reconciled with the
+  prose markers — S13, S17, S27, S32, and S33 classify blocking — via a new
+  blocking-parity check. (REQ-142c)
+
 ## 2026-09-06 — Pattern Buffer hardening
 
 - The Pattern Buffer now requires an executable harness as its evidence of
