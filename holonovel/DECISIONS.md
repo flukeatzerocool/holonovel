@@ -2,6 +2,17 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial structural cleanup)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — resolved the deferred ambiguity-scan items (hedge words, "or equivalent" phrases, vague qualifiers, "should" obligations) and the non-canonical "Section N" cross-references; cleared ~20 residual proofreading warnings introduced or missed across the earlier clarity increments (REQ-041c, REQ-078c1, REQ-109c1–c3, REQ-141h, REQ-219a2, REQ-340a, REQ-345a/b, REQ-352a, REQ-357a, REQ-360a, REQ-369b, REQ-370b, REQ-371b, REQ-373a1, REQ-377a, REQ-379b, REQ-380b). No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. Four warnings remain accepted per DP-3: the "MUST" convergence-metric names (REQ-162b, REQ-208a, REQ-244b, REQ-383a). |
+| Repaired REQ set | ambiguity: REQ-077f, REQ-114a, REQ-127a, REQ-157b, REQ-204a, REQ-221a, REQ-226a, REQ-308b, REQ-327a, REQ-345b, REQ-348b, REQ-396; residual proofreading: REQ-041c, REQ-078c1, REQ-109c1, REQ-109c2, REQ-109c3, REQ-141h, REQ-219a2, REQ-318b, REQ-340a, REQ-345a, REQ-352a, REQ-357a, REQ-360a, REQ-369b, REQ-370b, REQ-371b, REQ-373a1, REQ-377a, REQ-379b, REQ-380b |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors |
+| Note | Remaining warning classes — Pattern Buffer coverage-map aggregate-vs-sub-part drift (63), uncited test IDs (22), empty fixture/section headings (14), and assumption audit (13 untiered thresholds/magic numbers/absolute language) — are structural reconciliation, not prose clarity; they remain as the tracked backlog. |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.21–5.23)
 
 | Field | Value |
