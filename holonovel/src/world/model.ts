@@ -307,6 +307,22 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       continue;
     }
 
+    // Current-thing placement: "It is in <Room>." / "It is on <Supporter>."
+    // (places the thing declared by the preceding kind/property statement).
+    const placeMatch = text.match(/^It is (in|on) (.+?)\.\s*$/i);
+    if (placeMatch) {
+      if (!currentThing) {
+        warnings.push({ line: lnum, pattern: text, message: "Placement with no current thing." });
+        continue;
+      }
+      const thing = world.things.get(currentThing.toLowerCase());
+      if (thing) {
+        thing.location = placeMatch[2].trim();
+        thing.locationType = placeMatch[1].toLowerCase() === "on" ? "supporter" : "room";
+      }
+      continue;
+    }
+
     // Thing in room: "<Name> is in <Room>." or "A <name> is in <Room>."
     const thingInMatch = text.match(/^(?:A |An )?(.+?) is in (.+?)\.\s*(?:"(.*)")?\s*$/i);
     if (thingInMatch) {
@@ -397,7 +413,7 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         if (kind === "supporter") { existing.portable = false; }
         if (kind === "door") { existing.openable = true; existing.portable = false; }
         if (kind === "device") { existing.switchable = true; }
-        if (kind === "vehicle") { existing.portable = false; existing.enterable = true; existing.vehiclePassengers = existing.vehiclePassengers || []; }
+        if (kind === "vehicle") { existing.portable = false; existing.enterable = true; existing.vehiclePassengers = existing.vehiclePassengers || []; existing.vehicleInterior = existing.vehicleInterior || desc; existing.capacity = existing.capacity ?? 4; }
       } else {
         const thing: WorldThing = {
           name,
@@ -414,7 +430,9 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           switchable: kind === "device",
           switched_on: false,
           enterable: kind === "vehicle",
+          vehicleInterior: kind === "vehicle" ? desc : undefined,
           vehiclePassengers: [],
+          capacity: kind === "vehicle" ? 4 : undefined,
           wearable: false,
           worn_by: null,
           readable: false,
@@ -435,15 +453,44 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       continue;
     }
 
+    // read_text extraction: "The inscription on the altar reads 'Beware.'" (REQ-318b)
+    const readTextMatch = text.match(/^The inscription on (.+?) reads ['"](.+)['"]\.?$/i);
+    if (readTextMatch) {
+      const target = readTextMatch[1].trim().toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      const norm = (n: string) => n.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      const things = [...world.things.values()];
+      const thing = things.find((t) => norm(t.name) === target)
+        ?? things.find((t) => norm(t.name).includes(target) || target.includes(norm(t.name)));
+      if (thing) {
+        thing.readable = true;
+        thing.read_text = readTextMatch[2];
+      } else {
+        warnings.push({ line: lnum, pattern: text, message: `Thing '${readTextMatch[1].trim()}' not found for inscription.` });
+      }
+      continue;
+    }
+
+    // Device switch-state assertion: "It is switched on." / "It is switched off." (REQ-316b)
+    const switchedMatch = text.match(/^It is (switched on|switched off)\.\s*$/i);
+    if (switchedMatch) {
+      const thing = world.things.get((currentThing ?? "").toLowerCase());
+      if (thing) {
+        thing.switched_on = switchedMatch[1].toLowerCase() === "switched on";
+      } else {
+        warnings.push({ line: lnum, pattern: text, message: "Switched-state declaration with no current thing target." });
+      }
+      continue;
+    }
+
     // Property declaration: "<Name> is <property>." or "It is <property> and <property>."
-    const propMatch = text.match(/^It is (fixed|portable|openable|open|close|closed|lockable|locked|lit|dark)(?: and (fixed|portable|locked|open|closed))?\.\s*$/i) ||
-                      text.match(/^(.+?) is (fixed|portable|openable|open|lockable|locked|lit|dark)\.\s*$/i);
+    const propMatch = text.match(/^It is (fixed|portable|openable|open|close|closed|lockable|locked|lit|dark|switchable|wearable|readable|edible|drinkable|climbable|transparent|enterable)(?: and (fixed|portable|locked|open|closed))?\.\s*$/i) ||
+                      text.match(/^(.+?) is (fixed|portable|openable|open|lockable|locked|lit|dark|switchable|wearable|readable|edible|drinkable|climbable|transparent|enterable)\.\s*$/i);
 
     if (propMatch) {
       let targetName = currentThing;
       let props: string[] = [];
 
-      if (propMatch[1] && propMatch[1].match(/^(fixed|portable|openable|open|lockable|locked|lit|dark|close|closed)$/i)) {
+      if (propMatch[1] && propMatch[1].match(/^(fixed|portable|openable|open|lockable|locked|lit|dark|close|closed|switchable|wearable|readable|edible|drinkable|climbable|transparent|enterable)$/i)) {
         // "It is ..." form
         props = [propMatch[1], propMatch[2]].filter(Boolean).map(s => s!.toLowerCase().replace(/close$/, "closed"));
       } else if (propMatch[1]) {
@@ -474,6 +521,14 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           case "unlocked": thing.locked = false; break;
           case "lit": thing.lit = true; break;
           case "dark": thing.lit = false; break;
+          case "switchable": thing.switchable = true; break;
+          case "wearable": thing.wearable = true; break;
+          case "readable": thing.readable = true; break;
+          case "edible": thing.edible = true; break;
+          case "drinkable": thing.drinkable = true; break;
+          case "climbable": thing.climbable = true; break;
+          case "transparent": thing.transparent = true; break;
+          case "enterable": thing.enterable = true; break;
           default:
             warnings.push({ line: lnum, pattern: text, message: `Unknown property '${prop}'.` });
         }
@@ -534,5 +589,62 @@ export function worldKinds(): string {
     lines.push(`- \`${cmd.verb}\` [${cmd.category}]`);
   }
 
+  lines.push("\n## Verb Coverage Tiers");
+  const tiers = verbCatalog(undefined);
+  lines.push(`- core (${tiers.core.length}): ${tiers.core.map(v => v.verb).join(", ") || "none"}`);
+  lines.push(`- standard (${tiers.standard.length}): ${tiers.standard.map(v => v.available ? v.verb : v.verb + " (unavailable)").join(", ") || "none"}`);
+  lines.push(`- extended (${tiers.extended.length}): ${tiers.extended.map(v => v.verb).join(", ") || "none registered"}`);
+
   return lines.join("\n");
+}
+
+// ── Verb coverage tiers (REQ-283) ─────────────────────────────────
+
+export interface TieredVerb {
+  verb: string;
+  available: boolean;
+}
+
+export interface VerbCatalog {
+  core: TieredVerb[];
+  standard: TieredVerb[];
+  extended: TieredVerb[];
+}
+
+const CORE_VERBS = ["look", "go", "examine", "take", "drop", "inventory", "wait"];
+const STANDARD_VERBS = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert", "switch on", "switch off", "ask", "tell", "give", "show", "throw"];
+
+// Maps a standard verb to the world-model property whose presence makes it
+// available; verbs without an entry are always available.
+const VERB_PROPERTY: Record<string, (t: any) => boolean> = {
+  "open": (t) => t.openable,
+  "close": (t) => t.openable,
+  "lock": (t) => t.lockable,
+  "unlock": (t) => t.lockable,
+  "read": (t) => t.readable || !!t.read_text,
+  "wear": (t) => t.wearable,
+  "remove": (t) => t.wearable,
+  "eat": (t) => t.edible,
+  "drink": (t) => t.drinkable,
+  "climb": (t) => t.climbable,
+  "enter": (t) => t.enterable,
+  "exit": (t) => t.enterable,
+  "light": (t) => t.lit || t.switchable,
+  "extinguish": (t) => t.lit || t.switchable,
+  "sit": (t) => t.kind === "supporter",
+  "stand": (t) => t.kind === "supporter",
+  "switch on": (t) => t.switchable,
+  "switch off": (t) => t.switchable,
+};
+
+export function verbCatalog(world: { things: Map<string, any> } | undefined): VerbCatalog {
+  const things = world ? [...world.things.values()] : [];
+  const core = CORE_VERBS.map(verb => ({ verb, available: true }));
+  const standard = STANDARD_VERBS.map((verb) => {
+    const check = VERB_PROPERTY[verb];
+    if (!check) return { verb, available: true };
+    return { verb, available: things.some(check) };
+  });
+  const extended: TieredVerb[] = [];
+  return { core, standard, extended };
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Inform Gauntlet — §6.6 world-model verification harness
-// Spawns inform MCP server, executes I1–I13 sub-workflows, records structured results.
-// Blocking: I1, I2, I3, I4, I5, I6, I10. Non-blocking: I7, I8, I9, I11, I12, I13.
+// Spawns inform MCP server, executes I1–I18 sub-workflows, records structured results.
+// Blocking: I1–I6, I10, I14–I18. Non-blocking: I7, I8, I9, I11, I12, I13.
 
 import { spawn, ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -170,6 +170,23 @@ The Inner Sanctum is a room. "A chamber lit by an eerie green glow."
 
 ## Lore
 @lore(Entrance Chamber) The murals depict the Serpent King.`;
+
+const VEHICLE_FIXTURE = `The Underground Lake is a room. "A vast underground lake, still and black."
+North of the Underground Lake is the Rocky Shore.
+The Rocky Shore is a room. "A pebbled shoreline beneath a low ceiling."
+A raft is a vehicle. "A rickety wooden raft."
+It is in the Underground Lake.
+A rock is in the Underground Lake.`;
+
+const EXTENDED_PROPS_FIXTURE = `The Entrance Chamber is a room. "A dusty room with faded murals."
+A silver ring is in the Entrance Chamber. It is wearable.
+A red mushroom is in the Entrance Chamber. It is edible.
+A glass jar is a container. It is transparent.
+The altar is in the Entrance Chamber. It is readable.
+The inscription on the altar reads 'Beware the serpent.'
+A rope ladder is in the Entrance Chamber. It is climbable.
+A lantern is a device. It is in the Entrance Chamber. It is switchable.
+A rock is in the Entrance Chamber.`;
 
 // ── Helper: shorthand action creators ──────────────────────────────
 
@@ -502,7 +519,114 @@ function buildScenarios(): GauntletScenario[] {
     ],
   };
 
-  return [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13];
+  const I14: GauntletScenario = {
+    scenario_id: "I14",
+    objective: "Device lifecycle — switch on/off a device; RULE_VIOLATION on non-device",
+    blocking: true,
+    steps: [
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i14" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "create_room", action: T("world", { action: "create_room",  name: "Cave", description: "A dark cave." }), assert: assertOK },
+      { label: "create_thing lantern (device)", action: T("world", { action: "create_thing",  name: "lantern", kind: "device", lit: true, location: "Cave" }), assert: assertOK },
+      { label: "create_thing rock", action: T("world", { action: "create_thing",  name: "rock", kind: "thing", location: "Cave" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "SwitchFlipper" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+      { label: "switch on lantern", action: T("command", { command: "switch on lantern" }), assert: (r) => assertContains(r, "switch on") },
+      { label: "switch off lantern", action: T("command", { command: "switch off lantern" }), assert: (r) => assertContains(r, "switch off") },
+      { label: "switch on rock — RULE_VIOLATION", action: T("command", { command: "switch on rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+    ],
+  };
+
+  const I15: GauntletScenario = {
+    scenario_id: "I15",
+    objective: "Vehicle lifecycle — enter/exit, interior look, navigation, RULE_VIOLATION on non-enterable",
+    blocking: true,
+    steps: [
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i15" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "convert vehicle fixture", action: T("world", { action: "convert",  source: VEHICLE_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
+      { label: "create_character", action: T("character", { action: "create",  name: "Rafter" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+      { label: "enter raft", action: T("command", { command: "enter raft" }), assert: (r) => assertContains(r, "You enter") },
+      { label: "look — interior", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "raft") },
+      { label: "exit — back to lake", action: T("command", { command: "exit" }), assert: assertOK },
+      { label: "enter rock — RULE_VIOLATION", action: T("command", { command: "enter rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+      { label: "enter raft again", action: T("command", { command: "enter raft" }), assert: assertOK },
+      { label: "go north moves vehicle", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "moves north") },
+      { label: "exit", action: T("command", { command: "exit" }), assert: assertOK },
+    ],
+  };
+
+  const I16: GauntletScenario = {
+    scenario_id: "I16",
+    objective: "Extended property contracts — wearable/edible/readable/climbable/transparent via convert",
+    blocking: true,
+    steps: [
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i16" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "convert extended-props fixture", action: T("world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
+      { label: "create_character", action: T("character", { action: "create",  name: "PropertyTester" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+      { label: "take silver ring", action: T("command", { command: "take silver ring" }), assert: assertOK },
+      { label: "wear silver ring", action: T("command", { command: "wear silver ring" }), assert: (r) => assertContains(r, "wear") },
+      { label: "take red mushroom", action: T("command", { command: "take red mushroom" }), assert: assertOK },
+      { label: "eat mushroom", action: T("command", { command: "eat red mushroom" }), assert: (r) => assertContains(r, "eat") },
+      { label: "read altar — read_text", action: T("command", { command: "read altar" }), assert: (r) => assertContains(r, "Beware the serpent") },
+      { label: "climb rope ladder", action: T("command", { command: "climb rope ladder" }), assert: (r) => assertContains(r, "climb") },
+      { label: "take rock", action: T("command", { command: "take rock" }), assert: assertOK },
+      { label: "eat rock — missing property RULE_VIOLATION", action: T("command", { command: "eat rock" }), assert: (r) => assertContains(r, "not edible") },
+    ],
+  };
+
+  const I17: GauntletScenario = {
+    scenario_id: "I17",
+    objective: "Extended parser commands — standard-tier verbs, help tiers, again/g, pronoun",
+    blocking: true,
+    steps: [
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i17" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "convert extended-props fixture", action: T("world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "VerbSweeper" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+      { label: "sit bench — supporter via jar? use altar", action: T("command", { command: "look" }), assert: assertOK },
+      { label: "listen", action: T("command", { command: "listen" }), assert: (r) => assertContains(r, "listen") },
+      { label: "smell", action: T("command", { command: "smell" }), assert: assertOK },
+      { label: "touch altar", action: T("command", { command: "touch altar" }), assert: (r) => assertContains(r, "touch") },
+      { label: "light lantern", action: T("command", { command: "light lantern" }), assert: (r) => assertContains(r, "light") },
+      { label: "extinguish lantern", action: T("command", { command: "extinguish lantern" }), assert: (r) => assertContains(r, "extinguish") },
+      { label: "help lists tiers", action: T("command", { command: "help" }), assert: (r) => {
+        assertContains(r, "core"); assertContains(r, "standard"); assertContains(r, "extended");
+      }},
+      { label: "again repeats last command", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
+      { label: "g repeats last command", action: T("command", { command: "g" }), assert: (r) => assertContains(r, "Entrance Chamber") },
+    ],
+  };
+
+  const I18: GauntletScenario = {
+    scenario_id: "I18",
+    objective: "Narrative-intent verbs — ask/tell/give/show/throw with transfer and RULE_VIOLATION",
+    blocking: true,
+    steps: [
+      { label: "create_novel", action: T("novel", { action: "create",  name: "gauntlet-i18" }), assert: assertOK },
+      { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+      { label: "create_room Crypt", action: T("world", { action: "create_room",  name: "Crypt", description: "A dark crypt." }), assert: assertOK },
+      { label: "create_npc guard", action: T("npc", { action: "create",  name: "guard", location: "Crypt" }), assert: assertOK },
+      { label: "create sword/rock/shield/altar", action: T("world", { action: "create_thing",  name: "sword", kind: "thing", location: "Crypt" }), assert: assertOK },
+      { label: "create rock", action: T("world", { action: "create_thing",  name: "rock", kind: "thing", location: "Crypt" }), assert: assertOK },
+      { label: "create fixed altar", action: T("world", { action: "create_thing",  name: "altar", kind: "supporter", fixed: true, location: "Crypt" }), assert: assertOK },
+      { label: "create_character", action: T("character", { action: "create",  name: "Narrator" }), assert: assertOK },
+      { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+      { label: "ask guard about crypt", action: T("command", { command: "ask guard about crypt" }), assert: (r) => assertContains(r, "ask") },
+      { label: "take sword", action: T("command", { command: "take sword" }), assert: assertOK },
+      { label: "give sword to guard", action: T("command", { command: "give sword to guard" }), assert: (r) => assertContains(r, "give") },
+      { label: "take rock", action: T("command", { command: "take rock" }), assert: assertOK },
+      { label: "throw rock at statue", action: T("command", { command: "throw rock at statue" }), assert: (r) => assertContains(r, "throw") },
+      { label: "give altar to guard — RULE_VIOLATION", action: T("command", { command: "give altar to guard" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+      { label: "ask nobody about crypt — WARNING", action: T("command", { command: "ask nobody about crypt" }), assert: (r) => assertContains(r, "WARNING") },
+    ],
+  };
+
+  return [I1, I2, I3, I4, I5, I6, I7, I8, I9, I10, I11, I12, I13, I14, I15, I16, I17, I18];
 }
 
 // ── Main ────────────────────────────────────────────────────────────

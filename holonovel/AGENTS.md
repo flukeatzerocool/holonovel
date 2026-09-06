@@ -5,34 +5,46 @@ AI maintainer orientation for the holonovel (world-model) MCP server implementat
 ## Layer Map
 
 ```
-src/world-model.ts      World-model data structures: kind hierarchy (thing,
-                        container, supporter, door, person, backdrop, region),
-                        property contracts, rooms, things, exits, convert_source
-                        parser, resource serialization (worldMap, worldKinds).
+src/world/model.ts      World-model data structures: kind hierarchy (thing,
+                        container, supporter, door, device, vehicle, person,
+                        backdrop, region), property contracts (portable,
+                        openable/lockable/lit/switchable/switched_on/enterable/
+                        wearable/readable/edible/drinkable/climbable/transparent),
+                        rooms, things, exits, convert_source parser, verb coverage
+                        tiers (verbCatalog), resource serialization (worldMap,
+                        worldKinds).
         ↓
-src/parser.ts           Command dispatch: lexer, resolver against world-model
-                        state. Handles look, go, take, drop, open, close,
-                        unlock/lock, inventory, examine, wait. Side-effect
-                        resolution (movement, property mutations).
+src/world/parser.ts     Command dispatch: lexer, resolver against world-model
+                        state. Core (look, go, take, drop, open, close, unlock,
+                        lock, inventory, examine, wait) plus standard-tier verbs
+                        (switch on/off, wear, remove, read, eat, drink, climb,
+                        enter, exit, sit, stand, push, pull, light, extinguish,
+                        listen, smell, touch, insert). Returns ParserResult;
+                        side-effect resolution (movement, property mutations)
+                        lives in src/index.ts.
         ↓
-src/state.ts            StateManager singleton: novels, roster, NPCs, scenes,
+src/core/state.ts       StateManager singleton: novels, roster, NPCs, scenes,
                         countdowns, lore, enrichment, snapshots (per-badge
                         undo/redo stacks), audit log, badge gating, workflows,
                         build fingerprint. Atomic persistence.
         ↓
-src/macros.ts           expandMacros — {{entity.name}}, {{scene.current}},
+src/core/macros.ts      expandMacros — {{entity.name}}, {{scene.current}},
                         {{scene.type}}, {{countdown.<n>.remaining}},
                         {{countdown.<n>.total}}, {{novel.slug}}, {{badge.active}},
                         {{party.size}}, {{world.room}}, {{world.room_count}},
                         {{world.thing_count}}.
         ↓
-src/enrichment.ts       Enrichment manifest — 7 output modules populated
+src/core/enrichment.ts  Enrichment manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole enrichment source.
         ↓
 src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
+                        Narrative-intent verbs (ask/tell/give/show/throw) and
+                        vehicle-aboard state are resolved here (Novel + entity serve
+                        as the surfaces for NPC resolution, item transfer, and
+                        [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
 ## Tool Surface (28 tools)

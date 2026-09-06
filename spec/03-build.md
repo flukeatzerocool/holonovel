@@ -1850,7 +1850,12 @@ When a spec revision adds a new REQ to these sections, the maintainer SHALL add
 at least one row mapping it to a Holonovel PB sub-workflow (existing or new).
 When no existing sub-workflow exercises the new REQ's contract, the maintainer
 SHALL add a new sub-workflow. Gaps detected by validation are errors — they
-block assembly.
+block assembly. Rows are keyed by REQ, not by sub-workflow: a sub-workflow
+appears in the map only when it exercises at least one covered-section REQ.
+Sub-workflows that exercise no covered-section REQ — merged stubs (S10, S11) and
+sub-workflows operating outside the traced surfaces (S8, S12) — SHALL NOT carry a
+row, and their absence is not a gap. REQ-108c checks the REQ-to-row direction
+only; it does not require every sub-workflow to appear as a row.
 
 | REQ | Sub-workflows | Feature |
 |-----|---------------|---------|
