@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 1)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the first ~87 §5.6 State/Lifecycle/Entities bodies (Core State and Lifecycle plus the start of the Entities subsection): passive → active, >45-word and backtick-merged sentences split with prose leads, field and parameter enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Repaired garbled leads in REQ-174a ("purposes when it") and REQ-279a ("SHALL synthesis (action: run)") into explicit condition lists without changing their criteria. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.6: REQ-040b, REQ-040d, REQ-041b, REQ-043a, REQ-043b, REQ-043c, REQ-072a1, REQ-072a2, REQ-072c1, REQ-072c2, REQ-072e, REQ-072g, REQ-074c, REQ-075c, REQ-119c, REQ-119d, REQ-122a, REQ-122b, REQ-168a, REQ-174a, REQ-174b, REQ-175a, REQ-203, REQ-204b, REQ-205a, REQ-205c, REQ-206b, REQ-217a, REQ-217b, REQ-217d, REQ-221b, REQ-279a, REQ-289a, REQ-289c, REQ-329a |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.6 part 1 REQ set |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.5+§5.7)
 
 | Field | Value |
