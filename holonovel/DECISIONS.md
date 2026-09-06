@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.21–5.23)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.21–5.23 base-capability bodies (Fate stress and consequences, Ironsworn progress tracks, Forged in the Dark action roll): condition-stacked enumerations separated per item. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.21: REQ-437; §5.22: REQ-440; §5.23: REQ-441 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.21–5.23 REQ set |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.19+§5.20+§6)
 
 | Field | Value |

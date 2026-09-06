@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-06 — §5.21–5.23 clarity pass (Editorial)
+
+- Rewrote the §5.21–5.23 base-capability normative bodies (Fate stress and
+  consequences, Ironsworn progress tracks, Forged in the Dark action roll) for
+  clarity: passive → active and condition-stacked enumerations separated per
+  item. No normative change.
+
 ## 2026-09-06 — §5.19+§5.20+§6 clarity pass (Editorial)
 
 - Rewrote the §5.19 State Persistence Guardrails, §5.20 Narrative Turn
