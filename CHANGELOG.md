@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-06 — Zero-findings campaign artifacts
+
+- Added `plans/2026-09-06-zero-findings-editorial/` (`plan.md` + `tasks.md`):
+  campaign map and task breakdown for the 15-increment zero-findings
+  editorial pass; Increment 1 (§5.1–5.2) marked shipped (`662efa1`).
+- Appendix M now documents the REQ-body readability standard (Flesch-Kincaid
+  ≤18, prose-only scoring, precision-safe) alongside the existing narrative
+  prose standard.
+- Review register records SR-1 (machine-warning backlog) as
+  Scheduled-roadmap, tracked via the campaign artifacts per user decision.
+
 ## 2026-09-06 — §5.1–5.2 clarity pass (Editorial)
 
 - Rewrote the §5.1 Output and Error Contracts and §5.2 Extraction and

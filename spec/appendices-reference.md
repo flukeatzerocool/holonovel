@@ -2250,6 +2250,16 @@ the flagged paragraph and rewrites it only if it is genuinely hard to follow. Le
 domain vocabulary alone are not defects; the numbered Standing Rules of §4, the §5
 requirement bodies, and the reference appendices are exempt from this standard.
 
+**REQ-body readability standard.** REQ bodies SHALL read at a Flesch-Kincaid grade level
+of 18 or below (graduate-level — the ceiling for a normative build spec). The check
+scores prose only: backtick code identifiers are stripped before scoring, so mandated
+technical tokens (`assumption_audit`, `[NOT_FOUND]`) never inflate a prose-quality
+heuristic. This is a warning, not a gate — a flag is a *pointer*. The bar must not be met
+by degrading mandated vocabulary: SHALL/MAY strength, canonical terms, and identifiers
+always outrank the readability score. When a dense enumeration cannot clear grade 18
+without dropping load-bearing wording, record the REQ in DECISIONS.md as an accepted
+readability exception and leave the contract intact.
+
 **REQ anatomy.** One paragraph stating a single verifiable contract — the
 *what*. Ends in `_Check:` with test citations. Contains no parameter types,
 no algorithm descriptions, no default values, no catalog enumerations
