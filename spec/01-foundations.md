@@ -53,8 +53,8 @@
 
 Read this specification in layers — not front to back.
 
-This specification is maintained as 14 source files under `spec/`. `npm run assemble`
-joins them into this document. During an AI build, the builder reads
+This specification lives as 14 source files under `spec/`. `npm run assemble`
+joins them into this document. During a build, the builder reads
 `build-phase-map.md` to load only the files the current phase needs. This cuts
 per-phase context by about 73% versus loading the full specification.
 
@@ -175,11 +175,7 @@ server-scoped, audited operation (`ruleset (action: install)` / `ruleset (action
 it never rebuilds the host. Updating the host revalidates installed packages without
 re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
 
-**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and
-client-side subagent segmentation are out of contract for this specification: mechanical
-resolution remains expressible as discrete inspectable tool calls whose intermediate results
-a badge-appropriate caller may observe. Builders and verifiers treat such techniques as
-out-of-scope, not as missing coverage.
+**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and client-side subagent segmentation fall outside this specification's contract. Mechanical resolution stays expressible as discrete, inspectable tool calls. A badge-appropriate caller may observe the intermediate results of those calls. Builders and verifiers treat such techniques as out of scope, not as missing coverage.
 
 ---
 
