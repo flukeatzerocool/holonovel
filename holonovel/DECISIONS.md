@@ -1,6 +1,17 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
+**Spec hash:** 20d707d073f70411d25d7f97b7f778445d83afc559f91f0fff6d8648b54c0c96
+
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial structural reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec + validator — closed the structural reconciliation backlog without normative change. Validator: §6.6 Pattern Buffer coverage map now accepts family-level REQ IDs (prefix fallback, consistent with REQ citations); section headings followed by fixture code blocks, deeper subheadings, or a `---` divider are no longer reported empty; magic-number and untiered-threshold scans stop matching section references ("§6.3"), test-table rows, and normative gate definitions. Spec: wired 21 Appendix F tests into their target REQ `_Check` lines, removed T23 (superseded by T87), reworded one "the only" annotation to "the sole", and tied the sampling-floor to the classification profile. REQ-101a note: diff-only prose edits, no new assumptions, no re-audit required. |
+| Repaired REQ set | test wiring: REQ-011c (T182), REQ-025c (T165/T166/T170), REQ-079j2 (T206/T287), REQ-080g2 (T102/T288), REQ-082c (T205), REQ-138b (T167), REQ-139 (T168), REQ-158b (T193), REQ-163b (T198), REQ-167b (T202), REQ-193b (T494), REQ-291d (T337), REQ-306e (T485), REQ-420 (T503), REQ-424 (T504), REQ-426c (T508), §6.6 (T169) |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors; 6 DP-3-accepted warnings remain — "MUST" convergence-metric names (REQ-162b, REQ-208a, REQ-244b, REQ-383a) and two narrative-prose grade readings (reading guide "Phased artifact model", mission "Ruleset package model") that cannot reach the grade-12 bar without removing required REQ citations or canonical Spec-Kit phase names |
+| Note | Result of the reconciliation campaign: machine-flagged warnings 676 → 6; the 6 residual are documented DP-3 non-actionable, not a parallel backlog. |
 
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial structural cleanup)
 
