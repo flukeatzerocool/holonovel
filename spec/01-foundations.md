@@ -53,10 +53,9 @@
 
 Read this specification in layers — not front to back.
 
-This specification lives as 14 source files under `spec/`. `npm run assemble`
-joins them into this document. During a build, the builder reads
-`build-phase-map.md` to load only the files the current phase needs. This cuts
-per-phase context by about 73% versus loading the full specification.
+This spec lives as 14 source files under `spec/`. `npm run assemble` joins
+them into one document. A builder reads `build-phase-map.md` to load only the
+files the current phase needs. That cuts phase context by about 73% versus the full spec.
 
 **If you are a builder implementing a server for the first time:**
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
@@ -91,11 +90,11 @@ and V.8 (`migrate-user-data`) name the rebuild and migration entry points.
 REQ names. Appendix F shows test coverage. Appendix S defines domain terms. Consult the
 rest on demand during build phases or verification.
 
-**Phased artifact model.** This specification follows the Spec Kit phased model:
+**Phased artifact model.** This spec follows the Spec Kit phased model:
 constitution (§4 Standing Rules), specify (this document), plan and tasks
-(per-increment artifacts under `plans/`), implement (§6 Build Process), and converge
-(§6.5/§6.7). The house executable-spec conventions (gates, traceability, golden
-transcript) serve as the quality checklist layer.
+(per-increment files under `plans/`), implement (§6 Build Process), and converge
+(§6.5/§6.7). The house executable-spec rules (gates, traceability, golden
+transcript) set the quality bar.
 
 ---
 
@@ -159,23 +158,23 @@ play with a real LLM. It must hand off the four specified handoff documents (plu
 It must survive an independent verification (§10): a second AI re-runs the verification
 workflows blind from a cold checkout, comparing its results against the builder's own.
 
-**Ruleset package model.** A ruleset build (B1) runs Discovery and Construction once,
-then the Package step (§6.4.2) emits a declarative ruleset package — the extracted model,
-full-text search index, tool schemas with execution logic expressed as data, resources,
+**Ruleset package model.** A ruleset build (B1) runs Discovery and Construction once.
+The Package step (§6.4.2) then emits a declarative ruleset package — the extracted model,
+search index, tool schemas with logic as data, resources,
 prompts, a content hash, and a version manifest (REQ-389). The base `holonovel` host
-never changes when a package is installed. At startup the host scans the install
-directory, validates package integrity, and lazily hydrates tool/index state only when a
+never changes when a package is installed. On startup the host scans the install
+directory, checks package integrity, and lazily loads tool/index state only when a
 Novel bound to that ruleset is first activated (REQ-390). Ruleset-derived tools carry a
 `<slug>_` prefix (REQ-379); infrastructure tools (World, Narrative, Novels, Badges)
-carry no prefix and are shared. Each Novel is bound to one ruleset (REQ-380), with a
-single audited migration path from ruleset-free to an installed ruleset (REQ-380c). The
-active Novel's ruleset determines which ruleset-derived tools are callable (REQ-381).
+carry no prefix and are shared. Each Novel is bound to one ruleset (REQ-380). A
+single audited path migrates from ruleset-free to an installed ruleset (REQ-380c). The
+active Novel's ruleset decides which ruleset-derived tools are callable (REQ-381).
 Cross-ruleset contamination is a defect (F8). Installing or removing a package is a
 server-scoped, audited operation (`ruleset (action: install)` / `ruleset (action: remove)` / `ruleset (action: list)`);
-it never rebuilds the host. Updating the host revalidates installed packages without
-re-running their builds and preserves all user data (REQ-389, REQ-393, §6.7).
+it never rebuilds the host. Updating the host re-checks installed packages without
+re-running their builds and keeps all user data (REQ-389, REQ-393, §6.7).
 
-**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and client-side subagent segmentation fall outside this specification's contract. Mechanical resolution stays expressible as discrete, inspectable tool calls. A badge-appropriate caller may observe the intermediate results of those calls. Builders and verifiers treat such techniques as out of scope, not as missing coverage.
+**Executed-in-context boundaries.** Programmatic tool calling, code-mode execution, and client-side subagent splitting fall outside this specification's contract. Mechanical resolution stays as plain, inspectable tool calls. A badge-carrying caller may observe the results between calls. Builders and verifiers treat these methods as out of scope, not as missing coverage.
 
 ---
 

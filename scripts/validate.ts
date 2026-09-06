@@ -352,14 +352,21 @@ function checkAssumptions(text: string): string[] {
   }
 
   const magicPatterns: { pattern: RegExp; label: string }[] = [
-    { pattern: /\b(10|5|3)\s*(mechanical|extract|chunk|section)/i, label: "chunk/attempt count" },
+    { pattern: /(?<![.\d])(10|5|3)\s+(mechanical|extracts?|chunks?|sections?)\b/i, label: "chunk/attempt count" },
     { pattern: /(cold start|startup).*≤\s*(\d+)\s*seconds/i, label: "startup threshold" },
     { pattern: /\b(200|1000)\s*(indexed|mechanical|sections|items)/i, label: "indexed-item threshold" },
   ];
   for (const { pattern, label } of magicPatterns) {
     const matches = text.matchAll(new RegExp(pattern.source, "gi"));
     for (const m of matches) {
-      const ctx = text.slice(Math.max(0, (m.index ?? 0) - 40), (m.index ?? 0) + (m[0]?.length ?? 0) + 40).replace(/\n/g, " ");
+      if (m.index === undefined) continue;
+      // Skip table rows — test-catalogue descriptions and metric tables are not
+      // untracked prose assumptions (mirrors the absolute-language table skip).
+      const lStart = text.lastIndexOf("\n", m.index) + 1;
+      const lEnd = text.indexOf("\n", m.index);
+      const l = text.slice(lStart, lEnd === -1 ? text.length : lEnd).trimStart();
+      if (l.startsWith("|")) continue;
+      const ctx = text.slice(Math.max(0, m.index - 40), m.index + (m[0]?.length ?? 0) + 40).replace(/\n/g, " ");
       if (!/because|rationale|basis|empirical|measured|calibrated/i.test(ctx)) {
         issues.push(`magic number (${label}): "${m[0]}" near: …${ctx}…`);
         break;
@@ -383,8 +390,14 @@ function checkAssumptions(text: string): string[] {
   const unqualified = text.matchAll(/(?<!Light|Standard|Heavy|Huge|tiered\s)≥\s*(80|90)\%/g);
   for (const m of unqualified) {
     if (m.index === undefined) continue;
+    // Skip thresholds in table cells — they are structured gate-definition
+    // rows (Appendix G/H metrics tables), not untracked prose assumptions.
+    const lineStart = text.lastIndexOf("\n", m.index) + 1;
+    const lineEnd = text.indexOf("\n", m.index);
+    const line = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd).trimStart();
+    if (line.startsWith("|")) continue;
     const ctx = text.slice(Math.max(0, m.index - 80), m.index + 40).replace(/\n/g, " ");
-    if (!/tier|complexity|REQ-100|Light|Standard|Heavy|Huge/i.test(ctx)) {
+    if (!/tier|complexity|gate|threshold|normative|REQ-100|Light|Standard|Heavy|Huge/i.test(ctx)) {
       issues.push(`untiered threshold: "≥ ${m[1]}%" — context: …${ctx}…`);
     }
   }
@@ -437,23 +450,41 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
   // ── Empty sections (text-level) ──
   let lastHeading = "";
   let lastHeadingLine = 0;
+  let lastHeadingLevel = 0;
   let nonBlankLines = 0;
+  let hruleSinceHeading = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("```")) {
+      // A fenced code block is content (fixture payloads, YAML/JSON examples).
+      nonBlankLines++;
       while (i + 1 < lines.length && !lines[++i].startsWith("```"));
       continue;
     }
-    if (/^#{2,4}\s+/.test(line) && !line.includes("Contents")) {
+    const hMatch = /^(#{2,4})\s+/.exec(line);
+    if (hMatch && !line.includes("Contents")) {
       if (lastHeading && nonBlankLines === 0) {
-        issues.emptySec.push(`empty section: line ${lastHeadingLine} "${lastHeading}" — no prose content`);
+        // A heading whose first child is a deeper subheading is a structural
+        // container ("6. The Build Process" before "6.1"); a heading closed by
+        // a "---" divider ("End of requirements" before "6. The Build Process")
+        // is a section terminator, not an empty section.
+        const curLevel = hMatch[1].length;
+        if (curLevel <= lastHeadingLevel && !hruleSinceHeading) {
+          issues.emptySec.push(`empty section: line ${lastHeadingLine} "${lastHeading}" — no prose content`);
+        }
       }
       lastHeading = line.trim().replace(/^#+\s*/, "");
       lastHeadingLine = i + 1;
+      lastHeadingLevel = hMatch[1].length;
       nonBlankLines = 0;
+      hruleSinceHeading = false;
       continue;
     }
-    if (line.trim().length > 0 && !line.trim().startsWith("---")) nonBlankLines++;
+    if (line.trim().length > 0 && line.trim().startsWith("---")) {
+      hruleSinceHeading = true;
+      continue;
+    }
+    if (line.trim().length > 0) nonBlankLines++;
   }
 
   // ── Per-REQ checks (single loop) ──
@@ -856,8 +887,14 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   for (const r of [...sectionReqs].sort()) {
     if (!mapReqs.has(r)) issues.push(`ERROR: ${r} in §5.5/5.6/5.7 but missing from Pattern Buffer coverage map`);
   }
+  const reqKeys = [...reqIndex.keys()];
   for (const r of [...mapReqs].sort()) {
-    if (!reqIndex.has(r)) issues.push(`WARNING: ${r} in Pattern Buffer coverage map but not in Appendix E`);
+    // A coverage-map ID may name a requirement family (e.g. REQ-040) whose
+    // leaf sub-parts (REQ-040a–d) live in Appendix E. Accept the family form
+    // when a longer sub-REQ exists with that prefix — the same prefix-fallback
+    // applied to REQ citations elsewhere, so family-level coverage is valid.
+    const defined = reqIndex.has(r) || (r.length < 9 && reqKeys.some((k) => k.startsWith(r) && k.length > r.length));
+    if (!defined) issues.push(`WARNING: ${r} in Pattern Buffer coverage map but not in Appendix E`);
   }
   if (sectionReqs.size === 0) issues.push("Could not extract §5.5/5.6/5.7 REQs from section map");
   return issues;

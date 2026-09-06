@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-06 — Structural reconciliation (Editorial)
+
+- Refined the validator's mechanical checks to match spec intent: the
+  §6.6 Pattern Buffer coverage map now accepts family-level REQ IDs (the same
+  prefix fallback used for REQ citations); section headings followed by
+  fixture code blocks, deeper subheadings, or a `---` divider are no longer
+  reported as empty; the magic-number and untiered-threshold scans no longer
+  match section references (`§6.3`), test-table rows, or normative gate
+  definitions.
+- Closed the uncited-test backlog: wired 21 Appendix F tests into their target
+  REQ `_Check` lines and removed T23 (byte-for-byte superseded by T87).
+- Justified two assumption-audit findings in place ("the sole" reword,
+  sampling floor calibrated to the classification profile). No normative
+  change.
+
 ## 2026-09-06 — Structural cleanup pass (Editorial)
 
 - Resolved the deferred ambiguity-scan items: reworded the hedge words

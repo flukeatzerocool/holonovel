@@ -944,7 +944,7 @@ action, a missing conceptual term), the builder records the specific Phase 1
 metric affected and re-enters Phase 1 for only that metric's domain — following
 the same per-metric re-entry model as Phase 2 failures. Extraction-rooted
 Pattern Buffer failures that re-enter Phase 1 count against the Phase 1 iteration
-budget (3 attempts per metric-targeted step) independently of Phase 2 budgets.
+budget (3 attempts per metric-targeted step) independently of Phase 2 budgets (T169).
 If the root cause is a construction defect that maps to no existing Phase 2
 metric, the builder re-enters Phase 2 with all metrics in scope and records the
 novel defect class in DECISIONS.md (6) with a proposed metric mapping for
