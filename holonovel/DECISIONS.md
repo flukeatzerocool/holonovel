@@ -2,6 +2,17 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.9)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.9 Novel Persistence and Transport bodies (Novel lifecycle, retention, switching, rename, description, listing, info, setup, genre declaration, adventure and encounter generation, genre-filtered generation, Novel persistence, metadata, lorebook and Novel interchange, Novel health, initialization order, backup rotation, clone, archive): passive → active, >45-word and backtick-merged sentences split with prose leads, field and scope enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.9: REQ-088c, REQ-088f, REQ-088g, REQ-088h1, REQ-089a, REQ-090c, REQ-090d, REQ-092h1, REQ-093a, REQ-093b, REQ-096b, REQ-096d1, REQ-096d2, REQ-096f, REQ-096g, REQ-096h, REQ-096i1, REQ-097a1, REQ-117, REQ-131a, REQ-238a, REQ-256a, REQ-257a, REQ-258a, REQ-258b, REQ-295b, REQ-295c, REQ-334a, REQ-334b |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.9 REQ set |
+| Note | 1 ambiguity item — REQ-092h1 "normally" — deferred to the structural increment per plan |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.8 part 2)
 
 | Field | Value |
