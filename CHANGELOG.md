@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-06 — §5.6 part 1 clarity pass (Editorial)
+
+- Rewrote the first ~87 §5.6 (State, Lifecycle, Entities, and Adventure
+  Content) normative bodies — Core State and Lifecycle plus the start of
+  the Entities subsection — for clarity: passive → active, >45-word and
+  backtick-merged sentences split with prose leads, field and parameter
+  enumerations separated per item, condition-stacked and pronoun-led
+  sentences restructured. No normative change — titles, SHALL/MAY/MUST
+  strength, identifiers, acceptance criteria, and `_Check:` citations are
+  unchanged. Cleared ~61 proofreading warnings. Repaired a garbled lead in
+  REQ-174a ("purposes when it") and REQ-279a ("SHALL synthesis (action:
+  run)") into explicit three- and five-condition definitions without
+  changing their criteria.
+
 ## 2026-09-06 — §5.5+§5.7 clarity pass (Editorial)
 
 - Rewrote the §5.5 Badges and Access and §5.7 Determinism/Safety/Performance
