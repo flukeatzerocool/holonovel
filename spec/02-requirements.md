@@ -33,10 +33,10 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 ### 5.1 Output and Error Contracts
 
 **REQ-101a — Assumption audit trail (Part a).**
-In `production` mode, before the Convert workflow begins, the builder invokes the `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a server prompt) against the current spec revision and records at least one challenged assumption per category — technology, AI-as-builder, extraction and confidence, MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec process — in DECISIONS.md (0). The audit does not block the build. For spec revisions, a diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+In `production` mode, before the Convert workflow begins, the builder runs the `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a server prompt) against the current spec revision. The builder records at least one challenged assumption per category in DECISIONS.md (0): technology, AI-as-builder, extraction and confidence, MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec process. The audit does not block the build. For spec revisions, a diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
 
 **REQ-101b — Assumption audit trail (Part b).**
-For same-spec builds against different rulesets, when a prior assumption audit exists for the same spec version, only assumptions in categories affected by the ruleset paradigm delta are re-audited. Categories unaffected by the ruleset change (technology, MCP ecosystem, verification model, build process) carry forward the prior audit results. The builder records the prior audit's ruleset fingerprint for traceability.
+For same-spec builds against different rulesets, when a prior assumption audit exists for the same spec version, the builder re-audits only the categories affected by the ruleset paradigm delta. Categories unaffected by the ruleset change (technology, MCP ecosystem, verification model, build process) keep the prior audit results. The builder records the prior audit's ruleset fingerprint for traceability.
 
 **REQ-101c — Assumption audit trail (Part c).**
 Audit re-use does not block the build — a full audit is always acceptable. *Acceptance criterion:* DECISIONS.md (0) contains at least one challenged assumption per category with justification, or a diff-only audit note for spec revisions, or a re-use note citing the prior audit's ruleset fingerprint for unaffected categories. _Check:_ T89.
@@ -50,18 +50,18 @@ prefix in `message`.
 _Check:_ G2; Appendix D.
 
 **REQ-001a1 — Warning and Partial semantics (Part a1).**
-`[WARNING]` is raised when the requested operation succeeds but encounters a condition requiring operator attention — corrupted-but-unused state, seed conflict where a per-call seed overrides the session seed, or speculative operations where the server cannot guarantee the outcome's correctness. `[PARTIAL]` is raised when the requested operation can produce a partial result but cannot fully satisfy the request — contradictory ruleset citations where both texts are returned with the conflict explained, or a canonical lookup that resolves to a section the ruleset marks as incomplete or placeholder.
+The tool raises `[WARNING]` when the operation succeeds but hits a condition that needs operator attention — corrupted-but-unused state, a seed conflict where a per-call seed overrides the session seed, or a speculative operation whose result the server cannot prove. The tool raises `[PARTIAL]` when the operation can produce a partial result but cannot fully answer the request. Examples: the tool returns two conflicting texts and explains the conflict, or a lookup lands on a section the ruleset marks incomplete or a placeholder.
 
 **REQ-001a2 — Warning and Partial semantics (Part a2).**
 Neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. *Acceptance criterion:* A corrupted Novel on disk produces `[WARNING]` in `spec_health` with the Novel slug enumerated; a search returning contradictory ruleset texts produces `[PARTIAL]` with both texts cited. _Check:_ T175.
-**REQ-277 — Fixture evolution contract.** When a specification change causes a
-golden transcript assertion (Appendix B.3, N.3, W.3, X.3) to fail, the maintainer
-SHALL version-bump the fixture, record the citing REQ that caused the break in the
-fixture's changelog comment, and update the transcript and RNG witness values to
-match the new expected behavior. A fixture transcript that fails replay under a
-conformant server is a spec defect — the fixture SHALL be updated, not treated as
-a regression. The fixture version SHALL increment on any transcript or
-witness-value change.
+**REQ-277 — Fixture evolution contract.** When a specification change breaks a
+golden transcript assertion (Appendix B.3, N.3, W.3, X.3), the maintainer SHALL
+version-bump the fixture. The maintainer SHALL also record the citing REQ that caused
+the break in the fixture's changelog comment, and update the transcript and RNG
+witness values to match the new expected behavior. A fixture transcript that fails
+replay under a conformant server marks a spec defect — the fixture SHALL be updated,
+not treated as a regression. The fixture version SHALL increment on any transcript
+or witness-value change.
 _Check:_ T297.
 
 **REQ-002 — Error taxonomy.** _(F1)_ Every error carries one of eight categories
@@ -74,17 +74,17 @@ list of valid spell names.
 _Check:_ T18, T177.
 
 **REQ-002a1 — Extended error category semantics (Part a1).**
-`[RULE_VIOLATION]` is raised when the input is well-formed and within the tool's domain but violates a ruleset constraint — a non-stacking bonus applied when already present, a character creation choice that conflicts with prerequisites, or an action prohibited by the ruleset's own restrictions. The response cites the ruleset anchor that forbids the action. `[UNIMPLEMENTED]` is raised when the tool recognizes the input as valid but the feature is not yet modeled — a subsystem the ruleset defines but the builder could not extract, recorded as a DECISIONS.md waiver.
+The tool raises `[RULE_VIOLATION]` when the input follows the tool's rules but breaks a ruleset constraint — a non-stacking bonus the caller applies twice, a character choice that conflicts with prerequisites, or an action the ruleset forbids. The response cites the ruleset anchor that forbids the action. The tool raises `[UNIMPLEMENTED]` when it sees valid input for a subsystem the ruleset defines but the builder could not extract; the builder records that subsystem as a DECISIONS.md waiver.
 
 **REQ-002a2 — Extended error category semantics (Part a2).**
 The response names the unimplemented subsystem and cites the waiver entry. *Acceptance criterion:* Applying a condition already active on the target returns `[ERROR] [RULE_VIOLATION]` citing the ruleset anchor; calling a tool for a waived subsystem returns `[ERROR] [UNIMPLEMENTED]` with the waiver reference. _Check:_ T176.
 **REQ-002b1 — Corrective-action contract (Part b1).**
-The `Corrective action:` line is a single imperative sentence describing what the caller must do to resolve the error — switching badges. For `[FORBIDDEN]`, providing a valid value from the enumeration for `[NOT_FOUND]`, or waiting for a state change for `[STATE_CONFLICT]`. It is not a prompt, not a suggestion, and not a multi-sentence explanation. For `[UNIMPLEMENTED]`, the corrective action names the waiver entry in DECISIONS.md (5).
+The `Corrective action:` line is a single imperative sentence describing what the caller must do to resolve the error — switching badges. For `[FORBIDDEN]`, providing a valid value from the enumeration for `[NOT_FOUND]`, or waiting for a state change for `[STATE_CONFLICT]`. The line is not a prompt, not a suggestion, and not a multi-sentence explanation. For `[UNIMPLEMENTED]`, the corrective action names the waiver entry in DECISIONS.md (5).
 
 **REQ-002b2 — Corrective-action contract (Part b2).**
-For `[SYSTEM]` errors (JSON-RPC `-32000`), the corrective action is absent — these are unrecoverable at the tool layer. *Acceptance criterion:* Every tool-level error response contains exactly one `Corrective action:` line matching its category; protocol-level errors carry no corrective action. The `[SYSTEM]` category is catalogued in Appendix O.2. _Check:_ T178.
+For `[SYSTEM]` errors (JSON-RPC `-32000`), no corrective action applies — the server cannot recover these at the tool layer. *Acceptance criterion:* Every tool-level error response contains exactly one `Corrective action:` line matching its category; protocol-level errors carry no corrective action. The `[SYSTEM]` category is catalogued in Appendix O.2. _Check:_ T178.
 **REQ-002c1 — Badge-filtered error values (Part c1).**
-`[NOT_FOUND]` and `[INVALID_INPUT]` errors exclude values the caller's current badge cannot access — a Player badge sees only player-accessible spell names in a `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue. "Did you mean?" hints follow the same badge filter. A value that exists in the ruleset but is invisible to the caller's badge is treated as absent for enumeration purposes — it is neither enumerated nor hinted.
+`[NOT_FOUND]` and `[INVALID_INPUT]` errors hide values the caller's current badge cannot access — a Player badge sees only player-accessible spell names in a `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue. "Did you mean?" hints follow the same badge filter. For enumeration, the tool treats a value that exists in the ruleset but stays invisible to the caller's badge as absent — it neither enumerates nor hints at that value.
 
 **REQ-002c2 — Badge-filtered error values (Part c2).**
 This prevents side-channel disclosure of GM-only content through error message verbosity. *Acceptance criterion:* A Player-badge `[NOT_FOUND]` on `lookup_spell` with a GM-only spell name lists only player-visible spell names and provides no "Did you mean?" hint for the GM-only name. _Check:_ T179.
@@ -92,26 +92,26 @@ This prevents side-channel disclosure of GM-only content through error message v
 _(F1)_ Every dice-roll tool returns the full calculation path: dice notation, individual die results, modifiers, total, and outcome. Every modifier's source and contribution is reported. Every modifier contribution SHALL identify the source by its ruleset name (e.g., "Strength", "Proficiency", "Bless spell"). When multiple sources contribute to the total, each SHALL be listed as a separate signed contribution — the modifier total SHALL NOT be collapsed into a single undifferentiated number. Sources with a zero contribution (e.g., a non-proficient skill) MAY be omitted.
 
 **REQ-003b — Roll transparency (Part b).**
-When a resolution mechanic involves rolling multiple dice of the same type where only a subset is selected (advantage, disadvantage, keep-N-highest, drop-lowest, or luck rerolls), all rolled faces SHALL be reported with an indication of which were selected. The selected/used face or faces SHALL be clearly distinguished from discarded faces.
+When a resolution mechanic rolls multiple dice of the same type and selects only a subset (advantage, disadvantage, keep-N-highest, drop-lowest, or luck rerolls), the tool reports every rolled face and marks which ones it selected. The selected or used face SHALL stand apart from discarded faces.
 
 **REQ-003c — Roll transparency (Part c).**
 When the ruleset defines named result bands (e.g., critical success, partial success, failure), the roll outcome reports which band applies to the total. *Acceptance criterion:* A d20 attack roll with advantage reports both d20 faces — e.g., `Dice: 2d20 = [12, 7], used: 12` — not just the higher value. A Strength-based attack roll with +2 proficiency reports `Modifiers: Strength +3, Proficiency +2` — not `Modifiers: +5`. _Check:_ G2, T47.
-**REQ-004 — Truncation.** Tool output longer than a configurable limit
-is truncated with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
-payloads are session-local, badge-filtered, and evict the oldest when exceeding the session
-limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks are
-presented in the ruleset's baseline format, with all fields regardless of truncation
+**REQ-004 — Truncation.** The tool truncates output longer than a configurable limit
+with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
+payloads stay session-local and badge-filtered, and evict the oldest when exceeding the session
+limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks use
+the ruleset's baseline format, with all fields regardless of truncation
 (see REQ-004a). Prompt output truncation (REQ-118, REQ-135) is a separate mechanism — REQ-004
 governs tool-level output only.
 *Acceptance criterion:* A tool output exceeding 32,000 bytes is truncated with an
 `output://` pointer; retrieving the pointer returns the full content, badge-filtered.
 _Check:_ T13.
 
-**REQ-004a — Stat block baseline view.** Stat blocks are presented in the ruleset's
+**REQ-004a — Stat block baseline view.** Stat blocks use the ruleset's
 baseline format, with all fields regardless of truncation. When the entire output
-including a stat block exceeds the truncation limit, the stat block may be replaced
-with an output:// pointer (REQ-004) — but the stat block SHALL NOT be partially
-rendered.
+including a stat block exceeds the truncation limit, the server may replace the stat
+block with an output:// pointer (REQ-004) — but the stat block SHALL NOT render
+partially.
 *Acceptance criterion:* A character-sheet rendering includes every stat field the
 ruleset defines, in the ruleset's baseline format and order, regardless of whether
 the output exceeds the truncation limit.
@@ -144,14 +144,14 @@ A spell lookup returns level, school, casting time, range, components, duration,
 **REQ-061 — Source quoting.** Lookup results, search results, and rule-derived tool
 responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim
 Markdown excerpt preserving original formatting. Pure-state tools (undo, state queries,
-condition queries, audit reads) are exempt.
+condition queries, audit reads) stay exempt.
 *Acceptance criterion:* A spell lookup result ends with a `---`-separated block
 containing `<file>#<anchor>` and the verbatim Markdown text from the source; an
 undo result contains no source block.
 _Check:_ T48.
 
 **REQ-280a — Source-anchor citation (Part a).**
-`lookup_equipment`, `lookup_monster`, `lookup_class`, and `ruleset (action: search)` — SHALL include the source anchor from which the content was extracted in every result. The anchor SHALL include: (a) the source file name; (b) the heading path (e.g., "Spells > Level 3 > Fireball"); and (c) the line range in the source Markdown (e.g., "lines 1420–1445"). The anchor is surfaced as a `source_anchor` field in the tool output, positioned after the mechanical data and before any narrative framing. The anchor enables the caller to verify the output against the ruleset source without re-running extraction.
+`lookup_equipment`, `lookup_monster`, `lookup_class`, and `ruleset (action: search)` — SHALL include, in every result, the source anchor from which extraction pulled the content. The anchor SHALL include: (a) the source file name; (b) the heading path (e.g., "Spells > Level 3 > Fireball"); and (c) the line range in the source Markdown (e.g., "lines 1420–1445"). The tool surfaces the anchor as a `source_anchor` field in the output, placed after the mechanical data and before any narrative framing. The anchor lets the caller verify the output against the ruleset source without re-running extraction.
 
 **REQ-280b — Source-anchor citation (Part b).**
 For `ruleset (action: search)`, every result item SHALL carry its own `source_anchor`. For canonical lookups returning a single entry, the anchor SHALL be the heading from which the entry was extracted. The anchor is derived from extraction metadata per REQ-010 (traceability) and SHALL be present even when the extraction confidence is LOW — the anchor labels the source, not the confidence. *Acceptance criterion:* `lookup_spell("fireball")` returns a `source_anchor` field with file name, heading path, and line range. Every result in `ruleset (action: search, "grapple")` carries its own `source_anchor`.
@@ -166,7 +166,7 @@ foundations guidance; the Game Master briefing includes both player and GM found
 _Check:_ T26.
 
 **REQ-070a — Anti-slop guidance (Part a).**
-Badge foundations include anti-slop guidance — concrete examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]` and served at `guidance://<badge>/anti-slop`. The spec carries a synopsis in Appendix J; the full anti-slop catalogue is sourced from the Synthesis workflow (§11.1) as supplementary guidance, with genre-specific examples from the `adventure_advice` module.
+Badge foundations include anti-slop guidance — concrete examples of forbidden narrative patterns with corrected alternatives, tagged `[anti-slop]` and served at `guidance://<badge>/anti-slop`. The spec carries a synopsis in Appendix J; the Synthesis workflow (§11.1) sources the full anti-slop catalogue as supplementary guidance, with genre-specific examples from the `adventure_advice` module.
 
 **REQ-070b — Anti-slop guidance (Part b).**
 Anti-slop guidance is badge-filtered and appears in `badge_briefing` after foundations and before scene state. *Acceptance criterion:* (a) Without synthesis, `badge_briefing` includes at least one `[anti-slop]`-tagged item per badge sourced from the Appendix J synopsis, each carrying a forbidden narrative pattern and a corrected alternative; (b) the content is badge-filtered (rows 1–10 are GM-scoped, rows 5–7 and 12 are Player-scoped, rows 8–11 are GM-scoped); (c) anti-slop guidance appears after foundations and before scene state; (d) `guidance://<badge>/anti-slop` renders the same patterns as a retrievable resource. _Check:_ T223.
@@ -184,12 +184,12 @@ Punctuation stripped SHALL be the character class `[\p{P}\p{S}]` (Unicode punctu
 `[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a guidance subcategory. When the ruleset provides none, the Synthesis workflow (§11.1) may source community examples.
 
 **REQ-071b — Narrative tone samples (Part b).**
-Entity-level voice_examples (REQ-077) are distinct — those are dialogue snippets attached to specific characters. *Acceptance criterion:* `badge_briefing` includes at least one `[narrative-tone]`-tagged item per badge — a prose excerpt from the ruleset demonstrating its narrative voice, with source anchor and confidence. _Check:_ T26.
+Entity-level voice_examples (REQ-077) form a separate category — dialogue snippets for specific characters. *Acceptance criterion:* `badge_briefing` includes at least one `[narrative-tone]`-tagged item per badge — a prose excerpt from the ruleset demonstrating its narrative voice, with source anchor and confidence. _Check:_ T26.
 **REQ-064a — Badge behavioral boundaries (Part a).**
-The server respects badge boundaries in all tool output. The AI's behavioral boundaries are role-dependent. When the AI's narrative role is Game Master, it describes situations and surfaces information; it never takes action or makes decisions on behalf of the player. When the AI's narrative role is Player, it describes character intent; it never prescribes world facts or narrative outcomes without Game Master confirmation. These boundaries are delivered in the `badge_briefing` orientation content, determined by the AI's role per REQ-304. When the AI has no narrative role (Editor-badge), tool output follows the active badge's boundary conventions.
+The server respects badge boundaries in all tool output. The AI's behavioral boundaries depend on its role. When the AI's narrative role is Game Master, it describes situations and surfaces information; it never takes action or decides on behalf of the player. When the AI's narrative role is Player, it describes character intent; it never prescribes world facts or narrative outcomes without Game Master confirmation. The `badge_briefing` orientation content delivers these boundaries, determined by the AI's role per REQ-304. When the AI has no narrative role (Editor-badge), tool output follows the active badge's boundary conventions.
 
 **REQ-064b — Badge behavioral boundaries (Part b).**
-When a player's natural-language input carries both in-character and meta-intent simultaneously — e.g., "I examine the altar" (character action) + "what does my character see?" (meta-query) — the `command (action: suggest)` tool SHALL return both tool categories: the in-character resolution (roll_skill_check, examine) and the meta-inquiry (ruleset (action: search) for altar lore).
+A player's natural-language input may carry in-character and meta-intent at once — e.g., "I examine the altar" (character action) plus "what does my character see?" (meta-query). For that input, the `command (action: suggest)` tool SHALL return both tool categories: the in-character resolution (roll_skill_check, examine) and the meta-inquiry (ruleset (action: search) for altar lore).
 
 **REQ-064c — Badge behavioral boundaries (Part c).**
 The AI (when in the Game Master role), informed by `badge_briefing`, SHALL resolve the in-character component through narration and redirect the meta-intent component through tool calls — it SHALL NOT silently treat a meta-query as an in-character action resolved without the player's knowledge. The `character (action: signal)` tool SHALL accept a `register` signal with values `character` (speaking or acting in-character) and `meta` (asking a rules question or directing the GM out-of-character).
@@ -198,7 +198,7 @@ The AI (when in the Game Master role), informed by `badge_briefing`, SHALL resol
 Setting `register=meta` SHALL suppress in-character narration in tool output — responses from `command (action: suggest)`, rule lookups, and similar tools present bare mechanical information without narrative framing. The register state persists for the session (discarded on connection close) and is visible in `badge_briefing` as a Player-Register line. Setting `register=character` restores narrative-framed output. The default register is `character`. When a badge is active, `badge_briefing` SHALL include a badge boundary directive — a single sentence: "You are in the story.
 
 **REQ-064e — Badge behavioral boundaries (Part e).**
-Confine tool use and responses to the current Novel. To step away from the table, call `set_badge(\"none\")`." The directive is identical for both badges. It SHALL appear after the badge foundations (REQ-062) and before the anti-slop guidance (REQ-070). It is never truncated (REQ-135, tier 1). *Acceptance criterion:* A player typing "Can my character jump the chasm?" under `register=character` receives `command (action: suggest)` output with the acrobatics check tool AND a rules-lookup pointer; under `register=meta` the same input produces only mechanical information with no "you attempt to jump" narrative framing.
+Confine tool use and responses to the current Novel. To step away from the table, call `set_badge(\"none\")`." The directive is identical for both badges. The directive SHALL appear after the badge foundations (REQ-062) and before the anti-slop guidance (REQ-070). The server never truncates the directive (REQ-135, tier 1). *Acceptance criterion:* A player typing "Can my character jump the chasm?" under `register=character` receives `command (action: suggest)` output with the acrobatics check tool AND a rules-lookup pointer; under `register=meta` the same input produces only mechanical information with no "you attempt to jump" narrative framing.
 
 **REQ-064f — Badge behavioral boundaries (Part f).**
 The register state appears in `badge_briefing` and does not persist across server restarts. The boundary directive appears in `badge_briefing` for both Player and GM badges. _Check:_ T51, T461. *Out of scope:* transport-layer error handling, client-side error formatting, error localization or internationalization, and error recovery strategies beyond the corrective-action model defined in REQ-002.
@@ -209,7 +209,7 @@ Tool-level errors (all `[ERROR]` responses with a category from REQ-002) use `is
 A conformant server never emits a protocol-level error with a REQ-002 category string embedded. *Acceptance criterion:* A tool called with a structurally invalid parameter returns an SDK-level `-32602` response before the handler — this response does not contain `[ERROR] [INVALID_INPUT]` or a REQ-002 category. A tool called with a semantically invalid parameter returns a result with `isError: true` and `[ERROR] [INVALID_INPUT]`. _Check:_ T180.
 
 **REQ-425a — Output format catalog (Part a).**
-Every user-requestable artifact surface — a tool or resource that returns a content artifact — SHALL accept an optional format selector drawn from the output format catalog (Appendix T.1). When the selector is omitted, the surface renders the catalog default. *Acceptance criterion:* Each universal catalog format requested on a content surface returns that artifact's content in the requested format. _Check:_ T505.
+Every user-requestable artifact surface — a tool or resource that returns a content artifact — SHALL accept an optional format selector drawn from the output format catalog (Appendix T.1). When the caller omits the selector, the surface renders the catalog default. *Acceptance criterion:* Each universal catalog format requested on a content surface returns that artifact's content in the requested format. _Check:_ T505.
 
 **REQ-425b — Output format validation (Part b).**
 A requested format the surface does not support SHALL return `[INVALID_INPUT]` enumerating the formats the surface supports, filtered by badge per REQ-002. The enumeration SHALL derive from the catalog at call time per REQ-059. *Acceptance criterion:* Requesting a notation format on a stat-block surface returns `[INVALID_INPUT]` naming the supported formats; a Player badge enumeration excludes GM-only formats. _Check:_ T505.
@@ -218,7 +218,7 @@ A requested format the surface does not support SHALL return `[INVALID_INPUT]` e
 The same artifact rendered in the same format SHALL be byte-identical across every surface. Where an interchange schema exists (Appendix L, Appendix Q), the `json` render SHALL match it, so an interchange export and the corresponding resource render agree. *Acceptance criterion:* `novel://current?format=json` equals `novel (action: export, format="json")`; `character (action: sheet)` and `npc://<id>` agree in every catalog format. _Check:_ T505.
 
 **REQ-425d — Ruleset-declared formats (Part d).**
-A ruleset package MAY declare additional format identifiers in the catalog (Appendix T.1); a declared format renders on the surfaces the package defines and SHALL appear in those surfaces' enumerations and in `spec_health`. *Acceptance criterion:* A fixture package declaring a format renders it on its surfaces and lists it; an undeclared format returns `[INVALID_INPUT]`. _Check:_ T506.
+A ruleset package MAY declare extra format identifiers in the catalog (Appendix T.1). A declared format renders on the surfaces the package defines and SHALL appear in those surfaces' enumerations and in `spec_health`. *Acceptance criterion:* A fixture package declaring a format renders it on its surfaces and lists it; an undeclared format returns `[INVALID_INPUT]`. _Check:_ T506.
 
 ### 5.2 Extraction and Confidence
 
@@ -228,15 +228,15 @@ populated alongside standard extraction per REQ-377. Coupling extraction annotat
 existing extraction categories; it is not a separate category. Confidence labels
 apply to coupling metadata the same as any extracted item.
 
-**REQ-010 — Traceability.** Every modeled mechanic cites the ruleset anchor(s) from which it
-was extracted. The citation chain — Markdown source → modeled item → tool/resource →
-verification — is traceable end-to-end.
+**REQ-010 — Traceability.** Every modeled mechanic cites the ruleset anchor(s) from which
+extraction produced it. The citation chain — Markdown source → modeled item → tool/resource →
+verification — stays traceable end-to-end.
 *Acceptance criterion:* `RULESET_MODEL.md` contains at least one anchor citation
 per modeled mechanic; `spec_health` reports no uncited extractions.
 _Check:_ T15.
 
 **REQ-011a — Confidence (Part a).**
-Every extracted item carries a confidence label: HIGH (unambiguous, directly from ruleset text), MEDIUM (interpretable but not explicit, or missing a discoverable trigger), or LOW (contradictory, image-conveyed, broken-link, or structurally defective). Book-level headings, source-converted sections, and callout types tagged non-normative cap at MEDIUM. Structured content — formal tables, definition lists (bold-labeled terms with values), and ordered procedural sequences (at least three consecutive imperative-verb sentences describing a mechanic's resolution steps) — where the extraction was stable and not restructured, is HIGH above the book-level cap.
+Every extracted item carries a confidence label: HIGH (unambiguous, directly from ruleset text), MEDIUM (interpretable but not explicit, or missing a discoverable trigger), or LOW (contradictory, image-conveyed, broken-link, or structurally defective). Book-level headings, source-converted sections, and callout types tagged non-normative cap at MEDIUM. Structured content covers formal tables, definition lists (bold-labeled terms with values), and ordered procedural sequences. An ordered procedural sequence is three or more consecutive imperative-verb sentences that describe a mechanic's resolution steps. Structured content reaches HIGH above the book-level cap when extraction stayed stable and not restructured.
 
 **REQ-011b — Confidence (Part b).**
 The builder identifies structured-procedural sequences using the same mechanical-indicator heuristics as the viability pre-check (§6.2): bold-labeled fields, imperative verbs, and definition-list markup. Sections flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is computed per-section and aggregated per REQ-147, with the player-filtered view as the gating metric. The player filter excludes: guidance items with GM-only badge scope (REQ-016), mechanics extracted from GM-only ruleset sections (REQ-032), and synthesis content tagged `[gm-only]` (REQ-080).
@@ -247,14 +247,14 @@ The builder computes player-filtered confidence by applying these exclusions bef
 Per-section confidence is the percentage of extracted items in that section carrying HIGH or MEDIUM labels, excluding items marked as guidance (REQ-016) from the per-section count. The overall player-filtered confidence — the Phase 1 gate metric — is the mean of per-section confidence scores, weighted by each section's extracted item count. LOW items count against the section total but do not contribute positively. A section with zero extracted mechanical items is excluded from the mean. The formula is: Σ(section_items × section_score) / Σ(section_items) where section_score = (HIGH + MEDIUM items) / total extracted items in section.
 
 **REQ-147b — Confidence aggregation (Part b).**
-The overall score is expressed as a percentage in `spec_health`. *Acceptance criterion:* A ruleset with three sections — Section A: 8 HIGH, 2 MEDIUM, 0 LOW; Section B: 3 HIGH, 3 MEDIUM, 4 LOW; Section C (guidance-only, 5 extracted guidance items) — produces per-section scores of Section A = 100%, Section B = 60%. Section C's guidance items are excluded from the mean per REQ-016. Overall = ((10 × 1.0) + (10 × 0.6)) / 20 = 80%. _Check:_ T181.
+`spec_health` expresses the overall score as a percentage. *Acceptance criterion:* A ruleset with three sections — Section A: 8 HIGH, 2 MEDIUM, 0 LOW; Section B: 3 HIGH, 3 MEDIUM, 4 LOW; Section C (guidance-only, 5 extracted guidance items) — produces per-section scores of Section A = 100%, Section B = 60%. Section C's guidance items are excluded from the mean per REQ-016. Overall = ((10 × 1.0) + (10 × 0.6)) / 20 = 80%. _Check:_ T181.
 **REQ-153 — AGENTS.md troubleshooting.** Every build's AGENTS.md includes a
 `## Troubleshooting` section documenting at minimum four failure classes —
 config mismatch, corrupted state file, badge confusion, and missing
-environment variables — each with diagnostic steps recoverable by an
-operator without access to the builder. The section must reference
+environment variables — each with steps an operator can follow without
+access to the builder. The section must reference
 verification commands that exercise the diagnosed failure mode where a
-corresponding automated test exists.
+matching automated test exists.
 *Acceptance criterion:* An operator encountering a `[STATE_CONFLICT]` from
 a corrupted state file finds the Troubleshooting section listing the
 corruption symptom, the recovery step (restore from `.bak`), and the
@@ -262,20 +262,19 @@ verification command to confirm recovery.
 _Check:_ T186.
 
 **REQ-154a — README.md handoff content (Part a).**
-Every build's README.md includes: (a)
-prerequisite environment and setup instructions that an operator can follow
-from a cold checkout; (b) a copy-paste `mcpServers` configuration entry
-with key names matching the build-time client target's documented schema
-(§6.2 B3); (c) the RNG continuity contract — whether deterministic replay
-is guaranteed by seed or session-dependent; (d) the badge model with
-tool-access implications.
+Every build's README.md presents four items. The first item is prerequisite
+environment and setup instructions an operator can follow from a cold checkout.
+The second item is a copy-paste `mcpServers` configuration entry whose key names
+match the build-time client target's documented schema (§6.2 B3). The third item
+is the RNG continuity contract — whether deterministic replay relies on a seed or
+varies by session. The fourth item is the badge model with tool-access implications.
 
 **REQ-154b — README.md handoff content (Part b).**
-Every build's README.md also includes: (e) the state model describing what survives
-restart and what is connection-scoped; and (f) a license footer rendering
-the Appendix U content license table — one line per source listing source
-name, license identifier, and copyright holder, flowing into a single
-semicolon-separated paragraph prefixed with "Built from:" and terminated
+Every build's README.md also adds two more items. The fifth item is the state model
+describing what survives restart and what stays connection-scoped. The sixth item is
+a license footer rendering the Appendix U content license table, one line per source.
+Each line lists source name, license identifier, and copyright holder. The lines flow
+into a single semicolon-separated paragraph prefixed with "Built from:" and terminated
 by the RSS link and last-updated date.
 *Acceptance criterion:* An operator copies the `mcpServers` block from
 README.md into their client config, launches the server, and the
@@ -293,12 +292,12 @@ defect recorded in DECISIONS.md (6).
 _Check:_ T290.
 
 **REQ-271 — AGENTS.md structure contract.** Every build's AGENTS.md SHALL include
-a Code Map (REQ-to-source-file mapping listing every REQ and its primary
-implementation file), a Verification section (commands for gates G0–G5 with
-expected exit codes and pass criteria), a Troubleshooting section (common
-operator-reported failure modes per REQ-153), and Build Context (spec version,
+four sections. A Code Map: a REQ-to-source-file mapping listing every REQ and its primary
+implementation file. A Verification section: commands for gates G0–G5 with
+expected exit codes and pass criteria. A Troubleshooting section: common
+operator-reported failure modes per REQ-153. Build Context: spec version,
 ISO 8601 build date, builder model identifier, ruleset content hash per REQ-044,
-and holonovel version). Missing sections or sections without content are handoff
+and holonovel version. Missing sections, or sections without content, are handoff
 defects.
 _Check:_ T291.
 
@@ -314,13 +313,13 @@ construction continues.
 _Check:_ T86.
 
 **REQ-207a — Core-mechanic identification (Part a).**
-The builder SHALL identify the ruleset's core resolution mechanic — the primary dice/outcome procedure — by applying these criteria in order, stopping at the first that yields a single candidate: (a) the mechanic the ruleset's own introduction or "how to play" section designates as the central resolution procedure; (b) the mechanic cited by the most other sections in cross-references; (c) the mechanic with the most distinct dice-roll invocations across the ruleset's examples of play. The criterion used SHALL be recorded in DECISIONS.md (5) alongside the identified mechanic.
+The builder SHALL identify the ruleset's core resolution mechanic — the primary dice/outcome procedure. The builder SHALL apply these criteria in order, stopping at the first that yields a single candidate. Criterion (a) is the mechanic the ruleset's own introduction or "how to play" section designates as the central resolution procedure. Criterion (b) is the mechanic cited by the most other sections in cross-references. Criterion (c) is the mechanic with the most distinct dice-roll invocations across the ruleset's examples of play. The builder SHALL record the criterion used, alongside the identified mechanic, in DECISIONS.md (5).
 
 **REQ-207b — Core-mechanic identification (Part b).**
 If (a)–(c) produce a tie, the builder SHALL record all tied candidates and flag an `[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain at least 85% confidence independently of the overall threshold. WHEN the build operates in ruleset-free mode THE core-mechanic identification SHALL be skipped. The builder SHALL record "ruleset-free — no core mechanic" in the core-mechanic field of DECISIONS.md (5).
 
 **REQ-207c — Core-mechanic identification (Part c).**
-No `[ambiguous-core-mechanic]` or `[core-mechanic-block]` finding is produced — the absence is intentional and not a defect. *Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md (5) records the criterion used and the mechanic's confidence meets ≥85%. _Check:_ T251.
+The builder produces no `[ambiguous-core-mechanic]` or `[core-mechanic-block]` finding — the absence is intentional and not a defect. *Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md (5) records the criterion used and the mechanic's confidence meets ≥85%. _Check:_ T251.
 **REQ-012 — Graceful fallback.** A section that cannot be modeled as a tool or state remains
 searchable via `ruleset (action: search)` and retrievable as a `ruleset://` resource.
 The builder never fabricates mechanics to fill a gap. Missing triggers do not invalidate the modeled portion.
@@ -333,39 +332,39 @@ _Check:_ G2, T4.
 Every heading and its content from the ruleset Markdown SHALL be indexed by `ruleset (action: search)` at runtime. The index SHALL cover the entire ruleset — every `##` and `###` heading with its associated body text, regardless of whether the section content was extracted into a tool, resource, or model. Partial coverage where some ruleset sections are invisible to `ruleset (action: search)` is a construction defect. The builder SHALL verify at build time that the ruleset's table of contents maps to the search index and SHALL record any unmapped sections in DECISIONS.md (4) with justification.
 
 **REQ-315b — Full-text ruleset indexing (Part b).**
-Sections omitted by the `Convert` workflow's artifact-disposition waivers are exempt. *Acceptance criterion:* `ruleset (action: search, "ability scores")` returns results from the ruleset's character creation chapter. Every heading in the ruleset's own table of contents resolves to at least one search result for a heading-text query. _Check:_ T360.
+The `Convert` workflow's artifact-disposition waivers exempt the sections they omit. *Acceptance criterion:* `ruleset (action: search, "ability scores")` returns results from the ruleset's character creation chapter. Every heading in the ruleset's own table of contents resolves to at least one search result for a heading-text query. _Check:_ T360.
 **REQ-111a — Search result quality (Part a).**
 Search results include match context — the surrounding text from which each match was drawn — sufficient for the caller to distinguish the match's relevance to the query. Results are ordered by relevance to the query terms. A search that returns more results than a configurable display limit includes a count of suppressed results. `ruleset (action: search)` confidence reflects query-term match strength, not the extraction confidence of the matched section. HIGH match confidence requires a non-stop query token in the section title or first heading; MEDIUM requires a match in section body text; LOW indicates peripheral or single-word matches.
 
 **REQ-111b — Search result quality (Part b).**
-This is distinct from extraction confidence (REQ-011). *Acceptance criterion:* Each result carries a confidence label (`[HIGH]`, `[MEDIUM]`, or `[LOW]`) on the same line as the heading; a multi-match search returns context snippets for each result, ordered by relevance, with a suppressed-result count when the display limit is exceeded. _Check:_ T114.
+This differs from extraction confidence (REQ-011). *Acceptance criterion:* Each result carries a confidence label (`[HIGH]`, `[MEDIUM]`, or `[LOW]`) on the same line as the heading; a multi-match search returns context snippets for each result, ordered by relevance, with a suppressed-result count when the display limit is exceeded. _Check:_ T114.
 **REQ-212a — Generation table rolling (Part a).**
-`ruleset (action: roll, table, seed?)` accepts a table name drawn from the build's indexed generation tables (§6.3 extraction category 4). It SHALL roll the dice notation embedded in the selected table's definition — including nested table references — and return the result row with dice breakdown per REQ-003. A deterministic seed parameter SHALL produce identical results across calls and sessions (per REQ-050). Tables tagged as GM-only during extraction SHALL return `[FORBIDDEN]` when called under the Player badge.
+`ruleset (action: roll, table, seed?)` accepts a table name drawn from the build's indexed generation tables (§6.3 extraction category 4). The tool SHALL roll the dice notation embedded in the selected table's definition — including nested table references — and return the result row with dice breakdown per REQ-003. A deterministic seed parameter SHALL produce identical results across calls and sessions (per REQ-050). Tables tagged as GM-only during extraction SHALL return `[FORBIDDEN]` when called under the Player badge.
 
 **REQ-212b — Generation table rolling (Part b).**
-When the ruleset contains zero generation tables, `ruleset (action: roll)` SHALL return a clear "no tables indexed" message — the tool is not unregistered, per the content-absent tool contract (REQ-020, infrastructure tools clause). The tool is classified as generation (REQ-015). *Acceptance criterion:* `ruleset (action: roll, "gear")` with seed `42` returns the table row for the gear table exactly; the same call without a seed returns a different row; `ruleset (action: roll, "gm-only-table")` under Player badge returns `[FORBIDDEN]`; a ruleset with zero tables returns "No generation tables indexed." _Check:_ T46, T210.
-**REQ-013 — No assumed mechanics.** Nothing enters the model that is not traceable to the
-ruleset text. A mechanic present in one edition or supplement but absent from the source is
-not assumed. Absent features — no advancement, no deletion, no spellcasting — produce no
-tool; this absence is recorded in DECISIONS.md as a waiver with a re-activation condition.
-Inline formatting inside table cells is preserved, not interpreted. Code blocks are literal
-text, not executed. Callouts produce no mechanics. Conditions apply and expire per the ruleset's own triggers.
+When the ruleset contains zero generation tables, `ruleset (action: roll)` SHALL return a clear "no tables indexed" message — the tool stays registered, per the content-absent tool contract (REQ-020, infrastructure tools clause). The tool carries the generation classification (REQ-015). *Acceptance criterion:* `ruleset (action: roll, "gear")` with seed `42` returns the table row for the gear table exactly; the same call without a seed returns a different row; `ruleset (action: roll, "gm-only-table")` under Player badge returns `[FORBIDDEN]`; a ruleset with zero tables returns "No generation tables indexed." _Check:_ T46, T210.
+**REQ-013 — No assumed mechanics.** Nothing enters the model that does not trace to the
+ruleset text. The builder never assumes a mechanic present in one edition or supplement but absent from the source.
+Absent features — no advancement, no deletion, no spellcasting — produce no
+tool; the builder records this absence in DECISIONS.md as a waiver with a re-activation condition.
+The builder preserves inline formatting inside table cells; it never interprets it. Code blocks stay literal
+text, never executed. Callouts produce no mechanics. Conditions apply and expire per the ruleset's own triggers.
 *Acceptance criterion:* A species table missing advancement rules produces no
 `advance_character` tool; the absence is recorded as a waiver in DECISIONS.md (5).
 _Check:_ T25, T32, T33, T36.
 
-**REQ-014 — Source immutability.** The ruleset Markdown — and, where conversion applied, the
-original sources — is hashed at intake (SHA-256) and never modified. The intake hash is
-the golden record: it is stored in DECISIONS.md (1) at build time and recorded in the
+**REQ-014 — Source immutability.** The builder hashes the ruleset Markdown — and, where conversion applied, the
+original sources — at intake (SHA-256), and never changes them. The intake hash is
+the golden record: the builder stores it in DECISIONS.md (1) at build time and records it in the
 build fingerprint (REQ-065) as the definitive source identity. Any later comparison that
-detects a change in the ruleset is drift detection, defined by REQ-065 — this requirement
+detects a change in the ruleset counts as drift detection, defined by REQ-065 — this requirement
 concerns the freeze only.
 *Acceptance criterion:* A sha256 hash of the original Markdown sources matches the intake
 hash stored in DECISIONS.md; the source files on disk are byte-identical to the files
 hashed at intake.
 _Check:_ T21.
 
-**REQ-015 — Action classification.** Every modeled action is classified into one of
+**REQ-015 — Action classification.** The builder classifies every modeled action into one of
 five types: read-only (no state access), state-reading (inspects but does not
 mutate), command (state mutation), generation (content creation from tables or
 prompts), or hybrid (both command and generation). The classification determines
@@ -403,9 +402,9 @@ When the ruleset contains zero generation tables, `ruleset (action: roll)` SHALL
 
 **REQ-214c — Table classification (Part c).**
 When the ruleset contains at least one generation table, `ruleset (action: roll)` SHALL enumerate valid table names in its input schema dynamically from the ruleset model. *Acceptance criterion:* Building for D&D 5e produces a `ruleset (action: roll)` whose `table` parameter enumerates only generation tables (trinkets, madness tables, wand of wonder, etc.) — not lookup tables (ability_modifiers, difficulty_classes). Building for a ruleset with zero generation tables registers `ruleset (action: roll)` with an empty domain and a "no tables" response. _Check:_ T255.
-**REQ-016 — Guidance extraction.** Role-addressed prose (imperatives, statements of
-responsibility, advice, tone/setting text, examples of play) is extracted verbatim as
-guidance items, each with attribution, confidence, and badge scope. Guidance is quoted
+**REQ-016 — Guidance extraction.** The extractor pulls role-addressed prose (imperatives, statements of
+responsibility, advice, tone/setting text, examples of play) verbatim as
+guidance items, each with attribution, confidence, and badge scope. The builder treats guidance as quoted
 inert data — it never influences tool behavior, search results, or model extraction.
 *Acceptance criterion:* Guidance items extracted from role-addressed prose carry
 source anchor, confidence, attribution method, and badge scope; `guidance://player`
@@ -420,8 +419,7 @@ least one intent prompt in the Player badge stories set; every tool visible to G
 is covered by at least one GM story.
 _Check:_ T28.
 
-**REQ-018 — Extraction evidence.** Every extraction decision in RULESET_MODEL.md is
-accompanied by the verbatim source text on which it was based.
+**REQ-018 — Extraction evidence.** The verbatim source text that grounds each extraction decision appears alongside it in RULESET_MODEL.md.
 *Acceptance criterion:* RULESET_MODEL.md includes a verbatim source quote for
 every extraction decision; a reviewer can trace any modeled mechanic to its
 original text without opening the ruleset.
@@ -432,18 +430,19 @@ checkpoint.
 When the ruleset restates a mechanic across multiple sections (e.g., a procedure and a summary table disagree), every source SHALL be recorded.
 
 **REQ-146b — Reconciliation authority (Part b).**
-Authority SHALL be determined by applying these criteria in order, stopping at the first that yields a single candidate: (a) the section the ruleset's own index or table of contents designates as the primary reference; (b) the section whose heading text is the most specific match to the mechanic name; (c) the section within the ruleset's core-mechanics chapter (the chapter at the shallowest heading depth containing the highest proportion of mechanical sections); (d) the section with the most explicit procedural text — measured as the highest count of imperative verbs (roll, add, subtract, compare, apply) within the section's mechanics paragraphs.
+The builder SHALL determine authority by applying these criteria in order, stopping at the first that yields a single candidate. Criterion (a) is the section the ruleset's own index or table of contents designates as the primary reference. Criterion (b) is the section whose heading text best matches the mechanic name. Criterion (c) is the section within the ruleset's core-mechanics chapter — the chapter at the shallowest heading depth containing the highest proportion of mechanical sections. Criterion (d) is the section with the most explicit procedural text, measured as the highest count of imperative verbs (roll, add, subtract, compare, apply) within the section's mechanics paragraphs.
 
 **REQ-146c — Reconciliation authority (Part c).**
 If (a)–(d) produce a tie, all tied sections SHALL be recorded as co-canonical (MEDIUM confidence) and the ambiguity flagged as an `[authority-tie]` defect. The builder SHALL record which criterion resolved each reconciliation in the defect log. The most authoritative section SHALL be treated as canonical; other sources SHALL be LOW confidence. *Acceptance criterion:* A mechanic restated in three sections — one in the core-mechanics chapter, one in a summary table, and one in a supplement — assigns canonical status via criterion (c). With a ruleset whose index points to the summary table, criterion (a) overrides.
 
 **REQ-146d — Reconciliation authority (Part d).**
-An `[authority-tie]` defect is produced when (a)–(d) all produce a tie. _Check:_ T174.
+The builder produces an `[authority-tie]` defect when (a)–(d) all produce a tie. _Check:_ T174.
 **REQ-209 — Cross-format consistency.** Before server construction begins, the builder
 SHALL sample 10 items at random from the extraction model, spanning at least three of the
-seven extraction categories (§6.3), and verify that RULESET_MODEL.md and ruleset_model.json
-agree on: name, source anchor, confidence label, and action classification for each sampled
-item. A mismatch is a discovery defect, recorded in the defect log with both values, and
+seven extraction categories (§6.3). For each sampled
+item, the builder SHALL verify that RULESET_MODEL.md and ruleset_model.json
+agree on name, source anchor, confidence label, and action classification.
+A mismatch counts as a discovery defect, recorded in the defect log with both values, and
 SHALL be resolved before construction begins.
 *Acceptance criterion:* After extraction, RULESET_MODEL.md and ruleset_model.json agree on
 all four fields for 100% of sampled items. A single mismatch blocks construction until
@@ -451,12 +450,12 @@ resolved.
 _Check:_ T252.
 
 **REQ-210a — Extraction categories (Part a).**
-The builder SHALL extract ruleset content into seven categories in dependency order within each chunk: Concepts (named ruleset terms: stats, moves, conditions, statuses), Entities (character types, monsters, NPCs with fields and lifecycle), Tables (lookup tables and generation tables with dice notation), Actions (resolution mechanics, commands, generation — classified per REQ-015), Resolution (the core mechanic: dice notation, stat associations, result bands), Roles (Player and Game Master terms from the ruleset), and Guidance (badge-addressed prose, verbatim with attribution and badge scope).
+The builder SHALL extract ruleset content into seven categories, in dependency order within each chunk. Concepts: named ruleset terms (stats, moves, conditions, statuses). Entities: character types, monsters, NPCs with fields and lifecycle. Tables: lookup tables and generation tables with dice notation. Actions: resolution mechanics, commands, generation — classified per REQ-015. Resolution: the core mechanic (dice notation, stat associations, result bands). Roles: Player and Game Master terms from the ruleset. Guidance: badge-addressed prose, verbatim with attribution and badge scope.
 
 **REQ-210b — Extraction categories (Part b).**
-A cross-category reference that cannot be resolved against the inventory of earlier extractions within the same chunk SHALL be recorded as a MEDIUM-confidence finding in the defect log with a deferred-reference annotation. *Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. A reference to a Concept term not yet extracted produces a deferred-reference annotation which resolves after cross-chunk resolution. _Check:_ T173.
+A cross-category reference that cannot resolve against the inventory of earlier extractions within the same chunk SHALL become a MEDIUM-confidence finding in the defect log. The finding carries a deferred-reference annotation. *Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. A reference to a Concept term not yet extracted produces a deferred-reference annotation which resolves after cross-chunk resolution. _Check:_ T173.
 **REQ-215a — Table content extraction (Part a).**
-The builder SHALL extract generation table content from the ruleset and register it as `ruleset (action: roll)` entries. For each generation table, the builder SHALL produce: a canonical `key` (snake_case slug derived from the source heading), a `dice_expression`, a `ranges` array (min/max/result tuples), a `badge_scope` (derived from source location — tables in GM-only chapters are `game_master`, otherwise `shared`), and a `source_anchor` (heading and file path). Table content extraction follows the same confidence labeling and traceability rules as other extraction categories (REQ-011, REQ-010).
+The builder SHALL extract generation table content from the ruleset and register it as `ruleset (action: roll)` entries. For each generation table, the builder SHALL produce five fields. A canonical `key` (snake_case slug derived from the source heading). A `dice_expression`. A `ranges` array (min/max/result tuples). A `badge_scope` (derived from source location — tables in GM-only chapters are `game_master`, otherwise `shared`). A `source_anchor` (heading and file path). Table content extraction follows the same confidence labeling and traceability rules as other extraction categories (REQ-011, REQ-010).
 
 **REQ-215b — Table content extraction (Part b).**
 The builder SHALL detect dice-range tables from Markdown table cells containing `d100`, `d%`, `d8`, `d20`, or explicit numeric ranges (`01-10`, `11-25`). A row whose first column is a numeric range is a generation result row. A row whose first column is a name or label (not a numeric range) is a lookup row.
