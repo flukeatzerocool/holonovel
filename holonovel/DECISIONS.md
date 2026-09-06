@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 2)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the next ~87 §5.6 bodies (scene-state ledger, structured scene fields, fast-forward, entity presence, NPC memory model, personality/voice fields, connection counter, property-group cardinality, adventure modules and catalog, adventure synthesis linkage): passive → active, >45-word and backtick-merged sentences split with prose leads, field and parameter enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Repaired a fragment lead in REQ-307a ("`last_location` field, derived…") and reworded the REQ-282a "Avoid:" counsel to drop a stray modal. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.6: REQ-069c, REQ-076a1, REQ-076b2, REQ-076b3, REQ-076b7, REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-077f, REQ-079a, REQ-079b, REQ-079c, REQ-079d, REQ-079e, REQ-079f, REQ-079g, REQ-079h, REQ-079j1, REQ-126b, REQ-128a, REQ-129b1, REQ-129c, REQ-165a, REQ-166a, REQ-171a, REQ-173a, REQ-173b, REQ-229a, REQ-229b, REQ-229c, REQ-229d, REQ-252a, REQ-252b, REQ-252c, REQ-255b, REQ-255c, REQ-282a, REQ-282b, REQ-282d, REQ-292b, REQ-292c, REQ-292d, REQ-307a, REQ-307b, REQ-308b, REQ-311b, REQ-311c, REQ-311f |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.6 part 2 REQ set (3 ambiguity items — REQ-077f "should", REQ-127a "or equivalent", REQ-308b "appropriate" — deferred to the structural increment per plan) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 1)
 
 | Field | Value |

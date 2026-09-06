@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-06 — §5.6 part 2 clarity pass (Editorial)
+
+- Rewrote the next ~87 §5.6 normative bodies (scene-state ledger, structured
+  scene fields, fast-forward, entity presence, NPC memory model, personality
+  and voice fields, connection counter, property-group cardinality, adventure
+  modules and catalog, and adventure synthesis linkage) for clarity: passive
+  → active, >45-word and backtick-merged sentences split with prose leads,
+  field and parameter enumerations separated per item, condition stacks
+  unpacked, sentence-initial pronouns resolved. No normative change — titles,
+  SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:`
+  citations are unchanged. Cleared ~79 proofreading warnings. Repaired a
+  fragment lead in REQ-307a ("`last_location` field, derived…") and reworded
+  the REQ-282a "Avoid:" counsel to drop a stray modal.
+
 ## 2026-09-06 — §5.6 part 1 clarity pass (Editorial)
 
 - Rewrote the first ~87 §5.6 (State, Lifecycle, Entities, and Adventure
