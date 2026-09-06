@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.10)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.10 World-Model Layer bodies (world-model state tier, parser command dispatch, verb coverage tiers, action hints, device/vehicle kinds, extended property contracts, extended parser vocabulary, narrative-intent verbs, room description generation, world-model CRUD, property tracking, kind contracts, hybrid conversion, procedural generation, world-model resources and surface prominence, constraint overrides, scene/NPC-world coupling, property propagation, countdown-world effects): passive → active, >45-word and backtick-merged sentences split with prose leads, enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.10: REQ-195a, REQ-195b, REQ-196b, REQ-196c, REQ-196d, REQ-196e, REQ-197b, REQ-197c, REQ-200, REQ-202a, REQ-202b, REQ-222c, REQ-284a, REQ-309c, REQ-309d, REQ-309e, REQ-316b, REQ-317d, REQ-318a, REQ-318b, REQ-319b, REQ-319c, REQ-319d, REQ-320a, REQ-320c, REQ-325c, REQ-326b, REQ-326c, REQ-327a, REQ-367b1, REQ-368a, REQ-368b, REQ-368c, REQ-368e |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.10 REQ set (1 ambiguity item — REQ-327a "or equivalent" — deferred to the structural increment per plan) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.9)
 
 | Field | Value |
