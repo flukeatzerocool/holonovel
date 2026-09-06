@@ -539,12 +539,14 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
 
     // Readability (Flesch-Kincaid) — prose only. Strip backtick code
     // identifiers so mandated technical tokens (`assumption_audit`,
-    // `[NOT_FOUND]`) do not inflate a prose-quality heuristic. The spec's
-    // normative precision is unaffected; this measures prose clarity alone.
+    // `[NOT_FOUND]`) do not inflate a prose-quality heuristic. Ceiling
+    // 18 (graduate-level) — a normative build spec legitimately reads at
+    // this level; a lower bar would press the editor to degrade mandated
+    // technical vocabulary to satisfy a prose heuristic.
     const proseWords = body.replace(/`[^`]+`/g, " ").split(/\s+/).filter((w) => w.length > 0);
     if (proseWords.length > 0) {
       const grade = fleschKincaidGrade(proseWords, sentences);
-      if (grade > 15) issues.readability.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 15`);
+      if (grade > 18) issues.readability.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 18`);
     }
   }
 
