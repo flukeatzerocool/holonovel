@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.8 part 1)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the first ~64 §5.8 Synthesis/Lore/Macros bodies (story journal, campaign memory, synthesis boundaries, narrative directive, prompt section ordering and token vocabulary, dynamic lore, sticky counter decay, lore-world coupling, independent verification obligation, action suggestions/surfacing, suggestion coverage, synthesis reversion, granular synthesis activation): passive → active, >45-word and backtick-merged sentences split with prose leads, keyword and field enumerations separated per item, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.8: REQ-080e, REQ-081b, REQ-082a, REQ-083a, REQ-083d, REQ-083f, REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b4, REQ-103b, REQ-103c, REQ-114b, REQ-158b, REQ-185b, REQ-185c, REQ-186b, REQ-246b1, REQ-246b2, REQ-260a, REQ-310b, REQ-310d, REQ-310e, REQ-310g, REQ-328a |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.8 part 1 REQ set (1 ambiguity item — REQ-114a "should" — deferred to the structural increment per plan) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.6 part 3)
 
 | Field | Value |

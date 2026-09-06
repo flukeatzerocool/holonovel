@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — §5.8 part 1 clarity pass (Editorial)
+
+- Rewrote the first ~64 §5.8 (Synthesis, Lore, and Macros) normative bodies
+  (story journal, campaign memory, synthesis boundaries, narrative directive,
+  prompt section ordering and token vocabulary, dynamic lore, sticky counter
+  decay, lore-world coupling, independent verification obligation, action
+  suggestions and surfacing, suggestion coverage, synthesis reversion, and
+  granular synthesis activation) for clarity: passive → active, >45-word and
+  backtick-merged sentences split with prose leads, keyword and field
+  enumerations separated per item, condition stacks unpacked, sentence-initial
+  pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength,
+  identifiers, acceptance criteria, and `_Check:` citations are unchanged.
+
 ## 2026-09-06 — §5.6 part 3 clarity pass (Editorial)
 
 - Rewrote the final ~86 §5.6 normative bodies (fingerprinting and state
