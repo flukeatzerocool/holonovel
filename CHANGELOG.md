@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — §5.10 clarity pass (Editorial)
+
+- Rewrote the §5.10 World-Model Layer normative bodies (world-model state
+  tier, parser command dispatch, verb coverage tiers, action hints, device and
+  vehicle kinds, extended property contracts, extended parser vocabulary,
+  narrative-intent verbs, room description generation, world-model CRUD,
+  property tracking, kind contracts, hybrid conversion, procedural generation,
+  world-model resources and surface prominence, constraint overrides,
+  scene/NPC-world coupling, property propagation, and countdown-world effects)
+  for clarity: passive → active, >45-word and backtick-merged sentences split
+  with prose leads, enumerations separated per item, condition stacks
+  unpacked, sentence-initial pronouns resolved. No normative change.
+
 ## 2026-09-06 — §5.9 clarity pass (Editorial)
 
 - Rewrote the §5.9 Novel Persistence and Transport normative bodies (Novel
