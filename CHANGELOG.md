@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-06 — Readability gate measures prose only
+
+- The Flesch-Kincaid readability check in `scripts/validate.ts` now strips
+  backtick code identifiers before scoring, so mandated technical tokens
+  (`assumption_audit`, `[NOT_FOUND]`) no longer inflate a prose-quality
+  heuristic. Normative precision is untouched. The REQ-body readability
+  bucket fell from 521 to 401 warnings — the remainder reflects actual prose
+  density, not vocabulary. Narrative-prose readability gets the same
+  treatment.
+
 ## 2026-09-06 — OWASP crosswalk + security hardening + TDQS-conformant tool definitions
 
 - Appendix P (STRIDE threat model) repaired: three stale "§10 adversarial

@@ -537,16 +537,20 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
       }
     }
 
-    // Readability (Flesch-Kincaid)
-    if (words.length > 0) {
-      const grade = fleschKincaidGrade(words, sentences);
+    // Readability (Flesch-Kincaid) — prose only. Strip backtick code
+    // identifiers so mandated technical tokens (`assumption_audit`,
+    // `[NOT_FOUND]`) do not inflate a prose-quality heuristic. The spec's
+    // normative precision is unaffected; this measures prose clarity alone.
+    const proseWords = body.replace(/`[^`]+`/g, " ").split(/\s+/).filter((w) => w.length > 0);
+    if (proseWords.length > 0) {
+      const grade = fleschKincaidGrade(proseWords, sentences);
       if (grade > 15) issues.readability.push(`${reqId}: Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 15`);
     }
   }
 
   // ── Narrative prose readability (text-level) ──
   for (const p of extractNarrativeProse(text)) {
-    const words = p.paragraph.split(/\s+/).filter((w) => w.length > 0);
+    const words = p.paragraph.replace(/`[^`]+`/g, " ").split(/\s+/).filter((w) => w.length > 0);
     const sentences = splitSentences(p.paragraph);
     if (words.length === 0 || sentences.length === 0) continue;
     const grade = fleschKincaidGrade(words, sentences);
