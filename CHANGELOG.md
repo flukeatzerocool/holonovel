@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — §5.9 clarity pass (Editorial)
+
+- Rewrote the §5.9 Novel Persistence and Transport normative bodies (Novel
+  lifecycle, retention, switching, rename, description, listing, info, setup,
+  genre declaration, adventure and encounter generation, genre-filtered
+  generation, Novel persistence, metadata, lorebook and Novel interchange,
+  Novel health, initialization order, backup rotation, clone, and archive)
+  for clarity: passive → active, >45-word and backtick-merged sentences split
+  with prose leads, field and scope enumerations separated per item,
+  condition stacks unpacked, sentence-initial pronouns resolved. No normative
+  change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria,
+  and `_Check:` citations are unchanged.
+
 ## 2026-09-06 — §5.8 part 2 clarity pass (Editorial)
 
 - Rewrote the remaining ~63 §5.8 (Synthesis, Lore, and Macros) normative
