@@ -963,7 +963,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S33) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S36) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Pattern Buffer and subsequent re-runs after synthesis
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
@@ -1259,15 +1259,21 @@ The harness output SHALL include the Pattern Buffer execution timestamp and per-
 Two stalled iterations is a stop; residual failures go into DECISIONS.md (5). **Regression assertions**. A bug found via Pattern Buffer failure and fixed via convergence gains one regression assertion in DECISIONS.md (6). **Assertion compression**. After spec updates or five iterations, audit the regression assertions for redundancy. Drop each subsumed assertion and log the drop in DECISIONS.md (6) with the citation. **Exit criteria**. The Pattern Buffer completes when all sub-workflows pass and the builder resolves all blocking failures.
 
 **REQ-141i — Input-validation convergence metric (Part i).**
-Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19, 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All failures are recorded with severity classification and diagnostic trail. A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be declared handoff-ready without explicit operator acknowledgment. The count of unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside a per-failure severity assessment.
+Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 17, 19, 20, 21, 22, 23, 25, 26, 27, 29, 30, 31, 32, and 33 are blocking — Build is incomplete until they pass. Other failures are accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All failures are recorded with severity classification and diagnostic trail. A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be declared handoff-ready without explicit operator acknowledgment. The count of unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside a per-failure severity assessment.
 
 **REQ-141j — Input-validation convergence metric (Part j).**
 The operator may override this ceiling by recording an acceptance entry in DECISIONS.md (5). The rule applies at handoff verification time (§9 H13) — non-blocking failures accumulated and logged during the build process are re-counted at handoff.
+**REQ-141k — Pattern Buffer harness execution (Part k).**
+Every Pattern Buffer sub-workflow SHALL execute through the runnable harness the structured-encoding clause mandates; the builder SHALL NOT record a sub-workflow verdict the harness did not produce. The Ruleset harness SHALL cover every S-sub-workflow §6.6 defines, and the Holonovel harness SHALL cover every I-sub-workflow §6.6 defines. A build whose harness is absent, unwired, or out of step with the defined sub-workflow set SHALL be incomplete. The DECISIONS.md (6) record SHALL carry the harness's execution timestamp and verdict count. *Acceptance criterion:* a build whose harness covers fewer sub-workflows than §6.6 defines fails validation; DECISIONS.md (6) records only harness-produced verdicts. _Check:_ T537.
+**REQ-141l — Pattern Buffer partial-run disposition (Part l).**
+A Pattern Buffer run that records fewer verdicts than the scoped set SHALL be complete only when each skipped sub-workflow carries a reason. The reason is either a fingerprint-rule note in DECISIONS.md (6) or an operator-acceptance entry in DECISIONS.md (5) that names the skipped sub-workflow, following the REQ-141j acceptance model. A run recorded as representative, sampled, or partial without such entries is a process-compliance finding that blocks handoff. *Acceptance criterion:* a partial run with no acceptance entry fails handoff verification; a partial run with an acceptance entry naming each skipped sub-workflow passes. _Check:_ T539.
 **REQ-142a — Blocking classification principle (Part a).**
 The builder classifies a Pattern Buffer sub-workflow as blocking when it exercises a correctness property whose failure would make the server unsafe to use in any play session. Unsafe failures include state loss, badge-boundary violation, data corruption, unrecoverable crash, or undetectable incorrect results in core play mechanics. A sub-workflow is non-blocking when it tests a property whose failure degrades experience but does not make the server unsafe. Degrading failures include graceful-degradation edge cases, cosmetic output issues, or features documented as deferred in DECISIONS.md (5).
 
 **REQ-142b — Blocking classification principle (Part b).**
 The blocking classification of every sub-workflow is recorded in DECISIONS.md (6) with the safety property it protects and the REQ(s) it derives that classification from. When a new sub-workflow is added, the builder classifies it against this principle and records the rationale. When a sub-workflow's classification changes, the builder records the trigger — a spec revision, a discovered defect class, or an operator override. _Check:_ T164.
+**REQ-142c — Blocking classification single source (Part c).**
+A sub-workflow's blocking classification SHALL appear once in its prose pass criterion and SHALL match the §6.6 exit-criteria list. When a sub-workflow is added or reclassified, the builder SHALL update both sources in the same change. A conflict between a sub-workflow's prose marker and the exit-criteria list is a process-compliance finding. *Acceptance criterion:* a sub-workflow marked blocking in prose but absent from the exit-criteria list fails validation. _Check:_ T540.
 **REQ-208a — Pattern Buffer convergence metric mapping (Part a).**
 The builder SHALL classify each Pattern Buffer failure by applying these rules. A failure from a missing tool or resource maps to MUST-coverage. A failure from incorrect tool output or behavior maps to mechanics-fidelity. A failure from missing or stale pre-build answers or verification records maps to process-compliance. A failure from incorrect input handling maps to input-validation (REQ-141). When a failure matches multiple rules, the most specific rule applies. The classification rule applied SHALL be recorded alongside each mapping in DECISIONS.md (6).
 
@@ -1506,7 +1512,7 @@ SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
 Sub-workflows whose `surface_hash` matches the prior Pattern Buffer execution SHALL be
 skipped individually — recorded as `cached — surface hash match for S<N>` in
 DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
-The full 29-sub-workflow Pattern Buffer is not required when the
+The full 36-sub-workflow Pattern Buffer is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
 **Sub-workflow segmentation.** A sub-workflow whose structured encoding declares
@@ -1523,7 +1529,7 @@ manifest; unchanged-segment verdicts carry forward from the prior run with
 `cached — segment hash match for S<N>.seg<M>` in DECISIONS.md (6).
 
 A sub-workflow without declared segments SHALL execute in full on every
-selection. The full 33-sub-workflow Pattern Buffer SHALL still execute when the
+selection. The full 36-sub-workflow Pattern Buffer SHALL still execute when the
 ruleset hash or spec version changes — segmentation reduces re-execution cost
 only within a stable-spec/stable-ruleset context where individual surfaces
 change. Sub-workflow segmentation SHALL NOT be used to split blocking
@@ -1543,7 +1549,7 @@ changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
 The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
-intake, forcing all 33 sub-workflows regardless of fingerprint match.
+intake, forcing all 36 sub-workflows regardless of fingerprint match.
 
 #### Holonovel Pattern Buffer
 
@@ -1563,7 +1569,7 @@ limitations.
 prior Holonovel Pattern Buffer execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
 results — recording `cached — holonovel vX.Y.Z Pattern Buffer results` in DECISIONS.md
-(6) — instead of re-executing the 13 sub-workflows. A specification version
+(6) — instead of re-executing the 18 sub-workflows. A specification version
 advance SHALL trigger a fresh Holonovel Pattern Buffer execution. The holonovel convergence
 manifest (REQ-245) carries pre-computed Pattern Buffer results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
@@ -1814,7 +1820,7 @@ _Check:_ T84.
 | Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
 | Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
 | Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
+| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 36 sub-workflows, scoped per the §6.6 surface-to-scenario and fingerprint rules) |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. An Editorial disposition records the repaired

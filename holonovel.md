@@ -380,7 +380,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
 | Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P54) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
-| Pattern Buffer         | Operational verification suite (§6.6) — 33 sub-workflows against a running server. |
+| Pattern Buffer         | Operational verification suite (§6.6) — 36 sub-workflows against a running server. |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Computer      | The system persona. The server answers to "Computer" — the Holodeck's voice. The canonical name for the MCP server in all user-facing surfaces. The registered MCP server name is operator-chosen (B6), defaulting to `[game_name]-holonovel`. |
@@ -5148,7 +5148,7 @@ extraction-dependent: S2 (character creation), S3 (encounter setup), S4
 (simulated combat), S7 (table generation), S8 (search and canonical lookup), and
 S9 (condition lifecycle). Each skipped sub-workflow is recorded as
 `skipped — ruleset hash unchanged` in DECISIONS.md (6). Infrastructure
-sub-workflows — all others (S1, S5, S6, S10–S33) — always execute, as they
+sub-workflows — all others (S1, S5, S6, S10–S36) — always execute, as they
 verify runtime contracts independent of extraction quality. This scoping applies
 to both the initial build-time Pattern Buffer and subsequent re-runs after synthesis
 or spec-driven updates. The operator MAY override with `--full-pattern-buffer` to force
@@ -5444,15 +5444,21 @@ The harness output SHALL include the Pattern Buffer execution timestamp and per-
 Two stalled iterations is a stop; residual failures go into DECISIONS.md (5). **Regression assertions**. A bug found via Pattern Buffer failure and fixed via convergence gains one regression assertion in DECISIONS.md (6). **Assertion compression**. After spec updates or five iterations, audit the regression assertions for redundancy. Drop each subsumed assertion and log the drop in DECISIONS.md (6) with the citation. **Exit criteria**. The Pattern Buffer completes when all sub-workflows pass and the builder resolves all blocking failures.
 
 **REQ-141i — Input-validation convergence metric (Part i).**
-Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 19, 20, 21, 22, 23, 25, 26, 29, 30, and 31 are blocking — Build is incomplete until they pass. Other failures are accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All failures are recorded with severity classification and diagnostic trail. A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be declared handoff-ready without explicit operator acknowledgment. The count of unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside a per-failure severity assessment.
+Failures in sub-workflows 1, 2, 4, 5, 6, 12, 13, 15, 17, 19, 20, 21, 22, 23, 25, 26, 27, 29, 30, 31, 32, and 33 are blocking — Build is incomplete until they pass. Other failures are accepted limitations after 2 stalled iterations, logged in DECISIONS.md (5). All failures are recorded with severity classification and diagnostic trail. A build with more than 3 unresolved non-blocking Pattern Buffer failures SHALL not be declared handoff-ready without explicit operator acknowledgment. The count of unresolved non-blocking failures SHALL be recorded in DECISIONS.md (5) alongside a per-failure severity assessment.
 
 **REQ-141j — Input-validation convergence metric (Part j).**
 The operator may override this ceiling by recording an acceptance entry in DECISIONS.md (5). The rule applies at handoff verification time (§9 H13) — non-blocking failures accumulated and logged during the build process are re-counted at handoff.
+**REQ-141k — Pattern Buffer harness execution (Part k).**
+Every Pattern Buffer sub-workflow SHALL execute through the runnable harness the structured-encoding clause mandates; the builder SHALL NOT record a sub-workflow verdict the harness did not produce. The Ruleset harness SHALL cover every S-sub-workflow §6.6 defines, and the Holonovel harness SHALL cover every I-sub-workflow §6.6 defines. A build whose harness is absent, unwired, or out of step with the defined sub-workflow set SHALL be incomplete. The DECISIONS.md (6) record SHALL carry the harness's execution timestamp and verdict count. *Acceptance criterion:* a build whose harness covers fewer sub-workflows than §6.6 defines fails validation; DECISIONS.md (6) records only harness-produced verdicts. _Check:_ T537.
+**REQ-141l — Pattern Buffer partial-run disposition (Part l).**
+A Pattern Buffer run that records fewer verdicts than the scoped set SHALL be complete only when each skipped sub-workflow carries a reason. The reason is either a fingerprint-rule note in DECISIONS.md (6) or an operator-acceptance entry in DECISIONS.md (5) that names the skipped sub-workflow, following the REQ-141j acceptance model. A run recorded as representative, sampled, or partial without such entries is a process-compliance finding that blocks handoff. *Acceptance criterion:* a partial run with no acceptance entry fails handoff verification; a partial run with an acceptance entry naming each skipped sub-workflow passes. _Check:_ T539.
 **REQ-142a — Blocking classification principle (Part a).**
 The builder classifies a Pattern Buffer sub-workflow as blocking when it exercises a correctness property whose failure would make the server unsafe to use in any play session. Unsafe failures include state loss, badge-boundary violation, data corruption, unrecoverable crash, or undetectable incorrect results in core play mechanics. A sub-workflow is non-blocking when it tests a property whose failure degrades experience but does not make the server unsafe. Degrading failures include graceful-degradation edge cases, cosmetic output issues, or features documented as deferred in DECISIONS.md (5).
 
 **REQ-142b — Blocking classification principle (Part b).**
 The blocking classification of every sub-workflow is recorded in DECISIONS.md (6) with the safety property it protects and the REQ(s) it derives that classification from. When a new sub-workflow is added, the builder classifies it against this principle and records the rationale. When a sub-workflow's classification changes, the builder records the trigger — a spec revision, a discovered defect class, or an operator override. _Check:_ T164.
+**REQ-142c — Blocking classification single source (Part c).**
+A sub-workflow's blocking classification SHALL appear once in its prose pass criterion and SHALL match the §6.6 exit-criteria list. When a sub-workflow is added or reclassified, the builder SHALL update both sources in the same change. A conflict between a sub-workflow's prose marker and the exit-criteria list is a process-compliance finding. *Acceptance criterion:* a sub-workflow marked blocking in prose but absent from the exit-criteria list fails validation. _Check:_ T540.
 **REQ-208a — Pattern Buffer convergence metric mapping (Part a).**
 The builder SHALL classify each Pattern Buffer failure by applying these rules. A failure from a missing tool or resource maps to MUST-coverage. A failure from incorrect tool output or behavior maps to mechanics-fidelity. A failure from missing or stale pre-build answers or verification records maps to process-compliance. A failure from incorrect input handling maps to input-validation (REQ-141). When a failure matches multiple rules, the most specific rule applies. The classification rule applied SHALL be recorded alongside each mapping in DECISIONS.md (6).
 
@@ -5691,7 +5697,7 @@ SHALL run the gap audit (§6.7) and compute per-sub-workflow surface hashes.
 Sub-workflows whose `surface_hash` matches the prior Pattern Buffer execution SHALL be
 skipped individually — recorded as `cached — surface hash match for S<N>` in
 DECISIONS.md (6). Sub-workflows whose `surface_hash` differs SHALL re-execute.
-The full 29-sub-workflow Pattern Buffer is not required when the
+The full 36-sub-workflow Pattern Buffer is not required when the
 gap audit identifies no ruleset-facing surface changes.
 
 **Sub-workflow segmentation.** A sub-workflow whose structured encoding declares
@@ -5708,7 +5714,7 @@ manifest; unchanged-segment verdicts carry forward from the prior run with
 `cached — segment hash match for S<N>.seg<M>` in DECISIONS.md (6).
 
 A sub-workflow without declared segments SHALL execute in full on every
-selection. The full 33-sub-workflow Pattern Buffer SHALL still execute when the
+selection. The full 36-sub-workflow Pattern Buffer SHALL still execute when the
 ruleset hash or spec version changes — segmentation reduces re-execution cost
 only within a stable-spec/stable-ruleset context where individual surfaces
 change. Sub-workflow segmentation SHALL NOT be used to split blocking
@@ -5728,7 +5734,7 @@ changed surface hashes re-execute. The manifest takes precedence over the
 DECISIONS.md (6) execution record for re-use decisions.
 
 The operator MAY override fingerprint scoping with a `--full-pattern-buffer` flag at
-intake, forcing all 33 sub-workflows regardless of fingerprint match.
+intake, forcing all 36 sub-workflows regardless of fingerprint match.
 
 #### Holonovel Pattern Buffer
 
@@ -5748,7 +5754,7 @@ limitations.
 prior Holonovel Pattern Buffer execution recorded in DECISIONS.md (6), and the
 specification version has not advanced, the builder MAY reuse the prior
 results — recording `cached — holonovel vX.Y.Z Pattern Buffer results` in DECISIONS.md
-(6) — instead of re-executing the 13 sub-workflows. A specification version
+(6) — instead of re-executing the 18 sub-workflows. A specification version
 advance SHALL trigger a fresh Holonovel Pattern Buffer execution. The holonovel convergence
 manifest (REQ-245) carries pre-computed Pattern Buffer results for the version it
 was built against; the manifest takes precedence over prior-build DECISIONS.md
@@ -5999,7 +6005,7 @@ _Check:_ T84.
 | Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
 | Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
 | Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
-| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 33 sub-workflows, of which the 29-sub-workflow ruleset-facing subset applies when no world-model surface changed) |
+| Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 36 sub-workflows, scoped per the §6.6 surface-to-scenario and fingerprint rules) |
 
 The builder classifies the delta during gap audit. A major spec version increment
 always triggers the Major class. An Editorial disposition records the repaired
@@ -6928,7 +6934,7 @@ have a recorded result in DECISIONS.md.
 | H10   | T45      | Run `session (action: health)`                                      | Overall confidence meets or exceeds the tier threshold set in §6.5 — Standard tier requires ≥80% (floor per REQ-100; Heavy and Huge tiers may apply the adjusted-threshold provision with operator acknowledgment per REQ-099) — and MUST-action coverage = 100% after waivers; any shortfall stops the build. Per Standing Rule 9, ruleset-free builds skip the confidence check (recorded as "ruleset-free" in DECISIONS.md (6)); MUST-action coverage is assessed against REQ-020 infrastructure categories only. For multi-package builds, H10 is assessed per package — each package's confidence must independently meet its tier threshold. Additionally, verify that DECISIONS.md (4) contains cold-start time (process start to first tool response), per-package first-activation latency, and mean query latency measurements with the measurement environment recorded; verify `spec_health` reports `rulesets_installed`, `rulesets_hydrated`, and the most recent measurement. A missing performance record is a handoff defect.                |
 | H11   | F6       | Launch server from README.md client config entry (verified at config-write time per §6.2; re-confirmed here) | Initialize handshake returns `serverInfo.name` matching the `mcpServers` key; no `server unavailable` error.           |
 | H12   | T188   | Cold-checkout G2 replay                            | Evidence entry in DECISIONS.md (6) with command, exit code, G2 pass/fail result, and builder's environment pins (runtime version, OS, spec hash); all four fields non-empty. Per Standing Rule 9, ruleset-free builds replay the Appendix W fixture transcript. In multi-package builds, H12 replays each ruleset's golden transcript against the host with the package loaded. |
-| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; Pattern Buffer was re-run (G5 record present in DECISIONS.md §6) with timestamp after the most recent source file modification. |
+| H13   | T189   | Check artifact freshness timestamps | Every handoff artifact's `<!-- built against Holonovel spec vX.Y.Z -->` comment carries a version matching `spec_health.spec_version`; the Pattern Buffer was re-run via the harness and its manifest carries a timestamp after the most recent source file modification and a verdict count matching the scoped sub-workflow set. A hand-written G5 record in DECISIONS.md §6 does not satisfy this check. |
 | H14   | T190   | Four-artifact diet                                                    | Handoff directory contains exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md; no other regular files. Automated test scripts in `scripts/` and `.holonovel-state/` directory are exempt. In multi-ruleset builds, per-ruleset `<slug>_RULESET_MODEL.md` files are expected in addition to the four core artifacts. |
 | H15   | T440 | Run `tools/list` on host with packages loaded          | Every ruleset-derived tool carries correct prefix and `ruleset` annotation. Infrastructure tools carry `null`. No two tools share the same name. `ruleset_prefix_map` covers all B1 slugs. |
 | H16   | T441 | Create Novel per ruleset, verify binding     | Each Novel's `ruleset` field matches the creation parameter; immutable except the audited migration path (REQ-380c); `novel (action: create)` rejects unknown slugs. |
@@ -8991,8 +8997,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-141h | Input-validation convergence metric (Part h) | 2026-08-11 |
 | REQ-141i | Input-validation convergence metric (Part i) | 2026-08-11 |
 | REQ-141j | Input-validation convergence metric (Part j) | 2026-08-11 |
+| REQ-141k | Pattern Buffer harness execution (Part k) | 2026-09-06 |
+| REQ-141l | Pattern Buffer partial-run disposition (Part l) | 2026-09-06 |
 | REQ-142a | Blocking classification principle (Part a) | 2026-08-11 |
 | REQ-142b | Blocking classification principle (Part b) | 2026-08-11 |
+| REQ-142c | Blocking classification single source (Part c) | 2026-09-06 |
 | REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
 | REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
 | REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
@@ -9265,7 +9274,7 @@ diet.
 | T186  | Automated | AGENTS.md troubleshooting: parse AGENTS.md. Assert `## Troubleshooting` heading present. Assert each of the four failure classes (config mismatch, corrupted state file, badge confusion, missing environment variables) appears. Assert each failure class has at least one diagnostic step. | REQ-153 |
 | T187  | Automated | README.md handoff content: parse README.md. Assert `mcpServers` JSON block present with `command`/`args`/`env` fields. Assert setup section lists prerequisites. Assert state model description mentions persistence boundary. Assert RNG section mentions seed/determinism. | REQ-154 |
 | T188  | Automated | H12 evidence format: parse DECISIONS.md (6). Assert H12 evidence entry present with non-empty command, exit_code, g2_result, and env_pins fields. | §9 |
-| T189  | Automated | H13 Pattern Buffer freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Pattern Buffer timestamp newer than most recent source file mtime. | §9 |
+| T189  | Automated | H13 Pattern Buffer freshness: parse the harness manifest (`pattern_buffer_manifest`). Assert the manifest's execution timestamp is newer than the most recent source file mtime and its verdict count matches the scoped sub-workflow set; a hand-written DECISIONS.md (6) entry does not satisfy H13. | §9 |
 | T190  | Automated | Four-artifact diet: list handoff directory. Assert exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md present alongside `src/`, `scripts/`, `package.json`, `tsconfig.json`, and config files. Assert no `.log`, `.tmp`, `.json` state files, or build artifacts in the handoff root. | §9 |
 | T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, badge-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
 | T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
@@ -9532,6 +9541,9 @@ diet.
 | T534 | Automated | Security-event audit completeness: switch badges, import a Novel, install a package, and trip a boundary violation — assert one tagged audit entry per event in append order with chained hashes intact. | REQ-448 |
 | T535 | Automated | Excessive-agency mutation ceiling: set autonomy `level=full`, `confirmation=auto` with a ceiling of three — assert four consecutive auto-executed mutations surface a `[NEED_INPUT]` naming the three applied and the pending one; assert a human-originated call is not counted. | REQ-449 |
 | T536 | Automated | TDQS-conformant tool definitions: for every registered host tool, assert an annotation matches its mutation class (read-only tools carry no destructive hint, mutating tools disclose side effects), assert the description names every action with side-effect and return behavior, and assert tools with four or more parameters state per-action parameter relevance. | REQ-450 |
+| T537 | Automated | Pattern Buffer harness execution: assert the ruleset harness covers every S-sub-workflow §6.6 defines and the Holonovel harness covers every I-sub-workflow §6.6 defines; assert the DECISIONS.md (6) record carries the harness execution timestamp and verdict count, and that no verdict is recorded without a harness-produced result. | REQ-141k |
+| T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
+| T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
 
 ---
 
