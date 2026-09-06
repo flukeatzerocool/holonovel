@@ -493,9 +493,11 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
    no infrastructure tool is duplicated into the package; (c) no two tools within the
    package share a registered name after prefixing; (d) the `ruleset_prefix_map`
-   matches the B1 slug-to-path mapping; (e) every ruleset-derived tool schema carries
-   a REQ-024a title in the ruleset's own terms, a three-clause description, and a
-   REQ-427 description on every input parameter; (f) no ruleset-derived tool exceeds
+   matches the B1 slug-to-path mapping;    (e) every ruleset-derived tool schema carries
+   a REQ-024a title in the ruleset's own terms, a three-clause description, a
+   REQ-427 description on every input parameter, and a REQ-450 TDQS-conformant
+   definition — every action enumerated, a mutation-class annotation, and
+   side-effect and return behavior disclosed; (f) no ruleset-derived tool exceeds
    the REQ-408 parameter ceiling; (g) the tool set honors REQ-021 surface economy and
    REQ-413 action-discriminator consolidation — sibling-tool proliferation is a
    packaging defect; (h) every tool description fits the REQ-392 budget and states
@@ -1050,7 +1052,9 @@ four items is incomplete and blocks handoff.
     (Blocking — verified in S4); (h) `spec_health` under Player badge returns only
     player-filtered metrics (Blocking — verified in S17);
     (i) adversarial input: `scene (action: set)` with SQL-injection string stores and
-    echoes verbatim; no behavior change, no crash per REQ-054.
+    echoes verbatim; no behavior change, no crash per REQ-054. A Novel import whose
+    scene description carries embedded directives stores and echoes them verbatim
+    with no behavior change, no new tools, and a logged finding per REQ-444.
 15. **Stress and recovery** — (a) two connections sharing one data directory: reads reflect
     latest writes, no stale reads/write conflicts/deadlocks; (b) corrupted state file →
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
@@ -1429,6 +1433,12 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-002a | S9 | Extended error category semantics |
 | REQ-002b | S1, S14e | Corrective-action contract |
 | REQ-002c | S6 | Badge-filtered error values |
+| REQ-444 | S14i, S29 | Import-channel inertness |
+| REQ-445 | S6, S19 | Error-value disclosure control |
+| REQ-446 | S30 | Ruleset package provenance |
+| REQ-447 | S21, S24 | Audit-log growth cap |
+| REQ-448 | S6, S21, S24 | Security-event audit completeness |
+| REQ-449 | S22 | Excessive-agency mutation ceiling |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 | REQ-329 | S16, S23 | Countdown-world coupling |

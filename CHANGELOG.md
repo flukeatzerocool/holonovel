@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-06 — OWASP crosswalk + security hardening + TDQS-conformant tool definitions
+
+- Appendix P (STRIDE threat model) repaired: three stale "§10 adversarial
+  round" citations now name the current §6.6 sub-workflows (S6/S15/S19/S21),
+  and the DoS row's "no hard caps" claim corrected to cite the REQ-129
+  property-group caps. Added P.1 OWASP Crosswalk mapping the OWASP Top 10
+  (2025) and OWASP LLM Top 10 (2025) taxonomies to Holonovel surfaces with
+  dispositions.
+- New security REQs in §5.7: REQ-444 import-channel inertness, REQ-445
+  error-value disclosure control, REQ-446 ruleset package provenance,
+  REQ-447 audit-log growth cap, REQ-448 security-event audit completeness,
+  REQ-449 excessive-agency mutation ceiling. REQ-450 (§5.3) contracts
+  TDQS-conformant tool definitions. Tests T530–T536; coverage-map rows;
+  Appendix C.3 indirect-injection fixture; G3 extension.
+- Implementation: audit-log cap (`TTRPG_AUDIT_MAX_ENTRIES`) + security-event
+  tagging in `state.ts`; badge switches, Novel import/export, and ruleset
+  install/remove now audited; install records provenance (slug + content
+  hash); GM-only lore is now invisible to the Player/observer badge (REQ-445
+  fixed a real disclosure bug in `lore (action: get/list)`); autonomy full+auto
+  mutation ceiling (`TTRPG_AUTONOMY_MUTATION_CEILING`); every tool carries an
+  MCP mutation-class annotation (REQ-450); the `ruleset` tool description now
+  enumerates `roll` and discloses install/remove side effects.
+- New `holonovel/scripts/test-security.ts` harness (T530–T536) wired into
+  `test:all`; package-format fingerprint advanced by the §6.4.2 edit.
+
 ## 2026-09-04 — Wiki auto-refresh from spec via markers
 
 - The wiki and README footer now refresh from the spec on every

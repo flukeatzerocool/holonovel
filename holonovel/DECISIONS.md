@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 456a8c8b7dd08f1b79904341596533d9a56e0b16de8a13b84ed7c3101fc953d2
+**Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
+
+### Holonovel Spec Update — 2026-09-06 (OWASP crosswalk + security hardening + TDQS)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — OWASP application and tool-definition quality. Appendix P repaired (stale §10 adversarial-round citations → current S6/S15/S19/S21; DoS row now cites REQ-129 caps) and gained P.1 OWASP Crosswalk (Top 10:2025 + LLM Top 10:2025 → surface → mitigation → disposition). New security REQs in §5.7 (REQ-444 import inertness, REQ-445 error disclosure, REQ-446 provenance, REQ-447 audit cap, REQ-448 security-event audit, REQ-449 mutation ceiling) and REQ-450 TDQS-conformant tool definitions in §5.3; T530–T536 + coverage-map rows + Appendix C.3 indirect-injection fixture + G3 extension + §6.4.2 annotation requirement. Implementation: `state.ts` audit cap (`TTRPG_AUDIT_MAX_ENTRIES`) + security-event tagging + `registerAiMutation` ceiling; `index.ts` audits badge switches/imports/exports/package install/remove, adds install provenance, closes a real disclosure bug (Player could read GM-only lore via `lore (action: get/list)`), adds per-tool MCP annotations, and enriches the `ruleset` description. New `test-security.ts` harness (T530–T536) wired into `test:all`. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 302, E 110); full `check` 0 errors; `validate:sdd --impl-audit=strict` 0 errors; holonovel typecheck 0 errors; holonovel test:all green (security 7/7, fingerprints 8/8 incl. T499 after package_format advance); package_format advanced `8be21bb36555…` → `cd74fa3c3c3c…`, data_format unchanged `daff3d95da3b…` |
+| Follow-up | Glama re-index after deploy will reflect the 28-tool annotated surface; TDQS per-tool scores are expected to rise on Behavior/Completeness/Parameters dimensions |
 
 ### Holonovel Spec Update — 2026-09-04 (content-integration completion)
 
@@ -552,7 +562,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.04 |
+| Spec version | 2026.09.06 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |
