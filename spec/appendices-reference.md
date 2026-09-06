@@ -1162,8 +1162,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-141h | Input-validation convergence metric (Part h) | 2026-08-11 |
 | REQ-141i | Input-validation convergence metric (Part i) | 2026-08-11 |
 | REQ-141j | Input-validation convergence metric (Part j) | 2026-08-11 |
+| REQ-141k | Pattern Buffer harness execution (Part k) | 2026-09-06 |
+| REQ-141l | Pattern Buffer partial-run disposition (Part l) | 2026-09-06 |
 | REQ-142a | Blocking classification principle (Part a) | 2026-08-11 |
 | REQ-142b | Blocking classification principle (Part b) | 2026-08-11 |
+| REQ-142c | Blocking classification single source (Part c) | 2026-09-06 |
 | REQ-208a | Pattern Buffer convergence metric mapping (Part a) | 2026-08-11 |
 | REQ-208b | Pattern Buffer convergence metric mapping (Part b) | 2026-08-11 |
 | REQ-376a | Holonovel Pattern Buffer traceability (Part a) | 2026-08-11 |
@@ -1436,7 +1439,7 @@ diet.
 | T186  | Automated | AGENTS.md troubleshooting: parse AGENTS.md. Assert `## Troubleshooting` heading present. Assert each of the four failure classes (config mismatch, corrupted state file, badge confusion, missing environment variables) appears. Assert each failure class has at least one diagnostic step. | REQ-153 |
 | T187  | Automated | README.md handoff content: parse README.md. Assert `mcpServers` JSON block present with `command`/`args`/`env` fields. Assert setup section lists prerequisites. Assert state model description mentions persistence boundary. Assert RNG section mentions seed/determinism. | REQ-154 |
 | T188  | Automated | H12 evidence format: parse DECISIONS.md (6). Assert H12 evidence entry present with non-empty command, exit_code, g2_result, and env_pins fields. | §9 |
-| T189  | Automated | H13 Pattern Buffer freshness: parse DECISIONS.md (6). Assert H13 evidence entry with Pattern Buffer timestamp newer than most recent source file mtime. | §9 |
+| T189  | Automated | H13 Pattern Buffer freshness: parse the harness manifest (`pattern_buffer_manifest`). Assert the manifest's execution timestamp is newer than the most recent source file mtime and its verdict count matches the scoped sub-workflow set; a hand-written DECISIONS.md (6) entry does not satisfy H13. | §9 |
 | T190  | Automated | Four-artifact diet: list handoff directory. Assert exactly RULESET_MODEL.md, DECISIONS.md, README.md, AGENTS.md, and LICENSE.md present alongside `src/`, `scripts/`, `package.json`, `tsconfig.json`, and config files. Assert no `.log`, `.tmp`, `.json` state files, or build artifacts in the handoff root. | §9 |
 | T221  | Automated | Output pointer resource template: produce a tool output exceeding 32,000 bytes — assert `resources/templates/list` includes `output://{tool_name}/{counter}`. Read the resolved URI — assert full untruncated content returned as Markdown, badge-filtered per REQ-032. Push output storage beyond the configurable limit — assert the oldest payload is evicted and its URI returns `[NOT_FOUND]` with eviction message. | REQ-179, REQ-032 |
 | T222  | Automated | Truncation budget unit: invoke a tool producing output near a 32,000-byte threshold — assert truncation occurs at the same byte offset whether measured in bytes or tokens. Assert DECISIONS.md records the `CHARS_PER_TOKEN` heuristic. Assert token-based truncation does not truncate earlier than the byte threshold would require. | REQ-180 |
@@ -1703,6 +1706,9 @@ diet.
 | T534 | Automated | Security-event audit completeness: switch badges, import a Novel, install a package, and trip a boundary violation — assert one tagged audit entry per event in append order with chained hashes intact. | REQ-448 |
 | T535 | Automated | Excessive-agency mutation ceiling: set autonomy `level=full`, `confirmation=auto` with a ceiling of three — assert four consecutive auto-executed mutations surface a `[NEED_INPUT]` naming the three applied and the pending one; assert a human-originated call is not counted. | REQ-449 |
 | T536 | Automated | TDQS-conformant tool definitions: for every registered host tool, assert an annotation matches its mutation class (read-only tools carry no destructive hint, mutating tools disclose side effects), assert the description names every action with side-effect and return behavior, and assert tools with four or more parameters state per-action parameter relevance. | REQ-450 |
+| T537 | Automated | Pattern Buffer harness execution: assert the ruleset harness covers every S-sub-workflow §6.6 defines and the Holonovel harness covers every I-sub-workflow §6.6 defines; assert the DECISIONS.md (6) record carries the harness execution timestamp and verdict count, and that no verdict is recorded without a harness-produced result. | REQ-141k |
+| T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
+| T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
 
 ---
 

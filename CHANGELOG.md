@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer hardening
+
+- The Pattern Buffer now requires an executable harness as its evidence of
+  record: sub-workflow verdicts must be produced by the harness, and handoff
+  gate H13 accepts only the harness manifest rather than hand-written
+  DECISIONS.md records. (REQ-141k, H13)
+- Partial or sampled Pattern Buffer runs no longer count as complete: a run
+  that skips sub-workflows without a fingerprint reason or an operator
+  acceptance entry blocks handoff. (REQ-141l)
+- The blocking sub-workflow list is now single-sourced and reconciled with the
+  prose markers — S17, S27, S32, and S33 are correctly classified blocking.
+  (REQ-142c, REQ-141i)
+- Corrected the Pattern Buffer suite count to 36 sub-workflows across the
+  glossary, §6.6, and the §6.7 delta table.
+
 ## 2026-09-06 — Validator exhaustiveness follow-through (Editorial)
 
 - Made the assumption-audit magic-number scan exhaustive: removed the
