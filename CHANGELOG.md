@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — Structural cleanup pass (Editorial)
+
+- Resolved the deferred ambiguity-scan items: reworded the hedge words
+  ("normally"), "or equivalent" phrases, vague qualifiers ("appropriate",
+  "reasonable"), and the ambiguous "should" obligations into precise wording;
+  corrected the non-canonical "Section N" references to "§N" across the
+  narrative appendices.
+- Cleared ~20 residual proofreading warnings introduced or missed across the
+  earlier clarity increments (REQ-041c, REQ-078c1, REQ-109c1–c3, REQ-141h,
+  REQ-219a2, REQ-340a, REQ-345a/b, REQ-352a, REQ-357a, REQ-360a, REQ-369b,
+  REQ-370b, REQ-371b, REQ-373a1, REQ-377a, REQ-379b, REQ-380b). No normative
+  change.
+
 ## 2026-09-06 — §5.21–5.23 clarity pass (Editorial)
 
 - Rewrote the §5.21–5.23 base-capability normative bodies (Fate stress and

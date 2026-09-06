@@ -91,7 +91,7 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
 
 ## Appendix E: Requirements Manifest
 
-Section 5 is the sole normative statement of every REQ. This table records which
+§5 is the sole normative statement of every REQ. This table records which
 specification version last changed each requirement. Version pins are CalVer
 date-stamps matching CHANGELOG entries.
 
