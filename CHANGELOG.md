@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-06 — §5.13–5.18 clarity pass (Editorial)
+
+- Rewrote the §5.13–5.18 normative bodies (Holodeck archetype taxonomy,
+  coupling derivation, Ruleset Wisdom as rendered reality, archtype coverage,
+  wisdom coupling rate, Pattern Buffer traceability, supplementary ruleset
+  import, dynamic tool registration, mechanical coupling extraction and
+  verification, multi-ruleset tool namespacing, Novel ruleset binding,
+  ruleset-scoped tool gating, extraction isolation, host ruleset health,
+  cross-ruleset switching and import rejection, Codex ruleset annotation,
+  ruleset package format/install/conformance, and the workflow entry points)
+  for clarity: passive → active, >45-word and backtick-merged sentences split,
+  enumerations separated, condition stacks unpacked, sentence-initial pronouns
+  resolved. No normative change. One warning accepted per DP-3: REQ-383a
+  "MUST-action coverage" (frozen metric name).
+
 ## 2026-09-06 — §5.11+§5.12 clarity pass (Editorial)
 
 - Rewrote the §5.11 Ruleset-Free Build Mode and §5.12 Narrative Architecture

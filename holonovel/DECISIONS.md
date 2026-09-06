@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.13–5.18)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.13–5.18 bodies (Holodeck archetype taxonomy and coupling derivation, Ruleset Wisdom as rendered reality, archetype coverage, wisdom coupling rate, Pattern Buffer traceability, supplementary ruleset import, dynamic tool registration, mechanical coupling extraction/verification, multi-ruleset tool namespacing, Novel ruleset binding, ruleset-scoped tool gating, extraction isolation, host ruleset health, cross-ruleset switching and import rejection, Codex ruleset annotation, ruleset package format/install/conformance, workflow entry points): passive → active, >45-word and backtick-merged sentences split, enumerations separated, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. One warning accepted per DP-3: REQ-383a "MUST-action coverage" (frozen convergence metric name). |
+| Repaired REQ set | §5.13–5.18: REQ-369b, REQ-370b, REQ-371b, REQ-372b, REQ-372c, REQ-373a1, REQ-373a2, REQ-375a, REQ-375b, REQ-376a2, REQ-377a, REQ-377b, REQ-377c, REQ-378a, REQ-379b, REQ-380a, REQ-380b, REQ-381a, REQ-382a, REQ-382b, REQ-384b, REQ-387a, REQ-389a, REQ-389c, REQ-390b, REQ-392, REQ-394, REQ-396, REQ-398, REQ-420, REQ-422, REQ-424, REQ-430, REQ-432b |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.13–5.18 REQ set (REQ-396 "or equivalent" deferred to the structural increment per plan; REQ-383a "MUST-action coverage" accepted per DP-3) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.11+§5.12)
 
 | Field | Value |
