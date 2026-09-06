@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-06 — §5.1–5.2 clarity pass (Editorial)
+
+- Rewrote the §5.1 Output and Error Contracts and §5.2 Extraction and
+  Confidence normative bodies for clarity: passive voice → active,
+  sentences over 45 words split, condition-stacked and pronoun-led
+  sentences restructured. No normative change — SHALL/MAY strength,
+  identifiers, acceptance criteria, and `_Check:` citations are unchanged.
+  Cleared ~58 proofreading warnings across the two sections.
+
 ## 2026-09-06 — Readability gate measures prose only
 
 - The Flesch-Kincaid readability check in `scripts/validate.ts` now strips
