@@ -511,10 +511,10 @@ _Check:_ T368.
 ### 5.3 Tools, Resources, and Lookups
 
 **REQ-020a — Tools (Part a).**
-Server behavior is modeled as MCP tools using ruleset terminology — never invented names. Infrastructure tools in four immutable categories — World, Novels, Badges & Workflow, Narrative (enumerated in Appendix T) — SHALL always be present. Character creation, condition management, combat, table rolling, and session recap are the minimum ruleset-derived categories; missing categories are recorded as waivers.
+The server models behavior as MCP tools using ruleset terminology — never invented names. Infrastructure tools in four immutable categories — World, Novels, Badges & Workflow, Narrative (enumerated in Appendix T) — SHALL always be present. Character creation, condition management, combat, table rolling, and session recap are the minimum ruleset-derived categories; the builder records missing categories as waivers.
 
 **REQ-020b — Tools (Part b).**
-Tools whose results depend on indexed ruleset content produce empty or context-only results when that content is absent. *Acceptance criterion:* `tools/list` includes at minimum character creation, condition management, combat, table rolling, and session recap tools; a missing category is recorded as a waiver in DECISIONS.md. _Check:_ T3, T5, T32, T33; G2.
+Tools whose results depend on indexed ruleset content produce empty or context-only results when the index lacks that content. *Acceptance criterion:* `tools/list` includes at minimum character creation, condition management, combat, table rolling, and session recap tools; a missing category is recorded as a waiver in DECISIONS.md. _Check:_ T3, T5, T32, T33; G2.
 **REQ-021 — Tool-surface economy.** A named set of related operations (one per table, one
 per move, one per stat) shares a single parameterized tool. The tool surface is determined
 by extraction, not by what a builder finds easy to implement. The per-tool justification
@@ -531,7 +531,7 @@ No advertised tool SHALL expose more parameters than a ceiling recorded at build
 **REQ-413 — Action-discriminator tool surface.**
 When the builder determines that a group of operations shares a domain but not a common
 input or output contract, the operations SHALL be exposed as one entry tool carrying an
-action discriminator rather than as sibling tools, and each action SHALL be documented as
+action discriminator rather than as sibling tools. Each action SHALL be documented as
 its own sub-REQ. The discriminator SHALL name actions in the ruleset's own terms, and the
 parameters and contract of each action SHALL be recoverable from `spec_health`.
 Consolidation SHALL NOT alter any action's output contract.
@@ -541,12 +541,13 @@ exposes per-action contracts. _Check:_ T486.
 
 **REQ-414 — Schema-surface economy.**
 A tool's advertised input schema SHALL prefer the most compact form that carries the same
-information and preserves strict server-side validation, substituting example values for
-nested structural descriptions wherever the builder determines the compact form is
-equivalent. The advertised form SHALL be self-explanatory to a caller without external
-documentation and SHALL NOT weaken the input-validation contract of REQ-054. `spec_health`
-SHALL report the count of advertised inputs using nested structural form, and an input that
-could have been advertised compactly but is not SHALL be recorded in DECISIONS.md.
+information and preserves strict server-side validation. Where the builder judges two
+forms equivalent, it SHALL substitute example values for nested structural descriptions.
+The advertised form SHALL be self-explanatory to a caller without external documentation
+and SHALL NOT weaken the input-validation contract of REQ-054. `spec_health` SHALL report
+how many advertised inputs use nested structural form. The server SHALL record in
+DECISIONS.md every input that remains in non-compact form when a compact form was
+available.
 *Acceptance criterion:* inputs expressible compactly are advertised so with examples;
 validation is unchanged; `spec_health` reports the nested-form count. _Check:_ T487.
 
@@ -562,14 +563,14 @@ full definitions; counts still match the live registry; `spec_health` reports th
 verbosity. _Check:_ T488.
 
 **REQ-022a — Resources (Part a).**
-The server provides resources covering ruleset content
-(with badge filtering), entities at collection and individual URIs, the audit
-log, the roster, badge-specific guidance (foundations, anti-slop, tone,
-badge-switch), scene state, countdowns, the party roster, NPCs at
-collection and individual URIs, entity personality and voice examples, lore
-entries, synthesis modules, adventure content, novel state, rooms and
-things, the world map and kind registry, the knowledge graph, the build
-specification, and per-tool output pointers.
+The server provides resources covering ruleset content (with badge filtering). The
+resource catalog also includes entities at collection and individual URIs, the audit log,
+the roster, and badge-specific guidance (foundations, anti-slop, tone, badge-switch). The
+catalog further includes scene state, countdowns, the party roster, and NPCs at collection
+and individual URIs. The catalog covers entity personality and voice examples, lore
+entries, synthesis modules, and adventure content. Finally, the catalog includes novel
+state, rooms and things, and the world map and kind registry. The catalog adds the
+knowledge graph, the build specification, and per-tool output pointers.
 
 **REQ-022b — Resources (Part b).**
 `resources/templates/list`
@@ -581,13 +582,13 @@ each resource declares a media type and title.
 _Check:_ T16, T104.
 
 **REQ-296a — Knowledge-graph resource (Part a).**
-THE server SHALL provide a `graph://novel` resource returning the Novel's entity-relationship graph as a structured adjacency list. The resource SHALL include: (a) `entities` — all Novel entities with their current relationships; (b) `npcs` — all NPCs with relationships, dispositions, and location; (c) `lore_connections`; (d) `secrets` — secret lore entries mapped to the entities that have had them revealed; (e) `factions` — faction memberships. The resource is badge-filtered: Player badge sees only relationships involving their active entities, `shared`-scope lore, and revealed secrets.
+THE server SHALL provide a `graph://novel` resource returning the Novel's entity-relationship graph as a structured adjacency list. The resource SHALL include the following sections: (a) `entities` — all Novel entities with their current relationships; (b) `npcs` — all NPCs with relationships, dispositions, and location; and (c) `lore_connections`. The other sections are (d) `secrets` — secret lore entries mapped to the entities that have had them revealed — and (e) `factions` — faction memberships. The resource is badge-filtered: Player badge sees only relationships involving their active entities, `shared`-scope lore, and revealed secrets.
 
 **REQ-296b — Knowledge-graph resource (Part b).**
 When no Novel is active, `resources/read` returns `[STATE_CONFLICT]`. `graph://novel` has no briefing presence per §5.10. *Acceptance criterion:* After creating 2 NPCs with a relationship, setting a faction with 1 member NPC, and revealing a secret to entity "hero", `graph://novel` under the GM badge includes entities, NPCs with relationships, lore_connections, secrets, and factions. _Check:_ T341.
 
 **REQ-296c — Knowledge-graph resource (Part c).**
-`graph://novel` SHALL accept an optional `projection` query selecting a filtered view: `political` (factions, memberships, and relationships among factions and NPCs), `timeline` (entities and relationships ordered by most recent scene or journal timestamps), or `geography` (rooms with located NPCs, things, and exits). An absent or unrecognized projection SHALL return the current adjacency list. Badge filtering SHALL apply unchanged to every projection.
+`graph://novel` SHALL accept an optional `projection` query that selects a filtered view. The `political` projection returns factions, memberships, and relationships among factions and NPCs. The `timeline` projection returns entities and relationships ordered by most recent scene or journal timestamps. The `geography` projection returns rooms with located NPCs, things, and exits. An absent or unrecognized projection SHALL return the current adjacency list. Badge filtering SHALL apply unchanged to every projection.
 *Acceptance criterion:* a Novel with two factions, a member NPC, and two connected rooms returns distinct political, timeline, and geography views; the Player badge receives filtered projections. _Check:_ T516.
 
 **REQ-426a — MCP Apps UI resource surface (Part a).**
@@ -606,12 +607,12 @@ UI resources SHALL be static, self-contained HTML with no external network origi
 The server provides prompts covering multi-step workflows, badge briefing, connection introduction (REQ-063), session zero (REQ-078), and Novel setup (REQ-089). Tool-use intent mapping is handled by the `command (action: suggest)` tool (REQ-084) rather than a prompt — a dedicated prompt for this function is redundant. The remaining intent-mapping prompt (`run_workflow`) derives its tool associations from the registered tool catalog and the ruleset extraction model's action classifications (REQ-015) — not from hardcoded keyword strings that assume a specific ruleset's terminology.
 
 **REQ-023b — Prompts (Part b).**
-Prompts are dynamic: adding a tool, resource, or guidance item updates their output without restart. `prompts/get` returns exactly one user-role message. `prompts/list` carries a title on every prompt and a description on every argument. *Acceptance criterion:* Removing a stub tool and restarting removes it from all five prompts; adding a tool updates prompt output without restart; `prompts/list` carries a title on every prompt and a description on every argument. _Check:_ T22, T28, T155.
+Adding a tool, resource, or guidance item updates prompt output without restart. `prompts/get` returns exactly one user-role message. `prompts/list` carries a title on every prompt and a description on every argument. *Acceptance criterion:* Removing a stub tool and restarting removes it from all five prompts; adding a tool updates prompt output without restart; `prompts/list` carries a title on every prompt and a description on every argument. _Check:_ T22, T28, T155.
 **REQ-024a — Tool documentation (Part a).**
 Every tool carries a `title` field with the ruleset's own term for that action. Annotations match action classification. *Acceptance criterion:* Every tool's `title` field uses the ruleset's own term for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not "lookup_weapon." _Check:_ T3, T35, T39. The `description` field SHALL follow a three-clause structure: a one-line summary of the tool's action (verb + object), a "Use when:" clause naming concrete scenarios that select this tool, and a "Do NOT use when:" clause naming sibling tools the caller should prefer for similar-sounding requests.
 
 **REQ-024b — Tool documentation (Part b).**
-Descriptions longer than three sentences are truncated in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
+The server truncates descriptions longer than three sentences in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
 
 **REQ-427 — Tool parameter semantics.**
 Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
@@ -623,26 +624,26 @@ Every host tool SHALL meet the Glama TDQS standard. Its description SHALL enumer
 The `spec_health` report — produced by the `session` tool's `health` action — reports build-health metrics derived from live registrations at call time, not from hardcoded numeric literals.
 
 **REQ-025b1 — spec_health (Part b1).**
-Reported categories include: confidence scores per-file and overall; conversion fidelity when conversion was selected (per-content-type rates, overall rate, sample set, unresolved ambiguities, confidence cap counts); convergence summary (per-metric iterations, findings, residual gaps, and per-extraction-category confidence breakdown); indexed counts (anchors, concepts, entity types, actions, tables, procedures, guidance items, synthesis items per module); pending sections; MUST-action coverage; defect count; ruleset-version status; verification workflow dispositions; available Novels on disk.
+Reported categories include several groups. Confidence scores appear per-file and overall. For builds that converted content, conversion fidelity reports per-content-type rates, the overall rate, the sample set, unresolved ambiguities, and confidence cap counts. The convergence summary covers per-metric iterations, findings, residual gaps, and the per-extraction-category confidence breakdown. Indexed counts cover anchors, concepts, entity types, actions, tables, procedures, guidance items, and synthesis items per module. The remaining categories report pending sections, MUST-action coverage, defect count, ruleset-version status, verification workflow dispositions, and the Novels available on disk.
 
 **REQ-025b2 — spec_health (Part b2).**
-Also reported: prompt health (each registered prompt's presence, length relative to budget, and stale references); a gap audit section comparing current spec version against build-time version with tool-catalog, resource-map, prompt-list, and badge-gating comparisons; cross-reference health (total, resolved, unresolved, and unresolved percentage across discovered ruleset cross-references, with regression detection on rebuild); Pattern Buffer scenarios (passed, total, last run timestamp); and search index coverage (total headings, indexed headings, coverage percentage, with unmapped sections where coverage is below threshold).
+`spec_health` also reports prompt health — each registered prompt's presence, length relative to budget, and stale references. The report also includes a gap audit section that compares the current spec version against the build-time version, with tool-catalog, resource-map, prompt-list, and badge-gating comparisons. Cross-reference health reports the total, resolved, unresolved, and unresolved percentage across discovered ruleset cross-references, with regression detection on rebuild. Pattern Buffer scenarios report the passed count, total count, and last-run timestamp. Search index coverage reports total headings, indexed headings, and coverage percentage, with unmapped sections flagged where coverage sits below threshold.
 
 **REQ-025c — spec_health (Part c).**
-The Player badge sees only player-filtered metrics. Build-phase-dependent sections (convergence summary, gap audit) are absent when the build is not yet complete. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154.
+The Player badge sees only player-filtered metrics. Build-phase-dependent sections (the convergence summary and the gap audit) appear only after the build completes. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154.
 
 **REQ-411 — Stable-metadata caching.**
 Rendered content that does not change between calls — tool schemas, prompt scaffolding, and
-taxonomy vocabularies — SHALL be cached and served on repeat without recomputation, so a
+taxonomy vocabularies — SHALL be cached and served on repeat without recomputation. A
 session pays the render cost once. A cached entry SHALL invalidate when its source
-registration changes, preserving the live-registration dynamism of REQ-023b and REQ-025; the
+registration changes, preserving the live-registration dynamism of REQ-023b and REQ-025. The
 cache SHALL never alter tool output or badge filtering. `spec_health` SHALL report cache
 coverage.
 *Acceptance criterion:* A repeated read of stable metadata returns the cached entry without
 recomputation; mutating a registration invalidates the cache and the next read reflects it;
 outputs are identical cached or not; `spec_health` reports coverage. _Check:_ T480.
 **REQ-160a — Synthesis health reporting (Part a).**
-`spec_health` SHALL report synthesis status with these minimum fields: (a) `synthesis_active` — boolean indicating whether synthesis state exists; (b) `module_counts` — per-module item count for each of the seven output modules (§11.1); (c) `stale_count` — number of inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`; (d) `activated_count` — number of synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159); (e) `fingerprint` — the synthesis fingerprint used for idempotence detection (ruleset content hash + intake answers).
+`spec_health` SHALL report synthesis status with these minimum fields. Field (a), `synthesis_active`, is a boolean indicating whether synthesis state exists. Field (b), `module_counts`, reports the per-module item count for each of the seven output modules (§11.1). Field (c), `stale_count`, counts inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`. Field (d), `activated_count`, counts synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159). Field (e), `fingerprint`, holds the synthesis fingerprint used for idempotence detection (ruleset content hash plus intake answers).
 
 **REQ-160b — Synthesis health reporting (Part b).**
 Stale items SHALL appear with the `[stale]` flag when listed. When synthesis has never been run, `synthesis_active` is false and all count fields are zero. When synthesis is absent (never run or reverted), `module_counts` SHALL include all seven module names — `voice_examples`, `briefing_order`, `lore_templates`, `action_patterns` and `supplementary_guidance`, `adventure_advice`, `narrative_voices` — each with value zero. An absent `module_counts` field or an empty object does not satisfy this contract.
@@ -650,12 +651,12 @@ Stale items SHALL appear with the `[stale]` flag when listed. When synthesis has
 **REQ-160c — Synthesis health reporting (Part c).**
 The synthesis health section is visible to all badges — Player and GM alike see whether synthesis is active and how many items are stale, but per-module content is badge-filtered per REQ-080. *Acceptance criterion:* After synthesis, `spec_health` reports `synthesis_active: true`, per-module counts matching the manifest, and a non-empty fingerprint. After `synthesis (action: revert)`, `synthesis_active` is false and all counts are zero. Stale items increment `stale_count` and carry `[stale]` flag. After GM activates a lore template via `lore (action: set)`, `activated_count` increments by one. _Check:_ T195.
 **REQ-169a — Audit chain integrity reporting (Part a).**
-`audit_chain` field containing: `valid` (true when the hash chain is unbroken from first entry to last, false when any entry's hash does not match the computed chain), `entries` (total count of audit entries), and `first_broken_index` (the zero-based index of the first entry whose hash verification fails; absent when `valid` is true). Chain verification is performed at `spec_health` call time by recomputing every entry's hash from the preceding entry's hash. A Novel with zero audit entries reports `valid: true, entries: 0`.
+The `audit_chain` field contains three values. The `valid` value is true while the hash chain remains unbroken from the first entry to the last; it turns false when any entry's hash does not match the computed chain. The `entries` value holds the total count of audit entries. The `first_broken_index` value holds the zero-based index of the first entry whose hash verification fails, and it stays absent while `valid` is true. Chain verification is performed at `spec_health` call time by recomputing every entry's hash from the preceding entry's hash. A Novel with zero audit entries reports `valid: true, entries: 0`.
 
 **REQ-169b — Audit chain integrity reporting (Part b).**
-When no Novel is active, the field is absent. *Acceptance criterion:* A Novel with 5 valid entries reports `audit_chain: { valid: true, entries: 5 }` with `first_broken_index` absent; tampering with entry 2's hash produces `valid: false, first_broken_index: 2`; the field is absent when no Novel is active. _Check:_ T204.
+When no Novel is active, the field does not appear. *Acceptance criterion:* A Novel with 5 valid entries reports `audit_chain: { valid: true, entries: 5 }` with `first_broken_index` absent; tampering with entry 2's hash produces `valid: false, first_broken_index: 2`; the field is absent when no Novel is active. _Check:_ T204.
 **REQ-138a — Prompt health reporting (Part a).**
-`spec_health` SHALL include, for each registered prompt: its name, presence (present/absent), character length, the configured budget from REQ-118, a budget-compliance flag (within/exceeded), and a stale-references list — tool or resource names appearing in the prompt's rendered text that do not match any name in the live tool registry or resource map. A stale reference is one whose name (matching by exact string or the MCP SDK's registration name) appears in the prompt text but is absent from the live registrations at call time. The absence of any stale references SHALL be reported as an empty list.
+`spec_health` SHALL include, for each registered prompt: its name, presence (present/absent), character length, the configured budget from REQ-118, a budget-compliance flag (within/exceeded), and a stale-references list. The stale-references list names tool or resource names appearing in the prompt's rendered text that do not match any name in the live tool registry or resource map. A stale reference is one whose name (matching by exact string or the MCP SDK's registration name) appears in the prompt text but is absent from the live registrations at call time. The absence of any stale references SHALL be reported as an empty list.
 
 **REQ-138b — Prompt health reporting (Part b).**
 Prompt health SHALL be present in `spec_health` regardless of build mode. *Acceptance criterion:* `spec_health` reports prompt health for every registered prompt; renaming a tool referenced in a prompt produces a stale reference entry on the next `spec_health` call; restoring the tool name clears the entry. _Check:_ T152.
@@ -682,10 +683,10 @@ Buffer fingerprint.
 _Check:_ T289.
 
 **REQ-388a — Holodeck config discovery (Part a).**
-`holodeck_config` field reporting behavioral configuration coverage.
+The `holodeck_config` field reports coverage of behavioral configuration.
 
 **REQ-388b — Holodeck config discovery (Part b).**
-The field SHALL contain: `behavioral_coupled` (count of behavioral `TTRPG_*` variables whose configuration has a coupling row in §7.7.1a with a Session-archetype source), `behavioral_total` (total count of behavioral `TTRPG_*` variables classified as affecting pacing, autonomy, reactivity, synthesis, narration, or tone), `natural_language_paths` (an object mapping each behavioral variable name to its natural language access path — the `character (action: signal)` signal type or `scene (action: directive)` keywords that control it), and `uncoupled` (an array of behavioral variable names lacking a natural language access path).
+The field SHALL contain the following values. The `behavioral_coupled` value counts behavioral `TTRPG_*` variables whose configuration has a coupling row in §7.7.1a with a Session-archetype source. The `behavioral_total` value counts behavioral `TTRPG_*` variables classified as affecting pacing, autonomy, reactivity, synthesis, narration, or tone. The `natural_language_paths` value maps each behavioral variable name to its natural language access path — the `character (action: signal)` signal type or `scene (action: directive)` keywords that control it. The `uncoupled` value lists behavioral variable names lacking a natural language access path.
 
 **REQ-388c — Holodeck config discovery (Part c).**
 System variables (storage caps, file paths, build parameters, seed values) SHALL be excluded from the behavioral count. The classification of each `TTRPG_*` variable as behavioral or system SHALL be recorded in DECISIONS.md at build time.
@@ -693,7 +694,7 @@ System variables (storage caps, file paths, build parameters, seed values) SHALL
 **REQ-388d — Holodeck config discovery (Part d).**
 When no Novel is active, `holodeck_config` SHALL report server-level defaults without Novel overrides. *Acceptance criterion:* After a build with `TTRPG_PACING_WINDOW=6` and `TTRPG_NPC_AUTONOMY=off`, `spec_health.holodeck_config` reports `behavioral_coupled: <N>`, `behavioral_total: <M>`, `natural_language_paths` listing each coupled variable's natural language path, and `uncoupled` listing any behavioral variables without a coupling row. _Check:_ T450.
 **REQ-105 — Spec resource.** The server provides a `spec://build` resource,
-retrievable via `resources/read` and listed in `resources/list`. It returns the
+retrievable via `resources/read` and listed in `resources/list`. The resource returns the
 full text of the specification that built the server as Markdown, embedded in the
 server directory at build time. The resource is GM-filtered: the Game Master badge
 sees the full text; Player badge attempts return `[FORBIDDEN]` (per REQ-002). The
@@ -717,7 +718,7 @@ _Check:_ T105.
 The server carries its build-time specification version in the build fingerprint, surfaced through `spec_health` under a `spec_version` field. The version is a CalVer date-stamp (YYYY.MM.DD) matching the CHANGELOG entry date at which the specification was last substantively changed. The builder records the spec version in DECISIONS.md §2 Pinned Versions at intake and sets the server's `package.json` version to the same value. The two SHALL agree; a mismatch is a build-time defect that blocks handoff. Publication tooling SHALL verify the version equals the date of the latest substantive CHANGELOG entry before push; a stale version blocks publication. _Check:_ T493.
 
 **REQ-107b — Version coordination (Part b).**
-During a spec-driven update (REQ-098), the builder compares the current spec version against the server's recorded version: when the spec version has advanced, the gap audit proceeds; when unchanged, the builder reports the server is current and exits without mutation. The version string is informational — it does not gate runtime behavior beyond reporting. *Acceptance criterion:* `spec_health.spec_version` is a CalVer date-stamp matching DECISIONS.md §2 Pinned Versions; the server's `package.json` version matches both; a gap audit against the same version exits "current" without mutation. _Check:_ T106.
+During a spec-driven update (REQ-098), the builder compares the current spec version against the server's recorded version: when the spec version has advanced, the gap audit proceeds; when unchanged, the builder reports the server as current and exits without mutation. The version string is informational — it does not gate runtime behavior beyond reporting. *Acceptance criterion:* `spec_health.spec_version` is a CalVer date-stamp matching DECISIONS.md §2 Pinned Versions; the server's `package.json` version matches both; a gap audit against the same version exits "current" without mutation. _Check:_ T106.
 **REQ-187a — Spec content hash computation (Part a).**
 The builder SHALL compute the specification content hash at build time from the embedded spec file (`holonovel.md` in the server directory, per §6.4) and record it in the server's build fingerprint. The stored hash SHALL be read from the build fingerprint at runtime — never from a hardcoded literal. A mismatch between the stored hash and the embedded file's current hash at startup SHALL surface as a warning on stderr and in `spec_health`.
 
@@ -743,7 +744,7 @@ After recording answers, the builder SHALL confirm back: selected workflows, all
 **REQ-161c — Intake workflow contract (Part c).**
 A run re-selecting an additional workflow re-asks only that workflow's questions. _Check:_ T196.
 **REQ-162a — Build-mode profiles (Part a).**
-The build SHALL operate in one of two modes, selected at intake via B9. `production` mode (default) SHALL run the full quality suite: assumption audit (REQ-101), per-step audits with auditor pre-flight (§6.5), post-write verification on every file written during construction (§6.5.3), cross-model auditing when available (§6.5.2), and the full Pattern Buffer (§6.6). `quick-build` mode SHALL narrow the overhead: it skips the assumption audit, skips auditor pre-flight, scopes post-write verification to critical files only (DECISIONS.md, MCP client configuration, on-disk Novel state), and accepts same-model audits.
+The build SHALL operate in one of two modes, selected at intake via B9. The default `production` mode SHALL run the full quality suite: the assumption audit (REQ-101), per-step audits with auditor pre-flight (§6.5), post-write verification on every file written during construction (§6.5.3), cross-model auditing when available (§6.5.2), and the full Pattern Buffer (§6.6). The `quick-build` mode SHALL narrow the overhead: it skips the assumption audit and the auditor pre-flight, scopes post-write verification to critical files only (DECISIONS.md, MCP client configuration, on-disk Novel state), and accepts same-model audits.
 
 **REQ-162b — Build-mode profiles (Part b).**
 The Pattern Buffer SHALL gate both modes — any build that creates or modifies tools MUST pass the Pattern Buffer before marking complete. A quick-build-mode build SHALL record a `quick-build` annotation in DECISIONS.md (6) listing which rituals were skipped. A quick-build-mode build is runnable but not handoff-ready. *Acceptance criterion:* A production build records assumption audit (T89), auditor pre-flight, and cross-model audit results. A quick-build build records a `quick-build` annotation listing skipped rituals and passes the Pattern Buffer.
@@ -769,35 +770,35 @@ Output is badge-filtered. When a Novel is active, tool listings and query result
 **REQ-067c — Help and tool discovery (Part c).**
 An empty mapping restores builder defaults. *Acceptance criterion:* `help()` returns an intro pointer, task-map with one-line descriptions, and a `badge_briefing` pointer; `help("combat")` returns the most relevant combat tools with example invocations. _Check:_ T62, T118.
 **REQ-063a — Connection introduction (Part a).**
-The server provides an `intro` prompt, listed first in `prompts/list`. It takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `help` tool and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `command (action: suggest)` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
+The server provides an `intro` prompt, listed first in `prompts/list`. The prompt takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `help` tool and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `command (action: suggest)` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
 
 **REQ-063b — Connection introduction (Part b).**
-When `TTRPG_NOVEL` is unset at startup and one or more Novels exist on disk, the `intro` prompt SHALL present them as a browsable library: each Novel's name, description preview (first sentence or first `TTRPG_NOVEL_PREVIEW_CHARS` characters, default 120), session count, last-played date, and synthesis status (Tier 1 activated item count, Tier 2 item count). The prompt ends with: "You have N Novels.
+When the operator leaves `TTRPG_NOVEL` unset at startup and one or more Novels exist on disk, the `intro` prompt SHALL present the Novels as a browsable library. Each entry shows the Novel's name, description preview (first sentence or first `TTRPG_NOVEL_PREVIEW_CHARS` characters, default 120), session count, last-played date, and synthesis status (Tier 1 activated item count and Tier 2 item count). The prompt ends with: "You have N Novels.
 
 **REQ-063c — Connection introduction (Part c).**
 Which would you like to resume, or create a new one?" When no Novels exist, the prompt directs the user to `novel (action: create)` with a plain-English description of what a Novel is. *Acceptance criterion:* `intro` prompt is ≤300 words, opens with the publisher tagline (or a generic server-name identification when the server is ruleset-free), includes a dynamic sourcebook listing from the live index (or a message indicating the server is world-model-only when the server is ruleset-free), and ends with four concrete next actions. _Check:_ T49, T50, T259.
 **REQ-078a — Session zero prompt (Part a).**
-The server provides a `session_zero` prompt. It takes no arguments, is visible to all badges (unfiltered), and serves as a structured guide surfaced at the start of a new story. The builder SHALL generate the prompt text at build time, drawing on the ruleset model for ruleset terminology, character-creation rules, example-of-play excerpts, and native personality constructs, and drawing on Synthesis `adventure_advice` content when available for genre conventions, narrative-voice profiles, and anti-slop examples.
+The server provides a `session_zero` prompt. The prompt takes no arguments, is visible to all badges (unfiltered), and serves as a structured guide surfaced at the start of a new story. The builder SHALL generate the prompt text at build time, drawing on the ruleset model for ruleset terminology, character-creation rules, example-of-play excerpts, and native personality constructs, and drawing on Synthesis `adventure_advice` content when available for genre conventions, narrative-voice profiles, and anti-slop examples.
 
 **REQ-078b — Session zero prompt (Part b).**
 The builder MAY generate narrative prose — tuning option descriptions, example character introductions, plaintext capability examples — using its own language capabilities when the ruleset model provides sufficient context. Missing ruleset content SHALL produce the corresponding section with a plain-English fallback description — this is not a defect. The prompt SHALL be verbose throughout — every section SHALL describe narrative possibilities in plain English without tool names or technical syntax, per Standing Rule 10.
 
 **REQ-078c1 — Session zero prompt (Part c1).**
-Sections 1–2 of the eight-section prompt: (1) a welcome explaining session zero's purpose as creative alignment and a safety check — this is where the GM and player agree on the shape of the story before anyone rolls, and the preferences recorded here feed into the GM's narration for the entire story; (2) per-signal explanations — for each of tone, difficulty, pace, focus, and boundary, a plain-English description of what the signal controls narratively and three to five named tuning options each with a paragraph describing what that choice means for the story (scene style, narrative voice, consequences model, encounter design), plus a plain-English example instruction the player could write.
+Sections 1–2 of the eight-section prompt cover two topics. Section (1) is a welcome that explains session zero's purpose as creative alignment and a safety check. Section (1) is also where the GM and player agree on the shape of the story before anyone rolls, and the preferences recorded here feed the GM's narration for the entire story. Section (2) explains each signal. For each of tone, difficulty, pace, focus, and boundary, the prompt gives a plain-English description of what the signal controls narratively, plus three to five named tuning options, each with a paragraph describing what that choice means for the story (scene style, narrative voice, consequences model, encounter design). The section ends with a plain-English example instruction the player could write.
 
 **REQ-078c2 — Session zero prompt (Part c2).**
-Sections 3–4: (3) character introductions — three example character descriptions at increasing detail (a minimal one-to-two-sentence archetype, a three-paragraph description covering physical appearance and mannerisms then personality and voice then backstory and motivation, and a media reference that names a known character as shorthand then elaborates what to emphasise or change about that archetype), each a usable model for the player's description; (4) character creation — every mechanical choice category the ruleset provides (species/ancestry, class/archetype, background, stat generation, equipment) described in plain English with what each option means for the character's capabilities narratively, noting that roster characters are already available for import.
+Sections 3–4 cover character content. Section (3) gives three example character descriptions at increasing detail. The first is a one-to-two-sentence archetype. The second is a three-paragraph description covering appearance, mannerisms, personality, voice, backstory, and motivation. The third is a media reference naming a known character as shorthand, then elaborating what to emphasise or change. Each example serves as a model for the player's description. Section (4) explains character creation. Section (4) describes every mechanical choice category the ruleset provides (species/ancestry, class/archetype, background, stat generation, equipment), stating what each option means for the character. Section (4) also notes that roster characters are already available for import.
 
 **REQ-078c3 — Session zero prompt (Part c3).**
-Sections 5–6: (5) adventure confirmation — presenting loaded adventure premise, factions with their starting tensions, pre-populated NPCs with personality summaries, and the opening scene with a plain-English confirmation that the GM can accept or describe what to change, or guiding from-scratch definition when no adventure is loaded; (6) narrative capabilities — plain-English descriptions of what the GM can do during the story organized by context (combat, exploration, dialogue, world-building), with plaintext examples written as natural-language instructions the GM would give.
+Sections 5–6 cover the loaded story and narrative capabilities. Section (5) confirms the adventure. The prompt presents the loaded adventure premise, the factions with their starting tensions, the pre-populated NPCs with personality summaries, and the opening scene, along with a plain-English confirmation that the GM can accept or describe what to change. When no adventure loaded, the section guides from-scratch definition instead. Section (6) describes narrative capabilities. The section explains, in plain English, what the GM can do during the story, organized by context (combat, exploration, dialogue, world-building). The section includes plaintext examples written as natural-language instructions the GM would give.
 
 **REQ-078c4 — Session zero prompt (Part c4).**
-Sections 7–8: (7) a quick-start guide summarising what is ready and describing how the first scene begins — the GM sets the opening scene, the player describes what their character does; (8) post-session encouragement to refine characters between stories — personality, voice, dialogue examples referencing favorite media, and mechanical advancement when the ruleset provides it.
+Sections 7–8 close the prompt. Section (7) is a quick-start guide that summarises what is ready and describes how the first scene begins: the GM sets the opening scene, and the player describes what their character does. Section (8) offers post-session encouragement to refine characters between stories. The section covers personality, voice, dialogue examples referencing favorite media, and mechanical advancement when the ruleset provides it.
 
 **REQ-078d — Session zero prompt (Part d).**
-The prompt SHALL use the ruleset's own terminology for mechanical concepts. `session_zero` is listed in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run `session_zero` before play. *Acceptance criterion:* `session_zero` prompt contains all eight sections in order; per-signal explanations include three to five named tuning options with narrative paragraphs; character introductions include three example descriptions at increasing detail; narrative capabilities section uses plain English and plaintext examples with no tool names. _Check:_ T22, T124.
+The prompt SHALL use the ruleset's own terminology for mechanical concepts. `session_zero` appears in `prompts/list` after `intro`. The `intro` prompt includes a concrete action to run `session_zero` before play. *Acceptance criterion:* `session_zero` prompt contains all eight sections in order; per-signal explanations include three to five named tuning options with narrative paragraphs; character introductions include three example descriptions at increasing detail; narrative capabilities section uses plain English and plaintext examples with no tool names. _Check:_ T22, T124.
 **REQ-057a — Canonical lookup tools (Part a).**
-For each category the ruleset defines as canonical content (equipment, spells, monsters/stat-blocks, conditions, feats, class features, species, backgrounds), a `lookup_<category>` tool accepts the canonical name and documented aliases and returns the full ruleset entry. Unknown names return `[ERROR] [NOT_FOUND]` with valid values enumerated; no fabricated entry is returned.
+The ruleset defines certain categories as canonical content: equipment, spells, monsters/stat-blocks, conditions, feats, class features, species, and backgrounds. For each such category, a `lookup_<category>` tool accepts the canonical name and documented aliases and returns the full ruleset entry. Unknown names return `[ERROR] [NOT_FOUND]` with valid values enumerated; the tool returns no fabricated entry.
 
 **REQ-057b — Canonical lookup tools (Part b).**
 For additional ruleset-unique canonical content — talent trees, abilities, features, or other named resources — `lookup_<feature>` tools follow the same pattern. *Acceptance criterion:* `lookup_spell("fireball")` returns every field the ruleset defines; `lookup_spell("nonexistent")` returns `[NOT_FOUND]` with session-visible valid spell names and a "Did you mean?" hint when applicable. _Check:_ T39, T40.
@@ -824,8 +825,7 @@ _Check:_ T41, T42.
 **REQ-110 — Tool surface consolidation.** When two or more tools in the registry share
 an identical input shape and output contract — differing only in the ruleset category
 they operate on — they are exposed as a single parameterized tool. The builder determines
-which categories share a retrieval pattern from the ruleset extraction model. This
-requirement does not override ruleset-derived naming conventions (§7.4) — the shared
+which categories share a retrieval pattern from the ruleset extraction model. REQ-110 does not override ruleset-derived naming conventions (§7.4) — the shared
 tool's name and parameters derive from the ruleset's own terminology.
 *Acceptance criterion:* Two lookup tools differing only in category parameter are
 consolidated into one parameterized tool whose parameter description documents
@@ -836,17 +836,17 @@ _Check:_ T113.
 (parameters whose legal values are a finite set derived from the ruleset's own catalogue — skill names, spell names, equipment names, condition names, and analogous ruleset-defined categories) SHALL validate against the ruleset index at call time. An unknown value returns `[ERROR] [NOT_FOUND]` with session-visible valid values enumerated (per REQ-002). A valid value returns `[OK]`. For dice-resolution tools, the `[OK]` response includes transparent dice results (per REQ-003).
 
 **REQ-059b — Parameter canon validation (Part b).**
-When a bounded-domain value set includes entries extracted at LOW confidence (per REQ-011), the catalogue remains available for validation — a caller who passes a LOW-confidence value receives `[OK]` — but `spec_health` SHALL report a `[LOW_CONFIDENCE_CATALOGUE]` finding naming the parameter and the affected entries.
+When a bounded-domain value set includes entries extracted at LOW confidence (per REQ-011), the catalogue remains available for validation. A caller who passes a LOW-confidence value receives `[OK]`. `spec_health` SHALL still report a `[LOW_CONFIDENCE_CATALOGUE]` finding naming the parameter and the affected entries.
 
 **REQ-059c — Parameter canon validation (Part c).**
 The builder SHALL record the finding in DECISIONS.md (5). *Acceptance criterion:* Passing an unknown skill name to a bounded-domain skill-check tool returns `[ERROR] [NOT_FOUND]` with valid skill names enumerated; passing a known skill name returns `[OK]` with results from the ruleset's resolution model. _Check:_ T39, T39a.
 **REQ-182a — Bounded-domain parameter documentation (Part a).**
-DECISIONS.md (5) every tool parameter whose legal values are a bounded domain: for each such parameter, record the tool name, the parameter name, the ruleset source section from which the valid-value set is derived, and the extraction confidence of that source (per REQ-011). A parameter whose valid-value set is split across multiple ruleset sections SHALL list every contributing section.
+DECISIONS.md (5) lists every tool parameter whose legal values form a bounded domain. For each such parameter, the builder records the tool name, the parameter name, the ruleset source section that supplies the valid-value set, and the extraction confidence of that source (per REQ-011). A parameter whose valid-value set spans multiple ruleset sections SHALL list every contributing section.
 
 **REQ-182b — Bounded-domain parameter documentation (Part b).**
-This mapping enables independent verification of parameter canon validation (REQ-059) without parsing the builder's internal model. *Acceptance criterion:* DECISIONS.md (5) lists every bounded-domain tool parameter with its source section; a verifier can use this mapping to test REQ-059 compliance for every listed parameter. _Check:_ T39, T39a.
+This mapping enables independent verification of parameter canon validation (REQ-059). A verifier does not need to parse the builder's internal model. *Acceptance criterion:* DECISIONS.md (5) lists every bounded-domain tool parameter with its source section; a verifier can use this mapping to test REQ-059 compliance for every listed parameter. _Check:_ T39, T39a.
 **REQ-183a — Live-index-derived error enumerations (Part a).**
-`[NOT_FOUND]` and `[INVALID_INPUT]` error enumerations for bounded-domain parameters SHALL derive from the ruleset index at call time, not from hardcoded literals. The enumeration is filtered by badge (per REQ-002c). This requirement enforces the §6.5 builder rule: hardcoded arrays are permitted only for ability abbreviations and persona roles.
+`[NOT_FOUND]` and `[INVALID_INPUT]` error enumerations for bounded-domain parameters SHALL derive from the ruleset index at call time, not from hardcoded literals. Badge filtering applies to the enumeration (per REQ-002c). REQ-183 enforces the §6.5 builder rule, which permits hardcoded arrays only for ability abbreviations and persona roles.
 
 **REQ-183b — Live-index-derived error enumerations (Part b).**
 Tool implementations that enumerate valid values from a static list rather than the live index SHALL be flagged in DECISIONS.md (5) as a convergence violation. *Acceptance criterion:* Adding a new skill entry to the ruleset source, rebuilding, and calling a skill-check tool with the new skill name returns `[OK]`; removing a skill entry and rebuilding produces `[NOT_FOUND]` for the removed skill. Both enumerations reflect the live state — no hardcoded skill list produces stale values. _Check:_ T39b.
@@ -882,7 +882,7 @@ After restoration, all blocked tools (undo, redo, set_badge) are callable. Cance
 The server must be able to determine whether a workflow is pending, such that tools blocked during pending workflows (undo, redo, set_badge) can query the pending state without ambiguity. Pending workflow state survives server restarts — after restart the `[NEED_INPUT]` remains open and the server returns the same decision prompt on the next query. The Novel's pre- workflow snapshot is persisted alongside the pending decision so that `respond(cancel)` restores the correct pre-workflow state even after a restart.
 
 **REQ-042e — Workflow decisions (Part e).**
-Pending workflow state is Novel-tier: it persists with the Novel to disk and survives process restarts alongside all other Novel property groups. After a restart, `respond(cancel)` must restore the correct pre-workflow snapshot, and `respond` with a valid option must drain the same decision that was open before the restart.
+Pending workflow state belongs to the Novel tier: it persists with the Novel to disk and survives process restarts alongside all other Novel property groups. After a restart, `respond(cancel)` must restore the correct pre-workflow snapshot, and `respond` with a valid option must drain the same decision that remained open before the restart.
 
 **REQ-042f — Workflow decisions (Part f).**
 Session-tier fields (connection-scoped transient state) are re-initialized from the Novel's persisted values on resume. The active entity is Novel-scoped (REQ-030) and persists with the Novel. *Acceptance criterion:* `respond("cancel")` restores pre-workflow state; a second `character (action: create)` during a pending step-by-step workflow returns `[STATE_CONFLICT]`; the pending decision survives server restart. _Check:_ T32, T138, T157; G2; S22.
@@ -914,7 +914,7 @@ _Check:_ T32.
 **REQ-192 — Batch-respond collision.** WHEN two `respond` calls arrive for
 the same pending workflow (e.g., from concurrent connections), the first
 call drains the decision and the second SHALL return `[ERROR] [STATE_CONFLICT]`
-identifying that the workflow has already been drained. The server SHALL
+identifying the workflow as already drained. The server SHALL
 NOT apply the same decision twice or leave the Novel in an inconsistent state
 where the workflow appears both drained and pending.
 *Acceptance criterion:* Two concurrent `respond` calls to the same decision —
@@ -935,7 +935,7 @@ In step-by-step mode, when the ruleset defines ability scores as a mandatory ste
 **REQ-104c — Character creation workflow (Part c).**
 The seed applies an isolated draw (REQ-050) — stat generation does not advance the session PRNG position. Creation without an active Novel returns `[STATE_CONFLICT]`. `cancel` restores the pre-workflow snapshot. *Acceptance criterion:* `character (action: create)` without parameters starts step-by-step mode; `character (action: create, name="X", species="Y", ...)` creates in one call; both modes require an active Novel or return `[STATE_CONFLICT]`. _Check:_ T32; T47; T103; G2.
 **REQ-181a — Character creation output surface (Part a).**
-`character (action: create)` SHALL return, in its final `[OK]` or `[NEED_INPUT]` completion response, the character's identity fields and every derived statistic the ruleset defines, each presented under the label the ruleset declares. *Acceptance criterion:* A `character (action: create)` quick-mode call returns the ruleset's derived statistics with their declared labels — not a bare confirmation; a step-by-step creation's final response includes all derived statistics computed so far. _Check:_ T47.
+`character (action: create)` SHALL return, in its final `[OK]` or `[NEED_INPUT]` completion response, the character's identity fields and every derived statistic the ruleset defines. The tool presents each statistic under the label the ruleset declares. *Acceptance criterion:* A `character (action: create)` quick-mode call returns the ruleset's derived statistics with their declared labels — not a bare confirmation; a step-by-step creation's final response includes all derived statistics computed so far. _Check:_ T47.
 
 **REQ-181b — Character creation output surface (Part b).**
 The output SHALL distinguish inputs (player-provided values) from derived statistics (computed from inputs and ruleset tables). *Acceptance criterion:* A `character (action: create)` quick-mode call returning `[OK]` includes the ruleset's derived statistics alongside the player's inputs — not just a confirmation message. A step-by-step creation's final `[NEED_INPUT]` response includes all derived statistics computed so far. _Check:_ T47.
@@ -943,17 +943,17 @@ The output SHALL distinguish inputs (player-provided values) from derived statis
 The builder SHALL enumerate every mandatory creation step the ruleset defines in RULESET_MODEL.md under `character_creation.steps`, in the order the ruleset prescribes. In step-by-step mode, each step that requires a player choice SHALL produce one `[NEED_INPUT]` decision — no step produces more than one decision, and no decision covers more than one step.
 
 **REQ-151b — Creation step enumeration (Part b).**
-Steps the server resolves without player input (derived statistics, HP calculation, proficiency assignment) SHALL NOT produce `[NEED_INPUT]` decisions but SHALL be reported in the creation result alongside player-chosen values. *Acceptance criterion:* RULESET_MODEL.md enumerates every mandatory step; `character (action: create)` without params produces exactly one `[NEED_INPUT]` per choice step, never bundling steps. _Check:_ T32.
+Steps the server resolves without player input (derived statistics, HP calculation, proficiency assignment) SHALL NOT produce `[NEED_INPUT]` decisions. The server SHALL report these steps in the creation result alongside the player-chosen values. *Acceptance criterion:* RULESET_MODEL.md enumerates every mandatory step; `character (action: create)` without params produces exactly one `[NEED_INPUT]` per choice step, never bundling steps. _Check:_ T32.
 **REQ-152a — Starting equipment assignment (Part a).**
 When the ruleset defines starting equipment per class, background, or similar creation choice, the builder SHALL assign that equipment to the created entity. The entity's state representation SHALL include an `equipment` field listing each assigned item by name, quantity, and ruleset source. If the ruleset presents equipment choices (e.g., "choose weapon A or weapon B"), the builder SHALL present each choice as a `[NEED_INPUT]` decision in step-by-step mode. In quick mode, the builder SHALL select the first listed option and record the selection in the creation result.
 
 **REQ-152b — Starting equipment assignment (Part b).**
 When the ruleset defines no starting equipment, the `equipment` field SHALL be absent — the builder SHALL NOT fabricate equipment. *Acceptance criterion:* A character created under D&D 5e SRD carries class and background starting equipment by name. _Check:_ T32, G2. *Out of scope:* branching narrative trees, puzzle-solving workflows, and decision workflows that span multiple Novels or connections.
 **REQ-399a — Character-creation package data (Part a).**
-When the ruleset defines character creation, the builder SHALL extract the ruleset's character-creation rules — playable character types, classes and advancement paths, ability-generation methods, derived-statistic definitions, and starting equipment — into the ruleset model and the package. The model SHALL record the mandatory creation step enumeration under `character_creation.steps` in the order the ruleset prescribes (REQ-151a). Extraction SHALL be cross-consistent with the model's other categories per REQ-209. *Acceptance criterion:* A ruleset build that defines character creation yields a package whose model carries the ruleset's character-creation rules and whose step enumeration matches the step-by-step decisions the host produces. _Check:_ T468.
+When the ruleset defines character creation, the builder SHALL extract the ruleset's character-creation rules into the ruleset model and the package. The rules cover playable character types, classes and advancement paths, ability-generation methods, derived-statistic definitions, and starting equipment. The model SHALL record the mandatory creation step enumeration under `character_creation.steps` in the order the ruleset prescribes (REQ-151a). Extraction SHALL be cross-consistent with the model's other categories per REQ-209. *Acceptance criterion:* A ruleset build that defines character creation yields a package whose model carries the ruleset's character-creation rules and whose step enumeration matches the step-by-step decisions the host produces. _Check:_ T468.
 
 **REQ-399b — Character-creation computation (Part b).**
-Derived statistics are computed by the host from ruleset-declared formulas evaluated against the character's player-provided inputs and the ruleset's extracted tables; the host SHALL NOT hard-code a ruleset's formula. A formula that fails to evaluate SHALL surface a named creation error rather than a silent default. *Acceptance criterion:* A character created under a ruleset declaring a formula-based statistic returns that statistic computed from the declared formula; a formula referencing an undefined input produces a named error. _Check:_ T468.
+The host computes derived statistics from ruleset-declared formulas, evaluating them against the character's player-provided inputs and the ruleset's extracted tables; the host SHALL NOT hard-code a ruleset's formula. A formula that fails to evaluate SHALL surface a named creation error rather than a silent default. *Acceptance criterion:* A character created under a ruleset declaring a formula-based statistic returns that statistic computed from the declared formula; a formula referencing an undefined input produces a named error. _Check:_ T468.
 
 **REQ-399c — Character creation without package data (Part c).**
 A Novel bound to a ruleset whose package carries no character-creation rules SHALL follow the ruleset-free creation contract (REQ-219): `character (action: create)` produces a profile with no mechanical statistics. Requesting mechanical statistics in that state SHALL return a named error directing the caller to bind a ruleset whose package defines character creation. *Acceptance criterion:* `character (action: create)` on a Novel bound to a character-data-less package yields a profile-only entity; requesting classes yields a named error naming the missing data. _Check:_ T260, T468.
@@ -969,7 +969,7 @@ removes the Novel from disk; a subsequent `novel (action: resume)` returns
 _Check:_ T158.
 
 **REQ-224a — Workflow staleness detection (Part a).**
-THE server SHALL track a per-workflow staleness counter — an integer incremented each time a new MCP connection is established while the workflow is pending. When the staleness counter reaches a configurable threshold, the pending workflow SHALL auto-cancel with the same behavior as `respond("cancel")`: the pre-workflow snapshot is restored, a `[workflow-stale]` audit entry is recorded with the decision text and connection count, and `undo` becomes callable. The audited entry SHALL be tagged `[workflow-stale]` to distinguish it from explicit cancellation.
+THE server SHALL track a per-workflow staleness counter — an integer that increments each time a new MCP connection opens while the workflow remains pending. When the staleness counter reaches a configurable threshold, the pending workflow SHALL auto-cancel with the same behavior as `respond("cancel")`: the server restores the pre-workflow snapshot, records a `[workflow-stale]` audit entry with the decision text and connection count, and `undo` becomes callable. The audited entry SHALL be tagged `[workflow-stale]` to distinguish it from explicit cancellation.
 
 **REQ-224b — Workflow staleness detection (Part b).**
 The staleness counter SHALL be recorded in `spec_health` under `pending_workflow` alongside the decision text and elapsed connections. A workflow canceled by staleness follows the same state-restoration contract as explicit cancellation (REQ-042). The threshold is configurable via `TTRPG_WORKFLOW_STALENESS_CONNECTIONS`; setting it to zero SHALL disable staleness detection. See also REQ-193. *Acceptance criterion:* A pending workflow survives 4 connection restarts and remains open; on the 5th restart it auto-cancels with `[workflow-stale]` audit entry and restored pre-workflow state.
@@ -980,7 +980,7 @@ Setting `TTRPG_WORKFLOW_STALENESS_CONNECTIONS=0` prevents all auto-cancellation.
 The Game Master may present structured choice prompts to the player. `scene (action: choices, prompt, choices[], allow_freeform?, context?)` returns a `[NEED_INPUT]` decision workflow (REQ-042). Each choice in the `choices` array SHALL have `id` (kebab-cased identifier), `label` (display text), and `description` (detail text). `allow_freeform` (configurable) permits the player to provide a free-text response instead of selecting a listed option. `context` is an optional metadata object (e.g., `{urgency: "medium"}`). The player responds via `respond(decision, option)`.
 
 **REQ-235b — Structured player choices (Part b).**
-The outcome SHALL be appended to the audit log with a `[choice]` tag; freeform responses SHALL be stored in the audit entry's `content` field. *Coupling:* When a `scene (action: choices)` result is recorded, any countdown (REQ-073) bearing the same `id` in its `scope` field SHALL advance by one tick. Choices whose resolved `id` matches a faction goal keyword (REQ-233) SHALL advance that faction's clock.
+The outcome SHALL be appended to the audit log with a `[choice]` tag. Freeform responses SHALL be stored in the audit entry's `content` field. *Coupling:* When the server records a `scene (action: choices)` result, any countdown (REQ-073) bearing the same `id` in its `scope` field SHALL advance by one tick. Choices whose resolved `id` matches a faction goal keyword (REQ-233) SHALL advance that faction's clock.
 
 **REQ-235c — Structured player choices (Part c).**
 The choice outcome SHALL also advance any `linked` countdown triggered by the matching clock. *Acceptance criterion:* `scene (action: choices, "The goon blocks your path.", [{id: "talk", label: "Talk", description: "Persuade him"}, {id: "fight", label: "Fight", description: "Start combat"}])` returns `[NEED_INPUT]` with two options; `respond("The goon blocks your path.", "fight")` records a `[choice]` audit entry; a countdown with `scope: "fight"` advances. _Check:_ T273.

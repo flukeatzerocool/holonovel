@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.3–5.4 + §5.1–5.2 disposition backfill)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across §5.3 Tools/Resources/Lookups and §5.4 Decision workflows: passive → active, >45-word sentences split, backtick-led field enumerations led with prose (so splitSentences splits them), condition stacks unpacked, ambiguous sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. |
+| Repaired REQ set | §5.3: REQ-020a, REQ-020b, REQ-022a, REQ-023b, REQ-024b, REQ-025b1, REQ-025b2, REQ-025c, REQ-057a, REQ-059b, REQ-063a, REQ-063b, REQ-078a, REQ-078c1, REQ-078c2, REQ-078c3, REQ-078c4, REQ-078d, REQ-105, REQ-107b, REQ-110, REQ-138a, REQ-160a, REQ-162a, REQ-169a, REQ-169b, REQ-182a, REQ-182b, REQ-183a, REQ-296a, REQ-296c, REQ-388a, REQ-388b, REQ-399a, REQ-411, REQ-413, REQ-414; §5.4: REQ-042e, REQ-151b, REQ-181a, REQ-192, REQ-224a, REQ-235b, REQ-399b. Backfilled increment 1 disposition (§5.1–5.2, commit 662efa1). One warning accepted per DP-3: REQ-162b `MUST pass the Pattern Buffer` (frozen normative verb). |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors (residual attributable warning: REQ-162b DP-3 exception only) |
+
 ### Holonovel Spec Update — 2026-09-06 (OWASP crosswalk + security hardening + TDQS)
 
 | Field | Value |
