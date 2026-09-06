@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — §5.19+§5.20+§6 clarity pass (Editorial)
+
+- Rewrote the §5.19 State Persistence Guardrails, §5.20 Narrative Turn
+  Conventions, and §6 Build Process normative bodies (state-persistence
+  directive, state ledger token, no-mutation and drift detection, roll-to-commit
+  and auto-moment, backup-restore regression, persist-tools, turn-handoff, the
+  Pattern Buffer traceability and input-validation convergence metrics, blocking
+  classification, and structured failure diagnostics) for clarity: passive →
+  active, >45-word and backtick-merged sentences split, enumerations separated,
+  condition stacks unpacked, sentence-initial pronouns resolved. No normative
+  change. One warning accepted per DP-3: REQ-208a "MUST-coverage" (frozen
+  convergence metric name).
+
 ## 2026-09-06 — §5.13–5.18 clarity pass (Editorial)
 
 - Rewrote the §5.13–5.18 normative bodies (Holodeck archetype taxonomy,

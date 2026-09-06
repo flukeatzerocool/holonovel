@@ -2,6 +2,16 @@
 
 **Spec hash:** 3d8aa0d51cd57f9c9238eec9f21d62d73e1889dbbee17f9a8274e773857e3807
 
+### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.19+§5.20+§6)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec only — prose clarity pass across the §5.19 State Persistence Guardrails, §5.20 Narrative Turn Conventions, and §6 Build Process bodies (state-persistence directive, state ledger token, no-mutation and drift detection, roll-to-commit and auto-moment, backup-restore regression, persist-tools, turn-handoff, Pattern Buffer traceability and input-validation convergence metrics, blocking classification, structured failure diagnostics): passive → active, >45-word and backtick-merged sentences split, enumerations separated, condition stacks unpacked, sentence-initial pronouns resolved. No normative change — titles, SHALL/MAY/MUST strength, identifiers, acceptance criteria, and `_Check:` citations are byte-identical. Assumption-audit note (REQ-101a): diff-only prose edit, no new assumptions, no re-audit required. One warning accepted per DP-3: REQ-208a "MUST-coverage" (frozen convergence metric name). |
+| Repaired REQ set | §5.19: REQ-400, REQ-403b, REQ-406, REQ-407; §5.20: REQ-412; §6: REQ-098, REQ-108a, REQ-108b, REQ-141a, REQ-141b, REQ-141c, REQ-141d, REQ-141f, REQ-141g, REQ-141h, REQ-141j, REQ-142a, REQ-208a, REQ-208b, REQ-300 |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors, zero attributable prose warnings for the §5.19+§5.20+§6 REQ set (REQ-208a "MUST-coverage" accepted per DP-3) |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial §5.13–5.18)
 
 | Field | Value |
