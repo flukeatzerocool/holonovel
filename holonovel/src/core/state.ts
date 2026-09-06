@@ -171,6 +171,7 @@ export interface AuditEntry {
   args: string;
   output_prefix: string;
   hash: string;
+  security_event?: boolean; // REQ-448 — security-relevant events carry a tag
 }
 
 export interface StoryEntry {
@@ -1328,7 +1329,27 @@ export class StateManager {
 
   // ── Audit ─────────────────────────────────────────────────────
 
+  // REQ-447 — audit-log growth cap: TTRPG_AUDIT_MAX_ENTRIES (0 = unlimited)
+  // gates append; at capacity the server refuses new mutating calls.
+  auditLogAtCapacity(novel: NovelState): boolean {
+    const cap = parseInt(process.env.TTRPG_AUDIT_MAX_ENTRIES ?? "0", 10);
+    if (!Number.isFinite(cap) || cap <= 0) return false;
+    return novel.audit_log.length >= cap;
+  }
+
+  // REQ-448 — security-relevant events are tagged in the chained audit log.
+  private static readonly SECURITY_EVENT_TOOLS = new Set([
+    "set_badge", "import_novel", "export_novel", "import_codex", "import_lore",
+    "install_ruleset", "remove_ruleset", "archive_novel", "unarchive_novel",
+    "end_novel", "clone_novel", "checkpoint_set", "checkpoint_restore",
+  ]);
+
   audit(novel: NovelState, badge: Badge, tool: string, args: any, output_prefix?: string): void {
+    // REQ-447 — refuse to append once the audit log is at capacity; the
+    // caller surfaces [STATE_CONFLICT] before mutating (see index.ts audit()).
+    if (this.auditLogAtCapacity(novel)) {
+      throw new Error(`[ERROR] [STATE_CONFLICT] Audit log at capacity (${process.env.TTRPG_AUDIT_MAX_ENTRIES} entries). Corrective action: raise TTRPG_AUDIT_MAX_ENTRIES or run session (action: compress) to archive older sessions.`);
+    }
     // REQ-237 — session segmentation: when the session id changes (first
     // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a
     // `[session-boundary]` marker entry and open a new session record.
@@ -1368,6 +1389,8 @@ export class StateManager {
       args: JSON.stringify(args),
       output_prefix: output_prefix ?? "",
       hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
+      // REQ-448 — security-relevant events are tagged; omitted when undefined.
+      security_event: StateManager.SECURITY_EVENT_TOOLS.has(tool) || undefined,
     };
     novel.audit_log.push(entry);
     const cur = novel.metadata.sessions.find((s) => s.session_id === novel.active_session_id);
@@ -1389,6 +1412,7 @@ export class StateManager {
       args: JSON.stringify(args),
       output_prefix: "[BOUNDARY_VIOLATION]",
       hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
+      security_event: true,
     };
     (entry as any).violation_type = "boundary";
     novel.audit_log.push(entry as AuditEntry);
@@ -1398,12 +1422,41 @@ export class StateManager {
   // token and drift detection. `group` groups tools into the REQ-401 per-group
   // mutation counts (scene, journal, countdown, note, personality, npc, vow).
   recordMutation(novel: NovelState, tool: string, group: string): void {
+    // REQ-449 — excessive-agency mutation ceiling: when autonomy is full+auto,
+    // consecutive mutations within one turn are bounded; exceeding the ceiling
+    // surfaces a [NEED_INPUT] refusal before the mutation commits.
+    const refusal = this.registerAiMutation(novel);
+    if (refusal) throw new Error(refusal);
     const now = new Date().toISOString();
     novel.last_mutation_at = now;
     novel.mutation_counts_by_group[group] = (novel.mutation_counts_by_group[group] ?? 0) + 1;
     // REQ-404 — a committing mutation drains pending uncommitted-roll markers.
     novel.uncommitted_rolls = [];
     this.saveNovel(novel);
+  }
+
+  // REQ-449 — per-turn AI-initiated mutation counter. Counts only when the
+  // Novel's autonomy is level=full with confirmation=auto; resets on scene
+  // transition or combat-round resolution (the turn boundary).
+  private aiMutationCount = 0;
+
+  private autonomyCeiling(): number {
+    const raw = parseInt(process.env.TTRPG_AUTONOMY_MUTATION_CEILING ?? "0", 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  }
+
+  registerAiMutation(novel: NovelState): string | null {
+    const ceiling = this.autonomyCeiling();
+    if (ceiling === 0) return null;
+    if (novel.autonomy.level !== "full" || novel.autonomy.confirmation !== "auto") return null;
+    this.aiMutationCount += 1;
+    if (this.aiMutationCount <= ceiling) return null;
+    this.aiMutationCount = 0;
+    return `[ERROR] [NEED_INPUT] Excessive-agency mutation ceiling reached (${ceiling} per turn). Corrective action: review the pending mutations and advance the scene or lower scene (action: autonomy) level.`;
+  }
+
+  resetAiMutationTurn(): void {
+    this.aiMutationCount = 0;
   }
 
   // §5.19 REQ-402 — close the current session window; record a no-mutation

@@ -77,7 +77,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "inform-holonovel",
-  version: "2026.09.04",
+  version: "2026.09.06",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -93,9 +93,17 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
 // entity type within a twenty-eight-tool budget; every persisted type has a
 // list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
+// REQ-450 — TDQS-conformant tool definitions: every registered tool carries a
+// mutation-class annotation (read-only vs open-world) so callers see behavior
+// hints beyond the description.
+const TOOL_ANNOTATIONS: Record<string, { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean }> = {
+  help: { readOnlyHint: true, openWorldHint: false },
+};
+const DEFAULT_TOOL_ANNOTATIONS = { readOnlyHint: false, openWorldHint: true };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
-  return _registerTool(name, config, withForbiddenAudit(handler, name) as any);
+  const annotations = TOOL_ANNOTATIONS[name] ?? DEFAULT_TOOL_ANNOTATIONS;
+  return _registerTool(name, { ...config, annotations }, withForbiddenAudit(handler, name) as any);
 }) as unknown as typeof server.registerTool;
 
 // ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
@@ -1355,6 +1363,8 @@ server.registerTool("set_badge", {
     }
     novel.badge = badge;
     state.saveNovel(novel);
+    // REQ-448 — security-event audit: badge switches are recorded and tagged.
+    audit("set_badge", { badge });
   }
   if (badge === "none") return ok("Active badge: Editor — full access");
   if (badge === "observer") return ok("Active badge: observer — read-only spectator mode");
@@ -2999,6 +3009,9 @@ server.registerTool("scene", {
         if (matchRoom) { const entity = state.getActiveEntity(); if (entity) entity.current_room = matchRoom[1].name; }
       }
       if (isTransition && !skip_transition_hook) {
+        // REQ-449 — a scene transition closes the current turn: the excessive-
+        // agency mutation counter resets for the next turn.
+        state.resetAiMutationTurn();
         audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
         advanceSceneTransitionCountdowns(novel);
         factionAutonomousAdvance(novel);
@@ -3392,13 +3405,21 @@ server.registerTool("lore", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      const rows = [...novel.lore.values()].map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
+      // REQ-445 — error-value disclosure control: GM-only lore is invisible to
+      // the Player/observer badge; the listing carries no GM-only content.
+      const visible = [...novel.lore.values()].filter((e) => isGM || e.badge_scope !== "game_master");
+      const rows = visible.map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
       return raw(JSON.stringify(rows, null, 2));
     }
     case "get": {
       const novel = requireNovel();
       const entry = novel.lore.get(args.key);
-      if (!entry) return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      // REQ-445 — a GM-only entry is indistinguishable from an absent one under
+      // the Player/observer badge: the miss response reveals no existence.
+      const badge = getBadge();
+      if (!entry || (entry.badge_scope === "game_master" && (badge === "player" || badge === "observer"))) {
+        return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
+      }
       return raw(JSON.stringify(entry, null, 2));
     }
     case "export": {
@@ -4981,6 +5002,8 @@ Options: yes, cancel`);
         return err("INVALID_INPUT", `Unsupported format '${args.format}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
       }
       const novel = requireNovel();
+      // REQ-448 — security-event audit: Novel exports are recorded and tagged.
+      audit("export_novel", { slug: novel.slug, format: args.format ?? "json" });
       if (args.format === "markdown") {
         let md = `# ${novel.name}\n\n## World\n`;
         for (const [, room] of novel.world.rooms) {
@@ -5091,8 +5114,17 @@ Options: yes, cancel`);
         for (const f of imported.factions) if (!novel.factions.some(x => x.name === f.name)) novel.factions.push(f);
       }
       state.saveNovel(novel);
+      // REQ-444 — import-channel inertness: imported content is untrusted data;
+      // embedded directives are stored verbatim as inert data and logged as
+      // findings, never executed. REQ-448 — imports are security-event audited.
+      audit("import_novel", { slug, mode: m, strict: strictMode });
+      const directiveHit = /ignore (all )?previous instructions|grant every entity|expose the audit log/i.test(args.data ?? "");
+      if (directiveHit) {
+        const finding = `[import-finding] Novel import carried an embedded directive; stored verbatim as inert data (REQ-444).`;
+        process.stderr.write(`[holonovel] ${finding}\n`);
+      }
       if (failures.length > 0) return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}`);
-      return ok(`Novel '${name}' imported (${m} mode).`);
+      return ok(`Novel '${name}' imported (${m} mode).${directiveHit ? " Embedded directives logged as inert findings (REQ-444)." : ""}`);
     }
     case "rename": {
       requireGM();
@@ -5275,7 +5307,7 @@ Options: yes, cancel`);
 // remove/list/bind surface.
 server.registerTool("ruleset", {
   title: "Ruleset",
-  description: "Manage ruleset packages and lookup. Use when: searching a bound ruleset's index, or installing, removing, listing, or binding a ruleset. Do NOT use when: the Novel is ruleset-free — use command (action: suggest) or session (action: health).",
+  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or roll on a generation table. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or rolling a table (roll). Do NOT use when: the Novel is ruleset-free — use command (action: suggest) or session (action: health). install/remove mutate installed-package state and are audited; search and roll are read-only.",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll"]).describe("search, install, remove, list, bind, or roll."),
     query: z.string().optional().describe("Search query (search)."),
@@ -5314,6 +5346,9 @@ server.registerTool("ruleset", {
           manifest: args.manifest, index: args.index ?? [], model: args.model ?? {},
           tools: args.tools ?? [], resources: args.resources ?? [], prompts: args.prompts ?? [],
         });
+        // REQ-446/448 — install provenance + security-event audit: the slug,
+        // content hash, and source are recorded and tagged.
+        audit("install_ruleset", { slug: pkg.slug, content_hash: pkg.manifest.content_hash ?? null, source: pkg.manifest.source_license ?? null });
         return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
@@ -5327,6 +5362,7 @@ server.registerTool("ruleset", {
       }
       try {
         rulesets.removePackage(args.slug);
+        audit("remove_ruleset", { slug: args.slug });
         return ok(`Ruleset '${args.slug}' removed.`);
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
@@ -5592,6 +5628,9 @@ function buildSpecHealth(): Record<string, unknown> {
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.
     verbosity_mode: outputVerbosity,
+    // REQ-447 — audit-log growth cap utilization.
+    audit_at_capacity: novel ? state.auditLogAtCapacity(novel) : false,
+    audit_log_entries: novel ? novel.audit_log.length : 0,
     // REQ-283 — parser verb coverage tiers: core (base vocabulary), standard
     // (IF-community), extended (ruleset-derived). Advisory completeness signal.
     parser_verb_coverage: {

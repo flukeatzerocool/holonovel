@@ -8,11 +8,11 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354 |
-| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
-| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
@@ -616,6 +616,9 @@ Descriptions longer than three sentences are truncated in `tools/list`; the full
 
 **REQ-427 — Tool parameter semantics.**
 Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
+
+**REQ-450 — TDQS-conformant tool definitions.**
+Every host tool SHALL meet the Glama TDQS standard. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Tools with four or more parameters SHALL state which parameters apply to each action. *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
 
 **REQ-025a — spec_health (Part a).**
 The `spec_health` report — produced by the `session` tool's `health` action — reports build-health metrics derived from live registrations at call time, not from hardcoded numeric literals.
@@ -2243,6 +2246,18 @@ active SHALL be rejected.
 _Check:_ T357.
 *Out of scope:* Validation of narrative style, tone, or prose quality — these are AI
 judgment, not mechanical integrity.
+
+**REQ-444 — Import-channel inertness.** Imported content — Novel JSON, codex entries, lore imports, and ruleset package content — SHALL be treated as untrusted data. Embedded directives in imported content (instruction-framing text, HTML comments, tool-shaped commands) SHALL stay verbatim, inert, and logged as findings. They SHALL never execute or take effect. The capability surface, badge gating, and tool registry SHALL NOT change after import. *Acceptance criterion:* importing a Novel whose scene description contains "ignore all previous instructions" stores and echoes it verbatim with no behavior change, no new tools, and a logged finding. _Check:_ T530.
+
+**REQ-445 — Error-value disclosure control.** Error responses SHALL NOT reveal the existence or content of badge-invisible surfaces. Validation hints and "did you mean" suggestions SHALL enumerate only values visible to the caller's active badge. A Player-badge caller receiving `[FORBIDDEN]`, `[NOT_FOUND]`, or `[AMBIGUOUS]` SHALL get no hint naming a GM-only tool, resource, lore key, or secret. *Acceptance criterion:* a Player-badge call for a GM-only lore key returns an error that does not echo the key's existence, while the same call under the Game Master badge returns the key-specific corrective action. _Check:_ T531.
+
+**REQ-446 — Ruleset package provenance.** `ruleset (action: install)` SHALL verify the package-format fingerprint (REQ-420) and content hash (REQ-389b) before activation. Install SHALL record a provenance audit entry naming the slug, content hash, and source. When an operator supplies a verification key via configuration, install SHALL verify a signature over the package manifest and refuse a package whose signature does not verify, naming the failure. *Acceptance criterion:* a tampered package with a mismatched hash is refused by slug; a package installed with a configured key records provenance and verifies the signature; a signature failure names the failure. _Check:_ T532.
+
+**REQ-447 — Audit-log growth cap.** The audit log SHALL honor a configurable maximum entry count. When appending an entry would exceed the configured maximum, the server SHALL refuse with `[ERROR] [STATE_CONFLICT]` naming the cap and the corrective action. `spec_health` SHALL report `audit_at_capacity`. *Acceptance criterion:* with a small configured cap, a mutating call that would exceed it is refused with the cap named; `spec_health` reports `audit_at_capacity`; raising the cap re-enables appends. _Check:_ T533.
+
+**REQ-448 — Security-event audit completeness.** Security-relevant events SHALL be recorded in the append-only chained audit log. The events are: badge switches, Novel import or export, codex or lore import, ruleset package install or remove, boundary violations (REQ-133), generation-guard overrides (REQ-251), cap refusals (REQ-447). Each entry SHALL carry the badge, the tool name, and a security-event tag. *Acceptance criterion:* a session that switches badges, imports a Novel, installs a package, and trips a boundary violation yields one tagged audit entry per event in append order with chained hashes intact. _Check:_ T534.
+
+**REQ-449 — Excessive-agency mutation ceiling.** A configurable per-turn mutation ceiling SHALL bound AI-initiated state mutations when `scene (action: autonomy)` sits at `level=full` with `confirmation=auto`. Exceeding the ceiling within one turn SHALL surface a `[NEED_INPUT]` decision naming the accumulated mutations rather than auto-continuing. The refusal SHALL be recorded in the audit log. *Acceptance criterion:* with a ceiling of three, four consecutive auto-executed mutations in one turn surface a `[NEED_INPUT]` listing the three applied mutations and the pending one; a human-originated call never counts against the ceiling. _Check:_ T535.
 
 ### 5.8 Synthesis, Lore, and Macros
 

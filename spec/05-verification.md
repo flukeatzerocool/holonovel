@@ -88,7 +88,9 @@ metadata filtering are unchanged. Tool registry and resource listings diff
 clean (identical except for the new section's anchor and its GM-only guidance
 items). This workflow uniquely verifies that adversarial source content
 (prompt injection, HTML comments, embedded directives) remains inert data;
-structural integrity of indexed content is verified by G0a.
+structural integrity of indexed content is verified by G0a. The
+indirect-injection variant (Appendix C.3) exercises the Novel import channel —
+imported directives remain inert per REQ-444.
 
 **Verification workflow G4 — Derived tests.** Execute the tests in
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking

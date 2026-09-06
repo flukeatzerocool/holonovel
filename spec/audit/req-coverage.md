@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-04
+Generated: 2026-09-06
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -155,7 +155,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T53, T213 | — |
 | REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T214 | — |
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216 | — |
-| REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217 | — |
+| REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217, S17 | — |
 | REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219 | — |
 | REQ-179 | Output pointer resource template (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T221 | — |
 | REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T222 | — |
@@ -411,4 +411,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-441 | Action roll with position and effect | 5.23 Forged in the Dark Base Capabilities | C | T527 | — |
 | REQ-442 | Stress, trauma, and resistance | 5.23 Forged in the Dark Base Capabilities | C | T528 | — |
 | REQ-443 | Downtime | 5.23 Forged in the Dark Base Capabilities | C | T529 | — |
+| REQ-444 | Import-channel inertness | 5.7 Determinism, Safety, and Performance | C | T530 | — |
+| REQ-445 | Error-value disclosure control | 5.7 Determinism, Safety, and Performance | C | T531, S6 | — |
+| REQ-446 | Ruleset package provenance | 5.7 Determinism, Safety, and Performance | C | T532 | — |
+| REQ-447 | Audit-log growth cap | 5.7 Determinism, Safety, and Performance | C | T533 | — |
+| REQ-448 | Security-event audit completeness | 5.7 Determinism, Safety, and Performance | C | T534, S6 | — |
+| REQ-449 | Excessive-agency mutation ceiling | 5.7 Determinism, Safety, and Performance | C | T535, S22 | — |
+| REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |
 
