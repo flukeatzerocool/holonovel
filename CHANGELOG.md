@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-06 — §5.5+§5.7 clarity pass (Editorial)
+
+- Rewrote the §5.5 Badges and Access and §5.7 Determinism/Safety/Performance
+  normative bodies for clarity: passive → active, >45-word and
+  backtick-merged sentences split with prose leads, slider and field
+  enumerations separated per item, sentence-initial pronouns resolved. No
+  normative change (~60 proofreading warnings cleared). Removed the stray
+  "(added)" annotation from REQ-100d's acceptance-criterion marker.
+
 ## 2026-09-06 — §5.3–5.4 clarity pass (Editorial)
 
 - Rewrote the §5.3 Tools/Resources/Lookups and §5.4 Decision workflows
