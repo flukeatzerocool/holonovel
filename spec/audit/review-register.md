@@ -59,6 +59,13 @@ the tracking surfaces for the coverage backlog.
 
 ## Scheduled-roadmap
 
+- **Builder-side evidence follow-through** (AAR 2026-09-06): deferred pieces —
+  conversion evidence harness + §5.2 coverage map (REQ-451 model), §6.7
+  update-workflow harness (REQ-098), and register alignment for the
+  Holodeck/Wisdom/entry-point REQs. Tracked in ROADMAP.md; each a separate
+  bounded increment planned on the correct bucket-E model. Shipped same-AAR:
+  `check-vendor-manifest.ts` + REQ-451, G6 `_Check:` wiring, REQ-141g H13a→H13
+  repair.
 - **REQ-372/373 — supplementary ruleset import & dynamic tool registration**
   (Pattern Buffer close-out, 2026-09-06): bucket-E intended gap. S30/S31
   recorded `blocked` in `run_pattern_buffer.ts`. Plan filed at

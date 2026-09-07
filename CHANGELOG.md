@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-06 — Roadmap & register tracking for builder-side evidence
+
+- Recorded the AAR 2026-09-06 follow-through in ROADMAP.md and
+  `spec/audit/review-register.md` (`Scheduled-roadmap`): the deferred
+  builder-side evidence pieces (conversion harness + §5.2 coverage map, §6.7
+  update-workflow harness, Holodeck/Wisdom/entry-point register alignment)
+  now have a home, with the shipped same-AAR items noted for continuity.
+
 ## 2026-09-06 — G6 evidence wiring + handoff-reference repair
 
 - G6 (Synthesis lifecycle) now carries a `_Check:` citation (T422, T306, T319,
