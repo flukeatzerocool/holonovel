@@ -7,7 +7,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452, 453 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
@@ -507,6 +507,54 @@ overrides is not an error. In ruleset-free mode, the scan SHALL be skipped.
 *Acceptance criterion:* A ruleset with Knock, Fly, and Darkvision spells
 produces at least three constraint overrides in RULESET_MODEL.md.
 _Check:_ T368.
+
+**REQ-452 — Conversion evidence verification.**
+The builder SHALL verify conversion evidence with a checker (`holonovel/scripts/check-conversion-evidence.ts`) before using converted content. The checker SHALL confirm that DECISIONS.md (2) pins the converter and version, and that DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%. The checker SHALL confirm that DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. The checker SHALL exit non-zero under `--strict` when a record is missing or a threshold is unmet, and exit zero with a "conversion not selected — waived" record when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails the strict check until produced or waived. _Check:_ T542.
+
+**REQ-453 — Extraction evidence-map parity.**
+The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
+
+#### §5.2 REQ coverage map
+
+The following table maps every requirement in §5.2 (Extraction and Confidence)
+to the evidence surface that exercises its contract — a spec test, a build-tool
+gate, or an explicit builder-side disposition. This table is normative and is
+mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
+§5.2 REQ, the maintainer SHALL add a row mapping it to an evidence surface.
+
+| REQ | Evidence surface |
+|-----|------------------|
+| REQ-010 | T15 |
+| REQ-011 | T15, T45, T93 |
+| REQ-012 | T91 |
+| REQ-013 | T25, T32 |
+| REQ-014 | T224 |
+| REQ-015 | T15 |
+| REQ-016 | T26 |
+| REQ-017 | builder-side — Discovery output |
+| REQ-018 | T15; Discovery checkpoint |
+| REQ-099 | builder-side — convergence record |
+| REQ-102 | T93 (manual), T542 (harness) |
+| REQ-111 | builder-side — Discovery output |
+| REQ-146 | T174; builder-side |
+| REQ-147 | T181 |
+| REQ-153 | T291 |
+| REQ-154 | builder-side — handoff record |
+| REQ-207 | builder-side — Discovery output |
+| REQ-209 | builder-side — Discovery sample |
+| REQ-210 | builder-side — Discovery output |
+| REQ-212 | builder-side — Discovery output |
+| REQ-214 | builder-side — Discovery output |
+| REQ-215 | T256 |
+| REQ-225 | T301 |
+| REQ-270 | builder-side — handoff record |
+| REQ-271 | T291 |
+| REQ-272 | builder-side — Discovery output |
+| REQ-315 | builder-side — indexing record |
+| REQ-324 | T371 |
+| REQ-354 | T405 |
+| REQ-452 | T542 (conversion-evidence checker) |
+| REQ-453 | T543 (validated by scripts/validate.ts) |
 
 ### 5.3 Tools, Resources, and Lookups
 

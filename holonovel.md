@@ -442,7 +442,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452, 453 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
@@ -942,6 +942,54 @@ overrides is not an error. In ruleset-free mode, the scan SHALL be skipped.
 *Acceptance criterion:* A ruleset with Knock, Fly, and Darkvision spells
 produces at least three constraint overrides in RULESET_MODEL.md.
 _Check:_ T368.
+
+**REQ-452 — Conversion evidence verification.**
+The builder SHALL verify conversion evidence with a checker (`holonovel/scripts/check-conversion-evidence.ts`) before using converted content. The checker SHALL confirm that DECISIONS.md (2) pins the converter and version, and that DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%. The checker SHALL confirm that DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. The checker SHALL exit non-zero under `--strict` when a record is missing or a threshold is unmet, and exit zero with a "conversion not selected — waived" record when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails the strict check until produced or waived. _Check:_ T542.
+
+**REQ-453 — Extraction evidence-map parity.**
+The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
+
+#### §5.2 REQ coverage map
+
+The following table maps every requirement in §5.2 (Extraction and Confidence)
+to the evidence surface that exercises its contract — a spec test, a build-tool
+gate, or an explicit builder-side disposition. This table is normative and is
+mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
+§5.2 REQ, the maintainer SHALL add a row mapping it to an evidence surface.
+
+| REQ | Evidence surface |
+|-----|------------------|
+| REQ-010 | T15 |
+| REQ-011 | T15, T45, T93 |
+| REQ-012 | T91 |
+| REQ-013 | T25, T32 |
+| REQ-014 | T224 |
+| REQ-015 | T15 |
+| REQ-016 | T26 |
+| REQ-017 | builder-side — Discovery output |
+| REQ-018 | T15; Discovery checkpoint |
+| REQ-099 | builder-side — convergence record |
+| REQ-102 | T93 (manual), T542 (harness) |
+| REQ-111 | builder-side — Discovery output |
+| REQ-146 | T174; builder-side |
+| REQ-147 | T181 |
+| REQ-153 | T291 |
+| REQ-154 | builder-side — handoff record |
+| REQ-207 | builder-side — Discovery output |
+| REQ-209 | builder-side — Discovery sample |
+| REQ-210 | builder-side — Discovery output |
+| REQ-212 | builder-side — Discovery output |
+| REQ-214 | builder-side — Discovery output |
+| REQ-215 | T256 |
+| REQ-225 | T301 |
+| REQ-270 | builder-side — handoff record |
+| REQ-271 | T291 |
+| REQ-272 | builder-side — Discovery output |
+| REQ-315 | builder-side — indexing record |
+| REQ-324 | T371 |
+| REQ-354 | T405 |
+| REQ-452 | T542 (conversion-evidence checker) |
+| REQ-453 | T543 (validated by scripts/validate.ts) |
 
 ### 5.3 Tools, Resources, and Lookups
 
@@ -6108,7 +6156,7 @@ Gap dispositions include: implemented, deferred, or waived — each citing the r
 REQ. The builder skips Pattern Buffer sub-workflows not exercised by changed surfaces.
 *Acceptance criterion:* Gap audit produces one row per affected surface with REQ
 citation and disposition; selected Pattern Buffer sub-workflows show zero failures.
-_Check:_ T84.
+_Check:_ T84, T84b.
 
 #### Delta classes
 
@@ -9103,6 +9151,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-449 | Excessive-agency mutation ceiling | 2026-09-06 |
 | REQ-450 | TDQS-conformant tool definitions | 2026-09-06 |
 | REQ-451 | Vendor manifest verification | 2026-09-06 |
+| REQ-452 | Conversion evidence verification | 2026-09-06 |
+| REQ-453 | Extraction evidence-map parity | 2026-09-06 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9260,6 +9310,7 @@ diet.
 | T83   | Automated | Lore entry budget: configure a token budget for triggered lore entries in badge_briefing via the builder's configuration mechanism. Create enough triggered lore entries to exceed the budget. Assert badge_briefing lore section respects the configured budget — only entries that fit the budget appear. Assert spec_health reports budget consumption and entries omitted. Assert the budget is adjustable at runtime. Assert all triggered entries appear when the budget is removed or set above the entry count.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-083                                     |
 | T299  | Automated | Sticky counter decay: create lore entry with `sticky: 3` and trigger "vault". Set scene_state containing "vault" — assert entry triggered in `badge_briefing`. Set scene_state without "vault" — assert entry's sticky counter decrements by 1 (call `badge_briefing` twice on same scene — assert counter unchanged). After 3 scene changes to non-triggering scenes, assert entry no longer appears in `badge_briefing` lore section. Revert scene back to "vault" — assert sticky counter resets to 3 and entry reappears.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-155                                    |
 | T84   | Manual   | Spec-driven update: perform a spec comparison audit of the server against this specification. Assert DECISIONS.md contains a dated entry listing all gaps with dispositions (implemented / deferred / waived) with each gap citing its relevant REQ and disposition reason. Assert `spec_health` includes `last_spec_review` and `last_pattern_buffer` fields populated with ISO dates. Assert the Pattern Buffer rerun passes all blocking sub-workflows for any gap-audit-implemented changes. Assert any previously-unimplemented Pattern Buffer sub-workflows from §6.6 are now implemented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-098                                     |
+| T84b  | Automated | Spec-driven update workflow: run `scripts/update-server.ts --check` against a stored fingerprint baseline — assert an unchanged spec reports "no update needed" and exits zero without mutation; assert a Minor or Major delta with unchanged fingerprints exits non-zero naming "PENDING UPDATE" (REQ-394); assert a Patch delta with unchanged fingerprints exits zero as exempt. | REQ-098 |
 | T86   | Manual   | Confidence-floor acknowledgment: induce or simulate a sub-80% confidence build (Light tier sub-85%, Standard sub-80%, Heavy sub-75%, Huge sub-70%). Assert DECISIONS.md (5) contains the operator-approval field with the adjusted threshold and justification. Assert the build does not proceed past the convergence loop without the approval. Provide approval — assert the build proceeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-099                                     |
 | T87   | Automated | Performance benchmark: measure cold-start time and query latency per REQ-100. Assert measured cold-start ≤ tier threshold. Assert query latency (mean of 5 representative lookups) ≤ 1 second. Assert individual per-category latencies recorded in DECISIONS.md (4). Assert measurements recorded in DECISIONS.md (4) and `spec_health`. | REQ-100 |
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `novel (action: end)` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
@@ -9666,6 +9717,8 @@ diet.
 | T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
 | T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
 | T541 | Automated | Vendor manifest verification: run `scripts/check-vendor-manifest.ts` against `narrative_world_model/MANIFEST.md` — assert every hash-bearing row matches its source file's recomputed SHA-256, and that a modified vendor source file fails the strict check until its manifest entry is re-audited. | REQ-451 |
+| T542 | Automated | Conversion evidence verification: run `scripts/check-conversion-evidence.ts` against DECISIONS.md — assert a ruleset-free or Markdown-only build reports "conversion not selected — waived" and exits zero; assert a DECISIONS.md recording a fidelity rate below 90% or a `pending` artifact disposition fails the strict check. | REQ-452 |
+| T543 | Automated | Extraction evidence-map parity: assert every REQ in §5.2 has a coverage-map row or an explicit non-harness disposition; assert a §5.2 REQ lacking both fails validation. | REQ-453 |
 
 ---
 

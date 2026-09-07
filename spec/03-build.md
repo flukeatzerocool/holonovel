@@ -1923,7 +1923,7 @@ Gap dispositions include: implemented, deferred, or waived — each citing the r
 REQ. The builder skips Pattern Buffer sub-workflows not exercised by changed surfaces.
 *Acceptance criterion:* Gap audit produces one row per affected surface with REQ
 citation and disposition; selected Pattern Buffer sub-workflows show zero failures.
-_Check:_ T84.
+_Check:_ T84, T84b.
 
 #### Delta classes
 
