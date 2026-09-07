@@ -610,11 +610,11 @@ export class StateManager {
     rulesetHash: string;
     buildTimestamp: string;
     lastSpecReview?: string;
-    lastGauntlet?: string;
+    lastPatternBuffer?: string;
   };
 
   enriched = false;
-  enrichmentManifest: any = null;
+  wisdomManifest: any = null;
   maxLoreTokens: number | null = null;
   serverNotes: Map<string, { content: string; narrative_tag?: string }> = new Map();
   codex: Map<string, CodexEntry> = new Map();
@@ -1505,10 +1505,10 @@ export class StateManager {
     return { valid: true, entries: entries.length };
   }
 
-  getEnrichmentHealth(): any {
-    const manifest = this.enrichmentManifest;
+  getWisdomHealth(): any {
+    const manifest = this.wisdomManifest;
     if (!manifest) return {
-      enrichment_active: this.enriched,
+      wisdom_active: this.enriched,
       module_counts: {},
       stale_count: 0,
       activated_count: 0,
@@ -1529,7 +1529,7 @@ export class StateManager {
       }
     }
     return {
-      enrichment_active: this.enriched,
+      wisdom_active: this.enriched,
       module_counts: moduleCounts,
       stale_count: staleCount,
       activated_count: activatedCount,

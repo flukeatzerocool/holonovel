@@ -2584,6 +2584,9 @@ match as a finding.
 | persona_briefing | badge_briefing | REQ-109 |
 | person_briefing | badge_briefing | REQ-109 |
 | oce, oce-state | `.holonovel-state` | REQ-055 |
+| gauntlet, Inform Gauntlet | Holonovel Pattern Buffer (the I1–I18 suite) | REQ-376, REQ-141k |
+| inform-holonovel | holonovel | §4 Computer |
+| enrichment (implementation surface) | Ruleset Wisdom (vendor manifest) | REQ-225, REQ-371 |
 
 **Multi-ruleset glossary.** These terms are defined in §4 and are collected here
 for forward reference:

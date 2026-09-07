@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.09.06)
+# AGENTS.md — holonovel MCP Server (v2026.09.07)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -24,7 +24,7 @@ src/world/parser.ts     Command dispatch: lexer, resolver against world-model
                         lives in src/index.ts.
         ↓
 src/core/state.ts       StateManager singleton: novels, roster, NPCs, scenes,
-                        countdowns, lore, enrichment, snapshots (per-badge
+                        countdowns, lore, Ruleset Wisdom, snapshots (per-badge
                         undo/redo stacks), audit log, badge gating, workflows,
                         build fingerprint. Atomic persistence.
         ↓
@@ -34,9 +34,9 @@ src/core/macros.ts      expandMacros — {{entity.name}}, {{scene.current}},
                         {{party.size}}, {{world.room}}, {{world.room_count}},
                         {{world.thing_count}}.
         ↓
-src/core/enrichment.ts  Enrichment manifest — 7 output modules populated
+src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
-                        uses vendor as the sole enrichment source.
+                        uses vendor as the sole Ruleset Wisdom source.
         ↓
 src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
@@ -66,7 +66,7 @@ src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources,
 - **codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
 - **novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle
 - **adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
-- **synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — enrichment content
+- **synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
 - **scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
 - **session** (action: recap/verbosity/briefing_order/compress/health/subscribe) — session recap, verbosity, briefing order, audit compression, event subscriptions, and the `spec_health` report
@@ -81,13 +81,14 @@ cd holonovel && npm run start     # start server
 npm run typecheck               # TypeScript type checking
 ```
 
-Verification harnesses (`npm run test:*`) include the Inform Gauntlet
-(`test:gauntlet`, world-model scenarios I1–I18) and the Pattern Buffer
-(`test:pattern-buffer`, §6.6 sub-workflows S1–S37 — server-native ones
-execute; mechanics-fidelity ones record `skipped — ruleset hash unchanged`;
-S30/S31 record `blocked` (REQ-372/373 bucket-E gap, see ROADMAP.md); the rest
-are `follow-on` increments, all summarized in the emitted
-`pattern-buffer-manifest.json`).
+Verification harnesses (`npm run test:*`) include the Holonovel Pattern Buffer
+(`test:pattern-buffer`, §6.6 Holonovel Pattern Buffer sub-workflows I1–I18) and
+the Ruleset-scope suite (`test:pattern-buffer-ruleset`, §6.6 sub-workflows
+S1–S37 — in-tree scaffolding for ruleset builds; server-native ones execute;
+mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S30/S31
+record `blocked` (REQ-372/373 bucket-E gap, see ROADMAP.md); the rest are
+`follow-on` increments, all summarized in the emitted
+`ruleset-pattern-buffer-manifest.json`).
 
 ## Boot
 
