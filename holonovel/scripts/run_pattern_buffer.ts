@@ -192,12 +192,12 @@ function buildRegister(): PBSubworkflow[] {
     { s_id: "S29", name: "Novel export/import cycle", objective: "export/import dry-run/replace round-trip; lore-only; strict broken-reference", blocking: true, mode: "execute", steps: S29_STEPS },
     blocked("S30", "Supplementary ruleset import", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
     blocked("S31", "Dynamic tool registration", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
-    followOn("S32", "Coupling chain exercise", true, "countdown ⇄ world_effect ⇄ faction ⇄ lore trigger chain + undo"),
+    { s_id: "S32", name: "Coupling chain exercise", objective: "countdown ⇄ world_effect ⇄ scene-transition ⇄ lore trigger chain + fire", blocking: true, mode: "execute", steps: S32_STEPS },
     followOn("S33", "Wisdom mechanical enactment", true, "P6/P7/P10 auto-population; deactivate/reactivate behavior"),
     followOn("S34", "Entity-bearing chain exercise", false, "NPC co-presence relationship; secrets; memory facts across restart"),
-    followOn("S35", "Narrative architecture chain exercise", false, "on_scene_transition countdown; discovered consequence; pacing signals"),
-    followOn("S36", "Decision chain exercise", false, "vow ⇄ countdown; choices advance; milestone; forsake"),
-    followOn("S37", "Coupling advisory sweep", false, "advisory sweep across countdown scope, secrets, vows, relationships, factions, notes"),
+    { s_id: "S35", name: "Narrative architecture chain exercise", objective: "on_scene_transition countdown; discovered consequence; pacing signals", blocking: false, mode: "execute", steps: S35_STEPS },
+    { s_id: "S36", name: "Decision chain exercise", objective: "vow ⇄ countdown; milestone advance; NPC-goal vow suggestion", blocking: false, mode: "execute", steps: S36_STEPS },
+    { s_id: "S37", name: "Coupling advisory sweep", objective: "advisory sweep across countdown scope, secrets, vows, relationships, factions, notes", blocking: false, mode: "execute", steps: S37_STEPS },
   ];
 }
 
@@ -326,6 +326,59 @@ const S29_STEPS: PBStep[] = [
   { label: "import dry-run broken-ref reports", action: T("novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "reference failure", "dryrun-broken ") },
   { label: "import strict replace blocks", action: T("novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "replace", strict: true }), assert: assertError },
   { label: "command suggest combat category", action: T("command", { action: "suggest", intent: "attack the goblin" }), assert: (r) => assertContains(r.toLowerCase(), "combat", "suggest-combat ") },
+];
+
+const S32_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-coupling" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "rooms A and B", action: T("world", { action: "create_room", name: "Chamber A", description: "A vaulted hall." }), assert: (r) => assertContains(r, "created", "room-a ") },
+  { label: "room B", action: T("world", { action: "create_room", name: "Chamber B", description: "A narrow passage." }), assert: (r) => assertContains(r, "created", "room-b ") },
+  { label: "exit A→B", action: T("world", { action: "create_exit", from: "Chamber A", to: "Chamber B", direction: "east" }), assert: assertOK },
+  { label: "countdown with world_effect", action: T("countdown", { action: "set", name: "Cave-in", ticks: 1, on_scene_transition: true, direction: "the ceiling splinters", world_effect: { type: "describe", target: "Chamber A", value: "The ceiling has splintered into rubble." } }), assert: (r) => assertContains(r, "tick", "cd-world ") },
+  { label: "scene set (initial, not a transition)", action: T("scene", { action: "set", description: "Dust settles in the hall.", location: "Chamber A" }), assert: assertOK },
+  { label: "scene transition fires the countdown", action: T("scene", { action: "set", description: "A tremor rolls through the passage.", location: "Chamber B" }), assert: assertOK },
+  { label: "countdown fired (consequence in briefing)", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Cave-in", "fired ") },
+  { label: "countdown removed after fire", action: R("countdown://active"), assert: (r) => assertNotContains(r, "Cave-in", "cd-gone ") },
+];
+
+const S35_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-architecture" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity (becomes active, absent from scene)", action: T("character", { action: "create", name: "Rook" }), assert: assertOK },
+  { label: "on_scene_transition countdown (3 ticks)", action: T("countdown", { action: "set", name: "The Rift", ticks: 3, on_scene_transition: true }), assert: assertOK },
+  { label: "scene set (initial)", action: T("scene", { action: "set", description: "The plaza is calm." }), assert: assertOK },
+  { label: "advance once → 2 remaining", action: T("scene", { action: "set", description: "Clouds gather overhead." }), assert: assertOK },
+  { label: "countdown at 2 remaining", action: R("countdown://active"), assert: (r) => assertContains(r, "\"ticks\":2", "cd2 ") },
+  { label: "advance twice more to fire", action: T("scene", { action: "set", description: "The sky darkens." }), assert: assertOK },
+  { label: "fire (entity absent → discovered)", action: T("scene", { action: "set", description: "The rift widens." }), assert: assertOK },
+  { label: "discovered consequence in briefing", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "[discovered]", "discovered ") },
+];
+
+const S36_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-decision" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "vow set", action: T("vow", { action: "set", name: "Prove the caretaker's innocence", difficulty: "dangerous" }), assert: (r) => assertContains(r, "set", "vow ") },
+  { label: "accept linked countdown", action: T("respond", { decision: "vow_countdown", option: "accept" }), assert: (r) => assertContains(r, "Linked countdown", "vow-accept ") },
+  { label: "linked countdown created", action: R("countdown://active"), assert: (r) => assertContains(r, "vow:", "vow-cd ") },
+  { label: "milestone advances coupled countdown", action: T("vow", { action: "milestone", vow_name: "Prove the caretaker's innocence" }), assert: (r) => assertContains(r, "Linked countdown", "milestone ") },
+  { label: "NPC goal → vow suggestion", action: T("npc", { action: "create", name: "Magistrate", goals: "To silence the witnesses before the inquest completes" }), assert: assertOK },
+  { label: "vow suggestion in threads", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Vow-creation suggestion", "vow-suggest ") },
+];
+
+const S37_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-advisory" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity (for secret reveal)", action: T("character", { action: "create", name: "Tess" }), assert: (r) => { assertOK(r, "entity "); capture("tessId", /Entity id (\S+?)\./)(r); } },
+  { label: "countdown scoped to the citadel", action: T("countdown", { action: "set", name: "Citadel Collapse", ticks: 4, scope: "twilight_citadel" }), assert: assertOK },
+  { label: "secret overlapping scope", action: T("lore", { action: "set_secret", key: "twilight", content: "The citadel groans." }), assert: assertOK },
+  { label: "reveal secret to entity", action: T("lore", () => ({ action: "reveal", key: "twilight", entity_id: captured.tessId })), assert: assertOK },
+  { label: "lore with urgency trigger", action: T("lore", { action: "set", key: "omegaseal", content: "The seal is weakening.", triggers: ["imminent"] }), assert: assertOK },
+  { label: "relationship rival matching scope", action: T("relationship", { action: "set", entity_a: "tess", entity_b: "citadel", type: "rival" }), assert: assertOK },
+  { label: "advisory sweep surfaces", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => {
+    assertContains(r, "Countdown-advancement advisory", "adv-secret ");
+    assertContains(r, "Countdown-creation advisory", "adv-urgency ");
+    assertContains(r, "Relationship-countdown advisory", "adv-rel ");
+  } },
 ];
 
 // ── Runner ─────────────────────────────────────────────────────────
