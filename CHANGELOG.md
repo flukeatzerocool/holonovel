@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-06 — Conversion-evidence gate scoped to its DECISIONS section
+
+- Scoped the `converterPin` detection in `holonovel/scripts/check-conversion-evidence.ts`
+  to the DECISIONS.md (2) `@section versions` record, dropping the whole-file
+  `converter[^:\n]*:` fallback. That fallback matched the checker's own narrative entry
+  (which names "converter pin, per-content-type fidelity…") and falsely selected
+  conversion for this ruleset-free build, failing the `--strict` gate with three missing
+  records. A ruleset-free build now reports "conversion not selected — waived" and exits
+  zero, and the T542 contract is re-verified against sub-90%-fidelity, `pending`-disposition,
+  and conformant fixtures. No change to the checker's exit-code contract or role.
+
 ## 2026-09-06 — Deferred validator backstops + REQ-429 derivation
 
 - Added two validate.ts structural checks: an evidence-home parity check (every §8

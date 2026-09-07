@@ -59,8 +59,11 @@ const evidence = section("<!-- @section evidence -->");
 
 // Conversion is "selected" when any conversion record is present. A ruleset-free
 // or Markdown-only build records no converter pin, no fidelity rate, and no
-// artifact disposition, so it is waived rather than treated as a failure.
-const converterPin = /converter/i.test(versions) || /converter[^:\n]*:/i.test(text);
+// artifact disposition, so it is waived rather than treated as a failure. The pin
+// check reads only DECISIONS.md (2) (`@section versions`); a whole-file scan would
+// match narrative prose describing the checker itself and falsely select
+// conversion (recurrence 2026-09-06).
+const converterPin = /converter/i.test(versions);
 const fidelityRates = /fidelity/i.test(evidence) && /\d+\s*%/.test(evidence);
 const dispositions = /\bdisposition\b/i.test(waivers) && /\b(fixed|waived|pending)\b/i.test(waivers);
 const crossConverter = /cross-converter|cross converter/i.test(waivers) || /cross-converter|cross converter/i.test(evidence);
