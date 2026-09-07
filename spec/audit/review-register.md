@@ -1,4 +1,4 @@
-# Review Register — 2026-08-24
+# Review Register — 2026-09-06
 
 Findings and follow-through items from the after-action review loop. Each
 entry carries a terminal disposition: `Resolved`, `Scheduled-roadmap`,
@@ -47,6 +47,12 @@ the tracking surfaces for the coverage backlog.
   verified REQ-418 deploy verification passes end-to-end.
 
 ## Scheduled-roadmap
+
+- **REQ-372/373 — supplementary ruleset import & dynamic tool registration**
+  (Pattern Buffer close-out, 2026-09-06): bucket-E intended gap. S30/S31
+  recorded `blocked` in `run_pattern_buffer.ts`. Plan filed at
+  `plans/2026-09-06-supplementary-import.md`; ROADMAP.md entry added. Open
+  until the subsystem ships and S30/S31 un-block.
 
 - **SR-1 — machine-warning backlog** (full-document spec-review, 2026-09-06):
   ~1,219 pre-existing machine warnings across the 1,076 REQ bodies. The

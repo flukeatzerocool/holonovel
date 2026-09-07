@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer Tranche A port + blocked register
+
+- Ported seven server-native §6.6 sub-workflows from `follow-on` to executed in
+  `holonovel/scripts/run_pattern_buffer.ts`: S12 roster durability, S16 narrative
+  state, S18 adventure generation + encounter lifecycle, S19 badge-briefing
+  correctness, S20 lorebook interchange, S28 briefing ordering/voice/lonelog,
+  and S29 Novel export/import. All pass (harness now executes 11 sub-workflows,
+  0 blocking failures). (REQ-141e structured encoding)
+- Added a `blocked` mode to the harness and recorded S30/S31 (Supplementary
+  ruleset import, Dynamic tool registration) as `blocked` — they require the
+  REQ-372/373 subsystem, a sanctioned bucket-E intended gap now scheduled on
+  ROADMAP.md and `spec/audit/review-register.md` (`Scheduled-roadmap`).
+- Harness support for step chaining: a `capture()` helper and function-valued
+  tool `args`/resource `uri` let a later step reference a server-assigned id
+  (e.g. roster/entity id) without hardcoding the global character counter.
+- Regenerated `spec/audit/req-coverage.md` (`--write-register`) to sync stale
+  REQ sub-part counts and §6.6 coverage-map rows.
+
 ## 2026-09-06 — Pattern Buffer harness (S1–S37 manifest)
 
 - Added `holonovel/scripts/run_pattern_buffer.ts`, the §6.6 Pattern Buffer
