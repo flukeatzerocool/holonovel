@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — Roadmap & tracking-surface reconciliation
+
+- Closed the two stale `Scheduled-roadmap` entries in
+  `spec/audit/review-register.md` to `Resolved`: the zero-findings editorial
+  campaign (all 15 increments + structural passes shipped; warnings 1,219 → 6,
+  all 6 residual DP-3 non-actionable) and the backlog-clearance program
+  (register now reports A 0 / B 0 / C 302 / E 110; `--impl-audit=strict`
+  wired into `.githooks/pre-push`).
+- Updated the editorial plan/tasks artifacts
+  (`plans/2026-09-06-zero-findings-editorial/`) to mark every increment done
+  with its commit hash. ROADMAP.md unchanged — its sole entry (supplementary
+  ruleset import, REQ-372/373) remains the one genuinely-open scheduled item.
+
 ## 2026-09-06 — Pattern Buffer restart infra + set_active persistence fix
 
 - Added harness restart support (a `restart` step kind that kills the server,

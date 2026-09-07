@@ -8,6 +8,17 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **SR-1 — machine-warning backlog** (full-document spec-review, 2026-09-06):
+  zero-findings editorial campaign complete. All 15 increments plus the
+  structural passes shipped as Editorial commits 2026-09-06 (`662efa1` →
+  `584310c`); machine-flagged warnings 1,219 → 6, and all 6 residual are
+  documented DP-3 non-actionable (DECISIONS.md structural-reconciliation
+  disposition). No open items remain.
+- **Backlog-clearance program waves 1–11** (2026-08-24 kickoff): complete.
+  `req-coverage.md` now registers zero A and zero B REQs (A 0 / B 0 / C 302 /
+  E 110); the wave-named REQs (REQ-408, REQ-193, REQ-380/389/390) are bucket C
+  with exercised tests; the terminal step `--impl-audit=strict` is wired into
+  `.githooks/pre-push`. Program closed; no ROADMAP.md entry remains.
 - **SR-1 — §5 index table drift** (integration review, 2026-09-04): §5 section
   map rebuilt from actual REQ→section membership (98 missing REQs across
   §5.1–5.9 plus rows 5.21–5.23), and `validate.ts` now enforces completeness
@@ -53,24 +64,6 @@ the tracking surfaces for the coverage backlog.
   recorded `blocked` in `run_pattern_buffer.ts`. Plan filed at
   `plans/2026-09-06-supplementary-import.md`; ROADMAP.md entry added. Open
   until the subsystem ships and S30/S31 un-block.
-
-- **SR-1 — machine-warning backlog** (full-document spec-review, 2026-09-06):
-  ~1,219 pre-existing machine warnings across the 1,076 REQ bodies. The
-  zero-findings editorial campaign is tracked via
-  `plans/2026-09-06-zero-findings-editorial/` (per user decision — not
-  ROADMAP.md). Validator readability convention applied (prose-only scoring,
-  grade-18 ceiling) and Increment 1 (§5.1–5.2) shipped `662efa1`;
-  1,219 → 857 warnings. Open until increments 2–15 complete.
-
-- **Backlog-clearance program waves 1–11** — the 145 A + 6 B REQs tracked in
-  `req-coverage.md`, scheduled as the ROADMAP.md program. Includes:
-  - **REQ-408 param-ceiling refactor** (create_character 15 params > ceiling 8)
-    — Wave 2.
-  - **REQ-193 staleness detection** — Wave 11 (add §6.6 mapping or
-    disposition spec-side).
-  - **REQ-380/389/390 ruleset-dependent REQs** — Wave 11; need a ruleset
-    fixture decision (none exists in the workspace per AGENTS.md rule 4).
-- **`--impl-audit=strict` enablement** — terminal step of the program.
 
 ## Closed-P3 (recorded, no action)
 
