@@ -7589,6 +7589,9 @@ builder SHALL audit all vendor content from source and record the results — no
 manifest match is attempted. The builder MAY produce a MANIFEST.md from the audit
 results for use in subsequent builds.
 
+**REQ-451 — Vendor manifest verification.**
+The builder SHALL verify the vendor content manifest (`MANIFEST.md`, §11.4) with a runnable checker (`scripts/check-vendor-manifest.ts`) before using the manifest's pre-verified confidence distributions and term-anchoring scores. The checker SHALL recompute each module's content hash from the source file named in the manifest and report a match or mismatch per row. A module whose hash differs from the manifest entry SHALL be re-audited per §11.4 and the manifest updated. The checker SHALL exit non-zero when any hash mismatches under `--strict`, and exit zero otherwise with the per-row report on stdout. *Acceptance criterion:* a modified vendor source file fails the strict check until its manifest entry is re-audited. _Check:_ T541.
+
 ---
 
 # Appendices
@@ -9096,6 +9099,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-448 | Security-event audit completeness | 2026-09-06 |
 | REQ-449 | Excessive-agency mutation ceiling | 2026-09-06 |
 | REQ-450 | TDQS-conformant tool definitions | 2026-09-06 |
+| REQ-451 | Vendor manifest verification | 2026-09-06 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9658,6 +9662,7 @@ diet.
 | T538 | Automated | Pattern Buffer coverage-map parity: assert every REQ in the REQ-108a covered sections (§5.5, §5.6, §5.7, §5.8, §5.10, §5.12, §5.13) has a coverage-map row or an explicit non-Pattern-Buffer disposition; assert a covered-section REQ lacking both fails validation. | REQ-108c |
 | T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
 | T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
+| T541 | Automated | Vendor manifest verification: run `scripts/check-vendor-manifest.ts` against `narrative_world_model/MANIFEST.md` — assert every hash-bearing row matches its source file's recomputed SHA-256, and that a modified vendor source file fails the strict check until its manifest entry is re-audited. | REQ-451 |
 
 ---
 

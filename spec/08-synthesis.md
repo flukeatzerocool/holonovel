@@ -399,3 +399,6 @@ When the `holonovel/narrative_world_model/` directory contains no MANIFEST.md, t
 builder SHALL audit all vendor content from source and record the results — no
 manifest match is attempted. The builder MAY produce a MANIFEST.md from the audit
 results for use in subsequent builds.
+
+**REQ-451 — Vendor manifest verification.**
+The builder SHALL verify the vendor content manifest (`MANIFEST.md`, §11.4) with a runnable checker (`scripts/check-vendor-manifest.ts`) before using the manifest's pre-verified confidence distributions and term-anchoring scores. The checker SHALL recompute each module's content hash from the source file named in the manifest and report a match or mismatch per row. A module whose hash differs from the manifest entry SHALL be re-audited per §11.4 and the manifest updated. The checker SHALL exit non-zero when any hash mismatches under `--strict`, and exit zero otherwise with the per-row report on stdout. *Acceptance criterion:* a modified vendor source file fails the strict check until its manifest entry is re-audited. _Check:_ T541.

@@ -296,7 +296,7 @@ function parseManifest(text: string): Set<string> {
 }
 
 function sectionNameForReq(reqId: string, text: string): string {
-  const sections = text.match(/^### (?:5\.\d+ .+|6\.\d+ .+)$/gm) || [];
+  const sections = text.match(/^### (?:5\.\d+ .+|6\.\d+ .+|10\.\d+ .+|11\.\d+ .+)$/gm) || [];
   const reqIdx = text.indexOf(`**${reqId}`);
   if (reqIdx < 0) return "unknown";
   let nearest = "unknown";
@@ -1455,6 +1455,9 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-098", "REQ-108", "REQ-141", "REQ-142", "REQ-208",
   "REQ-299", "REQ-300", "REQ-301", "REQ-303",
   "REQ-313", "REQ-314", "REQ-394",
+  // Vendor-manifest verification is verifier tooling (the §11.4 MANIFEST.md
+  // checker), not server-runtime behavior.
+  "REQ-451",
   "REQ-100", "REQ-146", "REQ-148", "REQ-149", "REQ-150",
   "REQ-158", "REQ-273", "REQ-274", "REQ-354",
   "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",
