@@ -5455,7 +5455,7 @@ The operator may increase the budget for rulesets exceeding 2,000 indexed items 
 The harness SHALL perform five tasks. Task (a): start the server process. Task (b): execute each sub-workflow's steps sequentially. Task (c): assert each pass criterion against tool-observable surfaces. Task (d): record pass/fail with failure artifacts per the Failure artifacts contract. Task (e): exit zero when all sub-workflows pass, or record non-blocking failures per the Exit criteria. The harness enables operator re-execution of the full Pattern Buffer without AI builder reasoning — re-runs after synthesis, after spec-driven updates, or after code changes consume zero AI tokens.
 
 **REQ-141g — Input-validation convergence metric (Part g).**
-The harness output SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with failure details when applicable. The harness serves as a handoff artifact (§9 H13a). **Convergence integration.** The convergence handshake (see Timing block above) governs the Pattern Buffer ↔ Phase 2 feedback loop. The builder measures improvement per iteration. Improvement means fewer total assertion failures, or at least one blocking sub-workflow downgraded to non-blocking.
+The harness output SHALL include the Pattern Buffer execution timestamp and per-sub-workflow verdicts with failure details when applicable. The harness serves as a handoff artifact (§9 H13). **Convergence integration.** The convergence handshake (see Timing block above) governs the Pattern Buffer ↔ Phase 2 feedback loop. The builder measures improvement per iteration. Improvement means fewer total assertion failures, or at least one blocking sub-workflow downgraded to non-blocking.
 
 **REQ-141h — Input-validation convergence metric (Part h).**
 Two stalled iterations is a stop; residual failures go into DECISIONS.md (5). **Regression assertions**. A bug found via Pattern Buffer failure and fixed via convergence gains one regression assertion in DECISIONS.md (6). **Assertion compression**. After spec updates or five iterations, audit the regression assertions for redundancy. Drop each subsumed assertion and log the drop in DECISIONS.md (6) with the citation. **Exit criteria**. The Pattern Buffer completes when all sub-workflows pass and the builder resolves all blocking failures.
@@ -6896,7 +6896,10 @@ items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Pattern Buffer re-runs after every server code change: during Build
 completion, after Synthesis (§11), after spec-driven updates (REQ-098), and after
-any manual code modification.
+any manual code modification. The Pattern Buffer sub-workflow S27 (synthesis
+lifecycle with Wisdom mechanical enactment) exercises the runtime assertions;
+the survival-across-rebuild and per-module status assertions are exercised by
+the derived tests. _Check:_ T422, T306, T319, T321, T125.
 
 **Verification workflow G7 — Narrative coherence attestation (ruleset-facing).**
 Verify that DECISIONS.md (6) contains a `narrative_coherence` attestation per

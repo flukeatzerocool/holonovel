@@ -124,7 +124,10 @@ items. Evidence is recorded in DECISIONS.md (6) per the evidence record contract
 Non-blocking failures are recorded as accepted limitations with re-activation
 conditions. The Pattern Buffer re-runs after every server code change: during Build
 completion, after Synthesis (§11), after spec-driven updates (REQ-098), and after
-any manual code modification.
+any manual code modification. The Pattern Buffer sub-workflow S27 (synthesis
+lifecycle with Wisdom mechanical enactment) exercises the runtime assertions;
+the survival-across-rebuild and per-module status assertions are exercised by
+the derived tests. _Check:_ T422, T306, T319, T321, T125.
 
 **Verification workflow G7 — Narrative coherence attestation (ruleset-facing).**
 Verify that DECISIONS.md (6) contains a `narrative_coherence` attestation per

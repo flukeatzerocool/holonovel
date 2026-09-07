@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-06 — G6 evidence wiring + handoff-reference repair
+
+- G6 (Synthesis lifecycle) now carries a `_Check:` citation (T422, T306, T319,
+  T321, T125) naming the derived tests and S27 that exercise its five
+  assertions, bringing it in line with G8's `_Check:` and closing the last
+  ruleset-facing workflow without a mechanical check.
+- Repaired a stale handoff-gate reference: REQ-141g cited "§9 H13a" (a
+  sub-part §9 no longer carries) — corrected to "§9 H13". No scope change.
+
 ## 2026-09-06 — Vendor-manifest verification checker
 
 - Added `holonovel/scripts/check-vendor-manifest.ts`, a gate that recomputes
