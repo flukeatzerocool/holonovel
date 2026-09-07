@@ -33,13 +33,13 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 ### 5.1 Output and Error Contracts
 
 **REQ-101a — Assumption audit trail (Part a).**
-In `production` mode, before the Convert workflow begins, the builder runs the `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a server prompt) against the current spec revision. The builder records at least one challenged assumption per category in DECISIONS.md (0): technology, AI-as-builder, extraction and confidence, MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec process. The audit does not block the build. For spec revisions, a diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
+In `production` mode, before the Convert workflow begins, the builder runs the `assumption_audit` prompt (a spec-level prompt shipped with the specification — not a server prompt) against the current spec revision. The builder records at least one challenged assumption per category in DECISIONS.md (4): technology, AI-as-builder, extraction and confidence, MCP ecosystem, state persistence, verification model, build process, runtime guarantees, spec process. The audit does not block the build. For spec revisions, a diff-only audit — challenging only assumptions affected by the spec delta — is acceptable.
 
 **REQ-101b — Assumption audit trail (Part b).**
 For same-spec builds against different rulesets, when a prior assumption audit exists for the same spec version, the builder re-audits only the categories affected by the ruleset paradigm delta. Categories unaffected by the ruleset change (technology, MCP ecosystem, verification model, build process) keep the prior audit results. The builder records the prior audit's ruleset fingerprint for traceability.
 
 **REQ-101c — Assumption audit trail (Part c).**
-Audit re-use does not block the build — a full audit is always acceptable. *Acceptance criterion:* DECISIONS.md (0) contains at least one challenged assumption per category with justification, or a diff-only audit note for spec revisions, or a re-use note citing the prior audit's ruleset fingerprint for unaffected categories. _Check:_ T89.
+Audit re-use does not block the build — a full audit is always acceptable. *Acceptance criterion:* DECISIONS.md (4) contains at least one challenged assumption per category with justification, or a diff-only audit note for spec revisions, or a re-use note citing the prior audit's ruleset fingerprint for unaffected categories. _Check:_ T89.
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
 `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`. Tool-level failures use
 `isError: true` with the prefix in `content[0].text`; protocol-level failures use JSON-RPC
@@ -1292,7 +1292,7 @@ Every tool call that mutates Novel state (character creation, condition changes,
 WHEN the server detects a new `TTRPG_SESSION_ID` value, it SHALL insert a `[session-boundary]` marker entry (REQ-237) before the session's first mutating entry. The marker counts as a mutating entry for hash-chain purposes and appears in `audit://novel` output. A hash chain that breaks at any point SHALL report a mismatch in `spec_health` and stderr; the server loads entries up to the break point. `novel (action: end)` removes the audit log along with the rest of the Novel.
 
 **REQ-040c — Audit log (Part c).**
-Badge switches via `set_badge` (all values: `player`, `game_master`, `none`) SHALL produce audit entries recording the old badge, new badge, and timestamp. Badge-switch entries carry the badge-switch designation as their tool-name field.
+Badge switches via `set_badge` (all values: `player`, `game_master`, `observer`, `none`) SHALL produce audit entries recording the old badge, new badge, and timestamp. Badge-switch entries carry the badge-switch designation as their tool-name field.
 
 **REQ-040d — Audit log (Part d).**
 The server records badge-switch entries in the append-only audit log and includes them in `audit://novel` output, but it does not treat them as mutating state operations for undo/redo purposes — `undo` SHALL NOT reverse a badge switch. *Acceptance criterion:* A combat attack produces an audit entry with timestamp, badge, tool name, arguments, and output prefix; `audit://novel` returns entries in append order with chained hashes. _Check:_ T8, T147.
@@ -2550,7 +2550,7 @@ Profiles remain inert — the GM applies them via narrative directive (REQ-081) 
 **REQ-226c — Narrative voice profiles (Part c).**
 Ruleset-free builds produce an empty module when vendor content is also absent. *Acceptance criterion:* A ruleset citing Conan and The Lord of the Rings produces ≥2 narrative voice profiles with source anchors and descriptions. _Check:_ T302.
 **REQ-227a — Synthesis model (Part a).**
-Synthesis SHALL be a single workflow with two sources. External synthesis comes from web research per §11.1, defaults to off at intake, carries `[supplementary]`, and reverts under `synthesis (action: revert)`. Internal synthesis comes from Novel-state analysis per §11.2, carries `[supplementary]` with `novel://` source URIs, and reverts under `synthesis (action: revert)`. Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) forms build output from two sources — the ruleset's own text per REQ-225 and the vendor content bundles in `holonovel/narrative_world_model/` per §11.4 — populated at build time and never removed by `synthesis (action: revert)`.
+Synthesis SHALL be a single workflow with two sources. External synthesis comes from web research per §11.1, runs only when the operator selects the Synthesis workflow at intake (§6.2 Q0), carries `[supplementary]`, and reverts under `synthesis (action: revert)`. Internal synthesis comes from Novel-state analysis per §11.2, carries `[supplementary]` with `novel://` source URIs, and reverts under `synthesis (action: revert)`. Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) forms build output from two sources — the ruleset's own text per REQ-225 and the vendor content bundles in `holonovel/narrative_world_model/` per §11.4 — populated at build time and never removed by `synthesis (action: revert)`.
 
 **REQ-227b — Synthesis model (Part b).**
 Synthesis items and Ruleset Wisdom coexist in all resource URIs and `badge_briefing` sections. The GM activates synthesis items via the same tool calls as Wisdom items. Synthesis items SHALL NOT replace or override Ruleset Wisdom items with matching keys — conflicts are recorded with `conflicts_with` reference to the Wisdom item. *Acceptance criterion:* A build with ruleset content SHALL populate Ruleset Wisdom in the Novel at creation time; synthesis, when run, adds `[supplementary]` items alongside `[ruleset]` and `[vendor]` items; `synthesis (action: revert)` removes all `[supplementary]` items. _Check:_ T303.
@@ -3244,7 +3244,7 @@ or other matching field does not contain the referenced token is a spec defect.
 The server SHALL support scene beat annotation alongside scene type (REQ-087). Valid beat values are: `setup`, `escalation`, `turning_point`, `climax`, `resolution`, and `denouement`. Beats SHALL be set via `scene (action: set)` as an optional `beat` parameter. The current beat SHALL surface in `badge_briefing` as a sub-element of the scene state section, immediately after the scene type tag, in the form `Beat: <beat>`.
 
 **REQ-335b — Scene beat taxonomy (Part b).**
-A scene without an explicit beat SHALL carry the default `mid_scene`. `session (action: recap)` SHALL include beat transitions alongside scene transitions in the `scene_transitions` array as `beat_before` and `beat_after` pairs. A scene transition that retains the same beat SHALL NOT record a beat transition. The beat taxonomy is a fixed vocabulary — the six values in REQ-335a are the only valid beats. The server SHALL reject unrecognized values with `[INVALID_INPUT]`. The GM may set any valid beat at any time, and the server does not enforce beat progression sequences.
+A scene without an explicit beat SHALL carry the beat `mid_scene`. `session (action: recap)` SHALL include beat transitions alongside scene transitions in the `scene_transitions` array as `beat_before` and `beat_after` pairs. A scene transition that retains the same beat SHALL NOT record a beat transition. The beat taxonomy is a fixed vocabulary — the six values in REQ-335a are the only valid beats. The server SHALL reject unrecognized values with `[INVALID_INPUT]`. The GM may set any valid beat at any time, and the server does not enforce beat progression sequences.
 
 **REQ-335c — Scene beat taxonomy (Part c).**
 Scene beat SHALL influence countdown advancement rate per REQ-353. *Acceptance criterion:* `scene (action: set, "The hall darkens", beat="escalation")` surfaces `Beat: escalation` after the scene type tag in `badge_briefing`. `session (action: recap)` includes `beat_transitions` showing `{from: "mid_scene", to: "escalation", timestamp: <ISO>}`. Setting the same beat on consecutive `scene (action: set)` calls produces no beat transition entry. _Check:_ T385.
@@ -3260,7 +3260,7 @@ Changing beat away from `climax` reverts to standard rate.
 _Check:_ T404.
 
 **REQ-336a — Dramatic pacing signal (Part a).**
-The server SHALL track the count of tool calls (mutating and non-mutating) since the last scene transition or beat change. When the count exceeds a configurable ceiling (`TTRPG_PACING_WINDOW`), `badge_briefing` SHALL include a pacing signal in the `narrative_threads` section (REQ-281): `[pacing] Scene stabilized — N actions since last transition.` The signal is advisory — it does not block or auto-advance narration. The ceiling SHALL be configurable via `TTRPG_PACING_WINDOW`; setting it to zero disables pacing signals. The pacing counter resets on every `scene (action: set)` call (scene transition) and on every beat change.
+The server SHALL track the count of tool calls (mutating and non-mutating) since the last scene transition or beat change. When the count exceeds the `TTRPG_PACING_WINDOW` ceiling (zero disables pacing signals), `badge_briefing` SHALL include a pacing signal in the `narrative_threads` section (REQ-281): `[pacing] Scene stabilized — N actions since last transition.` The signal is advisory — it does not block or auto-advance narration. The pacing counter resets on every `scene (action: set)` call (scene transition) and on every beat change.
 
 **REQ-336b — Dramatic pacing signal (Part b).**
 When a pacing signal fires, the server SHALL additionally trigger autonomous advancement per REQ-351. *Acceptance criterion:* After 21 tool calls with no scene transition, `badge_briefing` includes `[pacing] Scene stabilized — 21 actions since last transition.` After `scene (action: set, "new scene")`, the counter resets and the signal disappears. Setting `TTRPG_PACING_WINDOW=0` suppresses all pacing signals. _Check:_ T386.
@@ -3268,15 +3268,15 @@ When a pacing signal fires, the server SHALL additionally trigger autonomous adv
 When a pacing signal fires per REQ-336, the server SHALL immediately perform one autonomous advancement cycle. Every faction clock SHALL receive one autonomous tick per REQ-338, regardless of whether the server has met the `TTRPG_FACTION_AUTONOMY_INTERVAL` threshold — the pacing signal overrides the interval. Every NPC with a populated `goals` field SHALL produce a goal pursuit suggestion per REQ-339, regardless of disposition change status — the pacing signal triggers suggestions for all goal-carrying NPCs. The combined advancement SHALL be recorded in the audit log as `[pacing-autonomy]` with a list of factions and NPCs affected.
 
 **REQ-351b — Pacing-triggered autonomy (Part b).**
-The REQ-348 faction-NPC coordination rule SHALL apply during pacing-triggered autonomy: if a faction tick outcome overlaps an NPC's goal, that NPC's suggestion SHALL be suppressed as normal. Pacing-triggered autonomy SHALL fire at most once per `TTRPG_PACING_WINDOW` window — if play continues without a scene transition past a second window, the pacing signal re-fires but autonomy does not re-trigger until a scene transition resets the pacing counter. The contract implements the narrative intuition that "while you were deliberating, the world moved." *Acceptance criterion:* Set `TTRPG_PACING_WINDOW=3`.
+The REQ-348 faction-NPC coordination rule SHALL apply during pacing-triggered autonomy: if a faction tick outcome overlaps an NPC's goal, that NPC's suggestion SHALL be suppressed as normal. Pacing-triggered autonomy SHALL fire at most once per `TTRPG_PACING_WINDOW` window — if play continues without a scene transition past a second window, the pacing signal re-fires but autonomy does not re-trigger until a scene transition resets the pacing counter. The contract implements the narrative intuition that "while you were deliberating, the world moved." *Acceptance criterion:* With `TTRPG_PACING_WINDOW=3`, four tool calls without a scene transition fire a pacing signal and one `[pacing-autonomy]` record; four further calls re-fire the signal with no second autonomy record.
 
 **REQ-351c — Pacing-triggered autonomy (Part c).**
 Create faction with clock and NPC with goal. Perform 4 tool calls without scene transition — assert pacing signal fires AND audit log records `[pacing-autonomy]` with faction tick and NPC suggestion. Perform 4 more tool calls — assert pacing signal re-fires but `[pacing-autonomy]` does NOT re-trigger (already fired this window). Call `scene (action: set, "new scene")` — assert counter resets. Perform 4 more tool calls — assert `[pacing-autonomy]` fires again. _Check:_ T401.
 **REQ-337a — Narrative arc visibility (Part a).**
-`badge_briefing` (REQ-281) SHALL include a `story_beats` line showing the sequence of completed beats within the current Novel in chronological order, gated by badge scope: `shared` beats visible to both badges; `game_master` beats visible to GM only. The sequence SHALL list beat names with the scene description preview (first sentence) that produced them, e.g., `setup (\"The hall is quiet...\") -> escalation (\"The torches flicker...\")`. An empty sequence SHALL render `[No beats completed.]`.
+`badge_briefing` (REQ-281) SHALL include a `story_beats` line showing the sequence of completed beats within the current Novel in chronological order, gated by badge scope: `shared` beats visible to both badges; `game_master` beats visible to GM only. The sequence SHALL list beat names with the scene description preview (first sentence) that produced them, e.g., `setup ("The hall is quiet...") -> escalation ("The torches flicker...")`. An empty sequence SHALL render `[No beats completed.]`.
 
 **REQ-337b — Narrative arc visibility (Part b).**
-The sequence SHALL NOT exceed the most recent `TTRPG_STORY_BEAT_WINDOW` completed beats (default 10). *Acceptance criterion:* After three `scene (action: set)` calls with beats `setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat sequence. After 12 beat transitions, only the most recent 10 appear. An empty sequence renders the empty-state marker. _Check:_ T387.
+The sequence SHALL NOT exceed the most recent `TTRPG_STORY_BEAT_WINDOW` completed beats. *Acceptance criterion:* After three `scene (action: set)` calls with beats `setup`, `escalation`, `climax`, `badge_briefing` includes the three-beat sequence. After 12 beat transitions, only the most recent 10 appear. An empty sequence renders the empty-state marker. _Check:_ T387.
 **REQ-352a — Codex adventure beat sequences (Part a).**
 The `adventure` kind (REQ-321) MAY carry an optional `suggested_beats` field — an array of `{beat, scene_preview}` pairs. The `beat` is a valid beat value per REQ-335, and the `scene_preview` is a one-sentence scene descriptor. When the server creates a Novel via `novel (action: create, codex_adventure=...)` (REQ-088), or imports an adventure via `codex (action: import)` (REQ-321), and the adventure entry carries `suggested_beats`, the sequence SHALL pre-populate the `story_beats` briefing surface (REQ-337) with `[adventure-scaffold]` annotation.
 
@@ -3729,8 +3729,8 @@ committing — and SHALL surface it as a `[state-drift]` marker in `spec_health`
 `session (action: recap)`, and the `state_ledger` token.
 
 **REQ-403b — State-drift detection (Part b).**
-A `TTRPG_STATE_GATE` setting — `off` (default), `warn`, or `block` — read at
-startup, SHALL control the gate. The `off` mode renders drift markers observationally.
+A `TTRPG_STATE_GATE` setting — `off`, `warn`, or `block` — read at
+startup, SHALL control the gate, with the startup default documented in §7.6. The `off` mode renders drift markers observationally.
 The `warn` mode appends a prominent warning naming the uncommitted beats and the tools
 to fix them at session close (specifically `novel (action: save_context)` and `session (action: recap)`). The
 `block` mode returns `[STATE_CONFLICT]` from `novel (action: save_context)`, `novel (action: end)`, and
@@ -3748,8 +3748,8 @@ marker is observational. _Check:_ T473.
 **REQ-405 — Auto-moment on transitions.** Every scene transition (REQ-125)
 and combat-round resolution SHALL append a `moment` entry to the story journal
 (REQ-246) carrying the scene anchor, location, and timestamp, unless the
-transition sets `skip_transition_hook`. A Novel-scoped `auto_record` flag,
-default `true`, SHALL enable this behavior; the GM MAY set it `false` to
+transition sets `skip_transition_hook`. A Novel-scoped `auto_record` flag
+SHALL enable this behavior; the GM MAY set it `false` to
 restore manual-only recording. _Check:_ T474.
 
 **REQ-406 — Backup-restore regression visibility.** When a Novel loads from a

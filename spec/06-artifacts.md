@@ -20,7 +20,8 @@ workflow evidence is embedded in DECISIONS.md, never stored as separate files.
   evidence-g0a -->`, `<!-- @section evidence-g0b -->`, `<!-- @section evidence-g2 -->`,
   `<!-- @section evidence-g3 -->`, `<!-- @section evidence-g4 -->`,
   `<!-- @section evidence-g5 -->`, `<!-- @section evidence-g6 -->`,
-  `<!-- @section evidence-g8 -->` (multi-ruleset only),
+  `<!-- @section evidence-g8 -->` (multi-ruleset only; the G7 `narrative_coherence`
+  attestation is recorded as its own `@section evidence` block per REQ-346),
   `<!-- @section audit -->` audit findings and verification record,
   `<!-- @section task-list -->` structured task list. One DECISIONS.md covers
   all rulesets.

@@ -9,10 +9,11 @@ before handoff. Record re-verification results in DECISIONS.md.
 
 Ruleset Wisdom (ruleset-native + vendor) is extracted at build time per REQ-225 and is
 always present in the Novel — it is not subject to synthesis reversion. Synthesis is an
-optional, default-off workflow that may be run after Build completes and all verification
+optional workflow that may be run after Build completes and all verification
 workflows pass (§8), adding content to the Novel from two sources: external (web-sourced
-play advice) and internal (Novel state analysis). At intake (§6.2), the Synthesis
-workflow defaults to "no." Build alone produces a fully working server with Ruleset
+play advice) and internal (Novel state analysis). At intake (§6.2), the workflow
+defaults to `build` only when offline and to `build + synthesis (action: run)` when network is
+detected; the operator may deselect it. Build alone produces a fully working server with Ruleset
 Wisdom; synthesis adds supplementary content to every module. Synthesis items carry
 `[supplementary]` tag and never replace Ruleset Wisdom items (REQ-080).
 

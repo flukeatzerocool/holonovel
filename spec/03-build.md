@@ -921,7 +921,7 @@ ruleset-facing verification workflows (§8: G0b and G4) have passed, the
 builder runs the Pattern Buffer. Fixture workflows (G2 and G3 — see §8) are
 specification-level checks run once per builder implementation; they are
 independent of Pattern Buffer timing. The Pattern Buffer exercises the built server with
-AI-simulated badges. In realistic play scenarios. It is a required quality
+AI-simulated badges in realistic play scenarios. It is a required quality
 check. Its purpose is to surface bugs that structured verification missed.
 
 **Convergence handshake.** After each Pattern Buffer execution, the builder maps

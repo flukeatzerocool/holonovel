@@ -114,7 +114,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 
 | Environment variable | Required | Meaning                                            |
 | -------------------- | -------- | -------------------------------------------------- |
-| `TTRPG_RULESET`      | Yes      | Comma-separated paths to Markdown ruleset files     |
+| `TTRPG_RULESET`      | No       | Build-time path list for single-ruleset fixture builds (Appendices B/N); the runtime host loads ruleset packages and never reads ruleset Markdown (REQ-389a, REQ-390) |
 | `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per §7.7.1a P45. |
