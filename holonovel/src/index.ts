@@ -314,7 +314,7 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
   for (const [, npc] of novel.npcs) {
     const goal = npc.personality?.goals;
     if (!goal || goal.length < vowSuggestionMinChars()) continue;
-    const alreadyVowed = novel.vows.some((v) => v.state === "active" && v.description.toLowerCase().includes(goal.toLowerCase()));
+    const alreadyVowed = novel.vows.some((v) => v.state === "active" && (v.description ?? "").toLowerCase().includes(goal.toLowerCase()));
     if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via vow (action: set) or ignore.`);
   }
 
@@ -325,7 +325,7 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
       const gTokens = g.toLowerCase().split(/\s+/).filter((t) => t.length > 3);
       const intersects = gTokens.some((t) => knownText.includes(t));
       if (!intersects) continue;
-      const alreadyVowed = novel.vows.some((v) => v.state === "active" && v.description.toLowerCase().includes(g.toLowerCase()));
+      const alreadyVowed = novel.vows.some((v) => v.state === "active" && (v.description ?? "").toLowerCase().includes(g.toLowerCase()));
       if (!alreadyVowed) out.push(`Faction-vow suggestion: ${f.name} seeks "${g}" — create a vow or ignore.`);
     }
   }

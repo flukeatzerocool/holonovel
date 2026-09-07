@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer coupling chains + advisory-sweep crash fix
+
+- Ported four §6.6 coupling sub-workflows to executed in the harness: S32
+  coupling chain (countdown world_effect → scene-transition fire → undofree
+  consequence), S35 narrative architecture (on_scene_transition countdown →
+  `[discovered]` consequence), S36 decision chain (vow ⇄ countdown + milestone
+  + NPC-goal vow suggestion), and S37 coupling advisory sweep
+  (secret/countdown, urgency, relationship-countdown advisories). Harness now
+  executes 15 sub-workflows, 0 blocking failures.
+- Fixed a server crash surfaced by S36: `collectCouplingAdvisories` (REQ-361/
+  362) called `.toLowerCase()` on an optional vow `description`
+  (`Cannot read properties of undefined`) — guarded with `(v.description ?? "")`.
+
 ## 2026-09-06 — Pattern Buffer Tranche A port + blocked register
 
 - Ported seven server-native §6.6 sub-workflows from `follow-on` to executed in
