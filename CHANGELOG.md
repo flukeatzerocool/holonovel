@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-07 — README guardrail: TOC feature-list exemption + RSS link + URL-level dedup
+
+- `scripts/validate-readme.ts`: the `checkFeatureLists` gate now exempts the
+  Table of contents (mandated by the README DESIGN comment) from the
+  no-feature-list rule, which previously flagged the TOC as a 13-item feature
+  list.
+- `scripts/validate-readme.ts`: the `checkExternalLinks` deduplication check
+  now counts exact URLs rather than domain hostnames, so distinct links on the
+  same domain (canonical origin, wiki, RSS feed) are no longer flagged as
+  duplicates.
+- `README.md`: the RSS link now points at the commit feed
+  (`…/Holonovel.rss`) instead of the repo root, which it duplicated with the
+  canonical-origin link.
+
 ## 2026-09-07 — Terminology disambiguation: Pattern Buffer families, Gauntlet/Inform/enrichment retirement
 
 - Retired the "Gauntlet" name from the implementation tree. `holonovel/scripts/run_gauntlet.ts` is now `run_pattern_buffer.ts` (the §6.6 Holonovel Pattern Buffer, sub-workflows I1–I18, emitting `pattern-buffer-manifest.json`), and the S1–S37 Ruleset suite moved to `run_ruleset_pattern_buffer.ts` (emitting `ruleset-pattern-buffer-manifest.json`). npm scripts are `test:pattern-buffer` and `test:pattern-buffer-ruleset`, both wired into `test:all`; harness headers now carry the discipline JSDoc (gate role, exit-code contract, REQ-141k/REQ-376a and REQ-108/141/208 citations).

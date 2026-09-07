@@ -162,8 +162,25 @@ function checkFeatureLists(text: string): Issue[] {
   const issues: Issue[] = [];
   const lists = extractBulletLists(text);
 
+  // The Table of contents is a bulleted list mandated by the README DESIGN
+  // comment — it is navigation, not a feature list. Exempt its line range.
+  const lines = text.split("\n");
+  let tocStart = -1;
+  let tocEnd = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().startsWith("## Table of contents")) {
+      tocStart = i + 1;
+      continue;
+    }
+    if (tocStart !== -1 && /^##\s/.test(lines[i])) {
+      tocEnd = i + 1;
+      break;
+    }
+  }
+
   for (const list of lists) {
     if (list.items.length >= 3) {
+      if (tocStart !== -1 && list.startLine >= tocStart && list.startLine < tocEnd) continue;
       issues.push({
         line: list.startLine,
         error: false,
@@ -254,19 +271,21 @@ function checkExternalLinks(text: string): Issue[] {
     return issues;
   }
 
-  const domains = new Map<string, number>();
+  const urlCounts = new Map<string, number>();
+  const domains = new Set<string>();
   for (const link of externals) {
     try {
       const url = new URL(link.url);
-      domains.set(url.hostname, (domains.get(url.hostname) || 0) + 1);
+      domains.add(url.hostname);
+      urlCounts.set(link.url, (urlCounts.get(link.url) || 0) + 1);
     } catch {
       issues.push({ line: link.line, error: false, msg: `Potentially malformed external URL '${link.url}' at line ${link.line}` });
     }
   }
 
-  for (const [domain, count] of domains) {
+  for (const [url, count] of urlCounts) {
     if (count > 1) {
-      issues.push({ error: false, msg: `Domain '${domain}' linked ${count} times — verify deduplication` });
+      issues.push({ error: false, msg: `URL '${url}' linked ${count} times — verify deduplication` });
     }
   }
 
