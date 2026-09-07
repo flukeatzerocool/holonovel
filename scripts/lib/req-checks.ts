@@ -48,3 +48,23 @@ export function checkTruncatedReqBodies(text: string): string[] {
   }
   return issues;
 }
+
+export function checkDecisionsCitations(text: string): string[] {
+  const issues: string[] = [];
+  const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+|^---\s*$/gm;
+  for (const h of text.matchAll(REQ_HEADER_RE)) {
+    const bodyStart = (h.index ?? 0) + h[0].length;
+    terminatorRe.lastIndex = bodyStart;
+    const t = terminatorRe.exec(text);
+    const body = t ? text.slice(bodyStart, t.index) : text.slice(bodyStart);
+    const citeRe = /DECISIONS\.md \((\d+)\)/g;
+    let c: RegExpExecArray | null;
+    while ((c = citeRe.exec(body)) !== null) {
+      const n = parseInt(c[1], 10);
+      if (n < 1 || n > 6) {
+        issues.push(`${h[1]}: DECISIONS.md section (${n}) is undefined — §9 enumerates sections (1)–(6)`);
+      }
+    }
+  }
+  return issues;
+}
