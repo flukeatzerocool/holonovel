@@ -1987,6 +1987,8 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
       novel.active_entity_id = args.entity_id;
       if (args.pov !== undefined) novel.pov_mode = args.pov;
+      state.saveNovel(novel);
+      audit("set_active_entity", { entity_id: args.entity_id, pov: novel.pov_mode });
       const mode = novel.pov_mode;
       return ok(`Active entity set to '${args.entity_id}'${mode === "omniscient" ? " (omniscient POV)" : ""}.`);
     }

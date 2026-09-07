@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-06 — Pattern Buffer restart infra + set_active persistence fix
+
+- Added harness restart support (a `restart` step kind that kills the server,
+  re-boots against the same `TTRPG_DATA_DIR`, and resumes via `TTRPG_NOVEL`),
+  then ported five sub-workflows: S5 combat state survival, S14 edge cases
+  (adversarial input, rapid calls, `spec_health` filtering), S22 workflow
+  validation (NEED_INPUT drain/cancel/restart + blocked gating), S26 narrative
+  POV (omniscient vs character-locked, restart persistence), and S34
+  entity-bearing chain (NPC memory facts across restart). Harness now executes
+  20 sub-workflows, 0 blocking failures.
+- Fixed a persistence bug surfaced by S26: `character (action: set_active)`
+  mutated `active_entity_id`/`pov_mode` in memory without `state.saveNovel`,
+  so POV mode and the active entity reset on restart — now persisted and
+  audited (`set_active_entity`).
+
 ## 2026-09-06 — Pattern Buffer coupling chains + advisory-sweep crash fix
 
 - Ported four §6.6 coupling sub-workflows to executed in the harness: S32
