@@ -10,8 +10,8 @@ the recorded evidence.
 The operator:
 
 1. Confirms the handoff verification workflow (§9) has passed; collects the four artifacts.
-2. Copies the artifacts to a clean directory and redacts DECISIONS.md's item (6)
-   (6) verification workflow evidence (replaced with a withheld marker).
+2. Copies the artifacts to a clean directory and redacts DECISIONS.md's item (6) — the
+   verification workflow evidence (replaced with a withheld marker).
 3. Launches a fresh agent session — a different model from the builder — with the clean
    directory, this document, and the verifier prompt below.
 4. When the verifier completes Phase 1, supplies the unredacted DECISIONS.md for Phase 2.
@@ -80,6 +80,8 @@ hash matches the commitment (REQ-275):
 | G4       | per-test pass/fail        | Exact match for each test ID; waived tests cite matching REQ-013 grounds |
 | G5       | per-sub-workflow verdicts | Per REQ-273 tolerance: blocking/non-blocking classification matches; seed-pinned dice match; structural match for prose |
 | G6       | per-module counts, tag presence | per-module active/inactive counts match within zero tolerance; all items carry source tags |
+| G7       | attestation points (a)–(c) | Structural match — each point present with required fields |
+| G8       | nine-step pass/fail       | Exact match on pass/fail per step                |
 
 9. Classify every mismatch:
     - Discrepancy: a field in the builder's evidence record contradicts the verifier's

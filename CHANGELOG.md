@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09-06 — Spec-review finding resolution (SR-1–SR-11)
+
+- Aligned the synthesis workflow's intake default across the three surfaces that
+  stated it: §11 (08-synthesis.md) and REQ-227a now defer to the §6.2 Q0
+  network-probe default (`build` offline, `build + synthesis (action: run)` when
+  network detected) instead of the stale "defaults to off/no" claims. (SR-1)
+- Repaired the assumption-audit record citation: REQ-101a, REQ-101c, and T89 now
+  point to DECISIONS.md section (4) (assumptions, normalizations, capabilities),
+  matching §9's six-section enumeration; the undefined "(0)" reference is gone. (SR-2)
+- Removed redundant default-value annotations from REQ-403b, REQ-405, and
+  REQ-337b, and reworded REQ-335b, so REQ bodies defer defaults to §7.6 rather
+  than restating them. (SR-3)
+- Rescoped §7.6 `TTRPG_RULESET` from Required "Yes" to "No": it is a build-time
+  fixture-path list, and the runtime host loads ruleset packages rather than
+  ruleset Markdown (REQ-389a, REQ-390). (SR-4)
+- Added `observer` to REQ-040c's badge-switch audit enumeration so it matches the
+  four-badge model (REQ-066). (SR-5)
+- Rewrote REQ-351b's acceptance criterion into an assertable at-most-once-window
+  condition instead of a bare setup instruction. (SR-6)
+- Enumerated G7's evidence home in §9 (the `narrative_coherence` attestation per
+  REQ-346) and added G7/G8 comparison rows to the §10 Phase-2 field table. (SR-7)
+- Editorial repairs: §6.6 sentence fragment, §10 duplicated "(6)", REQ-337a
+  escaped-quote artifacts, and REQ-336a duplicated ceiling clause. (SR-8–SR-11)
+
+No REQs added or removed; no state-model or tool-surface change — Editorial delta
+(REQ-419). Repaired REQ set: REQ-040c, REQ-101a/101c, REQ-227a, REQ-335b, REQ-336a,
+REQ-337b, REQ-351b, REQ-403b, REQ-405.
+
 ## 2026-09-06 — Builder-side evidence follow-through (three increments)
 
 - Conversion evidence is now verified by a runnable checker
