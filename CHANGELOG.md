@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-06 — Deferred validator backstops + REQ-429 derivation
+
+- Added two validate.ts structural checks: an evidence-home parity check (every §8
+  workflow G0a–G8 must have a declared evidence home in §9's DECISIONS enumeration,
+  with G7 special-cased to the `narrative_coherence` attestation per REQ-346), and a
+  DECISIONS-section citation resolver in `lib/req-checks.ts` (a `DECISIONS.md (N)`
+  citation in a REQ body must resolve to §9's sections (1)–(6)); both ship with unit
+  cases in `test-req-checks.ts` and pass silently on the current spec.
+- Recorded a REQ-429 derivation for the twenty-eight-tool budget: the budget tracks the
+  ruleset-free host's registered tool surface (25 infrastructure tools plus `fate`,
+  `ironsworn`, and `forged` base-capability tools), so it grows only when a host tool is
+  added. Editorial — REQ-429 body reworded, no scope change.
+- Rejected an acceptance-criterion assertability warning after a trial run: the
+  assertion-verb heuristic fired ~86 false positives against legitimate descriptive
+  criteria, so it was dropped rather than shipped as warning noise.
+- Completed a declared-scope sweep: every Quick Reference capability (dice, combat,
+  character management, rules lookup, narrative directives, dynamic lore, action
+  suggestions, voice examples, macros, scene-type tagging, audit compression,
+  scene-state tracking, NPC management, countdowns, session recap, hybrid adventure
+  modules, Ruleset Wisdom, world-model infrastructure, surface prominence, ruleset
+  packages, badges, observer/autonomy/presence, determinism, no-network) traces to a
+  citing REQ; no untraced claims found.
+
 ## 2026-09-06 — Spec-review finding resolution (SR-1–SR-11)
 
 - Aligned the synthesis workflow's intake default across the three surfaces that

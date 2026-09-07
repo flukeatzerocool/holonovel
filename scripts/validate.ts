@@ -21,6 +21,7 @@ import {
   checkReqIdGrammar,
   checkEmptyReqBodies,
   checkTruncatedReqBodies,
+  checkDecisionsCitations,
 } from "./lib/req-checks.js";
 
 const __dirname = import.meta.dirname;
@@ -340,6 +341,41 @@ function checkCrossRefs(text: string): string[] {
   }
   return issues;
 }
+
+// ─── Evidence-Home Parity ───────────────────────────────────────────────
+
+function checkEvidenceHomes(text: string): string[] {
+  const issues: string[] = [];
+  const sec8 = text.match(/## 8\. Verification Workflows[\s\S]*?(?=## 9\.)/)?.[0] ?? "";
+  const gateRe = /^\|\s*(G\d+[ab]?)\s+\|/gm;
+  const gates = new Set<string>();
+  let g: RegExpExecArray | null;
+  while ((g = gateRe.exec(sec8)) !== null) gates.add(g[1]);
+
+  const sec9 = text.match(/## 9\. Artifacts and Handoff[\s\S]*?(?=## 10\.)/)?.[0] ?? "";
+  const evidenceRe = /evidence-g(\d+[ab]?)/g;
+  const homes = new Set<string>();
+  let e: RegExpExecArray | null;
+  while ((e = evidenceRe.exec(sec9)) !== null) homes.add(e[1]);
+
+  for (const gate of gates) {
+    if (gate === "G7") {
+      if (!/narrative_coherence/.test(sec9)) {
+        issues.push("G7 has no declared evidence home in §9 (narrative_coherence attestation per REQ-346)");
+      }
+      continue;
+    }
+    const suffix = gate.replace(/^G/, "").toLowerCase();
+    if (!homes.has(suffix)) {
+      issues.push(`${gate} has no declared evidence home in §9 (missing @section evidence-${suffix})`);
+    }
+  }
+  return issues;
+}
+
+// ─── Acceptance-Criterion Assertability ─────────────────────────────────
+// (Rejected — the assertion-verb heuristic fired ~86 false positives against
+// legitimate descriptive acceptance criteria; not reliable enough to ship.)
 
 // ─── Assumption Audit (merged from audit-assumptions.ts) ────────────────
 
@@ -1711,6 +1747,10 @@ function main(): void {
   if (truncBodyIssues.length > 0) { for (const issue of truncBodyIssues) console.log(`ERROR: ${issue}`); errors += truncBodyIssues.length; }
   else console.log("PASS: No REQ bodies begin with a lowercase letter (truncated lead)");
 
+  const decisionsCiteIssues = checkDecisionsCitations(text);
+  if (decisionsCiteIssues.length > 0) { for (const issue of decisionsCiteIssues) console.log(`ERROR: ${issue}`); errors += decisionsCiteIssues.length; }
+  else console.log("PASS: All DECISIONS.md section citations resolve to §9 sections (1)–(6)");
+
   const blockIssues = checkReqBlocks(text);
   if (blockIssues.length > 0) { for (const issue of blockIssues) console.log(`ERROR: ${issue}`); errors += blockIssues.length; }
   else console.log("PASS: All requirement blocks follow canonical shape");
@@ -1748,6 +1788,13 @@ function main(): void {
     for (const issue of xrefIssues) console.log(`ERROR: ${issue}`);
     errors += xrefIssues.length;
   } else { console.log("PASS: No dangling citations or orphan REQs"); }
+
+  console.log("\n=== EVIDENCE-HOME PARITY ===\n");
+  const evidenceIssues = checkEvidenceHomes(text);
+  if (evidenceIssues.length > 0) {
+    for (const issue of evidenceIssues) console.log(`ERROR: ${issue}`);
+    errors += evidenceIssues.length;
+  } else { console.log("PASS: Every §8 workflow has a declared evidence home in §9"); }
 
   console.log("\n=== ASSUMPTION AUDIT ===\n");
   const assumptionIssues = checkAssumptions(text);

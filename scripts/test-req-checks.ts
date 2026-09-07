@@ -3,7 +3,7 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations } from "./lib/req-checks.js";
 
 let passed = 0;
 let failed = 0;
@@ -61,6 +61,20 @@ test("truncated lower-case lead clause detected", () => {
 test("REQ ID grammar rejects bare-digit suffix", () => {
   const issues = checkReqIdGrammar("Refer to REQ-903 without more. Also REQ-001.");
   if (issues.length !== 0) throw new Error(`unexpected grammar issues: ${JSON.stringify(issues)}`);
+});
+
+test("DECISIONS.md (0) citation is flagged", () => {
+  const text = "**REQ-904a — Cites undefined section (Part a).**\nThe builder records in DECISIONS.md (0) the audit. _Check:_ T996.";
+  const issues = checkDecisionsCitations(text);
+  if (!issues.some(i => i.includes("REQ-904a"))) {
+    throw new Error(`expected REQ-904a DECISIONS.md (0) flag; got: ${JSON.stringify(issues)}`);
+  }
+});
+
+test("DECISIONS.md (5) citation passes", () => {
+  const text = "**REQ-905a — Cites valid section (Part a).**\nThe builder records in DECISIONS.md (5) the waiver. _Check:_ T995.";
+  const issues = checkDecisionsCitations(text);
+  if (issues.length !== 0) throw new Error(`unexpected citation issues: ${JSON.stringify(issues)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
