@@ -34,7 +34,8 @@ const jsonOut = process.argv.includes("--json");
 type ToolAction = { kind: "tool"; name: string; args: Record<string, unknown> | (() => Record<string, unknown>) };
 type ResourceAction = { kind: "resource"; uri: string | (() => string) };
 type PromptAction = { kind: "prompt"; name: string; args: Record<string, string> };
-type PBAction = ToolAction | ResourceAction | PromptAction;
+type RestartAction = { kind: "restart"; resume?: string; env?: Record<string, string> };
+type PBAction = ToolAction | ResourceAction | PromptAction | RestartAction;
 
 interface PBStep { label: string; action: PBAction; assert: (r: string) => void; }
 
@@ -100,8 +101,10 @@ async function doAction(proc: ChildProcess, action: PBAction): Promise<string> {
     resp = await send(proc, { method: "tools/call", params: { name: action.name, arguments: args } });
   } else if (action.kind === "resource") {
     resp = await send(proc, { method: "resources/read", params: { uri: typeof action.uri === "function" ? action.uri() : action.uri } });
-  } else {
+  } else if (action.kind === "prompt") {
     resp = await send(proc, { method: "prompts/get", params: { name: action.name, arguments: action.args } });
+  } else {
+    throw new Error("restart action must be handled by the runner loop, not doAction");
   }
   if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
   const content = resp.result?.content ?? resp.result?.contents ?? resp.result?.messages ?? [];
@@ -111,8 +114,9 @@ async function doAction(proc: ChildProcess, action: PBAction): Promise<string> {
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 const T = (name: string, args: Record<string, unknown> | (() => Record<string, unknown>) = {}): ToolAction => ({ kind: "tool", name, args });
-const R = (uri: string): ResourceAction => ({ kind: "resource", uri });
+const R = (uri: string | (() => string)): ResourceAction => ({ kind: "resource", uri });
 const P = (name: string, args: Record<string, string> = {}): PromptAction => ({ kind: "prompt", name, args });
+const RS = (resume?: string, env?: Record<string, string>): RestartAction => ({ kind: "restart", resume, env });
 
 // ── Assertions ─────────────────────────────────────────────────────
 
@@ -165,7 +169,7 @@ function buildRegister(): PBSubworkflow[] {
     skip("S2", "Character creation workflow", true, "step-by-step and quick creation; derived stats; roster import; undo; no-active-Novel conflict"),
     skip("S3", "Encounter setup", false, "combat init reports round counter, turn order, participant classification"),
     skip("S4", "Simulated combat session", true, "≥3-round deterministic combat; roll transparency; undo; identical seed → identical sequence"),
-    followOn("S5", "Combat state survival", true, "HP/conditions/round counter restored after restart (tool-observable surfaces)"),
+    { s_id: "S5", name: "Combat state survival", objective: "HP/conditions/round counter restored after restart (tool-observable surfaces)", blocking: true, mode: "execute", steps: S5_STEPS },
     { s_id: "S6", name: "Cross-badge boundary enforcement", objective: "GM-only tools blocked from Player; no GM-only content leaks", blocking: true, mode: "execute", steps: S6_STEPS },
     skip("S7", "Table generation sweep", false, "every generation table produces valid results; GM-only tables blocked from Player"),
     skip("S8", "Search and canonical lookup", false, "exact/prefix/substring search; canonical lookup; NOT_FOUND enumeration"),
@@ -174,7 +178,7 @@ function buildRegister(): PBSubworkflow[] {
     stub("S11", "Workflow cancellation", false, "S20"),
     { s_id: "S12", name: "Roster durability", objective: "roster baselines immutable; re-import produces fresh copy matching baseline", blocking: true, mode: "execute", steps: S12_STEPS },
     { s_id: "S13", name: "Novel isolation", objective: "entities, adventures, generated content do not leak between Novels", blocking: true, mode: "execute", steps: S13_STEPS },
-    followOn("S14", "Edge cases", true, "0 HP; heal cap; rapid calls; ambiguous alias; unknown decision; seed determinism; spec_health filtering; adversarial input"),
+    { s_id: "S14", name: "Edge cases", objective: "rapid calls; adversarial input; spec_health filtering; unknown decision", blocking: true, mode: "execute", steps: S14_STEPS },
     followOn("S15", "Stress and recovery", true, "two-connection concurrency; corruption WARNING; rapid badge alternation; 50-round combat; direct file-read assertions"),
     { s_id: "S16", name: "Narrative state", objective: "scene/NPC/countdown/lore/briefing end-to-end with deterministic seeds", blocking: false, mode: "execute", steps: S16_STEPS },
     { s_id: "S17", name: "Novel lifecycle and persistence", objective: "create/resume/switch/end; state persists; ended Novel blocks resume", blocking: true, mode: "execute", steps: S17_STEPS },
@@ -182,11 +186,11 @@ function buildRegister(): PBSubworkflow[] {
     { s_id: "S19", name: "Badge briefing correctness", objective: "Player vs GM content filtering; briefing adapts to scene type", blocking: true, mode: "execute", steps: S19_STEPS },
     { s_id: "S20", name: "Lorebook interchange", objective: "export → modify → import dry-run/merge/replace cycle", blocking: true, mode: "execute", steps: S20_STEPS },
     followOn("S21", "Campaign endurance", true, "30-round endurance; audit-log hash chain; recap; ≤5 MB Novel"),
-    followOn("S22", "Workflow validation", true, "NEED_INPUT drain/cancel/restart; blocked gating during pending workflow"),
+    { s_id: "S22", name: "Workflow validation", objective: "NEED_INPUT drain/cancel/restart; blocked gating during pending workflow", blocking: true, mode: "execute", steps: S22_STEPS },
     followOn("S23", "Narrative features sweep", true, "save/get_context; factions; secrets; choices; relationships; notes; clock taxonomy"),
     followOn("S24", "Session segmentation and audit compaction", false, "session-boundary markers; per-session recap; compaction + archive"),
     followOn("S25", "State durability: backups, checkpoints, clones", true, "rotated backups; corruption restore; checkpoint cycle; clone independence"),
-    followOn("S26", "Narrative POV", true, "set_active POV directive; omniscient vs character-locked; restart persistence"),
+    { s_id: "S26", name: "Narrative POV", objective: "set_active POV directive; omniscient vs character-locked; restart persistence", blocking: true, mode: "execute", steps: S26_STEPS },
     followOn("S27", "Synthesis lifecycle + Wisdom mechanical enactment", true, "toggle/revert; Wisdom P6/P7/P10; deactivate/reactivate"),
     { s_id: "S28", name: "Briefing ordering, voice examples, session notation", objective: "briefing_order; voice examples; lonelog format", blocking: false, mode: "execute", steps: S28_STEPS },
     { s_id: "S29", name: "Novel export/import cycle", objective: "export/import dry-run/replace round-trip; lore-only; strict broken-reference", blocking: true, mode: "execute", steps: S29_STEPS },
@@ -194,7 +198,7 @@ function buildRegister(): PBSubworkflow[] {
     blocked("S31", "Dynamic tool registration", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
     { s_id: "S32", name: "Coupling chain exercise", objective: "countdown ⇄ world_effect ⇄ scene-transition ⇄ lore trigger chain + fire", blocking: true, mode: "execute", steps: S32_STEPS },
     followOn("S33", "Wisdom mechanical enactment", true, "P6/P7/P10 auto-population; deactivate/reactivate behavior"),
-    followOn("S34", "Entity-bearing chain exercise", false, "NPC co-presence relationship; secrets; memory facts across restart"),
+    { s_id: "S34", name: "Entity-bearing chain exercise", objective: "NPC memory facts across restart; relationship flip", blocking: false, mode: "execute", steps: S34_STEPS },
     { s_id: "S35", name: "Narrative architecture chain exercise", objective: "on_scene_transition countdown; discovered consequence; pacing signals", blocking: false, mode: "execute", steps: S35_STEPS },
     { s_id: "S36", name: "Decision chain exercise", objective: "vow ⇄ countdown; milestone advance; NPC-goal vow suggestion", blocking: false, mode: "execute", steps: S36_STEPS },
     { s_id: "S37", name: "Coupling advisory sweep", objective: "advisory sweep across countdown scope, secrets, vows, relationships, factions, notes", blocking: false, mode: "execute", steps: S37_STEPS },
@@ -381,10 +385,91 @@ const S37_STEPS: PBStep[] = [
   } },
 ];
 
+const S5_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-combat" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity A", action: T("character", { action: "create", name: "Ala" }), assert: (r) => { assertOK(r, "a "); capture("alaId", /Entity id (\S+?)\./)(r); } },
+  { label: "entity B", action: T("character", { action: "create", name: "Bara" }), assert: (r) => { assertOK(r, "b "); capture("baraId", /Entity id (\S+?)\./)(r); } },
+  { label: "combat init (seed)", action: T("combat", () => ({ action: "init", participants: [captured.alaId, captured.baraId], dangers: [{ name: "Grunt", hp: 5, ac: 12 }], seed: "s5" })), assert: (r) => assertContains(r, "Combat started", "init ") },
+  { label: "advance a turn", action: T("combat", { action: "advance" }), assert: assertOK },
+  { label: "status reports round + danger", action: T("combat", { action: "status" }), assert: (r) => { assertContains(r, "Grunt", "status-danger "); assertContains(r, "round", "status-round "); } },
+  { label: "restart (same data dir, resume novel)", action: RS("pb-combat"), assert: assertOK },
+  { label: "combat state survives restart", action: T("combat", { action: "status" }), assert: (r) => { assertContains(r, "Grunt", "survive-danger "); assertContains(r, "\"active\": true", "survive-active "); } },
+];
+
+const S14_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-edge" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "adversarial scene (SQL injection)", action: T("scene", { action: "set", description: "Robert'; DROP TABLE novels;-- the gate" }), assert: (r) => assertContains(r, "DROP TABLE novels", "sql-echo ") },
+  { label: "rapid countdown advances (5×)", action: T("countdown", { action: "set", name: "Ticker", ticks: 10 }), assert: assertOK },
+  { label: "advance 1", action: T("countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
+  { label: "advance 2", action: T("countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
+  { label: "advance 3", action: T("countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
+  { label: "advance 4", action: T("countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
+  { label: "advance 5", action: T("countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
+  { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+  { label: "spec_health player-filtered", action: T("session", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health-filter ") },
+];
+
+const S22_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-workflow" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "end novel → NEED_INPUT", action: T("novel", { action: "end" }), assert: (r) => assertContains(r, "NEED_INPUT", "wf-open ") },
+  { label: "set_badge during pending → blocked", action: T("set_badge", { badge: "player" }), assert: (r) => assertContains(r, "STATE_CONFLICT", "wf-badge ") },
+  { label: "second workflow → STATE_CONFLICT", action: T("character", { action: "create" }), assert: (r) => assertContains(r, "STATE_CONFLICT", "wf-second ") },
+  { label: "cancel restores state", action: T("respond", { decision: "end novel", option: "cancel" }), assert: (r) => assertContains(r, "cancelled", "wf-cancel ") },
+  { label: "re-open end workflow", action: T("novel", { action: "end" }), assert: (r) => assertContains(r, "NEED_INPUT", "wf-reopen ") },
+  { label: "restart (pending workflow survives)", action: RS("pb-workflow"), assert: assertOK },
+  { label: "drain pending workflow after restart", action: T("respond", { decision: "end novel", option: "yes" }), assert: (r) => assertContains(r, "ended", "wf-drain ") },
+];
+
+const S26_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-pov" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity 1 (active)", action: T("character", { action: "create", name: "Finn" }), assert: (r) => { assertOK(r, "f "); capture("finnId", /Entity id (\S+?)\./)(r); } },
+  { label: "entity 2", action: T("character", { action: "create", name: "Pia" }), assert: (r) => { assertOK(r, "p "); capture("piaId", /Entity id (\S+?)\./)(r); } },
+  { label: "character POV directive", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Finn's eyes", "pov-char ") },
+  { label: "omniscient POV", action: T("character", () => ({ action: "set_active", entity_id: captured.piaId, pov: "omniscient" })), assert: assertOK },
+  { label: "omniscient directive", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "omniscient", "pov-omni ") },
+  { label: "restart (POV mode persists)", action: RS("pb-pov"), assert: assertOK },
+  { label: "POV still omniscient after restart", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "omniscient", "pov-persist ") },
+  { label: "switch back to character POV", action: T("character", () => ({ action: "set_active", entity_id: captured.piaId, pov: "character" })), assert: assertOK },
+  { label: "character-locked directive", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Pia's eyes", "pov-locked ") },
+];
+
+const S34_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-memory" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity", action: T("character", { action: "create", name: "Mara" }), assert: (r) => { assertOK(r, "m "); capture("maraId", /Entity id (\S+?)\./)(r); } },
+  { label: "NPC", action: T("npc", { action: "create", name: "Keeper" }), assert: (r) => { assertOK(r, "k "); capture("keeperId", /created \((npc_\w+)\)/)(r); } },
+  { label: "combat with NPC (records memory)", action: T("combat", () => ({ action: "init", participants: [captured.maraId, captured.keeperId] })), assert: assertOK },
+  { label: "advance to NPC turn (records memory)", action: T("combat", { action: "advance" }), assert: assertOK },
+  { label: "restart (memory facts survive)", action: RS("pb-memory"), assert: assertOK },
+  { label: "NPC memory persists in briefing", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Keeper", "mem-persist ") },
+];
+
 // ── Runner ─────────────────────────────────────────────────────────
 
 function log(msg: string) {
   if (!jsonOut) console.log(msg);
+}
+
+let proc: ChildProcess | null = null;
+let currentEnv: Record<string, string> = {};
+
+async function bootServer(envOverrides: Record<string, string> = {}): Promise<ChildProcess> {
+  if (proc) { try { proc.kill(); } catch { /* already gone */ } proc = null; }
+  currentEnv = { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...envOverrides };
+  const p = spawn("npx", ["tsx", SERVER_SCRIPT], {
+    env: currentEnv,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  attach(p);
+  proc = p;
+  await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "holonovel-pattern-buffer", version: "1.0.0" } } });
+  p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+  await sleep(400);
+  return p;
 }
 
 async function main() {
@@ -396,15 +481,7 @@ async function main() {
   try { rmSync(DATA_DIR, { recursive: true }); } catch { /* fresh */ }
   mkdirSync(DATA_DIR, { recursive: true });
 
-  const proc = spawn("npx", ["tsx", SERVER_SCRIPT], {
-    env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  attach(proc);
-
-  await send(proc, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "holonovel-pattern-buffer", version: "1.0.0" } } });
-  proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
-  await sleep(400);
+  proc = await bootServer({});
 
   const register = buildRegister();
   const verdicts: PBVerdict[] = [];
@@ -420,7 +497,15 @@ async function main() {
     const verdict: PBVerdict = { s_id: sw.s_id, name: sw.name, blocking: sw.blocking, status: "PASS" };
     try {
       for (const step of sw.steps!) {
-        const response = await doAction(proc, step.action);
+        let response: string;
+        if (step.action.kind === "restart") {
+          const env: Record<string, string> = { ...(step.action.env ?? {}) };
+          if (step.action.resume) env.TTRPG_NOVEL = step.action.resume;
+          proc = await bootServer(env);
+          response = "[restarted]";
+        } else {
+          response = await doAction(proc!, step.action);
+        }
         step.assert(response);
       }
     } catch (e: any) {
@@ -433,10 +518,10 @@ async function main() {
     if (verdict.failure) log(`  Failure: ${verdict.failure.error.split("\n")[0]}`);
 
     // Best-effort cleanup between sub-workflows.
-    try { await doAction(proc, T("novel", { action: "end" })); await doAction(proc, T("respond", { decision: "end novel", option: "yes" })); } catch { /* safe to ignore */ }
+    try { await doAction(proc!, T("novel", { action: "end" })); await doAction(proc!, T("respond", { decision: "end novel", option: "yes" })); } catch { /* safe to ignore */ }
   }
 
-  proc.kill();
+  proc?.kill();
 
   const failed = verdicts.filter((v) => v.status === "FAIL");
   const passed = verdicts.filter((v) => v.status === "PASS").length;
