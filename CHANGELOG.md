@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-07 — Terminology disambiguation: Pattern Buffer families, Gauntlet/Inform/enrichment retirement
+
+- Retired the "Gauntlet" name from the implementation tree. `holonovel/scripts/run_gauntlet.ts` is now `run_pattern_buffer.ts` (the §6.6 Holonovel Pattern Buffer, sub-workflows I1–I18, emitting `pattern-buffer-manifest.json`), and the S1–S37 Ruleset suite moved to `run_ruleset_pattern_buffer.ts` (emitting `ruleset-pattern-buffer-manifest.json`). npm scripts are `test:pattern-buffer` and `test:pattern-buffer-ruleset`, both wired into `test:all`; harness headers now carry the discipline JSDoc (gate role, exit-code contract, REQ-141k/REQ-376a and REQ-108/141/208 citations).
+- Renamed the holonovel server's MCP name from `inform-holonovel` to `holonovel`, the `help` title string, and the package keyword; retired the "enrichment" implementation vocabulary (`enrichment.ts`, `enrichmentManifest`, `DEFAULT_ENRICHMENT`, `startup_probes.enrichment`) in favor of "Ruleset Wisdom" (`wisdom.ts`, `wisdomManifest`, `DEFAULT_WISDOM`), matching §11.4 and the spec's own Enrichment→Synthesis/Wisdom renames.
+- Spec (editorial, no version bump): family-qualified the §4 Pattern Buffer term (Ruleset S1–S37 vs Holonovel I1–I18, with the pre-2026-08-10 "Gauntlet" noted as retired); added Session (four senses) and Content-tier glossary rows; scoped the §7.7 Synthesis property-table row so `synthesis (action: revert)` removes only `[supplementary]` items, not `[ruleset]`/`[vendor]` Ruleset Wisdom; reconciled the `[content source]` sentinel between §7.7.0 prose and REQ-374a; changed "Inform parser commands" to "world-model parser commands" (REQ-306c); added Appendix R rows for `gauntlet`/`Inform Gauntlet`, `inform-holonovel`, and `enrichment`. Parked B3/B4/C in the review register.
+
 ## 2026-09-06 — Conversion-evidence gate scoped to its DECISIONS section
 
 - Scoped the `converterPin` detection in `holonovel/scripts/check-conversion-evidence.ts`

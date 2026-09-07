@@ -1,7 +1,7 @@
-// Enrichment Manifest — Tier 1 vendor + ruleset-native enrichment
+// Ruleset Wisdom manifest — §11.4 vendor content, Tier 1 provenance
 // REQ-080: additive only, never modifies mechanics
-// REQ-225: Tier 1 enrichment — vendor content processed at build time
-// REQ-227: Tier 1 (ruleset-native + vendor, never removed by revert_synthesis)
+// REQ-225: Ruleset Wisdom — vendor content processed at build time
+// REQ-227: Tier 1 (ruleset-native + vendor, never removed by synthesis revert)
 
 import * as fs from "fs";
 
@@ -9,7 +9,7 @@ const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
 ).version;
 
-export interface EnrichmentItem {
+export interface WisdomItem {
   content: string;
   source_url: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
@@ -36,23 +36,23 @@ export interface NarrativeVoice {
   badge_scope: "player" | "game_master" | "shared";
 }
 
-export interface EnrichmentManifest {
+export interface WisdomManifest {
   collected_at: string;
   spec_version: string;
-  voice_examples: EnrichmentItem[];
+  voice_examples: WisdomItem[];
   briefing_order: { sections: string[]; reason: string; source_url: string; confidence: string };
-  lore_templates: EnrichmentItem[];
+  lore_templates: WisdomItem[];
   action_patterns: ActionPattern[];
-  supplementary_guidance: EnrichmentItem[];
+  supplementary_guidance: WisdomItem[];
   adventure_advice: {
-    templates: EnrichmentItem[];
-    scenario_starters: EnrichmentItem[];
-    table_expansions: EnrichmentItem[];
+    templates: WisdomItem[];
+    scenario_starters: WisdomItem[];
+    table_expansions: WisdomItem[];
   };
   narrative_voices: NarrativeVoice[];
 }
 
-export const DEFAULT_ENRICHMENT: EnrichmentManifest = {
+export const DEFAULT_WISDOM: WisdomManifest = {
   collected_at: new Date().toISOString(),
   spec_version: SPEC_VERSION,
   voice_examples: [

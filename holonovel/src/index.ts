@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Inform MCP Server — Ruleset-Free Holonovel Build
+// Holonovel MCP Server — Ruleset-Free Holonovel Build
 // REQ-001, REQ-020, REQ-022, REQ-023, REQ-195 through REQ-202, REQ-218, REQ-219
 // §5.8 scene-transition hook (REQ-125); §5.12 narrative architecture:
 // REQ-335, REQ-336, REQ-337, REQ-338, REQ-339, REQ-340, REQ-341, REQ-342,
@@ -20,7 +20,7 @@ import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
 } from "./core/server.js";
-import { DEFAULT_ENRICHMENT } from "./core/enrichment.js";
+import { DEFAULT_WISDOM } from "./core/wisdom.js";
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
@@ -44,7 +44,7 @@ import { deriveAnchor } from "./core/anchors.js";
 // ── Constants ──────────────────────────────────────────────────────
 //
 // REQ-051 — no runtime network access: the server performs no outbound network
-// calls; all content is drawn from indexed ruleset data and vendor enrichment.
+// calls; all content is drawn from indexed ruleset data and vendor Ruleset Wisdom.
 
 const __filename = new URL(import.meta.url).pathname;
 const __dirname = path.dirname(__filename);
@@ -76,8 +76,8 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 // ── Server ─────────────────────────────────────────────────────────
 
 const server = new McpServer({
-  name: "inform-holonovel",
-  version: "2026.09.06",
+  name: "holonovel",
+  version: "2026.09.07",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -1732,7 +1732,7 @@ server.registerTool("help", {
   }
 
   const builderCategories = BUILDER_CATEGORIES;
-  let result = "## Inform MCP Server\n\n### Tool Categories\n\n";
+  let result = "## Holonovel MCP Server\n\n### Tool Categories\n\n";
   for (const [cat, tools] of Object.entries(builderCategories)) {
     let displayTools = [...tools];
     if (!isGM) {
@@ -3659,8 +3659,8 @@ server.registerTool("lore", {
     case "suggest": {
       requireGM();
       const novel = requireNovel();
-      const templates = state.enrichmentManifest?.lore_templates ?? [];
-      if (templates.length === 0) return ok("No lore templates available (enrichment not loaded).");
+      const templates = state.wisdomManifest?.lore_templates ?? [];
+      if (templates.length === 0) return ok("No lore templates available (Ruleset Wisdom not loaded).");
       const sample = templates.slice(0, 3).map((t: any) => `- ${t.content?.substring(0, 120)}${(t.content?.length ?? 0) > 120 ? "..." : ""}`);
       return raw(sample.join("\n"));
     }
@@ -4926,7 +4926,7 @@ server.registerTool("adventure", {
         if (!forced) return warn(`Generation guard: ${guardConcern} Please clarify or modify the premise (prefix with !force to override).`);
         audit("generation-guard-overridden", { premise: args.premise.slice(0, 80), concern: guardConcern });
       }
-      const advice = state.enrichmentManifest?.adventure_advice ?? DEFAULT_ENRICHMENT.adventure_advice;
+      const advice = state.wisdomManifest?.adventure_advice ?? DEFAULT_WISDOM.adventure_advice;
       const templates = advice.templates ?? [];
       const starters = advice.scenario_starters ?? [];
       const tableExpansions = advice.table_expansions ?? [];
@@ -5060,8 +5060,8 @@ server.registerTool("adventure", {
         novel.adventure_set = true;
         state.saveNovel(novel);
         audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things });
-        const synthVoice = (state.enrichmentManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
-        const synthLore = (state.enrichmentManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
+        const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
+        const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
         const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
         return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}`);
       }
@@ -5857,13 +5857,13 @@ function buildSpecHealth(): Record<string, unknown> {
     // markers, badge-filtered (Player sees timespans without session ids).
     sessions: novel ? (isGM ? novel.metadata.sessions : novel.metadata.sessions.map((s) => ({ session_id: undefined, entry_count: s.entry_count, timespan_start: s.timespan_start, timespan_end: s.timespan_end }))) : undefined,
     synthesis_active,
-    synthesis_status: { modules: synthesisCounts, last_run: state.enrichmentManifest?.collected_at ?? null },
+    synthesis_status: { modules: synthesisCounts, last_run: state.wisdomManifest?.collected_at ?? null },
     synthesis_health: {
       synthesis_active,
       module_counts: synthesisCounts,
       stale_count: 0,
       activated_count: novel ? (novel.synthesis_activated ? Object.values(novel.synthesis_activated).reduce<number>((a, b) => a + (typeof b === "number" ? b : 0), 0) : 0) : 0,
-      fingerprint: state.enrichmentManifest ? SPEC_HASH : "",
+      fingerprint: state.wisdomManifest ? SPEC_HASH : "",
     },
     audit_chain: novel ? state.verifyAuditChain(novel) : null, // REQ-169
     safety_protocols: { // REQ-269 — safety protocol status per property.
@@ -5925,7 +5925,7 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-263 — synthesis auto-trigger threshold (visible).
     synthesis_auto_trigger: process.env.TTRPG_SYNTHESIS_AUTO_TRIGGER ?? "off",
     // REQ-266 — last synthesis run timestamp.
-    synthesis_last_run: state.enrichmentManifest?.collected_at ?? null,
+    synthesis_last_run: state.wisdomManifest?.collected_at ?? null,
     campaign_memory: novel ? {
       npcs: (novel.campaign_memory ?? []).filter((f) => f.category === "npcs").length,
       threads: (novel.campaign_memory ?? []).filter((f) => f.category === "threads").length,
@@ -5937,7 +5937,7 @@ function buildSpecHealth(): Record<string, unknown> {
     narration_rejection_count: narrationRejectionCount,
     // REQ-417 — non-blocking startup probes: startup completes without awaiting
     // slow probes; probe state reported as pending then completed.
-    startup_probes: { ruleset_scan: "completed", enrichment: "completed" }, // REQ-417
+    startup_probes: { ruleset_scan: "completed", wisdom: "completed" }, // REQ-417
     // REQ-413 — action-discriminator tools; REQ-414 — nested-form input count;
     // REQ-415 — active catalog verbosity (summary default, detail on request).
     catalog_verbosity: enumerationVerbosity,
@@ -6407,7 +6407,7 @@ server.registerResource("constraints-active", "constraints://active", { title: "
 
 // Lore templates (REQ-159)
 server.registerResource("lore-templates", "lore://templates", { title: "Lore Templates" }, async () => {
-  const templates = state.enrichmentManifest?.lore_templates ?? [];
+  const templates = state.wisdomManifest?.lore_templates ?? [];
   return { contents: [{ uri: "lore://templates", text: JSON.stringify(templates, null, 2), mimeType: "application/json" }] };
 });
 
@@ -6421,7 +6421,7 @@ server.registerResource("guidance-gm-foundations", "guidance://game_master/found
 
 // Synthesis status + per-module resources (REQ-230, REQ-160)
 function synthesisModuleCounts(): Record<string, { total: number; activated: number }> {
-  const manifest = state.enrichmentManifest;
+  const manifest = state.wisdomManifest;
   const modules = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
   const out: Record<string, { total: number; activated: number }> = {};
   for (const m of modules) out[m] = { total: 0, activated: 0 };
@@ -6440,7 +6440,7 @@ function synthesisModuleCounts(): Record<string, { total: number; activated: num
 // REQ-226 — narrative voice profiles: media-cited narrative voice profiles
 // stored at synthesis://narrative_voices; ruleset-free/vendor-absent → empty.
 server.registerResource("synthesis-narrative-voices", "synthesis://narrative_voices", { title: "Narrative Voice Profiles" }, async () => {
-  const profiles = (state.enrichmentManifest?.narrative_voices ?? DEFAULT_ENRICHMENT.narrative_voices) ?? [];
+  const profiles = (state.wisdomManifest?.narrative_voices ?? DEFAULT_WISDOM.narrative_voices) ?? [];
   const list = (Array.isArray(profiles) ? profiles : []).map((p: any) => `## ${p?.name ?? "voice"}\n${p?.description ?? ""}`).join("\n\n");
   return { contents: [{ uri: "synthesis://narrative_voices", text: `# Narrative Voice Profiles\n\n${list || "(no profiles — module empty)"}`, mimeType: "text/markdown" }] };
 });
@@ -6631,7 +6631,7 @@ const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementar
 // deactivate/toggle/player_add/player_remove/player_list surface.
 server.registerTool("synthesis", {
   title: "Synthesis",
-  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other enrichment). Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use codex (action: list).",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use codex (action: list).",
   inputSchema: {
     action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, or player_list."),
     module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list)."),
@@ -6649,10 +6649,10 @@ server.registerTool("synthesis", {
       requireGM();
       const novel = requireNovel();
       if (state.enriched && !args.force) {
-        return ok(`Synthesis up to date (${state.enrichmentManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
+        return ok(`Synthesis up to date (${state.wisdomManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
       }
       state.enriched = true;
-      state.enrichmentManifest = DEFAULT_ENRICHMENT;
+      state.wisdomManifest = DEFAULT_WISDOM;
       state.saveNovel(novel);
       const counts = synthesisModuleCounts();
       return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
@@ -6661,12 +6661,12 @@ server.registerTool("synthesis", {
       requireGM();
       const novel = requireNovel();
       state.enriched = false;
-      state.enrichmentManifest = null;
+      state.wisdomManifest = null;
       state.saveNovel(novel);
-      return ok("Enrichment state reverted. Server state restored to pre-enrich baseline.");
+      return ok("Synthesis state reverted. Server state restored to pre-synthesis baseline.");
     }
     case "list": {
-      const manifest = state.enrichmentManifest;
+      const manifest = state.wisdomManifest;
       if (!manifest) return ok("No synthesis items (synthesis not run).");
       const all = [
         ...(manifest.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
@@ -6889,7 +6889,7 @@ You are in the story. Confine tool use and responses to the current Novel. To st
   // empty section when none are active.
   if (badge === "game_master" && state.enriched) {
     const synthLines: string[] = [];
-    const manifest = state.enrichmentManifest;
+    const manifest = state.wisdomManifest;
     if (manifest?.voice_examples?.length) synthLines.push(`[supplementary] [MEDIUM] voice examples: ${manifest.voice_examples.length}`);
     if (manifest?.lore_templates?.length) synthLines.push(`[supplementary] [MEDIUM] lore templates: ${manifest.lore_templates.length}`);
     if (manifest?.action_patterns?.length) synthLines.push(`[supplementary] [MEDIUM] action patterns: ${manifest.action_patterns.length}`);

@@ -377,10 +377,11 @@ do not alter meaning are editorial and do not require a version bump.
 |               | instance; one active per connection. Isolated from other Novels.                  |
 | Connection     | One MCP transport lifecycle; born at startup, dies at close. No persistent   |
 |                | state of its own — Novel state and audit log survive the connection.         |
+| Session        | A term with four senses, disambiguated by context. As a state tier (§7.7), the ephemeral connection scoping discarded on restart or Novel switch. As a Holodeck archetype (§7.7.0), content scoped to the operator's presence (GM Context, Notes, Narrative Directive, Voice Feedback). As a tool, the `session` tool (`session (action: recap)`, `session (action: health)`, `session (action: briefing_order)`). In prose, "the active play session" means the Story. |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
 | Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P54) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
-| Pattern Buffer         | Operational verification suite (§6.6) — 37 sub-workflows against a running server. |
+| Pattern Buffer         | The §6.6 operational verification suite, in two families: the Ruleset Pattern Buffer (sub-workflows S1–S37) gates ruleset (TTRPG) builds; the Holonovel Pattern Buffer (sub-workflows I1–I18) gates the holonovel host package. Named "the Gauntlet" in revisions before 2026-08-10; that term is retired (Appendix R). |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
 | Computer      | The system persona. The server answers to "Computer" — the Holodeck's voice. The canonical name for the MCP server in all user-facing surfaces. The registered MCP server name is operator-chosen (B6), defaulting to `[game_name]-holonovel`. |
@@ -389,6 +390,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Ruleset Wisdom | Build-time-extracted play guidance from the ruleset's own text (voice examples, action patterns, lore templates, pacing, encounter seeds). Not the D&D ability score — the name references the ruleset as the source of play wisdom. Tagged `[ruleset]` or `[vendor]` (REQ-225, REQ-371). |
 | Clock          | A display synonym for a countdown — faction clocks, vow-coupled countdowns, and narrative timers. The tool/state mechanism is named "countdown"; "clock" describes the same device in prose (REQ-073, REQ-233, REQ-322). |
 | Provenance tier | The source-of-truth classification of indexed or synthesized content: `[ruleset]` (Tier 1) and `[vendor]` (Tier 1 — Ruleset Wisdom vendor content), `[supplementary]` (Tier 2 — synthesis, external and internal), and `[player]` (player-authored). "Tier 1/2" is display shorthand for these tags. |
+| Content tier | The REQ-100 ruleset-size classification — Light (<100 indexed items), Standard (100–500), Heavy (500–2000), Huge (2000+) — that adjusts chunking and confidence thresholds. Distinct from provenance tier (`[ruleset]`/`[vendor]`/`[supplementary]`/`[player]` tags) and from the three confidence tiers (HIGH/MEDIUM/LOW). |
 | Waiver           | Recorded acceptance of a REQ deviation with justification and re-activation condition. REQ-013. |
 | World             | The world-model package (`holonovel`). Rooms, things, exits, parser commands, kind hierarchy (thing, container, supporter, door, device, vehicle, person, backdrop, region), `world (action: convert)`. Serves as spatial foundation for scene composition when populated — defines what is physically possible. Surface prominence configurable via `TTRPG_WORLD_PROMINENCE` (REQ-309). §5.10. |
 | World prominence   | Build-time `TTRPG_WORLD_PROMINENCE` setting (REQ-309): `visible` (default), `secondary`, or `prominent`. Controls default surface emphasis of world-model and narrative tools across help, `badge_briefing`, and `command (action: suggest)`. Skipped in ruleset-free mode. |
@@ -1557,7 +1559,7 @@ The server provides a `scene (action: autonomy)` tool — Game Master only, Nove
 The tool accepts an object with four independent sliders, each defaulting per the §7.6 configuration surface. The `level` slider (`full`, `mechanical_prompt`, or `manual`) decides what the AI plays, from auto-playing everything to requiring human decisions on all ruleset mechanical actions. The `confirmation` slider (`auto`, `confirm`, or `prompt`) controls how the server presents decisions, from auto-execution to prompting with options. The `safety` slider (`safe`, `moderate`, or `hardcore`) sets consequence severity, from no permanent death to full consequences. The `creativity` slider (`predictable`, `standard`, or `chaotic`) sets how much the AI surprises the player, from optimal decisions to dramatic twists.
 
 **REQ-306c — Adjustable autonomy (Part c).**
-The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived resolution mechanics — tools classified as command or hybrid per REQ-015 whose behavior derives from the ruleset, not from the world model or narrative infrastructure. Inform parser commands and narrative state tools are never paused. At `mechanical_prompt` level, when the AI reaches a mechanical decision point, it SHALL call `scene (action: choices)` (REQ-235) with `[NEED_INPUT]` to present the decision; the human responds via `respond`. All four slider values SHALL be visible in `badge_briefing` and `spec_health`.
+The `mechanical_prompt` boundary applies only to tools that invoke ruleset-derived resolution mechanics — tools classified as command or hybrid per REQ-015 whose behavior derives from the ruleset, not from the world model or narrative infrastructure. World-model parser commands and narrative state tools are never paused. At `mechanical_prompt` level, when the AI reaches a mechanical decision point, it SHALL call `scene (action: choices)` (REQ-235) with `[NEED_INPUT]` to present the decision; the human responds via `respond`. All four slider values SHALL be visible in `badge_briefing` and `spec_health`.
 
 **REQ-306d — Adjustable autonomy (Part d).**
 Autonomy composes with any badge — a human Player with `level=full` lets the AI auto-play their character; a human GM with `level=full` lets the AI run all NPCs and player characters. Player signal preferences (REQ-069) — pace, difficulty, tone, focus, and boundary — SHALL be respected at all autonomy levels. Autonomy controls who makes decisions; player signals define constraints on all decisions regardless of which agent makes them. A `level=full` AI SHALL still observe a `boundary=veil` signal by skipping detailed violence descriptions, and SHALL still respect `difficulty=easy` by calibrating encounter threat.
@@ -3919,7 +3921,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). A property group without an archetype produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical), or the `[content source]` marker for groups populated by content sources per REQ-369b (Adventure, Adventure Scene Waypoint). A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -6489,7 +6491,7 @@ discarded by `novel (action: end)`):
 | Scene | Scene-anchored | read/write | read-only |
 | Countdown | Temporal | read/write/create/delete | read-only |
 | Lore | Knowledge-carrying | read/write/create/delete/enable/disable/group/export/import | read-only (badge-filtered per REQ-083) |
-| Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; removed by `synthesis (action: revert)` per REQ-103; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
+| Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; `[supplementary]` items removed by `synthesis (action: revert)` per REQ-103 — `[ruleset]`/`[vendor]` Ruleset Wisdom survives; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
 | Adventure | [content source] | read (indexed at build time; one generated adventure per Novel via `adventure (action: generate)` per REQ-132) | content badge-filtered; indexed and generated adventures coexist in the active Novel |
 | Adventure Scene Waypoint | [content source] | read/write (REQ-250) | read-only (pass-through in `badge_briefing`) |
 | Faction | Entity-bearing, Temporal | read/write/create/delete (REQ-233) | read-only (GM-filtered) |
@@ -6545,8 +6547,11 @@ these rules, not hand-enumerated.
 *inputs* that populate Novel property groups. They are not Holodeck archetypes —
 they do not appear in the coupling table (§7.7.1). When a content source populates
 a property group, that property group's archetype pattern rules dictate all
-downstream couplings. Adventure-specific coupling rows in §7.7.1 are `[none]` —
-the couplings already exist through the populated properties' own archetypes.
+downstream couplings. In the property table, a group populated by a content
+source carries the `[content source]` marker in its Archetypes column (REQ-369b)
+— a classification sentinel, not a coupling archetype. Adventure-specific
+coupling rows in §7.7.1 are `[none]` — the couplings already exist through the
+populated properties' own archetypes.
 
 **Host base capabilities.** Host-level base-capability state — Fate aspects,
 Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,
@@ -10959,6 +10964,9 @@ match as a finding.
 | persona_briefing | badge_briefing | REQ-109 |
 | person_briefing | badge_briefing | REQ-109 |
 | oce, oce-state | `.holonovel-state` | REQ-055 |
+| gauntlet, Inform Gauntlet | Holonovel Pattern Buffer (the I1–I18 suite) | REQ-376, REQ-141k |
+| inform-holonovel | holonovel | §4 Computer |
+| enrichment (implementation surface) | Ruleset Wisdom (vendor manifest) | REQ-225, REQ-371 |
 
 **Multi-ruleset glossary.** These terms are defined in §4 and are collected here
 for forward reference:

@@ -196,7 +196,7 @@ discarded by `novel (action: end)`):
 | Scene | Scene-anchored | read/write | read-only |
 | Countdown | Temporal | read/write/create/delete | read-only |
 | Lore | Knowledge-carrying | read/write/create/delete/enable/disable/group/export/import | read-only (badge-filtered per REQ-083) |
-| Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; removed by `synthesis (action: revert)` per REQ-103; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
+| Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; `[supplementary]` items removed by `synthesis (action: revert)` per REQ-103 — `[ruleset]`/`[vendor]` Ruleset Wisdom survives; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
 | Adventure | [content source] | read (indexed at build time; one generated adventure per Novel via `adventure (action: generate)` per REQ-132) | content badge-filtered; indexed and generated adventures coexist in the active Novel |
 | Adventure Scene Waypoint | [content source] | read/write (REQ-250) | read-only (pass-through in `badge_briefing`) |
 | Faction | Entity-bearing, Temporal | read/write/create/delete (REQ-233) | read-only (GM-filtered) |
@@ -252,8 +252,11 @@ these rules, not hand-enumerated.
 *inputs* that populate Novel property groups. They are not Holodeck archetypes —
 they do not appear in the coupling table (§7.7.1). When a content source populates
 a property group, that property group's archetype pattern rules dictate all
-downstream couplings. Adventure-specific coupling rows in §7.7.1 are `[none]` —
-the couplings already exist through the populated properties' own archetypes.
+downstream couplings. In the property table, a group populated by a content
+source carries the `[content source]` marker in its Archetypes column (REQ-369b)
+— a classification sentinel, not a coupling archetype. Adventure-specific
+coupling rows in §7.7.1 are `[none]` — the couplings already exist through the
+populated properties' own archetypes.
 
 **Host base capabilities.** Host-level base-capability state — Fate aspects,
 Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,

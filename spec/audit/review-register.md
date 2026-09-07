@@ -68,7 +68,7 @@ the tracking surfaces for the coverage backlog.
 
 - **REQ-372/373 — supplementary ruleset import & dynamic tool registration**
   (Pattern Buffer close-out, 2026-09-06): bucket-E intended gap. S30/S31
-  recorded `blocked` in `run_pattern_buffer.ts`. Plan filed at
+  recorded `blocked` in `run_ruleset_pattern_buffer.ts`. Plan filed at
   `plans/2026-09-06-supplementary-import.md`; ROADMAP.md entry added. Open
   until the subsystem ships and S30/S31 un-block.
 
@@ -96,6 +96,21 @@ the tracking surfaces for the coverage backlog.
   the REQ-192 gap without it; reopen only on demonstrated miss.
 - **"Audit the §6.6 table" open-ended audit** — superseded by the REQ-192
   mapping fix; no demonstrated failure.
+- **B3 — `narrative_world_model/` directory naming** (terminology sweep,
+  2026-09-07): the vendor directory's name reads as the spatial "World" layer
+  but holds narrative Ruleset Wisdom content (§11.4). Renaming ripples through
+  §11.4, REQ-244a, and T541 (MANIFEST path). Deferred; a §11.4 gloss would be
+  the low-cost alternative if the name causes a demonstrated misread.
+- **B4 — bare "Wisdom" shorthand in §7.7 tables** (terminology sweep,
+  2026-09-07): P5–P11 and §7.7.1a narrative cells shorten "Ruleset Wisdom" to
+  "Wisdom" while the archetype keeps the full name; Appendix S already guards
+  the D&D-stat collision. Consistent and low-risk; a table legend note is the
+  optional mitigation.
+- **C — "persona" prose senses** (terminology sweep, 2026-09-07): §8 uses
+  "persona archetype" for verifier personae and §4 uses "system persona", both
+  outside Appendix R's implementation-surface scope. No demonstrated failure;
+  a §8 pointer distinguishing verifier-persona from the deprecated runtime
+  sense is the optional mitigation.
 
 ## Deferred-by-user
 

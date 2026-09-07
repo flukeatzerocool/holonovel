@@ -22,10 +22,10 @@ export {
   withForbiddenAudit,
 } from "./server.js";
 export type { ToolCtx, ToolHandler } from "./server.js";
-export { DEFAULT_ENRICHMENT } from "./enrichment.js";
+export { DEFAULT_WISDOM } from "./wisdom.js";
 export type {
-  EnrichmentItem,
+  WisdomItem,
   ActionPattern,
-  EnrichmentManifest,
+  WisdomManifest,
   NarrativeVoice,
-} from "./enrichment.js";
+} from "./wisdom.js";

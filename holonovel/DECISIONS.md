@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 3b05c87da643f47e60f58d11cd2d4d7668e4ffff27556e5f7eb1cf81fab20390
+**Spec hash:** eef1192ba349952ea4c2cd964335a821a21d10d3d0d98b1150c91d87eecfbf79
+
+### Holonovel Spec Update — 2026-09-07 (terminology disambiguation: Pattern Buffer families, Gauntlet/Inform/enrichment retirement)
+
+| Field | Value |
+|-------|-------|
+| Delta class | editorial |
+| Changed | spec + implementation — terminology disambiguation across spec and server. Implementation: `run_gauntlet.ts` → `run_pattern_buffer.ts` (the §6.6 Holonovel Pattern Buffer, I1–I18, emits `pattern-buffer-manifest.json`); the S1–S37 Ruleset suite → `run_ruleset_pattern_buffer.ts` (emits `ruleset-pattern-buffer-manifest.json`); npm scripts `test:gauntlet` removed, `test:pattern-buffer` (I-suite) + `test:pattern-buffer-ruleset` (S-suite) wired into `test:all`; harness headers rewritten to the discipline JSDoc (gate role, exit-code contract, REQ-141k/REQ-376a and REQ-108/141/208 citations); server MCP name `inform-holonovel` → `holonovel`; `help` title and package keyword updated; "enrichment" implementation vocabulary retired for "Ruleset Wisdom" (`wisdom.ts`, `wisdomManifest`, `DEFAULT_WISDOM`, `startup_probes.wisdom`) matching §11.4. Spec: §4 Pattern Buffer term family-qualified (Ruleset S1–S37 vs Holonovel I1–I18, pre-2026-08-10 "Gauntlet" noted retired); Session (four senses) and Content-tier glossary rows added; §7.7 Synthesis row scoped so `synthesis (action: revert)` removes only `[supplementary]` items; `[content source]` sentinel reconciled between §7.7.0 and REQ-374a; REQ-306c "Inform parser commands" → "world-model parser commands"; Appendix R rows added for `gauntlet`/`Inform Gauntlet`, `inform-holonovel`, `enrichment`; B3/B4/C parked in the review register. |
+| Repaired REQ set | REQ-374a (wording reconciled with REQ-369b/370a); REQ-306c (term fix); §7.7 property table + §7.7.0; §4 terminology; Appendix R |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; typecheck 0 errors (root + holonovel); `check-script-discipline` green; `test:pattern-buffer` 18/18; `test:pattern-buffer-ruleset` all executed blocking pass (20 passed / 6 skipped / 2 blocked / 7 follow-on); `validate-readme` 0 errors (2 pre-existing informational warnings) |
 
 ### Holonovel Spec Update — 2026-09-06 (builder-side evidence follow-through)
 
@@ -248,7 +258,7 @@
 | Delta class | minor |
 | Changed | implementation only — REQ-065 registry hydration now keys by each Novel's internal slug (deterministic order, canonical-filename preference on duplicate slugs), so `list`/`info`/`create`/`switch`/`archive`/`rename` agree even for misnamed save files. `rename` (REQ-256/T315) and `clone` (REQ-240/T278) now refuse an existing target slug with `[STATE_CONFLICT]` instead of overwriting the save. Backup-restore `state_regression` (REQ-406) is computed by one shared helper used by both resume and hydration. Corrupted Novels are recorded and surfaced in `spec_health.data_health.corrupted` (REQ-001a/T175). REQ-088 `TTRPG_NOVEL` startup auto-load implemented (resume-or-create; a corrupt file reports to stderr + spec_health and leaves no Novel active). Decision recorded: hydration is not a "connection" to a Novel, so it deliberately does not advance the REQ-193a/224a workflow-staleness counter. |
 | Reused | spec, extraction, lockfile |
-| Verification | typecheck 0 errors; test:all green (test-persistence 21 incl. T159 + slug-key block, test-persistence-guardrails 11 incl. T175, fingerprints/backfill/narrative/adventure/workflow/character-creation/output-contracts/gauntlet/g7/tool-definitions all green); check:fast 0 errors (bucket A 0, B 0, C 281, E 110) |
+| Verification | typecheck 0 errors; test:all green (test-persistence 21 incl. T159 + slug-key block, test-persistence-guardrails 11 incl. T175, fingerprints/backfill/narrative/adventure/workflow/character-creation/output-contracts/pattern-buffer/g7/tool-definitions all green); check:fast 0 errors (bucket A 0, B 0, C 281, E 110) |
 
 ### Holonovel Server Change — 2026-09-03 (rotating backup chain + startup auto-load by internal slug)
 
@@ -257,7 +267,7 @@
 | Delta class | minor |
 | Changed | implementation only — REQ-238 rotating backup chain implemented in `saveNovel`: backups rotate as `<slug>.json.bak.1..N` (configured via `TTRPG_NOVEL_BACKUP_COUNT`, default 1 = prior single-backup behavior). Restore (resume + hydration) shares one helper that iterates the chain and accepts a legacy singular `.bak` as the index-1 candidate, picks the first parseable backup with a valid checksum, and records the winning index in a `[restored-from-backup]` audit entry (T276). `state_regression` gains `backup_index` (REQ-406). Lifecycle is backup-aware: `endNovel` moves the whole chain to `.trash/`, archive/unarchive move `.bak.N`, rename renames `.bak.N` (REQ-256a), `consolidate-novels.ts` copies the chain. The first save after a backup restore skips copying the (corrupt/stale) on-disk primary into `.bak.1`, so a good backup is never overwritten and corruption is never propagated. REQ-088 `TTRPG_NOVEL` startup auto-load resolves by internal slug against the hydrated registry (REQ-065), so a save file whose name diverges from its internal slug auto-loads without a second read; corrupt/mismatched files still report to stderr + spec_health and leave no Novel active. Decision recorded: `TTRPG_NOVEL` names the internal slug, not the filename. |
 | Reused | spec, extraction, lockfile |
-| Verification | typecheck 0 errors; test:all green (test-persistence 25 incl. full T276 rotation + misnamed startup activation, test-persistence-guardrails 11 incl. T475 legacy-.bak restore, workflow/character-creation/fingerprints/output-contracts/gauntlet/backfill/narrative/adventure/g7/tool-definitions all green); root assemble + check:fast 0 errors (bucket A 0, B 0, C 282, E 110) |
+| Verification | typecheck 0 errors; test:all green (test-persistence 25 incl. full T276 rotation + misnamed startup activation, test-persistence-guardrails 11 incl. T475 legacy-.bak restore, workflow/character-creation/fingerprints/output-contracts/pattern-buffer/backfill/narrative/adventure/g7/tool-definitions all green); root assemble + check:fast 0 errors (bucket A 0, B 0, C 282, E 110) |
 
 ### Holonovel Spec Update — 2026-09-02 (container distribution via Glama admin build spec)
 
@@ -311,7 +321,7 @@
 | Delta class | minor |
 | Changed | spec + implementation — REQ-425a–d (output format catalog: uniform `format` selector across artifact surfaces, markdown/json/html universal, ascii/lonelog scoped, ruleset-declared formats) + REQ-426a–d (MCP Apps UI surface: `ui://` resources served `text/html;profile=mcp-app` with restrictive CSP, tool-result `ui://` linkage, capability negotiation) + Appendix T.1 catalog + Appendix D conformance clause + tests T505–T508. Implementation: shared format catalog + renderer in `index.ts`; `character_sheet` gains `json`/`html` formats; `?format=` on `npc://{id}`, `lore://{key}`, `codex://{id}`; four `ui://` resources with negotiation gate; `html` rejected on interchange exports; `spec_health` reports `output_formats` + `mcp_apps`. |
 | Reused | extraction, lockfile |
-| Verification | assemble + check:fast 0 errors (bucket A 2→0, B 0, C 277→279, E 109); typecheck 0 errors (root + holonovel); holonovel harnesses all green (test-output-contracts 186, gauntlet, backfill, narrative, persistence, workflow, character-creation, adventure, fingerprints, g7) |
+| Verification | assemble + check:fast 0 errors (bucket A 2→0, B 0, C 277→279, E 109); typecheck 0 errors (root + holonovel); holonovel harnesses all green (test-output-contracts 186, pattern-buffer, backfill, narrative, persistence, workflow, character-creation, adventure, fingerprints, g7) |
 
 ### Holonovel Spec Update — 2026-08-30 (§5.18 fingerprint evidence + Appendix M coverage-class convention)
 
@@ -336,9 +346,9 @@
 | Field | Value |
 |-------|-------|
 | Delta class | minor |
-| Changed | implementation only — removed the un-mandated `set_scene_type` tool; added `scene_type` (single tag or array) to `set_scene_state` per REQ-087b; updated help categories, the scene-transition counter, and the affected harnesses (run_gauntlet I13, test-output-contracts T476, test-persistence-guardrails T476); fixed a stale `set_briefing_order` token fixture in run_gauntlet I13 |
+| Changed | implementation only — removed the un-mandated `set_scene_type` tool; added `scene_type` (single tag or array) to `set_scene_state` per REQ-087b; updated help categories, the scene-transition counter, and the affected harnesses (run_pattern_buffer I13, test-output-contracts T476, test-persistence-guardrails T476); fixed a stale `set_briefing_order` token fixture in run_pattern_buffer I13 |
 | Reused | spec, extraction, lockfile |
-| Verification | typecheck 0 errors; test-output-contracts 172/172; test-persistence-guardrails 10/10; run_gauntlet 13/13; remaining harnesses green (backfill 64, narrative 32, persistence 16, workflow 12, character-creation 10, adventure 9, g7 2); validate:fast 0 errors (A=0, B=0, C=275, E=106) |
+| Verification | typecheck 0 errors; test-output-contracts 172/172; test-persistence-guardrails 10/10; run_pattern_buffer 13/13; remaining harnesses green (backfill 64, narrative 32, persistence 16, workflow 12, character-creation 10, adventure 9, g7 2); validate:fast 0 errors (A=0, B=0, C=275, E=106) |
 
 ### Holonovel Spec Update — 2026-08-29 (self-consistency remediation + Spec Kit phased-artifact adoption)
 
@@ -447,7 +457,7 @@
 | Delta class | minor |
 | Changed | spec (`REQ-376b`/`REQ-373b` empty-body remnants removed; Appendix E rows reconciled) + tooling (`checkEmptyReqBodies` `---` terminator; `gatherExercisedIds` counts only executed test() calls; placeholder-stub sentinel scan; new-REQ-must-be-cited-or-whitelisted guard; `scripts/test-req-checks.ts` self-test) + implementation (`export_novel`/`import_novel` rewritten to Appendix Q with lossless replace round-trip incl. world/entities/npcs/countdowns; `generate_adventure`/`generate_encounter` implemented per REQ-090/091 with codex target + atomic encounter batch) |
 | Reused | extraction, lockfile |
-| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-persistence 11/11; test-adventure 9/9; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; check:fast 0 errors |
+| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-persistence 11/11; test-adventure 9/9; test-workflow 9/9; test-character-creation 10/10; run_pattern_buffer 13/13; check:fast 0 errors |
 
 ### Holonovel Server Change — 2026-08-24 (§5.12 narrative engine)
 
@@ -456,7 +466,7 @@
 | Delta class | major |
 | Changed | implementation only — §5.12 Narrative Architecture (REQ-335–366) server layer: scene beat taxonomy, pacing signal, story-beat arc, faction/NPC autonomy, discovered consequences, spatial surface, unified intent resolution, voice feedback, background knowledge, coupling advisories, observer surface; REQ-125 scene transition hook; knowledge_state + narrative_threads briefing sections; scaffold-replacement on GM beat (REQ-352); G7 disposition reachability (REQ-354 dropped from the §5.12 count, REQ-346 counted via attestation); new `test-narrative.ts` harness (T385–T417) + `test-g7.ts` (T396/T403) |
 | Reused | spec, extraction, tooling |
-| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-workflow 9/9; test-character-creation 10/10; run_gauntlet 13/13; validate:fast 0 errors |
+| Verification | typecheck 0 errors; test-narrative 27/27; test-g7 2/2; test-workflow 9/9; test-character-creation 10/10; run_pattern_buffer 13/13; validate:fast 0 errors |
 
 #### narrative_coherence (G7)
 
@@ -608,7 +618,7 @@ tools (REQ-407).
 | Changed | spec (REQ-309b/h ruleset-free parser carve-out; §7.7 badge as Novel-tier; REQ-042f active entity Novel-scoped) + full server surface reconciliation (tool renames, resolve_intent, resource/prompt/tool completeness, response/error contract, spec_health, world-model containment, oracle/notes/pause/interchange/determinism fixes) |
 | Reused | source partially, config, lockfile resync |
 | Implementation fingerprints | source=8da599615303feb6570370be995e848900820df06a12f703e08885d9077ca483, config=20900e1f3ffc7bbb4f0ea91f71376cdd8517dc8da4548b7a93f1372d1b1ef19e3e879302d199d17e072264fe5713278ee3e80e37c2923bd494ac82081bc7e534, lockfile=6d0a2fbbbdb213687da3fbd8e184e58e060e6f8b30a3b135cdb45bf93ee4b951, extraction=sentinel, surfaces=b919dca088dbee49a66ff58358c6924e8bb8baea519661fac6b04e73bcad957b |
-| Verification | assemble 0 errors, check:fast 0 errors, typecheck 0 errors, gauntlet 13/13 |
+| Verification | assemble 0 errors, check:fast 0 errors, typecheck 0 errors, pattern-buffer 13/13 |
 
 The ruleset-free host was reconciled to the canonical surface. Tool renames
 (`delete_*`→`remove_*`, `check_knowledge`→`get_knowledge`, `save_pause_context`/
@@ -634,7 +644,7 @@ REQ-042f treat the active badge (and active entity) as Novel-tier.
 | Delta class | Minor |
 | Changed | REQ-104a/b/c, REQ-151b, REQ-152a, REQ-181a/b, REQ-219a1/b (character-creation workflow/output); added REQ-399a/b/c (character-creation package data, computation contract, no-data fallback); §6.3/§6.4.2 (character data extraction), §7.5 (creation-contract reference); scrubbed the `swse` example slug from REQ-395a/Appendix V |
 | Reused | source, config, lockfile, extraction categories, surfaces |
-| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors, typecheck 0 errors, gauntlet 13/13, character-creation unit tests 10/10 |
+| Verification | assemble 0 errors, check:fast 0 errors, check 0 errors, typecheck 0 errors, pattern-buffer 13/13, character-creation unit tests 10/10 |
 
 Character-creation is now ruleset-driven: the server no longer hard-codes a
 specific ruleset's character tables. Character-creation rules (species, classes,
@@ -725,7 +735,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.06 |
+| Spec version | 2026.09.07 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |
@@ -770,7 +780,7 @@ Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent
 | Spec version | 2026.08.09 |
 | Build fingerprint | 0f9c1b6c421443a0633fd4b6784ae3de14baa1407475944db746dfb05df9b5df |
 | Implementation fingerprints | source=1b1d7f45db034344a5f4ef010488efa81eb5ad630c2993d881610869ca26b023, config=7316427a378075beb83ff30d9e4ecaaf1ce7aff094d9faf8e2e83363615089c6, lockfile=698b829bb8e547fcaad0fc463b1ef49fdf6645335db970ad49a158c92ae18797, extraction=sentinel, surfaces=12d776431f36afb445c2ad7932f442d0a8d7c91767448e71374d6992b636d3c2 |
-| Gauntlet (I1-I13) | I1 PASS, I2 PASS, I3 PASS, I4 PASS, I5 PASS, I6 PASS, I7 PASS, I8 PASS, I9 PASS, I10 PASS, I11 PASS, I12 PASS, I13 PASS |
+| Holonovel Pattern Buffer (I1-I13) | I1 PASS, I2 PASS, I3 PASS, I4 PASS, I5 PASS, I6 PASS, I7 PASS, I8 PASS, I9 PASS, I10 PASS, I11 PASS, I12 PASS, I13 PASS |
 | Blocking (I1-I6, I10) | All PASS |
 | Verification | typecheck 0 errors, spec-delta sync |
 
@@ -781,23 +791,23 @@ Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent
 | Delta class | minor |
 | Changed | source |
 | Reused | config, lockfile, extraction, surfaces |
-| Gauntlet | PASS, 13/13 (all surfaces scoped — source changes affect full tool/resource/prompt surface) |
+| Holonovel Pattern Buffer | PASS, 13/13 (all surfaces scoped — source changes affect full tool/resource/prompt surface) |
 | Verification | typecheck 0 errors, spec-delta unsync (major delta — spec holonovel.md changed) |
 
-## 2026-08-09 — Rebuild (Gauntlet I1-I13 verified)
+## 2026-08-09 — Rebuild (Holonovel Pattern Buffer I1-I13 verified)
 
-- Added I11 (Narrative CRUD cycle), I12 (Lore and countdown lifecycle), I13 (Scene state and guidance) to the gauntlet harness, completing the full 13-sub-workflow Inform Gauntlet per §6.6.
+- Added I11 (Narrative CRUD cycle), I12 (Lore and countdown lifecycle), I13 (Scene state and guidance) to the Holonovel Pattern Buffer harness, completing the full 13-sub-workflow Holonovel Pattern Buffer per §6.6.
 - Updated spec hash to current holonovel.md (`dc99736bf...`).
 - Fixed `doAction` prompt response extraction to handle MCP prompt message format (`content.text` vs `text`).
-- Added lazy argument evaluation (`TL` helper) to gauntlet for capturing dynamic IDs (NPC ids).
+- Added lazy argument evaluation (`TL` helper) to the harness for capturing dynamic IDs (NPC ids).
 - All 13 sub-workflows PASS. Blocking sub-workflows (I1-I6, I10): all PASS. Non-blocking (I7-I9, I11-I13): all PASS.
 - Surface hash: `355f234ce91886d8fb4d3cd8717044966019e546eea3e9e78189c8280f5bc93d`.
 
 ### Verification
 
 - `npm run typecheck` — passes (0 errors).
-- `npm run spec-delta -- --server inform` — in sync with spec.
-- Gauntlet: 13/13 PASS, 0 blocking failures.
+- `npm run spec-delta -- --server holonovel` — in sync with spec.
+- Holonovel Pattern Buffer: 13/13 PASS, 0 blocking failures.
 
 ### Known limitations
 
@@ -807,7 +817,7 @@ Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent
 
 ---
 
-## 2026-08-08 — Rebuild (Gauntlet verified)
+## 2026-08-08 — Rebuild (Holonovel Pattern Buffer verified)
 
 - Build from provider documentation (`narrative_world_model/world/world-model-provider.md`): kind hierarchy (thing,
   container, supporter, door, person, backdrop, region), property contracts, parser command
@@ -816,9 +826,9 @@ Class C (LLM-dependent: novel enrichment, NPC voice directive, generation intent
 - Ruleset hash: "ruleset-free" (B1=none). World-model base: `holonovel` (B10).
 - Build fingerprint: spec hash `55a4b9d3fcb7ed36cc4486bfe3b819ce550613952f0be8f772cc3b19889490b6`, ruleset-free, build timestamp 2026-08-08T23:00Z.
 
-### Inform Gauntlet (I1–I13) — 2026-08-08
+### Holonovel Pattern Buffer (I1–I13) — 2026-08-08
 
-All 10 sub-workflows executed against live MCP server (`scripts/run_gauntlet.ts`).
+All 10 sub-workflows executed against live MCP server (`scripts/run_pattern_buffer.ts`).
 Blocking sub-workflows (I1–I6, I10): all PASS. Non-blocking (I7–I9): all PASS.
 
 | Sub-workflow | Verdict | Blocking |
@@ -839,7 +849,7 @@ Surface hash: 0f9d1b3f (tools: 17, resources: 4, prompts: 4).
 ### Verification
 
 - `npm run typecheck` — passes (0 errors).
-- `npm run spec-delta -- --server inform` — in sync with spec.
+- `npm run spec-delta -- --server holonovel` — in sync with spec.
 - Convergence manifest: not yet computed (Phase 2 — REQ-245 — deferred to publish).
 
 ### Known limitations
