@@ -83,10 +83,11 @@ npm run typecheck               # TypeScript type checking
 
 Verification harnesses (`npm run test:*`) include the Inform Gauntlet
 (`test:gauntlet`, world-model scenarios I1–I18) and the Pattern Buffer
-(`test:pattern-buffer`, §6.6 sub-workflows S1–S37 — the server-native
-sub-workflows execute; mechanics-fidelity ones record `skipped — ruleset
-hash unchanged`; the rest are `follow-on` increments, all summarized in the
-emitted `pattern-buffer-manifest.json`).
+(`test:pattern-buffer`, §6.6 sub-workflows S1–S37 — server-native ones
+execute; mechanics-fidelity ones record `skipped — ruleset hash unchanged`;
+S30/S31 record `blocked` (REQ-372/373 bucket-E gap, see ROADMAP.md); the rest
+are `follow-on` increments, all summarized in the emitted
+`pattern-buffer-manifest.json`).
 
 ## Boot
 

@@ -32,13 +32,13 @@ const jsonOut = process.argv.includes("--json");
 // ── Types ──────────────────────────────────────────────────────────
 
 type ToolAction = { kind: "tool"; name: string; args: Record<string, unknown> | (() => Record<string, unknown>) };
-type ResourceAction = { kind: "resource"; uri: string };
+type ResourceAction = { kind: "resource"; uri: string | (() => string) };
 type PromptAction = { kind: "prompt"; name: string; args: Record<string, string> };
 type PBAction = ToolAction | ResourceAction | PromptAction;
 
 interface PBStep { label: string; action: PBAction; assert: (r: string) => void; }
 
-type PBMode = "execute" | "skip" | "stub" | "follow-on";
+type PBMode = "execute" | "skip" | "stub" | "blocked" | "follow-on";
 
 interface PBSubworkflow {
   s_id: string;
@@ -99,7 +99,7 @@ async function doAction(proc: ChildProcess, action: PBAction): Promise<string> {
     const args = typeof action.args === "function" ? action.args() : action.args;
     resp = await send(proc, { method: "tools/call", params: { name: action.name, arguments: args } });
   } else if (action.kind === "resource") {
-    resp = await send(proc, { method: "resources/read", params: { uri: action.uri } });
+    resp = await send(proc, { method: "resources/read", params: { uri: typeof action.uri === "function" ? action.uri() : action.uri } });
   } else {
     resp = await send(proc, { method: "prompts/get", params: { name: action.name, arguments: action.args } });
   }
@@ -110,7 +110,7 @@ async function doAction(proc: ChildProcess, action: PBAction): Promise<string> {
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
-const T = (name: string, args: Record<string, unknown> = {}): ToolAction => ({ kind: "tool", name, args });
+const T = (name: string, args: Record<string, unknown> | (() => Record<string, unknown>) = {}): ToolAction => ({ kind: "tool", name, args });
 const R = (uri: string): ResourceAction => ({ kind: "resource", uri });
 const P = (name: string, args: Record<string, string> = {}): PromptAction => ({ kind: "prompt", name, args });
 
@@ -137,6 +137,17 @@ function sha256(s: string): string {
   return createHash("sha256").update(s).digest("hex");
 }
 
+// Capture a value (e.g. a server-assigned entity id) from one step's response
+// for use in a later step's args/uri function. Pattern's first group is stored.
+const captured: Record<string, string> = {};
+function capture(key: string, pattern: RegExp): (r: string) => void {
+  return (r: string) => {
+    const m = r.match(pattern);
+    if (m) captured[key] = m[1];
+    else throw new Error(`capture '${key}': pattern did not match — ${r.substring(0, 200)}`);
+  };
+}
+
 // ── §6.6 sub-workflow register ─────────────────────────────────────
 
 function buildRegister(): PBSubworkflow[] {
@@ -146,6 +157,8 @@ function buildRegister(): PBSubworkflow[] {
     ({ s_id, name, objective, blocking, mode: "skip", reason: "skipped — ruleset hash unchanged (§6.6 convergence-loop scoping)" });
   const stub = (s_id: string, name: string, blocking: boolean, original: string): PBSubworkflow =>
     ({ s_id, name, objective: `Merged into ${original}.`, blocking, mode: "stub", reason: `merged into ${original}` });
+  const blocked = (s_id: string, name: string, blocking: boolean, reason: string): PBSubworkflow =>
+    ({ s_id, name, objective: `Blocked — ${reason}`, blocking, mode: "blocked", reason });
 
   return [
     { s_id: "S1", name: "Tool surface sweep", objective: "one read-only tool per REQ-015 category + badge/lifecycle tools; invalid input errors cleanly", blocking: true, mode: "execute", steps: S1_STEPS },
@@ -159,15 +172,15 @@ function buildRegister(): PBSubworkflow[] {
     skip("S9", "Condition lifecycle", false, "conditions apply, affect mechanics, expire by triggers; manual removal"),
     stub("S10", "Undo during combat", false, "S4"),
     stub("S11", "Workflow cancellation", false, "S20"),
-    followOn("S12", "Roster durability", true, "roster baselines immutable; re-import reproduces baseline"),
+    { s_id: "S12", name: "Roster durability", objective: "roster baselines immutable; re-import produces fresh copy matching baseline", blocking: true, mode: "execute", steps: S12_STEPS },
     { s_id: "S13", name: "Novel isolation", objective: "entities, adventures, generated content do not leak between Novels", blocking: true, mode: "execute", steps: S13_STEPS },
     followOn("S14", "Edge cases", true, "0 HP; heal cap; rapid calls; ambiguous alias; unknown decision; seed determinism; spec_health filtering; adversarial input"),
     followOn("S15", "Stress and recovery", true, "two-connection concurrency; corruption WARNING; rapid badge alternation; 50-round combat; direct file-read assertions"),
-    followOn("S16", "Narrative state", false, "scene/NPC/countdown/lore/briefing end-to-end with deterministic seeds"),
+    { s_id: "S16", name: "Narrative state", objective: "scene/NPC/countdown/lore/briefing end-to-end with deterministic seeds", blocking: false, mode: "execute", steps: S16_STEPS },
     { s_id: "S17", name: "Novel lifecycle and persistence", objective: "create/resume/switch/end; state persists; ended Novel blocks resume", blocking: true, mode: "execute", steps: S17_STEPS },
-    followOn("S18", "Adventure generation and encounter lifecycle", false, "generate produces scoped/searchable content; regenerate replaces prior"),
-    followOn("S19", "Badge briefing correctness", true, "Player vs GM content filtering; briefing adapts to scene type"),
-    followOn("S20", "Lorebook interchange", true, "export → modify → import dry-run/merge/replace cycle"),
+    { s_id: "S18", name: "Adventure generation and encounter lifecycle", objective: "generate produces scoped/searchable content; regenerate replaces prior", blocking: false, mode: "execute", steps: S18_STEPS },
+    { s_id: "S19", name: "Badge briefing correctness", objective: "Player vs GM content filtering; briefing adapts to scene type", blocking: true, mode: "execute", steps: S19_STEPS },
+    { s_id: "S20", name: "Lorebook interchange", objective: "export → modify → import dry-run/merge/replace cycle", blocking: true, mode: "execute", steps: S20_STEPS },
     followOn("S21", "Campaign endurance", true, "30-round endurance; audit-log hash chain; recap; ≤5 MB Novel"),
     followOn("S22", "Workflow validation", true, "NEED_INPUT drain/cancel/restart; blocked gating during pending workflow"),
     followOn("S23", "Narrative features sweep", true, "save/get_context; factions; secrets; choices; relationships; notes; clock taxonomy"),
@@ -175,10 +188,10 @@ function buildRegister(): PBSubworkflow[] {
     followOn("S25", "State durability: backups, checkpoints, clones", true, "rotated backups; corruption restore; checkpoint cycle; clone independence"),
     followOn("S26", "Narrative POV", true, "set_active POV directive; omniscient vs character-locked; restart persistence"),
     followOn("S27", "Synthesis lifecycle + Wisdom mechanical enactment", true, "toggle/revert; Wisdom P6/P7/P10; deactivate/reactivate"),
-    followOn("S28", "Briefing ordering, voice examples, session notation", false, "briefing_order; voice examples; lonelog format"),
-    followOn("S29", "Novel export/import cycle", true, "export/import dry-run/replace round-trip; lore-only; strict broken-reference"),
-    followOn("S30", "Supplementary ruleset import", true, "import_supplementary Appendix Z; tools/list annotation; remove_supplementary"),
-    followOn("S31", "Dynamic tool registration", true, "supplementary tool registration/deregistration; waiver build"),
+    { s_id: "S28", name: "Briefing ordering, voice examples, session notation", objective: "briefing_order; voice examples; lonelog format", blocking: false, mode: "execute", steps: S28_STEPS },
+    { s_id: "S29", name: "Novel export/import cycle", objective: "export/import dry-run/replace round-trip; lore-only; strict broken-reference", blocking: true, mode: "execute", steps: S29_STEPS },
+    blocked("S30", "Supplementary ruleset import", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
+    blocked("S31", "Dynamic tool registration", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
     followOn("S32", "Coupling chain exercise", true, "countdown ⇄ world_effect ⇄ faction ⇄ lore trigger chain + undo"),
     followOn("S33", "Wisdom mechanical enactment", true, "P6/P7/P10 auto-population; deactivate/reactivate behavior"),
     followOn("S34", "Entity-bearing chain exercise", false, "NPC co-presence relationship; secrets; memory facts across restart"),
@@ -235,6 +248,84 @@ const S17_STEPS: PBStep[] = [
   { label: "end novel", action: T("novel", { action: "end" }), assert: assertOK },
   { label: "confirm end", action: T("respond", { decision: "end novel", option: "yes" }), assert: (r) => assertContains(r, "ended", "end ") },
   { label: "resume ended novel → blocked", action: T("novel", { action: "resume", slug: "pb-lifecycle" }), assert: (r) => assertError(r, "ended-resume ") },
+];
+
+const S12_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-roster" }), assert: assertOK },
+  { label: "character create + stage_to_roster", action: T("character", { action: "create", name: "Roster Hero", stage_to_roster: true }), assert: (r) => { assertContains(r, "created", "roster-create "); capture("rosterId", /Staged to roster as (\S+?)\./)(r); } },
+  { label: "roster_list shows baseline", action: T("character", { action: "roster_list" }), assert: (r) => assertContains(r, "Roster Hero", "roster-baseline ") },
+  { label: "import reproduces fresh copy", action: T("character", () => ({ action: "import", roster_id: captured.rosterId })), assert: (r) => assertContains(r, "imported", "roster-import ") },
+  { label: "sheet matches roster baseline", action: T("character", () => ({ action: "sheet", entity_id: captured.rosterId, format: "json" })), assert: (r) => assertContains(r, "Roster Hero", "roster-sheet ") },
+  { label: "roster_list still has baseline (immutable)", action: T("character", { action: "roster_list" }), assert: (r) => assertContains(r, "Roster Hero", "roster-immutable ") },
+];
+
+const S16_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-narrative" }), assert: assertOK },
+  { label: "scene set", action: T("scene", { action: "set", description: "A quiet keep under storm.", scene_type: "exploration" }), assert: assertOK },
+  { label: "npc create", action: T("npc", { action: "create", name: "Caretaker" }), assert: (r) => assertContains(r, "created", "npc ") },
+  { label: "countdown set", action: T("countdown", { action: "set", name: "The Storm", ticks: 3 }), assert: (r) => assertContains(r, "tick", "countdown ") },
+  { label: "lore set", action: T("lore", { action: "set", key: "keep_history", content: "The keep predates the kingdom." }), assert: (r) => assertContains(r, "created", "lore ") },
+  { label: "countdown://active shows the storm", action: R("countdown://active"), assert: (r) => assertContains(r, "Storm", "cd-resource ") },
+  { label: "lore://active shows the entry", action: R("lore://active"), assert: (r) => assertContains(r, "keep_history", "lore-resource ") },
+  { label: "badge_briefing surfaces scene", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "quiet keep", "briefing-scene ") },
+];
+
+const S18_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-adventure" }), assert: assertOK },
+  { label: "adventure generate (novel+codex)", action: T("adventure", { action: "generate", premise: "A smuggler's delivery across the bay", target: "both" }), assert: (r) => assertContains(r, "generated", "adventure-gen ") },
+  { label: "regenerate replaces prior", action: T("adventure", { action: "generate", premise: "A caravan guarded at dawn", target: "both" }), assert: (r) => { assertContains(r, "caravan", "adventure-regen "); assertContains(r, "scaffold stored", "adventure-regen-store "); } },
+  { label: "generate_encounter (batch state)", action: T("adventure", { action: "generate_encounter", context: "an ambush at the ford" }), assert: (r) => assertContains(r, "undo", "encounter-batch ") },
+  { label: "briefing reflects generated scene", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "ford", "briefing-encounter ") },
+];
+
+const S19_STEPS: PBStep[] = [
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-briefing" }), assert: assertOK },
+  { label: "set_badge GM (after create)", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "character with profile", action: T("character", { action: "create", name: "Brief Hero", species: "human", personality: { description: "A cautious scout." } }), assert: assertOK },
+  { label: "scene set social", action: T("scene", { action: "set", description: "Negotiation in the guild hall.", scene_type: "social" }), assert: assertOK },
+  { label: "countdown (populates GM state)", action: T("countdown", { action: "set", name: "Hidden Pact", ticks: 4 }), assert: assertOK },
+  { label: "GM briefing has GM-only + entity", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => { assertContains(r, "Brief Hero", "gm-entity "); assertContains(r, "GM State", "gm-state "); } },
+  { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+  { label: "player briefing filters GM-only", action: P("badge_briefing", { badge: "player" }), assert: (r) => { assertContains(r, "Brief Hero", "player-entity "); assertNotContains(r, "GM State", "player-filter "); } },
+];
+
+const S20_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-lorebook" }), assert: assertOK },
+  { label: "lore set", action: T("lore", { action: "set", key: "artifact", content: "The Shard glows in moonlight.", group: "items" }), assert: assertOK },
+  { label: "lore export", action: T("lore", { action: "export" }), assert: (r) => assertContains(r, "artifact", "lore-export ") },
+  { label: "import dry-run (no side effects)", action: T("lore", { action: "import", data: "[{\"key\":\"artifact\",\"content\":\"The Shard glows in moonlight.\"}]", mode: "dry-run" }), assert: (r) => assertContains(r, "dry-run", "lore-dryrun ") },
+  { label: "merge restores missing entry", action: T("lore", { action: "import", data: "[{\"key\":\"new_key\",\"content\":\"merged.\"}]", mode: "merge" }), assert: (r) => assertContains(r, "merge", "lore-merge ") },
+  { label: "re-export has both entries", action: T("lore", { action: "export" }), assert: (r) => { assertContains(r, "artifact", "merge-keep "); assertContains(r, "new_key", "merge-add "); } },
+  { label: "replace overwrites", action: T("lore", { action: "import", data: "[{\"key\":\"replaced\",\"content\":\"fresh.\"}]", mode: "replace" }), assert: (r) => assertContains(r, "replace", "lore-replace ") },
+  { label: "re-export shows only replaced", action: T("lore", { action: "export" }), assert: (r) => { assertContains(r, "replaced", "replace-new "); assertNotContains(r, "artifact", "replace-old-gone "); } },
+];
+
+const S28_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-brieforder" }), assert: assertOK },
+  { label: "briefing_order known order", action: T("session", { action: "briefing_order", sections: ["scene_state", "entities", "lore"] }), assert: (r) => assertContains(r, "Briefing order set", "order ") },
+  { label: "briefing_order unknown token → INVALID_INPUT", action: T("session", { action: "briefing_order", sections: ["bogus"] }), assert: (r) => assertContains(r, "INVALID_INPUT", "order-bad ") },
+  { label: "briefing_order reset", action: T("session", { action: "briefing_order", sections: [] }), assert: (r) => assertContains(r, "Briefing order set", "order-reset ") },
+  { label: "character with voice examples", action: T("character", { action: "create", name: "Voiced", voice: "Laconic with a drawl." }), assert: (r) => { assertOK(r, "voice-create "); capture("voicedId", /Entity id (\S+?)\./)(r); } },
+  { label: "character voice examples set", action: T("character", () => ({ action: "voice", entity_id: captured.voicedId, examples: [{ context: "greeting", dialogue: "Howdy.", tag: "formal" }] })), assert: (r) => assertContains(r, "examples", "voice-set ") },
+  { label: "entity voice resource", action: R(() => `entity://${captured.voicedId}/voice_examples`), assert: (r) => assertContains(r, "formal", "voice-res ") },
+  { label: "session recap lonelog", action: T("session", { action: "recap", format: "lonelog" }), assert: (r) => assertContains(r, "narrative_orientation", "lonelog ") },
+];
+
+const S29_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("novel", { action: "create", name: "pb-interchange" }), assert: assertOK },
+  { label: "mutate (scene)", action: T("scene", { action: "set", description: "The treasury vault." }), assert: assertOK },
+  { label: "export json", action: T("novel", { action: "export", format: "json" }), assert: (r) => assertContains(r, "format_version", "export-json ") },
+  { label: "export lore-only scope", action: T("novel", { action: "export", format: "json", scope: "lore" }), assert: (r) => assertContains(r, "lore", "export-lore ") },
+  { label: "import dry-run valid", action: T("novel", { action: "import", data: "{\"slug\":\"x\",\"name\":\"X\"}", mode: "dry-run" }), assert: (r) => assertContains(r, "would be imported", "dryrun-valid ") },
+  { label: "import dry-run broken-ref reports", action: T("novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "reference failure", "dryrun-broken ") },
+  { label: "import strict replace blocks", action: T("novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "replace", strict: true }), assert: assertError },
+  { label: "command suggest combat category", action: T("command", { action: "suggest", intent: "attack the goblin" }), assert: (r) => assertContains(r.toLowerCase(), "combat", "suggest-combat ") },
 ];
 
 // ── Runner ─────────────────────────────────────────────────────────
@@ -312,6 +403,7 @@ async function main() {
       failed: failed.length,
       skipped: verdicts.filter((v) => v.status === "skip").length,
       stubbed: verdicts.filter((v) => v.status === "stub").length,
+      blocked: verdicts.filter((v) => v.status === "blocked").length,
       follow_on: verdicts.filter((v) => v.status === "follow-on").length,
       blocking_failures: blockingFailures.length,
     },
@@ -323,7 +415,7 @@ async function main() {
     console.log(JSON.stringify(manifest, null, 2));
   } else {
     console.log("\n=== Pattern Buffer Summary ===");
-    console.log(`Total: ${verdicts.length} | Passed: ${passed} | Failed: ${failed.length} | Skipped: ${manifest.summary.skipped} | Stubbed: ${manifest.summary.stubbed} | Follow-on: ${manifest.summary.follow_on}`);
+    console.log(`Total: ${verdicts.length} | Passed: ${passed} | Failed: ${failed.length} | Skipped: ${manifest.summary.skipped} | Stubbed: ${manifest.summary.stubbed} | Blocked: ${manifest.summary.blocked} | Follow-on: ${manifest.summary.follow_on}`);
     console.log(`Blocking failures: ${blockingFailures.length}`);
     console.log(`Manifest: ${OUT_PATH}`);
   }

@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-06
+Generated: 2026-09-07
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -89,7 +89,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
-| REQ-108 | Pattern Buffer traceability (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T110, T201 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
@@ -122,8 +122,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |
 | REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
-| REQ-141 | Input-validation convergence metric (Part a) (10 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
-| REQ-142 | Blocking classification principle (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-141 | Input-validation convergence metric (Part a) (12 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-142 | Blocking classification principle (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-146 | Reconciliation authority (Part a) (4 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-147 | Confidence aggregation (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | T181 | — |
 | REQ-148 | Structural integrity gate | 5.5 Badges and Access | E | S6 | — |
@@ -151,14 +151,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-170 | Adventure discovery surface | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207 | — |
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
-| REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211 | — |
+| REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, S22 | — |
 | REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T53, T213 | — |
 | REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T214 | — |
-| REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216 | — |
+| REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, S17 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217, S17 | — |
-| REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219 | — |
+| REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219, S17 | — |
 | REQ-179 | Output pointer resource template (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T221 | — |
-| REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T222 | — |
+| REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T222, S22 | — |
 | REQ-181 | Character creation output surface (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T47, T468 | — |
 | REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
 | REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |
@@ -187,7 +187,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-208 | Pattern Buffer convergence metric mapping (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-209 | Cross-format consistency | 5.2 Extraction and Confidence | E | — | — |
 | REQ-210 | Extraction categories (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
-| REQ-211 | Evidence record field contract (Part a) (3 sub-parts) | 5.5 Badges and Access | E | — | — |
+| REQ-211 | Evidence record field contract (Part a) (3 sub-parts) | 5.5 Badges and Access | E | S22 | — |
 | REQ-212 | Generation table rolling (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-213 | Weighted table result mapping (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T254 | — |
 | REQ-214 | Table classification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
