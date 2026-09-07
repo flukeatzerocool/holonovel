@@ -418,4 +418,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-448 | Security-event audit completeness | 5.7 Determinism, Safety, and Performance | C | T534, S6 | — |
 | REQ-449 | Excessive-agency mutation ceiling | 5.7 Determinism, Safety, and Performance | C | T535, S22 | — |
 | REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |
+| REQ-451 | Vendor manifest verification | 11.4 Ruleset Wisdom (vendor content) | E | — | — |
 

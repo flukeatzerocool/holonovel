@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-06 — Vendor-manifest verification checker
+
+- Added `holonovel/scripts/check-vendor-manifest.ts`, a gate that recomputes
+  each module's SHA-256 content hash from the source file named in
+  `narrative_world_model/MANIFEST.md` and reports match/mismatch per row, so
+  the pre-verified confidence distributions and term-anchoring scores (§11.4)
+  are trusted rather than taken on faith. Wired as `check:vendor` (strict) into
+  `holonovel/package.json` and `test:all`. (REQ-451, T541)
+- REQ-451 (Vendor manifest verification) added to §11.4; `scripts/validate.ts`
+  extended `sectionNameForReq` to attribute §11 REQs to their headings and
+  whitelisted REQ-451 as verifier tooling. Register regenerated (A 0 / B 0 /
+  C 302 / E 111).
+
 ## 2026-09-06 — Roadmap & tracking-surface reconciliation
 
 - Closed the two stale `Scheduled-roadmap` entries in
