@@ -79,7 +79,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
 | REQ-096 | Novel interchange (Part a) (11 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281 | — |
 | REQ-097 | Novel health (Part a1) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T101, T160, T384 | — |
-| REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | — | — |
+| REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | T84b | — |
 | REQ-099 | Confidence-floor acknowledgment | 5.2 Extraction and Confidence | E | — | — |
 | REQ-100 | Performance benchmark (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | E | T479 | — |
 | REQ-101 | Assumption audit trail (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | E | — | — |
@@ -321,7 +321,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-351 | Pacing-triggered autonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T401 | implemented |
 | REQ-352 | Codex adventure beat sequences (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T402 | implemented |
 | REQ-353 | Beat-accelerated countdown advancement | 5.12 Narrative Architecture | C | T404 | implemented |
-| REQ-354 | Extended narrative extraction | 5.2 Extraction and Confidence | E | — | implemented |
+| REQ-354 | Extended narrative extraction | 5.2 Extraction and Confidence | E | — | — |
 | REQ-355 | Secret-countdown coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T406 | implemented |
 | REQ-356 | Vow-lore coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T407 | implemented |
 | REQ-357 | Story journal-faction coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T408 | implemented |
@@ -419,4 +419,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-449 | Excessive-agency mutation ceiling | 5.7 Determinism, Safety, and Performance | C | T535, S22 | — |
 | REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |
 | REQ-451 | Vendor manifest verification | 11.4 Ruleset Wisdom (vendor content) | E | — | — |
+| REQ-452 | Conversion evidence verification | 5.2 Extraction and Confidence | E | — | — |
+| REQ-453 | Extraction evidence-map parity | 5.2 Extraction and Confidence | E | — | — |
 

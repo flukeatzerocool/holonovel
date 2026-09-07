@@ -6,19 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Builder-side evidence follow-through (AAR 2026-09-06)
-
-- Plan the re-scoped-out builder-side evidence work on the correct bucket-E
-  model (builder/verifier contracts are exempt from the server-runtime audit;
-  evidence lives in harnesses + gates, not the §6.6 coverage map). Deferred
-  pieces: a conversion evidence harness + §5.2 coverage map (REQ-451 model),
-  a §6.7 update-workflow harness (REQ-098), and register alignment for the
-  Holodeck/Wisdom/entry-point REQs. Each is a separate bounded increment.
-- Shipped in this AAR: `check-vendor-manifest.ts` + REQ-451 (vendor-manifest
-  verification), G6 `_Check:` wiring, and the REQ-141g "§9 H13a"→"§9 H13"
-  repair. A general G/H-reference parity checker was judged not worthwhile
-  (regex false-positives on heading terms); the targeted repair suffices.
-
 ## Supplementary ruleset import (REQ-372/373)
 
 - Implement the supplementary-import subsystem end to end: `import_supplementary`

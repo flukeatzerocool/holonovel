@@ -2,6 +2,16 @@
 
 **Spec hash:** 20d707d073f70411d25d7f97b7f778445d83afc559f91f0fff6d8648b54c0c96
 
+### Holonovel Spec Update — 2026-09-06 (builder-side evidence follow-through)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + tooling + implementation — the AAR 2026-09-06 deferred builder-side evidence pieces shipped as three increments. (1) REQ-452 (conversion evidence verification) + a runnable checker (`holonovel/scripts/check-conversion-evidence.ts`, wired as `check:conversion-evidence`), verifying the converter pin, per-content-type fidelity (≥90%, ≥70% Phase-1 gate), artifact dispositions, and cross-converter verification in DECISIONS.md. (2) REQ-453 (extraction evidence-map parity) + a §5.2 coverage map table (one evidence surface per §5.2 REQ), mechanically enforced by `scripts/validate.ts` (`checkSection52CoverageMap`). (3) A §6.7 update-workflow harness (`holonovel/scripts/test-update-workflow.ts`, wired as `test:update-workflow`) exercising the fingerprint baseline — current-without-mutation, Minor/Major pending-update block, Patch exemption (REQ-098 `_Check:` now T84, T84b). (4) Coverage-register disposition corrected from numeric range to §5.12 section membership, so REQ-354 no longer misreports `implemented`. |
+| Repaired REQ set | REQ-098 (T84b `_Check:`); REQ-452, REQ-453 added; §5.2 section-map row extended |
+| Reused | server, extraction, tooling |
+| Verification | assemble + check:fast 0 errors; `npm run check` 0 errors (6 pre-existing DP-3 warnings); typecheck clean; `check-script-discipline` green; `test-update-workflow` 3/3 pass; `check-conversion-evidence` waived (ruleset-free) and fails strict on a sub-90% / pending fixture |
+
 ### Holonovel Spec Update — 2026-09-06 (zero-findings editorial structural reconciliation)
 
 | Field | Value |

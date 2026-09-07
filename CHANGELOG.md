@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-06 — Builder-side evidence follow-through (three increments)
+
+- Conversion evidence is now verified by a runnable checker
+  (`holonovel/scripts/check-conversion-evidence.ts`), a gate that confirms
+  the converter pin, per-content-type fidelity (≥90% with a ≥70% Phase-1
+  trial gate), artifact dispositions, and cross-converter verification in
+  DECISIONS.md before converted content is used downstream. (REQ-452, T542)
+- §5.2 (Extraction and Confidence) now carries a coverage map — one evidence
+  surface per REQ, mechanically enforced by `scripts/validate.ts` so a §5.2
+  REQ with no map row and no disposition blocks assembly. (REQ-453, T543)
+- The spec-driven update workflow gained an automated harness
+  (`holonovel/scripts/test-update-workflow.ts`) exercising the fingerprint
+  baseline: unchanged spec reports current without mutation, a Minor/Major
+  delta with unchanged fingerprints blocks as pending, and a Patch delta is
+  exempt. (REQ-098, T84b)
+- Fixed the coverage-register disposition range, which keyed the §5.12
+  narrative disposition on REQ number (335–366) rather than section
+  membership — REQ-354 (a §5.2 extraction REQ) no longer misreports
+  `implemented`.
+
 ## 2026-09-06 — Roadmap & register tracking for builder-side evidence
 
 - Recorded the AAR 2026-09-06 follow-through in ROADMAP.md and

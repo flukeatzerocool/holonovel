@@ -897,6 +897,48 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   return issues;
 }
 
+function checkSection52CoverageMap(text: string, reqIndex: Map<string, string>): string[] {
+  const issues: string[] = [];
+  const coverageStart = text.indexOf("#### §5.2 REQ coverage map");
+  if (coverageStart === -1) { issues.push("§5.2 REQ coverage map not found"); return issues; }
+  const coverageEnd = text.indexOf("### 5.3", coverageStart);
+  if (coverageEnd === -1) { issues.push("§5.2 coverage map table terminator (§5.3) not found"); return issues; }
+  const mapSection = text.slice(coverageStart, coverageEnd);
+  const mapReqs = new Set<string>();
+  for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
+  if (mapReqs.size === 0) { issues.push("§5.2 REQ coverage map contains no REQ entries"); return issues; }
+
+  const sectionMapStart = text.indexOf("| §       | Title");
+  if (sectionMapStart === -1) { issues.push("§5 section map not found"); return issues; }
+  const sectionMapEnd = text.indexOf("\n### 5.1", sectionMapStart);
+  if (sectionMapEnd === -1) { issues.push("§5.1 heading not found after section map"); return issues; }
+  const sectionMap = text.slice(sectionMapStart, sectionMapEnd);
+  const familyIds = new Set<string>();
+  for (const line of sectionMap.split("\n")) {
+    if (!line.includes("| 5.2 ")) continue;
+    for (const r of line.matchAll(/(\d{3})–(\d{3})/g)) {
+      const lo = parseInt(r[1], 10);
+      const hi = parseInt(r[2], 10);
+      if (!isNaN(lo) && !isNaN(hi)) {
+        for (let n = lo; n <= hi; n++) familyIds.add(String(n).padStart(3, "0"));
+      }
+    }
+    for (const r of line.matchAll(/\b(\d{3})\b/g)) familyIds.add(r[1]);
+  }
+  const familyCovered = (fam: string) =>
+    [...mapReqs].some((k) => k === `REQ-${fam}` || (k.startsWith(`REQ-${fam}`) && k.length > `REQ-${fam}`.length));
+  for (const fam of [...familyIds].sort()) {
+    if (!familyCovered(fam)) issues.push(`ERROR: REQ-${fam} in §5.2 but missing from the §5.2 coverage map`);
+  }
+  const reqKeys = [...reqIndex.keys()];
+  for (const r of [...mapReqs].sort()) {
+    const defined = reqIndex.has(r) || (r.length < 9 && reqKeys.some((k) => k.startsWith(r) && k.length > r.length));
+    if (!defined) issues.push(`WARNING: ${r} in §5.2 coverage map but not in Appendix E`);
+  }
+  if (familyIds.size === 0) issues.push("Could not extract §5.2 REQs from section map");
+  return issues;
+}
+
 function checkPatternBufferBlockingParity(text: string): string[] {
   const issues: string[] = [];
   const listStart = text.indexOf("1. **Tool surface sweep**");
@@ -1458,6 +1500,10 @@ const INTENDED_GAP_REQS = new Set([
   // Vendor-manifest verification is verifier tooling (the §11.4 MANIFEST.md
   // checker), not server-runtime behavior.
   "REQ-451",
+  // Conversion evidence verification (REQ-452) and the §5.2 evidence-map
+  // parity contract (REQ-453) are builder/verifier tooling, not server-runtime
+  // behavior.
+  "REQ-452", "REQ-453",
   "REQ-100", "REQ-146", "REQ-148", "REQ-149", "REQ-150",
   "REQ-158", "REQ-273", "REQ-274", "REQ-354",
   "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",
@@ -1550,16 +1596,16 @@ function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCi
       bucket = "E";
     }
 
-    const num = reqNumeric(base);
+    const section = sectionNameForReq(base, text);
     let disposition: string | undefined;
-    if (num >= 335 && num <= 366) {
+    if (section.startsWith("5.12")) {
       disposition = bucket === "A" ? "gap" : bucket === "B" ? "partial" : "implemented";
     }
 
     rows.push({
       reqId: base,
       title,
-      section: sectionNameForReq(base, text),
+      section,
       bucket,
       subParts,
       exercisedTests: exercised,
@@ -1782,6 +1828,15 @@ function main(): void {
     if (patternBufferCoverageIssues.length > 0) {
       console.log("\n=== PATTERN BUFFER REQ COVERAGE MAP ===\n");
       for (const issue of patternBufferCoverageIssues) {
+        if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
+        else { console.log(issue); warnings++; }
+      }
+    }
+
+    const section52CoverageIssues = checkSection52CoverageMap(text, reqIndex);
+    if (section52CoverageIssues.length > 0) {
+      console.log("\n=== §5.2 REQ COVERAGE MAP ===\n");
+      for (const issue of section52CoverageIssues) {
         if (issue.startsWith("ERROR")) { console.log(issue); errors++; }
         else { console.log(issue); warnings++; }
       }
