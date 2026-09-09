@@ -1,6 +1,6 @@
 {
   "name": "holonovel",
-  "version": "2026.09.07",
+  "version": "2026.09.08",
   "description": "Holonovel MCP server — world-model base for tabletop RPG play. Provides core scaffold (state management, badge gating, macros, Ruleset Wisdom) and world-model layer (rooms, things, exits, parser commands, kind hierarchy). Consumed by TTRPG servers as a build-time dependency.",
   "type": "module",
   "main": "dist/index.js",
@@ -45,10 +45,11 @@
     "test:ironsworn": "tsx scripts/test-ironsworn.ts",
     "test:forged": "tsx scripts/test-forged.ts",
     "test:security": "tsx scripts/test-security.ts",
+    "test:help": "tsx scripts/test-help.ts",
     "check:vendor": "tsx scripts/check-vendor-manifest.ts --strict",
     "check:conversion-evidence": "tsx scripts/check-conversion-evidence.ts --strict",
     "test:update-workflow": "tsx scripts/test-update-workflow.ts",
-    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:pattern-buffer && npm run test:pattern-buffer-ruleset && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate && npm run test:ironsworn && npm run test:forged && npm run test:security && npm run test:update-workflow && npm run check:vendor && npm run check:conversion-evidence"
+    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:pattern-buffer && npm run test:pattern-buffer-ruleset && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate && npm run test:ironsworn && npm run test:forged && npm run test:security && npm run test:help && npm run test:update-workflow && npm run check:vendor && npm run check:conversion-evidence"
   },
   "keywords": [
     "parser",

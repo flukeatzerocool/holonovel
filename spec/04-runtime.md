@@ -146,22 +146,22 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `novel (action: export)` output |
 | `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`) |
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
-| `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Behavioral. |
+| `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
 | `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
-| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral. |
+| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral — couples per P1. |
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
-| `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral. |
-| `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral. |
-| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral. |
-| `TTRPG_NOVEL_PREVIEW_CHARS` | No | Character budget for the Novel-library name/preview in the `intro` prompt (default 120; REQ-063b). Behavioral. |
+| `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
+| `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral — couples per P55. |
+| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral — couples per P56. |
+| `TTRPG_NOVEL_PREVIEW_CHARS` | No | Character budget for the Novel-library name/preview in the `intro` prompt (default 120; REQ-063b). Presentation. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
-| `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral. |
-| `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral. |
-| `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral. |
+| `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral — couples per P59. |
+| `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral — couples per P59. |
+| `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 
@@ -359,6 +359,11 @@ fuzzy, or semantic matching.
 | P52 | Scene-anchored → Narrative-memory | Scene beat transitions populate narrative-memory records — the story_beats sequence in the narrative briefing | Narrative | The program structures the story |
 | P53 | Temporal → Temporal | A temporal signal coordinates with other temporal properties — a pacing fire advances every countdown | Mechanical | The clock drives the clock |
 | P54 | Knowledge-carrying → Knowledge-carrying | Knowledge-carrying properties cross-reference each other — background and memory trigger-match against lore, and per-entity facts promote to campaign knowledge | Navigational | What one knows leads to what else one knows |
+| P55 | Session → Scene-anchored | GM narrative directives containing beat-retention keywords adjust the story-beats retention window — "keep more beats" raises the window, "trim the arc" lowers it | Mechanical | The GM controls how much story the briefing recalls |
+| P56 | Session → Knowledge-carrying | GM narrative directives containing campaign-memory keywords adjust the campaign-memory fact budget — "more campaign notes" raises the cap, "fewer campaign notes" lowers it | Mechanical | The GM controls how much the briefing remembers |
+| P57 | Session → Narrative-memory | GM narrative directives containing recording keywords toggle automatic story-journal moments — "auto-record moments" enables TTRPG_AUTO_RECORD, "stop auto-recording" disables it | Mechanical | The GM controls what the story remembers |
+| P58 | Session → Guidance | GM narrative directives containing action-quantity keywords adjust the proactive action budget — "more options" raises TTRPG_MAX_AVAILABLE_ACTIONS, "fewer options" lowers it | Mechanical | The GM controls how many choices the story offers |
+| P59 | Session → Session | GM narrative directives containing safety-gate keywords set narration-validation and state-drift enforcement — "validate my narration" enables TTRPG_NARRATION_VALIDATION, "warn on state drift" sets TTRPG_STATE_GATE to warn | Mechanical | The GM tunes the server's safety gates in plain English |
 
 #### 7.7.1 Cross-property coupling
 
@@ -469,6 +474,12 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Story Beats → NPC | P41 | Beat transitions drive NPC disposition advisories — `climax` beat shifts combat-ready NPCs toward hostile, `denouement` shifts all NPCs toward neutral — surfaced in `narrative_threads` | The dramatic structure shapes the cast — beat transitions drive NPC disposition advisories | — | Navigational | REQ-335, REQ-353, REQ-075 |
 | Scene → Faction | P41 | Scene type and atmosphere surface faction-relevant advisories in `narrative_threads` — active combat state (REQ-043) highlights aggressive faction goals, social scenes highlight faction alliances and negotiations | Factions loom larger when the scene matches — scene type highlights relevant faction activity | — | Navigational | REQ-233, REQ-043, REQ-087 |
 | Server Notes → Countdown | P49 | Server notes with temporal urgency keywords ("imminent", "within hours", "by dawn") suggest countdown creation in `narrative_threads` when scene scope matches or note is unscoped | The GM's notebook can drive the clock — temporal urgency notes suggest countdowns | — | Navigational | REQ-365, REQ-285, REQ-073 |
+| Narrative Directive → Story Beats | P55 | Directive beat-retention keywords ("keep more beats", "trim the arc") adjust TTRPG_STORY_BEAT_WINDOW | The GM controls how much story the briefing recalls — directive keywords adjust beat retention | GM-only | Mechanical | REQ-081, REQ-337 |
+| Narrative Directive → Campaign Memory | P56 | Directive campaign-memory keywords ("more campaign notes", "fewer campaign notes") adjust TTRPG_CAMPAIGN_MEMORY_MAX_FACTS | The GM controls how much the briefing remembers — directive keywords adjust the fact budget | GM-only | Mechanical | REQ-081, REQ-310 |
+| Narrative Directive → Story Journal | P57 | Directive recording keywords ("auto-record moments", "stop auto-recording") toggle TTRPG_AUTO_RECORD | The GM controls what the story remembers — directive keywords toggle automatic journaling | GM-only | Mechanical | REQ-081, REQ-405 |
+| Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
+| Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
+| Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 
 ##### 7.7.1b Coupling curation
 
@@ -478,7 +489,7 @@ define interaction categories; the table instantiates them as specific
 property-group pairs. The table is curated — not every combinatorially possible
 archetype-pair instantiation is a meaningful coupling.
 
-`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P54,
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P59,
 excluding content-source-excluded rules) has at least one coupling row in
 §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling
 row citing a pattern rule whose source or target archetypes do not match the

@@ -63,6 +63,24 @@ the tracking surfaces for the coverage backlog.
   `push-pipeline.sh` step 9 now discards working-tree drift before
   `git pull --ff-only`, matching the AGENTS.md Two-Repo Workflow contract;
   verified REQ-418 deploy verification passes end-to-end.
+- **2026-09-08 full-document evaluation follow-through** (top-3 recommendations
+  + residual findings): (1) Standing Rule 11 scoped to the REQ-388b behavioral
+  classes with build-time/presentation exemptions; the six remaining uncoupled
+  behavioral configs wired with §7.7.1a coupling rows under new pattern rules
+  P55–P59; TTRPG_WORLD_PROMINENCE and TTRPG_NOVEL_PREVIEW_CHARS reclassified
+  non-behavioral in §7.6. (2) REQ-067 removed from the intended-gap whitelist,
+  source-cited, and exercised by a new `test-help.ts` harness (T62/T118) — the
+  help-tool category-override rendering gap was fixed in the same pass;
+  REQ-454/T544 added so a server-cited REQ can never be silently whitelisted.
+  (3) REQ-374a editorial de-duplication (12-name archetype enumeration →
+  §7.7.0 reference) cleared the two residual proofreading warnings.
+- **F6 — world-model "Known limitations" staleness** (2026-09-08 evaluation):
+  the three Aug-2026 limitations recorded in holonovel/DECISIONS.md were
+  verified RESOLVED — multi-direction door form parsed (`model.ts`
+  convert_source), `create_thing` carries `location_type`
+  (room/container/supporter), and parser `take` scans supporter/container
+  things. Historical DECISIONS.md entries left as immutable build records; no
+  open action.
 
 ## Scheduled-roadmap
 
@@ -81,15 +99,20 @@ the tracking surfaces for the coverage backlog.
   demonstrated failure — server badge gating is verified elsewhere (T148, the
   backfill badge block). Recorded; reopen only if a badge-gating drift is
   demonstrated.
-- **Uncoupled behavioral configs** (integration review, 2026-09-04):
-  TTRPG_WORLD_PROMINENCE, TTRPG_CLIMAX_ACCELERATION, TTRPG_MAX_AVAILABLE_ACTIONS,
-  TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS,
-  TTRPG_NOVEL_PREVIEW_CHARS, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE,
-  TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER are annotated behavioral with no
-  §7.7.1a coupling row — pre-existing and tolerated by T450's `uncoupled` report;
-  no demonstrated failure.
+- **Uncoupled behavioral configs** (integration review, 2026-09-04): RESOLVED
+  2026-09-08 — the ten listed configs are now all coupled or reclassified
+  (P55–P59 coupling rows; TTRPG_WORLD_PROMINENCE / TTRPG_NOVEL_PREVIEW_CHARS
+  reclassified non-behavioral; TTRPG_CLIMAX_ACCELERATION and
+  TTRPG_SYNTHESIS_AUTO_TRIGGER had already gained P1 / P47 rows). See Resolved.
 - **REQ-388/T450 (holodeck_config discovery) implementation gap** — bucket-E
   intended gap, owed by tooling; unchanged by this wave.
+- **Counting-surface drift** (2026-09-08 evaluation, F3): the three prior
+  instances (§5 index drift, build-phase-map subsection count, AGENTS.md
+  tool-surface drift) are Resolved and now mechanically enforced
+  (`checkSectionIndexCompleteness`, phase-map consistency, T511). The remaining
+  manual count checks in the AGENTS.md before-commit checklist stay documented
+  discipline; no demonstrated failure. Reopen only on a demonstrated count
+  drift that escapes the enforced checks.
 - **Redo-stack snapshot validator guard** — no demonstrated recurrence beyond
   the two fixed tools; reopen if a later bug demonstrates the class.
 - **§6.6 REQ→S-ID cross-check validator** — the register correctly surfaced

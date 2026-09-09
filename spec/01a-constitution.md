@@ -51,12 +51,15 @@ do not alter meaning are editorial and do not require a version bump.
     (`command (action: suggest)`) are exempt — their content contracts are defined by their
     respective REQs. This rule is verified at G4 and G5 — narrative prompts
     containing tool names or technical syntax are a construction defect.
-11. **Holodeck config alignment.** Every behavioral configuration dimension — any
+11. **Holodeck config alignment.** A behavioral configuration dimension is any
     `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
     character behavior, world reactivity, tone, autonomy, synthesis activation,
-    or narration style — SHALL register a natural language access path via a
-    coupling row in §7.7.1a with a Session-archetype source (`character (action: signal)` or
-    `scene (action: directive)`). System configuration (storage caps, file paths,
+    or narration style — the REQ-388b behavioral classes. Such a dimension
+    SHALL register a natural language access path via a coupling row in §7.7.1a
+    with a Session-archetype source (`character (action: signal)` or
+    `scene (action: directive)`). Build-time-only settings and
+    presentation/display budgets are exempt and SHALL be annotated
+    non-behavioral in §7.6. System configuration (storage caps, file paths,
     build parameters, seed values) is exempt. The coverage of behavioral configs
     with natural language access paths SHALL be mechanically verified at
     assembly time, reported in `spec_health` at runtime, and checked against the
@@ -101,7 +104,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Session        | A term with four senses, disambiguated by context. As a state tier (§7.7), the ephemeral connection scoping discarded on restart or Novel switch. As a Holodeck archetype (§7.7.0), content scoped to the operator's presence (GM Context, Notes, Narrative Directive, Voice Feedback). As a tool, the `session` tool (`session (action: recap)`, `session (action: health)`, `session (action: briefing_order)`). In prose, "the active play session" means the Story. |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P54) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
+| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P59) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
 | Pattern Buffer         | The §6.6 operational verification suite, in two families: the Ruleset Pattern Buffer (sub-workflows S1–S37) gates ruleset (TTRPG) builds; the Holonovel Pattern Buffer (sub-workflows I1–I18) gates the holonovel host package. Named "the Gauntlet" in revisions before 2026-08-10; that term is retired (Appendix R). |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |

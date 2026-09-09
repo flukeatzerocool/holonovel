@@ -77,7 +77,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.07",
+  version: "2026.09.08",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -1660,6 +1660,8 @@ server.registerTool("redo", {
   return ok("Redo successful.");
 });
 
+// REQ-067 — Help and tool discovery: badge-filtered categorized task map with
+// query search and Novel-scoped category reassignment (T62/T118).
 server.registerTool("help", {
   title: "Help and Tool Discovery",
   description: "Show the available tools grouped by category (badge-filtered) or reassign a tool's category. Use when: the caller needs to discover tools, find one by keyword, or override a tool's category for a session. Do NOT use when: reading the current badge's guidance — use the badge_briefing prompt.",
@@ -1732,14 +1734,31 @@ server.registerTool("help", {
   }
 
   const builderCategories = BUILDER_CATEGORIES;
+  // REQ-067b — GM category reassignment: an overridden tool leaves its
+  // builder-assigned category and renders under the user-defined category.
+  // Player badge always reflects builder-assigned categories.
+  const overrides: Record<string, string> = novel?.help_category_overrides ?? {};
+  const overriddenTools = new Set(Object.keys(overrides));
   let result = "## Holonovel MCP Server\n\n### Tool Categories\n\n";
   for (const [cat, tools] of Object.entries(builderCategories)) {
     let displayTools = [...tools];
-    if (!isGM) {
-      displayTools = tools.filter(t => !GMToolsSet.has(t) && !(t === "command" && novel?.ruleset));
+    if (isGM) {
+      displayTools = displayTools.filter(t => !overriddenTools.has(t));
+    } else {
+      displayTools = displayTools.filter(t => !GMToolsSet.has(t) && !(t === "command" && novel?.ruleset));
     }
     if (displayTools.length > 0) {
       result += `**${cat}:** ${displayTools.join(", ")}\n`;
+    }
+  }
+  if (isGM) {
+    const userCategories = new Map<string, string[]>();
+    for (const [tool, cat] of Object.entries(overrides)) {
+      if (!userCategories.has(cat)) userCategories.set(cat, []);
+      userCategories.get(cat)!.push(tool);
+    }
+    for (const [cat, tools] of userCategories) {
+      result += `**${cat}:** ${tools.join(", ")}\n`;
     }
   }
   result += "\nUse the intro prompt to get started, or badge_briefing for current badge guidance.";
