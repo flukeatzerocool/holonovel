@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-08 — Holodeck config coupling closure + intended-gap whitelist discipline
+
+- Scoped Standing Rule 11 to the REQ-388b behavioral classes: build-time and
+  presentation settings are now exempt, and the six behavioral configuration
+  knobs that lacked a natural-language access path (story-beat retention,
+  campaign-memory size, auto-record, action budget, narration validation,
+  state-drift gating) each gained a coupling row under new §7.7.0 pattern
+  rules P55–P59, so a GM can tune them by narrative directive. (REQ-388)
+- The help tool's category reassignment now renders: a tool the GM moves to a
+  custom category leaves its builder-assigned category and appears under the
+  new one, and the help tool is no longer exempted from coverage — it is
+  source-cited and exercised by a new `test-help.ts` harness. (REQ-067)
+- Added an intended-gap whitelist-discipline contract: a builder/verifier REQ
+  cited in server source must carry a recorded disposition naming the surface
+  that owes it, so a server-runtime contract can no longer hide behind the
+  coverage exemption. (REQ-454)
+- Editorial: de-duplicated the REQ-374a archetype enumeration to a §7.7.0
+  reference, clearing the two residual proofreading warnings; recorded the
+  resolved counting-surface drift and world-model known-limitations findings
+  in the review register.
+
 ## 2026-09-07 — README guardrail: TOC feature-list exemption + RSS link + URL-level dedup
 
 - `scripts/validate-readme.ts`: the `checkFeatureLists` gate now exempts the

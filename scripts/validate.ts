@@ -1489,6 +1489,31 @@ function baseReq(reqId: string): string {
   return m ? m[0] : reqId;
 }
 
+// REQ-454 — a whitelisted REQ that is cited in server source must carry a
+// recorded disposition naming the builder/verifier surface that owes it, or
+// be removed from the whitelist. Without a disposition, a server-runtime
+// contract can hide behind the builder/verifier exemption (the REQ-067 mode).
+const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
+  "REQ-354": "§5.2 builder-side; cited in a negative comment explaining it is not server-side",
+  "REQ-379": "ruleset package format is build-defined; the server consumes it but the REQ is owed by the build pipeline",
+  "REQ-180": "truncation-budget units — DECISIONS.md build record; cited in an intro/build comment",
+  "REQ-127": "ruleset-native personality mapping — RULESET_MODEL.md build record",
+  "REQ-247": "adventure structure extraction — §6.3 discovery heuristic",
+  "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
+  "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
+};
+function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
+  const issues: string[] = [];
+  for (const id of INTENDED_GAP_REQS) {
+    const cited = [...sourceCites].some((c) => baseReq(c) === id);
+    if (!cited) continue;
+    if (!(id in INTENDED_GAP_CITED_DISPOSITIONS)) {
+      issues.push(`ERROR: REQ-454 — whitelisted REQ ${id} is cited in server source but has no disposition; remove it from INTENDED_GAP_REQS or add a disposition`);
+    }
+  }
+  return issues;
+}
+
 interface CoverageRow {
   reqId: string;
   title: string;
@@ -1515,7 +1540,17 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-017", "REQ-018", "REQ-099", "REQ-102", "REQ-111", "REQ-147", "REQ-153",
   "REQ-154", "REQ-207", "REQ-209", "REQ-210", "REQ-212", "REQ-214", "REQ-215",
   "REQ-225", "REQ-272", "REQ-315", "REQ-324",
-  "REQ-067", "REQ-161", "REQ-162", "REQ-163", "REQ-164", "REQ-187", "REQ-278",
+  // §5.3 build-tooling subset (2026-09-08 triage): intake workflow (REQ-161),
+  // build-mode profiles (REQ-162), client config verification (REQ-163),
+  // viability pre-check (REQ-164), spec content hash (REQ-187), and
+  // build-phase-map staleness (REQ-278) are build-time tooling owed by
+  // scripts/ and the build pipeline, not the runtime `holonovel/src` server.
+  // REQ-067 (help tool) was removed from this list 2026-09-08 — it is
+  // server-runtime and cited in holonovel/src (see REQ-454).
+  "REQ-161", "REQ-162", "REQ-163", "REQ-164", "REQ-187", "REQ-278",
+  // REQ-107 version coordination is a build-time DECISIONS.md record.
+  // REQ-388 holodeck_config is a deferred runtime `spec_health` field — not
+  // yet implemented in server source; tracked as an intended feature gap.
   "REQ-107", "REQ-388",
   "REQ-372", "REQ-373",
   "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
@@ -1536,10 +1571,11 @@ const INTENDED_GAP_REQS = new Set([
   // Vendor-manifest verification is verifier tooling (the §11.4 MANIFEST.md
   // checker), not server-runtime behavior.
   "REQ-451",
-  // Conversion evidence verification (REQ-452) and the §5.2 evidence-map
-  // parity contract (REQ-453) are builder/verifier tooling, not server-runtime
+  // Conversion evidence verification (REQ-452), the §5.2 evidence-map
+  // parity contract (REQ-453), and the intended-gap whitelist-discipline
+  // guard (REQ-454) are builder/verifier tooling, not server-runtime
   // behavior.
-  "REQ-452", "REQ-453",
+  "REQ-452", "REQ-453", "REQ-454",
   "REQ-100", "REQ-146", "REQ-148", "REQ-149", "REQ-150",
   "REQ-158", "REQ-273", "REQ-274", "REQ-354",
   "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",
@@ -1945,6 +1981,10 @@ function main(): void {
   const gatingIssues = checkHarnessGating();
   if (gatingIssues.length > 0) { for (const issue of gatingIssues) console.log(`ERROR: ${issue}`); errors += gatingIssues.length; }
   else console.log("PASS: Every exercised harness is wired into a gate");
+
+  const intendedGapIssues = checkIntendedGapDispositions(sourceCites);
+  if (intendedGapIssues.length > 0) { for (const issue of intendedGapIssues) console.log(issue); errors += intendedGapIssues.length; }
+  else console.log("PASS: No server-cited REQ in the intended-gap whitelist");
 
   // G4 — new REQs must be cited or whitelisted. A REQ whose base ID appears in
   // the spec but not in the committed coverage register is "new since baseline";

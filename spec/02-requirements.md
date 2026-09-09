@@ -7,7 +7,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452, 453 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
@@ -514,6 +514,9 @@ The builder SHALL verify conversion evidence with a checker (`holonovel/scripts/
 **REQ-453 — Extraction evidence-map parity.**
 The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
 
+**REQ-454 — Intended-gap whitelist discipline.**
+The implementation-coverage audit SHALL exempt from strict evidence only REQs whose contract the builder, the verifier, or build tooling owes. A whitelisted REQ cited in server source SHALL carry a recorded disposition naming the builder/verifier surface that owes it; otherwise the builder SHALL remove it from the whitelist. *Acceptance criterion:* a whitelisted REQ cited in server source without a disposition fails validation; a builder-side §5.2 whitelisted REQ passes; REQ-067 re-classifies to bucket C once source-cited and its derived tests are exercised. _Check:_ T544.
+
 #### §5.2 REQ coverage map
 
 The following table maps every requirement in §5.2 (Extraction and Confidence)
@@ -555,6 +558,7 @@ mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
 | REQ-354 | T405 |
 | REQ-452 | T542 (conversion-evidence checker) |
 | REQ-453 | T543 (validated by scripts/validate.ts) |
+| REQ-454 | T544 (validated by scripts/validate.ts) |
 
 ### 5.3 Tools, Resources, and Lookups
 
@@ -3469,12 +3473,12 @@ The `spec_health` `narrative_coherence` flag SHALL report a disposition of `pass
 ### 5.13 Holodeck
 
 **REQ-369a — Holodeck archetype taxonomy (Part a).**
-(§7.7) SHALL be assigned one or more archetypes — Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, or Mechanical — as defined in §7.7.0. Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling pattern rules (P1–P54, §7.7.0). A coupling that does not trace to a pattern rule is a spec defect.
+(§7.7) SHALL be assigned one or more archetypes — Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, or Mechanical — as defined in §7.7.0. Every cross-property coupling in §7.7.1 SHALL trace to one or more coupling pattern rules (P1–P59, §7.7.0). A coupling that does not trace to a pattern rule is a spec defect.
 
 **REQ-369b — Holodeck archetype taxonomy (Part b).**
 Archetypes tagged `[content source]` denote input sources that fill property groups — the derivation skips them in the coupling cross-product. `npm run validate` SHALL verify that every coupling row in §7.7.1a cites a valid pattern rule. *Acceptance criterion:* `npm run validate` reports no untraced coupling rows and no coupling row with an invalid or missing pattern rule reference. _Check:_ T420, T436, T437, T438.
 **REQ-370a — Coupling derivation (Part a).**
-Every coupling row in §7.7.1a SHALL cite a pattern rule whose source and target archetypes match the row's property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0 (P1–P54) SHALL have at least one coupling row in §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling row citing a mismatched pattern rule is a spec defect. A `[non-property]` row (single-property snapshot or tool delegation) is exempt from archetype matching but counts toward its rule's coverage. `npm run validate` SHALL verify both conditions. Property groups classified as `[content source]` do not participate in coupling derivation — the properties they populate couple via their own archetype rules (§7.7.0).
+Every coupling row in §7.7.1a SHALL cite a pattern rule whose source and target archetypes match the row's property-group archetypes (§7.7.0, §7.7.1b). Every pattern rule in §7.7.0 (P1–P59) SHALL have at least one coupling row in §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling row citing a mismatched pattern rule is a spec defect. A `[non-property]` row (single-property snapshot or tool delegation) is exempt from archetype matching but counts toward its rule's coverage. `npm run validate` SHALL verify both conditions. Property groups classified as `[content source]` do not participate in coupling derivation — the properties they populate couple via their own archetype rules (§7.7.0).
 
 **REQ-370b — Coupling derivation (Part b).**
 The coupling completeness register (§7.7.1b previous) no longer exists — the derivation contract replaces it. *Acceptance criterion:* `npm run validate` reports no pattern rules with zero coupling rows and no coupling rows with mismatched archetype assignments. _Check:_ T421 (amended), T434, T435.
@@ -3484,7 +3488,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical), or the `[content source]` marker for groups populated by content sources per REQ-369b (Adventure, Adventure Scene Waypoint). A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 30 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
