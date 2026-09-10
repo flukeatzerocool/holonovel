@@ -93,16 +93,51 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
 // entity type within a twenty-eight-tool budget; every persisted type has a
 // list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
-// REQ-450 — TDQS-conformant tool definitions: every registered tool carries a
-// mutation-class annotation (read-only vs open-world) so callers see behavior
-// hints beyond the description.
-const TOOL_ANNOTATIONS: Record<string, { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean }> = {
-  help: { readOnlyHint: true, openWorldHint: false },
+// REQ-450 — TDQS-conformant tool definitions: every registered tool carries
+// all four MCP mutation-class hints (readOnlyHint, destructiveHint,
+// idempotentHint, openWorldHint) as explicit booleans matching the tool's
+// mutation class. The server makes no network calls (REQ-051), so openWorldHint
+// is false for every tool. Action-discriminator tools take the highest-impact
+// class across their actions (command overrides state-reading, hybrid overrides
+// generation): only `help` is read-only — every other tool has at least one
+// mutating action and is classified command/hybrid.
+type ToolAnnotation = { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
+const READ_ONLY: ToolAnnotation = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const MUTATING: ToolAnnotation = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
+const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
+  help: READ_ONLY,
+  set_badge: MUTATING,
+  respond: MUTATING,
+  undo: MUTATING,
+  redo: MUTATING,
+  character: MUTATING,
+  npc: MUTATING,
+  world: MUTATING,
+  command: MUTATING,
+  combat: MUTATING,
+  scene: MUTATING,
+  countdown: MUTATING,
+  lore: MUTATING,
+  condition: MUTATING,
+  faction: MUTATING,
+  relationship: MUTATING,
+  vow: MUTATING,
+  fate: MUTATING,
+  ironsworn: MUTATING,
+  forged: MUTATING,
+  story: MUTATING,
+  note: MUTATING,
+  session: MUTATING,
+  adventure: MUTATING,
+  novel: MUTATING,
+  ruleset: MUTATING,
+  codex: MUTATING,
+  synthesis: MUTATING,
 };
-const DEFAULT_TOOL_ANNOTATIONS = { readOnlyHint: false, openWorldHint: true };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
-  const annotations = TOOL_ANNOTATIONS[name] ?? DEFAULT_TOOL_ANNOTATIONS;
+  const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
+  if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
   return _registerTool(name, { ...config, annotations }, withForbiddenAudit(handler, name) as any);
 }) as unknown as typeof server.registerTool;
 
@@ -762,11 +797,18 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
 for (const slug of rulesets.installedSlugs()) {
   for (const schema of rulesets.toolSchemas(slug)) {
     const toolName = `${slug}_${schema.name}`;
+    // REQ-450 — ruleset-derived tools read indexed data (lookup/search/info:
+    // idempotent) or generate content (roll/table): neither mutates Novel
+    // state, so destructiveHint is false for every ruleset-derived kind.
+    const annotations: ToolAnnotation = (schema.kind === "lookup" || schema.kind === "search" || schema.kind === "info")
+      ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+      : { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
     try {
 server.registerTool(toolName, {
         title: schema.title ?? schema.name,
         description: `${schema.description ?? ""} (ruleset: ${slug})`,
         inputSchema: jsonSchemaToZod(schema.inputSchema),
+        annotations,
       }, gatedRulesetTool(slug, schema, toolName));
     } catch (e: any) {
       // Tool name already registered or schema unrecoverable — skip.

@@ -74,6 +74,16 @@ src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources,
 - **ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
 - **forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
 
+**Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
+mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+`openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
+`src/index.ts`. `help` is read-only; the other 27 tools are command/hybrid
+(`destructiveHint: true`); `openWorldHint` is `false` everywhere (REQ-051 — no
+network). Registering a host tool without a map entry throws at startup;
+ruleset-derived tools (REQ-379) compute their hints from `schema.kind`. Adding a
+tool requires a corresponding `TOOL_ANNOTATIONS` entry — T536 (in
+`scripts/test-security.ts`) enforces the four-hint contract.
+
 ## Running
 
 ```bash
@@ -89,6 +99,10 @@ mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S30/S31
 record `blocked` (REQ-372/373 bucket-E gap, see ROADMAP.md); the rest are
 `follow-on` increments, all summarized in the emitted
 `ruleset-pattern-buffer-manifest.json`).
+
+Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.
+There are no conventional `*.test.ts` files or a `test/` directory, so registry
+crawlers that detect tests by filename will report none — this is expected.
 
 ## Boot
 

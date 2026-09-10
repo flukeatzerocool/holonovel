@@ -2,6 +2,16 @@
 
 **Spec hash:** eef1192ba349952ea4c2cd964335a821a21d10d3d0d98b1150c91d87eecfbf79
 
+### Holonovel Server Change — 2026-09-10 (TDQS tool annotations: all four hints on every tool)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — closed the M8ven directory finding that every tool shipped partial MCP mutation-class hints. `TOOL_ANNOTATIONS` (REQ-450/REQ-015) now enumerates all 28 host tools with all four hints as explicit booleans, classified per the REQ-015 precedence rule (command overrides state-reading, hybrid overrides generation): `help` is read-only (`readOnlyHint: true, idempotentHint: true`), the other 27 are command/hybrid (`destructiveHint: true`), and `openWorldHint` is `false` everywhere (REQ-051 — no network access). The silent `{ readOnlyHint: false, openWorldHint: true }` default is gone: registering a host tool without a map entry now throws, and ruleset-derived tools (REQ-379) compute their own four-hint annotation from `schema.kind` (lookup/search/info → idempotent; roll/table → generation — never destructive). T536 strengthened to assert all four boolean hints on every tool, the read-only `help` classification, and `destructiveHint: true` on each mutating tool. |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; `test:security` 7/7 (T530–T536); `test:tool-definitions` 6/6; `test:all` green except pre-existing T502 (`migrate-user-data` re-stamp drift — fails identically on the unmodified tree, unrelated to this change) |
+| Follow-up | M8ven/Glama re-index after deploy reflects the 28-tool four-hint surface; the directory's "32 tools / no test files" counts were stale (the consolidated surface is 28 tools, and tests live in `holonovel/scripts/` as tsx harnesses — now documented in `holonovel/AGENTS.md`) |
+
 ### Holonovel Spec Update — 2026-09-07 (terminology disambiguation: Pattern Buffer families, Gauntlet/Inform/enrichment retirement)
 
 | Field | Value |
