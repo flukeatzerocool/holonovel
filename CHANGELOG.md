@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-09 — §7.6 behavioral-annotation normalization
+
+- Normalized the §7.6 configuration-table behavioral annotations to one canonical
+  form, "Behavioral — couples per PN.": `TTRPG_AUTONOMY` dropped its `§7.7.1a`
+  prefix, and `TTRPG_SYNTHESIS_AUTO_TRIGGER` gained its missing coupling
+  annotation ("couples per P47"), backed by a literal variable name in the
+  §7.7.1a "Narrative Directive → Synthesis" row. (SR 11, REQ-388)
+- Tightened `checkConfigCouplingAnnotations`: a §7.6 row annotated "Behavioral"
+  without a `couples per P<rule>` annotation, or using the non-canonical
+  `§7.7.1a` prefixed form, now fails validation instead of being silently skipped.
+
 ## 2026-09-08 — Holodeck config coupling closure + intended-gap whitelist discipline
 
 - Scoped Standing Rule 11 to the REQ-388b behavioral classes: build-time and
