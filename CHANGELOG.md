@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-10 — TDQS tool annotations (all four hints on every tool)
+
+- Closed the M8ven directory finding that every holonovel tool shipped partial
+  MCP mutation-class hints. `TOOL_ANNOTATIONS` now enumerates all 28 host tools
+  with `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`
+  as explicit booleans, classified per REQ-015 (`help` read-only; the other 27
+  command/hybrid; `openWorldHint` false everywhere per REQ-051). The silent
+  two-hint default is gone: registering an unlisted host tool now throws, and
+  ruleset-derived tools compute their four-hint annotation from `schema.kind`.
+  (REQ-450, REQ-015)
+- Strengthened T536 in `test-security.ts` to assert all four boolean hints on
+  every tool, the read-only `help` classification, and `destructiveHint: true`
+  on each mutating tool — the previous assertion only checked that an
+  `annotations` object existed and never caught the gap.
+
 ## 2026-09-10 — README monitoring badge
 
 - Added the M8ven live-monitored badge to the README orientation, alongside

@@ -158,8 +158,23 @@ async function main() {
     const p = await boot();
     const tools = await listTools(p);
     assert(tools.length >= 25, "T536 expected ≥25 tools, got " + tools.length);
+    const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"] as const;
     for (const t of tools) {
       if (!t.annotations) throw new Error(`T536 tool '${t.name}' missing annotations`);
+      for (const h of HINTS) {
+        if (typeof t.annotations[h] !== "boolean") throw new Error(`T536 tool '${t.name}' missing boolean hint '${h}'`);
+      }
+      if (t.annotations.openWorldHint !== false) throw new Error(`T536 tool '${t.name}' openWorldHint must be false (REQ-051 no-network)`);
+    }
+    const help = tools.find((t) => t.name === "help");
+    assert(help, "T536 help tool not registered");
+    assert(help.annotations.readOnlyHint === true && help.annotations.destructiveHint === false && help.annotations.idempotentHint === true, "T536 help must be read-only/idempotent/non-destructive");
+    const mutatingNames = ["set_badge", "respond", "undo", "redo", "character", "npc", "world", "command", "combat", "scene", "countdown", "lore", "condition", "faction", "relationship", "vow", "fate", "ironsworn", "forged", "story", "note", "session", "adventure", "novel", "ruleset", "codex", "synthesis"];
+    for (const name of mutatingNames) {
+      const t = tools.find((x) => x.name === name);
+      if (!t) throw new Error(`T536 mutating tool '${name}' not registered`);
+      if (t.annotations.destructiveHint !== true) throw new Error(`T536 tool '${name}' must carry destructiveHint:true`);
+      if (t.annotations.readOnlyHint !== false || t.annotations.idempotentHint !== false) throw new Error(`T536 tool '${name}' must be readOnly:false/idempotent:false`);
     }
     const ruleset = tools.find((t) => t.name === "ruleset");
     assert(ruleset && /roll/i.test(ruleset.description ?? ""), "T536 ruleset description does not name 'roll'");
