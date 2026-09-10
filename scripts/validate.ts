@@ -1249,7 +1249,13 @@ function checkConfigCouplingAnnotations(text: string): string[] {
     const variable = m[1];
     if (!line.includes("Behavioral")) continue;
     const couples = line.match(/couples per\s+(?:§7\.7\.1a\s+)?([P\d\s/]+)/);
-    if (!couples) continue;
+    if (!couples) {
+      issues.push(`ERROR: §7.6 ${variable} annotated "Behavioral" without a "couples per P<rule>" annotation`);
+      continue;
+    }
+    if (couples[0].includes("§7.7.1a")) {
+      issues.push(`ERROR: §7.6 ${variable} uses the non-canonical "couples per §7.7.1a P<rule>" form; use "couples per P<rule>"`);
+    }
     const rules = [...couples[1].matchAll(/P\d+/g)].map((r) => r[0]);
     if (rules.length === 0) continue;
     const names = configAliases[variable] ?? [variable];

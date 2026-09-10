@@ -8,6 +8,13 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **§7.6 behavioral-annotation drift** (baseline spec-review, 2026-09-09):
+  normalized the config-table annotation to one canonical form — `TTRPG_AUTONOMY`
+  dropped its `§7.7.1a` prefix and `TTRPG_SYNTHESIS_AUTO_TRIGGER` gained its
+  `couples per P47` annotation (backed by a literal variable name in the §7.7.1a
+  "Narrative Directive → Synthesis" row). `checkConfigCouplingAnnotations` now
+  rejects a bare `Behavioral` row or the non-canonical prefixed form instead of
+  silently skipping them. SR-1, SR-2, SR-3 closed.
 - **Builder-side evidence follow-through** (AAR 2026-09-06): shipped 2026-09-06
   as three bounded increments — a conversion evidence harness + §5.2 coverage
   map (REQ-452/453, `check-conversion-evidence.ts`, T542/T543), a §6.7
