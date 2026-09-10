@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-10 — README monitoring badge
+
+- Added the M8ven live-monitored badge to the README orientation, alongside
+  the existing MCP server card badge, so status is visible from the registry
+  and the repo. Updated the README DESIGN comment's orientation element list
+  to match.
+
 ## 2026-09-09 — §7.6 behavioral-annotation normalization
 
 - Normalized the §7.6 configuration-table behavioral annotations to one canonical
