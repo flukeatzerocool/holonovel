@@ -265,7 +265,7 @@ export interface VowState {
   description: string;
   parties: string[];
   difficulty: "troublesome" | "dangerous" | "formidable" | "extreme" | "epic";
-  scope: "gm" | "shared" | "faction" | "party";
+  scope: "game_master" | "shared" | "faction" | "party";
   milestones: number;
   rank_track: number;
   state: "active" | "resolved" | "forsaken";
@@ -458,7 +458,7 @@ export interface NovelState {
   player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string }>>;
   // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
   // derived from state-changing tool calls, surviving restart and rebuild.
-  campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "gm" | "shared" | "discovered"; scene: string }>;
+  campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "game_master" | "shared" | "discovered"; scene: string }>;
   notes: NoteEntry[];
   vows: VowState[];
   checkpoints: Checkpoint[];
