@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-10 — Prose Parameter Semantics on high-arity tools (TDQS Parameter Semantics)
+
+- Added a "Parameters by action:" clause to the descriptions of all 23 tools
+  with four or more parameters, so per-action parameter relevance is stated in
+  prose rather than only in the JSON Schema `.describe()` calls — closing the
+  remaining TDQS Parameter Semantics gap flagged in the verb_noun follow-up.
+  The clause names which parameters apply to each action without restating each
+  parameter's meaning or default (REQ-392 non-duplication). (REQ-450)
+- Strengthened T536 in `holonovel/scripts/test-security.ts` to enforce the
+  REQ-450 clause: every tool with four or more parameters must carry a
+  "Parameters by action:" clause naming each of its parameters in prose. The
+  prior assertion checked annotations and action enumeration only and never
+  caught the prose gap.
+
 ## 2026-09-10 — verb_noun tool rename + undo/redo/help consolidation (26-tool surface)
 
 - Renamed the 28-tool action-discriminator surface to a uniform `verb_noun`

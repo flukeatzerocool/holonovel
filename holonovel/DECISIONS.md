@@ -2,6 +2,16 @@
 
 **Spec hash:** 772cef9d067d157825e4b6d0b8fcabfd590419c54b4eb89161e822c1f072c2ea
 
+### Holonovel Server Change — 2026-09-10 (prose Parameter Semantics on high-arity tools)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | implementation only — closes the TDQS Parameter Semantics gap flagged in the verb_noun follow-up. All 23 tools with four or more parameters gained a "Parameters by action:" clause in their descriptions, stating which parameters apply to each action in prose rather than only in the JSON Schema `.describe()` calls (REQ-450), without restating each parameter's meaning or default (REQ-392 non-duplication). T536 in `scripts/test-security.ts` strengthened to assert every ≥4-parameter tool carries the clause and names each parameter in prose — the prior assertion checked annotations and action enumeration only. |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; test:security 7/7 (T536 strengthened); test:tool-definitions 6/6 (T509 26/26 tools, 265 parameters); test:all green; assemble + check:fast 0 errors (spec hash unchanged `772cef9d…`; bucket A 0, B 0, C 303, E 113) |
+| Follow-up | Glama re-index after deploy reflects the prose Parameter Semantics on the 23 ≥4-parameter tools; TDQS Parameter Semantics per-tool scores expected to rise toward 5/5. |
+
 ### Holonovel Server Change — 2026-09-10 (verb_noun tool rename + undo/redo/help consolidation)
 
 | Field | Value |
