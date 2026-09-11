@@ -817,7 +817,7 @@ server.registerTool(toolName, {
 // REQ-310 — campaign memory: engine-recorded facts derived from state-changing
 // tool calls, per-NPC/thread/location, prioritized by scene relevance in
 // badge_briefing; per-category counts in spec_health.
-function recordCampaignMemory(novel: NovelState, category: "npcs" | "threads" | "locations", text: string, badge_scope: "gm" | "shared" | "discovered" = "gm"): void {
+function recordCampaignMemory(novel: NovelState, category: "npcs" | "threads" | "locations", text: string, badge_scope: "game_master" | "shared" | "discovered" = "game_master"): void {
   novel.campaign_memory = novel.campaign_memory ?? [];
   novel.campaign_memory.push({ category, text, at: new Date().toISOString(), badge_scope, scene: novel.scene_description?.substring(0, 60) ?? "" });
   if (novel.campaign_memory.length > 200) novel.campaign_memory.shift();
@@ -4000,7 +4000,7 @@ server.registerTool("manage_vow", {
     description: z.string().optional().describe("Vow description (set)."),
     parties: z.array(z.string()).optional().describe("Parties bound by the vow (set)."),
     difficulty: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).optional().describe("troublesome, dangerous, formidable, extreme, or epic (set)."),
-    scope: z.enum(["gm", "shared", "faction", "party"]).optional().describe("gm, shared, faction, or party (set)."),
+    scope: z.enum(["game_master", "shared", "faction", "party"]).optional().describe("game_master, shared, faction, or party (set)."),
     outcome: z.string().optional().describe("The resolution outcome (resolve)."),
     consequences: z.string().optional().describe("Optional consequences (resolve)."),
     reason: z.string().optional().describe("The reason for abandoning (forsake)."),
